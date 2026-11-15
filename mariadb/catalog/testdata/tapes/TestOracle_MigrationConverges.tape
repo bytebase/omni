@@ -146,6 +146,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `user_id` int(11) NOT NULL,
@@ -175,6 +181,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -280,6 +292,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `user_id` int(11) NOT NULL,
@@ -309,6 +327,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -487,6 +511,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -494,6 +521,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -575,6 +605,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -582,6 +615,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -799,6 +835,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -815,6 +854,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -959,6 +1001,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -975,6 +1020,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -1268,6 +1316,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `post_id` int(11) NOT NULL,
@@ -1294,6 +1348,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -1451,6 +1511,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `post_id` int(11) NOT NULL,
@@ -1477,6 +1543,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -1782,6 +1854,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -1792,6 +1867,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -1950,6 +2028,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -1960,6 +2041,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -2336,6 +2420,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
@@ -2354,6 +2441,9 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -2580,6 +2670,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -2652,6 +2745,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -2988,6 +3084,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -2995,6 +3094,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -3123,6 +3225,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -3130,6 +3235,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -3471,6 +3579,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -3505,6 +3616,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -3726,6 +3840,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -3814,6 +3931,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -4128,6 +4248,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -4144,6 +4267,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -4240,6 +4366,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -4256,6 +4385,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -4440,6 +4572,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -4456,6 +4591,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -4552,6 +4690,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -4568,6 +4709,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -4914,6 +5058,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`CalculateDiscount`(IN `amount` DECIMAL(10,2), OUT `discount` DECIMAL(10,2))
 | BEGIN
 |     SET discount = amount * 0.1;
@@ -4936,6 +5083,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`top_products` AS select `sales`.`product_name` AS `product_name`,count(0) AS `sale_count`,sum(`sales`.`sale_amount`) AS `total_revenue` from `omni_testoracle_migrationconverges`.`sales` group by `sales`.`product_name` order by sum(`sales`.`sale_amount`) desc
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -5163,6 +5313,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -5239,6 +5392,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`top_products` AS select `sales`.`product_name` AS `product_name`,count(0) AS `sale_count`,sum(`sales`.`sale_amount`) AS `total_revenue` from `omni_testoracle_migrationconverges`.`sales` group by `sales`.`product_name` order by sum(`sales`.`sale_amount`) desc
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -5584,6 +5740,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`monthly_sales`
 < ok 0 0
 > exec
@@ -5594,6 +5753,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -5720,6 +5882,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`monthly_sales`
 < ok 0 0
 > exec
@@ -5730,6 +5895,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -5918,6 +6086,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -5952,6 +6123,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -6056,6 +6230,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -6090,6 +6267,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -6288,6 +6468,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
@@ -6326,6 +6512,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -6428,6 +6620,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -6462,6 +6660,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -6682,6 +6886,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -6692,6 +6899,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -6812,6 +7022,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -6822,6 +7035,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -7054,6 +7270,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -7064,6 +7283,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -7184,6 +7406,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -7194,6 +7419,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -7401,6 +7629,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD PRIMARY KEY (`dt`,`member_id`,`account_type`)
@@ -7417,6 +7648,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -7512,10 +7746,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD PRIMARY KEY (`dt`,`member_id`,`account_type`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -7692,6 +7932,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` REMOVE PARTITIONING
@@ -7703,6 +7946,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP INDEX `sindex`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -7796,10 +8042,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP PRIMARY KEY
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP INDEX `sindex`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -7975,6 +8227,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` (
@@ -7996,6 +8251,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -8079,6 +8337,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` (
 |   `dt` date NOT NULL,
 |   `member_id` bigint(20) NOT NULL,
@@ -8089,6 +8350,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -8235,7 +8499,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -8310,7 +8580,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -8476,6 +8752,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -8489,6 +8768,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -8595,6 +8877,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -8608,6 +8893,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -8824,6 +9112,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -8850,6 +9141,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -8968,6 +9262,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -8994,6 +9291,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -9278,6 +9578,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -9288,6 +9591,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -9450,6 +9756,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -9460,6 +9769,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -9800,6 +10112,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -9821,6 +10136,9 @@
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -10007,6 +10325,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -10109,6 +10430,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -10409,6 +10733,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -10416,6 +10743,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -10550,6 +10880,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -10557,6 +10890,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -10930,6 +11266,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -10967,6 +11306,9 @@
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -11211,6 +11553,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -11337,6 +11682,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -11645,6 +11993,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -11652,6 +12003,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -11733,6 +12087,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -11740,6 +12097,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -11916,6 +12276,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
@@ -11949,6 +12315,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -12050,6 +12422,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
@@ -12083,6 +12461,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -12372,6 +12756,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
@@ -12402,6 +12792,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -12555,6 +12951,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
@@ -12585,6 +12987,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -12876,6 +13284,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -12892,6 +13303,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -13036,6 +13450,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -13052,6 +13469,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -13429,6 +13849,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
@@ -13447,6 +13870,9 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -13673,6 +14099,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -13745,6 +14174,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -14121,6 +14553,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -14131,6 +14566,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -14289,6 +14727,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -14299,6 +14740,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -14663,6 +15107,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -14697,6 +15144,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -14918,6 +15368,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -15006,6 +15459,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -15347,6 +15803,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -15354,6 +15813,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -15482,6 +15944,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -15489,6 +15954,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -15668,6 +16136,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -15684,6 +16155,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -15780,6 +16254,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -15796,6 +16273,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -15980,6 +16460,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -15996,6 +16479,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -16092,6 +16578,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -16108,6 +16597,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -16311,6 +16803,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -16345,6 +16843,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -16449,6 +16953,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -16483,6 +16993,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -16683,6 +17199,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -16717,6 +17236,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -16821,6 +17343,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -16855,6 +17380,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -17071,6 +17599,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -17081,6 +17612,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -17201,6 +17735,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -17211,6 +17748,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -17443,6 +17983,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -17453,6 +17996,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -17573,6 +18119,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -17583,6 +18132,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -17819,6 +18371,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -17845,6 +18400,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -17963,6 +18521,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -17989,6 +18550,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -18205,6 +18769,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -18218,6 +18785,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -18324,6 +18894,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -18337,6 +18910,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -18653,6 +19229,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -18674,6 +19253,9 @@
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -18860,6 +19442,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -18962,6 +19547,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -19302,6 +19890,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -19312,6 +19903,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -19474,6 +20068,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -19484,6 +20081,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -19881,6 +20481,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -19918,6 +20521,9 @@
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -20162,6 +20768,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -20288,6 +20897,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -20658,6 +21270,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -20665,6 +21280,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -20799,6 +21417,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -20806,6 +21427,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -20979,6 +21603,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='table comment'
 < ok 0 0
 > exec
@@ -21046,6 +21673,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -21122,6 +21752,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='table comment'
 < ok 0 0
 > exec
@@ -21189,6 +21822,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -21359,6 +21995,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
@@ -21426,6 +22065,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -21528,6 +22170,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
@@ -21595,6 +22240,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -21748,12 +22396,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` ADD COLUMN `addr6` inet6 DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` MODIFY COLUMN `addr` inet4 NOT NULL
 < error
 | 4078 HY000 Cannot cast 'inet6' as 'inet4' in assignment of `omni_testoracle_migrationconverges`.`hosts`.`addr`
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -21779,12 +22433,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` ADD COLUMN `addr6` inet6 DEFAULT NULL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` MODIFY COLUMN `addr` inet4 NOT NULL
 < error
 | 4078 HY000 Cannot cast 'inet6' as 'inet4' in assignment of `omni_testoracle_migrationconverges`.`hosts`.`addr`
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -21882,6 +22542,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` DROP INDEX `uk_addr`
 < ok 0 0
 > exec
@@ -21891,6 +22554,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` MODIFY COLUMN `addr` inet6 DEFAULT NULL
 < error
 | 4078 HY000 Cannot cast 'inet4' as 'inet6' in assignment of `omni_testoracle_migrationconverges`.`hosts`.`addr`
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -21916,6 +22582,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` DROP INDEX `uk_addr`
 < ok 0 0
 > exec
@@ -21926,6 +22595,9 @@
 < error
 | 4078 HY000 Cannot cast 'inet4' as 'inet6' in assignment of `omni_testoracle_migrationconverges`.`hosts`.`addr`
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > exec
@@ -22029,6 +22701,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `meta` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`meta`))
@@ -22043,6 +22718,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD KEY `idx_tag` (`tag`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -22122,6 +22800,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `meta` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`meta`))
@@ -22136,6 +22817,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD KEY `idx_tag` (`tag`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -22295,16 +22979,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `meta`
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -22391,16 +23081,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `meta`
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -22560,6 +23256,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `n` int(11) DEFAULT NULL CHECK (`n` > 0)
 < ok 0 0
 > exec
@@ -22567,6 +23266,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD CONSTRAINT `chk_id` CHECK (`id` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -22649,6 +23351,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `n` int(11) DEFAULT NULL CHECK (`n` > 0)
 < ok 0 0
 > exec
@@ -22656,6 +23361,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD CONSTRAINT `chk_id` CHECK (`id` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -22815,6 +23523,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP CONSTRAINT `chk_id`
 < ok 0 0
 > exec
@@ -22822,6 +23533,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`body`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -22907,6 +23621,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP CONSTRAINT `chk_id`
 < ok 0 0
 > exec
@@ -22914,6 +23631,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`body`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23068,6 +23788,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'b' INVISIBLE
 < ok 0 0
 > exec
@@ -23075,6 +23798,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` MODIFY COLUMN `a` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23157,10 +23883,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'b'
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `c` int(11) NOT NULL DEFAULT 0
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23315,6 +24047,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -23322,6 +24057,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23402,10 +24140,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `b`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `c`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23612,6 +24356,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -23627,6 +24377,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`plain` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23750,6 +24506,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -23765,6 +24527,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`plain` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -23990,6 +24758,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -24000,6 +24771,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hist` DROP COLUMN `note`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -24110,6 +24884,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -24120,6 +24897,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hist` DROP COLUMN `note`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -24294,10 +25074,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD PERIOD FOR `stay` (`ds`, `de`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD UNIQUE KEY `uk_room` (`room`,`stay` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -24381,10 +25167,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD UNIQUE KEY `uk_room` (`room`,`de`,`ds`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD CONSTRAINT `stay` CHECK (`ds` < `de`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -24541,10 +25333,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP INDEX `uk_room`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP PERIOD FOR `stay`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -24626,9 +25424,15 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP CONSTRAINT `stay`
 < error
 | 4158 HY000 Can't DROP CONSTRAINT `stay`. Use DROP PERIOD `stay` for this
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -24792,6 +25596,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`aria_t` (
 |   `id` int(11) NOT NULL,
 |   `a` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -24819,6 +25626,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`mem_t` ADD KEY `idx_h` (`id`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -24956,6 +25766,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`aria_t` (
 |   `id` int(11) NOT NULL,
 |   `a` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -24983,6 +25796,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`mem_t` ADD KEY `idx_h` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -25200,6 +26016,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`aria_t`
 < ok 0 0
 > exec
@@ -25213,6 +26032,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`opts` STATS_PERSISTENT=DEFAULT ROW_FORMAT=DEFAULT COMMENT='' `PAGE_COMPRESSED`=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -25301,6 +26123,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`aria_t`
 < ok 0 0
 > exec
@@ -25314,6 +26139,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`opts` STATS_PERSISTENT=DEFAULT ROW_FORMAT=DEFAULT COMMENT='' `PAGE_COMPRESSED`=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -25488,6 +26316,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD FULLTEXT KEY `ft_c` (`c`)
 < ok 0 0
 > exec
@@ -25507,6 +26338,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -25597,6 +26431,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD FULLTEXT KEY `ft_c` (`c`)
 < ok 0 0
 > exec
@@ -25616,6 +26453,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -25794,6 +26634,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `ft_c`
 < ok 0 0
 > exec
@@ -25813,6 +26656,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `uk_ab`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -25909,6 +26755,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `ft_c`
 < ok 0 0
 > exec
@@ -25928,6 +26777,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `uk_ab`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26084,7 +26936,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` ADD UNIQUE KEY `uk_body` (`body`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26166,7 +27024,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` ADD UNIQUE KEY `uk_body` (`body`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26320,7 +27184,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` DROP INDEX `uk_body`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26401,7 +27271,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` DROP INDEX `uk_body`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26591,10 +27467,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26703,10 +27585,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -26917,6 +27805,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP FOREIGN KEY `fk_code`
 < ok 0 0
 > exec
@@ -26927,6 +27818,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP INDEX `fk_p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -27037,6 +27931,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP FOREIGN KEY `fk_code`
 < ok 0 0
 > exec
@@ -27047,6 +27944,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP INDEX `fk_p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -27293,6 +28193,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ph` (
@@ -27333,6 +28236,9 @@
 |  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -27477,6 +28383,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ph` (
 |   `id` int(11) NOT NULL,
 |   PRIMARY KEY (`id`)
@@ -27494,6 +28403,9 @@
 |   `region` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
 |   PRIMARY KEY (`id`,`region`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -27716,6 +28628,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ph`
 < ok 0 0
 > exec
@@ -27728,6 +28643,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`pr`  PARTITION BY RANGE (year(`d`))
 | (PARTITION `p2020` VALUES LESS THAN (2021) ENGINE = innodb,
 |  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = innodb)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -27820,6 +28738,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ph`
 < ok 0 0
 > exec
@@ -27827,6 +28748,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`pl`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -27985,12 +28909,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sv`  PARTITION BY SYSTEM_TIME
 | (PARTITION `p_hist` HISTORY ENGINE = innodb,
 |  PARTITION `p_cur` CURRENT ENGINE = innodb)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -28073,6 +29003,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -28221,10 +29157,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sv` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -28302,6 +29244,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -28531,6 +29479,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` * 2 AS `v2` from `omni_testoracle_migrationconverges`.`base` where `base`.`v` > 0 WITH CASCADED CHECK OPTION
 < ok 0 0
 > exec
@@ -28538,6 +29489,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v3` AS select `v2`.`a` AS `a` from `omni_testoracle_migrationconverges`.`v2` union all select `base`.`id` AS `id` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -28684,6 +29638,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` * 2 AS `v2` from `omni_testoracle_migrationconverges`.`base` where `base`.`v` > 0 WITH CASCADED CHECK OPTION
 < ok 0 0
 > exec
@@ -28691,6 +29648,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v3` AS select `v2`.`a` AS `a` from `omni_testoracle_migrationconverges`.`v2` union all select `base`.`id` AS `id` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -28939,6 +29899,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`v2`
 < ok 0 0
 > exec
@@ -28946,6 +29909,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` AS `v` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -29056,6 +30022,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`v2`
 < ok 0 0
 > exec
@@ -29063,6 +30032,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` AS `v` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -29409,6 +30381,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -29472,6 +30447,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -29716,10 +30694,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f_add`
 < ok 0 0
 > exec
 | DROP PROCEDURE `omni_testoracle_migrationconverges`.`p_ins`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -30044,6 +31028,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`tr_log` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `msg` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -30061,6 +31048,9 @@
 < ok 0 0
 > exec
 | CREATE EVENT `omni_testoracle_migrationconverges`.`ev_purge` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'purge' DO DELETE FROM tr_log
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -30217,6 +31207,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`tr_log` (
@@ -30355,6 +31348,9 @@
 | SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -30599,6 +31595,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`tr_log`
 < ok 0 0
 > exec
@@ -30612,6 +31611,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`ev_purge`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -30708,6 +31710,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`tr_log`
 < ok 0 0
 > exec
@@ -30721,6 +31726,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`ev_purge`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -30907,6 +31915,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -30930,6 +31941,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31033,6 +32047,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -31056,6 +32073,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31241,6 +32261,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`cs_latin`
 < ok 0 0
 > exec
@@ -31260,6 +32283,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31350,6 +32376,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`cs_latin`
 < ok 0 0
 > exec
@@ -31369,6 +32398,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31534,6 +32566,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD COLUMN `s` int(11) GENERATED ALWAYS AS (`a` + `b`) STORED
 < ok 0 0
 > exec
@@ -31544,6 +32579,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD KEY `idx_s` (`s`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31629,6 +32667,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD COLUMN `s` int(11) GENERATED ALWAYS AS (`a` + `b`) STORED
 < ok 0 0
 > exec
@@ -31639,6 +32680,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD KEY `idx_s` (`s`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31805,6 +32849,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP INDEX `idx_s`
 < ok 0 0
 > exec
@@ -31815,6 +32862,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP COLUMN `v`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -31904,6 +32954,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP INDEX `idx_s`
 < ok 0 0
 > exec
@@ -31914,6 +32967,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP COLUMN `v`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32078,6 +33134,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `t1` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 < ok 0 0
 > exec
@@ -32091,6 +33153,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `d2` datetime(6) DEFAULT NULL ON UPDATE current_timestamp(6)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32175,6 +33243,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `t1` timestamp NOT NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -32188,6 +33262,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `d2` datetime(6) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32350,6 +33430,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `d1`
 < ok 0 0
 > exec
@@ -32363,6 +33446,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `t3`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32449,6 +33535,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `d1`
 < ok 0 0
 > exec
@@ -32462,6 +33551,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `t3`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32614,6 +33706,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` DROP PRIMARY KEY
 < ok 0 0
 > exec
@@ -32621,6 +33716,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` MODIFY COLUMN `id` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32773,6 +33871,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -32783,6 +33884,9 @@
 < error
 | 1068 42000 Multiple primary key defined
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > exec
@@ -32882,6 +33986,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` ADD COLUMN `d` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -32889,6 +33996,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT ''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -32972,6 +34082,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` ADD COLUMN `d` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -32979,6 +34092,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT ''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -33136,6 +34252,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` DROP COLUMN `d`
 < ok 0 0
 > exec
@@ -33143,6 +34262,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -33225,6 +34347,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` DROP COLUMN `d`
 < ok 0 0
 > exec
@@ -33232,6 +34357,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -33485,6 +34613,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`dbl`
 < ok 0 0
 > exec
@@ -33503,6 +34634,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv2` AS select `dv1`.`a2` AS `a2` from `omni_testoracle_migrationconverges`.`dv1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -33673,6 +34807,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`dbl`
 < ok 0 0
 > exec
@@ -33718,6 +34855,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv2` AS select `dv1`.`a2` AS `a2` from `omni_testoracle_migrationconverges`.`dv1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -34031,6 +35171,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`dv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -34049,6 +35192,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv1` AS select `dv`.`id` AS `id`,dbl(`dv`.`a`) AS `a2` from `omni_testoracle_migrationconverges`.`dv`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -34200,6 +35346,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`dv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -34245,6 +35394,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv1` AS select `dv`.`id` AS `id`,dbl(`dv`.`a`) AS `a2` from `omni_testoracle_migrationconverges`.`dv`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -34458,6 +35610,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -34606,6 +35764,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -34753,6 +35917,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -34899,6 +36069,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35046,6 +36222,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35194,6 +36376,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35342,6 +36530,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35490,6 +36684,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35637,6 +36837,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35783,6 +36989,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -35929,6 +37141,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36075,6 +37293,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36221,6 +37445,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36367,6 +37597,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36514,6 +37750,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36662,6 +37904,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36809,6 +38057,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -36955,6 +38209,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -37101,6 +38361,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -37247,6 +38513,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -37414,6 +38686,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -37594,6 +38872,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -37784,6 +39068,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -37978,6 +39268,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -38145,6 +39441,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -38291,6 +39593,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -38437,6 +39745,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -38583,6 +39897,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -38729,6 +40049,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -38875,6 +40201,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39022,6 +40354,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39170,6 +40508,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39320,6 +40664,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39472,6 +40822,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39619,6 +40975,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39761,6 +41123,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -39905,6 +41273,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -40049,6 +41423,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -40195,11 +41575,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL COMMENT 'x'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -40346,7 +41732,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -40493,11 +41885,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` bigint(20) DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -40644,7 +42042,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -40791,11 +42195,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -40942,7 +42352,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -41091,7 +42507,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -41240,7 +42662,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -41390,7 +42818,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -41541,7 +42975,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -41690,6 +43130,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -41698,6 +43141,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`a`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -41846,10 +43292,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -41998,6 +43450,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -42006,6 +43461,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`) IGNORED
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -42154,10 +43612,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -42306,6 +43770,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -42314,6 +43781,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a` DESC)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -42462,10 +43932,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -42614,6 +44090,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -42622,6 +44101,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`) USING HASH
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -42770,10 +44252,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -42923,7 +44411,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -43072,7 +44566,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -43222,10 +44722,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `c`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `c` CHECK (`a` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -43376,10 +44882,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `c`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `c` CHECK (`a` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -43555,10 +45067,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -43753,10 +45271,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -43925,7 +45449,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='x'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -44074,7 +45604,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT=''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -44221,11 +45757,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ENGINE=MyISAM
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -44372,7 +45914,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -44519,11 +46067,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` STATS_PERSISTENT=0
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -44670,7 +46224,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` STATS_PERSISTENT=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -44817,6 +46377,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -44825,6 +46388,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -44971,10 +46537,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -45123,7 +46695,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -45272,7 +46850,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -45420,6 +47004,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | SET @@system_versioning_alter_history = KEEP
@@ -45428,6 +47015,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -45576,10 +47166,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -45727,7 +47323,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` INCREMENT BY 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -45872,7 +47474,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` INCREMENT BY 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -46015,11 +47623,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`s` COMMENT='x'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -46162,7 +47776,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`s` COMMENT=''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -46336,7 +47956,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` + 1 AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -46533,7 +48159,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -46728,11 +48360,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -46927,7 +48565,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -47099,8 +48743,14 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 4
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -47253,8 +48903,14 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -47431,6 +49087,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -47621,6 +49283,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -47813,6 +49481,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
@@ -47821,6 +49492,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`) ON DELETE NO ACTION
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -48013,10 +49687,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -48196,7 +49876,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 24 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -48367,7 +50053,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -48536,11 +50228,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE COMMENT '' DO SELECT 1
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -48709,7 +50407,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -48867,11 +50571,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='counter AUTO_INCREMENT=20'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -49018,7 +50728,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='counter AUTO_INCREMENT=10'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -49178,7 +50894,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('1') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -49349,7 +51071,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('01') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -49518,11 +51246,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('a b') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -49691,7 +51425,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('a  b') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -49862,6 +51602,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -50028,6 +51774,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -50188,7 +51940,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -50339,7 +52097,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -50500,7 +52264,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -50671,7 +52441,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -50845,6 +52621,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`tr`
@@ -50853,6 +52632,9 @@
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`tr` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW SET NEW.a = 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -51025,10 +52807,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`tr`
 < ok 0 0
 > exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`tr` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -51211,12 +52999,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x + 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -51413,12 +53207,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -51614,11 +53414,17 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -51814,12 +53620,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -51992,6 +53804,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -52006,6 +53821,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`g`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -52156,6 +53974,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -52166,6 +53987,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`g`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -52316,10 +54140,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g2`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -52470,10 +54300,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g1` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -52648,6 +54484,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`t` (
 |   `id` int(11) NOT NULL,
 |   `s` date NOT NULL,
@@ -52655,6 +54494,9 @@
 |   PRIMARY KEY (`id`,`p` WITHOUT OVERLAPS),
 |   PERIOD FOR `p` (`s`, `e`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -52827,7 +54669,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`t`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -52977,6 +54825,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `c` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -52987,6 +54838,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -53137,6 +54991,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -53147,6 +55004,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -53323,6 +55183,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -53333,6 +55196,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -53529,6 +55395,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -53539,6 +55408,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -53710,7 +55582,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD PERIOD FOR `p` (`s`, `e`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -53862,7 +55740,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PERIOD FOR `p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -54013,10 +55897,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`y` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `x`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -54168,10 +56058,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `x` int(11) DEFAULT NULL FIRST
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -54324,6 +56220,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
@@ -54339,6 +56238,9 @@
 | PARTITIONS 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -54493,6 +56395,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
 < ok 0 0
 > exec
@@ -54504,6 +56409,9 @@
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -54682,6 +56590,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -54692,6 +56603,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -54886,6 +56800,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -54896,6 +56813,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -55091,7 +57011,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`p` MODIFY COLUMN `n` bigint(20) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -55288,7 +57214,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`p` MODIFY COLUMN `n` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -55461,7 +57393,19 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -55613,10 +57557,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -55767,10 +57717,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL AFTER `x`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -55922,10 +57878,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -56101,6 +58063,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -56111,6 +58076,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -56305,6 +58273,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -56315,6 +58286,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -56489,6 +58463,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -56499,6 +58476,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -56659,6 +58639,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -56669,6 +58652,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -56826,6 +58812,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
@@ -56858,6 +58847,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -57014,6 +59006,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
 < ok 0 0
 > exec
@@ -57042,6 +59037,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -57193,6 +59191,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -57216,6 +59217,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -57369,10 +59373,10 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `c` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
@@ -57387,7 +59391,13 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `f` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL AFTER `a`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -57545,6 +59555,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
@@ -57555,6 +59568,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 2) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -57707,6 +59723,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
@@ -57717,6 +59736,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -57867,6 +59889,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -57874,6 +59899,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -58026,10 +60054,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`e`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -58184,6 +60224,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -58194,6 +60240,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `e` timestamp(6) NULL DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -58347,6 +60399,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `e`
 < ok 0 0
 > exec
@@ -58354,6 +60412,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -58383,6 +60447,2995 @@
 |   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
 |   PERIOD FOR SYSTEM_TIME (`s`, `e`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `k`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `z`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL,
+|   `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL,
+|   `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s2` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e2` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s2`, `e2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s2` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e2` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s2`, `e2`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s2` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e2` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s2`, `e2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s`, `e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e2`, DROP COLUMN `s2`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s`, `e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > `b`) AFTER `x`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| CREATE TABLE t (u TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `u` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL,
+|   `ts` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| CREATE TABLE `omni_testoracle_migrationconverges`.`t` (
+|   `u` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`x` ADD COLUMN `ts` timestamp NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `u` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL,
+|   `ts` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| CREATE TABLE t (u TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TABLE `omni_testoracle_migrationconverges`.`t`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`x` DROP COLUMN `ts`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
 < result
@@ -58503,9 +63556,15 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` MINVALUE 10 START WITH 100
 < error
 | 4085 HY000 Sequence 'omni_testoracle_migrationconverges.s' has out of range value for options
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -58599,7 +63658,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` MINVALUE 1 START WITH 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -58798,6 +63863,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `user_id` int(11) NOT NULL,
@@ -58827,6 +63898,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -58932,6 +64009,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `user_id` int(11) NOT NULL,
@@ -58961,6 +64044,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -59139,6 +64228,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -59146,6 +64238,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -59227,6 +64322,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -59234,6 +64332,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -59451,6 +64552,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -59467,6 +64571,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -59611,6 +64718,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -59627,6 +64737,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -59920,6 +65033,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `post_id` int(11) NOT NULL,
@@ -59946,6 +65065,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -60103,6 +65228,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `post_id` int(11) NOT NULL,
@@ -60129,6 +65260,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -60434,6 +65571,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -60444,6 +65584,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -60602,6 +65745,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -60612,6 +65758,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -60988,6 +66137,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
@@ -61006,6 +66158,9 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -61232,6 +66387,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -61304,6 +66462,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -61640,6 +66801,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -61647,6 +66811,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -61775,6 +66942,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -61782,6 +66952,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -62123,6 +67296,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -62157,6 +67333,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -62378,6 +67557,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -62466,6 +67648,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -62780,6 +67965,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -62796,6 +67984,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -62892,6 +68083,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -62908,6 +68102,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -63092,6 +68289,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -63108,6 +68308,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -63204,6 +68407,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -63220,6 +68426,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -63566,6 +68775,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`CalculateDiscount`(IN `amount` DECIMAL(10,2), OUT `discount` DECIMAL(10,2))
 | BEGIN
 |     SET discount = amount * 0.1;
@@ -63588,6 +68800,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`top_products` AS select `sales`.`product_name` AS `product_name`,count(0) AS `sale_count`,sum(`sales`.`sale_amount`) AS `total_revenue` from `omni_testoracle_migrationconverges`.`sales` group by `sales`.`product_name` order by sum(`sales`.`sale_amount`) desc
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -63815,6 +69030,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -63891,6 +69109,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`top_products` AS select `sales`.`product_name` AS `product_name`,count(0) AS `sale_count`,sum(`sales`.`sale_amount`) AS `total_revenue` from `omni_testoracle_migrationconverges`.`sales` group by `sales`.`product_name` order by sum(`sales`.`sale_amount`) desc
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -64236,6 +69457,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`monthly_sales`
 < ok 0 0
 > exec
@@ -64246,6 +69470,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -64372,6 +69599,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`monthly_sales`
 < ok 0 0
 > exec
@@ -64382,6 +69612,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -64570,6 +69803,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -64604,6 +69840,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -64708,6 +69947,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -64742,6 +69984,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -64940,6 +70185,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NOT NULL DEFAULT current_timestamp()
@@ -64978,6 +70229,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -65080,6 +70337,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -65114,6 +70377,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -65334,6 +70603,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -65344,6 +70616,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -65464,6 +70739,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -65474,6 +70752,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -65706,6 +70987,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -65716,6 +71000,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -65836,6 +71123,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -65846,6 +71136,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -66053,6 +71346,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD PRIMARY KEY (`dt`,`member_id`,`account_type`)
@@ -66069,6 +71365,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -66164,10 +71463,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD PRIMARY KEY (`dt`,`member_id`,`account_type`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -66344,6 +71649,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` REMOVE PARTITIONING
@@ -66355,6 +71663,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP INDEX `sindex`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -66448,10 +71759,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP PRIMARY KEY
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP INDEX `sindex`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -66627,6 +71944,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` (
@@ -66648,6 +71968,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -66731,6 +72054,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` (
 |   `dt` date NOT NULL,
 |   `member_id` bigint(20) NOT NULL,
@@ -66741,6 +72067,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -66887,7 +72216,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -66962,7 +72297,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -67128,6 +72469,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -67141,6 +72485,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -67247,6 +72594,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -67260,6 +72610,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -67476,6 +72829,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -67502,6 +72858,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -67620,6 +72979,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -67646,6 +73008,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -67930,6 +73295,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -67940,6 +73308,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -68102,6 +73473,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -68112,6 +73486,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -68452,6 +73829,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -68473,6 +73853,9 @@
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -68659,6 +74042,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -68761,6 +74147,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -69061,6 +74450,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -69068,6 +74460,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -69202,6 +74597,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -69209,6 +74607,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -69582,6 +74983,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -69619,6 +75023,9 @@
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -69863,6 +75270,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -69989,6 +75399,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -70297,6 +75710,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -70304,6 +75720,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -70385,6 +75804,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -70392,6 +75814,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -70568,6 +75993,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
@@ -70601,6 +76032,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -70702,6 +76139,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
@@ -70735,6 +76178,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -71024,6 +76473,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
@@ -71054,6 +76509,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -71207,6 +76668,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
@@ -71237,6 +76704,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -71528,6 +77001,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -71544,6 +77020,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -71688,6 +77167,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -71704,6 +77186,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -72081,6 +77566,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
@@ -72099,6 +77587,9 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -72325,6 +77816,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -72397,6 +77891,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -72773,6 +78270,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -72783,6 +78283,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -72941,6 +78444,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -72951,6 +78457,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -73315,6 +78824,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -73349,6 +78861,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -73570,6 +79085,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -73658,6 +79176,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -73999,6 +79520,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -74006,6 +79530,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -74134,6 +79661,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -74141,6 +79671,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -74320,6 +79853,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -74336,6 +79872,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -74432,6 +79971,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -74448,6 +79990,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -74632,6 +80177,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -74648,6 +80196,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -74744,6 +80295,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -74760,6 +80314,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -74963,6 +80520,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -74997,6 +80560,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -75101,6 +80670,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NOT NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -75135,6 +80710,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -75335,6 +80916,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -75369,6 +80953,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -75473,6 +81060,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -75507,6 +81097,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -75723,6 +81316,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -75733,6 +81329,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -75853,6 +81452,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -75863,6 +81465,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -76095,6 +81700,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -76105,6 +81713,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -76225,6 +81836,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -76235,6 +81849,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -76471,6 +82088,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -76497,6 +82117,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -76615,6 +82238,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -76641,6 +82267,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -76857,6 +82486,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -76870,6 +82502,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -76976,6 +82611,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -76989,6 +82627,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -77305,6 +82946,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -77326,6 +82970,9 @@
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -77512,6 +83159,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -77614,6 +83264,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -77954,6 +83607,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -77964,6 +83620,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -78126,6 +83785,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -78136,6 +83798,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -78533,6 +84198,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -78570,6 +84238,9 @@
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -78814,6 +84485,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -78940,6 +84614,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -79310,6 +84987,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -79317,6 +84997,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -79451,6 +85134,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -79458,6 +85144,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -79631,6 +85320,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='table comment'
 < ok 0 0
 > exec
@@ -79698,6 +85390,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -79774,6 +85469,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='table comment'
 < ok 0 0
 > exec
@@ -79841,6 +85539,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80011,6 +85712,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
@@ -80078,6 +85782,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80180,6 +85887,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
@@ -80247,6 +85957,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80407,6 +86120,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `meta` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`meta`))
 < ok 0 0
 > exec
@@ -80417,6 +86133,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD KEY `idx_tag` (`tag`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80500,6 +86219,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `meta` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`meta`))
 < ok 0 0
 > exec
@@ -80510,6 +86232,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD KEY `idx_tag` (`tag`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80671,16 +86396,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `meta`
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80767,16 +86498,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `meta`
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -80936,6 +86673,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `n` int(11) DEFAULT NULL CHECK (`n` > 0)
 < ok 0 0
 > exec
@@ -80943,6 +86683,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD CONSTRAINT `chk_id` CHECK (`id` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81025,6 +86768,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `n` int(11) DEFAULT NULL CHECK (`n` > 0)
 < ok 0 0
 > exec
@@ -81032,6 +86778,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD CONSTRAINT `chk_id` CHECK (`id` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81191,6 +86940,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP CONSTRAINT `chk_id`
 < ok 0 0
 > exec
@@ -81198,6 +86950,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`body`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81283,6 +87038,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP CONSTRAINT `chk_id`
 < ok 0 0
 > exec
@@ -81290,6 +87048,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`body`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81444,6 +87205,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'b' INVISIBLE
 < ok 0 0
 > exec
@@ -81451,6 +87215,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` MODIFY COLUMN `a` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81533,10 +87300,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT 'b'
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `c` int(11) NOT NULL DEFAULT 0
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81691,6 +87464,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -81698,6 +87474,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81778,10 +87557,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `b`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `c`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -81988,6 +87773,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -82003,6 +87794,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`plain` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -82126,6 +87923,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -82141,6 +87944,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`plain` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -82366,6 +88175,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -82376,6 +88188,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hist` DROP COLUMN `note`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -82486,6 +88301,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -82496,6 +88314,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hist` DROP COLUMN `note`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -82670,10 +88491,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD PERIOD FOR `stay` (`ds`, `de`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD UNIQUE KEY `uk_room` (`room`,`stay` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -82757,10 +88584,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD UNIQUE KEY `uk_room` (`room`,`de`,`ds`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD CONSTRAINT `stay` CHECK (`ds` < `de`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -82917,10 +88750,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP INDEX `uk_room`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP PERIOD FOR `stay`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -83002,9 +88841,15 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP CONSTRAINT `stay`
 < error
 | 4158 HY000 Can't DROP CONSTRAINT `stay`. Use DROP PERIOD `stay` for this
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -83168,6 +89013,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`aria_t` (
 |   `id` int(11) NOT NULL,
 |   `a` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -83195,6 +89043,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`mem_t` ADD KEY `idx_h` (`id`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -83332,6 +89183,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`aria_t` (
 |   `id` int(11) NOT NULL,
 |   `a` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -83359,6 +89213,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`mem_t` ADD KEY `idx_h` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -83576,6 +89433,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`aria_t`
 < ok 0 0
 > exec
@@ -83589,6 +89449,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`opts` STATS_PERSISTENT=DEFAULT ROW_FORMAT=DEFAULT COMMENT='' `PAGE_COMPRESSED`=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -83677,6 +89540,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`aria_t`
 < ok 0 0
 > exec
@@ -83690,6 +89556,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`opts` STATS_PERSISTENT=DEFAULT ROW_FORMAT=DEFAULT COMMENT='' `PAGE_COMPRESSED`=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -83864,6 +89733,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD FULLTEXT KEY `ft_c` (`c`)
 < ok 0 0
 > exec
@@ -83883,6 +89755,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -83973,6 +89848,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD FULLTEXT KEY `ft_c` (`c`)
 < ok 0 0
 > exec
@@ -83992,6 +89870,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84170,6 +90051,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `ft_c`
 < ok 0 0
 > exec
@@ -84189,6 +90073,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `uk_ab`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84285,6 +90172,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `ft_c`
 < ok 0 0
 > exec
@@ -84304,6 +90194,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `uk_ab`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84460,7 +90353,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` ADD UNIQUE KEY `uk_body` (`body`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84542,7 +90441,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` ADD UNIQUE KEY `uk_body` (`body`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84696,7 +90601,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` DROP INDEX `uk_body`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84777,7 +90688,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` DROP INDEX `uk_body`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -84967,10 +90884,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -85079,10 +91002,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -85293,6 +91222,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP FOREIGN KEY `fk_code`
 < ok 0 0
 > exec
@@ -85303,6 +91235,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP INDEX `fk_p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -85413,6 +91348,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP FOREIGN KEY `fk_code`
 < ok 0 0
 > exec
@@ -85423,6 +91361,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP INDEX `fk_p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -85669,6 +91610,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ph` (
@@ -85709,6 +91653,9 @@
 |  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -85853,6 +91800,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ph` (
 |   `id` int(11) NOT NULL,
 |   PRIMARY KEY (`id`)
@@ -85870,6 +91820,9 @@
 |   `region` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
 |   PRIMARY KEY (`id`,`region`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -86092,6 +92045,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ph`
 < ok 0 0
 > exec
@@ -86104,6 +92060,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`pr`  PARTITION BY RANGE (year(`d`))
 | (PARTITION `p2020` VALUES LESS THAN (2021) ENGINE = innodb,
 |  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = innodb)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -86196,6 +92155,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ph`
 < ok 0 0
 > exec
@@ -86203,6 +92165,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`pl`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -86361,12 +92326,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sv`  PARTITION BY SYSTEM_TIME
 | (PARTITION `p_hist` HISTORY ENGINE = innodb,
 |  PARTITION `p_cur` CURRENT ENGINE = innodb)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -86449,6 +92420,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -86597,10 +92574,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sv` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -86678,6 +92661,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -86907,6 +92896,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` * 2 AS `v2` from `omni_testoracle_migrationconverges`.`base` where `base`.`v` > 0 WITH CASCADED CHECK OPTION
 < ok 0 0
 > exec
@@ -86914,6 +92906,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v3` AS select `v2`.`a` AS `a` from `omni_testoracle_migrationconverges`.`v2` union all select `base`.`id` AS `id` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -87060,6 +93055,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` * 2 AS `v2` from `omni_testoracle_migrationconverges`.`base` where `base`.`v` > 0 WITH CASCADED CHECK OPTION
 < ok 0 0
 > exec
@@ -87067,6 +93065,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v3` AS select `v2`.`a` AS `a` from `omni_testoracle_migrationconverges`.`v2` union all select `base`.`id` AS `id` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -87315,6 +93316,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`v2`
 < ok 0 0
 > exec
@@ -87322,6 +93326,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` AS `v` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -87432,6 +93439,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`v2`
 < ok 0 0
 > exec
@@ -87439,6 +93449,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` AS `v` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -87785,6 +93798,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -87848,6 +93864,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -88092,10 +94111,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f_add`
 < ok 0 0
 > exec
 | DROP PROCEDURE `omni_testoracle_migrationconverges`.`p_ins`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -88420,6 +94445,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`tr_log` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `msg` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL,
@@ -88437,6 +94465,9 @@
 < ok 0 0
 > exec
 | CREATE EVENT `omni_testoracle_migrationconverges`.`ev_purge` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'purge' DO DELETE FROM tr_log
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -88593,6 +94624,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`tr_log` (
@@ -88731,6 +94765,9 @@
 | SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -88975,6 +95012,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`tr_log`
 < ok 0 0
 > exec
@@ -88988,6 +95028,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`ev_purge`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -89084,6 +95127,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`tr_log`
 < ok 0 0
 > exec
@@ -89097,6 +95143,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`ev_purge`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -89283,6 +95332,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -89306,6 +95358,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -89409,6 +95464,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -89432,6 +95490,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -89617,6 +95678,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`cs_latin`
 < ok 0 0
 > exec
@@ -89636,6 +95700,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -89726,6 +95793,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`cs_latin`
 < ok 0 0
 > exec
@@ -89745,6 +95815,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -89910,6 +95983,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD COLUMN `s` int(11) GENERATED ALWAYS AS (`a` + `b`) STORED
 < ok 0 0
 > exec
@@ -89920,6 +95996,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD KEY `idx_s` (`s`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90005,6 +96084,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD COLUMN `s` int(11) GENERATED ALWAYS AS (`a` + `b`) STORED
 < ok 0 0
 > exec
@@ -90015,6 +96097,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD KEY `idx_s` (`s`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90181,6 +96266,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP INDEX `idx_s`
 < ok 0 0
 > exec
@@ -90191,6 +96279,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP COLUMN `v`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90280,6 +96371,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP INDEX `idx_s`
 < ok 0 0
 > exec
@@ -90290,6 +96384,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP COLUMN `v`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90454,6 +96551,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `t1` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 < ok 0 0
 > exec
@@ -90467,6 +96570,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `d2` datetime(6) DEFAULT NULL ON UPDATE current_timestamp(6)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90551,6 +96660,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `t1` timestamp NOT NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -90564,6 +96679,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `d2` datetime(6) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90726,6 +96847,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `d1`
 < ok 0 0
 > exec
@@ -90739,6 +96863,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `t3`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90825,6 +96952,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `d1`
 < ok 0 0
 > exec
@@ -90838,6 +96968,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `t3`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -90990,6 +97123,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` DROP PRIMARY KEY
 < ok 0 0
 > exec
@@ -90997,6 +97133,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` MODIFY COLUMN `id` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -91149,6 +97288,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -91159,6 +97301,9 @@
 < error
 | 1068 42000 Multiple primary key defined
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > exec
@@ -91258,6 +97403,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` ADD COLUMN `d` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -91265,6 +97413,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT ''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -91348,6 +97499,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` ADD COLUMN `d` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -91355,6 +97509,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL DEFAULT ''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -91512,6 +97669,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` DROP COLUMN `d`
 < ok 0 0
 > exec
@@ -91519,6 +97679,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -91601,6 +97764,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` DROP COLUMN `d`
 < ok 0 0
 > exec
@@ -91608,6 +97774,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -91861,6 +98030,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`dbl`
 < ok 0 0
 > exec
@@ -91879,6 +98051,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv2` AS select `dv1`.`a2` AS `a2` from `omni_testoracle_migrationconverges`.`dv1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -92049,6 +98224,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`dbl`
 < ok 0 0
 > exec
@@ -92094,6 +98272,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv2` AS select `dv1`.`a2` AS `a2` from `omni_testoracle_migrationconverges`.`dv1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -92407,6 +98588,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`dv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -92425,6 +98609,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv1` AS select `dv`.`id` AS `id`,dbl(`dv`.`a`) AS `a2` from `omni_testoracle_migrationconverges`.`dv`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -92576,6 +98763,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`dv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -92621,6 +98811,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv1` AS select `dv`.`id` AS `id`,dbl(`dv`.`a`) AS `a2` from `omni_testoracle_migrationconverges`.`dv`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -92834,6 +99027,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -92982,6 +99181,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -93129,6 +99334,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -93275,6 +99486,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -93422,6 +99639,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -93570,6 +99793,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -93718,6 +99947,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -93864,6 +100099,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -94011,11 +100252,23 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` timestamp NULL DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -94162,7 +100415,19 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -94311,6 +100576,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -94457,6 +100728,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -94603,6 +100880,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -94749,6 +101032,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -94896,6 +101185,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95044,6 +101339,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95191,6 +101492,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95337,6 +101644,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95483,6 +101796,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95629,6 +101948,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95796,6 +102121,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -95976,6 +102307,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -96166,6 +102503,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -96360,6 +102703,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -96527,6 +102876,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -96673,6 +103028,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -96819,6 +103180,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -96965,6 +103332,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -97111,6 +103484,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -97257,6 +103636,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -97404,6 +103789,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -97552,6 +103943,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -97702,6 +104099,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -97854,6 +104257,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -98001,6 +104410,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -98143,6 +104558,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -98287,6 +104708,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -98431,6 +104858,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -98577,11 +105010,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL COMMENT 'x'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -98728,7 +105167,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -98875,11 +105320,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` bigint(20) DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -99026,7 +105477,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -99173,11 +105630,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -99324,7 +105787,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -99473,7 +105942,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -99622,7 +106097,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -99772,7 +106253,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -99923,7 +106410,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -100072,6 +106565,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -100080,6 +106576,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`a`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -100228,10 +106727,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -100380,6 +106885,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -100388,6 +106896,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`) IGNORED
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -100536,12 +107047,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -100690,6 +107207,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -100836,6 +107359,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -100984,6 +107513,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -100992,6 +107524,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`) USING HASH
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -101140,10 +107675,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -101293,7 +107834,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -101442,7 +107989,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -101592,10 +108145,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `c`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `c` CHECK (`a` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -101746,10 +108305,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `c`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `c` CHECK (`a` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -101925,10 +108490,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -102123,10 +108694,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -102295,7 +108872,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='x'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -102444,7 +109027,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT=''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -102591,11 +109180,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ENGINE=MyISAM
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -102742,7 +109337,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -102889,11 +109490,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` STATS_PERSISTENT=0
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -103040,7 +109647,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` STATS_PERSISTENT=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -103187,6 +109800,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -103195,6 +109811,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -103341,10 +109960,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -103493,7 +110118,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -103642,7 +110273,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -103790,6 +110427,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | SET @@system_versioning_alter_history = KEEP
@@ -103798,6 +110438,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -103946,10 +110589,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -104097,7 +110746,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` INCREMENT BY 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -104242,7 +110897,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` INCREMENT BY 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -104385,11 +111046,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`s` COMMENT='x'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -104532,7 +111199,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`s` COMMENT=''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -104706,7 +111379,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` + 1 AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -104903,7 +111582,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -105098,11 +111783,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -105297,7 +111988,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -105469,8 +112166,14 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 4
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -105623,8 +112326,14 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -105801,6 +112510,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -105991,6 +112706,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -106183,6 +112904,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
@@ -106191,6 +112915,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`) ON DELETE NO ACTION
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -106383,10 +113110,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -106566,7 +113299,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 24 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -106737,7 +113476,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -106906,11 +113651,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE COMMENT '' DO SELECT 1
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -107079,7 +113830,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -107237,11 +113994,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='counter AUTO_INCREMENT=20'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -107388,7 +114151,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='counter AUTO_INCREMENT=10'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -107548,7 +114317,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('1') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -107719,7 +114494,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('01') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -107888,11 +114669,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('a b') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -108061,7 +114848,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('a  b') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -108232,6 +115025,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -108398,6 +115197,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -108558,7 +115363,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -108709,7 +115520,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -108870,7 +115687,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -109041,7 +115864,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -109215,6 +116044,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`tr`
@@ -109223,6 +116055,9 @@
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`tr` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW SET NEW.a = 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -109395,10 +116230,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`tr`
 < ok 0 0
 > exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`tr` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -109581,12 +116422,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x + 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -109783,12 +116630,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -109984,11 +116837,17 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -110184,12 +117043,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -110362,6 +117227,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -110376,6 +117244,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`g`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -110526,6 +117397,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -110536,6 +117410,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`g`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -110686,10 +117563,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g2`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -110840,10 +117723,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g1` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -111018,6 +117907,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`t` (
 |   `id` int(11) NOT NULL,
 |   `s` date NOT NULL,
@@ -111025,6 +117917,9 @@
 |   PRIMARY KEY (`id`,`p` WITHOUT OVERLAPS),
 |   PERIOD FOR `p` (`s`, `e`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -111197,7 +118092,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`t`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -111347,6 +118248,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `c` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -111357,6 +118261,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -111507,6 +118414,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -111517,6 +118427,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -111693,6 +118606,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -111703,6 +118619,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -111899,6 +118818,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -111909,6 +118831,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -112080,7 +119005,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD PERIOD FOR `p` (`s`, `e`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -112232,7 +119163,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PERIOD FOR `p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -112383,10 +119320,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`y` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `x`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -112538,10 +119481,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `x` int(11) DEFAULT NULL FIRST
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -112694,6 +119643,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
@@ -112709,6 +119661,9 @@
 | PARTITIONS 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -112863,6 +119818,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
 < ok 0 0
 > exec
@@ -112874,6 +119832,9 @@
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -113052,6 +120013,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -113062,6 +120026,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -113256,6 +120223,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -113266,6 +120236,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -113461,7 +120434,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`p` MODIFY COLUMN `n` bigint(20) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -113658,7 +120637,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`p` MODIFY COLUMN `n` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -113831,7 +120816,19 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -113983,10 +120980,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -114137,10 +121140,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL AFTER `x`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -114292,10 +121301,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -114471,6 +121486,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -114481,6 +121499,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -114675,6 +121696,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -114685,6 +121709,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -114859,6 +121886,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -114869,6 +121899,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -115029,6 +122062,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -115039,6 +122075,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -115196,6 +122235,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
@@ -115228,6 +122270,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -115384,6 +122429,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
 < ok 0 0
 > exec
@@ -115412,6 +122460,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -115563,6 +122614,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -115586,6 +122640,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -115739,10 +122796,10 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `c` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
@@ -115757,7 +122814,13 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `f` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL AFTER `a`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -115915,6 +122978,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
@@ -115925,6 +122991,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 2) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -116077,6 +123146,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
@@ -116087,6 +123159,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -116237,6 +123312,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -116244,6 +123322,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -116396,10 +123477,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`e`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -116554,6 +123647,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -116564,6 +123663,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `e` timestamp(6) NULL DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -116717,6 +123822,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `e`
 < ok 0 0
 > exec
@@ -116724,6 +123835,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -116753,6 +123870,2995 @@
 |   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
 |   PERIOD FOR SYSTEM_TIME (`s`, `e`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `k`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `z`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL,
+|   `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL,
+|   `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s2` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e2` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s2`, `e2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s2` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e2` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s2`, `e2`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s2` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e2` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s2`, `e2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s`, `e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e2`, DROP COLUMN `s2`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s`, `e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > `b`) AFTER `x`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| CREATE TABLE t (u TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `u` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL,
+|   `ts` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| CREATE TABLE `omni_testoracle_migrationconverges`.`t` (
+|   `u` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`x` ADD COLUMN `ts` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `u` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL,
+|   `ts` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| CREATE TABLE t (u TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TABLE `omni_testoracle_migrationconverges`.`t`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`x` DROP COLUMN `ts`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
 < result
@@ -116873,9 +126979,15 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` MINVALUE 10 START WITH 100
 < error
 | 4085 HY000 Sequence 'omni_testoracle_migrationconverges.s' has out of range value for options
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -116969,7 +127081,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` MINVALUE 1 START WITH 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -117137,6 +127255,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author`
 < ok 0 0
 > exec
@@ -117147,6 +127268,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`products`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -117244,6 +127368,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author`
 < ok 0 0
 > exec
@@ -117254,6 +127381,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`products`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -117476,6 +127606,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`authors` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -117531,6 +127664,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -117664,6 +127800,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`authors` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -117719,6 +127858,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -117972,6 +128114,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `user_id` int(11) NOT NULL,
@@ -118001,6 +128149,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -118106,6 +128260,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `user_id` int(11) NOT NULL,
@@ -118135,6 +128295,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -118313,6 +128479,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -118320,6 +128489,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -118401,6 +128573,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -118408,6 +128583,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -118625,6 +128803,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -118641,6 +128822,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -118785,6 +128969,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -118801,6 +128988,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -119094,6 +129284,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `post_id` int(11) NOT NULL,
@@ -119120,6 +129316,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -119277,6 +129479,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `post_id` int(11) NOT NULL,
@@ -119303,6 +129511,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -119608,6 +129822,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -119618,6 +129835,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -119776,6 +129996,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -119786,6 +130009,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -120162,6 +130388,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
@@ -120180,6 +130409,9 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -120406,6 +130638,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -120478,6 +130713,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -120814,6 +131052,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -120821,6 +131062,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -120949,6 +131193,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -120956,6 +131203,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -121297,6 +131547,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -121331,6 +131584,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -121552,6 +131808,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -121640,6 +131899,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -121954,6 +132216,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -121970,6 +132235,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -122066,6 +132334,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -122082,6 +132353,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -122266,6 +132540,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -122282,6 +132559,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -122378,6 +132658,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -122394,6 +132677,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -122740,6 +133026,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`CalculateDiscount`(IN `amount` DECIMAL(10,2), OUT `discount` DECIMAL(10,2))
 | BEGIN
 |     SET discount = amount * 0.1;
@@ -122762,6 +133051,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`top_products` AS select `sales`.`product_name` AS `product_name`,count(0) AS `sale_count`,sum(`sales`.`sale_amount`) AS `total_revenue` from `omni_testoracle_migrationconverges`.`sales` group by `sales`.`product_name` order by sum(`sales`.`sale_amount`) desc
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -122989,6 +133281,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -123065,6 +133360,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`top_products` AS select `sales`.`product_name` AS `product_name`,count(0) AS `sale_count`,sum(`sales`.`sale_amount`) AS `total_revenue` from `omni_testoracle_migrationconverges`.`sales` group by `sales`.`product_name` order by sum(`sales`.`sale_amount`) desc
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -123410,6 +133708,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`monthly_sales`
 < ok 0 0
 > exec
@@ -123420,6 +133721,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -123546,6 +133850,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`monthly_sales`
 < ok 0 0
 > exec
@@ -123556,6 +133863,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetMonthlySalesTotal`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -123744,6 +134054,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -123778,6 +134091,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -123882,6 +134198,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -123916,6 +134235,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -124114,6 +134436,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
@@ -124152,6 +134480,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -124254,6 +134588,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -124288,6 +134628,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -124538,6 +134884,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author_new`
 < ok 0 0
 > exec
@@ -124569,6 +134918,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -124710,6 +135062,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author_new`
 < ok 0 0
 > exec
@@ -124741,6 +135096,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -125009,6 +135367,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author`
 < ok 0 0
 > exec
@@ -125040,6 +135401,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author_new` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -125175,6 +135539,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author`
 < ok 0 0
 > exec
@@ -125206,6 +135573,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author_new` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -125444,6 +135814,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -125454,6 +135827,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -125574,6 +135950,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -125584,6 +135963,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -125816,6 +136198,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -125826,6 +136211,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -125946,6 +136334,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -125956,6 +136347,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -126247,6 +136641,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`dept_employee_count`
 < ok 0 0
 > exec
@@ -126266,6 +136663,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`employees` MODIFY COLUMN `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -126438,6 +136838,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`dept_employee_count`
 < ok 0 0
 > exec
@@ -126457,6 +136860,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`employees` MODIFY COLUMN `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -126812,6 +137218,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`departments` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -126831,6 +137240,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dept_manager_summary` AS select `ds`.`dept_id` AS `dept_id`,`ds`.`dept_name` AS `dept_name`,`ds`.`emp_count` AS `emp_count`,`ds`.`avg_salary` AS `avg_salary`,`m`.`name` AS `manager_name` from ((`omni_testoracle_migrationconverges`.`dept_summary` `ds` join `omni_testoracle_migrationconverges`.`departments` `d` on(`ds`.`dept_id` = `d`.`id`)) left join `omni_testoracle_migrationconverges`.`employees` `m` on(`d`.`manager_id` = `m`.`id`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -127022,6 +137434,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`departments` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -127041,6 +137456,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dept_manager_summary` AS select `ds`.`dept_id` AS `dept_id`,`ds`.`dept_name` AS `dept_name`,`ds`.`emp_count` AS `emp_count`,`ds`.`avg_salary` AS `avg_salary`,`m`.`name` AS `manager_name` from ((`omni_testoracle_migrationconverges`.`dept_summary` `ds` join `omni_testoracle_migrationconverges`.`departments` `d` on(`ds`.`dept_id` = `d`.`id`)) left join `omni_testoracle_migrationconverges`.`employees` `m` on(`d`.`manager_id` = `m`.`id`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -127371,6 +137789,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` DROP FOREIGN KEY `fk_preferred_order`
 < ok 0 0
 > exec
@@ -127396,6 +137817,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` MODIFY COLUMN `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -127550,6 +137974,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` DROP FOREIGN KEY `fk_preferred_order`
 < ok 0 0
 > exec
@@ -127575,6 +138002,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` MODIFY COLUMN `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -127881,6 +138311,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -127925,6 +138358,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`orders` ADD CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -128083,6 +138519,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`customers` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
@@ -128154,6 +138593,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`orders` ADD CONSTRAINT `fk_customer` FOREIGN KEY (`customer_id`) REFERENCES `customers` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -128423,6 +138865,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_data` DROP CONSTRAINT `chk_amount_positive`
 < ok 0 0
 > exec
@@ -128452,6 +138897,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -128566,6 +139014,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_data` DROP CONSTRAINT `chk_amount_positive`
 < ok 0 0
 > exec
@@ -128585,6 +139036,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_data` MODIFY COLUMN `region` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -128809,6 +139263,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_data` REMOVE PARTITIONING
@@ -128835,6 +139292,9 @@
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`regional_sales` AS select `sales_data`.`region` AS `region`,year(`sales_data`.`sale_date`) AS `year`,month(`sales_data`.`sale_date`) AS `month`,sum(`sales_data`.`amount`) AS `total_sales`,count(distinct `sales_data`.`customer_id`) AS `unique_customers` from `omni_testoracle_migrationconverges`.`sales_data` group by `sales_data`.`region`,year(`sales_data`.`sale_date`),month(`sales_data`.`sale_date`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -128957,6 +139417,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sales_data` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -128976,6 +139439,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`regional_sales` AS select `sales_data`.`region` AS `region`,year(`sales_data`.`sale_date`) AS `year`,month(`sales_data`.`sale_date`) AS `month`,sum(`sales_data`.`amount`) AS `total_sales`,count(distinct `sales_data`.`customer_id`) AS `unique_customers` from `omni_testoracle_migrationconverges`.`sales_data` group by `sales_data`.`region`,year(`sales_data`.`sale_date`),month(`sales_data`.`sale_date`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -129194,6 +139660,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD PRIMARY KEY (`dt`,`member_id`,`account_type`)
 < ok 0 0
 > exec
@@ -129208,6 +139677,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -129303,10 +139775,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD PRIMARY KEY (`dt`,`member_id`,`account_type`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -129483,6 +139961,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` REMOVE PARTITIONING
@@ -129494,6 +139975,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP INDEX `sindex`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -129587,10 +140071,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP PRIMARY KEY
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` DROP INDEX `sindex`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -129766,6 +140256,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` (
@@ -129787,6 +140280,9 @@
 |  PARTITION `p_future` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -129870,6 +140366,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` (
 |   `dt` date NOT NULL,
 |   `member_id` bigint(20) NOT NULL,
@@ -129880,6 +140379,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -130026,7 +140528,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -130101,7 +140609,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ads_member_asset_by_account_channel_d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -130267,6 +140781,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -130280,6 +140797,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -130386,6 +140906,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -130399,6 +140922,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -130615,6 +141141,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -130641,6 +141170,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -130759,6 +141291,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -130785,6 +141320,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -131069,6 +141607,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -131079,6 +141620,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -131241,6 +141785,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -131251,6 +141798,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -131591,6 +142141,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -131612,6 +142165,9 @@
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -131798,6 +142354,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -131900,6 +142459,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -132166,6 +142728,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`international_content`
 < ok 0 0
 > exec
@@ -132176,6 +142741,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`messages` DROP COLUMN `title`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -132278,6 +142846,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`international_content`
 < ok 0 0
 > exec
@@ -132288,6 +142859,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`messages` DROP COLUMN `title`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -132490,6 +143064,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`international_content` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `english_text` varchar(1000) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
@@ -132506,6 +143083,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`messages` ADD KEY `idx_title` (`title`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -132614,6 +143194,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`international_content` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `english_text` varchar(1000) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
@@ -132630,6 +143213,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`messages` ADD KEY `idx_title` (`title`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -132866,6 +143452,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -132873,6 +143462,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -133007,6 +143599,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -133014,6 +143609,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -133387,6 +143985,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -133424,6 +144025,9 @@
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -133668,6 +144272,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -133794,6 +144401,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -134179,6 +144789,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`suppliers`
 < ok 0 0
 > exec
@@ -134204,6 +144817,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(10,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -134344,6 +144960,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`suppliers`
 < ok 0 0
 > exec
@@ -134369,6 +144988,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(10,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -134644,6 +145266,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`categories` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Product categories for organization'
 < ok 0 0
 > exec
@@ -134680,6 +145308,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`suppliers` ADD UNIQUE KEY `uk_email` (`contact_email`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -134823,6 +145457,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`categories` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='Product categories for organization'
 < ok 0 0
 > exec
@@ -134859,6 +145499,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`suppliers` ADD UNIQUE KEY `uk_email` (`contact_email`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -135136,6 +145782,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`order_items` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Individual line items for each order'
 < ok 0 0
 > exec
@@ -135164,6 +145813,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`orders` MODIFY COLUMN `total_amount` decimal(10,2) DEFAULT NULL COMMENT 'Total order amount in USD'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -135300,6 +145952,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`order_items` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Individual line items for each order'
 < ok 0 0
 > exec
@@ -135328,6 +145983,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`orders` MODIFY COLUMN `total_amount` decimal(10,2) DEFAULT NULL COMMENT 'Total order amount in USD'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -135586,6 +146244,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`order_items` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT=''
 < ok 0 0
 > exec
@@ -135614,6 +146275,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`orders` MODIFY COLUMN `total_amount` decimal(10,2) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -135744,6 +146408,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`order_items` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT=''
 < ok 0 0
 > exec
@@ -135772,6 +146439,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`orders` MODIFY COLUMN `total_amount` decimal(10,2) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -136044,6 +146714,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`analytics`
 < ok 0 0
 > exec
@@ -136072,6 +146745,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` MODIFY COLUMN `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -136224,6 +146900,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`analytics`
 < ok 0 0
 > exec
@@ -136252,6 +146931,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` MODIFY COLUMN `username` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -136549,6 +147231,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`analytics` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key (auto-increment)',
 |   `event_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'Event identifier - format: "page_view", "button_click", etc.',
@@ -136593,6 +147281,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`analytics` ADD KEY `idx_processed` (`processed`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -136746,6 +147440,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`analytics` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key (auto-increment)',
 |   `event_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT 'Event identifier - format: "page_view", "button_click", etc.',
@@ -136790,6 +147490,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`analytics` ADD KEY `idx_processed` (`processed`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -137085,6 +147791,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`authors` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -137140,6 +147849,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -137273,6 +147985,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`authors` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
@@ -137328,6 +148043,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` ADD CONSTRAINT `fk_author` FOREIGN KEY (`author_id`) REFERENCES `authors` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -137550,6 +148268,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author`
 < ok 0 0
 > exec
@@ -137560,6 +148281,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`products`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -137657,6 +148381,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`books` DROP FOREIGN KEY `fk_author`
 < ok 0 0
 > exec
@@ -137669,6 +148396,9 @@
 | DROP TABLE `omni_testoracle_migrationconverges`.`products`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -137798,6 +148528,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -137805,6 +148538,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -137886,6 +148622,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` DROP FOREIGN KEY `fk_user`
 < ok 0 0
 > exec
@@ -137893,6 +148632,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`users`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -138069,6 +148811,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
@@ -138102,6 +148850,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -138203,6 +148957,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`posts` (
@@ -138236,6 +148996,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`posts` ADD CONSTRAINT `fk_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -138525,6 +149291,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
@@ -138555,6 +149327,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -138708,6 +149486,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`comments` (
@@ -138738,6 +149522,12 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` ADD CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -139029,6 +149819,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -139045,6 +149838,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -139189,6 +149985,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`comments` DROP FOREIGN KEY `fk_comment_post`
 < ok 0 0
 > exec
@@ -139205,6 +150004,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`users` DROP COLUMN `is_active`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -139582,6 +150384,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE PROCEDURE `omni_testoracle_migrationconverges`.`GetProductInventory`(IN `product_name` VARCHAR(100))
 | BEGIN
 |     SELECT * FROM product_inventory
@@ -139600,6 +150405,9 @@
 |     SELECT price INTO product_price FROM products WHERE id = NEW.product_id;
 |     SET NEW.total = NEW.quantity * product_price;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -139826,6 +150634,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -139898,6 +150709,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -140274,6 +151088,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -140284,6 +151101,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -140442,6 +151262,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`low_stock_products`
 < ok 0 0
 > exec
@@ -140452,6 +151275,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`update_order_total`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -140816,6 +151642,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -140850,6 +151679,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -141071,6 +151903,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`sales_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -141159,6 +151994,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -141500,6 +152338,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -141507,6 +152348,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -141635,6 +152479,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`sales_summary`
 < ok 0 0
 > exec
@@ -141642,6 +152489,9 @@
 < ok 0 0
 > exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetTaxAmount`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -141821,6 +152671,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -141837,6 +152690,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -141933,6 +152789,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_name_length`
 < ok 0 0
 > exec
@@ -141949,6 +152808,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP INDEX `uk_sku`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -142133,6 +152995,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -142149,6 +153014,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -142245,6 +153113,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_category` (`category`)
 < ok 0 0
 > exec
@@ -142261,6 +153132,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_price_positive` CHECK (`price` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -142464,6 +153338,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -142498,6 +153378,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -142602,6 +153488,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD COLUMN `created_at` timestamp NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -142636,6 +153528,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD CONSTRAINT `chk_stock_non_negative` CHECK (`stock_quantity` >= 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -142836,6 +153734,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -142870,6 +153771,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -142974,6 +153878,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP CONSTRAINT `chk_price_positive`
 < ok 0 0
 > exec
@@ -143008,6 +153915,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` MODIFY COLUMN `price` decimal(8,2) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -143224,6 +154134,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -143234,6 +154147,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -143354,6 +154270,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` ADD FULLTEXT KEY `idx_fulltext_content` (`title`,`content`)
 < ok 0 0
 > exec
@@ -143364,6 +154283,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` ADD SPATIAL KEY `idx_spatial_position` (`position`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -143596,6 +154518,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -143606,6 +154531,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -143726,6 +154654,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`articles` DROP INDEX `idx_fulltext_content`
 < ok 0 0
 > exec
@@ -143736,6 +154667,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`locations` DROP INDEX `idx_spatial_position`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -143972,6 +154906,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -143998,6 +154935,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -144116,6 +155056,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`order_summary` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `product_id` int(11) NOT NULL,
@@ -144142,6 +155085,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` ADD KEY `idx_price_with_tax` (`price_with_tax`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -144358,6 +155304,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -144371,6 +155320,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -144477,6 +155429,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`order_summary`
 < ok 0 0
 > exec
@@ -144490,6 +155445,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`products` DROP COLUMN `price_with_tax`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -144806,6 +155764,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -144827,6 +155788,9 @@
 |         VALUES (NEW.product_id, OLD.quantity, NEW.quantity, 'UPDATE');
 |     END IF;
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -145013,6 +155977,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`inventory_changes` AS select `inventory_log`.`product_id` AS `product_id`,count(0) AS `change_count`,max(`inventory_log`.`changed_at`) AS `last_changed` from `omni_testoracle_migrationconverges`.`inventory_log` group by `inventory_log`.`product_id`
 < ok 0 0
 > exec
@@ -145115,6 +156082,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -145455,6 +156425,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -145465,6 +156438,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -145627,6 +156603,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`inventory_changes`
 < ok 0 0
 > exec
@@ -145637,6 +156616,9 @@
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`trg_inventory_update`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -146034,6 +157016,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`(`p_stat_name` VARCHAR(100)) RETURNS decimal(10,2)
 |     DETERMINISTIC
 |     READS SQL DATA
@@ -146071,6 +157056,9 @@
 |     DELETE FROM system_stats
 |     WHERE recorded_at < DATE_SUB(NOW(), INTERVAL 30 DAY);
 | END
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -146315,6 +157303,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -146441,6 +157432,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -146811,6 +157805,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -146818,6 +157815,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -146952,6 +157952,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`GetAverageStat`
 < ok 0 0
 > exec
@@ -146959,6 +157962,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`evt_cleanup_old_stats`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -147275,6 +158281,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t1` DROP INDEX `b`
 < ok 0 0
 > exec
@@ -147309,6 +158318,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`test_table` ADD KEY `idx_status_hash` (`status`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -147509,6 +158521,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`some_table` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
@@ -147531,6 +158546,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`test_table` MODIFY COLUMN `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT 'active'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -147915,6 +158933,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t1` DROP INDEX `b`
 < ok 0 0
 > exec
@@ -147949,6 +158970,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`test_table` ADD KEY `idx_status_hash` (`status`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -148141,6 +159165,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`some_table` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
@@ -148163,6 +159190,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`test_table` MODIFY COLUMN `status` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT 'active'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -148404,6 +159434,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='table comment'
 < ok 0 0
 > exec
@@ -148471,6 +159504,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -148547,6 +159583,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='table comment'
 < ok 0 0
 > exec
@@ -148614,6 +159653,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -148784,6 +159826,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
@@ -148851,6 +159896,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -148953,6 +160001,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
@@ -149020,6 +160071,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `id` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149173,6 +160227,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` ADD COLUMN `addr6` inet6 DEFAULT NULL
 < ok 0 0
 > exec
@@ -149183,6 +160240,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` ADD UNIQUE KEY `uk_addr` (`addr`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149265,6 +160325,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` ADD COLUMN `addr6` inet6 DEFAULT NULL
 < ok 0 0
 > exec
@@ -149275,6 +160338,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` ADD UNIQUE KEY `uk_addr` (`addr`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149429,6 +160495,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` DROP INDEX `uk_addr`
 < ok 0 0
 > exec
@@ -149439,6 +160508,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` MODIFY COLUMN `id` uuid NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149519,6 +160591,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` DROP INDEX `uk_addr`
 < ok 0 0
 > exec
@@ -149529,6 +160604,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hosts` MODIFY COLUMN `id` uuid NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149690,6 +160768,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `meta` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`meta`))
 < ok 0 0
 > exec
@@ -149700,6 +160781,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD KEY `idx_tag` (`tag`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149783,6 +160867,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `meta` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL DEFAULT '{}' CHECK (json_valid(`meta`))
 < ok 0 0
 > exec
@@ -149793,6 +160880,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD KEY `idx_tag` (`tag`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -149954,16 +161044,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `meta`
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150050,16 +161146,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP INDEX `idx_tag`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `meta`
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP COLUMN `tag`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` text CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150219,6 +161321,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `n` int(11) DEFAULT NULL CHECK (`n` > 0)
 < ok 0 0
 > exec
@@ -150226,6 +161331,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD CONSTRAINT `chk_id` CHECK (`id` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150308,6 +161416,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD COLUMN `n` int(11) DEFAULT NULL CHECK (`n` > 0)
 < ok 0 0
 > exec
@@ -150315,6 +161426,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` ADD CONSTRAINT `chk_id` CHECK (`id` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150474,6 +161588,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP CONSTRAINT `chk_id`
 < ok 0 0
 > exec
@@ -150481,6 +161598,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`body`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150566,6 +161686,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` DROP CONSTRAINT `chk_id`
 < ok 0 0
 > exec
@@ -150573,6 +161696,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`docs` MODIFY COLUMN `body` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`body`))
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150727,6 +161853,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT 'b' INVISIBLE
 < ok 0 0
 > exec
@@ -150734,6 +161863,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` MODIFY COLUMN `a` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150816,10 +161948,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT 'b'
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` ADD COLUMN `c` int(11) NOT NULL DEFAULT 0
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -150974,6 +162112,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -150981,6 +162122,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -151061,10 +162205,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `b`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`inv` DROP COLUMN `c`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -151271,6 +162421,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -151286,6 +162442,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`plain` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -151409,6 +162571,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -151424,6 +162592,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`plain` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -151649,6 +162823,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -151659,6 +162836,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hist` DROP COLUMN `note`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -151769,6 +162949,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -151779,6 +162962,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`hist` DROP COLUMN `note`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -151953,10 +163139,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD PERIOD FOR `stay` (`ds`, `de`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD UNIQUE KEY `uk_room` (`room`,`stay` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -152040,10 +163232,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD UNIQUE KEY `uk_room` (`room`,`de`,`ds`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` ADD CONSTRAINT `stay` CHECK (`ds` < `de`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -152200,10 +163398,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP INDEX `uk_room`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP PERIOD FOR `stay`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -152285,9 +163489,15 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`booking` DROP CONSTRAINT `stay`
 < error
 | 4158 HY000 Can't DROP CONSTRAINT `stay`. Use DROP PERIOD `stay` for this
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -152451,6 +163661,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`aria_t` (
 |   `id` int(11) NOT NULL,
 |   `a` text CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
@@ -152478,6 +163691,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`mem_t` ADD KEY `idx_h` (`id`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -152615,6 +163831,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`aria_t` (
 |   `id` int(11) NOT NULL,
 |   `a` text CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
@@ -152642,6 +163861,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`mem_t` ADD KEY `idx_h` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -152859,6 +164081,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`aria_t`
 < ok 0 0
 > exec
@@ -152872,6 +164097,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`opts` STATS_PERSISTENT=DEFAULT ROW_FORMAT=DEFAULT COMMENT='' `PAGE_COMPRESSED`=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -152960,6 +164188,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`aria_t`
 < ok 0 0
 > exec
@@ -152973,6 +164204,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`opts` STATS_PERSISTENT=DEFAULT ROW_FORMAT=DEFAULT COMMENT='' `PAGE_COMPRESSED`=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153147,6 +164381,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD FULLTEXT KEY `ft_c` (`c`)
 < ok 0 0
 > exec
@@ -153166,6 +164403,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153256,6 +164496,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD FULLTEXT KEY `ft_c` (`c`)
 < ok 0 0
 > exec
@@ -153275,6 +164518,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` ADD UNIQUE KEY `uk_ab` (`a`,`b`) COMMENT 'uk comment'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153453,6 +164699,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `ft_c`
 < ok 0 0
 > exec
@@ -153472,6 +164721,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `uk_ab`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153568,6 +164820,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `ft_c`
 < ok 0 0
 > exec
@@ -153587,6 +164842,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ix` DROP INDEX `uk_ab`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153743,7 +165001,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` ADD UNIQUE KEY `uk_body` (`body`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153825,7 +165089,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` ADD UNIQUE KEY `uk_body` (`body`) USING HASH
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -153979,7 +165249,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` DROP INDEX `uk_body`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -154060,7 +165336,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`lu` DROP INDEX `uk_body`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -154250,10 +165532,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -154362,10 +165650,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_code` FOREIGN KEY (`pcode`) REFERENCES `p` (`code`)
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` ADD CONSTRAINT `fk_p` FOREIGN KEY (`pid`) REFERENCES `p` (`id`) ON DELETE CASCADE ON UPDATE SET NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -154576,6 +165870,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP FOREIGN KEY `fk_code`
 < ok 0 0
 > exec
@@ -154586,6 +165883,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP INDEX `fk_p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -154696,6 +165996,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP FOREIGN KEY `fk_code`
 < ok 0 0
 > exec
@@ -154706,6 +166009,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`c` DROP INDEX `fk_p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -154952,6 +166258,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ph` (
@@ -154992,6 +166301,9 @@
 |  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = innodb)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -155136,6 +166448,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`ph` (
 |   `id` int(11) NOT NULL,
 |   PRIMARY KEY (`id`)
@@ -155153,6 +166468,9 @@
 |   `region` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL,
 |   PRIMARY KEY (`id`,`region`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -155375,6 +166693,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ph`
 < ok 0 0
 > exec
@@ -155387,6 +166708,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`pr`  PARTITION BY RANGE (year(`d`))
 | (PARTITION `p2020` VALUES LESS THAN (2021) ENGINE = innodb,
 |  PARTITION `pmax` VALUES LESS THAN MAXVALUE ENGINE = innodb)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -155479,6 +166803,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`ph`
 < ok 0 0
 > exec
@@ -155486,6 +166813,9 @@
 < ok 0 0
 > exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`pl`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -155644,12 +166974,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sv`  PARTITION BY SYSTEM_TIME
 | (PARTITION `p_hist` HISTORY ENGINE = innodb,
 |  PARTITION `p_cur` CURRENT ENGINE = innodb)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -155732,6 +167068,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -155880,10 +167222,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`sv` REMOVE PARTITIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -155961,6 +167309,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -156190,6 +167544,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY INVOKER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` * 2 AS `v2` from `omni_testoracle_migrationconverges`.`base` where `base`.`v` > 0 WITH CASCADED CHECK OPTION
 < ok 0 0
 > exec
@@ -156197,6 +167554,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v3` AS select `v2`.`a` AS `a` from `omni_testoracle_migrationconverges`.`v2` union all select `base`.`id` AS `id` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -156343,6 +167703,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` * 2 AS `v2` from `omni_testoracle_migrationconverges`.`base` where `base`.`v` > 0 WITH CASCADED CHECK OPTION
 < ok 0 0
 > exec
@@ -156350,6 +167713,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v3` AS select `v2`.`a` AS `a` from `omni_testoracle_migrationconverges`.`v2` union all select `base`.`id` AS `id` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -156598,6 +167964,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`v2`
 < ok 0 0
 > exec
@@ -156605,6 +167974,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` AS `v` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -156715,6 +168087,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `omni_testoracle_migrationconverges`.`v2`
 < ok 0 0
 > exec
@@ -156722,6 +168097,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v1` AS select `base`.`id` AS `id`,`base`.`v` AS `v` from `omni_testoracle_migrationconverges`.`base`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -157068,6 +168446,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @saved_sql_mode = @@sql_mode
 < ok 0 0
 > exec
@@ -157131,6 +168512,9 @@
 < ok 0 0
 > exec
 | SET sql_mode = @saved_sql_mode
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -157375,10 +168759,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f_add`
 < ok 0 0
 > exec
 | DROP PROCEDURE `omni_testoracle_migrationconverges`.`p_ins`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -157703,6 +169093,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`tr_log` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
 |   `msg` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL,
@@ -157720,6 +169113,9 @@
 < ok 0 0
 > exec
 | CREATE EVENT `omni_testoracle_migrationconverges`.`ev_purge` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION PRESERVE DISABLE COMMENT 'purge' DO DELETE FROM tr_log
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -157876,6 +169272,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`tr_log` (
@@ -158014,6 +169413,9 @@
 | SET sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -158258,6 +169660,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`tr_log`
 < ok 0 0
 > exec
@@ -158271,6 +169676,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`ev_purge`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -158367,6 +169775,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`tr_log`
 < ok 0 0
 > exec
@@ -158380,6 +169791,9 @@
 < ok 0 0
 > exec
 | DROP EVENT IF EXISTS `omni_testoracle_migrationconverges`.`ev_purge`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -158566,6 +169980,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -158589,6 +170006,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -158692,6 +170112,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 < ok 0 0
 > exec
@@ -158715,6 +170138,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -158900,6 +170326,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`cs_latin`
 < ok 0 0
 > exec
@@ -158919,6 +170348,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159009,6 +170441,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`cs_latin`
 < ok 0 0
 > exec
@@ -159028,6 +170463,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cs` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159193,6 +170631,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD COLUMN `s` int(11) GENERATED ALWAYS AS (`a` + `b`) STORED
 < ok 0 0
 > exec
@@ -159203,6 +170644,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD KEY `idx_s` (`s`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159288,6 +170732,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD COLUMN `s` int(11) GENERATED ALWAYS AS (`a` + `b`) STORED
 < ok 0 0
 > exec
@@ -159298,6 +170745,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` ADD KEY `idx_s` (`s`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159464,6 +170914,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP INDEX `idx_s`
 < ok 0 0
 > exec
@@ -159474,6 +170927,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP COLUMN `v`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159563,6 +171019,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP INDEX `idx_s`
 < ok 0 0
 > exec
@@ -159573,6 +171032,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`g` DROP COLUMN `v`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159737,6 +171199,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `t1` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 < ok 0 0
 > exec
@@ -159750,6 +171218,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `d2` datetime(6) DEFAULT NULL ON UPDATE current_timestamp(6)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -159834,6 +171308,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `t1` timestamp NOT NULL DEFAULT current_timestamp()
 < ok 0 0
 > exec
@@ -159847,6 +171327,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` ADD COLUMN `d2` datetime(6) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160009,6 +171495,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `d1`
 < ok 0 0
 > exec
@@ -160022,6 +171511,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `t3`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160108,6 +171600,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `d1`
 < ok 0 0
 > exec
@@ -160121,6 +171616,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ts` DROP COLUMN `t3`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160273,6 +171771,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` DROP PRIMARY KEY
 < ok 0 0
 > exec
@@ -160280,6 +171781,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` MODIFY COLUMN `id` text CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160432,6 +171936,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`cc` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -160442,6 +171949,9 @@
 < error
 | 1068 42000 Multiple primary key defined
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > exec
@@ -160541,6 +172051,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` ADD COLUMN `d` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -160548,6 +172061,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL DEFAULT ''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160631,6 +172147,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` ADD COLUMN `d` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -160638,6 +172157,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci NOT NULL DEFAULT ''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160795,6 +172317,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` DROP COLUMN `d`
 < ok 0 0
 > exec
@@ -160802,6 +172327,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -160884,6 +172412,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` DROP COLUMN `d`
 < ok 0 0
 > exec
@@ -160891,6 +172422,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ro` MODIFY COLUMN `b` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_uca1400_ai_ci DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -161144,6 +172678,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`dbl`
 < ok 0 0
 > exec
@@ -161162,6 +172699,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv2` AS select `dv1`.`a2` AS `a2` from `omni_testoracle_migrationconverges`.`dv1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -161332,6 +172872,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`dbl`
 < ok 0 0
 > exec
@@ -161377,6 +172920,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv2` AS select `dv1`.`a2` AS `a2` from `omni_testoracle_migrationconverges`.`dv1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -161690,6 +173236,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`dv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -161708,6 +173257,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv1` AS select `dv`.`id` AS `id`,dbl(`dv`.`a`) AS `a2` from `omni_testoracle_migrationconverges`.`dv`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -161859,6 +173411,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`dv` DROP COLUMN `b`
 < ok 0 0
 > exec
@@ -161904,6 +173459,9 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`dv1` AS select `dv`.`id` AS `id`,dbl(`dv`.`a`) AS `a2` from `omni_testoracle_migrationconverges`.`dv`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -162117,6 +173675,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -162265,6 +173829,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -162412,6 +173982,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -162558,6 +174134,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -162705,6 +174287,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -162853,6 +174441,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163001,6 +174595,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163149,6 +174749,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163296,6 +174902,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163442,6 +175054,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163588,6 +175206,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163734,6 +175358,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -163880,6 +175510,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164026,6 +175662,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164173,6 +175815,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164321,6 +175969,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164468,6 +176122,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164614,6 +176274,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164760,6 +176426,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -164906,6 +176578,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -165073,6 +176751,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -165253,6 +176937,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -165443,6 +177133,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -165637,6 +177333,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -165804,6 +177506,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -165950,6 +177658,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166096,6 +177810,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166242,6 +177962,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166388,6 +178114,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166534,6 +178266,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166681,6 +178419,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166829,6 +178573,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -166979,6 +178729,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -167131,6 +178887,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -167278,6 +179040,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -167420,6 +179188,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -167564,6 +179338,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -167708,6 +179488,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -167854,11 +179640,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL COMMENT 'x'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -168005,7 +179797,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -168152,11 +179950,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` bigint(20) DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -168303,7 +180107,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -168450,11 +180260,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -168601,7 +180417,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -168750,7 +180572,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -168899,7 +180727,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -169049,7 +180883,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL INVISIBLE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -169200,7 +181040,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -169349,6 +181195,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -169357,6 +181206,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`a`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -169505,10 +181357,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -169657,6 +181515,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -169665,6 +181526,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`) IGNORED
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -169813,10 +181677,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -169965,6 +181835,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -169973,6 +181846,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a` DESC)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -170121,10 +181997,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -170273,6 +182155,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -170281,6 +182166,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`) USING HASH
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -170429,10 +182317,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -170582,7 +182476,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -170731,7 +182631,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -170881,10 +182787,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `c`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `c` CHECK (`a` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -171035,10 +182947,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `c`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `c` CHECK (`a` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -171214,10 +183132,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`) ON DELETE CASCADE
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -171412,10 +183336,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -171584,7 +183514,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='x'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -171733,7 +183669,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT=''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -171880,11 +183822,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ENGINE=MyISAM
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -172031,7 +183979,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ENGINE=InnoDB
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -172178,11 +184132,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` STATS_PERSISTENT=0
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -172329,7 +184289,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` STATS_PERSISTENT=DEFAULT
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -172476,6 +184442,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
@@ -172484,6 +184453,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -172630,10 +184602,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `a` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -172782,7 +184760,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -172931,7 +184915,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -173079,6 +185069,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | SET @@system_versioning_alter_history = KEEP
@@ -173087,6 +185080,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL WITHOUT SYSTEM VERSIONING
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -173235,10 +185231,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -173386,7 +185388,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` INCREMENT BY 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -173531,7 +185539,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` INCREMENT BY 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -173674,11 +185688,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`s` COMMENT='x'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -173821,7 +185841,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`s` COMMENT=''
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -173995,7 +186021,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` + 1 AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -174192,7 +186224,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -174387,11 +186425,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | CREATE OR REPLACE ALGORITHM=MERGE SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -174586,7 +186630,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE OR REPLACE ALGORITHM=UNDEFINED SQL SECURITY DEFINER VIEW `omni_testoracle_migrationconverges`.`v` AS select `b`.`id` AS `id` from `omni_testoracle_migrationconverges`.`b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -174758,8 +186808,14 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 4
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -174912,8 +186968,14 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -175090,6 +187152,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -175280,6 +187348,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -175472,6 +187546,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
@@ -175480,6 +187557,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`) ON DELETE NO ACTION
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -175672,10 +187752,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -175855,7 +187941,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 24 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -176026,7 +188118,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -176195,11 +188293,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE COMMENT '' DO SELECT 1
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -176368,7 +188472,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -176526,11 +188636,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='counter AUTO_INCREMENT=20'
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -176677,7 +188793,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` COMMENT='counter AUTO_INCREMENT=10'
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -176837,7 +188959,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('1') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -177008,7 +189136,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('01') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -177177,11 +189311,17 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('a b') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -177350,7 +189490,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY LENGTH('a  b') HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -177521,6 +189667,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -177687,6 +189839,12 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -177847,7 +190005,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 1)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -177998,7 +190162,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL CHECK (`b` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -178159,7 +190329,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -178330,7 +190506,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER EVENT `omni_testoracle_migrationconverges`.`e` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE COMMENT '' DO SELECT 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -178504,6 +190686,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`tr`
@@ -178512,6 +190697,9 @@
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`tr` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW SET NEW.a = 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -178684,10 +190872,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TRIGGER `omni_testoracle_migrationconverges`.`tr`
 < ok 0 0
 > exec
 | CREATE TRIGGER `omni_testoracle_migrationconverges`.`tr` BEFORE INSERT ON `omni_testoracle_migrationconverges`.`t` FOR EACH ROW SET NEW.a = 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -178870,12 +191064,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x + 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -179072,12 +191272,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -179273,11 +191479,17 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -179473,12 +191685,18 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP FUNCTION `omni_testoracle_migrationconverges`.`f`
 < ok 0 0
 > exec
 | CREATE FUNCTION `omni_testoracle_migrationconverges`.`f`(`x` INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -179651,6 +191869,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -179665,6 +191886,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`g`)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -179815,6 +192039,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -179825,6 +192052,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`g`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -179975,10 +192205,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g2`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g1`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -180129,10 +192365,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g1` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g2` int(11) GENERATED ALWAYS AS (`g1` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -180307,6 +192549,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | CREATE TABLE `omni_testoracle_migrationconverges`.`t` (
 |   `id` int(11) NOT NULL,
 |   `s` date NOT NULL,
@@ -180314,6 +192559,9 @@
 |   PRIMARY KEY (`id`,`p` WITHOUT OVERLAPS),
 |   PERIOD FOR `p` (`s`, `e`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -180486,7 +192734,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | DROP TABLE `omni_testoracle_migrationconverges`.`t`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -180636,6 +192890,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `c` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -180646,6 +192903,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -180796,6 +193056,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL
 < ok 0 0
 > exec
@@ -180806,6 +193069,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `d`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -180982,6 +193248,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -180992,6 +193261,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -181188,6 +193460,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -181198,6 +193473,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `f` FOREIGN KEY (`a`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -181369,7 +193647,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD PERIOD FOR `p` (`s`, `e`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -181521,7 +193805,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP PERIOD FOR `p`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -181672,10 +193962,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`y` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `x`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -181827,10 +194123,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `x` int(11) DEFAULT NULL FIRST
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -181983,6 +194285,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
@@ -181998,6 +194303,9 @@
 | PARTITIONS 2
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -182152,6 +194460,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` REMOVE PARTITIONING
 < ok 0 0
 > exec
@@ -182163,6 +194474,9 @@
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t`  PARTITION BY HASH (`a`)
 | PARTITIONS 2
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -182341,6 +194655,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -182351,6 +194668,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -182545,6 +194865,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -182555,6 +194878,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -182750,7 +195076,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`p` MODIFY COLUMN `n` bigint(20) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -182947,7 +195279,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`p` MODIFY COLUMN `n` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -183120,7 +195458,19 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -183272,10 +195622,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -183426,10 +195782,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL AFTER `x`
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -183581,10 +195943,16 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` MODIFY COLUMN `g` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -183760,6 +196128,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -183770,6 +196141,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -183964,6 +196338,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` DROP FOREIGN KEY `f`
 < ok 0 0
 > exec
@@ -183974,6 +196351,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`ch` ADD CONSTRAINT `f` FOREIGN KEY (`pid`) REFERENCES `p` (`id`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -184148,6 +196528,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -184158,6 +196541,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -184318,6 +196704,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
 < ok 0 0
 > exec
@@ -184328,6 +196717,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD UNIQUE KEY `k` (`id`,`p` WITHOUT OVERLAPS)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -184485,6 +196877,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
@@ -184517,6 +196912,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -184673,6 +197071,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP CONSTRAINT `ck`
 < ok 0 0
 > exec
@@ -184701,6 +197102,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD CONSTRAINT `ck` CHECK (`h` > 0)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -184852,6 +197256,9 @@
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP INDEX `k`
@@ -184875,6 +197282,9 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
 > query
@@ -185028,10 +197438,10 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+| SET explicit_defaults_for_timestamp = OFF
 < ok 0 0
 > exec
-| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `c` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
@@ -185046,7 +197456,13 @@
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `f` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
 < ok 0 0
 > exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL AFTER `a`
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`a`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -185204,6 +197620,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
@@ -185214,6 +197633,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 2) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -185366,6 +197788,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
 < ok 0 0
 > exec
@@ -185376,6 +197801,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -185526,6 +197954,9 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -185533,6 +197964,9 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -185685,10 +198119,22 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD KEY `k` (`e`)
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -185843,6 +198289,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | SET @@system_versioning_alter_history = KEEP
 < ok 0 0
 > exec
@@ -185853,6 +198305,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `e` timestamp(6) NULL DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -186006,6 +198464,12 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `e`
 < ok 0 0
 > exec
@@ -186013,6 +198477,12 @@
 < ok 0 0
 > exec
 | ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
@@ -186042,6 +198512,2995 @@
 |   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
 |   PERIOD FOR SYSTEM_TIME (`s`, `e`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `k`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) VIRTUAL, g INT AS (h + 1) VIRTUAL, k INT AS (g + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, h INT AS (x + 1) STORED, g INT AS (h + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `g`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `h`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `h` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `g` int(11) GENERATED ALWAYS AS (`h` + 1) VIRTUAL,
+|   `k` int(11) GENERATED ALWAYS AS (`g` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `z`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) VIRTUAL, z INT AS (a) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL,
+|   `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (base INT, a INT AS (base) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `base` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`base`) VIRTUAL,
+|   `z` int(11) GENERATED ALWAYS AS (`a`) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL FIRST
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL, b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) GENERATED ALWAYS AS (1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT AS (1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`, ADD COLUMN `a` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL,
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (a INT, b INT) PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` PAGE_CHECKSUM=1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `a` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci PAGE_CHECKSUM=1
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s2` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e2` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s2`, `e2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e`, DROP COLUMN `s`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s2` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e2` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s2`, `e2`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s2` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e2` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s2`, `e2`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s`, `e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| SET @@system_versioning_alter_history = KEEP
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP SYSTEM VERSIONING, DROP COLUMN `e2`, DROP COLUMN `s2`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `s` timestamp(6) GENERATED ALWAYS AS ROW START, ADD COLUMN `e` timestamp(6) GENERATED ALWAYS AS ROW END, ADD PERIOD FOR SYSTEM_TIME (`s`, `e`), ADD SYSTEM VERSIONING
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `s` timestamp(6) GENERATED ALWAYS AS ROW START,
+|   `e` timestamp(6) GENERATED ALWAYS AS ROW END,
+|   PERIOD FOR SYSTEM_TIME (`s`, `e`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci WITH SYSTEM VERSIONING
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) STORED,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) STORED
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) GENERATED ALWAYS AS (`x` + 1) VIRTUAL,
+|   `b` int(11) GENERATED ALWAYS AS (`a` + 1) VIRTUAL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `b` int(11) DEFAULT NULL
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` ADD COLUMN `a` int(11) DEFAULT NULL CHECK (`a` > `b`) AFTER `x`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL,
+|   `a` int(11) DEFAULT NULL CHECK (`a` > `b`),
+|   `b` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `a`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`t` DROP COLUMN `b`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `x` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| CREATE TABLE t (u TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `u` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL,
+|   `ts` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| SET @saved_explicit_defaults_for_timestamp = @@explicit_defaults_for_timestamp, explicit_defaults_for_timestamp = 1
+< ok 0 0
+> exec
+| CREATE TABLE `omni_testoracle_migrationconverges`.`t` (
+|   `u` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`x` ADD COLUMN `ts` timestamp NOT NULL
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @saved_explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| BASE TABLE
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `t`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| t
+: bytes
+| CREATE TABLE `t` (
+|   `u` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL,
+|   `ts` timestamp NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 2 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+> query
+|
+| 		SELECT LOWER(r.ROUTINE_TYPE), r.ROUTINE_NAME, CONCAT_WS('\n',
+| 			r.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,
+| 			r.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,
+| 			(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER BY p.ORDINAL_POSITION SEPARATOR ', ')
+| 			 FROM information_schema.PARAMETERS p
+| 			 WHERE p.SPECIFIC_SCHEMA = r.ROUTINE_SCHEMA AND p.SPECIFIC_NAME = r.SPECIFIC_NAME AND p.ROUTINE_TYPE = r.ROUTINE_TYPE AND p.ORDINAL_POSITION > 0))
+| 		FROM information_schema.ROUTINES r WHERE r.ROUTINE_SCHEMA = DATABASE()
+< result
+< column "LOWER(r.ROUTINE_TYPE)" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n',\n\t\t\tr.DTD_IDENTIFIER, r.IS_DETERMINISTIC, r.SQL_DATA_ACCESS, r.SECURITY_TYPE,\n\t\t\tr.ROUTINE_COMMENT, r.SQL_MODE, r.ROUTINE_DEFINITION,\n\t\t\t(SELECT GROUP_CONCAT(CONCAT_WS(' ', p.PARAMETER_MODE, LOWER(p.PARAMETER_NAME), p.DTD_IDENTIFIER) ORDER " "LONGTEXT"
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| CREATE DATABASE `omni_testoracle_migrationconverges`
+< ok 1 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| CREATE TABLE t (u TIMESTAMP NOT NULL)
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges_other`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
+| DROP TABLE `omni_testoracle_migrationconverges`.`t`
+< ok 0 0
+> exec
+| ALTER TABLE `omni_testoracle_migrationconverges`.`x` DROP COLUMN `ts`
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
+> exec
+| USE `omni_testoracle_migrationconverges`
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_migrationconverges" "VARCHAR"
+< column "Table_type" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| BASE TABLE
+> query
+| SHOW CREATE TABLE `x`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| x
+: bytes
+| CREATE TABLE `x` (
+|   `i` int(11) DEFAULT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci
 > query
 | SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
 < result
@@ -186162,9 +201621,15 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` MINVALUE 10 START WITH 100
 < error
 | 4085 HY000 Sequence 'omni_testoracle_migrationconverges.s' has out of range value for options
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
+< ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
 < ok 0 0
@@ -186258,7 +201723,13 @@
 | USE `omni_testoracle_migrationconverges_other`
 < ok 0 0
 > exec
+| SET explicit_defaults_for_timestamp = OFF
+< ok 0 0
+> exec
 | ALTER SEQUENCE `omni_testoracle_migrationconverges`.`s` MINVALUE 1 START WITH 1
+< ok 0 0
+> exec
+| SET explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp
 < ok 0 0
 > exec
 | USE `omni_testoracle_migrationconverges`
