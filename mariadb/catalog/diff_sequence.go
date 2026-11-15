@@ -50,6 +50,10 @@ func sequencesOf(c *Catalog) map[eventKey]*Sequence {
 	}
 	for _, db := range c.Databases() {
 		for name, seq := range db.Sequences {
+			// A temporary sequence lasts for the session and is no part of the schema.
+			if seq.Temporary {
+				continue
+			}
 			out[eventKey{db: toLower(db.Name), name: name}] = seq
 		}
 	}

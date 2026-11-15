@@ -891,9 +891,20 @@ func indexKeyParts(idx *metadata.IndexMetadata, tableColumns []*metadata.ColumnM
 	for _, col := range tableColumns {
 		columns[toLower(col.GetName())] = true
 	}
-	// A column's name may hold parentheses, as `price(usd)` does.
+	// A key part names a column as it is, parentheses and backquotes
+	// included: `price(usd)`, or one whose name is `id` in backquotes.
+	column := func(expr string) (string, bool) {
+		if columns[toLower(expr)] {
+			return expr, true
+		}
+		if name := unquoteIdent(expr); columns[toLower(name)] {
+			return name, true
+		}
+		return unquoteIdent(expr), false
+	}
 	isExpression := func(expr string) bool {
-		return isExpressionKey(expr) && !columns[toLower(unquoteIdent(expr))]
+		_, named := column(expr)
+		return isExpressionKey(expr) && !named
 	}
 	length := func(i int) int {
 		if !spatial && i < len(idx.GetKeyLength()) {
@@ -911,14 +922,16 @@ func indexKeyParts(idx *metadata.IndexMetadata, tableColumns []*metadata.ColumnM
 	if plain {
 		var columns []string
 		for _, expr := range idx.GetExpressions() {
-			columns = append(columns, unquoteIdent(expr))
+			name, _ := column(expr)
+			columns = append(columns, name)
 		}
 		return columns, nil, nil
 	}
 	var keys []*nodes.IndexColumn
 	var firstErr error
 	for i, expr := range idx.GetExpressions() {
-		key := &nodes.IndexColumn{Expr: &nodes.ColumnRef{Column: unquoteIdent(expr)}, Desc: descending(i)}
+		name, _ := column(expr)
+		key := &nodes.IndexColumn{Expr: &nodes.ColumnRef{Column: name}, Desc: descending(i)}
 		if l := length(i); l > 0 {
 			key.Length = l
 		}

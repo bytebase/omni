@@ -153,6 +153,17 @@ func TestLoadSDLRestoresSessionPerStatement(t *testing.T) {
 	}
 }
 
+func TestDiffLeavesTemporarySequencesOut(t *testing.T) {
+	a := loadCat(t, dbDDL+"CREATE TABLE t (a INT);")
+	b := loadCat(t, dbDDL+"CREATE TABLE t (a INT);")
+	if _, err := b.Exec("CREATE TEMPORARY SEQUENCE s;", nil); err != nil {
+		t.Fatal(err)
+	}
+	if d := Diff(a, b); !d.IsEmpty() {
+		t.Errorf("a temporary sequence diffs:\n%s", describeDiff(d))
+	}
+}
+
 func TestCanonicalTableOptionsKeepsCommentSpacing(t *testing.T) {
 	a := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a  b';")
 	b := loadCat(t, dbDDL+"CREATE TABLE t (a INT) COMMENT 'a b';")

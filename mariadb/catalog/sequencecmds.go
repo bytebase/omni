@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -26,6 +27,9 @@ type Sequence struct {
 	Cycle   bool
 	Engine  string
 	Comment string
+	// Temporary marks a CREATE TEMPORARY SEQUENCE, which lasts for the
+	// session and is no part of the schema.
+	Temporary bool
 }
 
 // sequenceTypes are the integer types a sequence may be declared AS, with
@@ -46,16 +50,18 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 		return err
 	}
 	key := toLower(stmt.Name.Name)
+	// As with tables, the catalog keeps one object per name, so a temporary
+	// sequence that would shadow a permanent object is reported a duplicate.
 	if db.Tables[key] != nil || db.Views[key] != nil || db.Sequences[key] != nil {
 		switch {
 		case stmt.IfNotExists:
 			return nil
-		case stmt.OrReplace && db.Views[key] == nil:
+		case stmt.OrReplace && db.Views[key] == nil && (!stmt.Temporary || temporaryOnly(db, key)):
 		default:
 			return errDupTable(stmt.Name.Name)
 		}
 	}
-	seq := &Sequence{Name: stmt.Name.Name, Database: db, DataType: "bigint", Cache: defaultSequenceCache, Engine: "InnoDB"}
+	seq := &Sequence{Name: stmt.Name.Name, Database: db, DataType: "bigint", Cache: defaultSequenceCache, Engine: "InnoDB", Temporary: stmt.Temporary}
 	if stmt.DataType != nil {
 		seq.DataType = sequenceDataType(stmt.DataType)
 		if seq.DataType == "" {
@@ -77,9 +83,20 @@ func (c *Catalog) createSequence(stmt *nodes.CreateSequenceStmt) error {
 			seq.Comment = opt.Value
 		}
 	}
-	delete(db.Tables, key)
+	c.dropReplacedTable(db, db.Tables[key])
 	db.Sequences[key] = seq
 	return nil
+}
+
+// temporaryOnly reports whether every object named key in db is temporary.
+func temporaryOnly(db *Database, key string) bool {
+	if t := db.Tables[key]; t != nil && !t.Temporary {
+		return false
+	}
+	if s := db.Sequences[key]; s != nil && !s.Temporary {
+		return false
+	}
+	return true
 }
 
 func (c *Catalog) alterSequence(stmt *nodes.AlterSequenceStmt) error {
@@ -136,7 +153,7 @@ func (c *Catalog) dropSequence(stmt *nodes.DropSequenceStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
-		if db.Sequences[key] == nil {
+		if seq := db.Sequences[key]; seq == nil || (stmt.Temporary && !seq.Temporary) {
 			if stmt.IfExists {
 				continue
 			}
@@ -293,10 +310,18 @@ func sequenceNumber(e nodes.ExprNode) (string, bool) {
 			text = strconv.FormatInt(n.Value, 10)
 		}
 	case *nodes.FloatLit:
-		text = n.Value
+		// A DECIMAL_NUM, a fraction or an integer past uint64, reads as
+		// ULONGLONG_MAX, and as LONGLONG_MIN after a minus (see
+		// parser.sequenceValue), which the limits then clamp. Measured on
+		// mariadb:11.8.8: MAXVALUE 1.5 stores 9223372036854775806.
+		text = strconv.FormatUint(math.MaxUint64, 10)
 	case *nodes.UnaryExpr:
 		if n.Op != nodes.UnaryMinus {
 			return "", false
+		}
+		if _, ok := n.Operand.(*nodes.FloatLit); ok {
+			text = strconv.FormatInt(math.MinInt64, 10)
+			break
 		}
 		v, ok := sequenceNumber(n.Operand)
 		if !ok {
