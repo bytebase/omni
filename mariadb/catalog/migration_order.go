@@ -540,6 +540,12 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 			}
 		}
 	}
+	// So does DROP SYSTEM VERSIONING, its ROW START and ROW END columns.
+	for _, col := range e.From.Columns {
+		if droppedWithVersioning(e, col) {
+			dropped[toLower(col.Name)] = true
+		}
+	}
 	if len(dropped) == 0 || len(dropped) < len(diffableColumns(e.From)) {
 		return ops
 	}

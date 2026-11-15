@@ -104,6 +104,9 @@ func aiTableKey(database, table string) string {
 
 // clausesOf returns op i's current clause list, initializing it from alterClause.
 func (m *aiMerger) clausesOf(i int) []alterPart {
+	if m.clauses[i] == nil && len(m.ops[i].alterParts) > 0 {
+		m.clauses[i] = append([]alterPart(nil), m.ops[i].alterParts...)
+	}
 	if m.clauses[i] == nil {
 		part := alterPart{clause: m.ops[i].alterClause}
 		if m.ops[i].Type == OpAddColumn {
@@ -193,6 +196,19 @@ func (m *aiMerger) collectRoles(entry *TableDiffEntry) *tableOpRoles {
 	for _, i := range m.byTable[aiTableKey(entry.Database, entry.Name)] {
 		op := m.ops[i]
 		if m.consumed[i] {
+			continue
+		}
+		// A statement grouping columns that read each other (rankColumnOps)
+		// plays each of its columns' parts.
+		if len(op.alterParts) > 0 {
+			for _, part := range op.alterParts {
+				if part.addsColumn != "" {
+					r.colAdd[part.addsColumn] = i
+				}
+				if part.dropsColumn != "" {
+					r.colDrop[part.dropsColumn] = i
+				}
+			}
 			continue
 		}
 		if op.alterClause == "" || !strings.HasSuffix(op.SQL, op.alterClause) {
