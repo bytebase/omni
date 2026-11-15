@@ -280,16 +280,19 @@ func (s *variableScope) get(name string) (ColumnSet, bool) {
 	return nil, false
 }
 
-// merge adds sources to the variable name in the scope that holds it, or in
-// s when none does, so an assignment in a nested block or loop outlives it.
+// merge adds sources to the variable name in the scope that holds it, so an
+// assignment in a nested block or loop outlives it. A name no scope holds,
+// such as an output parameter, lives as long as the function, in the
+// outermost scope.
 func (s *variableScope) merge(name string, sources ColumnSet) {
 	lower := strings.ToLower(name)
-	owner := s
+	var owner *variableScope
 	for scope := s; scope != nil; scope = scope.parent {
 		if _, ok := scope.vars[lower]; ok {
 			owner = scope
 			break
 		}
+		owner = scope
 	}
 	merged := cloneSourceColumnSet(owner.vars[lower])
 	mergeSourceColumnSetInto(merged, sources)
@@ -479,12 +482,15 @@ func (a *plpgsqlAnalyzer) walkStmt(node plpgsqlast.Node) {
 	case *plpgsqlast.PLForS:
 		a.handleForS(stmt)
 	case *plpgsqlast.PLForC:
-		if sources, ok := a.scope.get(stmt.CursorVar); ok {
-			a.assign(stmt.Var, sources)
-		}
+		// The loop declares its record variable, as an integer loop does.
+		sources, _ := a.scope.get(stmt.CursorVar)
+		a.scope = newVariableScope(a.scope)
+		a.scope.set(stmt.Var, cloneSourceColumnSet(sources))
+		a.scope.declared[strings.ToLower(stmt.Var)] = ""
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
 		}
+		a.scope = a.scope.parent
 	case *plpgsqlast.PLForDynS:
 		for _, s := range stmt.Body {
 			a.walkStmt(s)
