@@ -200,6 +200,8 @@ var diffPairs = []struct{ name, a, b string }{
 	{"engine change folds into the auto backing key replacement", "CREATE TABLE t (id INT AUTO_INCREMENT, h INT NOT NULL, g INT NOT NULL, PRIMARY KEY (id, h)) ENGINE=InnoDB", "CREATE TABLE t (id INT AUTO_INCREMENT, h INT, g INT NOT NULL, PRIMARY KEY (g, id), KEY z (g, id, h)) ENGINE=MyISAM"},
 	{"hide last visible column after a merged auto add", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT INVISIBLE, id INT AUTO_INCREMENT PRIMARY KEY)"},
 	{"period bound check reads a merged auto add", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e))", "CREATE TABLE t (id INT AUTO_INCREMENT, b DATETIME, s DATETIME NOT NULL, e DATETIME NOT NULL CHECK (e > b), PERIOD FOR p (s, e), KEY k (id, b))"},
+	{"add period after a merged bound column", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, s DATETIME NOT NULL, e DATETIME NOT NULL, PERIOD FOR p (s, e), KEY k (id, s))"},
+	{"drop a dependency behind a grouped period modify", "CREATE TABLE t (d DATE, s DATE NOT NULL, e DATE NOT NULL CHECK (e > d), PERIOD FOR p (s, e))", "CREATE TABLE t (id INT AUTO_INCREMENT, b DATETIME, s DATETIME NOT NULL, e DATETIME NOT NULL CHECK (e > b), PERIOD FOR p (s, e), KEY k (id, b))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

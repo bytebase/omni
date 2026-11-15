@@ -1084,6 +1084,13 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 					ops[j].Priority = p
 				}
 			}
+			// An op runs after the statements that add the columns it reads, such
+			// as an ADD PERIOD after its bound columns the merge may have moved.
+			for _, name := range ops[j].readsColumns {
+				if p, ok := priority[name]; ok && p >= ops[j].Priority {
+					ops[j].Priority = p + 1
+				}
+			}
 		}
 		// A MODIFY that hides a column runs after the statements that add the
 		// visible columns, which the merge may have moved past the priority
@@ -1114,18 +1121,22 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		readers := make(map[string][]int) // lower column -> ops that read it
 		dropOf := make(map[string]int)    // lower column -> its PhaseMain drop op
 		for j := range ops {
-			if !opOfTable(ops[j], e) || ops[j].column == "" {
+			if !opOfTable(ops[j], e) {
 				continue
 			}
 			postponedDrop := ops[j].Type == OpDropColumn && ops[j].Phase == PhaseMain
 			if ops[j].Type != OpModifyColumn && !postponedDrop {
 				continue
 			}
-			if postponedDrop {
+			if postponedDrop && ops[j].column != "" {
 				dropOf[ops[j].column] = j
 			}
-			for _, ref := range sourceReads[ops[j].column] {
-				readers[toLower(ref)] = append(readers[toLower(ref)], j)
+			// Every column a grouped MODIFY changes, not just its representative,
+			// so a released dependency of either period bound is carried.
+			for _, col := range modifiedColumns(ops[j]) {
+				for _, ref := range sourceReads[col] {
+					readers[toLower(ref)] = append(readers[toLower(ref)], j)
+				}
 			}
 		}
 		for changed := true; changed; {

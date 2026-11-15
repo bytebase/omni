@@ -70,6 +70,7 @@ func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 			}
 			if to.AppPeriodName != "" {
 				op(fmt.Sprintf("ALTER TABLE %s ADD PERIOD FOR %s (%s, %s)", table, backtickIDQ(to.AppPeriodName), backtickIDQ(to.AppPeriodStartCol), backtickIDQ(to.AppPeriodEndCol)), PhaseMain, priorityPeriodAdd)
+				ops[len(ops)-1].readsColumns = []string{toLower(to.AppPeriodStartCol), toLower(to.AppPeriodEndCol)}
 			}
 		}
 		replaced := systemPeriodReplaced(e)

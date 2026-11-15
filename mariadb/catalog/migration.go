@@ -113,6 +113,11 @@ type MigrationOp struct {
 	// triggerRef is the trigger a CREATE TRIGGER op names in its FOLLOWS or
 	// PRECEDES clause, which must exist first; "" when it names none.
 	triggerRef string
+
+	// readsColumns are columns this op depends on but does not add or modify, such
+	// as the bound columns of an ADD PERIOD. reorderAddsAfterMerge runs the op
+	// after the statements that add them, wherever the merge placed those.
+	readsColumns []string
 }
 
 // alterPart is one clause of a grouped ALTER TABLE statement. addsColumn is the lower-cased column
