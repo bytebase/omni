@@ -70,3 +70,40 @@ func TestRewriteResultLimitErrors(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "UPDATE t SET a = 1", got)
 }
+
+// The rewritten forms were run on TiDB v8.5.5: each is accepted and takes the
+// same row locks as the statement it rewrites.
+func TestRewriteResultLimitLockingClause(t *testing.T) {
+	testCases := []struct {
+		stmt string
+		want string
+	}{
+		{"SELECT * FROM t FOR UPDATE", "SELECT * FROM `t` LIMIT 10 FOR UPDATE"},
+		{"SELECT * FROM t LIMIT 20 FOR UPDATE NOWAIT", "SELECT * FROM `t` LIMIT 10 FOR UPDATE NOWAIT"},
+		{"SELECT * FROM t FOR UPDATE OF t WAIT 5", "SELECT * FROM `t` LIMIT 10 FOR UPDATE OF `t` WAIT 5"},
+		{"SELECT * FROM db.t FOR UPDATE OF db.t SKIP LOCKED", "SELECT * FROM `db`.`t` LIMIT 10 FOR UPDATE OF `db`.`t` SKIP LOCKED"},
+		{"SELECT * FROM t FOR SHARE", "SELECT * FROM `t` LIMIT 10 FOR SHARE"},
+		{"SELECT * FROM t LOCK IN SHARE MODE", "SELECT * FROM `t` LIMIT 10 LOCK IN SHARE MODE"},
+		{"TABLE t FOR UPDATE", "TABLE `t` LIMIT 10 FOR UPDATE"},
+	}
+	for _, tc := range testCases {
+		got, err := RewriteResultLimit(tc.stmt, 10)
+		require.NoError(t, err, tc.stmt)
+		require.Equal(t, tc.want, got, tc.stmt)
+	}
+}
+
+func TestRewriteResultLimitNestedLock(t *testing.T) {
+	for _, stmt := range []string{
+		"SELECT * FROM t1 UNION SELECT * FROM t2 FOR UPDATE",
+		"SELECT * FROM t1 UNION SELECT * FROM t2 LIMIT 20 FOR UPDATE",
+		"SELECT * FROM t1 UNION (SELECT * FROM t2 FOR UPDATE)",
+		"(SELECT * FROM t FOR UPDATE) LIMIT 20",
+		"SELECT * FROM (SELECT * FROM t FOR UPDATE) d",
+		"WITH c AS (SELECT * FROM t FOR UPDATE) SELECT * FROM c",
+		"SELECT (SELECT a FROM t FOR UPDATE) x",
+	} {
+		_, err := RewriteResultLimit(stmt, 10)
+		require.ErrorIs(t, err, errNestedLock, stmt)
+	}
+}

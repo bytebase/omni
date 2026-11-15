@@ -62,11 +62,34 @@ func TestTransformDMLToSelect(t *testing.T) {
 	}
 }
 
+func TestTransformDMLToSelectUse(t *testing.T) {
+	// A USE of the task database changes nothing, nor does a USE after the
+	// last DML, nor a temp table's DML.
+	for _, script := range []string{
+		"USE db; DELETE FROM t",
+		"USE [DB]; DELETE FROM t",
+		"USE other; USE db; DELETE FROM t",
+		"DELETE FROM t; USE other",
+		"USE other; DELETE FROM #tmp",
+	} {
+		if _, err := TransformDMLToSelect(parseScript(t, script), "db", "bbarchive", "pre", false); err != nil {
+			t.Errorf("%q: %v", script, err)
+		}
+	}
+	// Under a case-sensitive collation, DB is another database.
+	if _, err := TransformDMLToSelect(parseScript(t, "USE DB; DELETE FROM t"), "db", "bbarchive", "pre", true); err == nil {
+		t.Error("USE DB under a case-sensitive collation: got no error")
+	}
+}
+
 func TestTransformDMLToSelectRefuses(t *testing.T) {
 	for _, script := range []string{
 		"UPDATE t SET a = 1; DELETE FROM t",
 		"WITH c AS (SELECT a FROM t) UPDATE c SET a = 1",
 		"UPDATE t SET a = 1 WHERE CURRENT OF cur",
+		"USE other; DELETE FROM t",
+		"USE other\nGO\nUPDATE db.dbo.t SET a = 1",
+		"USE db; USE other; DELETE FROM t",
 	} {
 		if _, err := TransformDMLToSelect(parseScript(t, script), "db", "bbarchive", "pre", false); err == nil {
 			t.Errorf("%q: got no error", script)
