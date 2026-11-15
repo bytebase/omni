@@ -90,6 +90,10 @@ func TestResolveQuerySpanResults(t *testing.T) {
 		// Set operations keep the left names; BY NAME matches names.
 		{"SELECT A FROM T1 UNION SELECT E FROM T3", []string{"A<-DB.PUBLIC.T1.A,DB.PUBLIC.T3.E plain"}},
 		{"SELECT A, B FROM T1 UNION ALL BY NAME SELECT E AS B, F FROM T3", []string{"A<-DB.PUBLIC.T1.A plain", "B<-DB.PUBLIC.T1.B,DB.PUBLIC.T3.E plain", "F<-DB.PUBLIC.T3.F plain"}},
+		// BY NAME folds unquoted names and keeps quoted ones case-sensitive.
+		{`SELECT A AS "a" FROM T1 UNION ALL BY NAME SELECT E AS "A" FROM T3`, []string{"a<-DB.PUBLIC.T1.A plain", "A<-DB.PUBLIC.T3.E plain"}},
+		{`SELECT A AS "B" FROM T1 UNION ALL BY NAME SELECT E AS b FROM T3`, []string{"B<-DB.PUBLIC.T1.A,DB.PUBLIC.T3.E plain"}},
+		{`SELECT "a" FROM "lower" UNION BY NAME SELECT "A" FROM "lower"`, []string{"a<-DB.PUBLIC.lower.a plain", "A<-DB.PUBLIC.lower.A plain"}},
 		// CTEs, column lists, shadowing and recursion.
 		{"WITH C (X) AS (SELECT A FROM T1) SELECT * FROM C", []string{"X<-DB.PUBLIC.T1.A plain"}},
 		{"WITH T1 AS (SELECT E FROM T3) SELECT * FROM T1", []string{"E<-DB.PUBLIC.T3.E plain"}},
