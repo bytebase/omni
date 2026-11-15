@@ -119,6 +119,7 @@
 | 				'hello' AS s,
 | 				CAST('2026-03-04 05:06:07.123456' AS DATETIME(6)) AS dt,
 | 				CAST(0xdeadbeef AS BINARY(4)) AS bin,
+| 				CAST('' AS BINARY) AS empty_bin,
 | 				NULL AS nul;
 < result
 < column "i" "INT"
@@ -126,6 +127,7 @@
 < column "s" "VARCHAR"
 < column "dt" "DATETIME"
 < column "bin" "VARBINARY"
+< column "empty_bin" "VARBINARY"
 < column "nul" "NULL"
 < row
 : int64 42
@@ -137,6 +139,8 @@
 | 2026-03-04 05:06:07.123456
 : bytes
 |q "ޭ\xbe\xef"
+: bytes
+|
 : null
 > query
 | SELECT id FROM items ORDER BY id LIMIT 2;
@@ -332,6 +336,7 @@
 | 				'hello' AS s,
 | 				CAST('2026-03-04 05:06:07.123456' AS DATETIME(6)) AS dt,
 | 				CAST(0xdeadbeef AS BINARY(4)) AS bin,
+| 				CAST('' AS BINARY) AS empty_bin,
 | 				NULL AS nul;
 < result
 < column "i" "INT"
@@ -339,6 +344,7 @@
 < column "s" "VARCHAR"
 < column "dt" "DATETIME"
 < column "bin" "VARBINARY"
+< column "empty_bin" "VARBINARY"
 < column "nul" "NULL"
 < row
 : int64 42
@@ -350,6 +356,8 @@
 | 2026-03-04 05:06:07.123456
 : bytes
 |q "ޭ\xbe\xef"
+: bytes
+|
 : null
 > query
 | SELECT id FROM items ORDER BY id LIMIT 2;

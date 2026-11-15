@@ -11,6 +11,7 @@
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
+| 	secret_code VARCHAR(32) INVISIBLE DEFAULT 'hidden',
 | 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
 | 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -47,6 +48,24 @@
 | 	valid_to TIMESTAMP(6) GENERATED ALWAYS AS ROW END,
 | 	PERIOD FOR SYSTEM_TIME (valid_from, valid_to)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci WITH SYSTEM VERSIONING;
+< ok 0 0
+> exec
+| CREATE TABLE metrics_range (
+| 	ts INT NOT NULL,
+| 	val BIGINT NOT NULL,
+| 	PRIMARY KEY (ts)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY RANGE (ts) (
+| 	PARTITION p_low VALUES LESS THAN (100),
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| );
+< ok 0 0
+> exec
+| CREATE TABLE metrics_hash (
+| 	id INT NOT NULL PRIMARY KEY,
+| 	val INT NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY HASH (id) PARTITIONS 4;
 < ok 0 0
 > exec
 | CREATE SEQUENCE seq_default;
@@ -261,6 +280,38 @@
 |
 < row
 : bytes
+| metrics_hash
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| PRIMARY
+: bytes
+| ts
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
 | orders
 : bytes
 | idx_account
@@ -429,8 +480,29 @@
 : bytes
 | accounts
 : bytes
-| email_lower
+| secret_code
 : uint64 6
+: bytes
+| '\'hidden\''
+: bytes
+| YES
+: bytes
+| varchar(32)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| ''
+: null
+: bytes
+| INVISIBLE
+< row
+: bytes
+| accounts
+: bytes
+| email_lower
+: uint64 7
 : bytes
 | 'NULL'
 : bytes
@@ -452,7 +524,7 @@
 | accounts
 : bytes
 | display_tag
-: uint64 7
+: uint64 8
 : bytes
 | 'NULL'
 : bytes
@@ -474,7 +546,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 8
+: uint64 9
 : bytes
 | 'current_timestamp()'
 : bytes
@@ -495,7 +567,7 @@
 | accounts
 : bytes
 | updated_at
-: uint64 9
+: uint64 10
 : bytes
 | 'current_timestamp(6)'
 : bytes
@@ -516,7 +588,7 @@
 | accounts
 : bytes
 | note
-: uint64 10
+: uint64 11
 : bytes
 | 'NULL'
 : bytes
@@ -645,6 +717,86 @@
 | 'NULL'
 : bytes
 | YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| ts
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
 : bytes
 | bigint(20)
 : bytes
@@ -1504,6 +1656,145 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
+| 	
+: string
+| omni_sync_corpus
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| metrics_hash
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p2
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p3
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_range
+: bytes
+| p_low
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 100
+< row
+: bytes
+| metrics_range
+: bytes
+| p_high
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| MAXVALUE
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_hash
+: bytes
+| CREATE TABLE `metrics_hash` (
+|   `id` int(11) NOT NULL,
+|   `val` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int(11) NOT NULL,
+|   `val` bigint(20) NOT NULL,
+|   PRIMARY KEY (`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -1714,6 +2005,52 @@
 | utf8mb4
 < row
 : bytes
+| metrics_hash
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 4
+: bytes
+| 65536
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| metrics_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 2
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -1901,6 +2238,7 @@
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
+| 	secret_code VARCHAR(32) INVISIBLE DEFAULT 'hidden',
 | 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
 | 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1937,6 +2275,24 @@
 | 	valid_to TIMESTAMP(6) GENERATED ALWAYS AS ROW END,
 | 	PERIOD FOR SYSTEM_TIME (valid_from, valid_to)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci WITH SYSTEM VERSIONING;
+< ok 0 0
+> exec
+| CREATE TABLE metrics_range (
+| 	ts INT NOT NULL,
+| 	val BIGINT NOT NULL,
+| 	PRIMARY KEY (ts)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY RANGE (ts) (
+| 	PARTITION p_low VALUES LESS THAN (100),
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| );
+< ok 0 0
+> exec
+| CREATE TABLE metrics_hash (
+| 	id INT NOT NULL PRIMARY KEY,
+| 	val INT NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY HASH (id) PARTITIONS 4;
 < ok 0 0
 > exec
 | CREATE SEQUENCE seq_default;
@@ -2148,6 +2504,38 @@
 |
 < row
 : bytes
+| metrics_hash
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| PRIMARY
+: bytes
+| ts
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
 | orders
 : bytes
 | idx_account
@@ -2316,8 +2704,29 @@
 : bytes
 | accounts
 : bytes
-| email_lower
+| secret_code
 : uint64 6
+: bytes
+| '\'hidden\''
+: bytes
+| YES
+: bytes
+| varchar(32)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| ''
+: null
+: bytes
+| INVISIBLE
+< row
+: bytes
+| accounts
+: bytes
+| email_lower
+: uint64 7
 : bytes
 | 'NULL'
 : bytes
@@ -2339,7 +2748,7 @@
 | accounts
 : bytes
 | display_tag
-: uint64 7
+: uint64 8
 : bytes
 | 'NULL'
 : bytes
@@ -2361,7 +2770,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 8
+: uint64 9
 : bytes
 | 'current_timestamp()'
 : bytes
@@ -2382,7 +2791,7 @@
 | accounts
 : bytes
 | updated_at
-: uint64 9
+: uint64 10
 : bytes
 | 'current_timestamp(6)'
 : bytes
@@ -2403,7 +2812,7 @@
 | accounts
 : bytes
 | note
-: uint64 10
+: uint64 11
 : bytes
 | 'NULL'
 : bytes
@@ -2532,6 +2941,86 @@
 | 'NULL'
 : bytes
 | YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| ts
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
 : bytes
 | bigint(20)
 : bytes
@@ -3231,6 +3720,145 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
+| 	
+: string
+| omni_sync_corpus
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| metrics_hash
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p2
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p3
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_range
+: bytes
+| p_low
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 100
+< row
+: bytes
+| metrics_range
+: bytes
+| p_high
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| MAXVALUE
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_hash
+: bytes
+| CREATE TABLE `metrics_hash` (
+|   `id` int(11) NOT NULL,
+|   `val` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int(11) NOT NULL,
+|   `val` bigint(20) NOT NULL,
+|   PRIMARY KEY (`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -3441,6 +4069,52 @@
 | utf8mb4
 < row
 : bytes
+| metrics_hash
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 4
+: bytes
+| 65536
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| metrics_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 2
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -3589,6 +4263,7 @@
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
+| 	secret_code VARCHAR(32) INVISIBLE DEFAULT 'hidden',
 | 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
 | 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -3625,6 +4300,24 @@
 | 	valid_to TIMESTAMP(6) GENERATED ALWAYS AS ROW END,
 | 	PERIOD FOR SYSTEM_TIME (valid_from, valid_to)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci WITH SYSTEM VERSIONING;
+< ok 0 0
+> exec
+| CREATE TABLE metrics_range (
+| 	ts INT NOT NULL,
+| 	val BIGINT NOT NULL,
+| 	PRIMARY KEY (ts)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY RANGE (ts) (
+| 	PARTITION p_low VALUES LESS THAN (100),
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| );
+< ok 0 0
+> exec
+| CREATE TABLE metrics_hash (
+| 	id INT NOT NULL PRIMARY KEY,
+| 	val INT NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY HASH (id) PARTITIONS 4;
 < ok 0 0
 > exec
 | CREATE SEQUENCE seq_default;
@@ -3836,6 +4529,38 @@
 |
 < row
 : bytes
+| metrics_hash
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| PRIMARY
+: bytes
+| ts
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
 | orders
 : bytes
 | idx_account
@@ -4004,8 +4729,29 @@
 : bytes
 | accounts
 : bytes
-| email_lower
+| secret_code
 : uint64 6
+: bytes
+| '\'hidden\''
+: bytes
+| YES
+: bytes
+| varchar(32)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| ''
+: null
+: bytes
+| INVISIBLE
+< row
+: bytes
+| accounts
+: bytes
+| email_lower
+: uint64 7
 : bytes
 | 'NULL'
 : bytes
@@ -4027,7 +4773,7 @@
 | accounts
 : bytes
 | display_tag
-: uint64 7
+: uint64 8
 : bytes
 | 'NULL'
 : bytes
@@ -4049,7 +4795,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 8
+: uint64 9
 : bytes
 | 'current_timestamp()'
 : bytes
@@ -4070,7 +4816,7 @@
 | accounts
 : bytes
 | updated_at
-: uint64 9
+: uint64 10
 : bytes
 | 'current_timestamp(6)'
 : bytes
@@ -4091,7 +4837,7 @@
 | accounts
 : bytes
 | note
-: uint64 10
+: uint64 11
 : bytes
 | 'NULL'
 : bytes
@@ -4220,6 +4966,86 @@
 | 'NULL'
 : bytes
 | YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| ts
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
 : bytes
 | bigint(20)
 : bytes
@@ -4919,6 +5745,145 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
+| 	
+: string
+| omni_sync_corpus
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| metrics_hash
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p2
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p3
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_range
+: bytes
+| p_low
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 100
+< row
+: bytes
+| metrics_range
+: bytes
+| p_high
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| MAXVALUE
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_hash
+: bytes
+| CREATE TABLE `metrics_hash` (
+|   `id` int(11) NOT NULL,
+|   `val` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int(11) NOT NULL,
+|   `val` bigint(20) NOT NULL,
+|   PRIMARY KEY (`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -5129,6 +6094,52 @@
 | utf8mb4
 < row
 : bytes
+| metrics_hash
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 4
+: bytes
+| 65536
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| metrics_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 2
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -5277,6 +6288,7 @@
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
+| 	secret_code VARCHAR(32) INVISIBLE DEFAULT 'hidden',
 | 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
 | 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -5313,6 +6325,24 @@
 | 	valid_to TIMESTAMP(6) GENERATED ALWAYS AS ROW END,
 | 	PERIOD FOR SYSTEM_TIME (valid_from, valid_to)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci WITH SYSTEM VERSIONING;
+< ok 0 0
+> exec
+| CREATE TABLE metrics_range (
+| 	ts INT NOT NULL,
+| 	val BIGINT NOT NULL,
+| 	PRIMARY KEY (ts)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY RANGE (ts) (
+| 	PARTITION p_low VALUES LESS THAN (100),
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| );
+< ok 0 0
+> exec
+| CREATE TABLE metrics_hash (
+| 	id INT NOT NULL PRIMARY KEY,
+| 	val INT NOT NULL
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+| PARTITION BY HASH (id) PARTITIONS 4;
 < ok 0 0
 > exec
 | CREATE SEQUENCE seq_default;
@@ -5524,6 +6554,38 @@
 |
 < row
 : bytes
+| metrics_hash
+: bytes
+| PRIMARY
+: bytes
+| id
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| PRIMARY
+: bytes
+| ts
+: bytes
+| A
+: int64 -1
+: int64 1
+: bytes
+| BTREE
+: int64 0
+: bytes
+|
+< row
+: bytes
 | orders
 : bytes
 | idx_account
@@ -5692,8 +6754,29 @@
 : bytes
 | accounts
 : bytes
-| email_lower
+| secret_code
 : uint64 6
+: bytes
+| '\'hidden\''
+: bytes
+| YES
+: bytes
+| varchar(32)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| ''
+: null
+: bytes
+| INVISIBLE
+< row
+: bytes
+| accounts
+: bytes
+| email_lower
+: uint64 7
 : bytes
 | 'NULL'
 : bytes
@@ -5715,7 +6798,7 @@
 | accounts
 : bytes
 | display_tag
-: uint64 7
+: uint64 8
 : bytes
 | 'NULL'
 : bytes
@@ -5737,7 +6820,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 8
+: uint64 9
 : bytes
 | 'current_timestamp()'
 : bytes
@@ -5758,7 +6841,7 @@
 | accounts
 : bytes
 | updated_at
-: uint64 9
+: uint64 10
 : bytes
 | 'current_timestamp(6)'
 : bytes
@@ -5779,7 +6862,7 @@
 | accounts
 : bytes
 | note
-: uint64 10
+: uint64 11
 : bytes
 | 'NULL'
 : bytes
@@ -5908,6 +6991,86 @@
 | 'NULL'
 : bytes
 | YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_hash
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| ts
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: null
+: bytes
+|
+< row
+: bytes
+| metrics_range
+: bytes
+| val
+: uint64 2
+: null
+: bytes
+| NO
 : bytes
 | bigint(20)
 : bytes
@@ -6607,6 +7770,145 @@
 > query
 |
 | 		SELECT
+| 			TABLE_NAME,
+| 			PARTITION_NAME,
+| 			SUBPARTITION_NAME,
+| 			PARTITION_METHOD,
+| 			SUBPARTITION_METHOD,
+| 			PARTITION_EXPRESSION,
+| 			SUBPARTITION_EXPRESSION,
+| 			PARTITION_DESCRIPTION
+| 		FROM INFORMATION_SCHEMA.PARTITIONS
+| 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+| 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
+| 	
+: string
+| omni_sync_corpus
+< result
+< column "TABLE_NAME" "VARCHAR"
+< column "PARTITION_NAME" "VARCHAR"
+< column "SUBPARTITION_NAME" "VARCHAR"
+< column "PARTITION_METHOD" "VARCHAR"
+< column "SUBPARTITION_METHOD" "VARCHAR"
+< column "PARTITION_EXPRESSION" "TEXT"
+< column "SUBPARTITION_EXPRESSION" "TEXT"
+< column "PARTITION_DESCRIPTION" "TEXT"
+< row
+: bytes
+| metrics_hash
+: bytes
+| p0
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p1
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p2
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_hash
+: bytes
+| p3
+: null
+: bytes
+| HASH
+: null
+: bytes
+| `id`
+: null
+: null
+< row
+: bytes
+| metrics_range
+: bytes
+| p_low
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| 100
+< row
+: bytes
+| metrics_range
+: bytes
+| p_high
+: null
+: bytes
+| RANGE
+: null
+: bytes
+| `ts`
+: null
+: bytes
+| MAXVALUE
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_hash
+: bytes
+| CREATE TABLE `metrics_hash` (
+|   `id` int(11) NOT NULL,
+|   `val` int(11) NOT NULL,
+|   PRIMARY KEY (`id`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY HASH (`id`)
+| PARTITIONS 4
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`metrics_range`
+< result
+< column "Table" "VARCHAR"
+< column "Create Table" "VARCHAR"
+< row
+: bytes
+| metrics_range
+: bytes
+| CREATE TABLE `metrics_range` (
+|   `ts` int(11) NOT NULL,
+|   `val` bigint(20) NOT NULL,
+|   PRIMARY KEY (`ts`)
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+|  PARTITION BY RANGE (`ts`)
+| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+> query
+|
+| 		SELECT
 | 			ROUTINE_NAME,
 | 			ROUTINE_TYPE,
 | 			SQL_MODE,
@@ -6813,6 +8115,52 @@
 |
 : bytes
 | 'versioned'
+: bytes
+| utf8mb4
+< row
+: bytes
+| metrics_hash
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 4
+: bytes
+| 65536
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
+| metrics_range
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_unicode_ci
+: bytes
+| 2
+: bytes
+| 32768
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| partitioned
+: bytes
+| ''
 : bytes
 | utf8mb4
 < row

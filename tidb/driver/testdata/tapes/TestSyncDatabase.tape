@@ -10,6 +10,7 @@
 | 	email VARCHAR(190) NOT NULL,
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
+| 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
 | 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
 | 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
@@ -36,8 +37,8 @@
 | 	val BIGINT NOT NULL,
 | 	PRIMARY KEY (ts)
 | ) PARTITION BY RANGE (ts) (
-| 	PARTITION p0 VALUES LESS THAN (100),
-| 	PARTITION p1 VALUES LESS THAN MAXVALUE
+| 	PARTITION p_low VALUES LESS THAN (100),
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE
 | );
 < ok 0 0
 > exec
@@ -291,8 +292,30 @@
 : bytes
 | accounts
 : bytes
-| balance
+| literal_ts
 : int64 5
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| varchar(40)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_bin
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| accounts
+: bytes
+| balance
+: int64 6
 : bytes
 | '0.0000'
 : bytes
@@ -314,7 +337,7 @@
 | accounts
 : bytes
 | email_lower
-: int64 6
+: int64 7
 : null
 : bytes
 | YES
@@ -335,7 +358,7 @@
 | accounts
 : bytes
 | display_tag
-: int64 7
+: int64 8
 : null
 : bytes
 | YES
@@ -356,7 +379,7 @@
 | accounts
 : bytes
 | created_at
-: int64 8
+: int64 9
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -378,7 +401,7 @@
 | accounts
 : bytes
 | updated_at
-: int64 9
+: int64 10
 : bytes
 | 'CURRENT_TIMESTAMP(6)'
 : bytes
@@ -400,7 +423,7 @@
 | accounts
 : bytes
 | note
-: int64 10
+: int64 11
 : null
 : bytes
 | YES
@@ -706,7 +729,7 @@
 | 			PARTITION_DESCRIPTION
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
-| 		ORDER BY TABLE_NAME ASC, PARTITION_NAME ASC, SUBPARTITION_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
+| 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
 | 	
 : string
 | omni_sync_corpus
@@ -723,7 +746,7 @@
 : bytes
 | metrics_range
 : bytes
-| p0
+| p_low
 : null
 : bytes
 | RANGE
@@ -737,7 +760,7 @@
 : bytes
 | metrics_range
 : bytes
-| p1
+| p_high
 : null
 : bytes
 | RANGE

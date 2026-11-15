@@ -7,6 +7,7 @@
 | 	email VARCHAR(190) NOT NULL,
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
+| 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
 | 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL, -- not restorable: TestDumpGaps
 | 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED, -- not restorable: TestDumpGaps
@@ -340,8 +341,31 @@
 : bytes
 | accounts
 : bytes
-| balance
+| literal_ts
 : uint64 5
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| varchar(40)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
+| balance
+: uint64 6
 : bytes
 | '0.0000'
 : bytes
@@ -364,7 +388,7 @@
 | accounts
 : bytes
 | email_lower
-: uint64 6
+: uint64 7
 : bytes
 | 'LOWER(`email`)'
 : bytes
@@ -387,7 +411,7 @@
 | accounts
 : bytes
 | display_tag
-: uint64 7
+: uint64 8
 : bytes
 | 'CONCAT(`email`,\':\',\'v1\')'
 : bytes
@@ -410,7 +434,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 8
+: uint64 9
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -433,7 +457,7 @@
 | accounts
 : bytes
 | updated_at
-: uint64 9
+: uint64 10
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -456,7 +480,7 @@
 | accounts
 : bytes
 | note
-: uint64 10
+: uint64 11
 : null
 : bytes
 | YES

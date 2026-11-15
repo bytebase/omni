@@ -37,14 +37,22 @@
               "collation": "utf8mb4_general_ci"
             },
             {
-              "name": "balance",
+              "name": "literal_ts",
               "position": 5,
+              "default": "'CURRENT_TIMESTAMP'",
+              "type": "varchar(40)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_general_ci"
+            },
+            {
+              "name": "balance",
+              "position": 6,
               "default": "'0.0000'",
               "type": "decimal(12,4)"
             },
             {
               "name": "email_lower",
-              "position": 6,
+              "position": 7,
               "default": "'LOWER(`email`)'",
               "nullable": true,
               "type": "varchar(190)",
@@ -57,7 +65,7 @@
             },
             {
               "name": "display_tag",
-              "position": 7,
+              "position": 8,
               "default": "'CONCAT(`email`,\\':\\',\\'v1\\')'",
               "nullable": true,
               "type": "varchar(220)",
@@ -70,19 +78,20 @@
             },
             {
               "name": "created_at",
-              "position": 8,
+              "position": 9,
               "default": "CURRENT_TIMESTAMP",
               "type": "datetime"
             },
             {
               "name": "updated_at",
-              "position": 9,
+              "position": 10,
               "default": "CURRENT_TIMESTAMP",
+              "onUpdate": "CURRENT_TIMESTAMP(6)",
               "type": "datetime(6)"
             },
             {
               "name": "note",
-              "position": 10,
+              "position": 11,
               "default": "NULL",
               "nullable": true,
               "type": "varchar(100)",

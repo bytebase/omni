@@ -269,6 +269,7 @@ func TestColumnDefaultsAndHelpers(t *testing.T) {
 		{"not null no default", "int", sql.NullString{}, false, "", binaryDefaultHexNotation, "", ""},
 		{"quoted string", "varchar(20)", sql.NullString{Valid: true, String: "'hello'"}, true, "", binaryDefaultHexNotation, "'hello'", ""},
 		{"current_timestamp(6) on update", "datetime(6)", sql.NullString{Valid: true, String: "'CURRENT_TIMESTAMP(6)'"}, false, "DEFAULT_GENERATED on update CURRENT_TIMESTAMP(6)", binaryDefaultHexNotation, "CURRENT_TIMESTAMP(6)", "CURRENT_TIMESTAMP(6)"},
+		{"lowercase on update current_timestamp(6)", "datetime(6)", sql.NullString{Valid: true, String: "'CURRENT_TIMESTAMP(6)'"}, false, "on update current_timestamp(6)", binaryDefaultHexNotation, "CURRENT_TIMESTAMP(6)", "CURRENT_TIMESTAMP(6)"},
 		{"varchar literal CURRENT_TIMESTAMP keeps quotes", "varchar(40)", sql.NullString{Valid: true, String: "'CURRENT_TIMESTAMP'"}, false, "", binaryDefaultHexNotation, "'CURRENT_TIMESTAMP'", ""},
 		{"varchar literal current_date_label keeps quotes", "varchar(40)", sql.NullString{Valid: true, String: "'current_date_label'"}, false, "", binaryDefaultHexNotation, "'current_date_label'", ""},
 		{"expression default", "varchar(36)", sql.NullString{Valid: true, String: `'json_object(\\'k\\',1)'`}, true, "DEFAULT_GENERATED", binaryDefaultHexNotation, "(json_object('k',1))", ""},

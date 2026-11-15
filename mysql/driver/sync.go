@@ -78,7 +78,7 @@ var (
 	}
 
 	temporalKeywordDefaultRe = regexp.MustCompile(`^(?i)CURRENT_(?:TIMESTAMP|DATE|TIME)(?:\(\d+\))?$`)
-	currentTSPrecision       = regexp.MustCompile(`CURRENT_TIMESTAMP\((\d+)\)`)
+	onUpdateCurrentTSRe      = regexp.MustCompile(`(?i)on update CURRENT_TIMESTAMP(?:\((\d+)\))?`)
 )
 
 type semverTriple struct {
@@ -1186,8 +1186,8 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 		column.Default = "NULL"
 	}
 
-	if strings.Contains(extra, "on update CURRENT_TIMESTAMP") {
-		if match := currentTSPrecision.FindStringSubmatch(extra); len(match) > 1 {
+	if match := onUpdateCurrentTSRe.FindStringSubmatch(extra); len(match) > 0 {
+		if match[1] != "" {
 			column.OnUpdate = fmt.Sprintf("CURRENT_TIMESTAMP(%s)", match[1])
 		} else {
 			column.OnUpdate = "CURRENT_TIMESTAMP"
