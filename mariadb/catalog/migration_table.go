@@ -303,14 +303,12 @@ func indexFirstColumnIs(idx *Index, col string) bool {
 	return first.Expr == "" && strings.EqualFold(first.Name, col)
 }
 
-// autoIncIndexPreferred reports whether candidate should be chosen over current as the inlined
-// AUTO_INCREMENT supporting key: a UNIQUE key wins over a non-unique one; otherwise the
-// lower-cased index name breaks the tie deterministically.
+// autoIncIndexPreferred reports whether candidate should be chosen over current, a key the
+// target places before it, as the inlined AUTO_INCREMENT supporting key: a UNIQUE key wins over
+// a non-unique one, and otherwise the target's order holds, since the first UNIQUE key over NOT
+// NULL columns is the implicit primary key, which an IGNORED key cannot be (4174).
 func autoIncIndexPreferred(candidate, current *Index) bool {
-	if candidate.Unique != current.Unique {
-		return candidate.Unique
-	}
-	return toLower(candidate.Name) < toLower(current.Name)
+	return candidate.Unique && !current.Unique
 }
 
 // formatInlinePrimaryKey renders the inline PRIMARY KEY clause for a CREATE TABLE, or ""
