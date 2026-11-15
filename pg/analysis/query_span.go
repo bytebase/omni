@@ -3,6 +3,8 @@ package analysis
 import (
 	"context"
 	"fmt"
+	"maps"
+	"slices"
 	"strings"
 
 	omnipg "github.com/bytebase/omni/pg"
@@ -1104,13 +1106,64 @@ func (e *querySpanExtractor) extractColumnsFromFromItem(item ast.Node, analyzer 
 	case *ast.RangeFunction:
 		return e.extractColumnsFromRangeFunction(v, analyzer, fromTables)
 	case *ast.JoinExpr:
-		var results []QuerySpanResult
-		results = append(results, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables)...)
-		results = append(results, e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables)...)
-		return results
+		return joinColumns(v, e.extractColumnsFromFromItem(v.Larg, analyzer, fromTables), e.extractColumnsFromFromItem(v.Rarg, analyzer, fromTables))
 	default:
 		return nil
 	}
+}
+
+// joinColumns returns the columns of a join of left and right: each USING
+// (or NATURAL) column once, reading both sides, then the other columns of
+// the left and of the right.
+//
+// pg: src/backend/parser/parse_clause.c — transformFromClauseItem (JoinExpr)
+func joinColumns(join *ast.JoinExpr, left, right []QuerySpanResult) []QuerySpanResult {
+	var using []string
+	if join.IsNatural {
+		for _, l := range left {
+			if slices.ContainsFunc(right, func(r QuerySpanResult) bool { return strings.EqualFold(r.Name, l.Name) }) {
+				using = append(using, l.Name)
+			}
+		}
+	} else {
+		using = astStrings(join.UsingClause)
+	}
+	if len(using) == 0 {
+		return append(left, right...)
+	}
+	leftUsed, rightUsed := make([]bool, len(left)), make([]bool, len(right))
+	take := func(columns []QuerySpanResult, used []bool, name string) *QuerySpanResult {
+		for i := range columns {
+			if !used[i] && strings.EqualFold(columns[i].Name, name) {
+				used[i] = true
+				return &columns[i]
+			}
+		}
+		return nil
+	}
+	var columns []QuerySpanResult
+	for _, name := range using {
+		merged := QuerySpanResult{Name: name, SourceColumns: make(ColumnSet)}
+		if l := take(left, leftUsed, name); l != nil {
+			maps.Copy(merged.SourceColumns, l.SourceColumns)
+			merged.IsPlainField = l.IsPlainField
+		}
+		if r := take(right, rightUsed, name); r != nil {
+			maps.Copy(merged.SourceColumns, r.SourceColumns)
+		}
+		columns = append(columns, merged)
+	}
+	for i, column := range left {
+		if !leftUsed[i] {
+			columns = append(columns, column)
+		}
+	}
+	for i, column := range right {
+		if !rightUsed[i] {
+			columns = append(columns, column)
+		}
+	}
+	return columns
 }
 
 // extractColumnsFromRangeVar looks up a table in the catalog and returns its columns with lineage.

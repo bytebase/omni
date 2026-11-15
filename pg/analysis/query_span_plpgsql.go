@@ -1252,7 +1252,7 @@ func (a *plpgsqlAnalyzer) starColumns(sel *ast.SelectStmt, table string, tables 
 	var columns []QuerySpanResult
 	var expand func(node ast.Node)
 	expand = func(node ast.Node) {
-		if join, ok := node.(*ast.JoinExpr); ok {
+		if join, ok := node.(*ast.JoinExpr); ok && table != "" {
 			expand(join.Larg)
 			expand(join.Rarg)
 			return
