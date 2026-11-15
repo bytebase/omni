@@ -225,6 +225,7 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 
 	// An AUTO_INCREMENT column and its backing key must land in one statement, because
 	// MariaDB checks the key rule at the end of every ALTER; see migration_autoinc.go.
+	ops = reorderTableChanges(ops, diff, n)
 	ops = mergeAutoIncrementKeyOps(ops, diff, n)
 
 	ops = sortMigrationOps(ops)

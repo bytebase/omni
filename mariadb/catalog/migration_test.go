@@ -43,6 +43,7 @@ func TestMigration_MariaDBStatements(t *testing.T) {
 		{"keep history", "CREATE TABLE t (a INT) WITH SYSTEM VERSIONING;", "CREATE TABLE t (a INT, b INT) WITH SYSTEM VERSIONING;", "SET @@system_versioning_alter_history = KEEP"},
 		{"period", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL);", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e));", "ALTER TABLE `app`.`t` ADD PERIOD FOR `p` (`s`, `e`)"},
 		{"option reset", "CREATE TABLE t (a INT) STATS_PERSISTENT=1 COMMENT 'x';", "CREATE TABLE t (a INT);", "ALTER TABLE `app`.`t` STATS_PERSISTENT=DEFAULT COMMENT=''"},
+		{"event qualified", "", "CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 1;", "CREATE EVENT `app`.`e`"},
 		{"ignored key", "CREATE TABLE t (a INT, KEY k (a));", "CREATE TABLE t (a INT, KEY k (a) IGNORED);", "ADD KEY `k` (`a`) IGNORED"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

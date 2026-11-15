@@ -112,7 +112,7 @@ func scheduleHasEnds(raw string) bool {
 func renderCreateEvent(e *Event) string {
 	var b strings.Builder
 	b.WriteString("CREATE EVENT ")
-	b.WriteString(quoteIdent(e.Name))
+	b.WriteString(eventIdent(e))
 	writeEventBodyClauses(&b, e)
 	return b.String()
 }
@@ -152,14 +152,23 @@ func eventSessionContext(e *Event) SessionContext {
 func renderAlterEvent(e *Event) string {
 	var b strings.Builder
 	b.WriteString("ALTER EVENT ")
-	b.WriteString(quoteIdent(e.Name))
+	b.WriteString(eventIdent(e))
 	writeEventBodyClauses(&b, e)
 	return b.String()
 }
 
 // renderDropEvent renders DROP EVENT IF EXISTS for the source event.
 func renderDropEvent(e *Event) string {
-	return "DROP EVENT IF EXISTS " + quoteIdent(e.Name)
+	return "DROP EVENT IF EXISTS " + eventIdent(e)
+}
+
+// eventIdent names an event with its database, so the plan does not depend on
+// the database the connection has selected.
+func eventIdent(e *Event) string {
+	if e.Database != nil && e.Database.Name != "" {
+		return quoteIdent(e.Database.Name) + "." + quoteIdent(e.Name)
+	}
+	return quoteIdent(e.Name)
 }
 
 // writeEventBodyClauses appends the CREATE/ALTER EVENT clauses after the event name: ON SCHEDULE,

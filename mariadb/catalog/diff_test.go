@@ -84,6 +84,11 @@ var diffPairs = []struct{ name, a, b string }{
 	{"trigger body", "CREATE TABLE t (a INT); CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 1", "CREATE TABLE t (a INT); CREATE TRIGGER tr BEFORE INSERT ON t FOR EACH ROW SET NEW.a = 2"},
 	{"function body", "CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x", "CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x + 1"},
 	{"function characteristic", "CREATE FUNCTION f(x INT) RETURNS INT DETERMINISTIC RETURN x", "CREATE FUNCTION f(x INT) RETURNS INT NOT DETERMINISTIC RETURN x"},
+	{"generated storage with a key", "CREATE TABLE t (a INT, g INT AS (a + 1) VIRTUAL, KEY k (g))", "CREATE TABLE t (a INT, g INT AS (a + 1) STORED, KEY k (g))"},
+	{"generated columns on generated columns", "CREATE TABLE t (a INT, g1 INT AS (a + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL)", "CREATE TABLE t (a INT)"},
+	{"primary key without overlaps", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (id INT, s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e), PRIMARY KEY (id, p WITHOUT OVERLAPS))"},
+	{"every column replaced", "CREATE TABLE t (a INT, b INT)", "CREATE TABLE t (c INT, d INT)"},
+	{"key a foreign key needs", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE t (a INT, b INT, KEY k (a), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (id))", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE t (a INT, b INT, KEY k (a, b), CONSTRAINT f FOREIGN KEY (a) REFERENCES p (id))"},
 	{"application period", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL)", "CREATE TABLE t (s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR p (s, e))"},
 }
 
