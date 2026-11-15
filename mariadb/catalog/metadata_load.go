@@ -290,7 +290,7 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata, database stri
 		}
 		for _, v := range s.GetViews() {
 			if v.GetName() != "" {
-				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v, snapshotDatabase: meta.GetName()})
+				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v, snapshotDatabase: meta.GetName(), database: database})
 			}
 		}
 		for _, fn := range s.GetFunctions() {
@@ -333,7 +333,7 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		o.incomplete = omitted
 		return c.DefineTable(stmt)
 	case metadataView:
-		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase)
+		stmt, err := metadataViewStmt(o.view, o.snapshotDatabase, o.database)
 		if err != nil {
 			return err
 		}
@@ -989,13 +989,14 @@ func referenceAction(action string) nodes.ReferenceAction {
 }
 
 // metadataViewStmt keeps the view's text, less the qualifier of the snapshot's
-// database, along with its parsed body. Sync qualifies every reference with
-// that database, which the view resolves to without it.
+// database on its tables and columns and with database's on its function calls,
+// along with its parsed body. Sync qualifies every reference with that
+// database, which the view resolves to without it.
 // DefineView installs a view whose body does not analyze, so a view may name
 // one that installs after it; reanalyzeViews retries it then. nameViewColumns
 // names the columns once the body resolves.
-func metadataViewStmt(v *metadata.ViewMetadata, database string) (*nodes.CreateViewStmt, error) {
-	body := stripViewBodyDatabaseQualifier(v.GetDefinition(), database)
+func metadataViewStmt(v *metadata.ViewMetadata, snapshotDatabase, database string) (*nodes.CreateViewStmt, error) {
+	body := stripBodyQualifier(v.GetDefinition(), snapshotDatabase, database)
 	body, checkOption := cutViewCheckOption(body)
 	sel, err := parseFirstStatement[*nodes.SelectStmt](body)
 	if err != nil {

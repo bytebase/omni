@@ -768,7 +768,7 @@ func (c *Catalog) deparseViewSelect(sel *nodes.SelectStmt, rawText, source strin
 	// database, and a function call with it. Measured on mariadb:11.8.8: `select
 	// test.t.a, test.f(1) from test.t` in database test is stored select
 	// `t`.`a` AS `a`,`test`.`f`(1) AS `test.f(1)` from `t`.
-	return stripBodyQualifier(deparse.DeparseSelect(sel), db.Name, false), derivedCols
+	return stripBodyQualifier(deparse.DeparseSelect(sel), db.Name, db.Name), derivedCols
 }
 
 // applyExplicitViewColumns renames the output aliases of the SELECT that

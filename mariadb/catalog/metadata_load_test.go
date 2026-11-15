@@ -909,11 +909,13 @@ func TestLoadMetadataKeepsExpressionDefaults(t *testing.T) {
 			{Name: "b", Type: "int(11)", Nullable: true, Default: "'(`a` + 1)'"},
 			{Name: "c", Type: "int(11)", Nullable: true, Default: "'-1'"},
 			{Name: "g", Type: "int(11)", Nullable: true, Default: "'`a`'"},
+			{Name: "u", Type: "bigint(20) unsigned", Nullable: true, Default: "'18446744073709551614'"},
+			{Name: "m", Type: "bigint(20)", Nullable: true, Default: "'-9223372036854775808'"},
 		},
 	}))
 	requireReport(t, report, nil, nil)
 	got := c.ShowCreateTable(snapshotDB, "t")
-	for _, want := range []string{"`a` int(11) DEFAULT 1,", "`b` int(11) DEFAULT (`a` + 1),", "`c` int(11) DEFAULT -1,", "`g` int(11) DEFAULT `a`\n"} {
+	for _, want := range []string{"`a` int(11) DEFAULT 1,", "`b` int(11) DEFAULT (`a` + 1),", "`c` int(11) DEFAULT -1,", "`g` int(11) DEFAULT `a`,", "`u` bigint(20) unsigned DEFAULT 18446744073709551614,", "`m` bigint(20) DEFAULT -9223372036854775808\n"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("want %q in\n%s", want, got)
 		}
@@ -950,5 +952,29 @@ func TestLoadMetadataInstallsListDefaultPartition(t *testing.T) {
 	requireIncomplete(t, report, nil)
 	if got := c.ShowCreateTable(snapshotDB, "pl"); !strings.Contains(got, "PARTITION `pd` DEFAULT ENGINE = InnoDB") {
 		t.Errorf("want the catch-all partition:\n%s", got)
+	}
+}
+
+func TestLoadMetadataIntoRebasesViewFunctionQualifiers(t *testing.T) {
+	// VIEWS.VIEW_DEFINITION keeps a call as it was written, measured on
+	// mariadb:11.8.8: testdb.upper(1) qualified, dbl(2) bare. Unqualified,
+	// upper(1) would be the builtin.
+	meta := snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{Name: "t", Columns: []*metadata.ColumnMetadata{{Name: "x", Type: "int(11)", Nullable: true}}}},
+		Functions: []*metadata.FunctionMetadata{
+			{Name: "upper", Definition: "CREATE FUNCTION `upper`(x INT) RETURNS int(11)\nRETURN x + 1"},
+			{Name: "dbl", Definition: "CREATE FUNCTION `dbl`(x INT) RETURNS int(11)\nRETURN x * 2"},
+		},
+		Views: []*metadata.ViewMetadata{{Name: "v", Definition: "select `" + snapshotDB + "`.`upper`(1) AS `a`,`dbl`(2) AS `c`,`t`.`x` AS `x` from `" + snapshotDB + "`.`t`"}},
+	})
+	c := New()
+	report, err := c.LoadMetadataInto(context.Background(), meta, "other")
+	if err != nil {
+		t.Fatal(err)
+	}
+	requireReport(t, report, nil, nil)
+	got := c.ShowCreateView("other", "v")
+	if !strings.Contains(got, "`other`.`upper`(1) AS `a`") || strings.Contains(got, snapshotDB) {
+		t.Errorf("want upper qualified with other:\n%s", got)
 	}
 }
