@@ -368,6 +368,10 @@ func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 		{Name: "next_cursor_loop", Definition: "CREATE FUNCTION public.next_cursor_loop() RETURNS TABLE(value text) LANGUAGE plpgsql AS $$ DECLARE c CURSOR FOR SELECT ssn FROM t; BEGIN value := 'public'; FOR value IN c LOOP RETURN NEXT; END LOOP; END; $$"},
 		{Name: "out_implicit", Definition: "CREATE FUNCTION public.out_implicit(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; END; $$"},
 		{Name: "out_return", Definition: "CREATE FUNCTION public.out_return(OUT a text, OUT b text) RETURNS record LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO a, b FROM t LIMIT 1; RETURN; END; $$"},
+		{Name: "out_positional", Definition: "CREATE FUNCTION public.out_positional(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT email, ssn INTO $1, $2 FROM t LIMIT 1; END; $$"},
+		{Name: "out_positional_first", Definition: "CREATE FUNCTION public.out_positional_first(OUT a text, OUT b text) LANGUAGE plpgsql AS $$ BEGIN SELECT INTO $1, $2 email, ssn FROM t LIMIT 1; END; $$"},
+		{Name: "out_positional_after_in", Definition: "CREATE FUNCTION public.out_positional_after_in(k int, OUT v text) LANGUAGE plpgsql AS $$ BEGIN SELECT ssn INTO STRICT $2 FROM t WHERE id = $1; END; $$"},
+		{Name: "out_positional_execute", Definition: "CREATE FUNCTION public.out_positional_execute(OUT v text) LANGUAGE plpgsql AS $$ BEGIN EXECUTE 'SELECT ssn FROM t LIMIT 1' INTO $1; END; $$"},
 	}
 	testCases := []struct {
 		statement string
@@ -386,6 +390,10 @@ func TestGetQuerySpanOutputParameterLineage(t *testing.T) {
 		{"SELECT value FROM next_cursor_loop()", [][]string{{}}},
 		{"SELECT a, b FROM out_implicit()", [][]string{{"t.email"}, {"t.ssn"}}},
 		{"SELECT a, b FROM out_return()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT a, b FROM out_positional()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT a, b FROM out_positional_first()", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT v FROM out_positional_after_in(1)", [][]string{{"t.ssn"}}},
+		{"SELECT v FROM out_positional_execute()", [][]string{{"t.ssn"}}},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.statement, func(t *testing.T) {

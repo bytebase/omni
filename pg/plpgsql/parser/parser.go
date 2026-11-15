@@ -404,6 +404,26 @@ func (p *Parser) isAnyKeywordAsIdent() bool {
 	return p.cur.Type > 256 && p.cur.Str != "" && p.cur.Type != pgparser.Op
 }
 
+// isIntoTarget reports whether the current token can be an INTO target: a
+// variable name, or $n for a parameter.
+//
+// pg: src/pl/plpgsql/src/pl_gram.y — read_into_target (T_DATUM)
+func (p *Parser) isIntoTarget() bool {
+	return isIntoTargetToken(p.cur)
+}
+
+func isIntoTargetToken(tok pgparser.Token) bool {
+	return tok.Type == pgparser.IDENT || tok.Type == pgparser.PARAM || (tok.Type > 256 && tok.Str != "" && tok.Type != pgparser.Op)
+}
+
+// intoTargetText returns the current INTO target: a lowercase name, or $n.
+func (p *Parser) intoTargetText() string {
+	if p.cur.Type == pgparser.PARAM {
+		return p.source[p.cur.Loc:p.cur.End]
+	}
+	return p.identText()
+}
+
 // identText returns the text of the current token as a lowercase identifier.
 func (p *Parser) identText() string {
 	if p.cur.Type == pgparser.IDENT {

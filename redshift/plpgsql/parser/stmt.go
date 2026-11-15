@@ -364,19 +364,17 @@ func (p *Parser) collectSQLWithInto(isSelect bool) (string, []string, bool, erro
 				p.advance()
 			}
 
-			// Parse comma-separated target identifiers
+			// Parse comma-separated targets
 			for {
-				if !p.isIdent() && !p.isAnyKeywordAsIdent() {
+				if !p.isIntoTarget() {
 					break
 				}
-				into = append(into, p.identText())
+				into = append(into, p.intoTargetText())
 				p.advance()
 				if p.cur.Type == ',' {
-					// Check if next token is an ident (part of INTO targets)
-					// vs. a comma in the SELECT list
-					next := p.peekNext()
-					nextIsIdent := (next.Type == pgparser.IDENT || (next.Type > 256 && next.Str != "" && next.Type != pgparser.Op))
-					if !nextIsIdent {
+					// A comma before another target continues the INTO list;
+					// otherwise it belongs to the SELECT list.
+					if !isIntoTargetToken(p.peekNext()) {
 						break
 					}
 					p.advance() // consume comma
