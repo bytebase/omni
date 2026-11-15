@@ -159,32 +159,43 @@ func generateSQLForTable(statementInfoList []statementInfo, targetSchema string,
 		return nil, fmt.Errorf("failed to write to buffer: %w", err)
 	}
 
-	// In PostgreSQL, WITH clause must appear once before the first SELECT.
-	cteClause := extractCTE(statementInfoList[0].node, statementInfoList[0].fullSQL)
-	if cteClause != "" {
-		if _, err := fmt.Fprintf(&buf, "%s\n", cteClause); err != nil {
-			return nil, fmt.Errorf("failed to write to buffer: %w", err)
-		}
-	}
-
 	for i, item := range statementInfoList {
 		if i != 0 {
 			if _, err := buf.WriteString("\n  UNION\n"); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		}
-		if table.Alias != "" {
-			if _, err := fmt.Fprintf(&buf, "  SELECT %s.* ", quoteIdentifier(table.Alias)); err != nil {
+		// Each statement's WITH clause scopes only its own SELECT, so with
+		// several statements an arm that has one is parenthesized with it.
+		cteClause := extractCTE(item.node, item.fullSQL)
+		parenthesized := cteClause != "" && len(statementInfoList) > 1
+		if parenthesized {
+			if _, err := fmt.Fprintf(&buf, "  (%s\n", cteClause); err != nil {
+				return nil, fmt.Errorf("failed to write to buffer: %w", err)
+			}
+		} else if cteClause != "" {
+			if _, err := fmt.Fprintf(&buf, "%s\n", cteClause); err != nil {
+				return nil, fmt.Errorf("failed to write to buffer: %w", err)
+			}
+		}
+		// Each arm selects through its own statement's name for the table.
+		if item.table.Alias != "" {
+			if _, err := fmt.Fprintf(&buf, "  SELECT %s.* ", quoteIdentifier(item.table.Alias)); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		} else {
-			if _, err := fmt.Fprintf(&buf, `  SELECT %s.* `, table.String()); err != nil {
+			if _, err := fmt.Fprintf(&buf, `  SELECT %s.* `, item.table.String()); err != nil {
 				return nil, fmt.Errorf("failed to write to buffer: %w", err)
 			}
 		}
 
 		if err := writeSuffixSelectClause(&buf, item.node, item.fullSQL); err != nil {
 			return nil, fmt.Errorf("failed to write string with new line: %w", err)
+		}
+		if parenthesized {
+			if _, err := buf.WriteString(")"); err != nil {
+				return nil, fmt.Errorf("failed to write to buffer: %w", err)
+			}
 		}
 	}
 

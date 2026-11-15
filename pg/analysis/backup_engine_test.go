@@ -52,6 +52,15 @@ var roundTrips = []roundTrip{
 		table:  "plain_update",
 	},
 	{
+		// Each statement's WITH clause decides its own rows.
+		name:  "cte_per_statement",
+		setup: "CREATE TABLE cte_t (id INT PRIMARY KEY); INSERT INTO cte_t VALUES (1), (2), (3)",
+		script: "WITH x AS (SELECT 1 AS id) DELETE FROM cte_t USING x WHERE cte_t.id = x.id;" +
+			"WITH x AS (SELECT 2 AS id) DELETE FROM cte_t USING x WHERE cte_t.id = x.id",
+		schema: "public",
+		table:  "cte_t",
+	},
+	{
 		// The restore quotes the statement in a block comment, which
 		// PostgreSQL nests: neither "*/" nor "/*" may end or extend it.
 		name:   "comment_delimiters",
@@ -59,6 +68,24 @@ var roundTrips = []roundTrip{
 		script: "DELETE FROM notes WHERE note IN ('*/ DROP TABLE canary; /*', '/*/') OR id < 3",
 		schema: "public",
 		table:  "notes",
+	},
+	{
+		// Each statement names the table by its own alias.
+		name:   "alias_per_statement",
+		setup:  "CREATE TABLE alias_t (id INT PRIMARY KEY, v INT); INSERT INTO alias_t VALUES (1, 0), (2, 0), (3, 0)",
+		script: "UPDATE alias_t AS a SET v = 1 WHERE a.id = 1; UPDATE alias_t AS b SET v = 2 WHERE b.id = 2; UPDATE alias_t SET v = 3 WHERE id = 3",
+		schema: "public",
+		table:  "alias_t",
+	},
+	{
+		// SET fn.first assigns a field of the composite column fn.
+		name: "composite_field",
+		setup: "CREATE TYPE fullname AS (first text, last text);" +
+			"CREATE TABLE people (id INT PRIMARY KEY, fn fullname, tags INT[]);" +
+			"INSERT INTO people VALUES (1, ('a', 'b'), '{1,2}'), (2, ('c', 'd'), '{3}')",
+		script: "UPDATE people SET fn.first = 'x', fn.last = 'y', tags[1] = 9 WHERE id = 1",
+		schema: "public",
+		table:  "people",
 	},
 	{
 		// Every name the backup and restore write holds a '"'.
@@ -106,8 +133,9 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		exec(t, db, rt.script)
 		require.NotEqual(t, before, tableRows(t, db, rt.schema, rt.table), rt.name)
 
+		// Bytebase restores a backup by its first statement's type.
 		dmls := analysis.BackedUpDMLs(stmts)
-		require.Len(t, dmls, 1, rt.name)
+		require.NotEmpty(t, dmls, rt.name)
 		table, primaryKey := tableMetadata(t, db, rt.schema, rt.table)
 		restore, err := analysis.RestoreSQL(dmls[0].Node, analysis.RestoreOptions{
 			OriginalSchema: rt.schema,
