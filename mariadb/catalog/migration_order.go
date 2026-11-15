@@ -991,6 +991,14 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		}
+		// A modified reader is ordered too, from its own priority.
+		for _, op := range ops {
+			if op.Type == OpModifyColumn && opOfTable(op, e) && op.column != "" {
+				if _, ok := priority[op.column]; !ok {
+					priority[op.column] = op.Priority
+				}
+			}
+		}
 		reads := columnReads(e.To)
 		for changed := true; changed; {
 			changed = false
@@ -1003,7 +1011,7 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 			}
 		}
 		for j := range ops {
-			if ops[j].Type == OpAddColumn && opOfTable(ops[j], e) && ops[j].alterParts == nil {
+			if (ops[j].Type == OpAddColumn || ops[j].Type == OpModifyColumn) && opOfTable(ops[j], e) && ops[j].alterParts == nil {
 				if p, ok := priority[ops[j].column]; ok && p > ops[j].Priority {
 					ops[j].Priority = p
 				}

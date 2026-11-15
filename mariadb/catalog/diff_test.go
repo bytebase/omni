@@ -171,6 +171,9 @@ var diffPairs = []struct{ name, a, b string }{
 	{"auto column replaced and grouped", "CREATE TABLE t (a INT AUTO_INCREMENT PRIMARY KEY)", "CREATE TABLE t (a INT AS (1) STORED)"},
 	{"auto key absorbing a generated chain", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, g1 INT AS (x + 1) VIRTUAL, g2 INT AS (g1 + 1) VIRTUAL, g3 INT AS (g2 + 1) VIRTUAL, KEY k (id, g2))"},
 	{"trigger before an unchanged sibling", "CREATE TABLE t (x INT); CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1; CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2", "CREATE TABLE t (x INT); CREATE TRIGGER z BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 2; CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2"},
+	{"auto key absorbing a modified reader", "CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))"},
+	{"versioning replacing a generated column", "CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
+	{"partition column type changed", "CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }
