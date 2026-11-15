@@ -2251,10 +2251,10 @@
 | ALTER TABLE `pa_mm_c711790b`.`books` DROP FOREIGN KEY `fk_author_new`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_c711790b`.`authors` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_c711790b`.`authors` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_c711790b`.`books` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_c711790b`.`books` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_c711790b`.`authors` MODIFY COLUMN `email` varchar(100) DEFAULT NULL
@@ -2416,10 +2416,10 @@
 | ALTER TABLE `pa_mm_668e0e2b`.`orders` DROP INDEX `fk_customer`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_668e0e2b`.`customers` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_668e0e2b`.`customers` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_668e0e2b`.`orders` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_668e0e2b`.`orders` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_668e0e2b`.`customers` MODIFY COLUMN `name` varchar(100) NOT NULL
@@ -2707,7 +2707,7 @@
 | DROP VIEW IF EXISTS `pa_mm_1a8e1c71`.`regional_sales`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_1a8e1c71`.`sales_data` MODIFY COLUMN `region` varchar(50) NOT NULL
@@ -3158,7 +3158,7 @@
 |   `account_type` varchar(50) NOT NULL,
 |   `net_asset_amount` decimal(38,10) DEFAULT NULL,
 |   PRIMARY KEY (`dt`,`member_id`,`account_type`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_d40c3e05`.`ads_member_asset_by_account_channel_d` ADD KEY `sindex` (`dt`,`member_id`,`account_type`)
@@ -4680,10 +4680,10 @@
 | ALTER TABLE `pa_mm_f38f765b`.`products` DROP COLUMN `supplier_id`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_f38f765b`.`categories` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci, COMMENT=''
+| ALTER TABLE `pa_mm_f38f765b`.`categories` DEFAULT CHARSET=utf8mb4, COMMENT=''
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_f38f765b`.`products` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci, COMMENT=''
+| ALTER TABLE `pa_mm_f38f765b`.`products` DEFAULT CHARSET=utf8mb4, COMMENT=''
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_f38f765b`.`categories` MODIFY COLUMN `name` varchar(50) NOT NULL
@@ -4981,10 +4981,10 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_cd13c195`.`order_items` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci, COMMENT='Individual line items for each order'
+| ALTER TABLE `pa_mm_cd13c195`.`order_items` DEFAULT CHARSET=utf8mb4, COMMENT='Individual line items for each order'
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_cd13c195`.`orders` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci, COMMENT='Customer orders and order details'
+| ALTER TABLE `pa_mm_cd13c195`.`orders` DEFAULT CHARSET=utf8mb4, COMMENT='Customer orders and order details'
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_cd13c195`.`order_items` MODIFY COLUMN `product_name` varchar(100) NOT NULL COMMENT 'Name of ordered product'
@@ -5330,10 +5330,10 @@
 | DROP TABLE `pa_mm_bfb1dfc0`.`analytics`
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_bfb1dfc0`.`posts` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci, COMMENT=''
+| ALTER TABLE `pa_mm_bfb1dfc0`.`posts` DEFAULT CHARSET=utf8mb4, COMMENT=''
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_bfb1dfc0`.`users` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci, COMMENT=''
+| ALTER TABLE `pa_mm_bfb1dfc0`.`users` DEFAULT CHARSET=utf8mb4, COMMENT=''
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_bfb1dfc0`.`posts` MODIFY COLUMN `content` longtext
@@ -5624,7 +5624,7 @@
 |   `name` varchar(100) NOT NULL,
 |   `email` varchar(100) DEFAULT NULL,
 |   PRIMARY KEY (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | CREATE TABLE `pa_mm_ffa6ed7d`.`books` (
@@ -5635,7 +5635,7 @@
 |   `published_year` int DEFAULT NULL,
 |   `price` decimal(8,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | CREATE TABLE `pa_mm_ffa6ed7d`.`products` (
@@ -5646,7 +5646,7 @@
 |   `category` varchar(30) DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT '1',
 |   PRIMARY KEY (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_ffa6ed7d`.`authors` ADD UNIQUE KEY `uk_email` (`email`)
@@ -5797,15 +5797,15 @@
 : bytes
 | CREATE TABLE `products` (
 |   `id` int(11) NOT NULL AUTO_INCREMENT,
-|   `name` varchar(50) NOT NULL,
+|   `name` varchar(50) COLLATE utf8mb4_0900_ai_ci NOT NULL,
 |   `price` decimal(8,2) NOT NULL,
-|   `description` text DEFAULT NULL,
-|   `category` varchar(30) DEFAULT NULL,
+|   `description` text COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
+|   `category` varchar(30) COLLATE utf8mb4_0900_ai_ci DEFAULT NULL,
 |   `is_active` tinyint(1) DEFAULT '1',
 |   PRIMARY KEY (`id`),
 |   KEY `idx_category` (`category`) BLOCK_SIZE 16384 LOCAL,
 |   KEY `idx_price` (`price`) BLOCK_SIZE 16384 LOCAL
-| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
+| ) ORGANIZATION INDEX AUTO_INCREMENT = 1 AUTO_INCREMENT_MODE = 'ORDER' DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci ROW_FORMAT = DYNAMIC COMPRESSION = 'zstd_1.3.8' REPLICA_NUM = 1 BLOCK_SIZE = 16384 USE_BLOOM_FILTER = FALSE ENABLE_MACRO_BLOCK_BLOOM_FILTER = FALSE TABLET_SIZE = 134217728 PCTFREE = 0
 > query
 | SELECT ROUTINE_TYPE, ROUTINE_NAME, DTD_IDENTIFIER, ROUTINE_DEFINITION, IS_DETERMINISTIC, SQL_DATA_ACCESS, SECURITY_TYPE, ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = ? ORDER BY ROUTINE_TYPE, ROUTINE_NAME
 : string
@@ -6637,7 +6637,7 @@
 |   `total_sales` decimal(10,2) DEFAULT NULL,
 |   `tax_amount` decimal(10,2) DEFAULT NULL,
 |   PRIMARY KEY (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_a42f2c1`.`sales_summary` ADD UNIQUE KEY `uk_product_month` (`product_id`,`month_year`)
@@ -7975,7 +7975,7 @@
 |   `order_year` int GENERATED ALWAYS AS (year(`order_date`)) VIRTUAL,
 |   `order_month` int GENERATED ALWAYS AS (month(`order_date`)) VIRTUAL,
 |   PRIMARY KEY (`id`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_970419a3`.`products` ADD COLUMN `price_with_tax` decimal(10,2) GENERATED ALWAYS AS ((`price` * (1 + (`tax_rate` / 100)))) STORED
@@ -8278,7 +8278,7 @@
 |   `details` text,
 |   `tags` text,
 |   `brand` text
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_de41a819`.`users` ADD COLUMN `preferences` json
@@ -8713,16 +8713,16 @@
 | SET foreign_key_checks = 1
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4a125487`.`some_table` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_4a125487`.`some_table` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4a125487`.`t` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_4a125487`.`t` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4a125487`.`t1` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_4a125487`.`t1` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
-| ALTER TABLE `pa_mm_4a125487`.`test_table` DEFAULT CHARSET=utf8mb4, COLLATE=utf8mb4_general_ci
+| ALTER TABLE `pa_mm_4a125487`.`test_table` DEFAULT CHARSET=utf8mb4
 < ok 0 0
 > exec
 | ALTER TABLE `pa_mm_4a125487`.`t` MODIFY COLUMN `name` char(255) DEFAULT NULL

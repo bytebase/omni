@@ -188,11 +188,6 @@ type gap struct {
 //
 // This is the work list. An entry is not a way to make a new failure pass.
 var obGaps = map[string]gap{
-	"TestOracle_PhantomDiffElimination/oceanbase/column-charset-echo-80": {
-		"OceanBase's default collation for utf8mb4 is utf8mb4_general_ci, which a readback leaves out; the catalog takes the default to be MySQL 8.0's utf8mb4_0900_ai_ci, so a column written COLLATE utf8mb4_general_ci differs from its own readback",
-		[]string{`PHANTOM DIFF on column "a"`},
-	},
-
 	// SHOW CREATE FUNCTION prints a COMMENT without its escapes, so the readback is not
 	// the comment the routine has. information_schema.ROUTINES is where to read it.
 	"TestOracle_RoutineDiffIdempotence/oceanbase/fn-comment-quote": {

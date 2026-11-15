@@ -882,15 +882,15 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 			t.Fatal("omni: database not found after CREATE DATABASE")
 		}
 		// Verify charset/collation defaults match ctr.
-		// Oracle returns something like: CREATE DATABASE `db_create1` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+		// OceanBase returns CREATE DATABASE `db_create1` DEFAULT CHARACTER SET = utf8mb4 REPLICA_NUM = 1.
 		if !strings.Contains(ctrDDL, "utf8mb4") {
 			t.Logf("container DDL: %s", ctrDDL)
 		}
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset mismatch: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation mismatch: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_general_ci" {
+			t.Errorf("omni collation mismatch: got %q, want utf8mb4_general_ci", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_create1")
 	})
@@ -1037,8 +1037,8 @@ func TestContainer_Section_2_11_CreateDropAlterDatabase(t *testing.T) {
 		if db.Charset != "utf8mb4" {
 			t.Errorf("omni charset: got %q, want utf8mb4", db.Charset)
 		}
-		if db.Collation != "utf8mb4_0900_ai_ci" {
-			t.Errorf("omni collation: got %q, want utf8mb4_0900_ai_ci", db.Collation)
+		if db.Collation != "utf8mb4_general_ci" {
+			t.Errorf("omni collation: got %q, want utf8mb4_general_ci", db.Collation)
 		}
 		ctr.execSQL("DROP DATABASE IF EXISTS db_alter_cs")
 	})

@@ -31,7 +31,7 @@
 | SET @saved_cs_client = @@character_set_client;
 | SET character_set_client = utf8mb4;
 | SET @saved_coll_conn = @@collation_connection;
-| SET collation_connection = utf8mb4_0900_ai_ci;
+| SET collation_connection = utf8mb4_general_ci;
 | SET @saved_time_zone = @@time_zone;
 | SET time_zone = '+08:00';
 | ALTER EVENT `e` ON SCHEDULE EVERY 1 HOUR ON COMPLETION NOT PRESERVE DISABLE COMMENT '' DO SET @x = 2;

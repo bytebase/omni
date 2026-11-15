@@ -38,6 +38,7 @@ var metadataMigrationGaps = map[string]migrationGap{
 	"Drop indexes and constraints from tables":                      {reason: "sync: CHECK constraints"},
 	"Reverse: Basic table operations":                               {reason: "sync: CHECK constraints"},
 	"Reverse: Add indexes and constraints":                          {reason: "sync: CHECK constraints"},
+	"Reverse: Drop tables with foreign key dependencies":            {reason: "sync: CHECK constraints"},
 	// sync: no partitions come back.
 	"Operations on partitioned tables":                                                  {reason: "sync: partitions and CHECK constraints"},
 	"Re-adding a primary key and an overlapping secondary index on a partitioned table": {reason: "sync: partitions"},
@@ -54,10 +55,6 @@ var metadataMigrationGaps = map[string]migrationGap{
 	"Reverse: Drop events and advanced features": {reason: "sync: event definition", refusal: "near 'COMPLETION"},
 	// sync: ON UPDATE CURRENT_TIMESTAMP is not read.
 	"Reverse: Alter table columns": {reason: "sync: ON UPDATE and CHECK constraints"},
-	// The catalog takes utf8mb4's default collation to be MySQL's utf8mb4_0900_ai_ci;
-	// OceanBase's is utf8mb4_general_ci, so the plan leaves out the COLLATE the
-	// target needs.
-	"Reverse: Drop tables with foreign key dependencies": {reason: "default utf8mb4 collation, and sync: CHECK constraints"},
 	// The plan writes count(*) as count(0) and function names in lower case;
 	// OceanBase stores view and generation text as written.
 	"Drop views and stored routines":  {reason: "count(*) written as count(0)"},
