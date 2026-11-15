@@ -19,26 +19,15 @@ const (
 )
 
 func generateSequenceDDL(diff *SchemaDiff) []MigrationOp {
-	// A view the plan drops holds its name until the view drops run.
-	droppedViews := make(map[string]bool)
-	for _, v := range diff.Views {
-		if v.Action == DiffDrop {
-			droppedViews[encodeKeyFields("db", toLower(v.Database), "name", toLower(v.Name))] = true
-		}
-	}
 	var ops []MigrationOp
 	for _, e := range diff.Sequences {
 		switch e.Action {
 		case DiffAdd:
-			priority := prioritySequenceCreate
-			if droppedViews[encodeKeyFields("db", toLower(e.Database), "name", toLower(e.Name))] {
-				priority = priorityView + 1
-			}
 			ops = append(ops, MigrationOp{
 				Type: OpCreateSequence, Database: e.Database, ObjectName: e.Name,
 				SQL:      createSequenceSQL(e.To),
 				Phase:    PhasePre,
-				Priority: priority,
+				Priority: prioritySequenceCreate,
 				sortName: e.Database + "." + toLower(e.Name),
 			})
 		case DiffDrop:
@@ -142,4 +131,22 @@ func outsideRange(value, minValue, maxValue string) bool {
 	lo, ok2 := new(big.Int).SetString(minValue, 10)
 	hi, ok3 := new(big.Int).SetString(maxValue, 10)
 	return ok1 && ok2 && ok3 && (v.Cmp(lo) < 0 || v.Cmp(hi) > 0)
+}
+
+// dropViewsBeforeSequences drops a view whose name a new sequence takes ahead of
+// the sequence's create, which runs before the table and column changes that
+// may read it: tables, views and sequences share one name space (1050).
+func dropViewsBeforeSequences(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+	created := make(map[string]bool)
+	for _, e := range diff.Sequences {
+		if e.Action == DiffAdd {
+			created[encodeKeyFields("db", toLower(e.Database), "name", toLower(e.Name))] = true
+		}
+	}
+	for i := range ops {
+		if ops[i].Type == OpDropView && created[encodeKeyFields("db", toLower(ops[i].Database), "name", toLower(ops[i].ObjectName))] {
+			ops[i].Priority = prioritySequenceCreate - 1
+		}
+	}
+	return ops
 }

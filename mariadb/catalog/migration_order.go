@@ -256,6 +256,37 @@ func rebuildReadersOfReplacedColumns(ops []MigrationOp, e *TableDiffEntry, n *No
 		drop, add := dropColumnOp(e, table, col.Name, col), addColumnOp(e, table, e.To.GetColumn(col.Name), n)
 		ops = append(ops, drop, add)
 	}
+	// A column's own CHECK cannot be dropped by name (1091): a column whose
+	// check reads a replaced column is modified without it first and back to
+	// its target definition after the adds.
+	columnCheck := columnChecks(e.From)
+	for _, col := range e.From.Columns {
+		name := toLower(col.Name)
+		con := columnCheck[name]
+		if _, replaced := gone[name]; replaced || con == nil || !checkReadsAny(con, gone) {
+			continue
+		}
+		target := e.To.GetColumn(col.Name)
+		if target == nil {
+			continue
+		}
+		context := *e.From
+		context.Charset, context.Collation = "", ""
+		strip := "MODIFY COLUMN " + showColumnWithTable(col, &context, nil, false)
+		ops = append(ops, MigrationOp{
+			Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
+			SQL: "ALTER TABLE " + table + " " + strip, Phase: PhasePre, Priority: priorityCheckDrop,
+			sortName: columnSortName(e.Database, e.Name, name), alterClause: strip,
+		})
+		if columnEntry(e, name) == nil {
+			restore := "MODIFY COLUMN " + formatColumnDefinition(e.To, target, n)
+			ops = append(ops, MigrationOp{
+				Type: OpModifyColumn, Database: e.Database, ObjectName: e.Name, ParentObject: e.Name,
+				SQL: "ALTER TABLE " + table + " " + restore, Phase: PhaseMain, Priority: priorityColumn + 3,
+				sortName: columnSortName(e.Database, e.Name, name), alterClause: restore,
+			})
+		}
+	}
 	changedChecks := make(map[string]bool)
 	for _, ce := range e.Checks {
 		changedChecks[toLower(ce.Name)] = true
@@ -587,24 +618,27 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 		return ops
 	}
 	// The replaced column the drop order takes last, which no other dropped
-	// column reads.
+	// column reads, is dropped and added in one statement, together with the
+	// columns grouped with it.
 	last, add := -1, -1
 	for d := range ops {
-		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) || ops[d].alterParts != nil {
+		if ops[d].Type != OpDropColumn || !opOfTable(ops[d], e) {
 			continue
 		}
+		drops := partsOf(ops[d])
 		for a := range ops {
-			if ops[a].Type == OpAddColumn && opOfTable(ops[a], e) && ops[a].column == ops[d].column && ops[a].alterParts == nil {
-				if last < 0 || ops[d].Phase > ops[last].Phase || ops[d].Phase == ops[last].Phase && (ops[d].Priority > ops[last].Priority || ops[d].Priority == ops[last].Priority && ops[d].sortName > ops[last].sortName) {
-					last, add = d, a
-				}
+			if ops[a].Type != OpAddColumn || !opOfTable(ops[a], e) || !sharesColumn(drops, partsOf(ops[a])) {
+				continue
+			}
+			if last < 0 || ops[d].Phase > ops[last].Phase || ops[d].Phase == ops[last].Phase && (ops[d].Priority > ops[last].Priority || ops[d].Priority == ops[last].Priority && ops[d].sortName > ops[last].sortName) {
+				last, add = d, a
 			}
 		}
 	}
 	if last < 0 {
 		return ops
 	}
-	ops[add].alterParts = []alterPart{{clause: ops[last].alterClause, dropsColumn: ops[last].column}, {clause: ops[add].alterClause, addsColumn: ops[add].column}}
+	ops[add].alterParts = append(partsOf(ops[last]), partsOf(ops[add])...)
 	ops[add].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[add].alterParts)
 	return slices.Delete(ops, last, last+1)
 }
@@ -845,4 +879,30 @@ func everyVersionedColumnDropped(e *TableDiffEntry, dropped map[string]bool) boo
 		}
 	}
 	return found
+}
+
+// partsOf returns the clauses of a column op's statement.
+func partsOf(op MigrationOp) []alterPart {
+	if op.alterParts != nil {
+		return append([]alterPart(nil), op.alterParts...)
+	}
+	part := alterPart{clause: op.alterClause}
+	if op.Type == OpAddColumn {
+		part.addsColumn = op.column
+	} else {
+		part.dropsColumn = op.column
+	}
+	return []alterPart{part}
+}
+
+// sharesColumn reports whether a column the drops drop is one the adds add.
+func sharesColumn(drops, adds []alterPart) bool {
+	for _, d := range drops {
+		for _, a := range adds {
+			if d.dropsColumn != "" && d.dropsColumn == a.addsColumn {
+				return true
+			}
+		}
+	}
+	return false
 }

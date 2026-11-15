@@ -58,9 +58,9 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 	return ops
 }
 
-// orderTriggerCreates creates a trigger after the trigger its FOLLOWS or
-// PRECEDES names, where the plan creates that one too: the clause names a
-// trigger that exists.
+// orderTriggerCreates creates triggers in the order the target created them,
+// and a trigger after the trigger its FOLLOWS or PRECEDES names, where the plan
+// creates that one too: the clause names a trigger that exists.
 func orderTriggerCreates(ops []MigrationOp, diff *SchemaDiff) {
 	targets := make(map[string]string)
 	for _, te := range diff.Triggers {
@@ -83,11 +83,21 @@ func orderTriggerCreates(ops []MigrationOp, diff *SchemaDiff) {
 		seen[key] = true
 		return depth(target, seen) + 1
 	}
+	createdAt := make(map[string]int)
+	for _, te := range diff.Triggers {
+		if te.To != nil && te.Action != DiffDrop {
+			createdAt[triggerSortName(te.Database, te.To.Name)] = te.To.created
+		}
+	}
 	for i := range ops {
 		if ops[i].Type == OpCreateTrigger {
-			if d := depth(ops[i].sortName, map[string]bool{}); d > 0 {
+			key := ops[i].sortName
+			if d := depth(key, map[string]bool{}); d > 0 {
 				ops[i].Priority = priorityTrigger + d
 			}
+			// In the order the target created them, which the triggers of
+			// one table, timing and event run in.
+			ops[i].sortName = fmt.Sprintf("%s\x00%010d", strings.ToLower(ops[i].Database), createdAt[key])
 		}
 	}
 }
