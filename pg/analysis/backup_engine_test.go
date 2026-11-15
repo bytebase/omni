@@ -72,6 +72,24 @@ var roundTrips = []roundTrip{
 		table:  "notes",
 	},
 	{
+		// The UPDATE changes the primary key, so the restore matches rows by
+		// a unique index that is no constraint.
+		name: "unique_index",
+		setup: "CREATE TABLE ui (id INT PRIMARY KEY, code INT, v INT); CREATE UNIQUE INDEX ui_code ON ui (code);" +
+			"CREATE UNIQUE INDEX ui_lower ON ui ((code + 1)); INSERT INTO ui VALUES (1, 10, 0), (2, 20, 0)",
+		script: "UPDATE ui SET id = id + 100, v = 1 WHERE id = 1",
+		schema: "public",
+		table:  "ui",
+	},
+	{
+		// The primary key's column needs quoting; the UPDATE changes it.
+		name:   "quoted_key_column",
+		setup:  `CREATE TABLE mk ("Id" INT PRIMARY KEY, code INT UNIQUE, v INT); INSERT INTO mk VALUES (1, 10, 0), (2, 20, 0)`,
+		script: `UPDATE mk SET "Id" = "Id" + 100, v = 1 WHERE "Id" = 1`,
+		schema: "public",
+		table:  "mk",
+	},
+	{
 		// Each statement names the table by its own alias.
 		name:   "alias_per_statement",
 		setup:  "CREATE TABLE alias_t (id INT PRIMARY KEY, v INT); INSERT INTO alias_t VALUES (1, 0), (2, 0), (3, 0)",
@@ -231,8 +249,9 @@ func tableRows(t *testing.T, db *sql.DB, schema, table string) []string {
 	return result
 }
 
-// tableMetadata reads schema.table's columns and unique indexes, and its
-// primary key, as Bytebase's sync records them.
+// tableMetadata reads schema.table's columns and indexes, and its primary
+// key, as Bytebase's sync records them: each index part as pg_get_indexdef
+// writes it.
 func tableMetadata(t *testing.T, db *sql.DB, schema, table string) (*metadata.TableMetadata, *metadata.IndexMetadata) {
 	t.Helper()
 	result := &metadata.TableMetadata{Name: table}
@@ -253,9 +272,8 @@ func tableMetadata(t *testing.T, db *sql.DB, schema, table string) (*metadata.Ta
 	require.NoError(t, rows.Close())
 
 	var primaryKey *metadata.IndexMetadata
-	rows, err = db.Query(`SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+	rows, err = db.Query(`SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -263,10 +281,10 @@ func tableMetadata(t *testing.T, db *sql.DB, schema, table string) (*metadata.Ta
 	require.NoError(t, err)
 	defer rows.Close()
 	for rows.Next() {
-		var name, columns string
+		var name, definition, columns string
 		var primary, unique, constraint bool
-		require.NoError(t, rows.Scan(&name, &primary, &unique, &constraint, &columns))
-		index := &metadata.IndexMetadata{Name: name, Primary: primary, Unique: unique, IsConstraint: constraint, Expressions: strings.Split(columns, "\x1f")}
+		require.NoError(t, rows.Scan(&name, &primary, &unique, &constraint, &definition, &columns))
+		index := &metadata.IndexMetadata{Name: name, Primary: primary, Unique: unique, IsConstraint: constraint, Definition: definition, Expressions: strings.Split(columns, "\x1f")}
 		result.Indexes = append(result.Indexes, index)
 		if primary {
 			primaryKey = index

@@ -74,13 +74,13 @@ func RestoreSQL(node ast.Node, opts RestoreOptions) (string, error) {
 		result = fmt.Sprintf(`INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s;`, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable))
 	case *ast.UpdateStmt:
 		fields := extractSetFieldNames(n)
-		uk, err := findDisjointUniqueKey(opts.Table, opts.PrimaryKey, fields)
+		conflictTarget, err := findDisjointUniqueKey(opts.Table, opts.PrimaryKey, fields)
 		if err != nil {
 			return "", err
 		}
 
 		var buf strings.Builder
-		if _, err := fmt.Fprintf(&buf, `INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s ON CONFLICT ON CONSTRAINT %s DO UPDATE SET `, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable), quoteIdentifier(uk)); err != nil {
+		if _, err := fmt.Fprintf(&buf, `INSERT INTO %s.%s (%s) SELECT %s FROM %s.%s ON CONFLICT %s DO UPDATE SET `, quoteIdentifier(originalSchema), quoteIdentifier(originalTable), quotedColumnList, quotedColumnList, quoteIdentifier(backupSchema), quoteIdentifier(backupTable), conflictTarget); err != nil {
 			return "", fmt.Errorf("failed to generate update statement: %w", err)
 		}
 		for i, field := range fields {
@@ -159,29 +159,61 @@ func disjoint(a []string, b map[string]bool) bool {
 	return true
 }
 
+// findDisjointUniqueKey returns the ON CONFLICT target of the first unique
+// key whose columns the UPDATE leaves alone: the primary key or a unique
+// constraint by name, or a unique index, which is no constraint, by its
+// columns. A unique index on an expression or with a predicate is passed
+// over: inference by columns cannot name it, and whether the UPDATE changes
+// an expression's value is not known.
 func findDisjointUniqueKey(table *metadata.TableMetadata, pk *metadata.IndexMetadata, fields []string) (string, error) {
 	columnMap := make(map[string]bool)
 	for _, field := range fields {
 		columnMap[field] = true
 	}
 	if pk != nil {
-		if disjoint(pk.Expressions, columnMap) {
-			return pk.Name, nil
+		if columns, ok := keyColumns(table, pk); ok && disjoint(columns, columnMap) {
+			return "ON CONSTRAINT " + quoteIdentifier(pk.Name), nil
 		}
 	}
 	for _, index := range table.GetIndexes() {
-		if index.Primary {
+		if index.Primary || !index.Unique {
 			continue
 		}
-		if !index.Unique {
+		columns, ok := keyColumns(table, index)
+		if !ok || !disjoint(columns, columnMap) {
 			continue
 		}
-		if disjoint(index.Expressions, columnMap) {
-			return index.Name, nil
+		if index.IsConstraint {
+			return "ON CONSTRAINT " + quoteIdentifier(index.Name), nil
 		}
+		if index.Definition == "" || strings.Contains(index.Definition, " WHERE ") {
+			continue
+		}
+		return "(" + quotePGColumns(columns) + ")", nil
 	}
 
 	return "", fmt.Errorf("no disjoint unique key found for table")
+}
+
+// keyColumns returns the columns of key's parts, or false when a part is an
+// expression. A part is recorded as pg_get_indexdef writes it: a column's
+// name, quoted when it needs to be.
+func keyColumns(table *metadata.TableMetadata, key *metadata.IndexMetadata) ([]string, bool) {
+	var columns []string
+	for _, part := range key.Expressions {
+		found := false
+		for _, column := range table.GetColumns() {
+			if part == column.Name || part == quoteIdentifier(column.Name) {
+				columns = append(columns, column.Name)
+				found = true
+				break
+			}
+		}
+		if !found {
+			return nil, false
+		}
+	}
+	return columns, true
 }
 
 // PrependStatements returns the first SET role or SET search_path of a parsed
