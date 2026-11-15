@@ -81,8 +81,15 @@ func tableOpRank(t MigrationOpType) int {
 // tableOptionAlterOp sets each changed option and resets one the target drops to its default,
 // since ALTER TABLE keeps an option it does not name.
 func tableOptionAlterOp(database, name string, from, to *Table, n *Normalizer) (MigrationOp, bool) {
+	return tableOptionAlterOpExceptEngine(database, name, from, to, n, false)
+}
+
+// tableOptionAlterOpExceptEngine is tableOptionAlterOp, omitting the ENGINE
+// clause when skipEngine is set: foldEngineIntoAutoKey moves the engine change
+// into the key statement and regenerates the rest.
+func tableOptionAlterOpExceptEngine(database, name string, from, to *Table, n *Normalizer, skipEngine bool) (MigrationOp, bool) {
 	var clauses []string
-	if n.CanonicalEngine(from) != n.CanonicalEngine(to) {
+	if !skipEngine && n.CanonicalEngine(from) != n.CanonicalEngine(to) {
 		clauses = append(clauses, "ENGINE="+tableEngineName(to))
 	}
 	if toLower(from.Charset) != toLower(to.Charset) || toLower(from.Collation) != toLower(to.Collation) {
@@ -430,7 +437,7 @@ func restatePageChecksum(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 // not). The whole ALTER is then checked once against the target engine with the
 // final key, which neither an engine-first nor an engine-last order achieves in
 // both directions. Measured on mariadb:11.8.8 and mariadb (MyISAM): 1075.
-func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	for i := range diff.Tables {
 		e := &diff.Tables[i]
 		if e.Action != DiffModify || e.From == nil || e.To == nil || eqFoldStr(e.From.Engine, e.To.Engine) {
@@ -460,14 +467,16 @@ func foldEngineIntoAutoKey(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		engine := "ENGINE=" + tableEngineName(e.To)
 		ops[key].alterParts = append(partsOf(ops[key]), alterPart{clause: engine})
 		ops[key].SQL = "ALTER TABLE " + tableIdent(e.To) + " " + joinAlterParts(ops[key].alterParts)
-		// Drop the ENGINE clause from the standalone option op.
+		// Regenerate the standalone option op without the ENGINE clause, which
+		// now rides the key statement; drop it when nothing else remains.
+		replacement, remains := tableOptionAlterOpExceptEngine(e.Database, e.Name, e.From, e.To, n, true)
 		var kept []MigrationOp
 		for _, op := range ops {
 			if op.Type == OpAlterTable && op.Database == e.Database && toLower(op.ObjectName) == toLower(e.Name) && op.alterParts == nil {
-				var remains bool
-				if op, remains = stripEngineClause(op, e); !remains {
+				if !remains {
 					continue
 				}
+				op = replacement
 			}
 			kept = append(kept, op)
 		}
@@ -486,18 +495,4 @@ func leadsEveryKey(tbl *Table, col string) bool {
 	return true
 }
 
-// stripEngineClause removes the " ENGINE=..." clause from a table-option op,
-// dropping the op when nothing else remains.
-func stripEngineClause(op MigrationOp, e *TableDiffEntry) (MigrationOp, bool) {
-	var kept []string
-	for _, c := range strings.Split(strings.TrimPrefix(op.SQL, "ALTER TABLE "+tableIdent(e.To)+" "), ", ") {
-		if !strings.HasPrefix(c, "ENGINE=") {
-			kept = append(kept, c)
-		}
-	}
-	if len(kept) == 0 {
-		return op, false
-	}
-	op.SQL = "ALTER TABLE " + tableIdent(e.To) + " " + strings.Join(kept, ", ")
-	return op, true
-}
+

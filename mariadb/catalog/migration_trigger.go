@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -241,16 +242,26 @@ func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrde
 			created[toLower(te.To.Name)] = true
 		}
 	}
+	// The effective execution order of the group, which FOLLOWS and PRECEDES
+	// set, not the raw creation order.
+	order := effectiveTriggerOrder(db, trig)
+	pos, ok := order[toLower(trig.Name)]
+	if !ok {
+		return nil
+	}
 	var before, after *Trigger
 	for _, peer := range db.Triggers {
-		if peer == trig || created[toLower(peer.Name)] || !eqFoldStr(peer.Table, trig.Table) ||
-			!eqFoldStr(peer.Timing, trig.Timing) || !eqFoldStr(peer.Event, trig.Event) {
+		if peer == trig || created[toLower(peer.Name)] {
+			continue
+		}
+		pp, ok := order[toLower(peer.Name)]
+		if !ok {
 			continue
 		}
 		switch {
-		case peer.created > trig.created && (after == nil || peer.created < after.created):
+		case pp > pos && (after == nil || pp < order[toLower(after.Name)]):
 			after = peer
-		case peer.created < trig.created && (before == nil || peer.created > before.created):
+		case pp < pos && (before == nil || pp > order[toLower(before.Name)]):
 			before = peer
 		}
 	}
@@ -261,4 +272,49 @@ func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrde
 		return &TriggerOrderInfo{Follows: true, TriggerName: before.Name}
 	}
 	return nil
+}
+
+// effectiveTriggerOrder returns the execution position of each trigger in
+// trig's table/timing/event group, starting from creation order and applying
+// each trigger's FOLLOWS or PRECEDES, as the server does.
+func effectiveTriggerOrder(db *Database, trig *Trigger) map[string]int {
+	var group []*Trigger
+	for _, t := range db.Triggers {
+		if eqFoldStr(t.Table, trig.Table) && eqFoldStr(t.Timing, trig.Timing) && eqFoldStr(t.Event, trig.Event) {
+			group = append(group, t)
+		}
+	}
+	slices.SortFunc(group, func(a, b *Trigger) int { return a.created - b.created })
+	var seq []*Trigger
+	indexOf := func(name string) int {
+		for i, t := range seq {
+			if eqFoldStr(t.Name, name) {
+				return i
+			}
+		}
+		return -1
+	}
+	for _, t := range group {
+		if t.Order == nil || t.Order.TriggerName == "" {
+			seq = append(seq, t)
+			continue
+		}
+		ref := indexOf(t.Order.TriggerName)
+		if ref < 0 {
+			seq = append(seq, t)
+			continue
+		}
+		at := ref + 1
+		if t.Order.Follows {
+			at = ref + 1
+		} else {
+			at = ref
+		}
+		seq = append(seq[:at], append([]*Trigger{t}, seq[at:]...)...)
+	}
+	out := make(map[string]int, len(seq))
+	for i, t := range seq {
+		out[toLower(t.Name)] = i
+	}
+	return out
 }

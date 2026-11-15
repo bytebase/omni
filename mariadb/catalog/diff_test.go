@@ -174,6 +174,9 @@ var diffPairs = []struct{ name, a, b string }{
 	{"auto key absorbing a modified reader", "CREATE TABLE t (x INT, g INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))"},
 	{"versioning replacing a generated column", "CREATE TABLE t (x INT, b INT AS (x + 1) VIRTUAL)", "CREATE TABLE t (x INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
 	{"partition column type changed", "CREATE TABLE t (a INT) PARTITION BY HASH (a) PARTITIONS 2", "CREATE TABLE t (a VARCHAR(10)) PARTITION BY KEY (a) PARTITIONS 2"},
+	{"merge delaying a modify that releases a drop", "CREATE TABLE t (x INT, d INT, g INT AS (d + 1) VIRTUAL)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))"},
+	{"recreated trigger among a reordered group", "CREATE TABLE t (x INT); CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2; CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW PRECEDES c SET NEW.x = NEW.x + 1; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3", "CREATE TABLE t (x INT); CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 4; CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW PRECEDES c SET NEW.x = NEW.x + 1; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3"},
+	{"engine fold keeping another option", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB COMMENT='new'"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

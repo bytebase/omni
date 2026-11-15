@@ -1017,6 +1017,30 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 				}
 			}
 		}
+		// A postponed drop runs after the modify that releases it, which the
+		// bump above may have moved later.
+		modifyPriority := make(map[string]int)
+		for _, op := range ops {
+			if op.Type == OpModifyColumn && opOfTable(op, e) && op.column != "" {
+				modifyPriority[op.column] = op.Priority
+			}
+		}
+		if e.From == nil {
+			continue
+		}
+		sourceReads := columnReads(e.From)
+		for j := range ops {
+			if ops[j].Type != OpDropColumn || !opOfTable(ops[j], e) || ops[j].Phase != PhaseMain {
+				continue
+			}
+			for name, mp := range modifyPriority {
+				for _, ref := range sourceReads[name] {
+					if ref == ops[j].column && mp >= ops[j].Priority {
+						ops[j].Priority = mp + 1
+					}
+				}
+			}
+		}
 	}
 	return ops
 }

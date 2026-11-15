@@ -187,7 +187,7 @@ func renderCreateRoutine(database string, r *Routine, _ *Normalizer) string {
 		b.WriteString("\n    SQL SECURITY INVOKER")
 	}
 	if cmt := r.Characteristics["COMMENT"]; cmt != "" {
-		fmt.Fprintf(&b, "\n    COMMENT '%s'", escapeComment(cmt))
+		fmt.Fprintf(&b, "\n    COMMENT '%s'", escapeCommentMode(cmt, r.HasSessionContext && noBackslashEscapes(r.SQLMode)))
 	}
 
 	if r.Body != "" {
@@ -214,7 +214,7 @@ func routineAlterableCharacteristicClauses(r *Routine) []string {
 	}
 	clauses = append(clauses, "SQL SECURITY "+sec)
 
-	clauses = append(clauses, fmt.Sprintf("COMMENT '%s'", escapeComment(r.Characteristics["COMMENT"])))
+	clauses = append(clauses, fmt.Sprintf("COMMENT '%s'", escapeCommentMode(r.Characteristics["COMMENT"], r.HasSessionContext && noBackslashEscapes(r.SQLMode))))
 	return clauses
 }
 
