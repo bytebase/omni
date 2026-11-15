@@ -649,8 +649,9 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 	}
 
 	if tableName != "" {
-		// Qualified star: count consecutive entries from the named RTE.
-		count := 0
+		// Qualified star: count the named RTE's columns in order, 1, 2, ...,
+		// so an explicit reference to it that follows is not counted.
+		count, first := 0, 0
 		for i := startPos; i < len(targets); i++ {
 			v, ok := targets[i].Expr.(*catalog.VarExpr)
 			if !ok {
@@ -661,6 +662,12 @@ func countStarColumnsFromRTE(q *catalog.Query, targets []*catalog.TargetEntry, s
 			}
 			rte := q.RangeTable[v.RangeIdx]
 			if rte.ERef != tableName && rte.Alias != tableName {
+				break
+			}
+			if count == 0 {
+				first = v.RangeIdx
+			}
+			if v.RangeIdx != first || int(v.AttNum) != count+1 {
 				break
 			}
 			count++
