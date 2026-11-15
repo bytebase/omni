@@ -196,11 +196,37 @@ func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 		if strings.Contains(index.Type, "FUNCTION-BASED") {
 			continue
 		}
+		// MERGE's ON never matches a NULL, so a row whose key holds one would
+		// be inserted again instead of updated.
+		if !g.notNull(index.Expressions) {
+			continue
+		}
 		if disjoint(index.Expressions, columnMap) {
 			return index.Expressions, nil
 		}
 	}
 	return nil, fmt.Errorf("no disjoint unique key found for %s.%s", g.originalDatabase, g.originalTable)
+}
+
+// notNull reports whether every one of columns is a NOT NULL column of the
+// table.
+func (g *generator) notNull(columns []string) bool {
+	for _, name := range columns {
+		found := false
+		for _, column := range g.table.GetColumns() {
+			if column.Name == name {
+				if column.Nullable {
+					return false
+				}
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *generator) generateUpdate(stmt *ast.UpdateStmt) error {

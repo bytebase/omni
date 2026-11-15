@@ -11,6 +11,16 @@
 | CREATE TABLE plain (id INT PRIMARY KEY, a INT); INSERT INTO plain VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| plain
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."plain" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -20,20 +30,20 @@
 < row
 : string
 | (2,2)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| plain
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__plain_public" AS
 |   SELECT "public"."plain".* FROM plain WHERE id = 1;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__plain_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | DELETE FROM plain WHERE id = 1
 < ok 1 -
@@ -121,6 +131,16 @@
 | CREATE TABLE plain_update (id INT PRIMARY KEY, a INT); INSERT INTO plain_update VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| plain_update
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."plain_update" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -130,20 +150,20 @@
 < row
 : string
 | (2,2)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| plain_update
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__plain_update_public" AS
 |   SELECT "public"."plain_update".* FROM plain_update WHERE id = 2;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__plain_update_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE plain_update SET a = 10 WHERE id = 2
 < ok 1 -
@@ -234,20 +254,7 @@
 | CREATE TABLE cte_t (id INT PRIMARY KEY); INSERT INTO cte_t VALUES (1), (2), (3)
 < ok 3 -
 > query
-| SELECT x::text FROM "public"."cte_t" AS x ORDER BY 1
-< result
-< column "x" "TEXT"
-< row
-: string
-| (1)
-< row
-: string
-| (2)
-< row
-: string
-| (3)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
 : string
 | public
 : string
@@ -265,6 +272,19 @@
 < column "exists" "BOOL"
 < row
 : bool true
+> query
+| SELECT x::text FROM "public"."cte_t" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1)
+< row
+: string
+| (2)
+< row
+: string
+| (3)
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__cte_t_public" AS
 |   (WITH x AS (SELECT 1 AS id)
@@ -273,6 +293,16 @@
 |   (WITH x AS (SELECT 2 AS id)
 |   SELECT "public"."cte_t".* FROM cte_t, x WHERE cte_t.id = x.id);
 < ok 2 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__cte_t_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | WITH x AS (SELECT 1 AS id) DELETE FROM cte_t USING x WHERE cte_t.id = x.id;WITH x AS (SELECT 2 AS id) DELETE FROM cte_t USING x WHERE cte_t.id = x.id
 < ok 1 -
@@ -359,6 +389,16 @@
 | CREATE TABLE notes (id INT PRIMARY KEY, note TEXT); INSERT INTO notes VALUES (1, '*/'), (2, '/*'), (3, 'x')
 < ok 3 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| notes
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."notes" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -371,20 +411,20 @@
 < row
 : string
 | (3,x)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| notes
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__notes_public" AS
 |   SELECT "public"."notes".* FROM notes WHERE note IN ('*/ DROP TABLE canary; /*', '/*/') OR id < 3;
 < ok 2 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__notes_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | DELETE FROM notes WHERE note IN ('*/ DROP TABLE canary; /*', '/*/') OR id < 3
 < ok 2 -
@@ -739,6 +779,34 @@
 | CREATE TABLE alias_t (id INT PRIMARY KEY, v INT); INSERT INTO alias_t VALUES (1, 0), (2, 0), (3, 0)
 < ok 3 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query ^
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query ^
+: string
+| public
+: string
+| alias_t
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."alias_t" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -751,34 +819,6 @@
 < row
 : string
 | (3,0)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| alias_t
-< result
-< column "exists" "BOOL"
-< row
-: bool true
-> query ^
-: string
-| public
-: string
-| alias_t
-< result
-< column "exists" "BOOL"
-< row
-: bool true
-> query ^
-: string
-| public
-: string
-| alias_t
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__alias_t_public" AS
 |   SELECT "a".* FROM alias_t AS a WHERE a.id = 1
@@ -787,6 +827,16 @@
 |   UNION
 |   SELECT "public"."alias_t".* FROM alias_t WHERE id = 3;
 < ok 3 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__alias_t_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE alias_t AS a SET v = 1 WHERE a.id = 1; UPDATE alias_t AS b SET v = 2 WHERE b.id = 2; UPDATE alias_t SET v = 3 WHERE id = 3
 < ok 1 -
@@ -883,6 +933,16 @@
 | CREATE TYPE fullname AS (first text, last text);CREATE TABLE people (id INT PRIMARY KEY, fn fullname, tags INT[]);INSERT INTO people VALUES (1, ('a', 'b'), '{1,2}'), (2, ('c', 'd'), '{3}')
 < ok 2 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| people
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."people" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -892,20 +952,20 @@
 < row
 : string
 | (2,"(c,d)",{3})
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| people
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__people_public" AS
 |   SELECT "public"."people".* FROM people WHERE id = 1;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__people_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE people SET fn.first = 'x', fn.last = 'y', tags[1] = 9 WHERE id = 1
 < ok 1 -
@@ -997,6 +1057,123 @@
 : string
 | canary
 > exec
+| CREATE TABLE "表表表表表表表表表表表表表表表表表表表表" (id INT PRIMARY KEY); INSERT INTO "表表表表表表表表表表表表表表表表表表表表" VALUES (1), (2)
+< ok 2 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| 表表表表表表表表表表表表表表表表表表表表
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
+| SELECT x::text FROM "public"."表表表表表表表表表表表表表表表表表表表表" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1)
+< row
+: string
+| (2)
+> exec
+| CREATE TABLE "bbdataarchive"."_bb__表表表表表表表表表表表表表表表表表表表" AS
+|   SELECT "public"."表表表表表表表表表表表表表表表表表表表表".* FROM "表表表表表表表表表表表表表表表表表表表表" WHERE id = 1;
+< ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__表表表表表表表表表表表表表表表表表表表
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> exec
+| DELETE FROM "表表表表表表表表表表表表表表表表表表表表" WHERE id = 1
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."表表表表表表表表表表表表表表表表表表表表" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (2)
+> query
+| SELECT a.attname, a.attgenerated <> '' FROM pg_catalog.pg_attribute a
+| 		JOIN pg_catalog.pg_class c ON c.oid = a.attrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		WHERE n.nspname = $1 AND c.relname = $2 AND a.attnum > 0 AND NOT a.attisdropped ORDER BY a.attnum
+: string
+| public
+: string
+| 表表表表表表表表表表表表表表表表表表表表
+< result
+< column "attname" "NAME"
+< column "?column?" "BOOL"
+< row
+: string
+| id
+: bool false
+> query
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
+| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
+| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
+| 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
+| 		WHERE n.nspname = $1 AND c.relname = $2 ORDER BY i.relname
+: string
+| public
+: string
+| 表表表表表表表表表表表表表表表表表表表表
+< result
+< column "relname" "NAME"
+< column "indisprimary" "BOOL"
+< column "indisunique" "BOOL"
+< column "?column?" "BOOL"
+< column "string_agg" "TEXT"
+< row
+: string
+| 表表表表表表表表表表表表表表表表表表表_pkey
+: bool true
+: bool true
+: bool true
+: string
+| id
+> exec
+| /*
+| Original SQL:
+| DELETE FROM "表表表表表表表表表表表表表表表表表表表表" WHERE id = 1
+| */
+| INSERT INTO "public"."表表表表表表表表表表表表表表表表表表表表" ("id") SELECT "id" FROM "bbdataarchive"."_bb__表表表表表表表表表表表表表表表表表表表";
+< ok 1 -
+> query
+| SELECT x::text FROM "public"."表表表表表表表表表表表表表表表表表表表表" AS x ORDER BY 1
+< result
+< column "x" "TEXT"
+< row
+: string
+| (1)
+< row
+: string
+| (2)
+> query
+| SELECT to_regclass($1)::text
+: string
+| canary
+< result
+< column "to_regclass" "TEXT"
+< row
+: string
+| canary
+> exec
+| CREATE SCHEMA c; CREATE TABLE c.a_b (id INT PRIMARY KEY); CREATE SCHEMA b_c; CREATE TABLE b_c.a (id INT PRIMARY KEY)
+< ok 0 -
+> exec
 | CREATE SCHEMA "s""q"; CREATE TABLE "s""q"."t""q" ("i""d" INT CONSTRAINT "p""k" PRIMARY KEY, "a""b" INT);INSERT INTO "s""q"."t""q" VALUES (1, 1), (2, 2)
 < ok 2 -
 > query
@@ -1013,6 +1190,16 @@
 | CREATE TABLE "bbdataarchive"."_bb__t""q_s""q" AS
 |   SELECT "x""y".* FROM "s""q"."t""q" AS "x""y" WHERE "x""y"."i""d" = 1;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__t"q_s"q
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | DELETE FROM "s""q"."t""q" AS "x""y" WHERE "x""y"."i""d" = 1
 < ok 1 -
@@ -1113,6 +1300,16 @@
 | CREATE TABLE "bbdataarchive"."_bb__t""q_u""q" AS
 |   SELECT "u""q"."t""q".* FROM "u""q"."t""q" WHERE "i""d" = 2;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__t"q_u"q
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE "u""q"."t""q" SET "a""b" = 10 WHERE "i""d" = 2
 < ok 1 -

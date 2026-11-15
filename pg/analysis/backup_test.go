@@ -60,6 +60,13 @@ func TestTransformDMLToSelect(t *testing.T) {
 	}, backups)
 }
 
+func TestTransformDMLToSelectTruncatesNamesByBytes(t *testing.T) {
+	// "_bb__" and 19 three-byte characters fill 62 of the 63 bytes.
+	backups, err := backupsOf(t, "DELETE FROM public."+strings.Repeat("表", 30), nil)
+	require.NoError(t, err)
+	require.Equal(t, "_bb__"+strings.Repeat("表", 19), backups[0].TargetTableName)
+}
+
 func TestTransformDMLToSelectSearchPath(t *testing.T) {
 	backups, err := backupsOf(t, "SET search_path TO app; DELETE FROM only_app", []string{"public"})
 	require.NoError(t, err)
@@ -73,6 +80,15 @@ func TestTransformDMLToSelectSearchPath(t *testing.T) {
 func TestTransformDMLToSelectRefuses(t *testing.T) {
 	_, err := backupsOf(t, "UPDATE t SET a = 1; DELETE FROM t", nil)
 	require.EqualError(t, err, `The statement type is not the same for all statements on the same table "public.t"`)
+
+	_, err = backupsOf(t, "DELETE FROM c.a_b; DELETE FROM b_c.a", nil)
+	require.EqualError(t, err, `prior backup cannot back up both "b_c"."a" and "c"."a_b": their backup tables would both be named "_bb__a_b_c"`)
+
+	// The tables' names differ in their last byte, which truncating the
+	// backup's name to 63 bytes cuts off.
+	long := strings.Repeat("x", 60)
+	_, err = backupsOf(t, "DELETE FROM s."+long+"1; DELETE FROM s."+long+"2", nil)
+	require.ErrorContains(t, err, "their backup tables would both be named")
 
 	_, err = backupsOf(t, "WITH d AS (DELETE FROM o RETURNING *) UPDATE t SET a = 1", nil)
 	require.EqualError(t, err, `failed to prepare transformation: prior backup does not support data-modifying WITH query "d"; rewrite the statement without it, or disable or skip prior backup`)
