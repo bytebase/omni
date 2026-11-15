@@ -515,6 +515,16 @@
 | CREATE TABLE ui (id INT PRIMARY KEY, code INT, v INT); CREATE UNIQUE INDEX ui_code ON ui (code);CREATE UNIQUE INDEX ui_lower ON ui ((code + 1)); INSERT INTO ui VALUES (1, 10, 0), (2, 20, 0)
 < ok 2 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| ui
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."ui" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -524,20 +534,20 @@
 < row
 : string
 | (2,20,0)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| ui
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__ui_public" AS
 |   SELECT "public"."ui".* FROM ui WHERE id = 1;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__ui_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE ui SET id = id + 100, v = 1 WHERE id = 1
 < ok 1 -
@@ -652,6 +662,16 @@
 | CREATE TABLE mk ("Id" INT PRIMARY KEY, code INT UNIQUE, v INT); INSERT INTO mk VALUES (1, 10, 0), (2, 20, 0)
 < ok 2 -
 > query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| public
+: string
+| mk
+< result
+< column "exists" "BOOL"
+< row
+: bool true
+> query
 | SELECT x::text FROM "public"."mk" AS x ORDER BY 1
 < result
 < column "x" "TEXT"
@@ -661,20 +681,20 @@
 < row
 : string
 | (2,20,0)
-> query
-| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = $1 AND tablename = $2)
-: string
-| public
-: string
-| mk
-< result
-< column "exists" "BOOL"
-< row
-: bool true
 > exec
 | CREATE TABLE "bbdataarchive"."_bb__mk_public" AS
 |   SELECT "public"."mk".* FROM mk WHERE "Id" = 1;
 < ok 1 -
+> query
+| SELECT EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname::text = $1 AND tablename::text = $2)
+: string
+| bbdataarchive
+: string
+| _bb__mk_public
+< result
+< column "exists" "BOOL"
+< row
+: bool true
 > exec
 | UPDATE mk SET "Id" = "Id" + 100, v = 1 WHERE "Id" = 1
 < ok 1 -
@@ -1119,9 +1139,8 @@
 | id
 : bool false
 > query
-| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL,
-| 		(SELECT string_agg(a.attname, E'\x1f' ORDER BY k.n) FROM unnest(x.indkey) WITH ORDINALITY AS k(attnum, n)
-| 			JOIN pg_catalog.pg_attribute a ON a.attrelid = x.indrelid AND a.attnum = k.attnum)
+| SELECT i.relname, x.indisprimary, x.indisunique, con.oid IS NOT NULL, pg_get_indexdef(i.oid),
+| 		(SELECT string_agg(pg_get_indexdef(i.oid, k + 1, true), E'\x1f' ORDER BY k) FROM generate_subscripts(x.indkey, 1) AS k WHERE k < x.indnkeyatts)
 | 		FROM pg_catalog.pg_index x JOIN pg_catalog.pg_class i ON i.oid = x.indexrelid
 | 		JOIN pg_catalog.pg_class c ON c.oid = x.indrelid JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
 | 		LEFT JOIN pg_catalog.pg_constraint con ON con.conindid = x.indexrelid
@@ -1135,6 +1154,7 @@
 < column "indisprimary" "BOOL"
 < column "indisunique" "BOOL"
 < column "?column?" "BOOL"
+< column "pg_get_indexdef" "TEXT"
 < column "string_agg" "TEXT"
 < row
 : string
@@ -1142,6 +1162,8 @@
 : bool true
 : bool true
 : bool true
+: string
+| CREATE UNIQUE INDEX "表表表表表表表表表表表表表表表表表表表_pkey" ON public."表表表表表表表表表表表表表表表表表表表表" USING btree (id)
 : string
 | id
 > exec
