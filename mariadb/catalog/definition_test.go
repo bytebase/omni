@@ -630,3 +630,13 @@ func TestTableDefinitionKeepsParenthesizedColumnKeys(t *testing.T) {
 	require.Contains(t, got, "PRIMARY KEY (`(n)`)")
 	require.Contains(t, got, "KEY `ix` (`(n)`, `n`)")
 }
+
+func TestTableDefinitionWritesPrimaryKeyComment(t *testing.T) {
+	got, err := TableDefinition(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int(11)"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}, Comment: "identity", Visible: true}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, "PRIMARY KEY (`id`) COMMENT 'identity'")
+}

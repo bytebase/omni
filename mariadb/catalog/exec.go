@@ -300,9 +300,9 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.DropEventStmt:
 		return c.dropEvent(s)
 	case *nodes.CreateSequenceStmt:
-		return c.createSequence(s, source)
+		return c.createSequence(s)
 	case *nodes.AlterSequenceStmt:
-		return c.alterSequence(s, source)
+		return c.alterSequence(s)
 	case *nodes.DropSequenceStmt:
 		return c.dropSequence(s)
 	case *nodes.SetStmt:

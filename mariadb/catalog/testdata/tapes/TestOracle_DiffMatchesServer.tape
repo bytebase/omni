@@ -5892,6 +5892,278 @@
 | SET foreign_key_checks = 0
 < ok 0 0
 > exec
+| CREATE EVENT e ON SCHEDULE EVERY LENGTH('a  b') HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_diffmatchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+< row
+: bytes
+| e
+> query
+| SHOW CREATE EVENT `e`
+< result
+< column "Event" "VARCHAR"
+< column "sql_mode" "VARCHAR"
+< column "time_zone" "VARCHAR"
+< column "Create Event" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< column "Database Collation" "VARCHAR"
+< row
+: bytes
+| e
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `e` ON SCHEDULE EVERY 4 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| CREATE DATABASE `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE EVENT e ON SCHEDULE EVERY LENGTH('a b') HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_diffmatchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+< row
+: bytes
+| e
+> query
+| SHOW CREATE EVENT `e`
+< result
+< column "Event" "VARCHAR"
+< column "sql_mode" "VARCHAR"
+< column "time_zone" "VARCHAR"
+< column "Create Event" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< column "Database Collation" "VARCHAR"
+< row
+: bytes
+| e
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `e` ON SCHEDULE EVERY 3 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| CREATE DATABASE `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE EVENT e ON SCHEDULE EVERY   2  HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_diffmatchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+< row
+: bytes
+| e
+> query
+| SHOW CREATE EVENT `e`
+< result
+< column "Event" "VARCHAR"
+< column "sql_mode" "VARCHAR"
+< column "time_zone" "VARCHAR"
+< column "Create Event" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< column "Database Collation" "VARCHAR"
+< row
+: bytes
+| e
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `e` ON SCHEDULE EVERY 2 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| CREATE DATABASE `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
+| CREATE EVENT e ON SCHEDULE EVERY 2 HOUR STARTS '2030-01-01 00:00:00' DO SELECT 1
+< ok 0 0
+> exec
+| SET foreign_key_checks = 1
+< ok 0 0
+> query
+| SHOW FULL TABLES
+< result
+< column "Tables_in_omni_testoracle_diffmatchesserver" "VARCHAR"
+< column "Table_type" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'FUNCTION'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT ROUTINE_NAME FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_TYPE = 'PROCEDURE'
+< result
+< column "ROUTINE_NAME" "VARCHAR"
+> query
+| SELECT TRIGGER_NAME, CONCAT_WS('\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT) FROM information_schema.TRIGGERS WHERE TRIGGER_SCHEMA = DATABASE()
+< result
+< column "TRIGGER_NAME" "VARCHAR"
+< column "CONCAT_WS('\\n', ACTION_TIMING, EVENT_MANIPULATION, EVENT_OBJECT_TABLE, ACTION_ORDER, SQL_MODE, ACTION_STATEMENT)" "LONGTEXT"
+> query
+| SELECT EVENT_NAME FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE()
+< result
+< column "EVENT_NAME" "VARCHAR"
+< row
+: bytes
+| e
+> query
+| SHOW CREATE EVENT `e`
+< result
+< column "Event" "VARCHAR"
+< column "sql_mode" "VARCHAR"
+< column "time_zone" "VARCHAR"
+< column "Create Event" "VARCHAR"
+< column "character_set_client" "VARCHAR"
+< column "collation_connection" "VARCHAR"
+< column "Database Collation" "VARCHAR"
+< row
+: bytes
+| e
+: bytes
+| STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| SYSTEM
+: bytes
+| CREATE DEFINER=`root`@`%` EVENT `e` ON SCHEDULE EVERY 2 HOUR STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE ENABLE DO SELECT 1
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_uca1400_ai_ci
+: bytes
+| utf8mb4_uca1400_ai_ci
+> exec
+| DROP DATABASE IF EXISTS `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| CREATE DATABASE `omni_testoracle_diffmatchesserver`
+< ok 1 0
+> exec
+| USE `omni_testoracle_diffmatchesserver`
+< ok 0 0
+> exec
+| SET foreign_key_checks = 0
+< ok 0 0
+> exec
 | CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DO SELECT 1
 < ok 0 0
 > exec

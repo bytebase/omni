@@ -516,11 +516,7 @@ func (p *Parser) parsePrimaryExpr() (nodes.ExprNode, error) {
 	switch p.cur.Type {
 	case tokICONST:
 		tok := p.advance()
-		lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}
-		if _, err := strconv.ParseInt(tok.Str, 10, 64); err != nil {
-			lit.Text = tok.Str
-		}
-		return lit, nil
+		return intLit(tok, p.prev.End), nil
 
 	case tokFCONST:
 		tok := p.advance()
@@ -3186,4 +3182,14 @@ func atoiDigits(s string) (int, bool) {
 		n = n*10 + int(s[i]-'0')
 	}
 	return n, true
+}
+
+// intLit is the IntLit of an ICONST token that ends at end, with its digits
+// kept as Text where they do not fit Value.
+func intLit(tok Token, end int) *nodes.IntLit {
+	lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: end}, Value: tok.Ival}
+	if _, err := strconv.ParseInt(tok.Str, 10, 64); err != nil {
+		lit.Text = tok.Str
+	}
+	return lit
 }

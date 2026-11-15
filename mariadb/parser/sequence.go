@@ -411,7 +411,7 @@ func (p *Parser) parseSequenceValueRange(bounded bool) (nodes.ExprNode, error) {
 		}
 	}
 	tok := p.advance()
-	lit := &nodes.IntLit{Loc: nodes.Loc{Start: tok.Loc, End: p.prev.End}, Value: tok.Ival}
+	lit := intLit(tok, p.prev.End)
 	if neg {
 		return &nodes.UnaryExpr{
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
