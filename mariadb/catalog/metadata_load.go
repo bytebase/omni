@@ -476,7 +476,7 @@ func metadataTableStmt(t *metadata.TableMetadata, snapshotDatabase, database str
 		if len(idx.GetExpressions()) == 0 {
 			continue
 		}
-		con, err := metadataIndexConstraint(idx, t.GetEngine())
+		con, err := metadataIndexConstraint(idx, t)
 		if err != nil {
 			omit(fmt.Errorf("index %q: %w", idx.GetName(), err))
 		}
@@ -710,13 +710,30 @@ func columnDefault(col *metadata.ColumnMetadata, snapshotDatabase, database stri
 				expr = e
 			}
 		}
-		return expr, nil
+		return expressionDefault(expr), nil
 	}
 	expr, err := parseExpr(value)
 	if err != nil {
 		return nil, fmt.Errorf("default: %w", err)
 	}
-	return expr, nil
+	return expressionDefault(expr), nil
+}
+
+// expressionDefault parenthesizes a default that is not a literal, as DEFAULT
+// (expr) is written, so the column takes it as an expression: parseExpr drops
+// the parentheses COLUMN_DEFAULT gives `a` + 1, and gives none to `a`.
+func expressionDefault(expr nodes.ExprNode) nodes.ExprNode {
+	switch e := expr.(type) {
+	case *nodes.IntLit, *nodes.FloatLit, *nodes.StringLit, *nodes.BoolLit, *nodes.NullLit,
+		*nodes.HexLit, *nodes.BitLit, *nodes.TemporalLit, *nodes.ParenExpr:
+		return expr
+	case *nodes.UnaryExpr:
+		switch e.Operand.(type) {
+		case *nodes.IntLit, *nodes.FloatLit:
+			return expr
+		}
+	}
+	return &nodes.ParenExpr{Expr: expr}
 }
 
 // syncedDefault reads a default sync recorded as QUOTE(COLUMN_DEFAULT): the
@@ -833,7 +850,8 @@ func requalifySequences(expr, from, to string) string {
 // the access method a key without USING gets too, so the engine's default one
 // stays unwritten. The error is a key expression that did not parse; the index
 // still comes back, with that key part as a column.
-func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes.Constraint, error) {
+func metadataIndexConstraint(idx *metadata.IndexMetadata, t *metadata.TableMetadata) (*nodes.Constraint, error) {
+	engine := t.GetEngine()
 	indexType := strings.ToUpper(strings.TrimSpace(idx.GetType()))
 	if indexType == defaultIndexType(engine) {
 		indexType = ""
@@ -854,7 +872,7 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 		c.Type, c.IndexType = nodes.ConstrIndex, indexType
 	}
 	var err error
-	c.Columns, c.IndexColumns, err = indexKeyParts(idx, c.Type == nodes.ConstrSpatialIndex)
+	c.Columns, c.IndexColumns, err = indexKeyParts(idx, t.GetColumns(), c.Type == nodes.ConstrSpatialIndex)
 	// MariaDB's invisible index is an IGNORED one; a primary key cannot be.
 	if !idx.GetVisible() && !idx.GetPrimary() {
 		c.IndexOptions = append(c.IndexOptions, &nodes.IndexOption{Name: "IGNORED"})
@@ -868,7 +886,15 @@ func metadataIndexConstraint(idx *metadata.IndexMetadata, engine string) (*nodes
 // indexKeyParts splits an index's key parts: plain column names, or, where a
 // part is an expression or has a length or descends, an IndexColumn for each.
 // A SPATIAL key takes no length, though sync reports one (32) for it.
-func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*nodes.IndexColumn, error) {
+func indexKeyParts(idx *metadata.IndexMetadata, tableColumns []*metadata.ColumnMetadata, spatial bool) ([]string, []*nodes.IndexColumn, error) {
+	columns := make(map[string]bool)
+	for _, col := range tableColumns {
+		columns[toLower(col.GetName())] = true
+	}
+	// A column's name may hold parentheses, as `price(usd)` does.
+	isExpression := func(expr string) bool {
+		return isExpressionKey(expr) && !columns[toLower(unquoteIdent(expr))]
+	}
 	length := func(i int) int {
 		if !spatial && i < len(idx.GetKeyLength()) {
 			return int(idx.GetKeyLength()[i])
@@ -878,7 +904,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 	descending := func(i int) bool { return i < len(idx.GetDescending()) && idx.GetDescending()[i] }
 	plain := true
 	for i, expr := range idx.GetExpressions() {
-		if isExpressionKey(expr) || length(i) > 0 || descending(i) {
+		if isExpression(expr) || length(i) > 0 || descending(i) {
 			plain = false
 		}
 	}
@@ -896,7 +922,7 @@ func indexKeyParts(idx *metadata.IndexMetadata, spatial bool) ([]string, []*node
 		if l := length(i); l > 0 {
 			key.Length = l
 		}
-		if isExpressionKey(expr) {
+		if isExpression(expr) {
 			// Sync reports the expression as information_schema stores it,
 			// with its quotes escaped. Charset introducers stay: they can
 			// change what the expression computes. On a parse failure the key

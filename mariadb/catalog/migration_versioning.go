@@ -1,6 +1,9 @@
 package catalog
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // An application-time period is dropped after the keys WITHOUT OVERLAPS over it
 // and ahead of the columns it covers, and added after the columns, ahead of the
@@ -15,7 +18,22 @@ const (
 	priorityVersioningAdd  = priorityIndex - 2
 )
 
-func generateVersioningDDL(diff *SchemaDiff) []MigrationOp {
+// addedWithVersioning reports whether col is a ROW START or ROW END column the
+// plan adds as it makes the table system-versioned. MariaDB takes such a column
+// only in the ALTER that adds SYSTEM VERSIONING (4124 otherwise), so that ALTER
+// adds it. Measured on mariadb:11.8.8.
+func addedWithVersioning(e *TableDiffEntry, col *Column) bool {
+	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && !e.From.SystemVersioned && e.To.SystemVersioned
+}
+
+// droppedWithVersioning is addedWithVersioning for the ALTER that drops SYSTEM
+// VERSIONING, which has to drop the table's ROW START and ROW END columns with
+// it (4125 otherwise).
+func droppedWithVersioning(e *TableDiffEntry, col *Column) bool {
+	return col.Generated != nil && col.Generated.RowBound != "" && e.From != nil && e.To != nil && e.From.SystemVersioned && !e.To.SystemVersioned
+}
+
+func generateVersioningDDL(diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	var ops []MigrationOp
 	for i := range diff.Tables {
 		e := &diff.Tables[i]
@@ -40,9 +58,32 @@ func generateVersioningDDL(diff *SchemaDiff) []MigrationOp {
 		}
 		switch {
 		case from.SystemVersioned && !to.SystemVersioned:
-			op(fmt.Sprintf("ALTER TABLE %s DROP SYSTEM VERSIONING", table), PhasePre, priorityVersioningDrop)
+			clauses := []string{"DROP SYSTEM VERSIONING"}
+			for _, ce := range e.Columns {
+				if ce.Action == DiffDrop && ce.From != nil && droppedWithVersioning(e, ce.From) {
+					clauses = append(clauses, "DROP COLUMN "+backtickIDQ(ce.From.Name))
+				}
+			}
+			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhasePre, priorityVersioningDrop)
+			ops[len(ops)-1].dropsVersionedColumns = len(clauses) > 1
 		case !from.SystemVersioned && to.SystemVersioned:
-			op(fmt.Sprintf("ALTER TABLE %s ADD SYSTEM VERSIONING", table), PhaseMain, priorityVersioningAdd)
+			added := make(map[string]bool)
+			for _, ce := range e.Columns {
+				if ce.Action == DiffAdd {
+					added[toLower(ce.Name)] = true
+				}
+			}
+			var clauses []string
+			for _, col := range to.Columns {
+				if added[toLower(col.Name)] && addedWithVersioning(e, col) {
+					clauses = append(clauses, "ADD COLUMN "+formatColumnDefinition(to, col, n))
+				}
+			}
+			if len(clauses) > 0 && to.PeriodStartCol != "" {
+				clauses = append(clauses, fmt.Sprintf("ADD PERIOD FOR SYSTEM_TIME (%s, %s)", backtickIDQ(to.PeriodStartCol), backtickIDQ(to.PeriodEndCol)))
+			}
+			clauses = append(clauses, "ADD SYSTEM VERSIONING")
+			op(fmt.Sprintf("ALTER TABLE %s %s", table, strings.Join(clauses, ", ")), PhaseMain, priorityVersioningAdd)
 		}
 	}
 	return ops
@@ -60,8 +101,8 @@ func keepVersionedHistory(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 		}
 	}
 	for _, op := range ops {
-		switch op.Type {
-		case OpAlterVersioning, OpDropTable, OpCreateTable:
+		switch {
+		case op.Type == OpAlterVersioning && !op.dropsVersionedColumns, op.Type == OpDropTable, op.Type == OpCreateTable:
 			continue
 		}
 		if op.ParentObject != "" && versioned[op.Database+"."+toLower(op.ParentObject)] {

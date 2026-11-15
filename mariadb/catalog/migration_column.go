@@ -26,13 +26,13 @@ func generateColumnDDL(_, to *Catalog, diff *SchemaDiff, n *Normalizer) []Migrat
 		for _, col := range entry.Columns {
 			switch col.Action {
 			case DiffAdd:
-				if col.To == nil {
+				if col.To == nil || addedWithVersioning(entry, col.To) {
 					continue
 				}
 				ops = append(ops, addColumnOp(entry, table, col.To, n))
 
 			case DiffDrop:
-				if col.From == nil {
+				if col.From == nil || droppedWithVersioning(entry, col.From) {
 					continue
 				}
 				ops = append(ops, dropColumnOp(entry, table, col.Name, col.From))

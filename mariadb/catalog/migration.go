@@ -100,6 +100,10 @@ type MigrationOp struct {
 	// statement holds only alterClause. positionColumnAdds reads both.
 	column     string
 	alterParts []alterPart
+
+	// dropsVersionedColumns marks a DROP SYSTEM VERSIONING that drops the ROW
+	// START and ROW END columns with it, which needs keepVersionedHistory.
+	dropsVersionedColumns bool
 }
 
 // alterPart is one clause of a grouped ALTER TABLE statement. addsColumn is the lower-cased column
@@ -221,11 +225,11 @@ func GenerateMigrationWithNormalizer(from, to *Catalog, diff *SchemaDiff, n *Nor
 	ops = append(ops, generateEventDDL(from, to, diff, n)...)
 	ops = append(ops, generatePartitionDDL(from, to, diff, n)...)
 	ops = append(ops, generateSequenceDDL(diff)...)
-	ops = append(ops, generateVersioningDDL(diff)...)
+	ops = append(ops, generateVersioningDDL(diff, n)...)
 
 	// An AUTO_INCREMENT column and its backing key must land in one statement, because
 	// MariaDB checks the key rule at the end of every ALTER; see migration_autoinc.go.
-	ops = reorderTableChanges(ops, diff, n)
+	ops = reorderTableChanges(ops, from, to, diff, n)
 	ops = mergeAutoIncrementKeyOps(ops, diff, n)
 
 	ops = sortMigrationOps(ops)

@@ -37,6 +37,7 @@ func generateSequenceDDL(diff *SchemaDiff) []MigrationOp {
 			ops = append(ops, MigrationOp{
 				Type: OpAlterSequence, Database: e.Database, ObjectName: e.Name,
 				SQL:      alterSequenceSQL(e.From, e.To),
+				Warning:  sequenceRangeWarning(e.From, e.To),
 				Phase:    PhaseMain,
 				Priority: prioritySequence,
 				sortName: e.Database + "." + toLower(e.Name),
@@ -93,12 +94,6 @@ func alterSequenceSQL(from, to *Sequence) string {
 			opts = append(opts, "NOCYCLE")
 		}
 	}
-	// The next value has to stay within the limits, which ALTER SEQUENCE
-	// checks (4085), so a sequence whose new limits leave its old start out
-	// restarts at its new one.
-	if outsideRange(from.Start, to.MinValue, to.MaxValue) {
-		opts = append(opts, "RESTART WITH "+to.Start)
-	}
 	if len(opts) > 0 {
 		stmts = append(stmts, "ALTER SEQUENCE "+sequenceIdent(to)+" "+strings.Join(opts, " "))
 	}
@@ -113,6 +108,17 @@ func alterSequenceSQL(from, to *Sequence) string {
 		stmts = append(stmts, fmt.Sprintf("ALTER TABLE %s %s", sequenceIdent(to), strings.Join(tableOpts, " ")))
 	}
 	return strings.Join(stmts, ";\n")
+}
+
+// sequenceRangeWarning warns where the new limits leave out the sequence's
+// start. ALTER SEQUENCE refuses limits that leave out the next value (4085),
+// and the next value is data: a plan that restarted the sequence could hand out
+// values it has already issued, so it leaves the restart to the user.
+func sequenceRangeWarning(from, to *Sequence) string {
+	if !outsideRange(from.Start, to.MinValue, to.MaxValue) {
+		return ""
+	}
+	return fmt.Sprintf("the new limits of sequence %s leave out its start %s: if its next value lies outside them, ALTER SEQUENCE fails (4085) until it is restarted within them", sequenceIdent(to), from.Start)
 }
 
 func outsideRange(value, minValue, maxValue string) bool {

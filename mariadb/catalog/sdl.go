@@ -3,6 +3,7 @@ package catalog
 import (
 	"container/heap"
 	"fmt"
+	"maps"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
 	mariadbparser "github.com/bytebase/omni/mariadb/parser"
@@ -72,6 +73,11 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 	if err := validateSDL(stmts); err != nil {
 		return nil, err
 	}
+	for _, stmt := range stmts {
+		if err := validateDDL(stmt); err != nil {
+			return nil, err
+		}
+	}
 
 	// Resolve the current database at each statement's ORIGINAL position so that,
 	// after the sort reorders statements, every object is created under the
@@ -103,6 +109,7 @@ func LoadSDLWithVersion(sql string, version Version) (*Catalog, error) {
 			return c, err
 		}
 	}
+	c.SetCurrentDatabase(dbAtIndex[len(stmts)-1])
 	final.restore(c)
 	return c, nil
 }
@@ -345,36 +352,57 @@ func sdlRefs(stmt nodes.Node, currentDB string) []objectKey {
 
 // selectTableRefs returns the base table/view references in a SELECT that denote
 // real schema objects (for dependency edges), including those nested in joins,
-// subqueries and derived tables. References whose unqualified name is bound by a
-// CTE in the top-level query scope are excluded: a CTE is query-local and shadows
-// a same-named schema object.
-//
-// CTE shadowing is applied only for top-level CTEs (the WITH clause on the view
-// body and the set-operation branches that share its scope), not CTEs declared in
-// nested subqueries — a nested CTE does not shadow an outer reference. Treating a
-// nested CTE name as a top-level shadow could drop a real dependency edge; under-
-// approximating the shadow set is safe because a stray edge to a non-existent
-// object is simply ignored by extractSDLDeps.
+// subqueries and derived tables. An unqualified reference bound by a CTE in its
+// own query scope or an enclosing one is excluded: a CTE is query-local and
+// shadows a same-named schema object.
 func selectTableRefs(sel *nodes.SelectStmt) []*nodes.TableRef {
-	if sel == nil {
-		return nil
-	}
-	cteNames := make(map[string]bool)
-	collectTopLevelCTENames(sel, cteNames)
-
 	var refs []*nodes.TableRef
+	collectSelectTableRefs(sel, nil, &refs)
+	return refs
+}
+
+// collectSelectTableRefs adds to refs the references of sel not bound by a CTE
+// in scope, the CTE names of the enclosing queries. sel's CTEs are visible in
+// its body and in its subqueries; a CTE's own body sees the CTEs declared
+// before it, or under WITH RECURSIVE all of them.
+func collectSelectTableRefs(sel *nodes.SelectStmt, scope map[string]bool, refs *[]*nodes.TableRef) {
+	if sel == nil {
+		return
+	}
+	inner := maps.Clone(scope)
+	if inner == nil {
+		inner = make(map[string]bool)
+	}
+	collectTopLevelCTENames(sel, inner)
 	nodes.Inspect(sel, func(n nodes.Node) bool {
-		if tr, ok := n.(*nodes.TableRef); ok {
-			// Only unqualified references can match a CTE name; a schema-qualified
-			// reference always denotes a real object.
-			if tr.Schema == "" && cteNames[toLower(tr.Name)] {
+		switch n := n.(type) {
+		case *nodes.SelectStmt:
+			if n == sel {
 				return true
 			}
-			refs = append(refs, tr)
+			collectSelectTableRefs(n, inner, refs)
+			return false
+		case *nodes.CommonTableExpr:
+			cteScope := maps.Clone(scope)
+			if cteScope == nil {
+				cteScope = make(map[string]bool)
+			}
+			for _, cte := range sel.CTEs {
+				if cte == n && !n.Recursive {
+					break
+				}
+				cteScope[toLower(cte.Name)] = true
+			}
+			collectSelectTableRefs(n.Select, cteScope, refs)
+			return false
+		case *nodes.TableRef:
+			// A schema-qualified reference always denotes a real object.
+			if n.Schema != "" || !inner[toLower(n.Name)] {
+				*refs = append(*refs, n)
+			}
 		}
 		return true
 	})
-	return refs
 }
 
 // collectTopLevelCTENames adds the CTE names declared in the top-level scope of a

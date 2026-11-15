@@ -90450,6 +90450,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -90495,6 +90498,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS
@@ -91966,6 +91972,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -91988,6 +91997,9 @@
 |     WHERE YEAR(sale_date) = year AND MONTH(sale_date) = month;
 |     RETURN total;
 | END
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `monthly_sales` AS select year(`sales`.`sale_date`) AS `year`,month(`sales`.`sale_date`) AS `month`,sum(`sales`.`sale_amount`) AS `total_sales` from `sales` group by year(`sales`.`sale_date`),month(`sales`.`sale_date`)
@@ -99588,6 +99600,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -99613,6 +99628,9 @@
 |
 |     RETURN COALESCE(avg_value, 0);
 | END
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -105714,6 +105732,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -105759,6 +105780,9 @@
 | BEGIN
 |     RETURN amount * (tax_rate / 100);
 | END
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS
@@ -109644,6 +109668,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -109669,6 +109696,9 @@
 |
 |     RETURN COALESCE(avg_value, 0);
 | END
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -118928,6 +118958,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -122304,6 +122337,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -122319,6 +122355,9 @@
 | CREATE FUNCTION `dbl`(x INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x * 2
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `dv1` AS select `dv`.`id` AS `id`,`dbl`(`dv`.`a`) AS `a2` from `dv`
@@ -122713,6 +122752,9 @@
 | ) ENGINE=InnoDB COLLATE=utf8mb4_uca1400_ai_ci
 < ok 0 0
 > exec
+| SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -122728,6 +122770,9 @@
 | CREATE FUNCTION `dbl`(x INT) RETURNS int(11)
 |     DETERMINISTIC
 | RETURN x * 3
+< ok 0 0
+> exec
+| SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `dv1` AS select `dv`.`id` AS `id`,`dbl`(`dv`.`a`) AS `a2`,`dv`.`b` AS `b` from `dv`

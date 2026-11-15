@@ -32,8 +32,13 @@ const (
 	setCollation          = "SET collation_connection = "
 	setSQLMode            = "SET sql_mode = "
 	setTimezone           = "SET time_zone = "
-	delimiterDoubleSemi   = "DELIMITER ;;\n"
-	delimiterSemi         = "DELIMITER ;\n"
+	// A function is created under its own session settings, which must not
+	// carry over to the views written after it: a view's string literals, for
+	// one, read differently under NO_BACKSLASH_ESCAPES.
+	saveSessionStmt     = "SET @saved_cs_client = @@character_set_client, @saved_cs_results = @@character_set_results, @saved_col_connection = @@collation_connection, @saved_sql_mode = @@sql_mode;\n"
+	restoreSessionStmt  = "SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode;\n"
+	delimiterDoubleSemi = "DELIMITER ;;\n"
+	delimiterSemi       = "DELIMITER ;\n"
 
 	mysqlIndexFullText = "FULLTEXT"
 	mysqlIndexSpatial  = "SPATIAL"
@@ -112,9 +117,20 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 	}
 
 	// Construct functions before views: CREATE VIEW checks that the functions it calls
-	// exist, while a function body is checked only when it runs.
+	// exist, while a function body is checked only when it runs. Each function sets
+	// the session it was created under, and the views after it take the script's.
+	if len(schema.Functions) > 0 {
+		if _, err := buf.WriteString(saveSessionStmt); err != nil {
+			return "", err
+		}
+	}
 	for _, function := range schema.Functions {
 		if err := writeFunction(&buf, function); err != nil {
+			return "", err
+		}
+	}
+	if len(schema.Functions) > 0 {
+		if _, err := buf.WriteString(restoreSessionStmt); err != nil {
 			return "", err
 		}
 	}
@@ -767,7 +783,13 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 			if _, err := fmt.Fprintf(buf, "PARTITION %s", quoteIdent(partition.Name)); err != nil {
 				return err
 			}
-			if preposition != "" {
+			switch {
+			case preposition == "IN" && partition.Value == "DEFAULT":
+				// The catch-all partition of a LIST partitioning.
+				if _, err := fmt.Fprint(buf, " DEFAULT"); err != nil {
+					return err
+				}
+			case preposition != "":
 				if partition.Value != "MAXVALUE" {
 					if _, err := fmt.Fprintf(buf, " VALUES %s (%s)", preposition, partition.Value); err != nil {
 						return err

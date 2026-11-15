@@ -7,6 +7,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/mariadb/internal/testcontainer"
+	"github.com/bytebase/omni/metadata"
 )
 
 // definitionLosses lists the objects of the fixture that a restored dump holds
@@ -212,3 +215,45 @@ var (
 	eventStarts   = regexp.MustCompile(` STARTS '[^']*'`)
 	writtenStarts = regexp.MustCompile(`(?i)STARTS\s+'`)
 )
+
+// TestOracle_DatabaseDefinitionRestoresSessionAfterRoutines restores a dump
+// whose function was created under NO_BACKSLASH_ESCAPES and whose view, written
+// after it, holds a backslash escape, and requires the view to read as it was
+// created.
+func TestOracle_DatabaseDefinitionRestoresSessionAfterRoutines(t *testing.T) {
+	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	database := testcontainer.DatabaseName(t)
+	resetDatabase(t, conn, database)
+	dump, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
+		Name: database,
+		Schemas: []*metadata.SchemaMetadata{{
+			Functions: []*metadata.FunctionMetadata{{
+				Name:                "f",
+				Definition:          "CREATE FUNCTION `f`() RETURNS int(11)\nRETURN 1",
+				CharacterSetClient:  "latin1",
+				CollationConnection: "latin1_swedish_ci",
+				SqlMode:             "NO_BACKSLASH_ESCAPES",
+			}},
+			Views: []*metadata.ViewMetadata{{Name: "v", Definition: "select 'a\\\\b' AS `x`"}},
+		}},
+	}, DefinitionOptions{PrintHeader: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, stmt := range splitLikeMySQLClient(dump) {
+		if _, err := conn.ExecContext(context.Background(), stmt); err != nil {
+			t.Fatalf("restore %q: %v\n%s", stmt, err, dump)
+		}
+	}
+	var x string
+	if err := conn.QueryRowContext(context.Background(), "SELECT x FROM v").Scan(&x); err != nil {
+		t.Fatal(err)
+	}
+	if x != `a\b` {
+		t.Errorf("view reads %q, want %q:\n%s", x, `a\b`, dump)
+	}
+}
