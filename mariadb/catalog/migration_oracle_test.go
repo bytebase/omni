@@ -318,7 +318,7 @@ func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
 	}
 	for query, want := range map[string]string{
 		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `a\b`,
-		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":          `c\d`,
+		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":         `c\d`,
 	} {
 		var got string
 		if err := conn.QueryRowContext(context.Background(), query).Scan(&got); err != nil {

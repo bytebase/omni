@@ -494,5 +494,3 @@ func leadsEveryKey(tbl *Table, col string) bool {
 	}
 	return true
 }
-
-
