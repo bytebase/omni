@@ -179,6 +179,8 @@ var diffPairs = []struct{ name, a, b string }{
 	{"engine fold keeping another option", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB COMMENT='new'"},
 	{"two new triggers after a kept one", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2; CREATE TRIGGER c BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 3"},
 	{"merge delaying a transitive drop", "CREATE TABLE t (x INT, d INT AS (x + 1) VIRTUAL, g INT AS (d + 1) VIRTUAL)", "CREATE TABLE t (id INT AUTO_INCREMENT PRIMARY KEY, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))"},
+	{"visible column reading an added invisible one", "CREATE TABLE t (a INT, hidden INT INVISIBLE)", "CREATE TABLE t (b INT CHECK (b > c), c INT INVISIBLE, hidden INT INVISIBLE)"},
+	{"engine fold keeping partitions", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM PARTITION BY HASH (g) PARTITIONS 2", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB PARTITION BY HASH (g) PARTITIONS 3"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

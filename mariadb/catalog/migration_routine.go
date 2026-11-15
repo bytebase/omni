@@ -133,11 +133,17 @@ func alterRoutineOp(e *RoutineDiffEntry, to *Routine) MigrationOp {
 		b.WriteString(" ")
 		b.WriteString(clause)
 	}
+	sql := b.String()
+	// The comment is escaped for the routine's captured sql_mode, so the
+	// ALTER runs under that mode, as the CREATE does.
+	if to.HasSessionContext {
+		sql = renderWithSessionContext(sql, routineSessionContext(to), false)
+	}
 	return MigrationOp{
 		Type:       createRoutineOpType(e.IsProcedure), // ALTER reuses the CREATE op type
 		Database:   e.Database,
 		ObjectName: e.Name,
-		SQL:        b.String(),
+		SQL:        sql,
 		Phase:      PhaseMain,
 		Priority:   priorityRoutine,
 		sortName:   routineSortName(e.Database, e.Name),

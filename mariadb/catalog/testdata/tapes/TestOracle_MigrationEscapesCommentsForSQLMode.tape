@@ -37,13 +37,25 @@
 > exec
 | SET sql_mode = @saved_sql_mode
 < ok 0 0
+> exec
+| SET @saved_sql_mode = @@sql_mode
+< ok 0 0
+> exec
+| SET sql_mode = 'NO_BACKSLASH_ESCAPES'
+< ok 0 0
+> exec
+| ALTER FUNCTION `omni_testoracle_migrationescapescommentsforsqlmode`.`f` CONTAINS SQL SQL SECURITY DEFINER COMMENT 'z\y'
+< ok 0 0
+> exec
+| SET sql_mode = @saved_sql_mode
+< ok 0 0
 > query
 | SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'
 < result
 < column "ROUTINE_COMMENT" "TEXT"
 < row
 : bytes
-| a\b
+| z\y
 > query
 | SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'
 < result
