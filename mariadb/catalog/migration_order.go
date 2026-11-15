@@ -15,7 +15,8 @@ import (
 //   - a generated column whose new expression reads a generated column the
 //     plan adds is modified after the add (1054);
 //   - a key the plan keeps over an application-time period it replaces is
-//     dropped before the period and added after it (4156);
+//     dropped before the period and added after it (4156), and a kept
+//     period's two columns change in one ALTER (4153);
 //   - a column the plan replaces, to flip VIRTUAL, STORED or plain, takes the
 //     keys over it and the generated columns and checks that read it out
 //     first and back after (1054, 4029);
@@ -25,7 +26,8 @@ import (
 //   - a table that loses every column it has keeps one until the end (1090);
 //   - a foreign key whose only supporting key is dropped or replaced, on
 //     either side, or that the plan keeps over a column whose type it
-//     changes, is dropped first and added again at the end (1553, 1832, 1833).
+//     changes or that it replaces, is dropped first and added again at the
+//     end (1553, 1828, 1832, 1833).
 func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff, n *Normalizer) []MigrationOp {
 	for i := range diff.Tables {
 		e := &diff.Tables[i]
@@ -35,6 +37,7 @@ func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff,
 		ops = dropColumnsAfterGeneratedReads(ops, e)
 		ops = modifyGeneratedAfterAddedReads(ops, e)
 		ops = rebuildKeysOverReplacedPeriod(ops, e, n)
+		ops = modifyPeriodBoundsTogether(ops, e)
 		ops = rebuildKeysOverFlippedColumns(ops, e, n)
 		ops = rebuildReadersOfReplacedColumns(ops, e, n)
 		ops = orderColumnDrops(ops, e)
@@ -125,6 +128,34 @@ func rebuildKeysOverReplacedPeriod(ops []MigrationOp, e *TableDiffEntry, n *Norm
 		}
 	}
 	return ops
+}
+
+// modifyPeriodBoundsTogether changes both columns of a kept application-time
+// period in one ALTER: MariaDB holds the two to one type, so either change on
+// its own is 4153.
+func modifyPeriodBoundsTogether(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+	from, to := e.From, e.To
+	if from.AppPeriodName == "" || to.AppPeriodName == "" || appPeriodChanged(from, to) {
+		return ops
+	}
+	start, end := -1, -1
+	for i, op := range ops {
+		if op.Type != OpModifyColumn || !opOfTable(op, e) || op.alterParts != nil {
+			continue
+		}
+		switch op.column {
+		case toLower(to.AppPeriodStartCol):
+			start = i
+		case toLower(to.AppPeriodEndCol):
+			end = i
+		}
+	}
+	if start < 0 || end < 0 {
+		return ops
+	}
+	ops[start].alterParts = []alterPart{{clause: ops[start].alterClause}, {clause: ops[end].alterClause}}
+	ops[start].SQL = "ALTER TABLE " + tableIdent(to) + " " + joinAlterParts(ops[start].alterParts)
+	return slices.Delete(ops, end, end+1)
 }
 
 func indexOverPeriod(idx *Index, period string) bool {
@@ -318,24 +349,13 @@ func orderColumnAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 		}
 	}
 	reads := make(map[string][]string)
-	checks := columnChecks(e.To)
-	for name := range priority {
-		col := e.To.GetColumn(name)
-		if col == nil {
+	for name, refs := range columnAddReads(e) {
+		if _, ok := priority[name]; !ok {
 			continue
 		}
-		var refs []string
-		if col.Generated != nil {
-			refs = append(refs, col.Generated.Refs...)
-		}
-		if con := checks[name]; con != nil {
-			refs = append(refs, exprColumnRefs(con.CheckExpr)...)
-		}
 		for _, ref := range refs {
-			if ref := toLower(ref); ref != name {
-				if _, ok := priority[ref]; ok {
-					reads[name] = append(reads[name], ref)
-				}
+			if _, ok := priority[ref]; ok && ref != name {
+				reads[name] = append(reads[name], ref)
 			}
 		}
 	}
@@ -375,6 +395,36 @@ func orderColumnAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	return ops
 }
 
+// columnAddReads maps each column of the target to the lower-cased columns its
+// generated expression or column CHECK reads.
+func columnAddReads(e *TableDiffEntry) map[string][]string {
+	out := make(map[string][]string)
+	checks := columnChecks(e.To)
+	for _, col := range e.To.Columns {
+		name := toLower(col.Name)
+		var refs []string
+		if col.Generated != nil {
+			refs = append(refs, col.Generated.Refs...)
+		}
+		if con := checks[name]; con != nil {
+			refs = append(refs, exprColumnRefs(con.CheckExpr)...)
+		}
+		for _, ref := range refs {
+			out[name] = append(out[name], toLower(ref))
+		}
+	}
+	return out
+}
+
+func isAdded(ops []MigrationOp, e *TableDiffEntry, column string) bool {
+	for _, op := range ops {
+		if op.Type == OpAddColumn && opOfTable(op, e) && op.column == column {
+			return true
+		}
+	}
+	return false
+}
+
 // exprColumnRefs returns the columns an expression names.
 func exprColumnRefs(text string) []string {
 	expr, err := parseExpr(text)
@@ -405,16 +455,36 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 	if len(dropped) == 0 || len(dropped) < len(diffableColumns(e.From)) {
 		return ops
 	}
-	fresh := false
+	// A column only added can go first unless it reads a column added later,
+	// a replaced one among them, directly or through another.
+	reads := columnAddReads(e)
+	early := make(map[string]bool)
 	for i := range ops {
 		if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && !dropped[ops[i].column] {
-			// Ahead of the drops, whose sort names rankedColumnSortName starts
-			// after an add's.
-			ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-1
-			fresh = true
+			early[ops[i].column] = true
 		}
 	}
-	if fresh {
+	for changed := true; changed; {
+		changed = false
+		for name := range early {
+			for _, ref := range reads[name] {
+				if !early[ref] && ref != name && isAdded(ops, e, ref) {
+					delete(early, name)
+					changed = true
+					break
+				}
+			}
+		}
+	}
+	if len(early) > 0 {
+		for i := range ops {
+			if ops[i].Type == OpAddColumn && opOfTable(ops[i], e) && early[ops[i].column] {
+				// Ahead of the drops, whose sort names rankedColumnSortName
+				// starts after an add's.
+				ops[i].Phase, ops[i].Priority = PhasePre, priorityColumn-1
+				ops[i].sortName = columnAddSortName(e, e.To.GetColumn(ops[i].column))
+			}
+		}
 		return ops
 	}
 	for d := range ops {
@@ -495,6 +565,13 @@ func releaseForeignKeysAcrossTables(ops []MigrationOp, from, to *Catalog, diff *
 		for _, ce := range e.Columns {
 			if ce.Action == DiffModify && ce.From != nil && ce.To != nil && columnRetyped(ce.From, ce.To) {
 				retyped[key(e.Database, e.Name, ce.Name)] = true
+			}
+		}
+		// A column the plan drops and adds again is held by its foreign keys
+		// as much as one whose type changes (1828).
+		if e.From != nil && e.To != nil {
+			for name := range replacedColumns(e) {
+				retyped[key(e.Database, e.Name, name)] = true
 			}
 		}
 	}

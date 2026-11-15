@@ -295,8 +295,14 @@ func fkBackingIndexStillNeeded(to *Table, idx *Index) bool {
 	if to == nil || idx == nil {
 		return false
 	}
+	backing := fkImplicitBackingIndexes(to)
 	for _, con := range to.Constraints {
 		if con == nil || con.Type != ConForeignKey || len(con.Columns) == 0 {
+			continue
+		}
+		// A key of the name that the target makes over other columns, as a
+		// foreign key that loses a column does, replaces this one.
+		if own := backing[con]; own != nil && toLower(own.Name) == toLower(idx.Name) && !sameKeyColumns(own, idx) {
 			continue
 		}
 		if indexCoversColumns(idx, con.Columns) {
@@ -304,6 +310,18 @@ func fkBackingIndexStillNeeded(to *Table, idx *Index) bool {
 		}
 	}
 	return false
+}
+
+func sameKeyColumns(a, b *Index) bool {
+	if len(a.Columns) != len(b.Columns) {
+		return false
+	}
+	for i := range a.Columns {
+		if toLower(a.Columns[i].Name) != toLower(b.Columns[i].Name) {
+			return false
+		}
+	}
+	return true
 }
 
 // indexCoversColumns reports whether idx's leading columns match fkCols in order. Prefix

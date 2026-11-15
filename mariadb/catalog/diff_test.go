@@ -116,6 +116,12 @@ var diffPairs = []struct{ name, a, b string }{
 	{"system period moved", "CREATE TABLE t (x INT, s TIMESTAMP(6) AS ROW START, e TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s, e)) WITH SYSTEM VERSIONING", "CREATE TABLE t (x INT, s2 TIMESTAMP(6) AS ROW START, e2 TIMESTAMP(6) AS ROW END, PERIOD FOR SYSTEM_TIME (s2, e2)) WITH SYSTEM VERSIONING"},
 	{"two dependent replacements", "CREATE TABLE t (x INT, a INT AS (x + 1) VIRTUAL, b INT AS (a + 1) VIRTUAL)", "CREATE TABLE t (x INT, a INT AS (x + 1) STORED, b INT AS (a + 1) STORED)"},
 	{"column check reading a later column", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, a INT CHECK (a > b), b INT)"},
+	{"foreign key over a replaced column", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (x INT, pid INT AS (x + 1) STORED, KEY k (pid), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))", "CREATE TABLE p (id INT PRIMARY KEY); CREATE TABLE ch (x INT, pid INT, KEY k (pid), CONSTRAINT f FOREIGN KEY (pid) REFERENCES p (id))"},
+	{"versioning with a column left out", "CREATE TABLE t (a INT, c INT)", "CREATE TABLE t (a INT, c INT WITHOUT SYSTEM VERSIONING, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
+	{"period bound types changed", "CREATE TABLE t (id INT, s DATE NOT NULL, e DATE NOT NULL, PERIOD FOR app_time (s, e))", "CREATE TABLE t (id INT, s DATETIME NOT NULL, e DATETIME NOT NULL, PERIOD FOR app_time (s, e))"},
+	{"every column replaced with a reader", "CREATE TABLE t (a INT)", "CREATE TABLE t (a INT AS (1) VIRTUAL, b INT AS (a) VIRTUAL)"},
+	{"new table with page checksum and a key", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT); CREATE TABLE t (a INT, KEY k (a)) PAGE_CHECKSUM=1"},
+	{"foreign key losing a column", "CREATE TABLE p (a INT, b INT, PRIMARY KEY (a, b)); CREATE TABLE ch (a INT, b INT, CONSTRAINT f FOREIGN KEY (a, b) REFERENCES p (a, b))", "CREATE TABLE p (a INT, b INT, PRIMARY KEY (a, b)); CREATE TABLE ch (a INT, b INT, CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

@@ -101,9 +101,10 @@ type MigrationOp struct {
 	column     string
 	alterParts []alterPart
 
-	// dropsVersionedColumns marks a DROP SYSTEM VERSIONING that drops the ROW
+	// changesVersionedColumns marks a versioning op that also drops or changes
+	// columns of a versioned table, as a DROP SYSTEM VERSIONING that drops the ROW
 	// START and ROW END columns with it, which needs keepVersionedHistory.
-	dropsVersionedColumns bool
+	changesVersionedColumns bool
 }
 
 // alterPart is one clause of a grouped ALTER TABLE statement. addsColumn is the lower-cased column
