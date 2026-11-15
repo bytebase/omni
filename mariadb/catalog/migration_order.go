@@ -44,7 +44,7 @@ func reorderTableChanges(ops []MigrationOp, from, to *Catalog, diff *SchemaDiff,
 		ops = orderColumnDrops(ops, e)
 		ops = orderColumnAdds(ops, e)
 		ops = dropLastColumnsAfterAdds(ops, e)
-		ops = hideColumnsLast(ops, e)
+		ops = invalidatingModifiesLast(ops, e)
 		ops = releaseForeignKeysOfReplacedKeys(ops, e)
 	}
 	return releaseForeignKeysAcrossTables(ops, from, to, diff)
@@ -90,8 +90,10 @@ func dropColumnsAfterGeneratedReads(ops []MigrationOp, e *TableDiffEntry) []Migr
 	}
 	for i := range ops {
 		if ops[i].Type == OpDropColumn && opOfTable(ops[i], e) && postponed[ops[i].column] {
-			// After every modify, modifyGeneratedAfterAddedReads's included.
-			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+3
+			// After every modify, modifyGeneratedAfterAddedReads's and the
+			// hide/unversion modifies at priorityColumn+3 included: such a
+			// modify can release this drop's dependency.
+			ops[i].Phase, ops[i].Priority = PhaseMain, priorityColumn+4
 		}
 	}
 	return ops
@@ -936,17 +938,68 @@ func sharesColumn(drops, adds []alterPart) bool {
 	return false
 }
 
-// hideColumnsLast runs a MODIFY that makes a column INVISIBLE after the table's
-// other column changes, the one that makes another visible among them: a
-// table keeps a visible column (1113).
-func hideColumnsLast(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
+// invalidatingModifiesLast runs a MODIFY that would leave the table in a state
+// the server refuses after the table's other column changes, the one that
+// lifts it among them: hiding a column needs a visible one to remain (1113),
+// and unversioning one needs a versioned one to remain (4123).
+func invalidatingModifiesLast(ops []MigrationOp, e *TableDiffEntry) []MigrationOp {
 	for i := range ops {
-		if ops[i].Type != OpModifyColumn || !opOfTable(ops[i], e) || ops[i].column == "" {
+		if ops[i].Type != OpModifyColumn || !opOfTable(ops[i], e) || ops[i].column == "" || ops[i].Phase != PhaseMain {
 			continue
 		}
 		from, to := e.From.GetColumn(ops[i].column), e.To.GetColumn(ops[i].column)
-		if from != nil && to != nil && !from.Invisible && to.Invisible && ops[i].Phase == PhaseMain {
+		if from == nil || to == nil {
+			continue
+		}
+		hides := !from.Invisible && to.Invisible
+		unversions := e.To.SystemVersioned && isVersionedColumn(from) && !isVersionedColumn(to)
+		if hides || unversions {
 			ops[i].Priority = max(ops[i].Priority, priorityColumn+3)
+		}
+	}
+	return ops
+}
+
+// reorderAddsAfterMerge runs an added column after the columns it reads that the
+// AUTO_INCREMENT merger pulled into a statement of a higher priority: the merge
+// moves a column's add into the auto-increment statement without moving the adds
+// that read it (1054).
+func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
+	for i := range diff.Tables {
+		e := &diff.Tables[i]
+		if e.To == nil {
+			continue
+		}
+		// The priority of the statement that adds each column, its own or the
+		// one it was merged into.
+		priority := make(map[string]int)
+		for _, op := range ops {
+			if !opOfTable(op, e) {
+				continue
+			}
+			for _, part := range partsOf(op) {
+				if part.addsColumn != "" {
+					priority[part.addsColumn] = op.Priority
+				}
+			}
+		}
+		reads := columnReads(e.To)
+		for changed := true; changed; {
+			changed = false
+			for name, p := range priority {
+				for _, ref := range reads[name] {
+					if q, ok := priority[ref]; ok && q > p {
+						priority[name], p, changed = q, q, true
+					}
+				}
+			}
+		}
+		for j := range ops {
+			if ops[j].Type == OpAddColumn && opOfTable(ops[j], e) && ops[j].alterParts == nil {
+				if p, ok := priority[ops[j].column]; ok && p > ops[j].Priority {
+					ops[j].Priority = p
+				}
+			}
 		}
 	}
 	return ops

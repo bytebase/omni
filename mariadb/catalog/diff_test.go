@@ -160,6 +160,10 @@ var diffPairs = []struct{ name, a, b string }{
 	{"recreated trigger keeps its place", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 2; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1", "CREATE TABLE t (x INT); CREATE TRIGGER a BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x * 3; CREATE TRIGGER b BEFORE INSERT ON t FOR EACH ROW SET NEW.x = NEW.x + 1"},
 	{"replaced column read by a default", "CREATE TABLE t (x INT, h INT, v INT DEFAULT (h + 1))", "CREATE TABLE t (x INT, h INT AS (x + 1) STORED, v INT DEFAULT 0)"},
 	{"visibility moved between columns", "CREATE TABLE t (a INT, z INT INVISIBLE)", "CREATE TABLE t (a INT INVISIBLE, z INT)"},
+	{"versioning moved between columns", "CREATE TABLE t (a INT, b INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING", "CREATE TABLE t (a INT WITHOUT SYSTEM VERSIONING, b INT) WITH SYSTEM VERSIONING"},
+	{"hidden column releasing a default", "CREATE TABLE t (id INT, v INT DEFAULT (id + 1), z INT INVISIBLE)", "CREATE TABLE t (v INT INVISIBLE DEFAULT 0, z INT)"},
+	{"primary key replaced with an ignored key kept", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (a), UNIQUE KEY u (b) IGNORED)", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY (b), UNIQUE KEY u (b) IGNORED)"},
+	{"auto key absorbing a read column", "CREATE TABLE t (x INT)", "CREATE TABLE t (x INT, id INT AUTO_INCREMENT, b INT, g INT AS (b + 1) VIRTUAL, KEY k (id, b))"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

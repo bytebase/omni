@@ -171,10 +171,30 @@ func primaryKeyModifyOps(entry *TableDiffEntry, table string, to *Index, n *Norm
 // demoted to nullable in this diff. Those column changes run before the combined PhaseMain
 // statement while the old PK still holds the column, so its DROP PRIMARY KEY half would fail.
 func canCombinePrimaryKeyModify(entry *TableDiffEntry, to *Index) bool {
-	if !newPrimaryKeyHasAutoIncrement(entry.To, to) {
+	if oldPrimaryKeyMemberDroppedOrDemoted(entry) {
 		return false
 	}
-	return !oldPrimaryKeyMemberDroppedOrDemoted(entry)
+	// A standalone DROP PRIMARY KEY would promote a retained IGNORED unique
+	// key to the implicit primary key, which an IGNORED key cannot be (4174),
+	// so the replacement is one statement.
+	return newPrimaryKeyHasAutoIncrement(entry.To, to) || splitDropPromotesIgnored(entry)
+}
+
+// splitDropPromotesIgnored reports whether dropping the table's primary key on
+// its own, before adding the replacement, would make a retained IGNORED key
+// the implicit primary key (4174).
+func splitDropPromotesIgnored(entry *TableDiffEntry) bool {
+	if entry.To == nil {
+		return false
+	}
+	withoutPK := *entry.To
+	withoutPK.Indexes = nil
+	for _, idx := range entry.To.Indexes {
+		if !idx.Primary {
+			withoutPK.Indexes = append(withoutPK.Indexes, idx)
+		}
+	}
+	return validateIgnoredPrimaryKey(&withoutPK, false) != nil
 }
 
 // newPrimaryKeyHasAutoIncrement reports whether any column of the new PK is AUTO_INCREMENT.
