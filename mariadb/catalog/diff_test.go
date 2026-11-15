@@ -193,6 +193,7 @@ var diffPairs = []struct{ name, a, b string }{
 	{"replace a unique key while adding an ignored key", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b))", "CREATE TABLE t (a INT NOT NULL, b INT NOT NULL, UNIQUE KEY v (b) COMMENT 'x', UNIQUE KEY w (a) IGNORED)"},
 	{"engine change with a partition-literal comment", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (g, id)) ENGINE=MyISAM", "CREATE TABLE t (g INT NOT NULL, id INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (id, g)) ENGINE=InnoDB COMMENT='PARTITION'"},
 	{"foreign key renamed over the same column", "CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, CONSTRAINT f FOREIGN KEY (a) REFERENCES p (a))", "CREATE TABLE p (a INT PRIMARY KEY); CREATE TABLE t (a INT, CONSTRAINT g FOREIGN KEY (a) REFERENCES p (a))"},
+	{"last column is both last visible and last versioned", "CREATE TABLE t (a INT, b INT INVISIBLE WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING", "CREATE TABLE t (b INT INVISIBLE, c INT WITHOUT SYSTEM VERSIONING) WITH SYSTEM VERSIONING"},
 	{"timestamps without defaults", "CREATE TABLE x (i INT)", "CREATE TABLE x (i INT, ts TIMESTAMP NOT NULL); CREATE TABLE t (u TIMESTAMP NOT NULL)"},
 	{"sequence limits leaving out the start", "CREATE SEQUENCE s", "CREATE SEQUENCE s START WITH 100 MINVALUE 10"},
 }

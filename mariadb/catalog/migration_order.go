@@ -632,25 +632,15 @@ func dropLastColumnsAfterAdds(ops []MigrationOp, e *TableDiffEntry) []MigrationO
 		return ops
 	}
 	if len(dropped) < len(diffableColumns(e.From)) {
-		// A table keeps a versioned (4123) and a visible (1113) column: a
-		// column the plan only adds goes first, else a MODIFY that makes a
-		// retained one qualify runs before the drops, else the last such
-		// column is replaced in one statement.
-		if e.From.SystemVersioned && e.To.SystemVersioned && everyDropped(e, dropped, isVersionedColumn) &&
-			!addFirst(ops, e, dropped, isVersionedColumn) {
-			if out, moved := qualifyingModifyFirst(ops, e, becomesVersioned, makeVersioned); moved {
-				return out
-			}
-			return atomicReplaceLast(ops, e, isVersionedColumn)
+		// A table keeps a versioned (4123) and a visible (1113) column: a column
+		// the plan only adds goes first, else a MODIFY that makes a retained one
+		// qualify runs before the drops, else the last such column is replaced in
+		// one statement. Both invariants are repaired, since one dropped column
+		// can be the last of each kind.
+		if e.From.SystemVersioned && e.To.SystemVersioned {
+			ops = keepQualifyingColumn(ops, e, dropped, isVersionedColumn, becomesVersioned, makeVersioned)
 		}
-		if everyDropped(e, dropped, isVisibleColumn) &&
-			!addFirst(ops, e, dropped, isVisibleColumn) {
-			if out, moved := qualifyingModifyFirst(ops, e, becomesVisible, makeVisible); moved {
-				return out
-			}
-			return atomicReplaceLast(ops, e, isVisibleColumn)
-		}
-		return ops
+		return keepQualifyingColumn(ops, e, dropped, isVisibleColumn, becomesVisible, makeVisible)
 	}
 	if addFirst(ops, e, dropped, func(*Column) bool { return true }) {
 		return ops
@@ -1097,6 +1087,21 @@ func reorderAddsAfterMerge(ops []MigrationOp, diff *SchemaDiff) []MigrationOp {
 // qualifyingModifyFirst runs a MODIFY that makes a retained column satisfy
 // becomes (visible, or versioned) before the drops, so a column of that kind
 // remains throughout. It reports whether it moved one.
+// keepQualifyingColumn repairs one kept-column invariant (visible 1113, versioned
+// 4123) when the plan drops every source column of that kind: a column the plan
+// only adds runs first, else a MODIFY that makes a retained column qualify runs
+// before the drops, else the last such column is replaced in one statement. It
+// returns ops unchanged when the invariant is not at risk.
+func keepQualifyingColumn(ops []MigrationOp, e *TableDiffEntry, dropped map[string]bool, pick func(*Column) bool, becomes func(from, to *Column) bool, qualify func(*Column)) []MigrationOp {
+	if !everyDropped(e, dropped, pick) || addFirst(ops, e, dropped, pick) {
+		return ops
+	}
+	if out, moved := qualifyingModifyFirst(ops, e, becomes, qualify); moved {
+		return out
+	}
+	return atomicReplaceLast(ops, e, pick)
+}
+
 // qualifyingModifyFirst runs a retained column's MODIFY that makes it satisfy
 // the kept-column invariant (visible 1113, versioned 4123) before the drops, so
 // the table never loses its last qualifying column. When the target definition
