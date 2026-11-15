@@ -873,11 +873,26 @@ func addFirst(ops []MigrationOp, e *TableDiffEntry, dropped map[string]bool, pic
 			}
 		}
 	}
+	// Pull in the added columns an early column reads, so the prerequisite
+	// comes first even when it does not itself satisfy pick (an invisible
+	// column a visible one reads).
 	for changed := true; changed; {
 		changed = false
 		for name := range early {
 			for _, ref := range reads[name] {
-				if !early[ref] && ref != name && isAdded(ops, e, ref) {
+				if !early[ref] && ref != name && isAdded(ops, e, ref) && !dropped[ref] {
+					early[ref], changed = true, true
+				}
+			}
+		}
+	}
+	// Drop any whose dependency the plan does not add before it after all (it
+	// reads a dropped or non-added column).
+	for changed := true; changed; {
+		changed = false
+		for name := range early {
+			for _, ref := range reads[name] {
+				if ref != name && !early[ref] && (dropped[ref] || isAdded(ops, e, ref)) {
 					delete(early, name)
 					changed = true
 					break

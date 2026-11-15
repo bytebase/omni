@@ -321,8 +321,13 @@ func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
 	if err := applyPlan(conn, plan); err != nil {
 		t.Fatalf("apply: %v\n%s", err, plan.SQL())
 	}
+	// The ALTER path: change only the function's comment, still under the mode.
+	after := withComment(t, to, database, "NO_BACKSLASH_ESCAPES")
+	if err := applyPlan(conn, GenerateMigration(to, after, Diff(to, after))); err != nil {
+		t.Fatalf("alter: %v", err)
+	}
 	for query, want := range map[string]string{
-		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `a\b`,
+		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `z\y`,
 		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":         `c\d`,
 	} {
 		var got string
@@ -333,4 +338,22 @@ func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
 			t.Errorf("comment = %q, want %q\n%s", got, want, plan.SQL())
 		}
 	}
+}
+
+// withComment returns a copy of c with f's comment changed to one holding a
+// backslash, captured under sqlMode.
+func withComment(t *testing.T, c *Catalog, database, sqlMode string) *Catalog {
+	t.Helper()
+	out := New()
+	if _, err := out.Exec("CREATE DATABASE "+quoteIdent(database)+"; USE "+quoteIdent(database)+
+		`; CREATE FUNCTION f() RETURNS INT DETERMINISTIC COMMENT 'z\\y' RETURN 1`+
+		`; CREATE EVENT e ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' COMMENT 'c\\d' DO SELECT 1;`, nil); err != nil {
+		t.Fatal(err)
+	}
+	ctx := SessionContext{SQLMode: sqlMode}
+	out.ApplySessionContext(SessionContextMap{
+		Functions: map[string]SessionContext{"f": ctx},
+		Events:    map[string]SessionContext{"e": ctx},
+	})
+	return out
 }
