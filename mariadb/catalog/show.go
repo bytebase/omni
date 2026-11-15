@@ -196,9 +196,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint,
 		// Resolve the default collation for the column's charset.
 		colCharsetDefault := ""
 		if col.Charset != "" {
-			if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
-				colCharsetDefault = dc
-			}
+			colCharsetDefault = versionCollation(tableDatabase(tbl), col.Charset)
 		}
 		charsetDiffers := col.Charset != "" && !eqFoldStr(col.Charset, tableCharset)
 
@@ -208,7 +206,7 @@ func showColumnWithTable(col *Column, tbl *Table, checks map[string]*Constraint,
 		if tbl != nil {
 			tableCollation = tbl.Collation
 			if tableCollation == "" {
-				tableCollation = defaultCollationForCharset[toLower(tbl.Charset)]
+				tableCollation = versionCollation(tbl.Database, tbl.Charset)
 			}
 		}
 		collation := col.Collation
@@ -840,7 +838,7 @@ func showTableOptions(tbl *Table) string {
 	if tbl.Charset != "" {
 		effectiveCollation := tbl.Collation
 		if effectiveCollation == "" {
-			effectiveCollation = defaultCollationForCharset[toLower(tbl.Charset)]
+			effectiveCollation = versionCollation(tbl.Database, tbl.Charset)
 		}
 		if effectiveCollation != "" {
 			parts = append(parts, fmt.Sprintf("COLLATE=%s", effectiveCollation))
@@ -2907,4 +2905,11 @@ func temporalStringDefault(text string, col *Column) (string, bool) {
 		return fmt.Sprintf("'%s%02d:%02d:%02d%s'", sign, days*24+parts[0], parts[1], parts[2], fraction(frac)), true
 	}
 	return "", false
+}
+
+func tableDatabase(tbl *Table) *Database {
+	if tbl == nil {
+		return nil
+	}
+	return tbl.Database
 }

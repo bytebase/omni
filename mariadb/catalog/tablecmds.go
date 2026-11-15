@@ -10,6 +10,7 @@ import (
 )
 
 func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
+	defer c.ignoreDescendingKeys(stmt.Table)()
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -161,7 +162,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	}
 	// When charset is specified without explicit collation, derive the default collation.
 	if tblCharsetExplicit && !tblCollationExplicit {
-		if dc, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
+		if dc := c.charsetCollation(tbl.Charset); dc != "" {
 			tbl.Collation = dc
 		}
 	}
@@ -312,7 +313,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				// If column charset differs from table charset, use the default
 				// collation for the column's charset, not the table's collation.
 				if !strings.EqualFold(col.Charset, tbl.Charset) {
-					if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
+					if dc := c.charsetCollation(col.Charset); dc != "" {
 						col.Collation = dc
 					}
 				} else {

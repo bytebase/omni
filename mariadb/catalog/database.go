@@ -13,6 +13,8 @@ type Database struct {
 	Triggers   map[string]*Trigger  // lowered name -> trigger
 	Events     map[string]*Event    // lowered name -> event
 	Sequences  map[string]*Sequence // lowered name -> sequence
+	// version is the release of the catalog that holds the database.
+	version Version
 }
 
 func newDatabase(name, charset, collation string) *Database {

@@ -4,9 +4,9 @@
 // the connection is to the pinned server itself. The compat judge, which runs
 // only in a recording, asks the server directly, through Pinned.
 //
-// The server is the one testdata/pins.tsv names: one testcontainer per test
-// binary, started by the first test that needs it and removed by Terminate,
-// which the package's TestMain calls.
+// Each row of testdata/pins.tsv is a server a test may ask for by its role:
+// one testcontainer per role and test binary, started by the first test that
+// records on it and removed by Terminate, which the package's TestMain calls.
 package testcontainer
 
 import (
@@ -45,8 +45,21 @@ var Pins = func() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
 }()
 
+// Roles of pins.tsv beside the default one, each a MariaDB release Bytebase
+// supports whose stored forms differ from the pinned server's.
+const (
+	// MariaDB107 is mariadb:10.7.8, the oldest release Bytebase supports.
+	MariaDB107 = "mariadb107"
+	// MariaDB1011 is mariadb:10.11.19, the 10.11 LTS release.
+	MariaDB1011 = "mariadb1011"
+	// MariaDB114 is mariadb:11.4.13, the 11.4 LTS release.
+	MariaDB114 = "mariadb114"
+)
+
 // Options is how a test's connection differs from the plain one.
 type Options struct {
+	// Role is the pins.tsv row of the server. Empty is the default one.
+	Role string
 	// Database is selected when the connection opens. Empty selects none.
 	Database string
 	// MultiStatements lets one request hold several statements.
@@ -68,10 +81,17 @@ func Open(t testing.TB) *sql.DB {
 	return OpenWith(t, Options{Database: "test"})
 }
 
+func (o Options) role() string {
+	if o.Role == "" {
+		return "default"
+	}
+	return o.Role
+}
+
 // OpenWith is Open with other connection settings.
 func OpenWith(t testing.TB, o Options) *sql.DB {
 	t.Helper()
-	return tape.Open(t, &tape.Server{Pins: Pins, Live: o.live, Codec: Codec{}}, "default")
+	return tape.Open(t, &tape.Server{Pins: Pins, Live: o.live, Codec: Codec{}}, o.role())
 }
 
 // OpenEmpty returns t's connection to a server that holds nothing a test left
@@ -110,8 +130,14 @@ func OpenEmptyWith(t testing.TB, o Options) *sql.DB {
 // connection opens, on a connection the tape does not see.
 func OpenDatabase(t testing.TB) *sql.DB {
 	t.Helper()
+	return OpenDatabaseOn(t, "")
+}
+
+// OpenDatabaseOn is OpenDatabase on the server of role.
+func OpenDatabaseOn(t testing.TB, role string) *sql.DB {
+	t.Helper()
 	name := DatabaseName(t)
-	Reset(t, func(ctx context.Context, db *sql.DB) error {
+	ResetOn(t, role, func(ctx context.Context, db *sql.DB) error {
 		for _, stmt := range []string{"DROP DATABASE IF EXISTS " + quoteName(name), "CREATE DATABASE " + quoteName(name)} {
 			if _, err := db.ExecContext(ctx, stmt); err != nil {
 				return fmt.Errorf("%s: %w", stmt, err)
@@ -119,7 +145,7 @@ func OpenDatabase(t testing.TB) *sql.DB {
 		}
 		return nil
 	})
-	return OpenWith(t, Options{Database: name})
+	return OpenWith(t, Options{Role: role, Database: name})
 }
 
 // DatabaseName is the database OpenDatabase selects for t: omni_ and the name
@@ -144,16 +170,24 @@ func quoteName(s string) string { return "`" + strings.ReplaceAll(s, "`", "``") 
 // recorded, and has no database selected.
 func Reset(t testing.TB, fn func(ctx context.Context, db *sql.DB) error) {
 	t.Helper()
+	ResetOn(t, "", fn)
+}
+
+// ResetOn is Reset on the server of role.
+func ResetOn(t testing.TB, role string, fn func(ctx context.Context, db *sql.DB) error) {
+	t.Helper()
 	if !enginetest.Recording(t) {
 		return
 	}
-	pin, err := enginetest.LoadPin(Pins, "default")
+	o := Options{Role: role}
+	pin, err := enginetest.LoadPin(Pins, o.role())
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	admin := sql.OpenDB(Options{}.live(t, pin))
+	admin := sql.OpenDB(o.live(t, pin))
 	defer admin.Close()
-	if err := fn(context.Background(), admin); err != nil {
+	ctx := context.WithValue(context.Background(), roleKey{}, o.role())
+	if err := fn(ctx, admin); err != nil {
 		t.Fatalf("reset MariaDB: %v", err)
 	}
 }
@@ -162,6 +196,7 @@ func Reset(t testing.TB, fn func(ctx context.Context, db *sql.DB) error) {
 // again. What the image started with stays: its databases and accounts were
 // listed when the server came up.
 func empty(ctx context.Context, db *sql.DB) error {
+	shared := roleOf(ctx)
 	text := func(s string) string {
 		return "'" + strings.ReplaceAll(strings.ReplaceAll(s, `\`, `\\`), "'", "''") + "'"
 	}
@@ -205,6 +240,17 @@ func empty(ctx context.Context, db *sql.DB) error {
 	return nil
 }
 
+// roleKey carries the role a Reset runs on to empty.
+type roleKey struct{}
+
+func roleOf(ctx context.Context) *server {
+	role, _ := ctx.Value(roleKey{}).(string)
+	if role == "" {
+		role = "default"
+	}
+	return serverFor(role)
+}
+
 // queryRows reads a result of two text columns.
 func queryRows(ctx context.Context, db *sql.DB, query string) ([][2]string, error) {
 	rows, err := db.QueryContext(ctx, query)
@@ -239,7 +285,7 @@ const liveTimeout = time.Minute
 // driver-level prepared statement.
 func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	t.Helper()
-	cfg := config(t, pin)
+	cfg := config(t, o.role(), pin)
 	cfg.DBName, cfg.MultiStatements, cfg.ParseTime = o.Database, o.MultiStatements, o.ParseTime
 	cfg.Params = map[string]string{"timestamp": clock}
 	maps.Copy(cfg.Params, o.Session)
@@ -255,7 +301,7 @@ func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 // compat judge, which runs only in a recording.
 func Pinned(t testing.TB, pin enginetest.Pin) *sql.DB {
 	t.Helper()
-	db := sql.OpenDB(Options{Database: "test"}.live(t, pin))
+	db := sql.OpenDB(Options{Role: pin.Role, Database: "test"}.live(t, pin))
 	t.Cleanup(func() { _ = db.Close() })
 	return db
 }
@@ -263,7 +309,8 @@ func Pinned(t testing.TB, pin enginetest.Pin) *sql.DB {
 // rootPassword is the root password of the server this package starts.
 const rootPassword = "test"
 
-var shared struct {
+// server is the server of one role, started on first use.
+type server struct {
 	once      sync.Once
 	pin       enginetest.Pin
 	container testcontainers.Container
@@ -275,14 +322,29 @@ var shared struct {
 	err       error
 }
 
+var (
+	serversMu sync.Mutex
+	servers   = map[string]*server{}
+)
+
+func serverFor(role string) *server {
+	serversMu.Lock()
+	defer serversMu.Unlock()
+	if servers[role] == nil {
+		servers[role] = &server{}
+	}
+	return servers[role]
+}
+
 // config returns how to connect to the server pin names, starting the server
 // on the first call. It fails t unless the container runs the pinned digest
 // and reports the pinned release.
-func config(t testing.TB, pin enginetest.Pin) *mysql.Config {
+func config(t testing.TB, role string, pin enginetest.Pin) *mysql.Config {
 	t.Helper()
+	shared := serverFor(role)
 	shared.once.Do(func() {
 		shared.pin = pin
-		shared.err = start(context.Background(), pin)
+		shared.err = start(context.Background(), shared, pin)
 	})
 	if shared.err != nil {
 		t.Fatalf("start MariaDB: %v", shared.err)
@@ -293,7 +355,7 @@ func config(t testing.TB, pin enginetest.Pin) *mysql.Config {
 	return shared.config.Clone()
 }
 
-func start(ctx context.Context, pin enginetest.Pin) error {
+func start(ctx context.Context, shared *server, pin enginetest.Pin) error {
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        pin.Image,
@@ -378,10 +440,14 @@ func start(ctx context.Context, pin enginetest.Pin) error {
 	return nil
 }
 
-// Terminate removes the server, if this run started one.
+// Terminate removes the servers this run started.
 func Terminate() {
-	if shared.container != nil {
-		_ = testcontainers.TerminateContainer(shared.container)
+	serversMu.Lock()
+	defer serversMu.Unlock()
+	for _, s := range servers {
+		if s.container != nil {
+			_ = testcontainers.TerminateContainer(s.container)
+		}
 	}
 }
 

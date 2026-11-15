@@ -29,11 +29,12 @@ func (c *Catalog) createDatabase(stmt *nodes.CreateDatabaseStmt) error {
 	}
 	// When charset is specified without explicit collation, derive the default collation.
 	if charsetExplicit && !collationExplicit {
-		if dc, ok := defaultCollationForCharset[toLower(charset)]; ok {
+		if dc := c.charsetCollation(charset); dc != "" {
 			collation = dc
 		}
 	}
 	c.databases[key] = newDatabase(name, charset, collation)
+	c.databases[key].version = c.session.Version
 	return nil
 }
 
@@ -86,7 +87,7 @@ func (c *Catalog) alterDatabase(stmt *nodes.AlterDatabaseStmt) error {
 	}
 	// When charset is changed without explicit collation, derive the default collation.
 	if charsetExplicit && !collationExplicit {
-		if dc, ok := defaultCollationForCharset[toLower(db.Charset)]; ok {
+		if dc := c.charsetCollation(db.Charset); dc != "" {
 			db.Collation = dc
 		}
 	}

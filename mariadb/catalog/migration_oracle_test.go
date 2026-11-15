@@ -18,6 +18,12 @@ import (
 // from the synced snapshots. An entry that converges fails, so a fix removes
 // it.
 var migrationGaps = map[string]string{
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/forward/snapshot":  lossHashBefore118,
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/backward/snapshot": lossHashBefore118,
+	"10.11.19/MariaDB INET4 and UUID keys/forward/text":                                                   gapInetCast1011,
+	"10.11.19/MariaDB INET4 and UUID keys/forward/snapshot":                                               gapInetCast1011,
+	"10.11.19/MariaDB INET4 and UUID keys/backward/text":                                                  gapInetCast1011,
+	"10.11.19/MariaDB INET4 and UUID keys/backward/snapshot":                                              gapInetCast1011,
 	"Alter table with column additions, type changes, and constraints/backward/snapshot":                  lossOnUpdate,
 	"Operations on partitioned tables/forward/snapshot":                                                   lossPartitions,
 	"Operations on partitioned tables/backward/snapshot":                                                  lossPartitions,
@@ -69,99 +75,98 @@ const (
 // trigger and event. The schema pairs are the snapshot fixture's, in both
 // directions, and diffPairs'.
 func TestOracle_MigrationConverges(t *testing.T) {
-	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	database := testcontainer.DatabaseName(t)
-
-	type side struct {
-		schema string
-		meta   map[string]any
-	}
-	type migration struct {
-		name     string
-		from, to side
-	}
-	var migrations []migration
-	for _, tc := range readSnapshotCases(t, pinnedSnapshots) {
-		old, new := side{tc.OldSchema, tc.OldMetadata}, side{tc.NewSchema, tc.NewMetadata}
-		migrations = append(migrations,
-			migration{tc.Description + "/forward", old, new},
-			migration{tc.Description + "/backward", new, old})
-	}
-	for _, p := range diffPairs {
-		a, b := side{schema: p.a + ";"}, side{schema: p.b + ";"}
-		migrations = append(migrations,
-			migration{"pair " + p.name + "/forward", a, b},
-			migration{"pair " + p.name + "/backward", b, a})
-	}
-
 	seen := make(map[string]bool)
-	otherDatabase := database + "_other"
-	if _, err := conn.ExecContext(context.Background(), "CREATE DATABASE IF NOT EXISTS "+quoteIdent(otherDatabase)); err != nil {
-		t.Fatal(err)
-	}
-	for _, m := range migrations {
-		t.Run(m.name, func(t *testing.T) {
-			startsWritten := writtenStarts.MatchString(m.from.schema + m.to.schema)
-			resetDatabase(t, conn, database)
-			applySchema(t, conn, m.to.schema)
-			want := migrationObjects(t, conn, startsWritten)
-
-			sources := []string{"text"}
-			if m.from.meta != nil {
-				sources = append(sources, "snapshot")
+	forEachServer(t, func(t *testing.T, srv oracleServer, conn *sql.Conn, database string) {
+		type side struct {
+			schema string
+			meta   map[string]any
+		}
+		type migration struct {
+			name     string
+			from, to side
+		}
+		var migrations []migration
+		for _, tc := range readSnapshotCases(t, srv.fixture) {
+			old, new := side{tc.OldSchema, tc.OldMetadata}, side{tc.NewSchema, tc.NewMetadata}
+			migrations = append(migrations,
+				migration{tc.Description + "/forward", old, new},
+				migration{tc.Description + "/backward", new, old})
+		}
+		for _, p := range diffPairs {
+			if _, refused := refusedPairs[srv.name+"/"+p.name]; refused {
+				continue // TestOracle_DiffMatchesServer holds the server to refusing it
 			}
-			for _, source := range sources {
-				key := m.name + "/" + source
-				seen[key] = true
-				gap, listed := migrationGaps[key]
-				var from, to *Catalog
-				if source == "text" {
-					from, err = schemaTextCatalogIn(m.from.schema, database)
-					if err == nil {
-						to, err = schemaTextCatalogIn(m.to.schema, database)
-					}
-				} else {
-					from, to = New(), New()
-					if _, err = from.LoadMetadataInto(context.Background(), metadataFixture(t, m.from.meta), database); err == nil {
-						_, err = to.LoadMetadataInto(context.Background(), metadataFixture(t, m.to.meta), database)
-					}
-				}
-				if err != nil {
-					if !listed {
-						t.Errorf("%s: load: %v", source, err)
-					}
-					continue
-				}
-				plan := GenerateMigration(from, to, Diff(from, to))
+			a, b := side{schema: p.a + ";"}, side{schema: p.b + ";"}
+			migrations = append(migrations,
+				migration{"pair " + p.name + "/forward", a, b},
+				migration{"pair " + p.name + "/backward", b, a})
+		}
 
+		otherDatabase := database + "_other"
+		if _, err := conn.ExecContext(context.Background(), "CREATE DATABASE IF NOT EXISTS "+quoteIdent(otherDatabase)); err != nil {
+			t.Fatal(err)
+		}
+		for _, m := range migrations {
+			t.Run(m.name, func(t *testing.T) {
+				startsWritten := writtenStarts.MatchString(m.from.schema + m.to.schema)
 				resetDatabase(t, conn, database)
-				applySchema(t, conn, m.from.schema)
-				// The plan names each object with its database, so it runs
-				// from another one, and with explicit_defaults_for_timestamp
-				// OFF, which the plan sets for itself where it matters.
-				useDatabase(t, conn, otherDatabase)
-				setSession(t, conn, "explicit_defaults_for_timestamp = OFF")
-				applyErr := applyPlan(conn, plan)
-				setSession(t, conn, "explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp")
-				useDatabase(t, conn, database)
-				var got map[string]string
-				if applyErr == nil {
-					got = migrationObjects(t, conn, startsWritten)
+				applySchema(t, conn, m.to.schema)
+				want := migrationObjects(t, conn, startsWritten)
+
+				sources := []string{"text"}
+				if m.from.meta != nil {
+					sources = append(sources, "snapshot")
 				}
-				converged := applyErr == nil && sameObjects(got, want)
-				switch {
-				case !converged && !listed:
-					t.Errorf("%s: does not converge: %v\nplan:\n%s\n%s", source, applyErr, plan.SQL(), objectsDiff(got, want))
-				case converged && listed:
-					t.Errorf("%s: listed as a gap (%s) but converges: remove the entry", source, gap)
+				for _, source := range sources {
+					key := m.name + "/" + source
+					seen[key], seen[srv.name+"/"+key] = true, true
+					gap, listed := gapFor(migrationGaps, srv, key)
+					var from, to *Catalog
+					var err error
+					if source == "text" {
+						from, err = schemaTextCatalogIn(m.from.schema, database, srv.version)
+						if err == nil {
+							to, err = schemaTextCatalogIn(m.to.schema, database, srv.version)
+						}
+					} else {
+						from, to = newCatalogAt(srv.version), newCatalogAt(srv.version)
+						if _, err = from.LoadMetadataInto(context.Background(), metadataFixture(t, m.from.meta), database); err == nil {
+							_, err = to.LoadMetadataInto(context.Background(), metadataFixture(t, m.to.meta), database)
+						}
+					}
+					if err != nil {
+						if !listed {
+							t.Errorf("%s: load: %v", source, err)
+						}
+						continue
+					}
+					plan := GenerateMigration(from, to, Diff(from, to))
+
+					resetDatabase(t, conn, database)
+					applySchema(t, conn, m.from.schema)
+					// The plan names each object with its database, so it runs
+					// from another one, and with explicit_defaults_for_timestamp
+					// OFF, which the plan sets for itself where it matters.
+					useDatabase(t, conn, otherDatabase)
+					setSession(t, conn, "explicit_defaults_for_timestamp = OFF")
+					applyErr := applyPlan(conn, plan)
+					setSession(t, conn, "explicit_defaults_for_timestamp = @@global.explicit_defaults_for_timestamp")
+					useDatabase(t, conn, database)
+					var got map[string]string
+					if applyErr == nil {
+						got = migrationObjects(t, conn, startsWritten)
+					}
+					converged := applyErr == nil && sameObjects(got, want)
+					switch {
+					case !converged && !listed:
+						t.Errorf("%s: does not converge: %v\nplan:\n%s\n%s", source, applyErr, plan.SQL(), objectsDiff(got, want))
+					case converged && listed:
+						t.Errorf("%s: listed as a gap (%s) but converges: remove the entry", source, gap)
+					}
 				}
-			}
-		})
-	}
+			})
+		}
+	})
 	for key := range migrationGaps {
 		if !seen[key] {
 			t.Errorf("migration gap %q names no migration", key)
@@ -170,13 +175,13 @@ func TestOracle_MigrationConverges(t *testing.T) {
 }
 
 // schemaTextCatalogIn is schemaTextCatalog into the database named database.
-func schemaTextCatalogIn(schema, database string) (*Catalog, error) {
+func schemaTextCatalogIn(schema, database string, version Version) (*Catalog, error) {
 	prefix := "CREATE DATABASE " + quoteIdent(database) + ";\nUSE " + quoteIdent(database) + ";\n"
-	c, err := LoadSDL(prefix + schema)
+	c, err := LoadSDLWithVersion(prefix+schema, version)
 	if err == nil || !strings.Contains(err.Error(), "SDL does not allow") {
 		return c, err
 	}
-	c = New()
+	c = newCatalogAt(version)
 	c.SetForeignKeyChecks(false)
 	results, err := c.Exec(prefix+schema, &ExecOptions{ContinueOnError: true})
 	if err != nil {
@@ -321,17 +326,16 @@ func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
 	if err := applyPlan(conn, GenerateMigration(to, after, Diff(to, after))); err != nil {
 		t.Fatalf("alter: %v", err)
 	}
-	// A fixed order, not a map: the tape replays the queries in the order issued.
-	for _, c := range []struct{ query, want string }{
-		{"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'", `z\y`},
-		{"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'", `c\d`},
+	for query, want := range map[string]string{
+		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `z\y`,
+		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":         `c\d`,
 	} {
 		var got string
-		if err := conn.QueryRowContext(context.Background(), c.query).Scan(&got); err != nil {
+		if err := conn.QueryRowContext(context.Background(), query).Scan(&got); err != nil {
 			t.Fatal(err)
 		}
-		if got != c.want {
-			t.Errorf("comment = %q, want %q\n%s", got, c.want, plan.SQL())
+		if got != want {
+			t.Errorf("comment = %q, want %q\n%s", got, want, plan.SQL())
 		}
 	}
 }

@@ -44,7 +44,7 @@ func (c *Catalog) createRoutine(stmt *nodes.CreateFunctionStmt) error {
 	// Build return type -- MySQL shows lowercase with CHARSET for string types.
 	var returns string
 	if stmt.Returns != nil {
-		returns = formatReturnType(stmt.Returns, db.Charset, db.Collation)
+		returns = formatReturnType(stmt.Returns, db)
 	}
 
 	// MySQL always sets a definer. Default to `root`@`%` when not specified.
@@ -236,7 +236,8 @@ func formatParamType(dt *nodes.DataType) string {
 // so an integer type carries its display width and a string type its charset
 // and collation. MySQL 8.0 writes neither the width nor the collation.
 // Measured on mariadb:11.8.8 through SHOW CREATE FUNCTION.
-func formatReturnType(dt *nodes.DataType, dbCharset, dbCollation string) string {
+func formatReturnType(dt *nodes.DataType, db *Database) string {
+	dbCharset, dbCollation := db.Charset, db.Collation
 	raw := formatDataType(dt)
 	name := strings.ToLower(dt.Name)
 	if normalized := normalizedTypeName(name); isIntegerType(normalized) && dt.Length == 0 {
@@ -283,7 +284,7 @@ func formatReturnType(dt *nodes.DataType, dbCharset, dbCollation string) string 
 			collation = dbCollation
 		}
 		if collation == "" {
-			collation = defaultCollationForCharset[toLower(charset)]
+			collation = versionCollation(db, charset)
 		}
 		if collation != "" {
 			raw += " COLLATE " + collation
