@@ -9,6 +9,7 @@ import (
 )
 
 func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
+	defer c.ignoreDescendingKeys()
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {
@@ -1729,7 +1730,7 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "charset", "character set", "default charset", "default character set":
 		tbl.Charset = normalizeCharsetName(opt.Value)
 		// Update collation to the default for this charset.
-		if defColl, ok := defaultCollationForCharset[toLower(tbl.Charset)]; ok {
+		if defColl := c.charsetCollation(tbl.Charset); defColl != "" {
 			tbl.Collation = defColl
 		}
 	case "collate", "default collate":
@@ -1891,7 +1892,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			// If column charset differs from table charset, use the default
 			// collation for the column's charset, not the table's collation.
 			if !strings.EqualFold(col.Charset, tbl.Charset) {
-				if dc, ok := defaultCollationForCharset[toLower(col.Charset)]; ok {
+				if dc := versionCollation(tbl.Database, col.Charset); dc != "" {
 					col.Collation = dc
 				}
 			} else {
@@ -2072,7 +2073,7 @@ func (c *Catalog) alterConvertCharset(tbl *Table, cmd *nodes.AlterTableCmd) erro
 
 	// If no collation specified, use the default collation for the charset.
 	if collation == "" {
-		if defColl, ok := defaultCollationForCharset[toLower(charset)]; ok {
+		if defColl := c.charsetCollation(charset); defColl != "" {
 			collation = defColl
 		}
 	}

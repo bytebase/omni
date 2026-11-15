@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 )
 
 // definitionLosses lists the objects of the fixture that a restored dump holds
@@ -16,30 +14,32 @@ import (
 // leaves out of the snapshot (see syncLosses). An entry whose object restores
 // equal fails, so a fix removes it.
 var definitionLosses = map[string]string{
-	"Alter table with column additions, type changes, and constraints/old/table products":                                               lossOnUpdate,
-	"Reverse: Alter table columns/new/table products":                                                                                   lossOnUpdate,
-	"Multiple triggers and audit logging/old/table inventory":                                                                           lossOnUpdate,
-	"Multiple triggers and audit logging/new/table inventory":                                                                           lossOnUpdate,
-	"Reverse: Drop triggers and views/old/table inventory":                                                                              lossOnUpdate,
-	"Reverse: Drop triggers and views/new/table inventory":                                                                              lossOnUpdate,
-	"MariaDB column types and defaults/new/table t":                                                                                     lossOnUpdate,
-	"MariaDB timestamps/new/table ts":                                                                                                   lossOnUpdate,
-	"Operations on partitioned tables/new/table sales_data":                                                                             lossPartitions,
-	"Re-adding a primary key and an overlapping secondary index on a partitioned table/new/table ads_member_asset_by_account_channel_d": lossPartitions,
-	"Recreating a partitioned table from metadata/new/table ads_member_asset_by_account_channel_d":                                      lossPartitions,
-	"MariaDB partitioned tables/old/table pr":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table pr":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table ph":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table pk":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table pl":                                                                                           lossPartitions,
-	"MariaDB system-time partitioning/new/table sv":                                                                                     lossPartitions,
-	"MariaDB invisible columns/new/table inv":                                                                                           lossInvisible,
-	"MariaDB system-versioned tables/new/table hist":                                                                                    lossVersioning,
-	"MariaDB application-time periods/new/table booking":                                                                                lossPeriod,
-	"MariaDB table options/new/table mem_t":                                                                                             lossHash,
-	"MariaDB index forms/new/table ix":                                                                                                  lossIgnored,
-	"MariaDB views/new/view v1":                                                                                                         lossView,
-	"MariaDB vector index/new/table emb":                                                                                                lossVector,
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/new/table t1":         lossHashBefore118,
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/new/table test_table": lossHashBefore118,
+	"Alter table with column additions, type changes, and constraints/old/table products":                                                                lossOnUpdate,
+	"Reverse: Alter table columns/new/table products":                                                                                                    lossOnUpdate,
+	"Multiple triggers and audit logging/old/table inventory":                                                                                            lossOnUpdate,
+	"Multiple triggers and audit logging/new/table inventory":                                                                                            lossOnUpdate,
+	"Reverse: Drop triggers and views/old/table inventory":                                                                                               lossOnUpdate,
+	"Reverse: Drop triggers and views/new/table inventory":                                                                                               lossOnUpdate,
+	"MariaDB column types and defaults/new/table t":                                                                                                      lossOnUpdate,
+	"MariaDB timestamps/new/table ts":                                                                                                                    lossOnUpdate,
+	"Operations on partitioned tables/new/table sales_data":                                                                                              lossPartitions,
+	"Re-adding a primary key and an overlapping secondary index on a partitioned table/new/table ads_member_asset_by_account_channel_d":                  lossPartitions,
+	"Recreating a partitioned table from metadata/new/table ads_member_asset_by_account_channel_d":                                                       lossPartitions,
+	"MariaDB partitioned tables/old/table pr":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table pr":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table ph":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table pk":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table pl":                                                                                                            lossPartitions,
+	"MariaDB system-time partitioning/new/table sv":                                                                                                      lossPartitions,
+	"MariaDB invisible columns/new/table inv":                                                                                                            lossInvisible,
+	"MariaDB system-versioned tables/new/table hist":                                                                                                     lossVersioning,
+	"MariaDB application-time periods/new/table booking":                                                                                                 lossPeriod,
+	"MariaDB table options/new/table mem_t":                                                                                                              lossHash,
+	"MariaDB index forms/new/table ix":                                                                                                                   lossIgnored,
+	"MariaDB views/new/view v1":                                                                                                                          lossView,
+	"MariaDB vector index/new/table emb":                                                                                                                 lossVector,
 }
 
 // restoreFailures lists the snapshots whose restore script the server refuses,
@@ -54,56 +54,52 @@ var restoreFailures = map[string]string{
 // it held for the schema the snapshot was taken of: every table, view,
 // sequence, routine, trigger and event.
 func TestOracle_DatabaseDefinitionRestoresSnapshot(t *testing.T) {
-	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	database := testcontainer.DatabaseName(t)
 	seen := make(map[string]bool)
-	for _, tc := range readSnapshotCases(t, pinnedSnapshots) {
-		for _, side := range []struct {
-			name   string
-			schema string
-			meta   map[string]any
-		}{{"old", tc.OldSchema, tc.OldMetadata}, {"new", tc.NewSchema, tc.NewMetadata}} {
-			t.Run(tc.Description+"/"+side.name, func(t *testing.T) {
-				// STARTS CURRENT_TIMESTAMP depends on the clock, as no STARTS does.
-				startsWritten := writtenStarts.MatchString(side.schema)
-				resetDatabase(t, conn, database)
-				applySchema(t, conn, side.schema)
-				want := storedObjects(t, conn, startsWritten)
+	forEachServer(t, func(t *testing.T, srv oracleServer, conn *sql.Conn, database string) {
+		for _, tc := range readSnapshotCases(t, srv.fixture) {
+			for _, side := range []struct {
+				name   string
+				schema string
+				meta   map[string]any
+			}{{"old", tc.OldSchema, tc.OldMetadata}, {"new", tc.NewSchema, tc.NewMetadata}} {
+				t.Run(tc.Description+"/"+side.name, func(t *testing.T) {
+					// STARTS CURRENT_TIMESTAMP depends on the clock, as no STARTS does.
+					startsWritten := writtenStarts.MatchString(side.schema)
+					resetDatabase(t, conn, database)
+					applySchema(t, conn, side.schema)
+					want := storedObjects(t, conn, startsWritten)
 
-				meta := metadataFixture(t, side.meta)
-				dump, err := DatabaseDefinition(meta, DefinitionOptions{PrintHeader: true})
-				if err != nil {
-					t.Fatal(err)
-				}
-				resetDatabase(t, conn, database)
-				failure, failureListed := restoreFailures[tc.Description+"/"+side.name]
-				for _, stmt := range splitLikeMySQLClient(dump) {
-					if _, err := conn.ExecContext(context.Background(), stmt); err != nil {
-						if failureListed {
-							return
-						}
-						t.Fatalf("restore %q: %v\n%s", stmt, err, dump)
+					meta := metadataFixture(t, side.meta)
+					dump, err := DatabaseDefinition(meta, DefinitionOptions{PrintHeader: true})
+					if err != nil {
+						t.Fatal(err)
 					}
-				}
-				if failureListed {
-					t.Errorf("listed as failing to restore (%s) but restores: remove the entry", failure)
-				}
-				compareRestored(t, tc.Description+"/"+side.name, want, storedObjects(t, conn, startsWritten), seen)
+					resetDatabase(t, conn, database)
+					failure, failureListed := gapFor(restoreFailures, srv, tc.Description+"/"+side.name)
+					for _, stmt := range splitLikeMySQLClient(dump) {
+						if _, err := conn.ExecContext(context.Background(), stmt); err != nil {
+							if failureListed {
+								return
+							}
+							t.Fatalf("restore %q: %v\n%s", stmt, err, dump)
+						}
+					}
+					if failureListed {
+						t.Errorf("listed as failing to restore (%s) but restores: remove the entry", failure)
+					}
+					compareRestored(t, srv, tc.Description+"/"+side.name, want, storedObjects(t, conn, startsWritten), seen)
 
-				sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
-				if err != nil {
-					t.Fatal(err)
-				}
-				resetDatabase(t, conn, database)
-				applySchema(t, conn, sdl)
-				compareRestored(t, tc.Description+"/"+side.name, want, storedObjects(t, conn, startsWritten), seen)
-			})
+					sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+					if err != nil {
+						t.Fatal(err)
+					}
+					resetDatabase(t, conn, database)
+					applySchema(t, conn, sdl)
+					compareRestored(t, srv, tc.Description+"/"+side.name, want, storedObjects(t, conn, startsWritten), seen)
+				})
+			}
 		}
-	}
+	})
 	for key := range definitionLosses {
 		if !seen[key] {
 			t.Errorf("definition loss %q names no object of the fixture", key)
@@ -111,7 +107,7 @@ func TestOracle_DatabaseDefinitionRestoresSnapshot(t *testing.T) {
 	}
 }
 
-func compareRestored(t *testing.T, prefix string, want, got map[string]string, seen map[string]bool) {
+func compareRestored(t *testing.T, srv oracleServer, prefix string, want, got map[string]string, seen map[string]bool) {
 	t.Helper()
 	var names []string
 	for name := range want {
@@ -125,8 +121,8 @@ func compareRestored(t *testing.T, prefix string, want, got map[string]string, s
 	sort.Strings(names)
 	for _, name := range names {
 		key := prefix + "/" + name
-		seen[key] = true
-		loss, listed := definitionLosses[key]
+		seen[key], seen[srv.name+"/"+key] = true, true
+		loss, listed := gapFor(definitionLosses, srv, key)
 		switch equal := got[name] == want[name]; {
 		case !equal && !listed:
 			t.Errorf("%s differs\n--- restored\n%s\n--- server\n%s", name, got[name], want[name])

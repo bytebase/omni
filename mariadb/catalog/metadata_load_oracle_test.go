@@ -13,7 +13,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/bytebase/omni/mariadb/internal/testcontainer"
 	mariadbparser "github.com/bytebase/omni/mariadb/parser"
 )
 
@@ -51,48 +50,52 @@ func readSnapshotCases(t *testing.T, path string) []metadataSnapshotCase {
 // the server fails, so a fix removes it.
 // The reasons an object of the fixture loads other than the server holds it.
 const (
-	lossOnUpdate   = "sync: ON UPDATE, which sync reads from EXTRA case-sensitively while MariaDB writes on update current_timestamp() in lower case"
-	lossPartitions = "sync: partitioning, which sync reads on MySQL instances only"
-	lossInvisible  = "sync: INVISIBLE, which sync reads on stock MySQL only"
-	lossVersioning = "sync: a column's WITHOUT SYSTEM VERSIONING"
-	lossPeriod     = "sync: an application-time PERIOD FOR and WITHOUT OVERLAPS, of which only the implicit check and the key's columns remain"
-	lossHash       = "sync: whether a MEMORY key wrote USING HASH, its engine's default"
-	lossIgnored    = "sync: IGNORED, which sync reports as visible"
-	lossView       = "sync: a view's ALGORITHM and SQL SECURITY"
-	lossVector     = "sync: a vector key's M and DISTANCE"
-	gapCompressed  = "omni: the parser does not read a column's COMPRESSED attribute"
-	gapForRange    = "omni: the parser reads no FOR loop over an integer range (FOR k IN 1..n)"
-	gapQuoting     = "omni: SHOW CREATE VIEW backquotes a stored function's name, which the catalog does not yet tell from a builtin's"
+	lossOnUpdate      = "sync: ON UPDATE, which sync reads from EXTRA case-sensitively while MariaDB writes on update current_timestamp() in lower case"
+	lossPartitions    = "sync: partitioning, which sync reads on MySQL instances only"
+	lossInvisible     = "sync: INVISIBLE, which sync reads on stock MySQL only"
+	lossVersioning    = "sync: a column's WITHOUT SYSTEM VERSIONING"
+	lossPeriod        = "sync: an application-time PERIOD FOR and WITHOUT OVERLAPS, of which only the implicit check and the key's columns remain"
+	lossHash          = "sync: whether a MEMORY key wrote USING HASH, its engine's default"
+	lossIgnored       = "sync: IGNORED, which sync reports as visible"
+	lossView          = "sync: a view's ALGORITHM and SQL SECURITY"
+	lossVector        = "sync: a vector key's M and DISTANCE"
+	gapCompressed     = "omni: the parser does not read a column's COMPRESSED attribute"
+	lossHashBefore118 = "sync: USING HASH on an InnoDB key, which information_schema reports as BTREE before 11.8"
+	gapInetCast1011   = "omni: the plan converts a column between INET6 and INET4 in place, which 10.11 refuses (4078) and 11.4 does"
+	gapForRange       = "omni: the parser reads no FOR loop over an integer range (FOR k IN 1..n)"
+	gapQuoting        = "omni: SHOW CREATE VIEW backquotes a stored function's name, which the catalog does not yet tell from a builtin's"
 )
 
 var syncLosses = map[string]string{
-	"Alter table with column additions, type changes, and constraints/old/table products":                                               lossOnUpdate,
-	"Reverse: Alter table columns/new/table products":                                                                                   lossOnUpdate,
-	"Multiple triggers and audit logging/old/table inventory":                                                                           lossOnUpdate,
-	"Multiple triggers and audit logging/new/table inventory":                                                                           lossOnUpdate,
-	"Reverse: Drop triggers and views/old/table inventory":                                                                              lossOnUpdate,
-	"Reverse: Drop triggers and views/new/table inventory":                                                                              lossOnUpdate,
-	"MariaDB column types and defaults/new/table t":                                                                                     lossOnUpdate,
-	"MariaDB timestamps/new/table ts":                                                                                                   lossOnUpdate,
-	"Operations on partitioned tables/new/table sales_data":                                                                             lossPartitions,
-	"Re-adding a primary key and an overlapping secondary index on a partitioned table/new/table ads_member_asset_by_account_channel_d": lossPartitions,
-	"Recreating a partitioned table from metadata/new/table ads_member_asset_by_account_channel_d":                                      lossPartitions,
-	"MariaDB partitioned tables/old/table pr":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table pr":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table ph":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table pk":                                                                                           lossPartitions,
-	"MariaDB partitioned tables/new/table pl":                                                                                           lossPartitions,
-	"MariaDB system-time partitioning/new/table sv":                                                                                     lossPartitions,
-	"MariaDB invisible columns/new/table inv":                                                                                           lossInvisible,
-	"MariaDB system-versioned tables/new/table hist":                                                                                    lossVersioning,
-	"MariaDB application-time periods/new/table booking":                                                                                lossPeriod,
-	"MariaDB table options/new/table mem_t":                                                                                             lossHash,
-	"MariaDB index forms/new/table ix":                                                                                                  lossIgnored,
-	"MariaDB views/new/view v1":                                                                                                         lossView,
-	"MariaDB vector index/new/table emb":                                                                                                lossVector,
-	"MariaDB compressed columns/new/table cc":                                                                                           gapCompressed,
-	"MariaDB dependent views and functions/old/view dv1":                                                                                gapQuoting,
-	"MariaDB dependent views and functions/new/view dv1":                                                                                gapQuoting,
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/new/table t1":         lossHashBefore118,
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/new/table test_table": lossHashBefore118,
+	"Alter table with column additions, type changes, and constraints/old/table products":                                                                lossOnUpdate,
+	"Reverse: Alter table columns/new/table products":                                                                                                    lossOnUpdate,
+	"Multiple triggers and audit logging/old/table inventory":                                                                                            lossOnUpdate,
+	"Multiple triggers and audit logging/new/table inventory":                                                                                            lossOnUpdate,
+	"Reverse: Drop triggers and views/old/table inventory":                                                                                               lossOnUpdate,
+	"Reverse: Drop triggers and views/new/table inventory":                                                                                               lossOnUpdate,
+	"MariaDB column types and defaults/new/table t":                                                                                                      lossOnUpdate,
+	"MariaDB timestamps/new/table ts":                                                                                                                    lossOnUpdate,
+	"Operations on partitioned tables/new/table sales_data":                                                                                              lossPartitions,
+	"Re-adding a primary key and an overlapping secondary index on a partitioned table/new/table ads_member_asset_by_account_channel_d":                  lossPartitions,
+	"Recreating a partitioned table from metadata/new/table ads_member_asset_by_account_channel_d":                                                       lossPartitions,
+	"MariaDB partitioned tables/old/table pr":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table pr":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table ph":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table pk":                                                                                                            lossPartitions,
+	"MariaDB partitioned tables/new/table pl":                                                                                                            lossPartitions,
+	"MariaDB system-time partitioning/new/table sv":                                                                                                      lossPartitions,
+	"MariaDB invisible columns/new/table inv":                                                                                                            lossInvisible,
+	"MariaDB system-versioned tables/new/table hist":                                                                                                     lossVersioning,
+	"MariaDB application-time periods/new/table booking":                                                                                                 lossPeriod,
+	"MariaDB table options/new/table mem_t":                                                                                                              lossHash,
+	"MariaDB index forms/new/table ix":                                                                                                                   lossIgnored,
+	"MariaDB views/new/view v1":                                                                                                                          lossView,
+	"MariaDB vector index/new/table emb":                                                                                                                 lossVector,
+	"MariaDB compressed columns/new/table cc":                                                                                                            gapCompressed,
+	"MariaDB dependent views and functions/old/view dv1":                                                                                                 gapQuoting,
+	"MariaDB dependent views and functions/new/view dv1":                                                                                                 gapQuoting,
 }
 
 // TestOracle_LoadMetadataReproducesStoredSchema loads each snapshot synced from
@@ -100,60 +103,56 @@ var syncLosses = map[string]string{
 // view and sequence with what the server shows for the schema the snapshot
 // was taken of.
 func TestOracle_LoadMetadataReproducesStoredSchema(t *testing.T) {
-	conn, err := testcontainer.OpenDatabase(t).Conn(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer conn.Close()
-	database := testcontainer.DatabaseName(t)
 	seen := make(map[string]bool)
-	for _, tc := range readSnapshotCases(t, pinnedSnapshots) {
-		for _, side := range []struct {
-			name   string
-			schema string
-			meta   map[string]any
-		}{{"old", tc.OldSchema, tc.OldMetadata}, {"new", tc.NewSchema, tc.NewMetadata}} {
-			t.Run(tc.Description+"/"+side.name, func(t *testing.T) {
-				resetDatabase(t, conn, database)
-				applySchema(t, conn, side.schema)
-				want := serverObjects(t, conn)
+	forEachServer(t, func(t *testing.T, srv oracleServer, conn *sql.Conn, database string) {
+		for _, tc := range readSnapshotCases(t, srv.fixture) {
+			for _, side := range []struct {
+				name   string
+				schema string
+				meta   map[string]any
+			}{{"old", tc.OldSchema, tc.OldMetadata}, {"new", tc.NewSchema, tc.NewMetadata}} {
+				t.Run(tc.Description+"/"+side.name, func(t *testing.T) {
+					resetDatabase(t, conn, database)
+					applySchema(t, conn, side.schema)
+					want := serverObjects(t, conn)
 
-				c := New()
-				report, err := c.LoadMetadataInto(context.Background(), metadataFixture(t, side.meta), database)
-				if err != nil {
-					t.Fatal(err)
-				}
-				for key, err := range report.Degraded {
-					t.Logf("degraded %s: %v", key, err)
-				}
-				for key, err := range report.Missing {
-					t.Logf("missing %s: %v", key, err)
-				}
-				got := catalogObjects(c, database)
-				var names []string
-				for name := range want {
-					names = append(names, name)
-				}
-				for name := range got {
-					if _, ok := want[name]; !ok {
+					c := newCatalogAt(srv.version)
+					report, err := c.LoadMetadataInto(context.Background(), metadataFixture(t, side.meta), database)
+					if err != nil {
+						t.Fatal(err)
+					}
+					for key, err := range report.Degraded {
+						t.Logf("degraded %s: %v", key, err)
+					}
+					for key, err := range report.Missing {
+						t.Logf("missing %s: %v", key, err)
+					}
+					got := catalogObjects(c, database)
+					var names []string
+					for name := range want {
 						names = append(names, name)
 					}
-				}
-				sort.Strings(names)
-				for _, name := range names {
-					key := tc.Description + "/" + side.name + "/" + name
-					seen[key] = true
-					loss, listed := syncLosses[key]
-					switch equal := got[name] == want[name]; {
-					case !equal && !listed:
-						t.Errorf("%s differs\n--- catalog\n%s\n--- server\n%s", name, got[name], want[name])
-					case equal && listed:
-						t.Errorf("%s: listed as a sync loss (%s) but loads equal: remove the entry", name, loss)
+					for name := range got {
+						if _, ok := want[name]; !ok {
+							names = append(names, name)
+						}
 					}
-				}
-			})
+					sort.Strings(names)
+					for _, name := range names {
+						key := tc.Description + "/" + side.name + "/" + name
+						seen[key], seen[srv.name+"/"+key] = true, true
+						loss, listed := gapFor(syncLosses, srv, key)
+						switch equal := got[name] == want[name]; {
+						case !equal && !listed:
+							t.Errorf("%s differs\n--- catalog\n%s\n--- server\n%s", name, got[name], want[name])
+						case equal && listed:
+							t.Errorf("%s: listed as a sync loss (%s) but loads equal: remove the entry", name, loss)
+						}
+					}
+				})
+			}
 		}
-	}
+	})
 	for key := range syncLosses {
 		if !seen[key] {
 			t.Errorf("sync loss %q names no object of the fixture", key)

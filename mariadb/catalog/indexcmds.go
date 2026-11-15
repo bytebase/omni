@@ -4,6 +4,7 @@ import nodes "github.com/bytebase/omni/mariadb/ast"
 
 // createIndex handles standalone CREATE INDEX statements.
 func (c *Catalog) createIndex(stmt *nodes.CreateIndexStmt) error {
+	defer c.ignoreDescendingKeys()
 	// Resolve database.
 	dbName := ""
 	if stmt.Table != nil {

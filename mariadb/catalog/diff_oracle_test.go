@@ -12,7 +12,8 @@ import (
 // declares (see syncLosses), or whose text omni does not load. An entry that
 // loads and diffs empty fails, so a fix removes it.
 var diffSyncLosses = map[string]string{
-	"Alter table with column additions, type changes, and constraints/old":                  lossOnUpdate,
+	"11.4.13/Verify no migration generated for identical schemas (tests primary key, index, check constraints, DEFAULT NULL fixes)/new": lossHashBefore118,
+	"Alter table with column additions, type changes, and constraints/old":                                                              lossOnUpdate,
 	"Reverse: Alter table columns/new":                                                      lossOnUpdate,
 	"Multiple triggers and audit logging/old":                                               lossOnUpdate,
 	"Multiple triggers and audit logging/new":                                               lossOnUpdate,
@@ -43,47 +44,49 @@ var diffSyncLosses = map[string]string{
 // two are one schema. It also requires the snapshot's SDL to diff empty
 // against the snapshot.
 func TestOracle_DiffSnapshotAgainstSchemaText(t *testing.T) {
-	for _, tc := range readSnapshotCases(t, pinnedSnapshots) {
-		for _, side := range []struct {
-			name   string
-			schema string
-			meta   map[string]any
-		}{{"old", tc.OldSchema, tc.OldMetadata}, {"new", tc.NewSchema, tc.NewMetadata}} {
-			key := tc.Description + "/" + side.name
-			t.Run(key, func(t *testing.T) {
-				meta := metadataFixture(t, side.meta)
-				snapshot := New()
-				if _, err := snapshot.LoadMetadataInto(context.Background(), meta, "bbcatalog"); err != nil {
-					t.Fatal(err)
-				}
-				loss, listed := diffSyncLosses[key]
-				text, err := schemaTextCatalog(side.schema)
-				if err != nil {
-					if !listed {
+	for _, srv := range oracleServers {
+		for _, tc := range readSnapshotCases(t, srv.fixture) {
+			for _, side := range []struct {
+				name   string
+				schema string
+				meta   map[string]any
+			}{{"old", tc.OldSchema, tc.OldMetadata}, {"new", tc.NewSchema, tc.NewMetadata}} {
+				key := tc.Description + "/" + side.name
+				t.Run(srv.name+"/"+key, func(t *testing.T) {
+					meta := metadataFixture(t, side.meta)
+					snapshot := newCatalogAt(srv.version)
+					if _, err := snapshot.LoadMetadataInto(context.Background(), meta, "bbcatalog"); err != nil {
 						t.Fatal(err)
 					}
-					return
-				}
-				forward, backward := Diff(text, snapshot), Diff(snapshot, text)
-				switch empty := forward.IsEmpty() && backward.IsEmpty(); {
-				case !empty && !listed:
-					t.Errorf("snapshot and schema text differ:\n%s", describeDiff(forward))
-				case empty && listed:
-					t.Errorf("listed as a sync loss (%s) but diffs empty: remove the entry", loss)
-				}
+					loss, listed := gapFor(diffSyncLosses, srv, key)
+					text, err := schemaTextCatalog(side.schema, srv.version)
+					if err != nil {
+						if !listed {
+							t.Fatal(err)
+						}
+						return
+					}
+					forward, backward := Diff(text, snapshot), Diff(snapshot, text)
+					switch empty := forward.IsEmpty() && backward.IsEmpty(); {
+					case !empty && !listed:
+						t.Errorf("snapshot and schema text differ:\n%s", describeDiff(forward))
+					case empty && listed:
+						t.Errorf("listed as a sync loss (%s) but diffs empty: remove the entry", loss)
+					}
 
-				sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
-				if err != nil {
-					t.Fatal(err)
-				}
-				fromSDL, err := LoadSDL("CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n" + sdl)
-				if err != nil {
-					t.Fatalf("LoadSDL of the snapshot's SDL: %v\n%s", err, sdl)
-				}
-				if d := Diff(snapshot, fromSDL); !d.IsEmpty() {
-					t.Errorf("snapshot and its SDL differ:\n%s", describeDiff(d))
-				}
-			})
+					sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+					if err != nil {
+						t.Fatal(err)
+					}
+					fromSDL, err := LoadSDLWithVersion("CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n"+sdl, srv.version)
+					if err != nil {
+						t.Fatalf("LoadSDL of the snapshot's SDL: %v\n%s", err, sdl)
+					}
+					if d := Diff(snapshot, fromSDL); !d.IsEmpty() {
+						t.Errorf("snapshot and its SDL differ:\n%s", describeDiff(d))
+					}
+				})
+			}
 		}
 	}
 }
@@ -146,13 +149,13 @@ func describeDiff(d *SchemaDiff) string {
 // schemaTextCatalog loads a fixture's schema text into the database bbcatalog:
 // as SDL, or, for a script SDL refuses (one that alters what it created),
 // statement by statement with foreign key checks off.
-func schemaTextCatalog(schema string) (*Catalog, error) {
+func schemaTextCatalog(schema string, version Version) (*Catalog, error) {
 	const prefix = "CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n"
-	c, err := LoadSDL(prefix + schema)
+	c, err := LoadSDLWithVersion(prefix+schema, version)
 	if err == nil || !strings.Contains(err.Error(), "SDL does not allow") {
 		return c, err
 	}
-	c = New()
+	c = newCatalogAt(version)
 	c.SetForeignKeyChecks(false)
 	results, err := c.Exec(prefix+schema, &ExecOptions{ContinueOnError: true})
 	if err != nil {

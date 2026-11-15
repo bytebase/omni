@@ -132,7 +132,7 @@ func (c *Catalog) execSet(stmt *nodes.SetStmt) error {
 			}
 			c.charsetClient = charset
 			c.session.CharsetClient = charset
-			if coll, ok := defaultCollationForCharset[toLower(charset)]; ok {
+			if coll := c.charsetCollation(charset); coll != "" {
 				c.collationConn = coll
 				c.session.CollationConnection = coll
 			}
