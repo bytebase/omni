@@ -217,10 +217,25 @@ func TestResolveQuerySpanLineage(t *testing.T) {
 
 // Only the columns a star expands are plain fields.
 func TestResolveQuerySpanPlainFields(t *testing.T) {
-	span := spanFor(t, "SELECT *, id AS x FROM t", healthySchema())
-	require.Len(t, span.Results, 4)
-	for i, plain := range []bool{true, true, true, false} {
-		require.Equal(t, plain, span.Results[i].IsPlainField, span.Results[i].Name)
+	for _, tc := range []struct {
+		statement string
+		want      []bool
+	}{
+		{"SELECT *, id AS x FROM t", []bool{true, true, true, false}},
+		{"SELECT t.*, t.id AS x FROM t", []bool{true, true, true, false}},
+		{"SELECT t.*, t.ssn AS x, t.email FROM t", []bool{true, true, true, false, false}},
+		{"SELECT s.*, s.id AS x FROM (SELECT id, ssn FROM t) s", []bool{true, true, false}},
+		{"SELECT o.*, t.* FROM t, o", []bool{true, true, true, true, true}},
+		{"SELECT a.*, b.* FROM t a JOIN t b ON a.id = b.id", []bool{true, true, true, true, true, true}},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, healthySchema())
+			var got []bool
+			for _, result := range span.Results {
+				got = append(got, result.IsPlainField)
+			}
+			require.Equal(t, tc.want, got)
+		})
 	}
 }
 
