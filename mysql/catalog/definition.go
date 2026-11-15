@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -1706,8 +1707,17 @@ func writeViewSDL(buf *strings.Builder, dbName string, view *metadata.ViewMetada
 // qualifier of the database it loads into, so a body still naming the synced database
 // would differ from the user's forever. The body is parsed so that only a qualifier in the database
 // position goes: a table alias or table spelled like the database is a qualifier of
-// its columns and stays. A body that does not parse is returned unchanged.
+// its columns and stays. A body that does not parse is returned unchanged. A table
+// the body also names as a CTE keeps its qualifier, since without one it would
+// resolve to the CTE.
 func stripViewBodyDatabaseQualifier(body, dbName string) string {
+	return rebaseViewBodyDatabaseQualifier(body, dbName, dbName)
+}
+
+// rebaseViewBodyDatabaseQualifier is stripViewBodyDatabaseQualifier for a body
+// installed into database target: a table the body also names as a CTE is
+// qualified with target instead.
+func rebaseViewBodyDatabaseQualifier(body, dbName, target string) string {
 	if dbName == "" || body == "" {
 		return body
 	}
@@ -1721,15 +1731,22 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 	if err != nil || len(list.Items) != 1 {
 		return body
 	}
-	var starts []int
+	ctes := map[string]bool{}
 	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
-		var schema string
+		if cte, ok := n.(*nodes.CommonTableExpr); ok {
+			ctes[strings.ToLower(cte.Name)] = true
+		}
+		return true
+	})
+	replacement := make(map[int]string)
+	nodes.Inspect(list.Items[0], func(n nodes.Node) bool {
+		var schema, table string
 		var loc nodes.Loc
 		switch n := n.(type) {
 		case *nodes.TableRef:
-			schema, loc = n.Schema, n.Loc
+			schema, table, loc = n.Schema, n.Name, n.Loc
 		case *nodes.ColumnRef:
-			schema, loc = n.Schema, n.Loc
+			schema, table, loc = n.Schema, n.Table, n.Loc
 		case *nodes.FuncCallExpr:
 			schema, loc = n.Schema, n.Loc
 		default:
@@ -1737,18 +1754,21 @@ func stripViewBodyDatabaseQualifier(body, dbName string) string {
 		}
 		start := loc.Start - len(prefix)
 		if schema == dbName && start >= 0 && strings.HasPrefix(body[start:], qualifier) {
-			starts = append(starts, start)
+			replacement[start] = ""
+			if table != "" && ctes[strings.ToLower(table)] {
+				replacement[start] = quoteIdent(target) + "."
+			}
 		}
 		return true
 	})
-	slices.Sort(starts)
-	starts = slices.Compact(starts)
+	starts := slices.Sorted(maps.Keys(replacement))
 
 	var out strings.Builder
 	out.Grow(len(body))
 	prev := 0
 	for _, start := range starts {
 		out.WriteString(body[prev:start])
+		out.WriteString(replacement[start])
 		prev = start + len(qualifier)
 	}
 	out.WriteString(body[prev:])
