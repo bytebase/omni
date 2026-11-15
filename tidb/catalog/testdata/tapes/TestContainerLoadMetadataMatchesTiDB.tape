@@ -1756,7 +1756,7 @@
 | USE omni_mdload
 < ok 0 0
 > exec
-| CREATE TABLE parent (id int PRIMARY KEY, k int, a int, b int, UNIQUE KEY uk (k), UNIQUE KEY uab (a, b))
+| CREATE TABLE parent (id int PRIMARY KEY, k int COMMENT 'it''s a \\ path', a int, b int, UNIQUE KEY uk (k), UNIQUE KEY uab (a, b)) COMMENT 'table''s \\ comment'
 < ok 0 0
 > exec
 | CREATE TABLE child (id int PRIMARY KEY, pid int, k int, a int, b int,
@@ -2056,7 +2056,7 @@
 : bytes
 |
 : bytes
-| ''
+| 'it\'s a \\ path'
 : bytes
 |
 : bytes
@@ -2407,7 +2407,7 @@
 : bytes
 | utf8mb4_bin
 : bytes
-| ''
+| 'table\'s \\ comment'
 : bytes
 | NOT_SHARDED(PK_IS_HANDLE)
 : bytes
@@ -2503,13 +2503,13 @@
 : bytes
 | CREATE TABLE `parent` (
 |   `id` int NOT NULL,
-|   `k` int DEFAULT NULL,
+|   `k` int DEFAULT NULL COMMENT 'it''s a \\ path',
 |   `a` int DEFAULT NULL,
 |   `b` int DEFAULT NULL,
 |   PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,
 |   UNIQUE KEY `uk` (`k`),
 |   UNIQUE KEY `uab` (`a`,`b`)
-| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+| ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='table''s \\ comment'
 > query
 | SHOW CREATE VIEW `v_alias`
 < result

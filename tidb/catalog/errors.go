@@ -75,6 +75,10 @@ const (
 	// ErrUnknownError is the code TiDB gives an error with no code of its own,
 	// such as "range name is not supported" from ALTER RANGE.
 	ErrUnknownError = 1105
+	// ErrSequenceInvalidData is 4136, for sequence options that conflict, and
+	// ErrUnknownSequence 4139, for DROP SEQUENCE of a missing one.
+	ErrSequenceInvalidData = 4136
+	ErrUnknownSequence     = 4139
 	// TiDB error codes. 8239 is the closest match in TiDB's error
 	// catalog for "Placement policy <name> already exists" (err.go:261
 	// upstream). 8241 covers "unknown placement policy" (err.go:266).
