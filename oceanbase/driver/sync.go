@@ -69,7 +69,8 @@ var (
 		"dec":            "decimal",
 	}
 
-	currentTSPrecision = regexp.MustCompile(`CURRENT_TIMESTAMP\((\d+)\)`)
+	temporalKeywordDefaultRe = regexp.MustCompile(`^(?i)CURRENT_(?:TIMESTAMP|DATE|TIME)(?:\(\d+\))?$`)
+	onUpdateCurrentTSRe      = regexp.MustCompile(`(?i)on update CURRENT_TIMESTAMP(?:\((\d+)\))?`)
 )
 
 func wrapSyncDatabaseErr(err error) error {
@@ -1036,7 +1037,7 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 		unquotedDefault := unquoteMySQLString(defaultStr.String)
 		isBinaryDefault := binaryFormat != binaryDefaultVerbatim && isBinaryFamilyColumnType(column.Type)
 		switch {
-		case isCurrentTimestampLike(unquotedDefault) && !isBinaryDefault:
+		case isTemporalColumnType(column.Type) && temporalKeywordDefaultRe.MatchString(unquotedDefault):
 			column.Default = unquotedDefault
 		case strings.Contains(extra, "DEFAULT_GENERATED"):
 			column.Default = fmt.Sprintf("(%s)", unescapeExpressionDefault(unquotedDefault))
@@ -1055,8 +1056,8 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 		column.Default = "NULL"
 	}
 
-	if strings.Contains(extra, "on update CURRENT_TIMESTAMP") {
-		if match := currentTSPrecision.FindStringSubmatch(extra); len(match) > 1 {
+	if match := onUpdateCurrentTSRe.FindStringSubmatch(extra); len(match) > 0 {
+		if match[1] != "" {
 			column.OnUpdate = fmt.Sprintf("CURRENT_TIMESTAMP(%s)", match[1])
 		} else {
 			column.OnUpdate = "CURRENT_TIMESTAMP"
@@ -1143,9 +1144,14 @@ func unescapeExpressionDefault(s string) string {
 	return s
 }
 
-func isCurrentTimestampLike(s string) bool {
-	upper := strings.ToUpper(s)
-	return strings.HasPrefix(upper, "CURRENT_TIMESTAMP") || strings.HasPrefix(upper, "CURRENT_DATE")
+func isTemporalColumnType(columnType string) bool {
+	lower := strings.ToLower(strings.TrimSpace(columnType))
+	for _, prefix := range []string{"timestamp", "datetime", "date", "time"} {
+		if lower == prefix || strings.HasPrefix(lower, prefix+"(") {
+			return true
+		}
+	}
+	return false
 }
 
 func containsInvisibleChars(data []byte) bool {

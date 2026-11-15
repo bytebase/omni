@@ -43,8 +43,18 @@
               "type": "decimal(12,4)"
             },
             {
-              "name": "email_lower",
+              "name": "secret_code",
               "position": 6,
+              "default": "'\\'hidden\\''",
+              "nullable": true,
+              "type": "varchar(32)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_unicode_ci",
+              "isInvisible": true
+            },
+            {
+              "name": "email_lower",
+              "position": 7,
               "default": "'NULL'",
               "nullable": true,
               "type": "varchar(190)",
@@ -57,7 +67,7 @@
             },
             {
               "name": "display_tag",
-              "position": 7,
+              "position": 8,
               "default": "'NULL'",
               "nullable": true,
               "type": "varchar(220)",
@@ -70,19 +80,20 @@
             },
             {
               "name": "created_at",
-              "position": 8,
+              "position": 9,
               "default": "current_timestamp()",
               "type": "datetime"
             },
             {
               "name": "updated_at",
-              "position": 9,
+              "position": 10,
               "default": "current_timestamp(6)",
+              "onUpdate": "CURRENT_TIMESTAMP(6)",
               "type": "datetime(6)"
             },
             {
               "name": "note",
-              "position": 10,
+              "position": 11,
               "default": "'NULL'",
               "nullable": true,
               "type": "varchar(100)",
@@ -300,6 +311,124 @@
             {
               "name": "chk_amount",
               "expression": "`amount` > 0"
+            }
+          ]
+        },
+        {
+          "name": "metrics_hash",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "int"
+            },
+            {
+              "name": "val",
+              "position": 2,
+              "type": "int"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY",
+              "expressions": [
+                "id"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "primary": true,
+              "visible": true
+            }
+          ],
+          "engine": "InnoDB",
+          "collation": "utf8mb4_unicode_ci",
+          "charset": "utf8mb4",
+          "rowCount": "4",
+          "dataSize": "65536",
+          "createOptions": "partitioned",
+          "partitions": [
+            {
+              "name": "p0",
+              "type": "HASH",
+              "expression": "`id`",
+              "useDefault": "4"
+            },
+            {
+              "name": "p1",
+              "type": "HASH",
+              "expression": "`id`",
+              "useDefault": "4"
+            },
+            {
+              "name": "p2",
+              "type": "HASH",
+              "expression": "`id`",
+              "useDefault": "4"
+            },
+            {
+              "name": "p3",
+              "type": "HASH",
+              "expression": "`id`",
+              "useDefault": "4"
+            }
+          ]
+        },
+        {
+          "name": "metrics_range",
+          "columns": [
+            {
+              "name": "ts",
+              "position": 1,
+              "type": "int"
+            },
+            {
+              "name": "val",
+              "position": 2,
+              "type": "bigint"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY",
+              "expressions": [
+                "ts"
+              ],
+              "keyLength": [
+                "-1"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "BTREE",
+              "unique": true,
+              "primary": true,
+              "visible": true
+            }
+          ],
+          "engine": "InnoDB",
+          "collation": "utf8mb4_unicode_ci",
+          "charset": "utf8mb4",
+          "rowCount": "2",
+          "dataSize": "32768",
+          "createOptions": "partitioned",
+          "partitions": [
+            {
+              "name": "p_low",
+              "type": "RANGE",
+              "expression": "`ts`",
+              "value": "100"
+            },
+            {
+              "name": "p_high",
+              "type": "RANGE",
+              "expression": "`ts`",
+              "value": "MAXVALUE"
             }
           ]
         },

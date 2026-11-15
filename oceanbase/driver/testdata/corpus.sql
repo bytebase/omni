@@ -3,6 +3,7 @@ CREATE TABLE accounts (
 	email VARCHAR(190) NOT NULL,
 	bio TEXT,
 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
+	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL, -- not restorable: TestDumpGaps
 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED, -- not restorable: TestDumpGaps

@@ -7,6 +7,7 @@
 | 	email VARCHAR(190) NOT NULL,
 | 	bio TEXT,
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
+| 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 | 	note VARCHAR(100) COMMENT 'owner''s note',
@@ -303,8 +304,31 @@
 : bytes
 | accounts
 : bytes
-| balance
+| literal_ts
 : uint64 5
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| varchar(40)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
+| balance
+: uint64 6
 : bytes
 | '0.0000'
 : bytes
@@ -327,7 +351,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 6
+: uint64 7
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -350,7 +374,7 @@
 | accounts
 : bytes
 | note
-: uint64 7
+: uint64 8
 : null
 : bytes
 | YES
@@ -877,6 +901,7 @@
 |   `email` varchar(190) NOT NULL,
 |   `bio` text DEFAULT NULL,
 |   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+|   `literal_ts` varchar(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 |   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
 |   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
 |   `note` varchar(100) DEFAULT NULL COMMENT 'owner\'s note',
@@ -1204,8 +1229,31 @@
 : bytes
 | accounts
 : bytes
-| balance
+| literal_ts
 : uint64 5
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| varchar(40)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
+| balance
+: uint64 6
 : bytes
 | '0.0000'
 : bytes
@@ -1228,7 +1276,7 @@
 | accounts
 : bytes
 | created_at
-: uint64 6
+: uint64 7
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -1251,7 +1299,7 @@
 | accounts
 : bytes
 | note
-: uint64 7
+: uint64 8
 : null
 : bytes
 | YES

@@ -113,6 +113,14 @@ func TestQueryExecuteAndStats(t *testing.T) {
 	if err != nil || len(res) != 1 || res[0].Err != nil {
 		t.Fatalf("types query = %+v, %v", res, err)
 	}
+	emptyBytes := []byte{}
+	if got := convertValue("BIT", nil, &emptyBytes); got.Kind != driver.Bytes || len(got.Bytes) != 0 {
+		t.Fatalf("convertValue empty []byte = %+v, want empty Bytes", got)
+	}
+	var nilBytes []byte
+	if got := convertValue("BIT", nil, &nilBytes); got.Kind != driver.Null {
+		t.Fatalf("convertValue nil []byte = %+v, want Null", got)
+	}
 	row := res[0].Rows[0]
 	if row[0].Int64 != 42 || row[2].String != "hello" || row[3].Kind != driver.Timestamp || row[4].Kind != driver.Null {
 		t.Fatalf("decoded row = %+v", row)

@@ -32,10 +32,11 @@ CREATE TABLE `accounts` (
   `bio` text DEFAULT NULL,
   `status` enum('open','closed') NOT NULL DEFAULT 'open',
   `balance` decimal(12,4) NOT NULL DEFAULT 0.0000,
+  `secret_code` varchar(32) DEFAULT 'hidden' INVISIBLE,
   `email_lower` varchar(190) GENERATED ALWAYS AS (lcase(`email`)) VIRTUAL,
   `display_tag` varchar(220) GENERATED ALWAYS AS (concat(`email`,':','v1')) STORED,
   `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `updated_at` datetime(6) NOT NULL DEFAULT current_timestamp(6),
+  `updated_at` datetime(6) NOT NULL DEFAULT current_timestamp(6) ON UPDATE CURRENT_TIMESTAMP(6),
   `note` varchar(100) DEFAULT NULL COMMENT 'owner\'s note',
   PRIMARY KEY (`id`),
   KEY `idx_bio_prefix` (`bio`(32)),
@@ -67,6 +68,29 @@ CREATE TABLE `history` (
   CONSTRAINT `fk_history_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`),
   CONSTRAINT `chk_amount` CHECK (`amount` > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='versioned' WITH SYSTEM VERSIONING;
+
+--
+-- Table structure for `metrics_hash`
+--
+CREATE TABLE `metrics_hash` (
+  `id` int NOT NULL,
+  `val` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+PARTITION BY HASH (`id`)
+PARTITIONS 4;
+
+--
+-- Table structure for `metrics_range`
+--
+CREATE TABLE `metrics_range` (
+  `ts` int NOT NULL,
+  `val` bigint NOT NULL,
+  PRIMARY KEY (`ts`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+PARTITION BY RANGE (`ts`)
+(PARTITION `p_low` VALUES LESS THAN (100) ENGINE=InnoDB,
+ PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE=InnoDB);
 
 --
 -- Table structure for `orders`

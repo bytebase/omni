@@ -125,12 +125,13 @@ func TestQueryExecuteAndStats(t *testing.T) {
 		'hello' AS s,
 		CAST('2026-03-04 05:06:07.123456' AS DATETIME(6)) AS dt,
 		CAST(0xdeadbeef AS BINARY(4)) AS bin,
+		CAST('' AS BINARY) AS empty_bin,
 		NULL AS nul;`, driver.QueryOptions{})
 	if err != nil || len(res) != 1 || res[0].Err != nil {
 		t.Fatalf("types query = %+v, %v", res, err)
 	}
 	row := res[0].Rows[0]
-	if row[0].Int64 != 42 || row[2].String != "hello" || row[3].Kind != driver.Timestamp || !bytes.Equal(row[4].Bytes, []byte{0xde, 0xad, 0xbe, 0xef}) || row[5].Kind != driver.Null {
+	if row[0].Int64 != 42 || row[2].String != "hello" || row[3].Kind != driver.Timestamp || !bytes.Equal(row[4].Bytes, []byte{0xde, 0xad, 0xbe, 0xef}) || row[5].Kind != driver.Bytes || len(row[5].Bytes) != 0 || row[6].Kind != driver.Null {
 		t.Fatalf("decoded row = %+v", row)
 	}
 

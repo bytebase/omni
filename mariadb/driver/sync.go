@@ -13,6 +13,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/bytebase/omni/driver"
+	mariadbast "github.com/bytebase/omni/mariadb/ast"
+	mariadbparser "github.com/bytebase/omni/mariadb/parser"
 	metadatapb "github.com/bytebase/omni/metadata"
 	gomysql "github.com/go-sql-driver/mysql"
 )
@@ -66,8 +68,9 @@ var (
 		"dec":            "decimal",
 	}
 
-	displayWidthRegexp = regexp.MustCompile(`\(\d+\)`)
-	currentTSPrecision = regexp.MustCompile(`CURRENT_TIMESTAMP\((\d+)\)`)
+	displayWidthRegexp       = regexp.MustCompile(`\(\d+\)`)
+	temporalKeywordDefaultRe = regexp.MustCompile(`^(?i)CURRENT_(?:TIMESTAMP|DATE|TIME)(?:\(\d*\))?$`)
+	onUpdateCurrentTSRe      = regexp.MustCompile(`(?i)on update CURRENT_TIMESTAMP(?:\((\d+)\))?`)
 )
 
 func wrapSyncDatabaseErr(err error) error {
@@ -305,6 +308,9 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		column.Type = canonicalColumnTypeSynonym(tp)
 		column.Nullable = nullableBool
 		setColumnMetadataDefault(column, defaultStr, nullableBool, extra)
+		if isInvisibleColumnExtra(extra) {
+			column.IsInvisible = true
+		}
 		columnMap[tableName] = append(columnMap[tableName], column)
 
 		text := string(generationExpr)
@@ -415,6 +421,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 		return nil, err
 	}
 
+	partitionTables, err := d.listPartitionTables(ctx, d.databaseName)
+	if err != nil {
+		return nil, err
+	}
+
 	functions, procedures, err := d.syncRoutines(ctx, d.databaseName)
 	if err != nil {
 		return nil, err
@@ -484,6 +495,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 				DataFree:         dataFree,
 				CreateOptions:    createOptions,
 				Comment:          comment,
+				Partitions:       partitionTables[tableName],
 				CheckConstraints: checkMap[tableName],
 				Charset:          charset,
 				Triggers:         triggerMap[tableName],
@@ -851,6 +863,175 @@ func getViewDefFromCreateView(createView string) (string, error) {
 	return "", fmt.Errorf("failed to match view definition, %s", createView)
 }
 
+func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (map[string][]*metadatapb.TablePartitionMetadata, error) {
+	const query = `
+		SELECT
+			TABLE_NAME,
+			PARTITION_NAME,
+			SUBPARTITION_NAME,
+			PARTITION_METHOD,
+			SUBPARTITION_METHOD,
+			PARTITION_EXPRESSION,
+			SUBPARTITION_EXPRESSION,
+			PARTITION_DESCRIPTION
+		FROM INFORMATION_SCHEMA.PARTITIONS
+		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
+		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
+	`
+	rows, err := d.db.QueryContext(ctx, query, databaseName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer rows.Close()
+
+	type partitionKey struct {
+		tableName     string
+		partitionName string
+	}
+	partitionMap := make(map[partitionKey]int)
+	result := make(map[string][]*metadatapb.TablePartitionMetadata)
+
+	for rows.Next() {
+		var tableName, partitionName, partitionMethod string
+		var subpartitionName, subpartitionMethod, subpartitionExpression, partitionExpression, partitionDescription sql.NullString
+		if err := rows.Scan(
+			&tableName,
+			&partitionName,
+			&subpartitionName,
+			&partitionMethod,
+			&subpartitionMethod,
+			&partitionExpression,
+			&subpartitionExpression,
+			&partitionDescription,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		pk := partitionKey{tableName: tableName, partitionName: partitionName}
+		if _, ok := partitionMap[pk]; !ok {
+			tp := convertPartitionType(partitionMethod)
+			if tp == metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+				continue
+			}
+			partition := &metadatapb.TablePartitionMetadata{
+				Name:          partitionName,
+				Type:          tp,
+				Expression:    partitionExpression.String,
+				Value:         partitionDescription.String,
+				Subpartitions: []*metadatapb.TablePartitionMetadata{},
+			}
+			partitionMap[pk] = len(result[tableName])
+			result[tableName] = append(result[tableName], partition)
+		}
+		if subpartitionName.Valid {
+			tp := convertPartitionType(subpartitionMethod.String)
+			if tp == metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED {
+				continue
+			}
+			sub := &metadatapb.TablePartitionMetadata{
+				Name:          subpartitionName.String,
+				Type:          tp,
+				Expression:    subpartitionExpression.String,
+				Subpartitions: []*metadatapb.TablePartitionMetadata{},
+			}
+			if idx, ok := partitionMap[pk]; ok {
+				result[tableName][idx].Subpartitions = append(result[tableName][idx].Subpartitions, sub)
+			}
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to scan row: %w", err)
+	}
+	_ = rows.Close()
+
+	tableNames := make([]string, 0, len(result))
+	for tbl, parts := range result {
+		if len(parts) > 0 {
+			tableNames = append(tableNames, tbl)
+		}
+	}
+	slices.Sort(tableNames)
+
+	for _, tbl := range tableNames {
+		partitions := result[tbl]
+		showQuery := fmt.Sprintf("SHOW CREATE TABLE %s.%s", quoteBacktick(databaseName), quoteBacktick(tbl))
+		showRows, err := d.db.QueryContext(ctx, showQuery)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute query %q: %w", showQuery, err)
+		}
+		for showRows.Next() {
+			var name, createTable string
+			if err := showRows.Scan(&name, &createTable); err != nil {
+				_ = showRows.Close()
+				return nil, fmt.Errorf("failed to scan row for %q: %w", showQuery, err)
+			}
+			partitionNum, subPartitionNum := parseMariaDBPartitionCounts(createTable)
+			for _, p := range partitions {
+				if partitionNum != 0 {
+					p.UseDefault = strconv.Itoa(partitionNum)
+				}
+				for _, sp := range p.Subpartitions {
+					if subPartitionNum != 0 {
+						sp.UseDefault = strconv.Itoa(subPartitionNum)
+					}
+				}
+			}
+		}
+		if err := showRows.Err(); err != nil {
+			_ = showRows.Close()
+			return nil, fmt.Errorf("failed to iterate %q: %w", showQuery, err)
+		}
+		_ = showRows.Close()
+	}
+	return result, nil
+}
+
+// parseMariaDBPartitionCounts extracts explicit PARTITIONS N and SUBPARTITIONS N
+// counts from a SHOW CREATE TABLE definition the server already accepted; a
+// definition the parser cannot read leaves both counts unset.
+func parseMariaDBPartitionCounts(createTable string) (partitions, subpartitions int) {
+	list, err := mariadbparser.Parse(createTable)
+	if err != nil || list == nil || len(list.Items) != 1 {
+		return 0, 0
+	}
+	stmt, ok := list.Items[0].(*mariadbast.CreateTableStmt)
+	if !ok || stmt.Partitions == nil {
+		return 0, 0
+	}
+	return stmt.Partitions.NumParts, stmt.Partitions.NumSubParts
+}
+
+func convertPartitionType(tp string) metadatapb.TablePartitionMetadata_Type {
+	switch strings.ToUpper(tp) {
+	case "RANGE":
+		return metadatapb.TablePartitionMetadata_RANGE
+	case "RANGE COLUMNS":
+		return metadatapb.TablePartitionMetadata_RANGE_COLUMNS
+	case "LIST":
+		return metadatapb.TablePartitionMetadata_LIST
+	case "LIST COLUMNS":
+		return metadatapb.TablePartitionMetadata_LIST_COLUMNS
+	case "HASH":
+		return metadatapb.TablePartitionMetadata_HASH
+	case "KEY":
+		return metadatapb.TablePartitionMetadata_KEY
+	case "LINEAR HASH":
+		return metadatapb.TablePartitionMetadata_LINEAR_HASH
+	case "LINEAR KEY":
+		return metadatapb.TablePartitionMetadata_LINEAR_KEY
+	default:
+		return metadatapb.TablePartitionMetadata_TYPE_UNSPECIFIED
+	}
+}
+
+func isInvisibleColumnExtra(extra string) bool {
+	for _, tok := range strings.Fields(extra) {
+		if strings.EqualFold(tok, "INVISIBLE") {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *Driver) getForeignKeyList(ctx context.Context, databaseName string) (map[string][]*metadatapb.ForeignKeyMetadata, error) {
 	const fkQuery = `
 		SELECT
@@ -960,7 +1141,7 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 	if defaultStr.Valid {
 		unquotedDefault := unquoteMySQLString(defaultStr.String)
 		switch {
-		case isCurrentTimestampLike(unquotedDefault) && !isBinaryFamilyColumnType(column.Type):
+		case isTemporalColumnType(column.Type) && temporalKeywordDefaultRe.MatchString(unquotedDefault):
 			column.Default = unquotedDefault
 		case strings.Contains(extra, "DEFAULT_GENERATED"):
 			column.Default = fmt.Sprintf("(%s)", unescapeExpressionDefault(unquotedDefault))
@@ -973,8 +1154,8 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 		column.Default = "NULL"
 	}
 
-	if strings.Contains(extra, "on update CURRENT_TIMESTAMP") {
-		if match := currentTSPrecision.FindStringSubmatch(extra); len(match) > 1 {
+	if match := onUpdateCurrentTSRe.FindStringSubmatch(extra); len(match) > 0 {
+		if match[1] != "" {
 			column.OnUpdate = fmt.Sprintf("CURRENT_TIMESTAMP(%s)", match[1])
 		} else {
 			column.OnUpdate = "CURRENT_TIMESTAMP"
@@ -982,25 +1163,14 @@ func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.
 	}
 }
 
-func isBinaryFamilyColumnType(columnType string) bool {
+func isTemporalColumnType(columnType string) bool {
 	lower := strings.ToLower(strings.TrimSpace(columnType))
-	switch {
-	case lower == "binary" || strings.HasPrefix(lower, "binary("):
-		return true
-	case lower == "varbinary" || strings.HasPrefix(lower, "varbinary("):
-		return true
-	case lower == "tinyblob" || lower == "mediumblob" || lower == "longblob":
-		return true
-	case lower == "blob" || strings.HasPrefix(lower, "blob("):
-		return true
-	default:
-		return false
+	for _, prefix := range []string{"timestamp", "datetime", "date", "time"} {
+		if lower == prefix || strings.HasPrefix(lower, prefix+"(") {
+			return true
+		}
 	}
-}
-
-func isCurrentTimestampLike(s string) bool {
-	upper := strings.ToUpper(s)
-	return strings.HasPrefix(upper, "CURRENT_TIMESTAMP") || strings.HasPrefix(upper, "CURRENT_DATE")
+	return false
 }
 
 func unescapeExpressionDefault(s string) string {

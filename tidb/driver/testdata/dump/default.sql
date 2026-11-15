@@ -15,6 +15,7 @@ CREATE TABLE `accounts` (
   `email` varchar(190) NOT NULL,
   `bio` text DEFAULT NULL,
   `status` enum('open','closed') NOT NULL DEFAULT 'open',
+  `literal_ts` varchar(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
   `email_lower` varchar(190) GENERATED ALWAYS AS (lower(`email`)) VIRTUAL,
   `display_tag` varchar(220) GENERATED ALWAYS AS (concat(`email`, _utf8mb4':', _utf8mb4'v1')) STORED,
@@ -36,8 +37,8 @@ CREATE TABLE `metrics_range` (
   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 /*!50100 PARTITION BY RANGE (`ts`)
-(PARTITION p0 VALUES LESS THAN (100) ENGINE=InnoDB,
- PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */;
+(PARTITION p_low VALUES LESS THAN (100) ENGINE=InnoDB,
+ PARTITION p_high VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */;
 
 --
 -- Table structure for `sharded_events`
