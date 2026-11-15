@@ -19,15 +19,26 @@ const (
 )
 
 func generateSequenceDDL(diff *SchemaDiff) []MigrationOp {
+	// A view the plan drops holds its name until the view drops run.
+	droppedViews := make(map[string]bool)
+	for _, v := range diff.Views {
+		if v.Action == DiffDrop {
+			droppedViews[encodeKeyFields("db", toLower(v.Database), "name", toLower(v.Name))] = true
+		}
+	}
 	var ops []MigrationOp
 	for _, e := range diff.Sequences {
 		switch e.Action {
 		case DiffAdd:
+			priority := prioritySequenceCreate
+			if droppedViews[encodeKeyFields("db", toLower(e.Database), "name", toLower(e.Name))] {
+				priority = priorityView + 1
+			}
 			ops = append(ops, MigrationOp{
 				Type: OpCreateSequence, Database: e.Database, ObjectName: e.Name,
 				SQL:      createSequenceSQL(e.To),
 				Phase:    PhasePre,
-				Priority: prioritySequenceCreate,
+				Priority: priority,
 				sortName: e.Database + "." + toLower(e.Name),
 			})
 		case DiffDrop:
