@@ -88,7 +88,11 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		return nil, nil
 	}
 
-	var results []*driver.Result
+	type preparedStmt struct {
+		text        string
+		returnsData bool
+	}
+	prepared := make([]preparedStmt, 0, len(statements))
 	for _, statement := range statements {
 		if opts.Explain {
 			explained, err := pganalysis.ExplainStatement(statement, strings.ToLower(opts.ExplainFormat))
@@ -113,7 +117,11 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			nodes = append(nodes, stmt.AST)
 		}
 		_, returnsData := pganalysis.ValidateQuery(nodes)
+		prepared = append(prepared, preparedStmt{text: statement, returnsData: returnsData})
+	}
 
+	var results []*driver.Result
+	for _, stmt := range prepared {
 		// Keep public after the selected schema because PostgreSQL extensions
 		// commonly install helper functions there and call them unqualified.
 		if opts.Schema != "" {
@@ -124,14 +132,14 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 
 		_ = s.takeMessages()
 		startTime := time.Now()
-		res, err := s.runStatement(ctx, statement, returnsData, opts.MaxResultBytes)
+		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, opts.MaxResultBytes)
 		stop := false
 		if err != nil {
 			_ = s.takeMessages()
 			res = &driver.Result{Err: err}
 			stop = true
 		}
-		res.Statement = statement
+		res.Statement = stmt.text
 		res.Latency = time.Since(startTime)
 		results = append(results, res)
 		if stop {

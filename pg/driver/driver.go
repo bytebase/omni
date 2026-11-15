@@ -71,16 +71,24 @@ func Open(ctx context.Context, cfg driver.Config, opts ...Options) (*Driver, err
 		notices:       make(map[*pgconn.PgConn]*[]driver.Message),
 	}
 	pgxConfig.OnNotice = d.onNotice
-	d.db = stdlib.OpenDB(*pgxConfig)
+	var openOpts []stdlib.OptionOpenDB
 	if d.tenantMode {
-		owner, err := d.CurrentDatabaseOwner(ctx)
-		if err != nil {
+		openOpts = append(openOpts, stdlib.OptionAfterConnect(func(ctx context.Context, conn *pgx.Conn) error {
+			var owner string
+			if err := conn.QueryRow(ctx, currentDatabaseOwnerQuery).Scan(&owner); err != nil {
+				return fmt.Errorf("failed to get database owner: %w", err)
+			}
+			if _, err := conn.Exec(ctx, fmt.Sprintf("SET ROLE %s;", quoteIdent(owner))); err != nil {
+				return fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
+			}
+			return nil
+		}))
+	}
+	d.db = stdlib.OpenDB(*pgxConfig, openOpts...)
+	if d.tenantMode {
+		if err := d.db.PingContext(ctx); err != nil {
 			_ = d.db.Close()
-			return nil, fmt.Errorf("failed to get database owner: %w", err)
-		}
-		if _, err := d.db.ExecContext(ctx, fmt.Sprintf("SET ROLE %s;", quoteIdent(owner))); err != nil {
-			_ = d.db.Close()
-			return nil, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
+			return nil, err
 		}
 	}
 	return d, nil
@@ -224,9 +232,7 @@ func (d *Driver) SearchPath(ctx context.Context) (string, error) {
 	return strings.TrimSpace(searchPath), nil
 }
 
-// CurrentDatabaseOwner returns the owner role of the current database.
-func (d *Driver) CurrentDatabaseOwner(ctx context.Context) (string, error) {
-	const query = `
+const currentDatabaseOwnerQuery = `
 		SELECT
 			u.rolname
 		FROM
@@ -234,8 +240,11 @@ func (d *Driver) CurrentDatabaseOwner(ctx context.Context) (string, error) {
 		WHERE
 			d.datname = current_database();
 		`
+
+// CurrentDatabaseOwner returns the owner role of the current database.
+func (d *Driver) CurrentDatabaseOwner(ctx context.Context) (string, error) {
 	var owner string
-	if err := d.db.QueryRowContext(ctx, query).Scan(&owner); err != nil {
+	if err := d.db.QueryRowContext(ctx, currentDatabaseOwnerQuery).Scan(&owner); err != nil {
 		return "", err
 	}
 	return owner, nil

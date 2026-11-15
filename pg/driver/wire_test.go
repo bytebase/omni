@@ -229,11 +229,11 @@ func TestOpenTenantModeFailureClosesPool(t *testing.T) {
 }
 
 func TestOpenTenantModeSetsOwnerRole(t *testing.T) {
-	var seen []string
+	byConn := map[uint32][]string{}
 	var mu sync.Mutex
-	ws := startWireServer(t, "UTC", func(_ uint32, sql string, _ [][]byte) wireReply {
+	ws := startWireServer(t, "UTC", func(connID uint32, sql string, _ [][]byte) wireReply {
 		mu.Lock()
-		seen = append(seen, strings.TrimSpace(sql))
+		byConn[connID] = append(byConn[connID], strings.TrimSpace(sql))
 		mu.Unlock()
 		if strings.Contains(sql, "pg_roles") {
 			return wireReply{
@@ -251,10 +251,64 @@ func TestOpenTenantModeSetsOwnerRole(t *testing.T) {
 	}
 	defer d.Close()
 
+	// Holding two concurrent sessions opens a second physical connection;
+	// OptionAfterConnect must initialize SET ROLE on both.
+	s1, err := d.Session(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s1.Close()
+	s2, err := d.Session(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s2.Close()
+
 	mu.Lock()
 	defer mu.Unlock()
-	if !slices.Contains(seen, `SET ROLE "app""owner";`) {
-		t.Fatalf("Open queries = %q, want SET ROLE", seen)
+	if len(byConn) < 2 {
+		t.Fatalf("opened %d physical connections, want at least 2", len(byConn))
+	}
+	for connID, queries := range byConn {
+		if !slices.Contains(queries, `SET ROLE "app""owner";`) {
+			t.Fatalf("conn %d queries = %q, missing SET ROLE", connID, queries)
+		}
+	}
+}
+
+func TestSessionPreValidatesWholeScriptBeforeExecuting(t *testing.T) {
+	var executed []string
+	var mu sync.Mutex
+	ws := startWireServer(t, "UTC", func(_ uint32, sql string, _ [][]byte) wireReply {
+		mu.Lock()
+		executed = append(executed, sql)
+		mu.Unlock()
+		return wireReply{tags: []string{"INSERT 0 1"}}
+	})
+
+	d, err := Open(context.Background(), ws.config())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+
+	sess, err := d.Session(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	if _, err := sess.Query(context.Background(), "INSERT INTO t VALUES (1); SELECT FROM WHERE;", driver.QueryOptions{}); err == nil {
+		t.Fatal("expected parse error on second statement")
+	}
+	if _, err := sess.Query(context.Background(), "SELECT 1; EXPLAIN ANALYZE SELECT 1;", driver.QueryOptions{Explain: true}); err == nil {
+		t.Fatal("expected explain error on second statement")
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if len(executed) != 0 {
+		t.Fatalf("server executed %q before failing script pre-validation", executed)
 	}
 }
 
