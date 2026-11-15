@@ -154,11 +154,14 @@ func findMySQLLimitInsertPosition(sql string, stmt *ast.SelectStmt) (int, bool) 
 	for last.SetOp != ast.SetOpNone && last.Right != nil {
 		last = last.Right
 	}
+	// An INTO is trailing only when nothing of the statement follows it:
+	// the operand's own clauses, and the set operation's ORDER BY.
+	bodyEnd := maxMySQLLocEndBeforeTailClauses(stmt)
 	insertPos := -1
 	for _, owner := range []*ast.SelectStmt{stmt, last} {
 		if owner.Into != nil && owner.Into.Loc.Start > 0 {
 			intoStart := findMySQLKeywordBefore(sql, owner.Into.Loc.Start, "INTO")
-			if intoStart >= maxMySQLLocEndBeforeTailClauses(owner) {
+			if intoStart >= bodyEnd {
 				insertPos = earlierLoc(insertPos, intoStart)
 			}
 		}
