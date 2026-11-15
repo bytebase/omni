@@ -3,10 +3,14 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"io"
 	"net"
 	"strings"
 	"testing"
 	"time"
+
+	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -165,5 +169,94 @@ func TestParseVersion(t *testing.T) {
 		if err != nil || ver != tc.wantVer || rest != tc.wantRest {
 			t.Errorf("parseVersion(%q) = (%q, %q, %v)", tc.in, ver, rest, err)
 		}
+	}
+}
+
+// TestOpenSyncDatabaseTranslatesHandshake1049ToErrNotFound exercises the public
+// Open path when Config.Database names a database the server rejects during
+// handshake with MySQL error 1049 (ER_BAD_DB_ERROR).
+func TestOpenSyncDatabaseTranslatesHandshake1049ToErrNotFound(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	go func() {
+		conn, err := ln.Accept()
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+
+		writePacket := func(seq byte, payload []byte) error {
+			hdr := []byte{byte(len(payload)), byte(len(payload) >> 8), byte(len(payload) >> 16), seq}
+			if _, err := conn.Write(hdr); err != nil {
+				return err
+			}
+			_, err := conn.Write(payload)
+			return err
+		}
+
+		// Minimal MySQL v10 initial handshake packet (clientProtocol41 |
+		// clientSecureConn | clientConnectWithDB | clientPluginAuth).
+		var greeting []byte
+		greeting = append(greeting, 0x0a)
+		greeting = append(greeting, "8.0.46\x00"...)
+		greeting = append(greeting, 1, 0, 0, 0)
+		greeting = append(greeting, "12345678"...)
+		greeting = append(greeting, 0x00)
+		// Capability flags low: CLIENT_LONG_PASSWORD(1) | CLIENT_CONNECT_WITH_DB(8) |
+		// CLIENT_PROTOCOL_41(0x200) | CLIENT_SECURE_CONNECTION(0x8000) = 0x8209.
+		greeting = append(greeting, 0x09, 0x82)
+		greeting = append(greeting, 0x21)
+		greeting = append(greeting, 0x02, 0x00)
+		// Capability flags high: CLIENT_PLUGIN_AUTH(0x00080000 >> 16 = 0x0008).
+		greeting = append(greeting, 0x08, 0x00)
+		greeting = append(greeting, 21)
+		greeting = append(greeting, make([]byte, 10)...)
+		greeting = append(greeting, "123456789012\x00"...)
+		greeting = append(greeting, "mysql_native_password\x00"...)
+		if err := writePacket(0, greeting); err != nil {
+			return
+		}
+
+		// Read client HandshakeResponse41 header + body.
+		var hdr [4]byte
+		if _, err := io.ReadFull(conn, hdr[:]); err != nil {
+			return
+		}
+		bodyLen := int(hdr[0]) | int(hdr[1])<<8 | int(hdr[2])<<16
+		if _, err := io.CopyN(io.Discard, conn, int64(bodyLen)); err != nil {
+			return
+		}
+
+		// Reply with ERR_Packet: 0xff, errno 1049 (0x0419 LE), '#42000', message.
+		var errPkt []byte
+		errPkt = append(errPkt, 0xff, 0x19, 0x04)
+		errPkt = append(errPkt, "#42000Unknown database 'missing_db'"...)
+		_ = writePacket(2, errPkt)
+	}()
+
+	host, port, _ := net.SplitHostPort(ln.Addr().String())
+	d, err := Open(context.Background(), driver.Config{
+		Host:     host,
+		Port:     port,
+		Database: "missing_db",
+		User:     "root",
+		Password: "secret",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+
+	_, err = d.SyncDatabase(context.Background())
+	if !errors.Is(err, driver.ErrNotFound) {
+		t.Fatalf("SyncDatabase err = %v, want driver.ErrNotFound", err)
+	}
+	var mysqlErr *gomysql.MySQLError
+	if !errors.As(err, &mysqlErr) || mysqlErr.Number != 1049 {
+		t.Fatalf("SyncDatabase err = %v, want wrapped MySQLError 1049", err)
 	}
 }

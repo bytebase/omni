@@ -16,7 +16,18 @@ import (
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
+	gomysql "github.com/go-sql-driver/mysql"
 )
+
+const erBadDBError = 1049
+
+func wrapSyncDatabaseErr(err error) error {
+	var mysqlErr *gomysql.MySQLError
+	if errors.As(err, &mysqlErr) && mysqlErr.Number == erBadDBError {
+		return fmt.Errorf("%w: %w", driver.ErrNotFound, err)
+	}
+	return err
+}
 
 const (
 	baseTableType   = "BASE TABLE"
@@ -162,7 +173,12 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 
 // SyncDatabase reads the full schema metadata of Config.Database, returning
 // driver.ErrNotFound when that database does not exist on the server.
-func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSchemaMetadata, err error) {
+	defer func() {
+		if err != nil {
+			err = wrapSyncDatabaseErr(err)
+		}
+	}()
 	schemaMetadata := &metadatapb.SchemaMetadata{Name: ""}
 
 	version, rest, err := d.getVersion(ctx)
