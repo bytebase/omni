@@ -1088,6 +1088,15 @@ func (q *querySpanExtractor) extractTableSourceFromTableRef(ref *ast.TableRef) (
 	// name so qualified column references (alias.column) resolve to it.
 	if !ref.Alias.IsEmpty() {
 		aliasName := normalizeIdentifier(ref.Alias)
+		// A derived column list (AS D(X, Y)) renames the columns in order,
+		// keeping their lineage. result is this reference's own copy, so
+		// renaming it in place is safe.
+		for i, column := range ref.Columns {
+			if i >= len(result) {
+				break
+			}
+			result[i].Name = normalizeIdentifier(column)
+		}
 		return &derivedTable{
 			Name:    aliasName,
 			Columns: result,
