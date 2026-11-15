@@ -323,9 +323,9 @@ type plpgsqlAnalyzer struct {
 	// search path for them. Reset per fallback statement; nested subquery
 	// collection during one statement accumulates into the same scope.
 	qualifiedFrom map[string]bool
-	// fromItems maps a FROM name whose columns are not its table's, a
-	// subquery's alias or a table alias with a column list, to that FROM
-	// item. It is scoped as qualifiedFrom is.
+	// fromItems maps a FROM name whose columns are not its table's, the
+	// alias of a subquery or a join or a table alias with a column list, to
+	// that FROM item. It is scoped as qualifiedFrom is.
 	fromItems map[string]ast.Node
 }
 
@@ -1143,8 +1143,8 @@ func (a *plpgsqlAnalyzer) setFromItem(name string, item ast.Node) {
 	a.fromItems[name] = item
 }
 
-// fromItemColumns returns the columns of a subquery or of a table with an
-// alias column list, named as the query sees them, with what each reads.
+// fromItemColumns returns the columns of a subquery, a join or a table with
+// an alias column list, named as the query sees them, with what each reads.
 // fromTables are the tables of the query the item is in, which a LATERAL
 // subquery can reference.
 func (a *plpgsqlAnalyzer) fromItemColumns(item ast.Node, fromTables map[string]ColumnResource) []QuerySpanResult {
@@ -1167,6 +1167,8 @@ func (a *plpgsqlAnalyzer) fromItemColumns(item ast.Node, fromTables map[string]C
 			columns = a.selectOutputColumns(sel, fromTables)
 		}
 		alias = v.Alias
+	case *ast.JoinExpr:
+		columns, alias = a.extractor.extractColumnsFromFromItem(v, a, fromTables), v.Alias
 	default:
 	}
 	// pg: src/backend/parser/parse_relation.c — buildRelationAliases
@@ -1252,13 +1254,13 @@ func (a *plpgsqlAnalyzer) starColumns(sel *ast.SelectStmt, table string, tables 
 	var columns []QuerySpanResult
 	var expand func(node ast.Node)
 	expand = func(node ast.Node) {
-		if join, ok := node.(*ast.JoinExpr); ok && table != "" {
-			expand(join.Larg)
-			expand(join.Rarg)
-			return
-		}
 		if table == "" || strings.EqualFold(fromItemName(node), table) {
 			columns = append(columns, a.extractor.extractColumnsFromFromItem(node, a, tables)...)
+			return
+		}
+		if join, ok := node.(*ast.JoinExpr); ok {
+			expand(join.Larg)
+			expand(join.Rarg)
 		}
 	}
 	for _, item := range sel.FromClause.Items {
@@ -1280,6 +1282,10 @@ func fromItemName(node ast.Node) string {
 			return v.Alias.Aliasname
 		}
 	case *ast.RangeFunction:
+		if v.Alias != nil {
+			return v.Alias.Aliasname
+		}
+	case *ast.JoinExpr:
 		if v.Alias != nil {
 			return v.Alias.Aliasname
 		}
@@ -1403,6 +1409,9 @@ func (a *plpgsqlAnalyzer) collectTablesFromNode(node ast.Node, tables map[string
 		}
 		if v.Rarg != nil {
 			a.collectTablesFromNode(v.Rarg, tables)
+		}
+		if v.Alias != nil && v.Alias.Aliasname != "" {
+			a.setFromItem(strings.ToLower(v.Alias.Aliasname), v)
 		}
 	default:
 	}
