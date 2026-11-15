@@ -601,3 +601,24 @@ func errSequenceInvalidTableStructure(db, table string) error {
 	return &Error{Code: 4086, SQLState: "HY000",
 		Message: fmt.Sprintf("Sequence '%s.%s' table structure is invalid (Wrong number of columns)", db, table)}
 }
+
+// errSequenceOutOfRange is 4085: sequence options that leave no valid value,
+// such as a start below the minimum. Measured on mariadb:11.8.8.
+func errSequenceOutOfRange(db, name string) error {
+	return &Error{Code: 4085, SQLState: "HY000",
+		Message: fmt.Sprintf("Sequence '%s.%s' has out of range value for options", db, name)}
+}
+
+// errNotSequence is DROP SEQUENCE naming a table, 4090, or ALTER SEQUENCE
+// doing so, 4089. Measured on mariadb:11.8.8.
+func errNotSequence(code int, db, name string) error {
+	return &Error{Code: code, SQLState: "42S02",
+		Message: fmt.Sprintf("'%s.%s' is not a SEQUENCE", db, name)}
+}
+
+// errUnknownSequence is 4091: DROP or ALTER SEQUENCE naming nothing. DROP
+// qualifies the name and ALTER does not. Measured on mariadb:11.8.8.
+func errUnknownSequence(name string) error {
+	return &Error{Code: 4091, SQLState: "42S02",
+		Message: fmt.Sprintf("Unknown SEQUENCE: '%s'", name)}
+}

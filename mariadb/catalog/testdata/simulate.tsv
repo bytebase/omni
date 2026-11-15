@@ -983,7 +983,7 @@ ok	1911	engine	one_table@column	all_key_opt/engine_defined_option	ALTER TABLE a 
 ok	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
 1064	1128	engine	one_table@column	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 ok	1210	engine	one_table@column	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
-ok	ok:d1cbc87e14ba	engine	one_table@column	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
+ok:d1cbc87e14ba	ok:d1cbc87e14ba	engine	one_table@column	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 1176	1176	engine	one_table@column	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
 1176	1176	engine	one_table@column	ignorability/NOT_SYM_IGNORED_SYM	ALTER TABLE a ALTER KEY a NOT IGNORED;
 ok	1060	engine	one_table@column	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);
@@ -1346,7 +1346,7 @@ ok	1911	engine	one_table@index	all_key_opt/engine_defined_option	ALTER TABLE a A
 ok	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a;
 1064	1128	engine	one_table@index	fulltext_key_opt/WITH_PARSER_SYM_IDENT_sys!insert	ALTER TABLE a ADD FULLTEXT(a) WITH PARSER a zzz;
 ok	1210	engine	one_table@index	btree_or_rtree/RTREE_SYM	ALTER TABLE a ADD KEY USING RTREE(a);
-ok	ok:27bf6ad5f57e	engine	one_table@index	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
+ok:27bf6ad5f57e	ok:27bf6ad5f57e	engine	one_table@index	btree_or_rtree/HASH_SYM	ALTER TABLE a ADD KEY USING HASH(a);
 ok:a2549cac2404	ok:a2549cac2404	engine	one_table@index	ignorability/IGNORED_SYM	ALTER TABLE a ALTER KEY a IGNORED;
 ok:8eb6e8823936	ok:8eb6e8823936	engine	one_table@index	ignorability/NOT_SYM_IGNORED_SYM	ALTER TABLE a ALTER KEY a NOT IGNORED;
 ok	1060	engine	one_table@index	key_list/key_list_,_key_part_order_dir	ALTER TABLE a ADD KEY(a, a);

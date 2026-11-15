@@ -20,7 +20,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	}
 	key := toLower(stmt.Name.Name)
 	// Tables and views share the same namespace in MySQL.
-	if _, exists := db.Tables[key]; exists {
+	if _, exists := db.Tables[key]; exists || db.Sequences[key] != nil {
 		return errDupTable(stmt.Name.Name)
 	}
 	if _, exists := db.Views[key]; exists {

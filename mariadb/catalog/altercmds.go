@@ -654,7 +654,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Table:     tbl,
 				Columns:   []*IndexColumn{{Name: colDef.Name}},
 				Unique:    true,
-				IndexType: "",
+				IndexType: longUniqueIndexType(tbl.GetColumn(colDef.Name)),
 				Visible:   true,
 			})
 			tbl.Constraints = append(tbl.Constraints, &Constraint{
@@ -1231,7 +1231,8 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
-		if err := validateIndexColumns(tbl, idxCols, false, false); err != nil {
+		long, err := validateUniqueIndexColumns(tbl, idxCols)
+		if err != nil {
 			return err
 		}
 		uqIdx := &Index{
@@ -1241,6 +1242,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Unique:    true,
 			IndexType: resolveConstraintIndexType(con),
 			Visible:   true,
+		}
+		if long {
+			uqIdx.IndexType = "HASH"
 		}
 		applyIndexOptions(uqIdx, con.IndexOptions)
 		tbl.Indexes = append(tbl.Indexes, uqIdx)
@@ -1344,7 +1348,6 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 		// The CREATE TABLE path reads these; this one used to drop them, so an index
 		// added by ALTER lost its comment and block size.
 		applyIndexOptions(keyIdx, con.IndexOptions)
-		coerceInnoDBHashIndex(tbl, keyIdx)
 		tbl.Indexes = append(tbl.Indexes, keyIdx)
 
 	case nodes.ConstrFulltextIndex:
@@ -1914,7 +1917,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	}
 	if colDef.Generated != nil {
 		col.Generated = &GeneratedColumnInfo{
-			Expr:             nodeToSQLGenerated(colDef.Generated.Expr, tbl.Charset),
+			Expr:             nodeToSQL(colDef.Generated.Expr),
 			Stored:           colDef.Generated.Stored,
 			RowBound:         rowBoundSQL(colDef.Generated.RowBound),
 			Nondeterministic: nondeterministicFuncIn(colDef.Generated.Expr),

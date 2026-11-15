@@ -829,25 +829,19 @@ func showTableOptions(tbl *Table) string {
 		}
 	}
 
-	// KEY_BLOCK_SIZE — shown when non-zero.
-	if tbl.KeyBlockSize > 0 {
-		parts = append(parts, fmt.Sprintf("KEY_BLOCK_SIZE=%d", tbl.KeyBlockSize))
+	// The options follow in the order store_create_info writes them, whatever
+	// order the statement gave them in. Measured on mariadb:11.8.8.
+	if tbl.MinRows != "" && tbl.MinRows != "0" {
+		parts = append(parts, fmt.Sprintf("MIN_ROWS=%s", tbl.MinRows))
 	}
-
-	// ROW_FORMAT — shown when explicitly set.
-	if tbl.RowFormat != "" {
-		parts = append(parts, fmt.Sprintf("ROW_FORMAT=%s", strings.ToUpper(tbl.RowFormat)))
+	if tbl.MaxRows != "" && tbl.MaxRows != "0" {
+		parts = append(parts, fmt.Sprintf("MAX_ROWS=%s", tbl.MaxRows))
 	}
-
-	if tbl.Comment != "" {
-		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
+	if tbl.AvgRowLength != "" && tbl.AvgRowLength != "0" {
+		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
 	}
-
-	if tbl.Compression != "" {
-		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
-	}
-	if tbl.Encryption != "" {
-		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
+		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
 	}
 	if tbl.StatsPersistent != "" && !eqFoldStr(tbl.StatsPersistent, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("STATS_PERSISTENT=%s", tbl.StatsPersistent))
@@ -858,21 +852,6 @@ func showTableOptions(tbl *Table) string {
 	if tbl.StatsSamplePages != "" && !eqFoldStr(tbl.StatsSamplePages, "DEFAULT") {
 		parts = append(parts, fmt.Sprintf("STATS_SAMPLE_PAGES=%s", tbl.StatsSamplePages))
 	}
-	if tbl.MinRows != "" && tbl.MinRows != "0" {
-		parts = append(parts, fmt.Sprintf("MIN_ROWS=%s", tbl.MinRows))
-	}
-	if tbl.MaxRows != "" && tbl.MaxRows != "0" {
-		parts = append(parts, fmt.Sprintf("MAX_ROWS=%s", tbl.MaxRows))
-	}
-	if tbl.AvgRowLength != "" && tbl.AvgRowLength != "0" {
-		parts = append(parts, fmt.Sprintf("AVG_ROW_LENGTH=%s", tbl.AvgRowLength))
-	}
-	if tbl.Tablespace != "" {
-		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
-	}
-	if tbl.PackKeys != "" && !eqFoldStr(tbl.PackKeys, "DEFAULT") {
-		parts = append(parts, fmt.Sprintf("PACK_KEYS=%s", tbl.PackKeys))
-	}
 	if tbl.Checksum != "" && tbl.Checksum != "0" {
 		parts = append(parts, fmt.Sprintf("CHECKSUM=%s", tbl.Checksum))
 	}
@@ -882,8 +861,26 @@ func showTableOptions(tbl *Table) string {
 	if tbl.DelayKeyWrite != "" && tbl.DelayKeyWrite != "0" {
 		parts = append(parts, fmt.Sprintf("DELAY_KEY_WRITE=%s", tbl.DelayKeyWrite))
 	}
+	if tbl.RowFormat != "" {
+		parts = append(parts, fmt.Sprintf("ROW_FORMAT=%s", strings.ToUpper(tbl.RowFormat)))
+	}
 	if tbl.Transactional != "" {
 		parts = append(parts, fmt.Sprintf("TRANSACTIONAL=%s", tbl.Transactional))
+	}
+	if tbl.KeyBlockSize > 0 {
+		parts = append(parts, fmt.Sprintf("KEY_BLOCK_SIZE=%d", tbl.KeyBlockSize))
+	}
+	if tbl.Comment != "" {
+		parts = append(parts, fmt.Sprintf("COMMENT='%s'", escapeComment(tbl.Comment)))
+	}
+	if tbl.Compression != "" {
+		parts = append(parts, fmt.Sprintf("COMPRESSION='%s'", escapeComment(unquoteTableOption(tbl.Compression))))
+	}
+	if tbl.Encryption != "" {
+		parts = append(parts, fmt.Sprintf("ENCRYPTION='%s'", escapeComment(unquoteTableOption(tbl.Encryption))))
+	}
+	if tbl.Tablespace != "" {
+		parts = append(parts, fmt.Sprintf("/*!50100 TABLESPACE `%s` */", unquoteTableOption(tbl.Tablespace)))
 	}
 	for _, o := range tbl.EngineOptions {
 		value := o.Value
@@ -932,10 +929,31 @@ func eqFoldStr(a, b string) bool {
 	return strings.EqualFold(a, b)
 }
 
+// escapeComment writes s as SHOW CREATE writes a quoted string
+// (append_unescaped in sql_show.cc): a backslash, NUL, newline, carriage
+// return and Ctrl-Z take a backslash escape, a quote is doubled, and anything
+// else, a tab included, is written as it is. Measured on mariadb:11.8.8.
 func escapeComment(s string) string {
-	s = strings.ReplaceAll(s, "\\", "\\\\")
-	s = strings.ReplaceAll(s, "'", "''")
-	return s
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case '\\':
+			b.WriteString("\\\\")
+		case 0:
+			b.WriteString("\\0")
+		case '\n':
+			b.WriteString("\\n")
+		case '\r':
+			b.WriteString("\\r")
+		case 26:
+			b.WriteString("\\Z")
+		case '\'':
+			b.WriteString("''")
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
 }
 
 // showPartitioning renders the partition clause for SHOW CREATE TABLE.
@@ -1684,6 +1702,50 @@ func numberDefaultOf(kind literalKind, raw []byte, col *Column) (string, bool) {
 // YEAR does not come through here: its value is more than its digits, and
 // yearDefaultOf writes it.
 func scaleNumberDefault(text string, approximate bool, col *Column) (string, bool) {
+	out, ok := scaleNumberDefaultUnpadded(text, approximate, col)
+	if !ok || !strings.Contains(toLower(col.ColumnType), "zerofill") {
+		return out, ok
+	}
+	return zerofillPad(out, col), true
+}
+
+// zerofillPad pads a ZEROFILL column's default with zeros to the column's
+// display width, as the value itself would be shown. Measured on
+// mariadb:11.8.8: INT(5) ZEROFILL DEFAULT 3 is 00003, DECIMAL(6,2) ZEROFILL
+// DEFAULT 1.5 is 0001.50 (the precision and the point), FLOAT(7,3) ZEROFILL
+// DEFAULT 1.5 is 001.500, DOUBLE ZEROFILL DEFAULT 2 is 22 wide, and a value
+// wider than the width, INT(3) ZEROFILL DEFAULT 12345, stays as it is.
+func zerofillPad(value string, col *Column) string {
+	width := 0
+	if open := strings.IndexByte(col.ColumnType, '('); open >= 0 {
+		for _, c := range []byte(col.ColumnType[open+1:]) {
+			if c < '0' || c > '9' {
+				break
+			}
+			width = width*10 + int(c-'0')
+		}
+	}
+	switch normalizedTypeName(col.DataType) {
+	case "decimal":
+		if scale, _ := declaredScaleOf(col.ColumnType); scale > 0 {
+			width++
+		}
+	case "double":
+		if width <= 0 {
+			width = 22
+		}
+	case "float":
+		if width <= 0 {
+			width = 12
+		}
+	}
+	if len(value) >= width {
+		return value
+	}
+	return strings.Repeat("0", width-len(value)) + value
+}
+
+func scaleNumberDefaultUnpadded(text string, approximate bool, col *Column) (string, bool) {
 	digits, ok := normalizeNumberText(text)
 	if !ok {
 		return "", false

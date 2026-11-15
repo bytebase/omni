@@ -102,6 +102,24 @@ func (p *Parser) parseCreateSequenceStmt(start int, orReplace, temporary bool) (
 		return nil, err
 	}
 
+	// Table options follow the sequence options and end the statement
+	// (sequence_def opt_create_table_options in sql_yacc.yy): a sequence
+	// option after one is 1064. Measured on mariadb:11.8.8.
+	for {
+		opt, ok, err := p.parseTableOption()
+		if err != nil {
+			return nil, err
+		}
+		if !ok {
+			if len(stmt.Options) > 0 && p.prev.Type == ',' {
+				return nil, p.syntaxErrorAtCur()
+			}
+			break
+		}
+		stmt.Options = append(stmt.Options, opt)
+		p.match(',')
+	}
+
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
 }

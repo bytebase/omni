@@ -3516,6 +3516,9 @@ type CreateSequenceStmt struct {
 	Cache       ExprNode  // CACHE n
 	NoCache     bool      // NOCACHE
 	Cycle       *bool     // CYCLE (true) / NOCYCLE (false) / nil unset
+	// Options are the table options that may follow the sequence options
+	// (opt_create_table_options in sql_yacc.yy), such as ENGINE and COMMENT.
+	Options []*TableOption
 }
 
 func (n *CreateSequenceStmt) nodeTag()  {}

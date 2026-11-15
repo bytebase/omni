@@ -19,6 +19,12 @@ import "testing"
 // ============================================================================
 
 var sequenceOracleCorpus = []string{
+	// --- table options follow the sequence options; none on ALTER ---
+	"CREATE OR REPLACE SEQUENCE cs_opt1 COMMENT 'c'",
+	"CREATE OR REPLACE SEQUENCE cs_opt2 START WITH 1 COMMENT='x' ENGINE=InnoDB",
+	"CREATE OR REPLACE SEQUENCE cs_opt3 ENGINE=MyISAM, COMMENT 'c'",
+	"CREATE OR REPLACE SEQUENCE cs_opt4 ENGINE=Aria COMMENT 'q' INCREMENT BY 2",
+	"ALTER SEQUENCE sq COMMENT 'y'",
 	// --- CREATE SEQUENCE: flags + name forms (accept) ---
 	"CREATE SEQUENCE cs_plain",
 	"CREATE SEQUENCE IF NOT EXISTS cs_ine",

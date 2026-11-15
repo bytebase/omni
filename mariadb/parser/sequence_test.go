@@ -38,6 +38,10 @@ func TestSequenceAccept(t *testing.T) {
 		"CREATE OR REPLACE SEQUENCE s CACHE = 50",
 		"CREATE OR REPLACE SEQUENCE s NOCACHE",
 		"CREATE OR REPLACE SEQUENCE s MINVALUE 1 MAXVALUE 5 CYCLE",
+		// CREATE — table options after the sequence options
+		"CREATE OR REPLACE SEQUENCE s COMMENT 'c'",
+		"CREATE OR REPLACE SEQUENCE s START WITH 1 COMMENT='x' ENGINE=InnoDB",
+		"CREATE OR REPLACE SEQUENCE s ENGINE=MyISAM, COMMENT 'c'",
 		"CREATE OR REPLACE SEQUENCE s MINVALUE 1 MAXVALUE 5 NOCYCLE",
 		// CREATE — all options combined (corpus)
 		"CREATE OR REPLACE SEQUENCE s START WITH 100 MINVALUE 10 MAXVALUE 100000 INCREMENT BY 5 CACHE 20 CYCLE",
@@ -108,6 +112,9 @@ func TestSequenceReject(t *testing.T) {
 		"CREATE SEQUENCE s MINVALUE MAXVALUE 9",
 		// ALTER requires at least one option (CREATE does not)
 		"ALTER SEQUENCE s",
+		// a sequence option after a table option, and table options on ALTER
+		"CREATE SEQUENCE s ENGINE=Aria COMMENT 'q' INCREMENT BY 2",
+		"ALTER SEQUENCE s COMMENT 'y'",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) { ParseExpectError(t, sql) })

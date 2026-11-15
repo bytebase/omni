@@ -215,6 +215,16 @@ type Routine struct {
 	Returns         string // return type string for functions (empty for procedures)
 	Body            string
 	Characteristics map[string]string // name -> value (DETERMINISTIC, COMMENT, etc.)
+
+	// Session context the routine was created under, from the synced metadata
+	// (ApplySessionContext). It is not part of the routine's identity: a diff
+	// ignores it, and a recreate restores it around the CREATE.
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	// HasSessionContext records that the fields above were applied, so an
+	// empty sql_mode is told apart from an unknown one.
+	HasSessionContext bool
 }
 
 // RoutineParam represents a parameter of a stored routine.
@@ -241,7 +251,11 @@ type Trigger struct {
 	CharacterSetClient  string
 	CollationConnection string
 	DatabaseCollation   string
-	Order               *TriggerOrderInfo
+	// SQLMode and HasSessionContext are as on Routine; createTrigger fills the
+	// character set and collation from the session, ApplySessionContext all four.
+	SQLMode           string
+	HasSessionContext bool
+	Order             *TriggerOrderInfo
 }
 
 // TriggerOrderInfo represents FOLLOWS/PRECEDES ordering.
@@ -260,6 +274,13 @@ type Event struct {
 	Enable       string // ENABLE, DISABLE, DISABLE ON SLAVE, or "" (default ENABLE)
 	Comment      string
 	Body         string
+
+	// Session context, as on Routine, plus the time_zone the event runs in.
+	SQLMode             string
+	CharacterSetClient  string
+	CollationConnection string
+	TimeZone            string
+	HasSessionContext   bool
 }
 
 // cloneTable returns a deep copy of the table's mutable state.
