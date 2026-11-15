@@ -48,7 +48,7 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 		}
 	}
 
-	orderTriggerCreates(ops, diff)
+	orderTriggerCreates(ops, to, diff)
 	sort.SliceStable(ops, func(i, j int) bool {
 		if ri, rj := triggerOpRank(ops[i].Type), triggerOpRank(ops[j].Type); ri != rj {
 			return ri < rj
@@ -62,43 +62,43 @@ func generateTriggerDDL(_, to *Catalog, diff *SchemaDiff, _ *Normalizer) []Migra
 // orderTriggerCreates creates triggers in the order the target created them,
 // and a trigger after the trigger its FOLLOWS or PRECEDES names, where the plan
 // creates that one too: the clause names a trigger that exists.
-func orderTriggerCreates(ops []MigrationOp, diff *SchemaDiff) {
-	targets := make(map[string]string)
-	for _, te := range diff.Triggers {
-		if te.To != nil && te.Action != DiffDrop && te.To.Order != nil {
-			targets[triggerSortName(te.Database, te.To.Name)] = triggerSortName(te.Database, te.To.Order.TriggerName)
+func orderTriggerCreates(ops []MigrationOp, to *Catalog, diff *SchemaDiff) {
+	// A CREATE TRIGGER that names another in FOLLOWS or PRECEDES is created
+	// after it: depth is the length of the chain of such references the plan
+	// also creates, which orders the creates so each reference exists first.
+	creates := make(map[string]int) // lower database.name -> op index
+	for i := range ops {
+		if ops[i].Type == OpCreateTrigger {
+			creates[triggerSortName(ops[i].Database, ops[i].ObjectName)] = i
 		}
 	}
-	created := make(map[string]bool)
-	for _, op := range ops {
-		if op.Type == OpCreateTrigger {
-			created[op.sortName] = true
-		}
-	}
-	var depth func(key string, seen map[string]bool) int
-	depth = func(key string, seen map[string]bool) int {
-		target, ok := targets[key]
-		if !ok || !created[target] || seen[key] {
+	var depth func(i int, seen map[int]bool) int
+	depth = func(i int, seen map[int]bool) int {
+		if seen[i] || ops[i].triggerRef == "" {
 			return 0
 		}
-		seen[key] = true
-		return depth(target, seen) + 1
+		seen[i] = true
+		ref, ok := creates[triggerSortName(ops[i].Database, ops[i].triggerRef)]
+		if !ok {
+			return 0
+		}
+		return depth(ref, seen) + 1
 	}
-	createdAt := make(map[string]int)
-	for _, te := range diff.Triggers {
-		if te.To != nil && te.Action != DiffDrop {
-			createdAt[triggerSortName(te.Database, te.To.Name)] = te.To.created
+	pos := make(map[string]int)
+	if to != nil {
+		for _, te := range diff.Triggers {
+			if te.To == nil || te.Action == DiffDrop || te.To.Database == nil {
+				continue
+			}
+			if db := to.GetDatabase(te.To.Database.Name); db != nil {
+				pos[triggerSortName(te.Database, te.To.Name)] = effectiveTriggerOrder(db, te.To)[toLower(te.To.Name)]
+			}
 		}
 	}
 	for i := range ops {
 		if ops[i].Type == OpCreateTrigger {
-			key := ops[i].sortName
-			if d := depth(key, map[string]bool{}); d > 0 {
-				ops[i].Priority = priorityTrigger + d
-			}
-			// In the order the target created them, which the triggers of
-			// one table, timing and event run in.
-			ops[i].sortName = fmt.Sprintf("%s\x00%010d", strings.ToLower(ops[i].Database), createdAt[key])
+			ops[i].Priority = priorityTrigger + depth(i, map[int]bool{})
+			ops[i].sortName = fmt.Sprintf("%s\x00%010d", strings.ToLower(ops[i].Database), pos[ops[i].sortName])
 		}
 	}
 }
@@ -131,16 +131,14 @@ func buildCreateTriggerOp(database string, trig, from *Trigger, placement *Trigg
 		trigIdent, strings.ToUpper(trig.Timing), strings.ToUpper(trig.Event), onTableIdent)
 	// The order among a table's triggers of one timing and event is what
 	// FOLLOWS or PRECEDES set: they run in it.
-	o := trig.Order
-	if o == nil {
-		o = placement
-	}
-	if o != nil && o.TriggerName != "" {
+	ref := ""
+	if o := placement; o != nil && o.TriggerName != "" {
 		verb := "PRECEDES"
 		if o.Follows {
 			verb = "FOLLOWS"
 		}
 		fmt.Fprintf(&b, " %s %s", verb, migrationQuoteIdent(o.TriggerName))
+		ref = o.TriggerName
 	}
 	if body := strings.TrimSpace(trig.Body); body != "" {
 		b.WriteString(" ")
@@ -157,6 +155,7 @@ func buildCreateTriggerOp(database string, trig, from *Trigger, placement *Trigg
 
 	return MigrationOp{
 		Type:         OpCreateTrigger,
+		triggerRef:   ref,
 		Database:     database,
 		ObjectName:   trig.Name,
 		ParentObject: trig.Table,
@@ -229,7 +228,7 @@ func triggerSortName(database, name string) string {
 // it, else FOLLOWS the last created before it. With no kept peer, creation
 // order alone places it (orderTriggerCreates).
 func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrderInfo {
-	if to == nil || trig.Database == nil || trig.Order != nil {
+	if to == nil || trig.Database == nil {
 		return nil
 	}
 	db := to.GetDatabase(trig.Database.Name)
@@ -249,9 +248,12 @@ func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrde
 	if !ok {
 		return nil
 	}
+	// The immediate predecessor in effective order, kept or itself created:
+	// FOLLOWS it. The creates run in effective order, so it exists first. When
+	// trig is first, PRECEDES the next trigger if that one is kept.
 	var before, after *Trigger
 	for _, peer := range db.Triggers {
-		if peer == trig || created[toLower(peer.Name)] {
+		if peer == trig {
 			continue
 		}
 		pp, ok := order[toLower(peer.Name)]
@@ -259,17 +261,17 @@ func triggerPlacement(to *Catalog, diff *SchemaDiff, trig *Trigger) *TriggerOrde
 			continue
 		}
 		switch {
-		case pp > pos && (after == nil || pp < order[toLower(after.Name)]):
-			after = peer
 		case pp < pos && (before == nil || pp > order[toLower(before.Name)]):
 			before = peer
+		case pp > pos && (after == nil || pp < order[toLower(after.Name)]):
+			after = peer
 		}
 	}
 	switch {
-	case after != nil:
-		return &TriggerOrderInfo{TriggerName: after.Name}
 	case before != nil:
 		return &TriggerOrderInfo{Follows: true, TriggerName: before.Name}
+	case after != nil && !created[toLower(after.Name)]:
+		return &TriggerOrderInfo{TriggerName: after.Name}
 	}
 	return nil
 }
