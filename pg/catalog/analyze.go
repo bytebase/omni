@@ -1137,7 +1137,9 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		colDefs[i] = def
 		return nil
 	}
+	funcColStarts := make([]int, len(funcExprs))
 	for i, fexpr := range funcExprs {
+		funcColStarts[i] = len(colNames)
 		retType := fexpr.exprType()
 		cls := ac.catalog.getTypeFuncClass(retType)
 
@@ -1217,6 +1219,18 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		}
 	}
 
+	var funcColCounts []int
+	if !unknownColumns {
+		funcColCounts = make([]int, len(funcExprs))
+		for i, start := range funcColStarts {
+			end := len(colNames)
+			if i+1 < len(funcColStarts) {
+				end = funcColStarts[i+1]
+			}
+			funcColCounts[i] = end - start
+		}
+	}
+
 	// WITH ORDINALITY adds an extra column.
 	if rf.Ordinality {
 		colNames = append(colNames, "ordinality")
@@ -1260,6 +1274,7 @@ func (ac *analyzeCtx) addRangeTableEntryForFunction(
 		ColTypMods:     colTypMods,
 		ColCollations:  colCollations,
 		FuncExprs:      funcExprs,
+		FuncColCounts:  funcColCounts,
 		Ordinality:     rf.Ordinality,
 		Lateral:        rf.Lateral,
 		UnknownColumns: unknownColumns,

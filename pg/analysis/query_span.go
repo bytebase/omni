@@ -889,20 +889,19 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 		}
 
 	case catalog.RTEFunction:
-		// An output reads the call's arguments, as jsonb_each(a) reads a, and
-		// for a user function also what its body returns there. The body's
-		// parameters carry no lineage, so the arguments stand in for them.
-		if len(rte.FuncExprs) > 0 {
-			if fc, ok := rte.FuncExprs[0].(*catalog.FuncCallExpr); ok {
-				for _, arg := range fc.Args {
-					e.walkExprWithVisited(effectiveStack, arg, result, visited)
-				}
-				for _, proc := range e.userProcsCalled(fc) {
-					bodySets := e.analyzeFunctionBody(proc)
-					if colIdx >= 0 && colIdx < len(bodySets) {
-						for k, val := range bodySets[colIdx] {
-							result[k] = val
-						}
+		// An output reads the arguments of the call that produces it, as
+		// jsonb_each(a) reads a, and for a user function also what its body
+		// returns there. The body's parameters carry no lineage, so the
+		// arguments stand in for them.
+		if fc, localIdx := functionColumn(rte, colIdx); fc != nil {
+			for _, arg := range fc.Args {
+				e.walkExprWithVisited(effectiveStack, arg, result, visited)
+			}
+			for _, proc := range e.userProcsCalled(fc) {
+				bodySets := e.analyzeFunctionBody(proc)
+				if localIdx >= 0 && localIdx < len(bodySets) {
+					for k, val := range bodySets[localIdx] {
+						result[k] = val
 					}
 				}
 			}
@@ -911,6 +910,31 @@ func (e *querySpanExtractor) resolveVar(queryStack []*catalog.Query, v *catalog.
 	default:
 		// Unknown RTE kind — skip.
 	}
+}
+
+// functionColumn returns the call of a function RTE that produces its
+// colIdx-th column (0-based) and the column's position among that call's
+// columns. ROWS FROM and a multi-argument unnest place each call's columns
+// after the previous call's; ORDINALITY's column belongs to none.
+func functionColumn(rte *catalog.RangeTableEntry, colIdx int) (*catalog.FuncCallExpr, int) {
+	if rte.FuncColCounts == nil {
+		if len(rte.FuncExprs) != 1 {
+			return nil, -1
+		}
+		fc, _ := rte.FuncExprs[0].(*catalog.FuncCallExpr)
+		return fc, colIdx
+	}
+	for i, count := range rte.FuncColCounts {
+		if colIdx < count {
+			if i >= len(rte.FuncExprs) {
+				return nil, -1
+			}
+			fc, _ := rte.FuncExprs[i].(*catalog.FuncCallExpr)
+			return fc, colIdx
+		}
+		colIdx -= count
+	}
+	return nil, -1
 }
 
 // findCTEForRangeTableEntry returns the CTE that rte, an entry of the last

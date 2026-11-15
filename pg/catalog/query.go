@@ -682,6 +682,10 @@ type RangeTableEntry struct {
 	FuncExprs     []AnalyzedExpr      // for RTEFunction: function call expressions
 	Ordinality    bool                // for RTEFunction: WITH ORDINALITY
 	Tablesample   *TablesampleClauseQ // for RTERelation: TABLESAMPLE clause
+	// FuncColCounts holds, for RTEFunction, how many of ColNames each of
+	// FuncExprs produces, in order; an ORDINALITY column follows them all.
+	// It is nil when UnknownColumns is set.
+	FuncColCounts []int
 	// UnknownColumns marks an RTEFunction for a function the catalog does
 	// not know, analyzed under AnalyzeOptions.OpaqueUnknownFunctions with
 	// no column definition list. ColNames then holds only the columns the

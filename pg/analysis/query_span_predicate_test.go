@@ -346,6 +346,33 @@ func TestGetQuerySpanReadsFunctionsOutsideTheOutput(t *testing.T) {
 	}
 }
 
+func TestGetQuerySpanMultiFunctionLineage(t *testing.T) {
+	schema := healthySchema()
+	schema.Schemas[0].Functions = []*metadatapb.FunctionMetadata{
+		{Name: "echo", Definition: "CREATE FUNCTION public.echo(x text) RETURNS TABLE(value text) LANGUAGE sql AS $$ SELECT x $$"},
+		{Name: "pair", Definition: "CREATE FUNCTION public.pair(k int) RETURNS TABLE(p text, q text) LANGUAGE sql AS $$ SELECT email, email FROM t WHERE id = k $$"},
+	}
+	testCases := []struct {
+		statement string
+		want      [][]string
+	}{
+		{"SELECT f.a, f.b FROM t CROSS JOIN LATERAL unnest(ARRAY[t.email], ARRAY[t.ssn]) AS f(a, b)", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT f.a, f.b, f.n FROM t CROSS JOIN LATERAL unnest(ARRAY[t.email], ARRAY[t.ssn]) WITH ORDINALITY AS f(a, b, n)", [][]string{{"t.email"}, {"t.ssn"}, {}}},
+		{"SELECT f.a, f.b FROM t CROSS JOIN LATERAL ROWS FROM (unnest(ARRAY[t.email]), echo(t.ssn)) AS f(a, b)", [][]string{{"t.email"}, {"t.ssn"}}},
+		{"SELECT f.x, f.y, f.z FROM t CROSS JOIN LATERAL ROWS FROM (pair(t.id), unnest(ARRAY[t.ssn])) AS f(x, y, z)", [][]string{{"t.email", "t.id"}, {"t.email", "t.id"}, {"t.ssn"}}},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.statement, func(t *testing.T) {
+			span := spanFor(t, tc.statement, schema)
+			var got [][]string
+			for _, result := range span.Results {
+				got = append(got, predicateColumnNames(result.SourceColumns))
+			}
+			require.Equal(t, tc.want, got)
+		})
+	}
+}
+
 func TestGetQuerySpanValuesLineage(t *testing.T) {
 	testCases := []struct {
 		statement  string
