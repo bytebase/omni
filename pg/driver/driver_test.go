@@ -85,6 +85,34 @@ func TestConnConfigParamsOverride(t *testing.T) {
 	}
 }
 
+// TestConnConfigTLSCannotBeDowngraded: with TLS set, no sslmode in Params
+// leaves a host that pgx dials in plaintext, and each host is dialed once.
+func TestConnConfigTLSCannotBeDowngraded(t *testing.T) {
+	for _, mode := range []string{"disable", "allow", "prefer", "require", "verify-full"} {
+		t.Run(mode, func(t *testing.T) {
+			cfg := baseConfig()
+			cfg.Host = "pg-1.example.com,pg-2.example.com"
+			cfg.Params = map[string]string{"sslmode": mode}
+			cfg.TLS = func(host string) (*tls.Config, error) { return &tls.Config{ServerName: host}, nil }
+			c, err := connConfig(cfg)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got := []string{c.Host + " " + c.TLSConfig.ServerName}
+			for _, f := range c.Fallbacks {
+				if f.TLSConfig == nil {
+					t.Fatalf("%s is dialed in plaintext", f.Host)
+				}
+				got = append(got, f.Host+" "+f.TLSConfig.ServerName)
+			}
+			want := []string{"pg-1.example.com pg-1.example.com", "pg-2.example.com pg-2.example.com"}
+			if !slices.Equal(got, want) {
+				t.Errorf("hosts dialed %q, want %q", got, want)
+			}
+		})
+	}
+}
+
 func TestConnConfigKeepsEachValueWhole(t *testing.T) {
 	open := func(edit func(*driver.Config)) (*pgx.ConnConfig, error) {
 		cfg := baseConfig()

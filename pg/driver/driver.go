@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/bytebase/omni/driver"
@@ -53,7 +54,8 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 //
 // Host and Port are libpq's host and port lists. TLS, when set, makes TLS
 // required (sslmode=require) and supplies the configuration for every host
-// pgx may dial, which a Params sslmode cannot turn off; when nil, libpq's
+// pgx may dial, which no Params sslmode can turn off or add a plaintext
+// attempt to; when nil, libpq's
 // default sslmode=prefer applies. Params are connection string keywords with
 // values in libpq syntax, quoted by the caller where they need it, applied
 // last so they override the above. Unless they name them, queries run with default_query_exec_mode=exec and no
@@ -95,14 +97,26 @@ func connConfig(cfg driver.Config) (*pgx.ConnConfig, error) {
 		if connConfig.TLSConfig, err = cfg.TLS(connConfig.Host); err != nil {
 			return nil, err
 		}
+		// sslmode=prefer or allow in Params adds a plaintext attempt per host,
+		// and disable makes every host plaintext; each host is dialed once,
+		// with the caller's TLS.
+		type endpoint struct {
+			host string
+			port uint16
+		}
+		seen := map[endpoint]bool{{connConfig.Host, connConfig.Port}: true}
+		var fallbacks []*pgconn.FallbackConfig
 		for _, fallback := range connConfig.Fallbacks {
-			if fallback.TLSConfig == nil {
+			if seen[endpoint{fallback.Host, fallback.Port}] {
 				continue
 			}
+			seen[endpoint{fallback.Host, fallback.Port}] = true
 			if fallback.TLSConfig, err = cfg.TLS(fallback.Host); err != nil {
 				return nil, err
 			}
+			fallbacks = append(fallbacks, fallback)
 		}
+		connConfig.Fallbacks = fallbacks
 	}
 	if cfg.Dial != nil {
 		connConfig.DialFunc = cfg.Dial
