@@ -24,9 +24,6 @@ func (d *Driver) Session(ctx context.Context) (driver.Session, error) {
 
 type session struct {
 	conn *sql.Conn
-	// schema is the database the connection has selected, and the last one
-	// QueryOptions.Schema asked for.
-	schema string
 }
 
 func (s *session) Close() error { return s.conn.Close() }
@@ -46,11 +43,12 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	if len(commands) == 0 {
 		return nil, nil
 	}
-	if opts.Schema != "" && opts.Schema != s.schema {
+	// Select the database the caller names every time: a statement of the
+	// script may select another one, and its USE is a statement like any other.
+	if opts.Schema != "" {
 		if _, err := s.conn.ExecContext(ctx, "USE "+quoteBacktick(opts.Schema)); err != nil {
 			return nil, fmt.Errorf("failed to select database %s: %w", opts.Schema, err)
 		}
-		s.schema = opts.Schema
 	}
 
 	results := make([]*driver.Result, 0, len(commands))

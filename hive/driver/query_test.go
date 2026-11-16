@@ -198,6 +198,56 @@ func TestQuerySelectsTheSchema(t *testing.T) {
 	require.Equal(t, int64(0), results[0].Rows[0][0].Int64)
 }
 
+// TestQuerySelectsTheSchemaAgainAfterAStatementChangesIt: a USE the session ran
+// moves the connection to another database, and a caller that names a database
+// gets it selected again rather than the last one it asked for.
+func TestQuerySelectsTheSchemaAgainAfterAStatementChangesIt(t *testing.T) {
+	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+		for _, stmt := range []string{
+			"DROP DATABASE IF EXISTS omni_schema_a CASCADE",
+			"DROP DATABASE IF EXISTS omni_schema_b CASCADE",
+			"CREATE DATABASE omni_schema_a",
+			"CREATE DATABASE omni_schema_b",
+		} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	db := testcontainer.Open(t, "")
+	execCorpus(t, db, `CREATE TABLE omni_schema_a.t (tag STRING) STORED AS PARQUET
+
+ALTER TABLE omni_schema_a.t SET TBLPROPERTIES('EXTERNAL'='FALSE')
+
+INSERT INTO omni_schema_a.t VALUES ('a')
+
+CREATE TABLE omni_schema_b.t (tag STRING) STORED AS PARQUET
+
+ALTER TABLE omni_schema_b.t SET TBLPROPERTIES('EXTERNAL'='FALSE')
+
+INSERT INTO omni_schema_b.t VALUES ('b')`)
+	d := &Driver{db: db}
+	sess := openSession(t, d)
+	tag := func(opts driver.QueryOptions) string {
+		results, err := sess.Query(context.Background(), "SELECT tag FROM t", opts)
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NoError(t, results[0].Err)
+		require.Len(t, results[0].Rows, 1)
+		return results[0].Rows[0][0].String
+	}
+
+	require.Equal(t, "a", tag(driver.QueryOptions{Schema: "omni_schema_a"}))
+	// USE takes effect and reports Hive's answer to reading its rows.
+	results, err := sess.Query(context.Background(), "USE omni_schema_b", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Err)
+	require.Equal(t, "b", tag(driver.QueryOptions{}))
+	require.Equal(t, "a", tag(driver.QueryOptions{Schema: "omni_schema_a"}))
+}
+
 func openSession(t *testing.T, d *Driver) driver.Session {
 	t.Helper()
 	sess, err := d.Session(context.Background())
