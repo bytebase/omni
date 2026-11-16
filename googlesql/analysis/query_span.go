@@ -1795,6 +1795,11 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 		if refs, ok := w.selectAliases[strings.ToLower(parts[0])]; ok && !placeholderRefs(refs) {
 			return refs
 		}
+		if refs, ok := w.leaves.derivedColumn(parts[0]); ok {
+			// The body's own derived relation projects the name; it shadows any
+			// enclosing column even when it reads nothing (a constant).
+			return w.appendWrittenColumn(refs, "", parts[0])
+		}
 		refs := w.resolveColumn("", parts[0])
 		// An unqualified name the current body can only attribute to a base relation
 		// may belong to an enclosing body's CTE or derived relation, whose columns
@@ -1822,6 +1827,12 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 	ref := columnRefFromParts(parts, w.dialect)
 	if ref.Table != "" && w.namesAccessRelation(ref.Table) {
 		return []ColumnRef{ref}
+	}
+	if refs, ok := w.selectAliases[strings.ToLower(parts[0])]; ok && !placeholderRefs(refs) {
+		// `alias.field` where alias is a select-list alias of a struct-valued
+		// expression: the condition reads the expression's columns, not a field of a
+		// physical column.
+		return refs
 	}
 	if _, shadowed := w.leaves.derivedColumn(parts[0]); !shadowed {
 		// `root.field` where root names no relation in scope: a struct/field path. The
@@ -1973,6 +1984,11 @@ func (w *spanWalker) addStarSegmentFilterColumns(segment projColumn, except []st
 // deferred set-operation merge keeps its arms in.
 func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []string) {
 	for _, info := range infos {
+		star := info.StarSegments != nil || info.SetOpMerge != nil
+		if len(only) > 0 && !star && !containsFold(only, info.Name) {
+			// The arm projects an output name the BY NAME merge does not keep.
+			continue
+		}
 		for _, ref := range info.SourceColumns {
 			w.addFilterColumn(ref)
 		}
@@ -2090,6 +2106,19 @@ func (w *spanWalker) namesAccessRelation(name string) bool {
 	return false
 }
 
+// dropFilterColumn removes ref from the filter set and forgets its dedup state, so
+// a later walk that reads the same column again can record it.
+func (w *spanWalker) dropFilterColumn(ref ColumnRef) {
+	delete(w.filterSeen, ref)
+	kept := w.span.filterColumns[:0]
+	for _, existing := range w.span.filterColumns {
+		if existing != ref {
+			kept = append(kept, existing)
+		}
+	}
+	w.span.filterColumns = kept
+}
+
 // addFilterColumn records ref in the filter set, once. The same column is also
 // recorded in PredicateColumns as a written ref by the pass's onColumn callback
 // (or, for a JOIN ... USING key, by its call site), so the two sets answer
@@ -2115,7 +2144,10 @@ func (w *spanWalker) walkSubqueriesOnly(expr ast.Node) {
 		// A row condition that consumes a query body's output reads the subqueries
 		// inside that body's projection expressions too, one nesting level at a time.
 		ew.onSubquery = func(query ast.Node, projects bool) {
+			prev := w.captureFilterProjections
+			w.captureFilterProjections = projects
 			projection := w.visitBody(query)
+			w.captureFilterProjections = prev
 			if projects {
 				w.addProjectionFilterColumns(projection)
 			}

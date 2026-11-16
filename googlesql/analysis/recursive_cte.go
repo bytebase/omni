@@ -187,14 +187,21 @@ func (w *spanWalker) substituteFilterPlaceholders(ph map[ColumnRef]int, cols []p
 	// with the placeholder it stood in for: keeping it would let it match an
 	// unrelated column of the same name.
 	retained := kept[:0]
+	var retired []ColumnRef
 	for _, ref := range kept {
 		if placeholder, ok := w.span.filterPlaceholderFallback[ref]; ok && consumed[placeholder] {
 			delete(w.span.filterPlaceholderFallback, ref)
+			retired = append(retired, ref)
 			continue
 		}
 		retained = append(retained, ref)
 	}
 	w.span.filterColumns = retained
+	for _, ref := range retired {
+		// Forget the dedup state too: another body may read the same written column
+		// legitimately, and that read must be re-recordable.
+		delete(w.filterSeen, ref)
+	}
 	for _, ref := range added {
 		if ref.Column != "" {
 			w.addFilterColumn(ref)
