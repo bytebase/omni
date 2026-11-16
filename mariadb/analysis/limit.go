@@ -5,10 +5,34 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"unicode"
 
 	"github.com/bytebase/omni/mariadb/ast"
 	"github.com/bytebase/omni/mariadb/parser"
 )
+
+// StatementWithResultLimit returns the text to send so the server returns at
+// most limit rows. It is RewriteResultLimit's rewrite when that succeeds, and
+// otherwise statement wrapped as
+//
+//	SELECT * FROM (<statement>) result LIMIT <limit>;
+//
+// It never reports an error, so a caller has no fallback to choose.
+//
+// A statement RewriteResultLimit leaves alone — DML, EXPLAIN, and other
+// non-SELECT text — is returned unchanged: wrapping it would change what it
+// does. A statement that already carries an integer LIMIT at or below limit is
+// returned unchanged; a larger LIMIT becomes limit. MariaDB has no version
+// without LIMIT, so the wrapper covers only text the rewrite cannot handle,
+// such as FETCH or OFFSET ... ROWS, a non-constant LIMIT or a parse error; a
+// LIMIT 0 statement is kept, and an empty statement is wrapped.
+func StatementWithResultLimit(statement string, limitCount int) string {
+	if stmt, err := RewriteResultLimit(statement, limitCount); err == nil {
+		return stmt
+	}
+	// MariaDB keeps MySQL's subquery shape.
+	return fmt.Sprintf("SELECT * FROM (%s) result LIMIT %d;", trimStatement(statement), limitCount)
+}
 
 // RewriteResultLimit rewrites one SELECT so it returns at most limit rows,
 // splicing into the original text by node offsets. A statement that is not a
@@ -274,4 +298,12 @@ func findMySQLKeywordBefore(sql string, offset int, keyword string) int {
 		}
 	}
 	return offset
+}
+
+// trimStatement returns statement without leading space and trailing space or
+// semicolons, so a wrapped statement has one statement terminator.
+func trimStatement(statement string) string {
+	return strings.TrimLeftFunc(strings.TrimRightFunc(statement, func(r rune) bool {
+		return unicode.IsSpace(r) || r == ';'
+	}), unicode.IsSpace)
 }
