@@ -25,6 +25,7 @@
 | 	note VARCHAR(100) COMMENT 'owner''s note \\ path',
 | 	UNIQUE KEY uk_email (email),
 | 	KEY idx_bio_prefix (bio(32)),
+| 	KEY idx_created_desc (created_at DESC) COMMENT 'newest first',
 | 	KEY idx_invisible (status) INVISIBLE,
 | 	KEY idx_expr ((LOWER(status))),
 | 	FULLTEXT KEY ft_bio (bio),
@@ -111,7 +112,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
@@ -135,17 +136,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -181,6 +182,24 @@
 : int64 1
 : bytes
 |
+< row
+: bytes
+| accounts
+: bytes
+| idx_created_desc
+: bytes
+| created_at
+: bytes
+| D
+: int64 -1
+: null
+: int64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+| newest first
 < row
 : bytes
 | accounts
@@ -400,16 +419,16 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 < row
@@ -1122,9 +1141,9 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -1143,7 +1162,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
@@ -1158,10 +1177,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -1174,10 +1193,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_order_totals`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_order_totals
@@ -1205,14 +1224,14 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TRIGGER_NAME" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -1249,11 +1268,11 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -1268,13 +1287,13 @@
 > query
 | SHOW CREATE EVENT `omni_dump_roundtrip`.`ev_daily_check`
 < result
-< column "Event" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "time_zone" "VARCHAR"
-< column "Create Event" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -1307,12 +1326,12 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | orders
@@ -1355,8 +1374,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
@@ -1405,7 +1424,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -1536,8 +1555,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -1552,8 +1571,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_range
@@ -1587,13 +1606,13 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 < row
 : bytes
 | fn_format_tag
@@ -1627,12 +1646,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_dump_roundtrip`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Function" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -1655,12 +1674,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_dump_roundtrip`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Procedure" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -1700,17 +1719,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -1725,7 +1744,7 @@
 : bytes
 | 16384
 : bytes
-| 114688
+| 131072
 : bytes
 | 0
 : bytes
@@ -1859,8 +1878,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
@@ -1914,6 +1933,7 @@
 |   PRIMARY KEY (`id`),
 |   FULLTEXT KEY `ft_bio` (`bio`),
 |   KEY `idx_bio_prefix` (`bio`(32)),
+|   KEY `idx_created_desc` (`created_at` DESC) COMMENT 'newest first',
 |   KEY `idx_expr` ((lower(`status`))),
 |   KEY `idx_invisible` (`status`) /*!80000 INVISIBLE */,
 |   SPATIAL KEY `sp_coords` (`coords`),
@@ -2052,7 +2072,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
@@ -2076,17 +2096,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -2122,6 +2142,24 @@
 : int64 1
 : bytes
 |
+< row
+: bytes
+| accounts
+: bytes
+| idx_created_desc
+: bytes
+| created_at
+: bytes
+| D
+: int64 -1
+: null
+: int64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+| newest first
 < row
 : bytes
 | accounts
@@ -2341,16 +2379,16 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 < row
@@ -3063,9 +3101,9 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -3084,7 +3122,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
@@ -3099,10 +3137,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -3115,10 +3153,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_order_totals`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_order_totals
@@ -3146,14 +3184,14 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TRIGGER_NAME" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -3190,11 +3228,11 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -3209,13 +3247,13 @@
 > query
 | SHOW CREATE EVENT `omni_dump_roundtrip`.`ev_daily_check`
 < result
-< column "Event" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "time_zone" "VARCHAR"
-< column "Create Event" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -3248,12 +3286,12 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | orders
@@ -3296,8 +3334,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
@@ -3346,7 +3384,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -3477,8 +3515,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -3493,8 +3531,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_range
@@ -3528,13 +3566,13 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 < row
 : bytes
 | fn_format_tag
@@ -3568,12 +3606,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_dump_roundtrip`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Function" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -3596,12 +3634,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_dump_roundtrip`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Procedure" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -3641,17 +3679,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -3666,7 +3704,7 @@
 : bytes
 | 16384
 : bytes
-| 114688
+| 131072
 : bytes
 | 0
 : bytes
@@ -3800,8 +3838,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
@@ -3831,6 +3869,7 @@
 | 	note VARCHAR(100) COMMENT 'owner''s note \\ path',
 | 	UNIQUE KEY uk_email (email),
 | 	KEY idx_bio_prefix (bio(32)),
+| 	KEY idx_created_desc (created_at DESC) COMMENT 'newest first',
 | 	KEY idx_invisible (status) INVISIBLE,
 | 	KEY idx_expr ((LOWER(status))),
 | 	FULLTEXT KEY ft_bio (bio),
@@ -3917,7 +3956,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
@@ -3945,13 +3984,13 @@
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -3987,6 +4026,24 @@
 : int64 1
 : bytes
 |
+< row
+: bytes
+| accounts
+: bytes
+| idx_created_desc
+: bytes
+| created_at
+: bytes
+| D
+: int64 -1
+: null
+: int64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+| newest first
 < row
 : bytes
 | accounts
@@ -4207,15 +4264,15 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 < row
@@ -4929,8 +4986,8 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -4964,10 +5021,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -4980,10 +5037,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_order_totals`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_order_totals
@@ -5011,14 +5068,14 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -5055,11 +5112,11 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -5074,13 +5131,13 @@
 > query
 | SHOW CREATE EVENT `omni_dump_roundtrip`.`ev_daily_check`
 < result
-< column "Event" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "time_zone" "VARCHAR"
-< column "Create Event" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -5113,12 +5170,12 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | orders
@@ -5211,7 +5268,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -5342,8 +5399,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -5358,8 +5415,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_range
@@ -5393,13 +5450,13 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 < row
 : bytes
 | fn_format_tag
@@ -5433,12 +5490,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_dump_roundtrip`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Function" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -5461,12 +5518,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_dump_roundtrip`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Procedure" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -5507,16 +5564,16 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -5531,7 +5588,7 @@
 : bytes
 | 16384
 : bytes
-| 114688
+| 131072
 : bytes
 | 0
 : bytes
@@ -5665,8 +5722,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
@@ -5720,6 +5777,7 @@
 |   PRIMARY KEY (`id`),
 |   FULLTEXT KEY `ft_bio` (`bio`),
 |   KEY `idx_bio_prefix` (`bio`(32)),
+|   KEY `idx_created_desc` (`created_at` DESC) COMMENT 'newest first',
 |   KEY `idx_expr` ((lower(`status`))),
 |   KEY `idx_invisible` (`status`) /*!80000 INVISIBLE */,
 |   SPATIAL KEY `sp_coords` (`coords`),
@@ -5858,7 +5916,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
@@ -5886,13 +5944,13 @@
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -5928,6 +5986,24 @@
 : int64 1
 : bytes
 |
+< row
+: bytes
+| accounts
+: bytes
+| idx_created_desc
+: bytes
+| created_at
+: bytes
+| D
+: int64 -1
+: null
+: int64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+| newest first
 < row
 : bytes
 | accounts
@@ -6148,15 +6224,15 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 < row
@@ -6870,8 +6946,8 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -6905,10 +6981,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -6921,10 +6997,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_order_totals`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_order_totals
@@ -6952,14 +7028,14 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TRIGGER_NAME" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
 < column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -6996,11 +7072,11 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -7015,13 +7091,13 @@
 > query
 | SHOW CREATE EVENT `omni_dump_roundtrip`.`ev_daily_check`
 < result
-< column "Event" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "time_zone" "VARCHAR"
-< column "Create Event" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -7054,12 +7130,12 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | orders
@@ -7152,7 +7228,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -7283,8 +7359,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -7299,8 +7375,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_range
@@ -7334,13 +7410,13 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 < row
 : bytes
 | fn_format_tag
@@ -7374,12 +7450,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_dump_roundtrip`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Function" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -7402,12 +7478,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_dump_roundtrip`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Procedure" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -7448,16 +7524,16 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -7472,7 +7548,7 @@
 : bytes
 | 16384
 : bytes
-| 114688
+| 131072
 : bytes
 | 0
 : bytes
@@ -7606,8 +7682,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
@@ -7637,6 +7713,7 @@
 | 	note VARCHAR(100) COMMENT 'owner''s note \\ path',
 | 	UNIQUE KEY uk_email (email),
 | 	KEY idx_bio_prefix (bio(32)),
+| 	KEY idx_created_desc (created_at DESC) COMMENT 'newest first',
 | 	KEY idx_invisible (status) INVISIBLE,
 | 	KEY idx_expr ((LOWER(status))),
 | 	FULLTEXT KEY ft_bio (bio),
@@ -7723,7 +7800,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.4.13
@@ -7747,17 +7824,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -7793,6 +7870,24 @@
 : int64 1
 : bytes
 |
+< row
+: bytes
+| accounts
+: bytes
+| idx_created_desc
+: bytes
+| created_at
+: bytes
+| D
+: int64 -1
+: null
+: int64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+| newest first
 < row
 : bytes
 | accounts
@@ -8012,16 +8107,16 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 < row
@@ -8734,9 +8829,9 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -8755,7 +8850,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
@@ -8770,10 +8865,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -8786,10 +8881,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_order_totals`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_order_totals
@@ -8817,14 +8912,14 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TRIGGER_NAME" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -8861,11 +8956,11 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -8880,13 +8975,13 @@
 > query
 | SHOW CREATE EVENT `omni_dump_roundtrip`.`ev_daily_check`
 < result
-< column "Event" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "time_zone" "VARCHAR"
-< column "Create Event" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -8919,12 +9014,12 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | orders
@@ -8967,8 +9062,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
@@ -9017,7 +9112,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -9148,8 +9243,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -9164,8 +9259,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_range
@@ -9199,13 +9294,13 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 < row
 : bytes
 | fn_format_tag
@@ -9239,12 +9334,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_dump_roundtrip`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Function" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -9267,12 +9362,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_dump_roundtrip`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Procedure" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -9312,17 +9407,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -9337,7 +9432,7 @@
 : bytes
 | 16384
 : bytes
-| 114688
+| 131072
 : bytes
 | 0
 : bytes
@@ -9471,8 +9566,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4
@@ -9526,6 +9621,7 @@
 |   PRIMARY KEY (`id`),
 |   FULLTEXT KEY `ft_bio` (`bio`),
 |   KEY `idx_bio_prefix` (`bio`(32)),
+|   KEY `idx_created_desc` (`created_at` DESC) COMMENT 'newest first',
 |   KEY `idx_expr` ((lower(`status`))),
 |   KEY `idx_invisible` (`status`) /*!80000 INVISIBLE */,
 |   SPATIAL KEY `sp_coords` (`coords`),
@@ -9664,7 +9760,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.4.13
@@ -9688,17 +9784,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -9734,6 +9830,24 @@
 : int64 1
 : bytes
 |
+< row
+: bytes
+| accounts
+: bytes
+| idx_created_desc
+: bytes
+| created_at
+: bytes
+| D
+: int64 -1
+: null
+: int64 1
+: bytes
+| BTREE
+: int64 1
+: int64 1
+: bytes
+| newest first
 < row
 : bytes
 | accounts
@@ -9953,16 +10067,16 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 < row
@@ -10675,9 +10789,9 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -10696,7 +10810,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
@@ -10711,10 +10825,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -10727,10 +10841,10 @@
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_order_totals`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_order_totals
@@ -10758,14 +10872,14 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TRIGGER_NAME" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -10802,11 +10916,11 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -10821,13 +10935,13 @@
 > query
 | SHOW CREATE EVENT `omni_dump_roundtrip`.`ev_daily_check`
 < result
-< column "Event" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "time_zone" "VARCHAR"
-< column "Create Event" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Event" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "time_zone" "VARCHAR" "string"
+< column "Create Event" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | ev_daily_check
@@ -10860,12 +10974,12 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | orders
@@ -10908,8 +11022,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
@@ -10958,7 +11072,7 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -11089,8 +11203,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -11105,8 +11219,8 @@
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_range`
 < result
-< column "Table" "VARCHAR"
-< column "Create Table" "VARCHAR"
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "VARCHAR" "string"
 < row
 : bytes
 | metrics_range
@@ -11140,13 +11254,13 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 < row
 : bytes
 | fn_format_tag
@@ -11180,12 +11294,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_dump_roundtrip`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Function" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -11208,12 +11322,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_dump_roundtrip`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
 < column "Create Procedure" "VARCHAR"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -11253,17 +11367,17 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -11278,7 +11392,7 @@
 : bytes
 | 16384
 : bytes
-| 114688
+| 131072
 : bytes
 | 0
 : bytes
@@ -11412,8 +11526,8 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4

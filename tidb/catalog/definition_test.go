@@ -133,3 +133,23 @@ func TestDatabaseDefinitionWritesSequencesBeforeTables(t *testing.T) {
 		t.Fatalf("sequence at %d, table at %d:\n%s", seq, table, got)
 	}
 }
+
+// TestPrintIndexClauseWritesComment pins the index COMMENT a sync reads from
+// INDEX_COMMENT: without it the dump loses the comment on every secondary index.
+func TestPrintIndexClauseWritesComment(t *testing.T) {
+	var buf strings.Builder
+	index := &metadata.IndexMetadata{
+		Name:        "idx_v",
+		Type:        "BTREE",
+		Visible:     true,
+		Expressions: []string{"v"},
+		KeyLength:   []int64{-1},
+		Comment:     "owner's note",
+	}
+	if err := printIndexClause(&buf, index); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := buf.String(), ",\n  KEY `idx_v` (`v`) COMMENT 'owner''s note'"; got != want {
+		t.Errorf("clause = %q, want %q", got, want)
+	}
+}

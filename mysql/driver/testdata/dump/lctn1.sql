@@ -45,7 +45,7 @@ CREATE TABLE `accounts` (
   PRIMARY KEY (`id`),
   FULLTEXT KEY `ft_bio` (`bio`),
   KEY `idx_bio_prefix` (`bio`(32)),
-  KEY `idx_created_desc` (`created_at` DESC),
+  KEY `idx_created_desc` (`created_at` DESC) COMMENT 'newest first',
   KEY `idx_expr` ((lower(`status`))),
   KEY `idx_invisible` (`status`) /*!80000 INVISIBLE */,
   SPATIAL KEY `sp_coords` (`coords`),
