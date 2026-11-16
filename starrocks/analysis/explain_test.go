@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -36,4 +37,12 @@ func TestExplainStatementRejects(t *testing.T) {
 		_, err := ExplainStatement(statement)
 		require.Errorf(t, err, "%q", statement)
 	}
+}
+
+// A plan request over text with several parse failures reports the first one,
+// as the engine entry points do, not the ParseErrors summary.
+func TestExplainStatementReportsFirstParseError(t *testing.T) {
+	_, err := ExplainStatement("EXPLAIN SELECT exposes the SELECT's tables")
+	require.Error(t, err)
+	require.False(t, strings.Contains(err.Error(), "(and "), "error = %q", err)
 }
