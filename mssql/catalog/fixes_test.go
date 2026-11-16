@@ -684,3 +684,13 @@ func TestSkipDumpTableIsNotDroppedWithItsSchema(t *testing.T) {
 	require.NotContains(t, sql, "DROP SCHEMA [app]")
 	require.Contains(t, sql, "UNSUPPORTED: schema [app]")
 }
+
+func TestCaseDistinctTableNamesCoexist(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[Foo] ([a] int); CREATE TABLE [dbo].[foo] ([b] int);`)
+	require.NoError(t, err)
+	require.Len(t, c.GetSchema("dbo").Tables, 2)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "[Foo]")
+	require.Contains(t, def, "[foo]")
+}

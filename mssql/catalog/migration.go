@@ -49,6 +49,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		text := fmt.Sprintf("-- UNSUPPORTED: column change under schema-bound view %s; drop and recreate the view manually.\n", view)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
+	if view := blockingSchemaBoundDependentView(from, to, diff); view != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: replacing view %s under schema-bound dependent view %s; rebuild the dependent view manually.\n", view, view)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
 	if column := blockingComputedColumn(diff); column != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: column change under computed column %s; drop and recreate the computed column manually.\n", column)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
@@ -863,6 +867,37 @@ func blockingComputedColumn(diff *SchemaDiff) string {
 	return ""
 }
 
+func blockingSchemaBoundDependentView(from, to *Catalog, diff *SchemaDiff) string {
+	changed := make(map[string]bool)
+	for _, viewDiff := range diff.Views {
+		if viewDiff.Action == DiffAlter || viewDiff.Action == DiffDrop {
+			changed[viewDiff.SchemaName+"."+viewDiff.ViewName] = true
+		}
+	}
+	if len(changed) == 0 {
+		return ""
+	}
+	for _, catalog := range []*Catalog{from, to} {
+		if catalog == nil {
+			continue
+		}
+		for _, schema := range catalog.Metadata().Schemas {
+			for _, view := range schema.Views {
+				if !strings.Contains(strings.ToUpper(view.Definition), "SCHEMABINDING") {
+					continue
+				}
+				for name := range changed {
+					parts := strings.SplitN(name, ".", 2)
+					if len(parts) == 2 && !strings.EqualFold(view.Name, parts[1]) && strings.Contains(strings.ToLower(view.Definition), strings.ToLower(parts[1])) {
+						return quote(schema.Name) + "." + quote(view.Name)
+					}
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func blockingSchemaBoundView(from, to *Catalog, diff *SchemaDiff) string {
 	for _, tableDiff := range diff.Tables {
 		changed := false
@@ -1033,6 +1068,9 @@ func migrationTableFunctions(diff *SchemaDiff) map[string]bool {
 		}
 		for _, column := range tableDiff.NewTable.Columns {
 			expressions = append(expressions, column.Default, column.Type)
+		}
+		for _, check := range tableDiff.NewTable.CheckConstraints {
+			expressions = append(expressions, check.Expression)
 		}
 	}
 	referenced := make(map[string]bool)
@@ -1700,11 +1738,11 @@ func buildMigrationStorageParams(storage *metadata.StorageConfig) []string {
 	if storage.Online {
 		params = append(params, "ONLINE = ON")
 	}
-	if storage.AllowRowLocks {
-		params = append(params, "ALLOW_ROW_LOCKS = ON")
+	if !storage.AllowRowLocks {
+		params = append(params, "ALLOW_ROW_LOCKS = OFF")
 	}
-	if storage.AllowPageLocks {
-		params = append(params, "ALLOW_PAGE_LOCKS = ON")
+	if !storage.AllowPageLocks {
+		params = append(params, "ALLOW_PAGE_LOCKS = OFF")
 	}
 	if storage.Maxdop > 0 {
 		params = append(params, fmt.Sprintf("MAXDOP = %d", storage.Maxdop))

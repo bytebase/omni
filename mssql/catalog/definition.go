@@ -115,6 +115,9 @@ func functionsReferencedByTables(schemas []*metadata.SchemaMetadata) map[string]
 			for _, column := range table.Columns {
 				expressions = append(expressions, column.Default, column.Type)
 			}
+			for _, check := range table.CheckConstraints {
+				expressions = append(expressions, check.Expression)
+			}
 		}
 	}
 	referenced := make(map[string]bool)

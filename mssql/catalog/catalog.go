@@ -75,6 +75,9 @@ func (c *Catalog) ListSchemaNames() []string {
 
 // GetTable returns the named table in the named schema, or nil.
 func (c *Catalog) GetTable(schemaName, tableName string) *metadata.TableMetadata {
+	if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil {
+		return table
+	}
 	return c.tableByName[tableKey{schema: normalize(schemaName), table: normalize(tableName)}]
 }
 
@@ -736,6 +739,16 @@ func (c *Catalog) getOrCreateTable(schemaName, tableName string) *metadata.Table
 	schemaName = normalizeOrDefault(schemaName, c.defaultSchema)
 	key := tableKey{schema: normalize(schemaName), table: normalize(tableName)}
 	if table := c.tableByName[key]; table != nil {
+		if table.Name == tableName {
+			return table
+		}
+		// Case-distinct names coexist in a case-sensitive database: keep the
+		// second one under a sentinel key instead of merging it.
+		key = tableKey{schema: "case:" + schemaName, table: "case:" + tableName}
+		if table := c.tableByName[key]; table != nil {
+			return table
+		}
+	} else if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil {
 		return table
 	}
 	table := &metadata.TableMetadata{

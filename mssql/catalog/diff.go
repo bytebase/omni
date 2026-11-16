@@ -1007,43 +1007,10 @@ func procedureDefinitionsEqual(a, b string) bool {
 // because Bytebase applies it to every engine.
 func normalizeCheckExpression(expression string) string {
 	expression = strings.TrimSpace(expression)
-	for strings.HasPrefix(expression, "(") && strings.HasSuffix(expression, ")") {
-		inner := expression[1 : len(expression)-1]
-		parenCount := 0
-		canRemove := true
-		for _, ch := range inner {
-			switch ch {
-			case '(':
-				parenCount++
-			case ')':
-				parenCount--
-				if parenCount < 0 {
-					canRemove = false
-				}
-			}
-			if !canRemove {
-				break
-			}
-		}
-		if canRemove && parenCount == 0 {
-			expression = inner
-		} else {
-			break
-		}
+	for strings.HasPrefix(expression, "(") && strings.HasSuffix(expression, ")") && balancedOuterParens(expression) {
+		expression = strings.TrimSpace(expression[1 : len(expression)-1])
 	}
-	expression = strings.ReplaceAll(expression, "'::interval", "'")
-	if strings.Contains(expression, "CURRENT_DATE") && strings.Contains(expression, "'") && !strings.Contains(expression, "INTERVAL") {
-		expression = strings.ReplaceAll(expression, "CURRENT_DATE - '", "CURRENT_DATE - INTERVAL '")
-		expression = strings.ReplaceAll(expression, "CURRENT_DATE + '", "CURRENT_DATE + INTERVAL '")
-	}
-	expression = strings.ReplaceAll(expression, "(CURRENT_DATE - INTERVAL", "CURRENT_DATE - INTERVAL")
-	expression = strings.ReplaceAll(expression, "(CURRENT_DATE + INTERVAL", "CURRENT_DATE + INTERVAL")
-	if strings.Contains(expression, "year'") && strings.Contains(expression, "INTERVAL") {
-		expression = strings.ReplaceAll(expression, "year')", "year'")
-	}
-	expression = strings.ReplaceAll(expression, " 00:00:00'::timestamp without time zone", "'::timestamp")
-	expression = strings.ReplaceAll(expression, "::numeric", "")
-	return strings.TrimSpace(expression)
+	return normalizeExpression(expression)
 }
 
 func expressionsEqual(a, b string) bool {
@@ -1314,6 +1281,11 @@ func sortedProcedureNames(schema *metadata.SchemaMetadata) []string {
 
 func tableByName(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {
 	for _, table := range schema.Tables {
+		if table.Name == name {
+			return table
+		}
+	}
+	for _, table := range schema.Tables {
 		if strings.EqualFold(table.Name, name) {
 			return table
 		}
@@ -1322,6 +1294,11 @@ func tableByName(schema *metadata.SchemaMetadata, name string) *metadata.TableMe
 }
 
 func viewByName(schema *metadata.SchemaMetadata, name string) *metadata.ViewMetadata {
+	for _, view := range schema.Views {
+		if view.Name == name {
+			return view
+		}
+	}
 	for _, view := range schema.Views {
 		if strings.EqualFold(view.Name, name) {
 			return view
@@ -1340,6 +1317,11 @@ func procedureByName(schema *metadata.SchemaMetadata, name string) *metadata.Pro
 }
 
 func columnByName(table *metadata.TableMetadata, name string) *metadata.ColumnMetadata {
+	for _, column := range table.Columns {
+		if column.Name == name {
+			return column
+		}
+	}
 	for _, column := range table.Columns {
 		if strings.EqualFold(column.Name, name) {
 			return column
