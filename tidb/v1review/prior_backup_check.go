@@ -186,52 +186,69 @@ func tableExprRefs(expr ast.TableExpr, database string, ctes map[string]bool) []
 
 // deleteTargets returns the tables a DELETE deletes from. A multi-table DELETE
 // names its targets by the aliases or names its USING clause declares, so each
-// target is resolved there to the table that clause binds it to; a name the
-// clause does not declare is kept as written.
+// target is resolved there to the table that clause binds it to before any
+// WITH clause is consulted: a physical table an alias names is a target even
+// when a CTE of that name exists. A target the clause does not declare is kept
+// as written, as V1 grouped it.
 func deleteTargets(stmt *ast.DeleteStmt, database string) []priorBackupTable {
 	ctes := cteNames(stmt.CTEs)
-	targets := deleteTables(stmt.Tables, database, ctes)
 	if len(stmt.Using) == 0 {
-		return targets
+		return deleteTables(stmt.Tables, database, ctes)
 	}
-	for i, target := range targets {
-		if table, ok := deleteTargetTable(target.table, stmt.Using, database, ctes); ok {
-			targets[i] = table
+	var result []priorBackupTable
+	for _, target := range stmt.Tables {
+		ref, ok := target.(*ast.TableRef)
+		if !ok || ref == nil {
+			result = append(result, tableExprRefs(target, database, ctes)...)
+			continue
 		}
+		if table, ok := deleteTargetTable(ref, stmt.Using, database, ctes); ok {
+			result = append(result, table)
+			continue
+		}
+		result = append(result, tableExprRefs(target, database, ctes)...)
 	}
-	return targets
+	return result
 }
 
 // deleteTargetTable returns the table a multi-table DELETE's USING clause
-// binds name to, by an alias or by a table's own name. ok is false when the
-// clause declares no such name.
-func deleteTargetTable(name string, using []ast.TableExpr, database string, ctes map[string]bool) (priorBackupTable, bool) {
+// binds target to. ok is false when the clause declares no such target.
+func deleteTargetTable(target *ast.TableRef, using []ast.TableExpr, database string, ctes map[string]bool) (priorBackupTable, bool) {
 	for _, expr := range using {
-		if table, ok := tableExprByName(name, expr, database, ctes); ok {
+		if table, ok := tableExprByTarget(target, expr, database, ctes); ok {
 			return table, true
 		}
 	}
 	return priorBackupTable{}, false
 }
 
-func tableExprByName(name string, expr ast.TableExpr, database string, ctes map[string]bool) (priorBackupTable, bool) {
+func tableExprByTarget(target *ast.TableRef, expr ast.TableExpr, database string, ctes map[string]bool) (priorBackupTable, bool) {
 	switch n := expr.(type) {
 	case *ast.TableRef:
 		if isCTEReference(n, ctes) {
 			return priorBackupTable{}, false
 		}
-		if !strings.EqualFold(n.Name, name) && (n.Alias == "" || !strings.EqualFold(n.Alias, name)) {
+		refDatabase := database
+		if n.Schema != "" {
+			refDatabase = n.Schema
+		}
+		targetDatabase := database
+		if target.Schema != "" {
+			targetDatabase = target.Schema
+		}
+		// An alias names one table in a statement, so it needs no qualifier; a
+		// table's own name can be two databases' and needs the target's.
+		byAlias := n.Alias != "" && strings.EqualFold(n.Alias, target.Name)
+		byName := strings.EqualFold(n.Name, target.Name) && strings.EqualFold(targetDatabase, refDatabase)
+		if !byAlias && !byName {
 			return priorBackupTable{}, false
 		}
-		if n.Schema != "" {
-			database = n.Schema
-		}
-		return priorBackupTable{database: database, table: n.Name}, true
+		return priorBackupTable{database: refDatabase, table: n.Name}, true
 	case *ast.JoinClause:
-		if table, ok := tableExprByName(name, n.Left, database, ctes); ok {
+		if table, ok := tableExprByTarget(target, n.Left, database, ctes); ok {
 			return table, true
 		}
-		return tableExprByName(name, n.Right, database, ctes)
+		return tableExprByTarget(target, n.Right, database, ctes)
 	case *ast.SubqueryExpr:
 		return priorBackupTable{}, false
 	default:

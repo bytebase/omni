@@ -423,6 +423,16 @@ func TestPriorBackupCheckMixedDML(t *testing.T) {
 			want: []priorBackupFinding{mixed("test.z")},
 		},
 		{
+			name: "an alias of a physical table is a target beside a CTE of its name",
+			sql:  "UPDATE test.c SET id = 2; WITH c AS (SELECT 1 AS id) DELETE c FROM test.c AS c WHERE c.id = 1",
+			want: []priorBackupFinding{mixed("test.c")},
+		},
+		{
+			name: "a qualified target finds its table among same-named ones",
+			sql:  "UPDATE db2.t SET id = 1; DELETE db2.t FROM db1.t JOIN db2.t ON db1.t.id = db2.t.id",
+			want: []priorBackupFinding{mixed("db2.t")},
+		},
+		{
 			name: "a WITH reference is not a table",
 			sql:  "WITH t AS (SELECT 1 AS id) UPDATE t SET id = 2; DELETE FROM t",
 			want: nil,
