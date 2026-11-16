@@ -17,6 +17,13 @@ import (
 // ANTLR resolvers Bytebase shipped for BigQuery and Spanner. They are the
 // masking-parity bar for this package and must be reproduced, never re-recorded
 // against this implementation.
+//
+// The two exceptions, both deliberate behavior changes after the move, are the
+// `predicatecolumns` of every recorded row (the legacy resolvers never populated
+// them) and the trailing `predicate columns:` rows that pin that contract
+// directly: which positions count as a row condition, and how a reference is
+// resolved to a physical column. Those expectations were read off each
+// statement, not recorded from the implementation.
 
 type spanCorpusCase struct {
 	Description     string `yaml:"description"`

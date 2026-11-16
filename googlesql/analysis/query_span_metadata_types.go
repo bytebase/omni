@@ -85,11 +85,21 @@ type ResolvedQuerySpanResult struct {
 
 // ResolvedQuerySpan is a query span resolved against metadata.
 type ResolvedQuerySpan struct {
-	Type             QueryType
-	SourceColumns    ColumnSet
+	Type          QueryType
+	SourceColumns ColumnSet
+	// PredicateColumns holds the columns the statement's row conditions read —
+	// WHERE, JOIN ... ON / USING, and HAVING — as physical resources resolved the
+	// same way result lineage is, so they carry the dialect's name model. Empty
+	// for a statement that produces no result set (DML, DDL, Explain, Unknown),
+	// which keeps no lineage either.
 	PredicateColumns ColumnSet
 	Results          []ResolvedQuerySpanResult
 	NotFoundError    error
+
+	// predicateColumnsUnresolved is why PredicateColumns is empty when one of the
+	// statement's row conditions could not be resolved: an empty set is honest, a set
+	// missing a read is not, so such a statement reports none at all.
+	predicateColumnsUnresolved string
 }
 
 // ResourceNotFoundError reports a resource missing from the synced metadata.

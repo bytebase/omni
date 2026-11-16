@@ -170,6 +170,13 @@ func (s *leafSet) soleBase() *relation {
 // column (case-insensitive) of the derived relations, in FROM order: what
 // projectionColumnSources without base stars finds scanning each non-base
 // relation in turn.
+func (s *leafSet) columnProjection(column string) *projColumn {
+	if _, ok := s.derivedColumn(column); !ok {
+		return nil
+	}
+	return s.columns[foldKey(column)]
+}
+
 func (s *leafSet) derivedColumn(column string) ([]ColumnRef, bool) {
 	key := foldKey(column)
 	if c, ok := s.columns[key]; ok {

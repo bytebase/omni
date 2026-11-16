@@ -63,6 +63,7 @@ func TestQuerySpanWideListsStayLinear(t *testing.T) {
 		{name: "dataset-qualified columns over many tables", sql: "SELECT " + numberedList(26000, "ds.t%d.a", ", ") + " FROM " + numberedList(26000, "ds.t%d", ", ")},
 		{name: "bare columns over many derived tables", sql: "SELECT " + numberedList(22000, "c%d", ", ") + " FROM " + numberedList(22000, "(SELECT a AS c%d FROM t) x%d", ", ")},
 		{name: "qualified columns of a wide derived table", sql: "SELECT " + numberedList(44000, "x.c%d", ", ") + " FROM (SELECT " + numberedList(44000, "a%d AS c%d", ", ") + " FROM t) x"},
+		{name: "qualified predicates over a wide derived table", sql: "SELECT 1 FROM (SELECT " + numberedList(12000, "a%d AS c%d", ", ") + " FROM t) d WHERE " + numberedList(12000, "d.c%d > 0", " AND ")},
 		{name: "columns behind the stars of a USING join", sql: "SELECT " + numberedList(22000, "x.a%d", ", ") + " FROM (SELECT * FROM t JOIN u USING (" + numberedList(22000, "k%d", ", ") + ")) x"},
 		{name: "BY NAME", sql: "SELECT " + numberedList(28000, "a%d", ", ") + " FROM t UNION ALL BY NAME SELECT " + numberedList(28000, "a%d", ", ") + " FROM u"},
 		{name: "BY NAME ON", sql: "SELECT " + numberedList(22000, "a%d", ", ") + " FROM t UNION ALL BY NAME ON (" + numberedList(22000, "a%d", ", ") +

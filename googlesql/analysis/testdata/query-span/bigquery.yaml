@@ -228,7 +228,17 @@
         schema: ""
         table: people
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: ADDRESS
+        column: ID
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PEOPLE
+        column: ID
 - description: Join using
   statement: SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID USING (ID);
   defaultDatabase: ds1
@@ -317,7 +327,17 @@
         schema: ""
         table: people
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: ADDRESS
+        column: ID
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PEOPLE
+        column: ID
 - description: Simple join
   statement: SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID;
   defaultDatabase: ds1
@@ -398,7 +418,17 @@
         schema: ""
         table: people
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: ADDRESS
+        column: PEOPLE_ID
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PEOPLE
+        column: ID
 - description: Recursive cte
   statement: |-
     WITH RECURSIVE CTE_01 AS (
@@ -637,7 +667,17 @@
         schema: ""
         table: paintings
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: GALLERIES
+        column: ID
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PAINTINGS
+        column: GALLERY_ID
 - description: Expression subquery
   statement: SELECT (SELECT NAME FROM people), ID FROM people;
   defaultDatabase: ds1
@@ -1484,7 +1524,17 @@
         schema: ""
         table: b
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: b
+        column: aid
 - description: 'join: JOIN ... USING(K) explicit columns (the coalesced K reads from both sides; X from a, Y from b)'
   statement: SELECT K, X, Y FROM a JOIN b USING (K);
   defaultDatabase: ds1
@@ -1550,7 +1600,17 @@
         schema: ""
         table: b
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: K
+      - server: ""
+        database: ds1
+        schema: ""
+        table: b
+        column: K
 - description: 'join: self-join FROM t x JOIN t y ON ...'
   statement: SELECT x.id, y.parent_id FROM t x JOIN t y ON x.parent_id = y.id;
   defaultDatabase: ds1
@@ -1595,7 +1655,17 @@
         schema: ""
         table: t
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: t
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: t
+        column: parent_id
 - description: 'join: 3-table join (unqualified cols resolve across all three sides by name)'
   statement: SELECT id, lbl, nt FROM a JOIN b ON a.id = b.aid JOIN c ON b.aid = c.bid;
   defaultDatabase: ds1
@@ -1662,7 +1732,22 @@
         schema: ""
         table: c
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: b
+        column: aid
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: bid
 - description: 'cte: simple'
   statement: WITH c AS (SELECT id, name FROM users) SELECT id, name FROM c;
   defaultDatabase: ds1
@@ -1798,7 +1883,12 @@
         schema: ""
         table: seed
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: seed
+        column: n
 - description: 'cte: nested CTEs (outer + inner WITH)'
   statement: WITH outer_cte AS (WITH inner_cte AS (SELECT id, name FROM users) SELECT id, name FROM inner_cte) SELECT id, name FROM outer_cte;
   defaultDatabase: ds1
@@ -1903,7 +1993,17 @@
         schema: ""
         table: nodes
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: nodes
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: nodes
+        column: parent_id
 - description: 'derived: SELECT * FROM (SELECT ...) d'
   statement: SELECT * FROM (SELECT id, name FROM users) d;
   defaultDatabase: ds1
@@ -2320,7 +2420,17 @@
         schema: ""
         table: b
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: K
+      - server: ""
+        database: ds1
+        schema: ""
+        table: b
+        column: K
 - description: 'combo: SELECT * FROM cte UNION ALL SELECT * FROM othercte (each CTE projects a subset of a wider base; the * over each reproduces {id,name}, then the set-op position-merges)'
   statement: WITH cte AS (SELECT id, name FROM users), othercte AS (SELECT id, name FROM members) SELECT * FROM cte UNION ALL SELECT * FROM othercte;
   defaultDatabase: ds1
@@ -2442,7 +2552,17 @@
         schema: ""
         table: b
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: b
+        column: aid
 - description: 'join: CROSS JOIN (comma) emits both sides'
   statement: SELECT id, lbl FROM a, b;
   defaultDatabase: ds1
@@ -2564,7 +2684,17 @@
         schema: ""
         table: b
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: b
+        column: aid
 - description: 'derived: SELECT a FROM (SELECT a,b,c FROM t) — outer projects one column of a 3-column derived relation'
   statement: SELECT a FROM (SELECT a, b, c FROM t) d;
   defaultDatabase: ds1
@@ -2966,7 +3096,17 @@
         schema: ""
         table: t3
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: t1
+        column: keep
+      - server: ""
+        database: ds1
+        schema: ""
+        table: t2
+        column: jid
 - description: 'leak-harden recursive base-star arm: WITH RECURSIVE r AS (SELECT * FROM seed UNION ALL SELECT * FROM r) SELECT * FROM r (base-star recursive arm; the fixpoint must publish seed lineage exactly once — NOT duplicate it into 4 cols; seed.sec sensitive)'
   statement: WITH RECURSIVE r AS (SELECT * FROM seed UNION ALL SELECT * FROM r) SELECT * FROM r;
   defaultDatabase: ds1
@@ -3063,3 +3203,2750 @@
         table: t2
         column: ""
     predicatecolumns: []
+- description: "predicate columns: WHERE — ORDER BY is not a row condition"
+  statement: SELECT display_name FROM audit_users WHERE uid = 42 ORDER BY email
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_users",
+              "columns":  [
+                {
+                  "name":  "uid"
+                },
+                {
+                  "name":  "display_name"
+                },
+                {
+                  "name":  "email"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "DISPLAY_NAME"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_users
+            column: display_name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_users
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_users
+        column: uid
+- description: "predicate columns: none — GROUP BY and a HAVING over COUNT(*) read no row condition"
+  statement: SELECT role_name, COUNT(*) AS c FROM audit_roles GROUP BY role_name HAVING COUNT(*) > 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_roles",
+              "columns":  [
+                {
+                  "name":  "role_name"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "ROLE_NAME"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_roles
+            column: role_name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+      - name: "C"
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_roles
+        column: ""
+    predicatecolumns: []
+- description: "predicate columns: an IN subquery's WHERE"
+  statement: SELECT display_name FROM audit_users WHERE email IN (SELECT email FROM audit_contacts WHERE active = TRUE)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_users",
+              "columns":  [
+                {
+                  "name":  "uid"
+                },
+                {
+                  "name":  "display_name"
+                },
+                {
+                  "name":  "email"
+                }
+              ]
+            },
+            {
+              "name":  "audit_contacts",
+              "columns":  [
+                {
+                  "name":  "email"
+                },
+                {
+                  "name":  "active"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "DISPLAY_NAME"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_users
+            column: display_name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_contacts
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_users
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_contacts
+        column: active
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_contacts
+        column: email
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_users
+        column: email
+
+- description: "predicate columns: JOIN ... ON and WHERE over aliases"
+  statement: SELECT u.display_name FROM audit_users u JOIN audit_members m ON u.uid = m.uid WHERE m.role_name = 'admin'
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_users",
+              "columns":  [
+                {
+                  "name":  "uid"
+                },
+                {
+                  "name":  "display_name"
+                }
+              ]
+            },
+            {
+              "name":  "audit_members",
+              "columns":  [
+                {
+                  "name":  "uid"
+                },
+                {
+                  "name":  "role_name"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "DISPLAY_NAME"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_users
+            column: display_name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_members
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_users
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_members
+        column: role_name
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_members
+        column: uid
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_users
+        column: uid
+- description: "predicate columns: a HAVING condition, not its GROUP BY key"
+  statement: SELECT dept, COUNT(*) AS c FROM audit_staff GROUP BY dept HAVING MAX(salary) > 10
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_staff",
+              "columns":  [
+                {
+                  "name":  "dept"
+                },
+                {
+                  "name":  "salary"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "DEPT"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_staff
+            column: dept
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+      - name: "C"
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_staff
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_staff
+        column: salary
+- description: "predicate columns: a correlated outer reference resolves through its alias, not by column name"
+  statement: SELECT g.Name FROM audit_galleries g WHERE EXISTS (SELECT 1 FROM audit_paintings p WHERE g.Id = p.Title)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_galleries",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Name"
+                }
+              ]
+            },
+            {
+              "name":  "audit_paintings",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Title"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "NAME"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_galleries
+            column: Name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_galleries
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_paintings
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_galleries
+        column: Id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_paintings
+        column: Title
+- description: "predicate columns: a HAVING over a select-list alias"
+  statement: SELECT cost_center, SUM(amount) AS total FROM audit_ledger GROUP BY cost_center HAVING total > 100
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_ledger",
+              "columns":  [
+                {
+                  "name":  "cost_center"
+                },
+                {
+                  "name":  "amount"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "COST_CENTER"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_ledger
+            column: cost_center
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+      - name: "TOTAL"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_ledger
+            column: amount
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_ledger
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_ledger
+        column: amount
+- description: "predicate columns: a scalar subquery's output in a WHERE"
+  statement: SELECT 1 FROM audit_flags WHERE (SELECT MAX(amount) FROM audit_ledger) > 100
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_flags",
+              "columns":  [
+                {
+                  "name":  "flag"
+                }
+              ]
+            },
+            {
+              "name":  "audit_ledger",
+              "columns":  [
+                {
+                  "name":  "amount"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_flags
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_ledger
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_ledger
+        column: amount
+- description: "predicate columns: a USING key a CTE operand projects under another name"
+  statement: WITH c AS (SELECT secret AS k FROM audit_vault) SELECT 1 FROM c JOIN audit_keys USING (k)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_keys",
+              "columns":  [
+                {
+                  "name":  "k"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_keys
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_keys
+        column: k
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+- description: "predicate columns: a correlated reference into an outer body's CTE projection"
+  statement: WITH c AS (SELECT secret AS k FROM audit_vault) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM audit_keys u WHERE c.k = u.id)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_keys",
+              "columns":  [
+                {
+                  "name":  "id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_keys
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_keys
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+- description: "predicate columns: a recursive CTE arm reading its own renamed column"
+  statement: WITH RECURSIVE c AS (SELECT secret AS k FROM audit_vault UNION ALL SELECT k + 1 FROM c WHERE k < 10) SELECT 1 FROM c
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+- description: "predicate columns: a recursive arm that rotates its columns reads both columns' lineage"
+  statement: WITH RECURSIVE r AS (SELECT secret, other FROM audit_vault UNION ALL SELECT other, secret FROM r WHERE other IS NOT NULL) SELECT 1 FROM r
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                },
+                {
+                  "name":  "other"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: r
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: other
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+- description: "predicate columns: a star subquery's whole relation in a row condition"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * FROM audit_secrets)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_secrets",
+              "columns": [
+                {
+                  "name": "secret"
+                },
+                {
+                  "name": "token"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: token
+- description: "predicate columns: an EXISTS body's projection is not a row condition"
+  statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT secret FROM audit_secrets)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_secrets",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: ""
+    predicatecolumns: []
+- description: "predicate columns: two recursive CTEs keep their own placeholder lineage"
+  statement: WITH RECURSIVE r1 AS (SELECT a AS k FROM audit_t1 UNION ALL SELECT k + 1 FROM r1 WHERE k < 5), r2 AS (SELECT b AS k FROM audit_t2 UNION ALL SELECT k + 1 FROM r2 WHERE k < 3) SELECT 1 FROM r1, r2
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t1",
+              "columns": [
+                {
+                  "name": "a"
+                }
+              ]
+            },
+            {
+              "name": "audit_t2",
+              "columns": [
+                {
+                  "name": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t1
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t2
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: r1
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: r2
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t1
+        column: a
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t2
+        column: b
+- description: "predicate columns: a grouped star subquery reads its relation's columns"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (id) FROM audit_secrets)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_guards",
+              "columns":  [
+                {
+                  "name":  "flag"
+                }
+              ]
+            },
+            {
+              "name":  "audit_secrets",
+              "columns":  [
+                {
+                  "name":  "id"
+                },
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: secret
+
+- description: "predicate columns: an unqualified condition on an enclosing CTE column"
+  statement: WITH c AS (SELECT secret AS k FROM audit_vault) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM audit_keys WHERE k = 1)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_keys",
+              "columns":  [
+                {
+                  "name":  "id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_keys
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a HAVING over a constant select alias reads no column"
+  statement: SELECT COUNT(*) AS n, 1 AS secret FROM audit_vault HAVING secret = 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "N"
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+      - name: "SECRET"
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a subquery inside a WITH expression"
+  statement: SELECT 1 FROM audit_vault WHERE WITH(x AS 1, (SELECT MAX(secret) FROM audit_vault) > x)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+
+- description: "predicate columns: EXTRACT's date part is not a column"
+  statement: SELECT 1 FROM audit_vault WHERE EXTRACT(YEAR FROM d) = 2020
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "d"
+                },
+                {
+                  "name":  "year"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: d
+
+- description: "predicate columns: two stars over one relation intersect their EXCEPT lists"
+  statement: SELECT 1 FROM audit_t WHERE 5 IN (SELECT * EXCEPT (id) FROM audit_t) OR 5 IN (SELECT * EXCEPT (secret) FROM audit_t)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "id"
+                },
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+
+- description: "predicate columns: a REPLACE target is read through its replacement, not the star"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (id) REPLACE (0 AS secret) FROM audit_t)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_guards",
+              "columns":  [
+                {
+                  "name":  "flag"
+                }
+              ]
+            },
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "id"
+                },
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a nested scalar subquery inside a filter subquery's projection"
+  statement: SELECT 1 FROM audit_t WHERE (SELECT (SELECT MAX(secret) FROM audit_t)) > 100
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a path head outside the SQL scope is a struct field"
+  statement: SELECT 1 FROM payload UNION ALL SELECT 1 FROM audit_t WHERE payload.secret = 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "payload",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "payload"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: payload
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: payload
+
+- description: "predicate columns: a qualified derived column reading a constant"
+  statement: WITH c AS (SELECT 1 AS secret) SELECT 1 FROM c CROSS JOIN audit_t WHERE c.secret = 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a recursive USING key keeps its placeholder lineage"
+  statement: WITH RECURSIVE c AS (SELECT secret AS k FROM audit_t UNION ALL SELECT c.k + 1 FROM c JOIN audit_u USING (k)) SELECT 1 FROM c
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_u",
+              "columns":  [
+                {
+                  "name":  "k"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: k
+
+- description: "predicate columns: an unrestricted star clears an EXCEPT star's exclusions"
+  statement: SELECT 1 FROM audit_t WHERE 5 IN (SELECT * EXCEPT (id) FROM audit_t) OR 5 IN (SELECT * FROM audit_t)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "id"
+                },
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: id
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+- description: "predicate columns: a deferred set-operation arm's REPLACE is what the condition reads"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (secret) REPLACE (secret AS id) FROM audit_t UNION ALL SELECT 0)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: an EXISTS body's nested projection is not a row condition"
+  statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT (SELECT secret FROM audit_t))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: an inner derived column shadows an enclosing CTE column"
+  statement: WITH c AS (SELECT secret AS k FROM audit_t) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS k) u WHERE k = 1)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a star EXCEPT excludes a concrete segment by output name"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (id) FROM (SELECT secret AS id, public AS x FROM audit_t))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                },
+                {
+                  "name": "public"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: public
+
+- description: "predicate columns: a recursive arm's written fallback retires with its placeholder"
+  statement: WITH RECURSIVE c AS (SELECT secret AS k FROM audit_t UNION ALL SELECT c.k + 1 FROM c CROSS JOIN audit_u WHERE c.k < 10) SELECT 1 FROM c
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "k"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+
+- description: "predicate columns: a struct root that an enclosing CTE projects"
+  statement: WITH c AS (SELECT secret AS payload FROM audit_t) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM audit_u WHERE payload.field = 1)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_u",
+              "columns":  [
+                {
+                  "name":  "id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: the nearest enclosing projection shadows an outer one"
+  statement: WITH c AS (SELECT secret AS k FROM audit_t) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM (SELECT public AS k FROM audit_p) u WHERE EXISTS (SELECT 1 FROM audit_v WHERE k = 1))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_p",
+              "columns":  [
+                {
+                  "name":  "public"
+                }
+              ]
+            },
+            {
+              "name":  "audit_v",
+              "columns":  [
+                {
+                  "name":  "id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_p
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a BY NAME arm of a filter subquery projects only its ON columns"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * FROM audit_t UNION ALL BY NAME ON (id) SELECT 0 AS id)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_guards",
+              "columns":  [
+                {
+                  "name":  "flag"
+                }
+              ]
+            },
+            {
+              "name":  "audit_t",
+              "columns":  [
+                {
+                  "name":  "id"
+                },
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a HAVING alias used as a struct root"
+  statement: SELECT ANY_VALUE(secret) AS payload FROM audit_t HAVING payload.field = 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "PAYLOAD"
+        sourcecolumns:
+          - server: ""
+            database: ds1
+            schema: ""
+            table: audit_t
+            column: secret
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+
+- description: "predicate columns: an inner derived constant shadows an enclosing column"
+  statement: SELECT 1 FROM audit_t WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS secret) c WHERE secret = 1)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a BY NAME arm's concrete outputs outside ON are not read"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * FROM audit_t UNION ALL BY NAME ON (id) SELECT 0 AS id, secret FROM audit_u)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: an EXISTS inside a filter subquery's projection reads no value"
+  statement: SELECT 1 FROM audit_guards WHERE (SELECT EXISTS (SELECT (SELECT secret FROM audit_t)))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a withheld recursive placeholder does not silence a same-named read"
+  statement: WITH RECURSIVE c AS (SELECT secret AS k FROM audit_t UNION ALL SELECT k + 1 FROM c WHERE k < 10) SELECT 1 FROM audit_u CROSS JOIN audit_v WHERE k = 1 AND EXISTS (SELECT 1 FROM c)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "k"
+                }
+              ]
+            },
+            {
+              "name": "audit_v",
+              "columns": [
+                {
+                  "name": "id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: k
+
+- description: "predicate columns: a REPLACE output is not read even under BY NAME"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * REPLACE (0 AS id) FROM audit_t UNION ALL BY NAME ON (id) SELECT 0 AS id)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: an unused CTE inside a filter subquery reads nothing"
+  statement: SELECT 1 FROM audit_guards WHERE (WITH c AS (SELECT (SELECT secret FROM audit_t) AS k) SELECT 1) = 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: an earlier legitimate read survives a recursive fallback retirement"
+  statement: WITH RECURSIVE a AS (SELECT 1 FROM audit_u CROSS JOIN audit_v WHERE k = 1), c AS (SELECT secret AS k FROM audit_t UNION ALL SELECT k + 1 FROM c WHERE k < 10) SELECT 1 FROM a, c
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "k"
+                }
+              ]
+            },
+            {
+              "name": "audit_v",
+              "columns": [
+                {
+                  "name": "id"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: a
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: k
+
+- description: "predicate columns: an INTERSECT under EXISTS compares the values it projects"
+  statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns: []
+- description: "predicate columns: a value-comparing branch on a set operation's right side"
+  statement: SELECT 1 FROM audit_t WHERE EXISTS (SELECT 0 WHERE FALSE UNION ALL (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a value-comparing body inside a filter subquery's projection"
+  statement: SELECT 1 FROM audit_t WHERE (SELECT EXISTS (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a value-comparing derived relation inside an EXISTS body"
+  statement: SELECT 1 FROM audit_t WHERE EXISTS (SELECT 1 FROM (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u) d)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: secret
+- description: "predicate columns: a USING key a later join introduces"
+  statement: SELECT 1 FROM audit_t JOIN audit_u ON audit_t.a = audit_u.a JOIN audit_v USING (b)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "a"
+                },
+                {
+                  "name": "b"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "a"
+                }
+              ]
+            },
+            {
+              "name": "audit_v",
+              "columns": [
+                {
+                  "name": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: a
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: b
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: a
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: b

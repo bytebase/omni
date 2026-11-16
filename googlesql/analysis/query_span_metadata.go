@@ -119,15 +119,26 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 
 	results := q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap)
 
+	unresolved := rawSpan.filterUnresolved
+	predicateColumns := ColumnSet{}
+	if unresolved == "" {
+		var reason string
+		predicateColumns, reason = q.mapPredicateColumns(rawSpan, fullSourceColumns)
+		unresolved = reason
+	}
+	if unresolved != "" {
+		// Fail closed: a predicate set that misses one of the statement's row
+		// conditions is worse than none, because the masking consumer acts on what it
+		// contains.
+		predicateColumns = ColumnSet{}
+	}
+
 	span := &ResolvedQuerySpan{
-		Type:          queryType,
-		SourceColumns: accessTables,
-		// PredicateColumns is intentionally left empty: the legacy GoogleSQL
-		// extractors never populated predicate-column lineage (the recorded
-		// corpora have predicatecolumns: [] on every case). The walker DOES
-		// collect predicate columns; surfacing them is a separate behavior
-		// change for the masking layer, not part of this move.
-		Results: results,
+		Type:                       queryType,
+		SourceColumns:              accessTables,
+		PredicateColumns:           predicateColumns,
+		Results:                    results,
+		predicateColumnsUnresolved: unresolved,
 	}
 	if notFound != nil {
 		span.NotFoundError = notFound
@@ -643,6 +654,92 @@ func resultName(r ColumnInfo) string {
 		name = r.SourceColumns[0].Column
 	}
 	return strings.ToUpper(name)
+}
+
+// mapPredicateColumns maps the walker's row-condition column refs (WHERE,
+// JOIN ... ON / USING, HAVING) onto the expanded source columns — matching on
+// column name, and on the table, database and schema the walk resolved the ref
+// to. The resolved resources therefore carry the dialect's name model: the
+// default database fill-in, the Spanner schema bucketing, and the
+// METADATA-canonical table and column names.
+//
+// A qualified ref whose relation the expansion cannot attribute — a recursive
+// CTE's self-reference, a relation only an outer query body knows — falls back
+// to matching the column name alone, because under-attributing a row condition
+// leaves a sensitive predicate unchecked while over-attributing only makes the
+// check stricter. A map-independent ref that matches no expanded column (a
+// referenced column the metadata does not hold, a pseudo-column) is dropped: a
+// resource the metadata does not have cannot carry a policy.
+func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSet) (ColumnSet, string) {
+	out := ColumnSet{}
+	if span == nil {
+		return out, ""
+	}
+	for _, ref := range span.filterColumns {
+		if ref.Column == "" {
+			continue
+		}
+		var excluded map[string]bool
+		if ref.Column == filterStarColumn {
+			key := ref
+			key.Column = ""
+			excluded = span.filterStarExcept[key]
+		}
+		if q.addMatchingPredicateColumns(out, fullSourceColumns, ref, true, excluded) {
+			continue
+		}
+		if span.filterWildcard[ref] {
+			// A star attribution names the relation the key could belong to; one that does
+			// not hold it contributes nothing and leaves the rest of the set complete.
+			continue
+		}
+		// A qualified ref the expansion cannot attribute is unknown lineage, not a
+		// column to guess at: the statement then reports no predicate columns.
+		return out, fmt.Sprintf("column %q of relation %q is not in the synced metadata", ref.Column, ref.Table)
+	}
+	return out, ""
+}
+
+// addMatchingPredicateColumns adds every expanded column a filter ref names and
+// reports whether it found one. A ref the walk resolved to a relation is matched
+// on the table — narrowed by the database and schema it carries, so the same
+// table name in two datasets or schemas of the statement does not over-match —
+// and a star ref (a subquery projecting `*` it could not enumerate) matches every
+// column of its relation, minus the names in excluded (its star's EXCEPT list).
+// With matchTable false only the column name is compared.
+func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns ColumnSet, ref ColumnRef, matchTable bool, excluded map[string]bool) bool {
+	star := ref.Column == filterStarColumn
+	found := false
+	for sc := range fullSourceColumns {
+		if sc.Column == "" {
+			continue
+		}
+		if matchTable && ref.Table != "" {
+			if !strings.EqualFold(sc.Table, ref.Table) {
+				continue
+			}
+			// A table written without a database resolves against the default one, so
+			// the database always narrows the match (an unqualified `t` is not also
+			// `other.t`).
+			if !strings.EqualFold(sc.Database, q.resourceDatabase(ref.Database)) {
+				continue
+			}
+			// The schema always narrows too: a reference resolved without one names the
+			// default schema (""), not every schema of the database (Spanner).
+			if !strings.EqualFold(sc.Schema, ref.Schema) {
+				continue
+			}
+		}
+		if !star && !strings.EqualFold(sc.Column, ref.Column) {
+			continue
+		}
+		if star && excluded[foldKey(sc.Column)] {
+			continue
+		}
+		dst[sc] = true
+		found = true
+	}
+	return found
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches

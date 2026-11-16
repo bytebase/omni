@@ -242,3 +242,127 @@ func TestQuerySpanMetadataErrorIsFatal(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to get database metadata for database: ds1")
 }
+
+// TestPredicateColumns_NarrowedByDatabase: a predicate reference resolved from a
+// table written without a database names the DEFAULT database's column only, so
+// another database's table of the same name and column is not reported. It cannot
+// live in the recorded corpora, which serve one database per case.
+func TestPredicateColumns_NarrowedByDatabase(t *testing.T) {
+	column := func(name string) *metadata.ColumnMetadata { return &metadata.ColumnMetadata{Name: name} }
+	databases := map[string]*metadata.DatabaseSchemaMetadata{
+		"ds1": {Name: "ds1", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+			{Name: "t", Columns: []*metadata.ColumnMetadata{column("id"), column("secret")}},
+		}}}},
+		"other": {Name: "other", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+			{Name: "t", Columns: []*metadata.ColumnMetadata{column("id"), column("secret")}},
+		}}}},
+	}
+	opts := bigqueryResolveOptions()
+	opts.DefaultDatabase = "ds1"
+	opts.GetDatabaseMetadata = func(name string) (*metadata.DatabaseSchemaMetadata, error) {
+		return databases[name], nil
+	}
+	span, err := ResolveQuerySpan("SELECT 1 FROM t CROSS JOIN other.t u WHERE t.secret = 1", opts)
+	require.NoError(t, err)
+	require.Equal(t, []string{"ds1.t.secret"}, predicateSourcesOf(span))
+}
+
+// predicateSourcesOf renders the predicate set as sorted "database.table.column"
+// names.
+func predicateSourcesOf(span *ResolvedQuerySpan) []string {
+	out := make([]string, 0, len(span.PredicateColumns))
+	for c := range span.PredicateColumns {
+		out = append(out, c.Database+"."+c.Table+"."+c.Column)
+	}
+	slices.Sort(out)
+	return out
+}
+
+// TestPredicateColumnsFailClosed pins the contract the predicate columns are
+// reported under: a statement whose row conditions are ALL resolved reports the
+// columns they read, and a statement with any row condition the walk cannot
+// resolve reports NO predicate columns, with the reason kept for the caller's
+// tests. An empty set is honest; a set that silently misses a read is not,
+// because the masking consumer acts on what it contains.
+func TestPredicateColumnsFailClosed(t *testing.T) {
+	column := func(name string) *metadata.ColumnMetadata { return &metadata.ColumnMetadata{Name: name} }
+	table := func(name string, columns ...string) *metadata.TableMetadata {
+		out := &metadata.TableMetadata{Name: name}
+		for _, c := range columns {
+			out.Columns = append(out.Columns, column(c))
+		}
+		return out
+	}
+	schemas := []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+		table("t", "id", "secret"),
+		table("u", "id", "secret"),
+		table("v", "secret"),
+	}}}
+	opts := bigqueryResolveOptions()
+
+	for _, tc := range []struct {
+		name   string
+		sql    string
+		reason string
+	}{
+		{
+			// The derived relation's `k` is a select-list scalar subquery, which the
+			// projection layer does not carry lineage for.
+			name:   "a derived relation projecting a scalar subquery",
+			sql:    "SELECT 1 FROM (SELECT (SELECT secret FROM t) AS k) c WHERE c.k > 5",
+			reason: "reads a subquery",
+		},
+		{
+			// The expression reads `t.id` directly and `u.secret` through a subquery, so
+			// the projection's lineage is non-empty but incomplete.
+			name:   "a derived relation whose expression mixes a column and a subquery",
+			sql:    "SELECT 1 FROM (SELECT id + (SELECT secret FROM u) AS k FROM t) c WHERE c.k > 5",
+			reason: "reads a subquery",
+		},
+		{
+			// A BY NAME merge materializes its star arm, so the position arrives with no
+			// lineage.
+			name:   "a BY NAME merge over a star arm",
+			sql:    "SELECT 1 FROM t WHERE 5 IN (SELECT * FROM t UNION ALL BY NAME ON (id) (SELECT * FROM u UNION ALL SELECT 0 AS id, secret FROM v))",
+			reason: "",
+		},
+		{
+			// Which branch's columns an INTERSECT decides on depends on the tree, and an
+			// EXISTS body's merged projection cannot say: empty, with that reason.
+			name:   "an EXISTS body comparing projected values",
+			sql:    "SELECT 1 FROM t WHERE EXISTS (SELECT secret FROM t UNION ALL (SELECT id FROM u INTERSECT DISTINCT SELECT id FROM v))",
+			reason: "compares projected values",
+		},
+		{
+			name:   "a condition on a column the metadata does not hold",
+			sql:    "SELECT 1 FROM t WHERE missing = 1",
+			reason: "is not in the synced metadata",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			span := resolvePin(t, opts, tc.sql, "ds1", schemas)
+			if tc.reason == "" {
+				// This shape resolves conservatively today; what matters is that a set is
+				// only reported together with no unresolved reason.
+				if span.predicateColumnsUnresolved != "" && len(span.PredicateColumns) > 0 {
+					t.Errorf("reported %d predicate columns while unresolved: %s", len(span.PredicateColumns), span.predicateColumnsUnresolved)
+				}
+				return
+			}
+			require.Empty(t, span.PredicateColumns, "a statement with an unresolved row condition reports no predicate columns")
+			require.Contains(t, span.predicateColumnsUnresolved, tc.reason)
+		})
+	}
+
+	t.Run("resolved", func(t *testing.T) {
+		span := resolvePin(t, opts, "WITH c AS (SELECT secret AS k FROM t) SELECT 1 FROM c WHERE c.k = 1", "ds1", schemas)
+		require.Equal(t, []string{"ds1.t.secret"}, predicateSourcesOf(span))
+		require.Empty(t, span.predicateColumnsUnresolved)
+	})
+
+	t.Run("no row condition", func(t *testing.T) {
+		span := resolvePin(t, opts, "SELECT id FROM t", "ds1", schemas)
+		require.Empty(t, span.PredicateColumns)
+		require.Empty(t, span.predicateColumnsUnresolved, "a statement without a row condition is not unresolved")
+	})
+}

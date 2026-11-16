@@ -62,11 +62,15 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 	// the second resolution are removed, and the loop's other passes add them
 	// below.
 	ctes, fixpoints := len(w.span.CTEs), w.fixpoints
-	projA, phA := placeholderProjection(anchor, "a")
+	// Each fixpoint's placeholders carry its own identity, so substituting one
+	// recursive CTE's placeholders cannot read another's (a statement may hold
+	// several, and they are resolved in statement order).
+	family := strconv.Itoa(w.fixpoints)
+	projA, phA := placeholderProjection(anchor, family+"a")
 	scope.columns[lower] = projA
 	armA := w.visitBody(arm)
 	perPass := len(w.span.CTEs) - ctes
-	projB, phB := placeholderProjection(anchor, "b")
+	projB, phB := placeholderProjection(anchor, family+"b")
 	scope.columns[lower] = projB
 	armB := w.visitBody(arm)
 	w.span.CTEs = w.span.CTEs[:ctes+perPass]
@@ -94,6 +98,8 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 		}
 	}
 	if len(last) == 0 {
+		w.substituteFilterPlaceholders(phA, anchor)
+		w.substituteFilterPlaceholders(phB, anchor)
 		return anchor, true
 	}
 
@@ -149,7 +155,58 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 		cols[i] = projColumn{name: c.name, sources: sources}
 	}
 	scope.columns[lower] = cols
+	w.substituteFilterPlaceholders(phA, cols)
+	w.substituteFilterPlaceholders(phB, cols)
 	return cols, true
+}
+
+// substituteFilterPlaceholders replaces each row-condition reference to a
+// placeholder of the CTE's placeholder projection — recorded while the fixpoint
+// resolved the recursive arm — with that column's converged lineage, which is
+// what the arm's output positions stand for. A consumed placeholder leaves the
+// filter set: it names no column, and a later CTE's substitution must not see it.
+func (w *spanWalker) substituteFilterPlaceholders(ph map[ColumnRef]int, cols []projColumn) {
+	if len(ph) == 0 {
+		return
+	}
+	var added []ColumnRef
+	consumed := make(map[ColumnRef]bool, len(ph))
+	kept := make([]ColumnRef, 0, len(w.span.filterColumns))
+	for _, ref := range w.span.filterColumns {
+		j, ok := ph[ref]
+		if !ok {
+			kept = append(kept, ref)
+			continue
+		}
+		consumed[ref] = true
+		if j < len(cols) {
+			added = append(added, cols[j].sources...)
+		}
+	}
+	// A written reference recorded only to keep a bailed fixpoint matchable retires
+	// with the placeholder it stood in for: keeping it would let it match an
+	// unrelated column of the same name.
+	retained := kept[:0]
+	var retired []ColumnRef
+	for _, ref := range kept {
+		if placeholder, ok := w.span.filterPlaceholderFallback[ref]; ok && consumed[placeholder] {
+			delete(w.span.filterPlaceholderFallback, ref)
+			retired = append(retired, ref)
+			continue
+		}
+		retained = append(retained, ref)
+	}
+	w.span.filterColumns = retained
+	for _, ref := range retired {
+		// Forget the dedup state too: another body may read the same written column
+		// legitimately, and that read must be re-recordable.
+		delete(w.filterSeen, ref)
+	}
+	for _, ref := range added {
+		if ref.Column != "" {
+			w.addFilterColumn(ref)
+		}
+	}
 }
 
 // holdsRecursiveWith reports whether n's subtree holds a WITH RECURSIVE

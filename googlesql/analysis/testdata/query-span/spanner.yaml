@@ -80,7 +80,17 @@
         schema: ""
         table: Orders
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: MySchema
+        table: Customers
+        column: Id
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: Orders
+        column: CustomerId
 - description: Except and replace
   statement: SELECT * EXCEPT (ID) REPLACE (ID/2 AS NAME) FROM people;
   defaultDatabase: ds1
@@ -297,7 +307,12 @@
         schema: ""
         table: people
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PEOPLE
+        column: ID
 - description: Join using (ON+USING legacy over-accept; ADDRESS deliberately has NO ID column — see the Parenthesized-join sibling note)
   statement: SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID USING (ID);
   defaultDatabase: ds1
@@ -378,7 +393,12 @@
         schema: ""
         table: people
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PEOPLE
+        column: ID
 - description: Simple join
   statement: SELECT ID, NAME, ADDRESS FROM people JOIN address ON people.ID = address.PEOPLE_ID;
   defaultDatabase: maskingdb
@@ -695,7 +715,17 @@
         schema: ""
         table: paintings
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: GALLERIES
+        column: ID
+      - server: ""
+        database: ds1
+        schema: ""
+        table: PAINTINGS
+        column: GALLERY_ID
 - description: FIXME(zp)Expression subquery
   statement: SELECT (SELECT Name FROM Customers), ID FROM Customers;
   defaultDatabase: maskingdb
@@ -1570,7 +1600,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Join using uppercase identifier coalesces
   statement: SELECT * FROM users JOIN logins USING (ID);
   defaultDatabase: spannerdb
@@ -1666,7 +1706,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: logins
+        column: id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Self join with aliases
   statement: SELECT a.full_name, b.salary FROM employees a JOIN employees b ON a.manager_id = b.emp_id;
   defaultDatabase: spannerdb
@@ -1711,7 +1761,17 @@
         schema: ""
         table: employees
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: employees
+        column: emp_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: employees
+        column: manager_id
 - description: Three table join chain
   statement: SELECT u.name, o.amount, p.iban FROM users u JOIN orders o ON u.id = o.user_id JOIN payments p ON o.order_id = p.order_id;
   defaultDatabase: spannerdb
@@ -1778,7 +1838,27 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: order_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: payments
+        column: order_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Select star over join
   statement: SELECT * FROM users u JOIN orders o ON u.id = o.user_id;
   defaultDatabase: spannerdb
@@ -1889,7 +1969,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Left join with sensitive column on right side
   statement: SELECT u.name, o.card_number FROM users u LEFT JOIN orders o ON u.id = o.user_id;
   defaultDatabase: spannerdb
@@ -1940,7 +2030,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Comma cross join
   statement: SELECT u.name, l.device FROM users u, logins l;
   defaultDatabase: spannerdb
@@ -2087,7 +2187,17 @@
         schema: ""
         table: ladder
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: employees
+        column: emp_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: employees
+        column: manager_id
 - description: Nested cte inside cte body
   statement: WITH outer_cte AS (WITH inner_cte AS (SELECT id, email FROM users) SELECT id FROM inner_cte) SELECT * FROM outer_cte;
   defaultDatabase: spannerdb
@@ -2182,7 +2292,12 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Star over join of cte and base table
   statement: WITH safe AS (SELECT id, name FROM users) SELECT * FROM safe s JOIN orders o ON s.id = o.user_id;
   defaultDatabase: spannerdb
@@ -2278,7 +2393,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Derived table select star with subset projection
   statement: SELECT * FROM (SELECT id, name FROM users) d;
   defaultDatabase: spannerdb
@@ -2524,7 +2649,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Struct field path with table alias prefix
   statement: SELECT p.address.city FROM profiles p;
   defaultDatabase: spannerdb
@@ -2665,7 +2800,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Named schema table joined with default schema table of same name
   statement: SELECT a.region, b.email FROM analytics.users a JOIN users b ON a.id = b.id;
   defaultDatabase: spannerdb
@@ -2721,7 +2866,17 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: analytics
+        table: users
+        column: id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
 - description: Select star from named schema table
   statement: SELECT * FROM analytics.events;
   defaultDatabase: spannerdb
@@ -2991,4 +3146,421 @@
         schema: ""
         table: users
         column: ""
-    predicatecolumns: []
+    predicatecolumns:
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: orders
+        column: user_id
+      - server: ""
+        database: spannerdb
+        schema: ""
+        table: users
+        column: id
+- description: "predicate columns: aliased WHERE in the metadata name model"
+  statement: SELECT u.Name FROM AuditPeople u WHERE u.Id = 1
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "maskingdb",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "AuditPeople",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Name"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "NAME"
+        sourcecolumns:
+          - server: ""
+            database: maskingdb
+            schema: ""
+            table: AuditPeople
+            column: Name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: Id
+- description: "predicate columns: a CTE reference resolves to its base table"
+  statement: WITH c AS (SELECT Id, Name FROM AuditPeople) SELECT Name FROM c WHERE Id = 1
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "maskingdb",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "AuditPeople",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Name"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "NAME"
+        sourcecolumns:
+          - server: ""
+            database: maskingdb
+            schema: ""
+            table: AuditPeople
+            column: Name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: Id
+- description: "predicate columns: a derived relation resolves to its base table"
+  statement: SELECT * FROM (SELECT Id FROM AuditPeople) p WHERE p.Id = 1
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "maskingdb",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "AuditPeople",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Name"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "ID"
+        sourcecolumns:
+          - server: ""
+            database: maskingdb
+            schema: ""
+            table: AuditPeople
+            column: Id
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: Id
+- description: "predicate columns: JOIN ... USING keys on both sides"
+  statement: SELECT Name FROM AuditPeople JOIN AuditBadges USING (Id)
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "maskingdb",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "AuditPeople",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Name"
+                }
+              ]
+            },
+            {
+              "name":  "AuditBadges",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "PersonId"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "NAME"
+        sourcecolumns:
+          - server: ""
+            database: maskingdb
+            schema: ""
+            table: AuditPeople
+            column: Name
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditBadges
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditBadges
+        column: Id
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: Id
+- description: "predicate columns: a qualified reference into a CTE resolves to the renamed base column"
+  statement: WITH c AS (SELECT Id AS pid FROM AuditPeople) SELECT pid FROM c WHERE c.pid = 1
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "maskingdb",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "AuditPeople",
+              "columns":  [
+                {
+                  "name":  "Id"
+                },
+                {
+                  "name":  "Name"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "PID"
+        sourcecolumns:
+          - server: ""
+            database: maskingdb
+            schema: ""
+            table: AuditPeople
+            column: Id
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: AuditPeople
+        column: Id
+- description: "predicate columns: the same table name in two schemas does not over-match"
+  statement: SELECT 1 FROM analytics.users a CROSS JOIN users b WHERE a.secret = 1
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "maskingdb",
+      "schemas": [
+        {
+          "name": "analytics",
+          "tables": [
+            {
+              "name": "users",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tables": [
+            {
+              "name": "users",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: analytics
+        table: users
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: users
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: analytics
+        table: users
+        column: secret
+- description: "predicate columns: a reference without a schema names the default schema"
+  statement: SELECT 1 FROM t WHERE secret = 1 UNION ALL SELECT 1 FROM analytics.t
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "maskingdb",
+      "schemas": [
+        {
+          "name": "analytics",
+          "tables": [
+            {
+              "name": "t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tables": [
+            {
+              "name": "t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: analytics
+        table: t
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: t
+        column: secret
