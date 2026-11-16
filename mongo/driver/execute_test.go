@@ -90,4 +90,14 @@ func TestExecute(t *testing.T) {
 	after := query(t, d, "db.users.find()", driver.QueryOptions{})
 	require.Len(t, after, 1)
 	require.Len(t, after[0].Rows, 2)
+
+	// A read that returns a document whose fields are named like a write's
+	// counts counts nothing.
+	_, err = d.Execute(context.Background(), "db.users.insertOne({_id: 9, name: \"dave\", modifiedCount: 100, deletedCount: 7});", driver.ExecuteOptions{})
+	require.NoError(t, err)
+	read := &recorder{}
+	affected, err = d.Execute(context.Background(), "db.users.find({_id: 9});", driver.ExecuteOptions{Log: read})
+	require.NoError(t, err)
+	require.Zero(t, affected)
+	require.Equal(t, []int64{0}, read.responses[0].perResult)
 }

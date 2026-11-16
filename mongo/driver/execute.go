@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/bytebase/gomongo"
+	"github.com/bytebase/gomongo/types"
 	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/bytebase/omni/driver"
@@ -57,10 +58,19 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 }
 
 // affectedRows reads the count a write answers with: the documents it inserted,
-// modified or deleted. A write that changed nothing, and a statement that
-// answers with a document rather than a count, report zero.
+// modified or deleted. Any other operation reports zero, since a document a
+// read returns may carry fields named like a write's counts, and a write that
+// changed nothing reports zero too.
 func affectedRows(result *gomongo.Result) int64 {
 	if result == nil || len(result.Value) != 1 {
+		return 0
+	}
+	switch result.Operation {
+	case types.OpInsertOne, types.OpInsertMany,
+		types.OpUpdateOne, types.OpUpdateMany,
+		types.OpReplaceOne,
+		types.OpDeleteOne, types.OpDeleteMany:
+	default:
 		return 0
 	}
 	document, ok := result.Value[0].(bson.D)
