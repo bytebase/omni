@@ -191,18 +191,32 @@
 | SET SHOWPLAN_XML OFF
 < ok 0 -
 > query
-| SELECT 1;
+| DECLARE @id int = 1;
+|
+| SELECT @id AS id;
+|
 < result
-< column "" "INT"
+< column "id" "INT"
 < row
 : int64 1
 > query
-|
 | SELECT * FROM q_missing_table;
 < error
-| 208 1 16 2 Invalid object name 'q_missing_table'.
+| 208 1 16 1 Invalid object name 'q_missing_table'.
+> query
+| SELECT 1;
+|
+| SELECT * FROM q_missing_table;
+|
+| SELECT 2;
+|
+< error
+| 208 1 16 3 Invalid object name 'q_missing_table'.
 > query
 | SELECT id, REPLICATE(N'x', 200) AS payload FROM q_items ORDER BY id;
+|
+| SELECT 7 AS after_cap;
+|
 < result
 < column "id" "INT"
 < column "payload" "NVARCHAR"
@@ -222,9 +236,6 @@
 : int64 4
 : string
 | xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-> query
-|
-| SELECT 7 AS after_cap;
 < result
 < column "after_cap" "INT"
 < row
@@ -241,3 +252,12 @@
 < column "b" "INT"
 < row
 : int64 2
+> query
+| INSERT INTO q_items (id, note, flag) VALUES (5, N'e', 1);
+|
+| SELECT 1 AS after_insert;
+|
+< result
+< column "after_insert" "INT"
+< row
+: int64 1

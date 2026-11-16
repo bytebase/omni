@@ -8,10 +8,10 @@
 // rendering still lives in Bytebase's schema package until omni has an
 // mssql/catalog.
 //
-// A batch's statements run one at a time, so each result is the statement's own;
-// SQL Server reports a batch's per-statement row counts only through a collector
-// on the request, which the contract's one-result-per-statement shape has no room
-// for.
+// A batch is sent as one request, so what SQL Server scopes to it holds across
+// its statements. The server reports a batch's per-statement row counts only
+// through a collector on the request, which a recorded exchange cannot hold, so
+// only a lone statement's count is read.
 //
 // Config.TLS supplies the TLS configuration for one host, which the driver
 // hands to the client as is; a certificate authority is material the client
@@ -180,6 +180,10 @@ func lookupParam(params map[string]string, name string) (string, bool) {
 	return "", false
 }
 
+// dialersMu guards the client's process-wide dialer registry, which every
+// driver's registration and removal shares.
+var dialersMu sync.Mutex
+
 // registerDialer makes dial the client's transport. The client reaches a
 // dialer through a process-wide registry keyed by protocol name, so each driver
 // registers a name of its own and removes it on Close.
@@ -190,9 +194,15 @@ func (d *Driver) registerDialer(dial func(ctx context.Context, network, address 
 		return
 	}
 	name := fmt.Sprintf("bytebase-dial-%p", d)
+	dialersMu.Lock()
 	msdsn.ProtocolDialers[name] = fixedDialer{dial: dial}
+	dialersMu.Unlock()
 	d.dialProtocol = name
-	d.dialClose = func() { delete(msdsn.ProtocolDialers, name) }
+	d.dialClose = func() {
+		dialersMu.Lock()
+		defer dialersMu.Unlock()
+		delete(msdsn.ProtocolDialers, name)
+	}
 }
 
 func (d *Driver) closeDialer() {

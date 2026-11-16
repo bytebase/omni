@@ -3,10 +3,13 @@ package driver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 	"testing"
+
+	gomssqldb "github.com/microsoft/go-mssqldb"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -181,14 +184,32 @@ END;
 		t.Errorf("xml plan = %q", xmlPlan[0].Rows[0][0].String)
 	}
 
-	// A failing statement ends the script, its result carrying the error, and
-	// every message the server sent is in it.
-	errorResults, err := sess.Query(ctx, "SELECT 1;\nSELECT * FROM q_missing_table;\nSELECT 2;", driver.QueryOptions{})
-	if err != nil || len(errorResults) != 2 || errorResults[1].Err == nil {
-		t.Fatalf("error script = %+v, %v", errorResults, err)
+	// A batch keeps what SQL Server scopes to it: a DECLARE'd variable holds
+	// across the batch's statements, which one request carries.
+	scoped, err := sess.Query(ctx, "DECLARE @id int = 1;\nSELECT @id AS id;", driver.QueryOptions{})
+	if err != nil || len(scoped) != 2 || scoped[1].Err != nil || scoped[1].Rows[0][0].Int64 != 1 {
+		t.Fatalf("batch-scoped variable = %+v, %v", scoped, err)
 	}
-	if text := errorResults[1].Err.Error(); !strings.Contains(text, "Msg 208") || !strings.Contains(text, "q_missing_table") {
+
+	// A lone failing statement reports the error as its result, with every
+	// message the server sent.
+	errorResults, err := sess.Query(ctx, "SELECT * FROM q_missing_table;", driver.QueryOptions{})
+	if err != nil || len(errorResults) != 1 || errorResults[0].Err == nil {
+		t.Fatalf("error result = %+v, %v", errorResults, err)
+	}
+	if text := errorResults[0].Err.Error(); !strings.Contains(text, "Msg 208") || !strings.Contains(text, "q_missing_table") {
 		t.Errorf("error text = %q, want SQL Server's 208 and the object's name", text)
+	}
+
+	// A batch of several statements fails as a whole, and the error still
+	// unwraps to the client's own.
+	_, err = sess.Query(ctx, "SELECT 1;\nSELECT * FROM q_missing_table;\nSELECT 2;", driver.QueryOptions{})
+	if err == nil {
+		t.Fatal("a batch with a missing table should fail")
+	}
+	var serverError gomssqldb.Error
+	if !errors.As(err, &serverError) || serverError.Number != 208 {
+		t.Fatalf("batch error = %v, want SQL Server's 208", err)
 	}
 
 	// The size cap truncates the statement and the next one still runs.
@@ -201,6 +222,14 @@ END;
 	batches, err := sess.Query(ctx, "SELECT 1 AS a;\nGO\nSELECT 2 AS b;", driver.QueryOptions{})
 	if err != nil || len(batches) != 2 || batches[1].Rows[0][0].Int64 != 2 {
 		t.Fatalf("GO batches = %+v, %v", batches, err)
+	}
+
+	// A batch of more than one statement yields an empty result for a statement
+	// that reports only a count, since the server reports those through a
+	// collector the contract's shape has no room for.
+	inserted, err = sess.Query(ctx, "INSERT INTO q_items (id, note, flag) VALUES (5, N'e', 1);\nSELECT 1 AS after_insert;", driver.QueryOptions{})
+	if err != nil || len(inserted) != 2 || inserted[0].AffectedRows != nil || inserted[1].Rows[0][0].Int64 != 1 {
+		t.Fatalf("batched insert = %+v, %v", inserted, err)
 	}
 
 	// A statement the parser cannot read fails the batch before it runs.

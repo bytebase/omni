@@ -171,49 +171,172 @@ func showplanStatistic(format string) string {
 	return "SHOWPLAN_ALL"
 }
 
-// runBatch runs the batch's statements one at a time and returns one result
-// for each: a statement that returns rows yields its result sets, and one that
-// only reports a count yields that count. A statement that fails ends the
-// script, its Result carrying the error.
+// runBatch runs the batch and returns one result per statement: a statement
+// that returns rows yields the result set the server returned for it, and a
+// statement that reports only a count yields that count.
 //
-// SQL Server reports the affected rows of a batch's statements only through a
-// collector on the request, so a statement that returns rows reports no count
-// here. Bytebase's driver reads that collector; the driver contract's Result
-// holds one count or one set of rows, not both.
+// A batch of more than one statement is sent as one request, so what SQL Server
+// scopes to a batch (a DECLARE'd variable, a table variable) holds across its
+// statements. It reports such a batch's affected rows only through a collector
+// on the request, which a recorded exchange cannot hold, so only a lone
+// statement's count is read.
 func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
-	results := make([]*driver.Result, 0, len(statements))
+	if len(statements) == 1 {
+		results, err := s.runStatementAlone(ctx, statements[0], opts)
+		return results, err != nil, err
+	}
+	return s.runBatchTogether(ctx, statements, opts)
+}
+
+// runStatementAlone runs a lone statement, which reports its own affected rows.
+func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, error) {
+	t, err := getStmtType(statement.AST)
+	if err != nil {
+		return nil, err
+	}
+	text := withResultLimit(statement.Text, opts.Limit)
+	start := time.Now()
+	var results []*driver.Result
+	if t&stmtTypeResultSetGenerating != 0 || t&stmtTypeProcedure != 0 {
+		results, err = s.queryStatement(ctx, text, opts)
+	} else {
+		results, err = s.execStatement(ctx, text)
+	}
+	if err != nil {
+		return []*driver.Result{{Statement: text, Err: unpackMSSQLError(err), Latency: time.Since(start)}}, nil
+	}
+	for _, result := range results {
+		result.Statement = text
+		result.Latency = time.Since(start)
+		if opts.MaskingEnabled && t&(stmtTypeProcedure|stmtTypeOutput) != 0 && len(result.Columns) > 0 {
+			withholdRows(result)
+		}
+	}
+	return results, nil
+}
+
+// runBatchTogether sends the whole batch in one request and gives each statement
+// the result set the server returned for it.
+func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
+	start := time.Now()
+	types := make([]stmtType, 0, len(statements))
+	texts := make([]string, 0, len(statements))
+	batchText := new(strings.Builder)
 	for _, statement := range statements {
 		t, err := getStmtType(statement.AST)
 		if err != nil {
-			return results, true, err
+			return nil, true, err
 		}
-		text := statement.Text
-		if opts.Limit > 0 {
-			if limited, err := omnimssql.StatementWithResultLimit(text, opts.Limit); err == nil {
-				text = limited
-			}
-		}
+		types = append(types, t)
+		text := withResultLimit(statement.Text, opts.Limit)
+		texts = append(texts, text)
+		batchText.WriteString(text)
+		batchText.WriteString("\n")
+	}
 
-		start := time.Now()
-		var batch []*driver.Result
-		if t&stmtTypeResultSetGenerating != 0 || t&stmtTypeProcedure != 0 {
-			batch, err = s.queryStatement(ctx, text, opts)
-		} else {
-			batch, err = s.execStatement(ctx, text)
-		}
+	rows, err := s.conn.QueryContext(ctx, batchText.String())
+	if err != nil {
+		return nil, true, unpackMSSQLError(err)
+	}
+	defer rows.Close()
+
+	var resultSets []*driver.Result
+	for {
+		result, err := readRows(rows, opts.MaxResultBytes)
 		if err != nil {
-			return append(results, &driver.Result{Statement: text, Err: unpackMSSQLError(err), Latency: time.Since(start)}), true, nil
+			return nil, true, err
 		}
-		for _, result := range batch {
-			result.Statement = text
-			result.Latency = time.Since(start)
-			if opts.MaskingEnabled && t&(stmtTypeProcedure|stmtTypeOutput) != 0 && len(result.Columns) > 0 {
-				withholdRows(result)
-			}
-			results = append(results, result)
+		resultSets = append(resultSets, result)
+		if !rows.NextResultSet() {
+			break
 		}
 	}
-	return results, false, nil
+	if err := rows.Err(); err != nil {
+		return nil, true, unpackMSSQLError(err)
+	}
+
+	results, err := matchResults(texts, types, resultSets)
+	if err != nil {
+		return nil, true, err
+	}
+	latency := time.Since(start)
+	out := make([]*driver.Result, 0, len(results))
+	for _, matched := range results {
+		result := matched.result
+		if result == nil {
+			result = &driver.Result{}
+		}
+		result.Latency = latency
+		if opts.MaskingEnabled && matched.withheld && len(result.Columns) > 0 {
+			withholdRows(result)
+		}
+		out = append(out, result)
+	}
+	return out, false, nil
+}
+
+// batchResult pairs a statement's result with whether masking withholds its
+// rows.
+type batchResult struct {
+	result   *driver.Result
+	withheld bool
+}
+
+// matchResults gives each statement of a batch its result. SQL Server returns
+// results in statement order but does not say which statement returned each, so
+// a batch whose procedure call returns result sets must have no other statement
+// that returns any. The procedure call's result sets after its first are
+// returned after every statement's result.
+func matchResults(statements []string, types []stmtType, resultSets []*driver.Result) ([]batchResult, error) {
+	var withResultSet, procedures int
+	for _, t := range types {
+		switch {
+		case t&stmtTypeResultSetGenerating != 0:
+			withResultSet++
+		case t&stmtTypeProcedure != 0:
+			procedures++
+		default:
+		}
+	}
+	procedureReturnedSets := len(resultSets) != withResultSet
+	if procedureReturnedSets && (withResultSet > 0 || procedures != 1) {
+		return nil, errors.New("cannot match the batch's result sets to its statements; a procedure call that returns rows must be the only statement in its batch that does, so separate the others with GO")
+	}
+
+	results := make([]batchResult, len(types))
+	var extras []batchResult
+	for i, t := range types {
+		matched := batchResult{}
+		switch {
+		case t&stmtTypeResultSetGenerating != 0 && len(resultSets) > 0:
+			matched.result, resultSets = resultSets[0], resultSets[1:]
+			matched.withheld = t&stmtTypeOutput != 0
+		case t&stmtTypeProcedure != 0 && procedureReturnedSets && len(resultSets) > 0:
+			matched.result, resultSets = resultSets[0], resultSets[1:]
+			matched.withheld = true
+			for _, extra := range resultSets {
+				extra.Statement = statements[i]
+				extras = append(extras, batchResult{result: extra, withheld: true})
+			}
+			resultSets = nil
+		}
+		if matched.result != nil {
+			matched.result.Statement = statements[i]
+		}
+		results[i] = matched
+	}
+	return append(results, extras...), nil
+}
+
+// withResultLimit applies the row limit a query request asks for.
+func withResultLimit(text string, limit int) string {
+	if limit <= 0 {
+		return text
+	}
+	if limited, err := omnimssql.StatementWithResultLimit(text, limit); err == nil {
+		return limited
+	}
+	return text
 }
 
 // queryStatement runs one statement that returns rows, one Result per result
@@ -242,8 +365,7 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 	return results, nil
 }
 
-// execStatement runs one statement that reports no rows, as its affected
-// count.
+// execStatement runs one statement that reports no rows, as its affected count.
 func (s *session) execStatement(ctx context.Context, statement string) ([]*driver.Result, error) {
 	sqlResult, err := s.conn.ExecContext(ctx, statement)
 	if err != nil {
@@ -396,6 +518,16 @@ func assignsVariables(sel *ast.SelectStmt) bool {
 	return false
 }
 
+// serverError is what the server said, as the text Bytebase shows, with the
+// client's error still reachable through errors.As.
+type serverError struct {
+	text string
+	err  error
+}
+
+func (e *serverError) Error() string { return e.text }
+func (e *serverError) Unwrap() error { return e.err }
+
 // unpackMSSQLError reports every message the server sent, with the fields
 // Bytebase shows for one.
 func unpackMSSQLError(err error) error {
@@ -404,7 +536,7 @@ func unpackMSSQLError(err error) error {
 		return err
 	}
 	if len(e.All) <= 1 {
-		return errors.New(formatMSSQLError(e))
+		return &serverError{text: formatMSSQLError(e), err: err}
 	}
 	var messages []string
 	for _, message := range e.All {
@@ -413,7 +545,7 @@ func unpackMSSQLError(err error) error {
 		}
 		messages = append(messages, formatMSSQLError(message))
 	}
-	return errors.New(strings.Join(messages, "\n"))
+	return &serverError{text: strings.Join(messages, "\n"), err: err}
 }
 
 func formatMSSQLError(e gomssqldb.Error) string {
