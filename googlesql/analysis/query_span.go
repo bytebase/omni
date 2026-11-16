@@ -1823,6 +1823,15 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 	if ref.Table != "" && w.namesAccessRelation(ref.Table) {
 		return []ColumnRef{ref}
 	}
+	if _, shadowed := w.leaves.derivedColumn(parts[0]); !shadowed {
+		// `root.field` where root names no relation in scope: a struct/field path. The
+		// root column may still live in an enclosing body (a CTE column the nested
+		// condition reaches), so both readings are kept.
+		if refs := w.resolveOuterUnqualified(parts[0]); len(refs) > 0 {
+			_, local := w.resolvePath(parts)
+			return append(local, refs...)
+		}
+	}
 	_, refs := w.resolvePath(parts)
 	return w.appendWrittenColumn(refs, "", parts[len(parts)-1])
 }
@@ -1851,17 +1860,19 @@ func (w *spanWalker) appendWrittenColumn(refs []ColumnRef, table, column string)
 // enumerate their columns (a base relation's are not), so an enclosing CTE column
 // the name matches contributes its lineage.
 func (w *spanWalker) resolveOuterUnqualified(column string) []ColumnRef {
-	var out []ColumnRef
+	// The NEAREST enclosing body whose derived relations project the name decides:
+	// an inner projection shadows every outer one, including a projection that
+	// reads nothing.
 	for i := len(w.outerLeaves) - 1; i >= 0; i-- {
 		outer := w.outerLeaves[i]
 		if outer == nil {
 			continue
 		}
 		if refs, ok := outer.derivedColumn(column); ok {
-			out = append(out, refs...)
+			return refs
 		}
 	}
-	return out
+	return nil
 }
 
 // resolveFilterQualifier resolves `qualifier.column` for a row condition against
@@ -1901,8 +1912,14 @@ func (w *spanWalker) addProjectionFilterColumns(cols []projColumn) {
 	for _, col := range cols {
 		switch {
 		case col.setOpMerge != nil:
-			w.addColumnInfoFilterColumns(col.setOpMerge.left)
-			w.addColumnInfoFilterColumns(col.setOpMerge.right)
+			// A BY NAME merge with ON (cols) projects exactly those output names, so
+			// only they can be read from the merged subquery.
+			var only []string
+			if col.setOpMerge.byName {
+				only = col.setOpMerge.matchColumns
+			}
+			w.addColumnInfoFilterColumns(col.setOpMerge.left, only)
+			w.addColumnInfoFilterColumns(col.setOpMerge.right, only)
 		case col.starGroup != nil:
 			// A REPLACE overrides an output column with another expression, so the
 			// original star does not project it and the replacement's sources are what
@@ -1954,7 +1971,7 @@ func (w *spanWalker) addStarSegmentFilterColumns(segment projColumn, except []st
 
 // addColumnInfoFilterColumns is addProjectionFilterColumns over the wire form a
 // deferred set-operation merge keeps its arms in.
-func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo) {
+func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []string) {
 	for _, info := range infos {
 		for _, ref := range info.SourceColumns {
 			w.addFilterColumn(ref)
@@ -1965,7 +1982,16 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo) {
 		}
 		for _, segment := range info.StarSegments {
 			if segment.BaseTable != nil {
+				if len(only) > 0 {
+					for _, name := range only {
+						w.addFilterColumn(ColumnRef{Catalog: segment.BaseTable.Catalog, Database: segment.BaseTable.Database, Schema: segment.BaseTable.Schema, Table: segment.BaseTable.Table, Column: name})
+					}
+					continue
+				}
 				w.addFilterStar(*segment.BaseTable, append(append([]string{}, except...), segment.ExceptColumns...))
+				continue
+			}
+			if len(only) > 0 && !containsFold(only, segment.Name) {
 				continue
 			}
 			w.addStarSegmentFilterColumns(projColumn{name: segment.Name, sources: segment.Sources}, except)
@@ -1981,8 +2007,12 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo) {
 			w.addFilterStar(info.StarMerge.Table, nil)
 		}
 		if info.SetOpMerge != nil {
-			w.addColumnInfoFilterColumns(info.SetOpMerge.Left)
-			w.addColumnInfoFilterColumns(info.SetOpMerge.Right)
+			var only []string
+			if info.SetOpMerge.ByName {
+				only = info.SetOpMerge.MatchColumns
+			}
+			w.addColumnInfoFilterColumns(info.SetOpMerge.Left, only)
+			w.addColumnInfoFilterColumns(info.SetOpMerge.Right, only)
 		}
 	}
 }
