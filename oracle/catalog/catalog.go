@@ -151,7 +151,17 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 		if len(result.GetSchemas()) == 0 {
 			result.Schemas = meta.Schemas
 		} else {
-			result.Schemas[0] = meta.Schemas[0]
+			oldSchema, newSchema := result.Schemas[0], meta.Schemas[0]
+			merged := proto.CloneOf(oldSchema)
+			merged.Name = newSchema.GetName()
+			merged.Tables = newSchema.GetTables()
+			merged.Views = newSchema.GetViews()
+			merged.MaterializedViews = newSchema.GetMaterializedViews()
+			merged.Functions = newSchema.GetFunctions()
+			merged.Procedures = newSchema.GetProcedures()
+			merged.Sequences = newSchema.GetSequences()
+			merged.Packages = newSchema.GetPackages()
+			result.Schemas[0] = merged
 		}
 	}
 	c.meta = result

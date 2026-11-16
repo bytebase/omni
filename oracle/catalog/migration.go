@@ -386,9 +386,16 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 					writeDropProcedure(buf, schemaDiff.SchemaName, proc.Name)
 				}
 
-				// Drop tables (this will handle foreign keys internally)
+				// A schema drop has no per-table diff to order the drops, so the
+				// schema's foreign keys go first.
 				for _, table := range schemaDiff.OldSchema.Tables {
-					// Drop the table
+					for _, fk := range table.ForeignKeys {
+						writeDropForeignKey(buf, schemaDiff.SchemaName, table.Name, fk.Name)
+					}
+				}
+
+				// Drop tables.
+				for _, table := range schemaDiff.OldSchema.Tables {
 					writeDropTable(buf, schemaDiff.SchemaName, table.Name)
 				}
 
@@ -717,9 +724,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				}
 			}
 
-			// Add foreign keys
+			// Add foreign keys, except those that wait for a key this migration adds.
 			for _, fkDiff := range tableDiff.ForeignKeyChanges {
-				if fkDiff.Action == DiffActionCreate {
+				if fkDiff.Action == DiffActionCreate && !waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) {
 					writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey)
 				}
 			}
@@ -742,9 +749,17 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
-	// New tables' foreign keys that wait for a key added by this migration come
-	// after every ALTER that adds one.
+	// Foreign keys that wait for a key added by this migration come after every
+	// ALTER that adds one.
 	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action == DiffActionAlter {
+			for _, fkDiff := range tableDiff.ForeignKeyChanges {
+				if fkDiff.Action == DiffActionCreate && waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) {
+					writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey)
+				}
+			}
+			continue
+		}
 		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
 			continue
 		}

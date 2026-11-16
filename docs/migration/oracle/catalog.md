@@ -64,6 +64,11 @@ replay tests exercise.
 - Dropping the unnamed schema still drops its objects, and only suppresses
   `DROP USER`.
 - A quoted column in a function-based index keeps its quotes.
+- An existing table's foreign key waits for a key this migration adds, and a
+  whole-schema drop detaches its foreign keys before dropping tables.
+- Renaming a column updates both sides of every foreign key that names it.
+- Executing a statement keeps schema metadata the extractor does not own, such
+  as synonyms.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

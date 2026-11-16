@@ -560,6 +560,31 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 	for _, check := range table.CheckConstraints {
 		check.Expression = renameIdentifier(check.Expression, oldName, newName)
 	}
+	for _, fk := range table.ForeignKeys {
+		fk.Columns = renameColumnNames(fk.Columns, oldName, newName)
+	}
+	for _, other := range e.tables {
+		if other == table {
+			continue
+		}
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable == table.Name {
+				fk.ReferencedColumns = renameColumnNames(fk.ReferencedColumns, oldName, newName)
+			}
+		}
+	}
+}
+
+func renameColumnNames(columns []string, oldName, newName string) []string {
+	out := make([]string, len(columns))
+	for i, column := range columns {
+		if column == oldName {
+			out[i] = newName
+		} else {
+			out[i] = column
+		}
+	}
+	return out
 }
 
 // renameIdentifier rewrites identifier tokens that name oldName and leaves

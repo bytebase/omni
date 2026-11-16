@@ -1,6 +1,8 @@
 package catalog
 
 import (
+	"context"
+	"slices"
 	"strings"
 	"testing"
 
@@ -320,5 +322,66 @@ func TestFunctionBasedIndexKeepsQuotedColumn(t *testing.T) {
 	}
 	if !strings.Contains(definition, `("CamelCase" DESC)`) {
 		t.Fatalf("quoted index column lost:\n%s", definition)
+	}
+}
+
+func TestMigrationDefersAlteredTableForeignKeyUntilKeyAddition(t *testing.T) {
+	oldParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}
+	newParent := &metadatapb.TableMetadata{Name: "P", Columns: oldParent.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "P_PK", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	oldChild := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}}
+	newChild := &metadatapb.TableMetadata{Name: "C", Columns: oldChild.Columns, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldParent, oldChild}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newParent, newChild}}))
+	key := strings.Index(sql, `ADD CONSTRAINT "P_PK"`)
+	fk := strings.Index(sql, `ADD CONSTRAINT "C_FK"`)
+	if key < 0 || fk < 0 || key > fk {
+		t.Fatalf("altered table's foreign key was not deferred:\n%s", sql)
+	}
+}
+
+func TestSchemaDropDropsForeignKeysFirst(t *testing.T) {
+	parent := &metadatapb.TableMetadata{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}
+	child := &metadatapb.TableMetadata{Name: "Z", Columns: []*metadatapb.ColumnMetadata{{Name: "A_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "Z_FK", Columns: []string{"A_ID"}, ReferencedTable: "A", ReferencedColumns: []string{"ID"}}}}
+	from := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "S", Tables: []*metadatapb.TableMetadata{parent, child}})
+	to := New()
+	sql := migrationFor(t, from, to)
+	fk := strings.Index(sql, `DROP CONSTRAINT "Z_FK"`)
+	table := strings.Index(sql, `DROP TABLE "S"."A"`)
+	if fk < 0 || table < 0 || fk > table {
+		t.Fatalf("schema drop did not detach the foreign key first:\n%s", sql)
+	}
+}
+
+func TestRenameColumnUpdatesForeignKeys(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{
+		{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}},
+		{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}},
+	}})
+	if _, err := c.Exec(`ALTER TABLE "C" RENAME COLUMN "P_ID" TO "PARENT_ID"`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE "P" RENAME COLUMN "ID" TO "PID"`, nil); err != nil {
+		t.Fatal(err)
+	}
+	child := tableByName(c.Metadata().Schemas[0])["C"]
+	fk := child.ForeignKeys[0]
+	if !slices.Equal(fk.Columns, []string{"PARENT_ID"}) || !slices.Equal(fk.ReferencedColumns, []string{"PID"}) {
+		t.Fatalf("foreign key columns = %v -> %v", fk.Columns, fk.ReferencedColumns)
+	}
+}
+
+func TestExecPreservesUnhandledSchemaMetadata(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Synonyms: []*metadatapb.SynonymMetadata{{Name: "S", TargetSchema: "X", TargetName: "T"}},
+		Tables:   []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}},
+	}}}
+	c := New()
+	if _, err := c.LoadMetadata(context.Background(), meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE "T" ADD "C" NUMBER`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(c.Metadata().Schemas[0].Synonyms) != 1 {
+		t.Fatalf("synonyms lost: %+v", c.Metadata().Schemas[0])
 	}
 }
