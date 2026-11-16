@@ -2,10 +2,26 @@
 
 == TestQueryAllNodes driver#1
 > raw
-| {"login":{},"cluster":true,"op":"Do","commands":[["SET","allnodes:key","allnodes-value"]]}
+| {"login":{},"cluster":true,"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"cluster":true,"op":"Do","session":1,"commands":[["SET","allnodes:key","allnodes-value"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}}]}
+> raw
+| {"login":{},"cluster":true,"op":"CloseSession","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"cluster":true,"op":"Session","session":2}
+< raw
+| {}
 > raw
 | {"login":{},"cluster":true,"op":"DoEachShard","commands":[["GET","allnodes:key"],["DBSIZE"]]}
 < raw
 | {"shards":[[{"value":{"kind":"string","string":"allnodes-value"}},{"value":{"kind":"int","int":1}}]]}
+> raw
+| {"login":{},"cluster":true,"op":"CloseSession","session":2}
+< raw
+| {}

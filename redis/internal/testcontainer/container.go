@@ -11,10 +11,12 @@
 // The tape does not sit at database/sql, since go-redis is not a database/sql
 // driver, so Open returns the driver's own client: the requests are the calls
 // the driver makes of a Redis client (a ping, one INFO section, one CONFIG GET
-// parameter, a pipeline of commands, a pipeline to every cluster node), and
-// each answer is what go-redis returned — a value, or the error the server
-// answered with. A value is written as the kind go-redis decoded it to, so an
-// array keeps its elements and a hash keeps its fields.
+// parameter, a session's connection, a pipeline of commands on that connection, a
+// pipeline to every cluster node), and each answer is what go-redis returned — a
+// value, or the error the server answered with. A value is written as the kind
+// go-redis decoded it to, so an array keeps its elements and a hash keeps its
+// fields. A session's number is the test's own count, so it depends on the test's
+// order and not on the run.
 //
 // What a tape cannot hold is what a Redis client does between the calls:
 // server selection, cluster topology, connection pooling and the handshake
@@ -86,6 +88,10 @@ type Client struct {
 	// cluster is the client the recording asks: a cluster client can run a
 	// pipeline on every node, which a standalone one cannot.
 	cluster bool
+	// sessions counts the sessions this client lent, so a tape holds a number
+	// the test's own order decides and not the run's.
+	mu       sync.Mutex
+	sessions int
 }
 
 // Open returns t's client to the pinned server, as login on one server: a replay
@@ -151,13 +157,39 @@ func (c *Client) ConfigGet(ctx context.Context, parameter string) (map[string]st
 	return answer.Config, nil
 }
 
-// Do sends commands as one pipeline and returns each command's answer.
-func (c *Client) Do(ctx context.Context, commands [][]any) ([]*redis.Cmd, error) {
-	answer, err := c.do(ctx, request{Op: opDo, Commands: commands})
+// Session borrows one connection under the number this client gives it.
+func (c *Client) Session(ctx context.Context) (int, error) {
+	c.mu.Lock()
+	c.sessions++
+	number := c.sessions
+	c.mu.Unlock()
+	answer, err := c.do(ctx, request{Op: opSession, Session: &number})
+	if err != nil {
+		return 0, err
+	}
+	if err := answer.err(); err != nil {
+		return 0, err
+	}
+	return number, nil
+}
+
+// Do sends commands as one pipeline on the session's connection and returns each
+// command's answer.
+func (c *Client) Do(ctx context.Context, session int, commands [][]any) ([]*redis.Cmd, error) {
+	answer, err := c.do(ctx, request{Op: opDo, Session: &session, Commands: commands})
 	if err != nil {
 		return nil, err
 	}
 	return answer.commands(ctx, commands)
+}
+
+// CloseSession returns the session's connection.
+func (c *Client) CloseSession(ctx context.Context, session int) error {
+	answer, err := c.do(ctx, request{Op: opCloseSession, Session: &session})
+	if err != nil {
+		return err
+	}
+	return answer.err()
 }
 
 // DoEachShard sends commands as one pipeline to every node of the cluster and
@@ -201,11 +233,13 @@ func (c *Client) do(ctx context.Context, r request) (answer, error) {
 
 // The calls the driver makes of its client, as a tape names them.
 const (
-	opPing        = "Ping"
-	opInfo        = "Info"
-	opConfigGet   = "ConfigGet"
-	opDo          = "Do"
-	opDoEachShard = "DoEachShard"
+	opPing         = "Ping"
+	opInfo         = "Info"
+	opConfigGet    = "ConfigGet"
+	opSession      = "Session"
+	opDo           = "Do"
+	opCloseSession = "CloseSession"
+	opDoEachShard  = "DoEachShard"
 )
 
 // request is one call as a tape holds it: the client it came from, the
@@ -216,6 +250,7 @@ type request struct {
 	Op        string  `json:"op"`
 	Section   string  `json:"section,omitempty"`
 	Parameter string  `json:"parameter,omitempty"`
+	Session   *int    `json:"session,omitempty"`
 	Commands  [][]any `json:"commands,omitempty"`
 }
 
@@ -234,6 +269,7 @@ type answer struct {
 	Config   map[string]string `json:"config,omitempty"`
 	Commands []command         `json:"commands,omitempty"`
 	Shards   [][]command       `json:"shards,omitempty"`
+	Session  *int              `json:"session,omitempty"`
 	Error    *string           `json:"error,omitempty"`
 }
 
@@ -499,20 +535,39 @@ type live interface {
 	Ping(ctx context.Context) error
 	Info(ctx context.Context, section string) (string, error)
 	ConfigGet(ctx context.Context, parameter string) (map[string]string, error)
-	Do(ctx context.Context, commands [][]any) ([]*redis.Cmd, error)
+	OpenSession(ctx context.Context, number int) error
+	Do(ctx context.Context, session int, commands [][]any) ([]*redis.Cmd, error)
+	CloseSession(ctx context.Context, session int) error
 	DoEachShard(ctx context.Context, commands [][]any) ([][]*redis.Cmd, error)
 	Close() error
 }
 
+// pooledSession is the number a client that lends no connection answers for its
+// sessions: a cluster routes each command by its key, so its commands run on the
+// pool.
+const pooledSession = 0
+
 // liveClient is the pinned server reached through go-redis, as the driver
-// reaches a server.
+// reaches a server: a session borrows one connection where the client has one to
+// lend.
 type liveClient struct {
 	client redis.UniversalClient
+
+	mu       sync.Mutex
+	sessions map[int]*redis.Conn
 }
 
 func (c *liveClient) Ping(ctx context.Context) error { return c.client.Ping(ctx).Err() }
 
-func (c *liveClient) Close() error { return c.client.Close() }
+func (c *liveClient) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for number, conn := range c.sessions {
+		_ = conn.Close()
+		delete(c.sessions, number)
+	}
+	return c.client.Close()
+}
 
 func (c *liveClient) Info(ctx context.Context, section string) (string, error) {
 	text, err := c.client.Info(ctx, section).Result()
@@ -526,9 +581,62 @@ func (c *liveClient) ConfigGet(ctx context.Context, parameter string) (map[strin
 	return c.client.ConfigGet(ctx, parameter).Result()
 }
 
-func (c *liveClient) Do(ctx context.Context, commands [][]any) ([]*redis.Cmd, error) {
+// lendsConnections reports whether this client can lend a session a connection of
+// its own: a cluster cannot, because it routes each command by its key.
+func (c *liveClient) lendsConnections() bool {
+	_, ok := c.client.(*redis.Client)
+	return ok
+}
+
+func (c *liveClient) OpenSession(ctx context.Context, number int) error {
+	client, ok := c.client.(*redis.Client)
+	if !ok {
+		return nil
+	}
+	conn := client.Conn()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.sessions == nil {
+		c.sessions = map[int]*redis.Conn{}
+	}
+	c.sessions[number] = conn
+	return nil
+}
+
+func (c *liveClient) Do(ctx context.Context, session int, commands [][]any) ([]*redis.Cmd, error) {
+	if !c.lendsConnections() {
+		return livePipeline(ctx, c.client, commands)
+	}
+	c.mu.Lock()
+	conn := c.sessions[session]
+	c.mu.Unlock()
+	if conn == nil {
+		return nil, fmt.Errorf("testcontainer: no connection for session %d", session)
+	}
+	return livePipeline(ctx, conn, commands)
+}
+
+func (c *liveClient) CloseSession(ctx context.Context, session int) error {
+	if !c.lendsConnections() {
+		return nil
+	}
+	c.mu.Lock()
+	conn := c.sessions[session]
+	delete(c.sessions, session)
+	c.mu.Unlock()
+	if conn == nil {
+		return nil
+	}
+	return conn.Close()
+}
+
+// livePipeline runs commands as one pipeline on comm, which is one connection or
+// a client's pool.
+func livePipeline(ctx context.Context, comm interface {
+	Pipelined(ctx context.Context, fn func(redis.Pipeliner) error) ([]redis.Cmder, error)
+}, commands [][]any) ([]*redis.Cmd, error) {
 	cmds := make([]*redis.Cmd, 0, len(commands))
-	if _, err := c.client.Pipelined(ctx, func(p redis.Pipeliner) error {
+	if _, err := comm.Pipelined(ctx, func(p redis.Pipeliner) error {
 		for _, command := range commands {
 			cmds = append(cmds, p.Do(ctx, command...))
 		}
@@ -619,12 +727,29 @@ func liveDo(t testing.TB, text string) (string, error) {
 			break
 		}
 		a.Config = config
+	case opSession:
+		if req.Session == nil {
+			return "", fmt.Errorf("testcontainer: a Session request holding no number: %s", text)
+		}
+		if err := client.OpenSession(ctx, *req.Session); err != nil {
+			return "", err
+		}
 	case opDo:
-		cmds, err := client.Do(ctx, req.Commands)
+		if req.Session == nil {
+			return "", fmt.Errorf("testcontainer: a Do request holding no session: %s", text)
+		}
+		cmds, err := client.Do(ctx, *req.Session, req.Commands)
 		if err != nil {
 			return "", err
 		}
 		if a.Commands, err = encodeCommands(cmds); err != nil {
+			return "", err
+		}
+	case opCloseSession:
+		if req.Session == nil {
+			return "", fmt.Errorf("testcontainer: a CloseSession request holding no session: %s", text)
+		}
+		if err := client.CloseSession(ctx, *req.Session); err != nil {
 			return "", err
 		}
 	case opDoEachShard:
@@ -739,7 +864,10 @@ func emptyOnce(t testing.TB) {
 	}
 	emptied.done[top] = true
 	client := clientFor(t, Login{}, false)
-	cmds, err := client.Do(context.Background(), [][]any{{"FLUSHALL"}})
+	if err := client.OpenSession(context.Background(), pooledSession); err != nil {
+		t.Fatalf("empty Redis: %v", err)
+	}
+	cmds, err := client.Do(context.Background(), pooledSession, [][]any{{"FLUSHALL"}})
 	if err != nil {
 		t.Fatalf("empty Redis: %v", err)
 	}

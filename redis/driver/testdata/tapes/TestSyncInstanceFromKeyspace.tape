@@ -2,19 +2,43 @@
 
 == TestSyncInstanceFromKeyspace driver#1
 > raw
-| {"login":{},"op":"Do","commands":[["ACL","SETUSER","noconfig","on","\u003enoconfig-pw","~*","+@all","-config"]]}
+| {"login":{},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["ACL","SETUSER","noconfig","on","\u003enoconfig-pw","~*","+@all","-config"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}}]}
+> raw
+| {"login":{},"op":"CloseSession","session":1}
+< raw
+| {}
 
 == TestSyncInstanceFromKeyspace driver#2
 > raw
-| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Do","commands":[["SET","keyspace:key","value"]]}
+| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Do","session":1,"commands":[["SET","keyspace:key","value"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}}]}
 > raw
-| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Do","commands":[["CONFIG","GET","databases"]]}
+| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"CloseSession","session":1}
+< raw
+| {}
+> raw
+| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Session","session":2}
+< raw
+| {}
+> raw
+| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Do","session":2,"commands":[["CONFIG","GET","databases"]]}
 < raw
 | {"commands":[{"error":"NOPERM User noconfig has no permissions to run the 'config|get' command"}]}
+> raw
+| {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"CloseSession","session":2}
+< raw
+| {}
 > raw
 | {"login":{"user":"noconfig","password":"noconfig-pw"},"op":"Info","section":"server"}
 < raw

@@ -27,12 +27,12 @@
 // the login, which for Sentinel is the master's; Options.SentinelUser and
 // Options.SentinelPassword are the sentinels' own when they differ.
 //
-// Config.TLS answers for the seed host, Config.Host: go-redis carries one
-// *tls.Config per client, so a cluster's other nodes and a sentinel's replicas
-// are verified against the settings answered for the seed, as Bytebase's one
-// config did. Config.Dial opens the network connection in place of net.Dialer,
-// so an SSH tunnel or a cloud connector reaches the server, and TLS is
-// negotiated over what it returns.
+// Config.TLS answers for every host the driver dials, a cluster's nodes and a
+// sentinel's replicas included: the driver dials each connection itself rather
+// than handing the settings to go-redis, so each host is verified against its own
+// name. Config.Dial opens the network connection in place of net.Dialer, so an
+// SSH tunnel or a cloud connector reaches the server, and TLS is negotiated over
+// what it returns.
 //
 // Options.Type selects the topology, because it decides which client the driver
 // builds — go-redis has one for a server, one for a sentinel deployment and one
@@ -41,6 +41,12 @@
 // connection string this driver fills, and Redis has no application name and no
 // read-only session. Config.EngineVersion goes too: Bytebase's sync always asked
 // the server and failed when it did not answer, so no stored version stands in.
+//
+// A session borrows one connection, so what a command sets on it (SELECT, CLIENT
+// SETNAME) holds for the session's next command, and Close returns it to the
+// pool. A cluster holds no connection for a session, because it routes each
+// command by its key; its sessions run on the pool and Redis refuses SELECT on a
+// cluster, so nothing is lost.
 //
 // A query runs each line of a script as one command and returns one Result per
 // command, with the columns "#" and "Value". A reply that is an array becomes
@@ -138,10 +144,7 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 	if err != nil {
 		return nil, err
 	}
-	tlsConfig, err := tlsConfig(cfg)
-	if err != nil {
-		return nil, err
-	}
+	dialer := dialer(cfg)
 	d := &Driver{databaseName: strconv.Itoa(database)}
 	switch opt.Type {
 	case "", Standalone:
@@ -149,12 +152,11 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 			return nil, fmt.Errorf("a standalone Redis takes one host, but %d were given", len(addresses))
 		}
 		options := &redis.Options{
-			Addr:      addresses[0],
-			Username:  cfg.User,
-			Password:  cfg.Password,
-			TLSConfig: tlsConfig,
-			DB:        database,
-			Dialer:    cfg.Dial,
+			Addr:     addresses[0],
+			Username: cfg.User,
+			Password: cfg.Password,
+			DB:       database,
+			Dialer:   dialer,
 			// Pipelines run on the main pool. A driver is opened per request
 			// and runs a single pipeline, so go-redis's dedicated pipeline pool
 			// would only add a connection and its handshake to every request.
@@ -170,8 +172,7 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 			SentinelPassword: opt.SentinelPassword,
 			SentinelAddrs:    addresses,
 			DB:               database,
-			TLSConfig:        tlsConfig,
-			Dialer:           cfg.Dial,
+			Dialer:           dialer,
 			PipelinePoolSize: -1,
 		}
 		d.client = &liveClient{client: redis.NewFailoverClient(options)}
@@ -180,8 +181,7 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 			Addrs:            addresses,
 			Username:         cfg.User,
 			Password:         cfg.Password,
-			TLSConfig:        tlsConfig,
-			Dialer:           cfg.Dial,
+			Dialer:           dialer,
 			PipelinePoolSize: -1,
 			// go-redis 9.22.0 raised its own default to a minute. A node that
 			// refuses connections does not trigger a reload, so a failover is
@@ -237,18 +237,63 @@ func endpoints(host, port string) ([]string, error) {
 	return addresses, nil
 }
 
-// tlsConfig returns the TLS settings for the seed host. go-redis takes one
-// *tls.Config per client, so this is the config every node of a cluster or a
-// sentinel deployment is reached with.
-func tlsConfig(cfg driver.Config) (*tls.Config, error) {
-	if cfg.TLS == nil {
-		return nil, nil
+// dialer returns the function the client dials with: Config.Dial when the caller
+// set one, and TLS over what it returns when Config.TLS does. Nil leaves
+// go-redis's own dialer, which negotiates nothing.
+//
+// The TLS settings are asked for once per dialed host, because the driver dials
+// each connection itself: a cluster's nodes and a sentinel's replicas are each
+// verified against their own name, which one *tls.Config on the client could not
+// do.
+func dialer(cfg driver.Config) func(ctx context.Context, network, address string) (net.Conn, error) {
+	if cfg.Dial == nil && cfg.TLS == nil {
+		return nil
 	}
-	config, err := cfg.TLS(cfg.Host)
-	if err != nil {
-		return nil, fmt.Errorf("redis: failed to get tls config: %w", err)
+	return func(ctx context.Context, network, address string) (net.Conn, error) {
+		var tlsConfig *tls.Config
+		if cfg.TLS != nil {
+			host, _, err := net.SplitHostPort(address)
+			if err != nil {
+				host = strings.Trim(address, "[]")
+			}
+			// The settings come first, so a caller that refuses the host costs
+			// no connection.
+			tlsConfig, err = cfg.TLS(host)
+			if err != nil {
+				return nil, fmt.Errorf("redis: failed to get tls config: %w", err)
+			}
+			if tlsConfig == nil {
+				return nil, fmt.Errorf("redis: the TLS config for %s is nil", host)
+			}
+			tlsConfig = tlsConfig.Clone()
+			if tlsConfig.ServerName == "" {
+				tlsConfig.ServerName = host
+			}
+		}
+		conn, err := dialConnection(ctx, cfg.Dial, network, address)
+		if err != nil {
+			return nil, err
+		}
+		if tlsConfig == nil {
+			return conn, nil
+		}
+		tlsConn := tls.Client(conn, tlsConfig)
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			_ = conn.Close()
+			return nil, err
+		}
+		return tlsConn, nil
 	}
-	return config, nil
+}
+
+// dialConnection opens the network connection, through Config.Dial when the
+// caller set one and net.Dialer otherwise.
+func dialConnection(ctx context.Context, via func(ctx context.Context, network, address string) (net.Conn, error), network, address string) (net.Conn, error) {
+	if via != nil {
+		return via(ctx, network, address)
+	}
+	var d net.Dialer
+	return d.DialContext(ctx, network, address)
 }
 
 // Ping pings the server.

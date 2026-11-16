@@ -2,10 +2,26 @@
 
 == TestExecute driver#1
 > raw
-| {"login":{},"op":"Do","commands":[["SET","greeting","hello"],["INCR","counter"]]}
+| {"login":{},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello"],["INCR","counter"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}},{"value":{"kind":"int","int":1}}]}
 > raw
-| {"login":{},"op":"Do","commands":[["GET","greeting"],["GET","counter"]]}
+| {"login":{},"op":"CloseSession","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Session","session":2}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":2,"commands":[["GET","greeting"],["GET","counter"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"hello"}},{"value":{"kind":"string","string":"1"}}]}
+> raw
+| {"login":{},"op":"CloseSession","session":2}
+< raw
+| {}

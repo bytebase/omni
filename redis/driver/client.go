@@ -11,30 +11,45 @@ import (
 )
 
 // client is what the driver asks of a Redis client: the commands sync reads and
-// the pipelines query and execute run. It is the seam a test replaces with a
-// tape, so the driver's own code is what a recording and a replay exercise; the
-// live implementation below is the one call per method it takes to reach
-// go-redis.
+// the connections, pipelines and sessions query and execute run. It is the seam
+// a test replaces with a tape, so the driver's own code is what a recording and a
+// replay exercise; the live implementation below is the one call per method it
+// takes to reach go-redis.
 type client interface {
 	Ping(ctx context.Context) error
 	// Info reads one INFO section.
 	Info(ctx context.Context, section string) (string, error)
 	// ConfigGet reads one CONFIG GET parameter.
 	ConfigGet(ctx context.Context, parameter string) (map[string]string, error)
-	// Do sends commands as one pipeline on the driver's connection and returns
+	// Session borrows one connection and answers its number, so what a command
+	// sets on it holds for the next command of that session. A client that has
+	// no connection to lend one session answers pooledSession.
+	Session(ctx context.Context) (int, error)
+	// Do sends commands as one pipeline on the session's connection and returns
 	// each command's answer, in order. An error means the pipeline could not be
 	// sent at all, so no command has an answer; a server's refusal is the
 	// command's own answer, which its Cmd carries.
-	Do(ctx context.Context, commands [][]any) ([]*redis.Cmd, error)
+	Do(ctx context.Context, session int, commands [][]any) ([]*redis.Cmd, error)
+	// CloseSession returns the connection the session borrowed.
+	CloseSession(ctx context.Context, session int) error
 	// DoEachShard sends commands as one pipeline to every node of a cluster,
 	// ordered by node address, and returns each node's answers.
 	DoEachShard(ctx context.Context, commands [][]any) ([][]*redis.Cmd, error)
 	Close() error
 }
 
+// pooledSession is the session number of a client that lends no connection: a
+// cluster routes each command by its key, so a session's commands run on the
+// pool.
+const pooledSession = 0
+
 // liveClient is the client the driver opens against a server.
 type liveClient struct {
 	client redis.UniversalClient
+
+	mu       sync.Mutex
+	next     int
+	sessions map[int]*redis.Conn
 }
 
 func (c *liveClient) Ping(ctx context.Context) error {
@@ -42,6 +57,12 @@ func (c *liveClient) Ping(ctx context.Context) error {
 }
 
 func (c *liveClient) Close() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	for number, conn := range c.sessions {
+		_ = conn.Close()
+		delete(c.sessions, number)
+	}
 	return c.client.Close()
 }
 
@@ -53,9 +74,62 @@ func (c *liveClient) ConfigGet(ctx context.Context, parameter string) (map[strin
 	return c.client.ConfigGet(ctx, parameter).Result()
 }
 
-func (c *liveClient) Do(ctx context.Context, commands [][]any) ([]*redis.Cmd, error) {
+// lendsConnections reports whether this client can lend a session a connection of
+// its own: a cluster cannot, because it routes each command by its key.
+func (c *liveClient) lendsConnections() bool {
+	_, ok := c.client.(*redis.Client)
+	return ok
+}
+
+func (c *liveClient) Session(ctx context.Context) (int, error) {
+	if !c.lendsConnections() {
+		return pooledSession, nil
+	}
+	conn := c.client.(*redis.Client).Conn()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.sessions == nil {
+		c.sessions = map[int]*redis.Conn{}
+	}
+	c.next++
+	c.sessions[c.next] = conn
+	return c.next, nil
+}
+
+func (c *liveClient) Do(ctx context.Context, session int, commands [][]any) ([]*redis.Cmd, error) {
+	if !c.lendsConnections() {
+		return pipeline(ctx, c.client, commands)
+	}
+	c.mu.Lock()
+	conn := c.sessions[session]
+	c.mu.Unlock()
+	if conn == nil {
+		return nil, fmt.Errorf("redis: no connection for session %d", session)
+	}
+	return pipeline(ctx, conn, commands)
+}
+
+func (c *liveClient) CloseSession(_ context.Context, session int) error {
+	if !c.lendsConnections() {
+		return nil
+	}
+	c.mu.Lock()
+	conn := c.sessions[session]
+	delete(c.sessions, session)
+	c.mu.Unlock()
+	if conn == nil {
+		return nil
+	}
+	return conn.Close()
+}
+
+// pipeline runs commands as one pipeline on comm, which is one connection or a
+// client's pool.
+func pipeline(ctx context.Context, comm interface {
+	Pipelined(ctx context.Context, fn func(redis.Pipeliner) error) ([]redis.Cmder, error)
+}, commands [][]any) ([]*redis.Cmd, error) {
 	cmds := make([]*redis.Cmd, 0, len(commands))
-	if _, err := c.client.Pipelined(ctx, func(p redis.Pipeliner) error {
+	if _, err := comm.Pipelined(ctx, func(p redis.Pipeliner) error {
 		for _, command := range commands {
 			cmds = append(cmds, p.Do(ctx, command...))
 		}

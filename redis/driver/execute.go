@@ -13,11 +13,12 @@ import (
 // pipeline, and returns the rows they affected, which is 0: a Redis command
 // reports no row count.
 //
-// A command the server refuses ends the script with its error. Execute runs each
-// command whatever opts.Transaction, opts.Isolation and opts.MaxRetries say,
-// because Redis has no multi-statement transaction and no lock timeout to retry,
-// and reports nothing to opts.Log, as Bytebase's driver logged none of a
-// script's commands.
+// A script runs as one pipeline on one connection, so a command that changes the
+// connection's state (SELECT) changes it for the commands after it. A command the
+// server refuses ends the script with its error. Execute runs each command
+// whatever opts.Transaction, opts.Isolation and opts.MaxRetries say, because Redis
+// has no multi-statement transaction and no lock timeout to retry, and reports
+// nothing to opts.Log, as Bytebase's driver logged none of a script's commands.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
 	if opts.CreateDatabase {
 		return 0, errors.New("redis: cannot create database")
@@ -27,7 +28,12 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	if err != nil {
 		return 0, err
 	}
-	cmds, err := d.client.Do(ctx, inputs)
+	session, err := d.client.Session(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = d.client.CloseSession(context.Background(), session) }()
+	cmds, err := d.client.Do(ctx, session, inputs)
 	if err != nil {
 		return 0, err
 	}

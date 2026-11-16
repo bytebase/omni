@@ -2,9 +2,17 @@ package driver
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
+	"math/big"
+	"net"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -138,15 +146,6 @@ func TestOpen(t *testing.T) {
 			opts:             Options{Type: Cluster},
 			wantDatabaseName: "0",
 		},
-		{
-			name: "the caller refuses TLS for the seed",
-			cfg: driver.Config{
-				Host: "redis.example.com",
-				Port: "6379",
-				TLS:  func(string) (*tls.Config, error) { return nil, errors.New("not this host") },
-			},
-			wantErr: "redis: failed to get tls config: not this host",
-		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -167,17 +166,100 @@ func TestPing(t *testing.T) {
 	require.NoError(t, d.Ping(context.Background()))
 }
 
-func TestTLSAnswersForTheSeedHost(t *testing.T) {
-	var asked []string
-	d, err := Open(context.Background(), driver.Config{
-		Host: "redis.example.com",
-		Port: "6379",
-		TLS: func(host string) (*tls.Config, error) {
-			asked = append(asked, host)
-			return &tls.Config{ServerName: host, MinVersion: tls.VersionTLS12}, nil
+// TestDialerAsksForEachHostsSettings holds the settings to the host being dialed:
+// one client-wide *tls.Config could not verify a cluster's nodes against their
+// own names.
+func TestDialerAsksForEachHostsSettings(t *testing.T) {
+	var hosts []string
+	d := dialer(driver.Config{TLS: func(host string) (*tls.Config, error) {
+		hosts = append(hosts, host)
+		return nil, errors.New("no TLS here")
+	}})
+	require.NotNil(t, d)
+	for _, address := range []string{"node1.example.com:6379", "[2001:db8::1]:6379"} {
+		_, err := d(context.Background(), "tcp", address)
+		require.ErrorContains(t, err, "no TLS here")
+	}
+	require.Equal(t, []string{"node1.example.com", "2001:db8::1"}, hosts)
+}
+
+// TestDialerRefusesANilConfig holds a caller that answered no settings to its own
+// host: TLS was required, so no connection is made at all.
+func TestDialerRefusesANilConfig(t *testing.T) {
+	dialed := false
+	d := dialer(driver.Config{
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			dialed = true
+			return nil, errors.New("unreachable")
 		},
+		TLS: func(string) (*tls.Config, error) { return nil, nil },
+	})
+	_, err := d(context.Background(), "tcp", "127.0.0.1:6379")
+	require.ErrorContains(t, err, "the TLS config for 127.0.0.1 is nil")
+	require.False(t, dialed, "the dialer reached for a host whose settings were refused")
+}
+
+// TestDialerNegotiatesTLSOverTheDialedConnection holds the connection the dialer
+// hands the client: TLS over what Config.Dial returned, verified with the settings
+// the caller answered for that host. Without this, a tunnel would carry the Redis
+// protocol in plaintext although TLS was required.
+func TestDialerNegotiatesTLSOverTheDialedConnection(t *testing.T) {
+	certificate := selfSignedCertificate(t)
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		Certificates: []tls.Certificate{certificate},
+		MinVersion:   tls.VersionTLS12,
 	})
 	require.NoError(t, err)
-	require.NoError(t, d.Close())
-	require.Equal(t, []string{"redis.example.com"}, asked)
+	t.Cleanup(func() { _ = listener.Close() })
+	go func() {
+		conn, err := listener.Accept()
+		if err != nil {
+			return
+		}
+		if tlsConn, ok := conn.(*tls.Conn); ok {
+			_ = tlsConn.Handshake()
+		}
+		_ = conn.Close()
+	}()
+
+	var hosts []string
+	tunneled := false
+	d := dialer(driver.Config{
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			tunneled = true
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, address)
+		},
+		TLS: func(host string) (*tls.Config, error) {
+			hosts = append(hosts, host)
+			return &tls.Config{InsecureSkipVerify: true, MinVersion: tls.VersionTLS12}, nil
+		},
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	conn, err := d(ctx, "tcp", listener.Addr().String())
+	require.NoError(t, err)
+	defer conn.Close()
+	_, ok := conn.(*tls.Conn)
+	require.True(t, ok, "the connection the client gets is not TLS")
+	require.True(t, tunneled, "the connection did not come from Config.Dial")
+	require.Equal(t, []string{"127.0.0.1"}, hosts)
+}
+
+// selfSignedCertificate is a certificate for 127.0.0.1 that a test's client can
+// trust without a certificate authority.
+func selfSignedCertificate(t *testing.T) tls.Certificate {
+	t.Helper()
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "omni"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(time.Hour),
+		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
+	}
+	der, err := x509.CreateCertificate(rand.Reader, &template, &template, &key.PublicKey, key)
+	require.NoError(t, err)
+	return tls.Certificate{Certificate: [][]byte{der}, PrivateKey: key}
 }

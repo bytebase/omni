@@ -2,10 +2,26 @@
 
 == TestQuery driver#1
 > raw
-| {"login":{},"op":"Do","commands":[["SET","greeting","hello world"],["RPUSH","queue","first","second"]]}
+| {"login":{},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello world"],["RPUSH","queue","first","second"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}},{"value":{"kind":"int","int":2}}]}
 > raw
-| {"login":{},"op":"Do","commands":[["GET","greeting"],["GET","missing"],["LRANGE","queue","0","-1"],["DBSIZE"]]}
+| {"login":{},"op":"CloseSession","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Session","session":2}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":2,"commands":[["GET","greeting"],["GET","missing"],["LRANGE","queue","0","-1"],["DBSIZE"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"hello world"}},{"error":"redis: nil"},{"value":{"kind":"array","array":[{"kind":"string","string":"first"},{"kind":"string","string":"second"}]}},{"value":{"kind":"int","int":2}}]}
+> raw
+| {"login":{},"op":"CloseSession","session":2}
+< raw
+| {}

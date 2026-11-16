@@ -2,9 +2,11 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/driver"
@@ -111,8 +113,10 @@ func TestQueryCommandError(t *testing.T) {
 // TestQueryExplainRefused holds an explain to the error Redis's driver answers
 // it with: Redis states no plan.
 func TestQueryExplainRefused(t *testing.T) {
-	session, err := (&Driver{}).Session(context.Background())
+	d := openDriver(t, testcontainer.Login{}, "0")
+	session, err := d.Session(context.Background())
 	require.NoError(t, err)
+	defer func() { require.NoError(t, session.Close()) }()
 	_, err = session.Query(context.Background(), "GET key", driver.QueryOptions{Explain: true})
 	require.ErrorContains(t, err, "Redis does not support EXPLAIN")
 }
@@ -151,4 +155,119 @@ func TestQueryAllNodes(t *testing.T) {
 		_, value := row(t, results[i].Rows[0])
 		require.Equal(t, want, value)
 	}
+}
+
+// shardClient answers the all-nodes path, which the pinned server cannot: it is
+// one node. Each shard's answers are the Val each command answered with.
+type shardClient struct {
+	answers [][]any
+	errs    [][]error
+}
+
+func (*shardClient) Ping(context.Context) error { return errors.New("not asked") }
+
+func (*shardClient) Info(context.Context, string) (string, error) { return "", errors.New("not asked") }
+
+func (*shardClient) ConfigGet(context.Context, string) (map[string]string, error) {
+	return nil, errors.New("not asked")
+}
+
+func (*shardClient) Session(context.Context) (int, error) { return 0, nil }
+
+func (*shardClient) Do(context.Context, int, [][]any) ([]*redis.Cmd, error) {
+	return nil, errors.New("not asked")
+}
+
+func (*shardClient) CloseSession(context.Context, int) error { return nil }
+
+func (*shardClient) Close() error { return nil }
+
+func (c *shardClient) DoEachShard(ctx context.Context, commands [][]any) ([][]*redis.Cmd, error) {
+	shards := make([][]*redis.Cmd, len(c.answers))
+	for s, answers := range c.answers {
+		cmds := make([]*redis.Cmd, len(commands))
+		for i := range commands {
+			cmds[i] = redis.NewCmd(ctx)
+			if i < len(answers) {
+				cmds[i].SetVal(answers[i])
+			}
+			if i < len(c.errs[s]) {
+				cmds[i].SetErr(c.errs[s][i])
+			}
+		}
+		shards[s] = cmds
+	}
+	return shards, nil
+}
+
+// queryShards runs script through the all-nodes path on a fake cluster.
+func queryShards(t *testing.T, client client, script string, opts driver.QueryOptions) []*driver.Result {
+	t.Helper()
+	d := &Driver{client: client}
+	session, err := d.Session(context.Background())
+	require.NoError(t, err)
+	results, err := session.(*Session).QueryAllNodes(context.Background(), script, opts)
+	require.NoError(t, err)
+	return results
+}
+
+// TestQueryAllNodesAcrossShards holds a command's rows to every node's answers, in
+// node order, which one node's client never shows.
+func TestQueryAllNodesAcrossShards(t *testing.T) {
+	results := queryShards(t, &shardClient{
+		answers: [][]any{
+			{"a", "c"},
+			{"b", "d"},
+		},
+		errs: [][]error{{nil, nil}, {nil, nil}},
+	}, "DBSIZE\nPING", driver.QueryOptions{})
+
+	require.Len(t, results, 2)
+	for _, result := range results {
+		require.NoError(t, result.Err)
+	}
+	require.Len(t, results[0].Rows, 2)
+	require.Len(t, results[1].Rows, 2)
+	for i, want := range []string{"a", "b"} {
+		_, value := row(t, results[0].Rows[i])
+		require.Equal(t, want, value)
+	}
+}
+
+// TestQueryAllNodesStopsAfterAFailingCommand holds a command one node refused: the
+// commands before it keep every node's answers, and the commands after it are not
+// reported.
+func TestQueryAllNodesStopsAfterAFailingCommand(t *testing.T) {
+	refused := errors.New("ERR unknown command")
+	results := queryShards(t, &shardClient{
+		answers: [][]any{
+			{"a"},
+			{"b"},
+		},
+		errs: [][]error{{nil, refused}, {nil, refused}},
+	}, "DBSIZE\nNOTACOMMAND\nDBSIZE", driver.QueryOptions{})
+
+	require.Len(t, results, 2)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 2, "the command before the failing one lost a node's answer")
+	require.ErrorContains(t, results[1].Err, "unknown command")
+}
+
+// TestQueryAllNodesCountsEveryShardsRows holds the result-size cap across nodes:
+// every node's rows count toward it, so two nodes cannot each pass the cap while
+// their sum does not.
+func TestQueryAllNodesCountsEveryShardsRows(t *testing.T) {
+	items := []any{"aaaaaaaaaa", "bbbbbbbbbb", "cccccccccc", "dddddddddd"}
+	results := queryShards(t, &shardClient{
+		answers: [][]any{
+			{items},
+			{items},
+		},
+		errs: [][]error{{nil}, {nil}},
+	}, "LRANGE list 0 -1", driver.QueryOptions{MaxResultBytes: 120})
+
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.True(t, results[0].Truncated)
+	require.Len(t, results[0].Rows, 5, "the cap was counted again for the second node")
 }

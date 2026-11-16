@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/shlex"
@@ -13,22 +14,32 @@ import (
 	"github.com/bytebase/omni/driver"
 )
 
-// Session returns one session. Redis has no session state this driver sets —
-// the database index is chosen when the client is opened — so a session is the
-// driver itself.
-func (d *Driver) Session(context.Context) (driver.Session, error) {
-	return &Session{driver: d}, nil
+// Session borrows one connection, so a command that sets connection state (SELECT,
+// CLIENT SETNAME) changes it for the session's next command. A cluster has no
+// connection to lend, because it routes each command by its key.
+func (d *Driver) Session(ctx context.Context) (driver.Session, error) {
+	number, err := d.client.Session(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &Session{driver: d, session: number}, nil
 }
 
-// Session runs a Redis script's commands. It implements driver.Session, and adds
-// QueryAllNodes for the all-nodes choice Bytebase's query API offers per request,
-// which the contract's QueryOptions has no field for.
+// Session runs a Redis script's commands on one connection. It implements
+// driver.Session, and adds QueryAllNodes for the all-nodes choice Bytebase's query
+// API offers per request, which the contract's QueryOptions has no field for.
 type Session struct {
-	driver *Driver
+	driver  *Driver
+	session int
+	// mu serializes the session's commands: the connection it holds is not safe
+	// for concurrent use.
+	mu sync.Mutex
 }
 
-// Close closes the session, which holds nothing of its own.
-func (*Session) Close() error { return nil }
+// Close returns the session's connection to the pool.
+func (s *Session) Close() error {
+	return s.driver.client.CloseSession(context.Background(), s.session)
+}
 
 // Query runs each command of script in order, one command per line, and returns
 // one Result per command. A command that fails ends the script on its Result; the
@@ -44,8 +55,10 @@ func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		return nil, err
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	startTime := time.Now()
-	cmds, err := s.driver.client.Do(ctx, inputs)
+	cmds, err := s.driver.client.Do(ctx, s.session, inputs)
 	if err != nil {
 		return nil, err
 	}
@@ -62,7 +75,7 @@ func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			result.Err = cmd.Err()
 			break
 		}
-		appendReplyRows(result, cmd, opts.MaxResultBytes)
+		appendReplyRows(result, cmd, opts.MaxResultBytes, driver.HeaderByteSize(result.Columns))
 	}
 	return results, nil
 }
@@ -80,6 +93,8 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 		return nil, err
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	startTime := time.Now()
 	shards, err := s.driver.client.DoEachShard(ctx, inputs)
 	if err != nil {
@@ -92,26 +107,36 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 		return nil, fmt.Errorf("failed to query for each shard: %w", err)
 	}
 
-	results := make([]*driver.Result, len(inputs))
-	for i := range inputs {
+	results := make([]*driver.Result, len(commands))
+	size := make([]int64, len(commands))
+	for i := range commands {
 		results[i] = newResult(commands[i])
+		size[i] = driver.HeaderByteSize(results[i].Columns)
 	}
-	for _, shard := range shards {
-		for i, cmd := range shard {
-			if i >= len(results) {
+	// A command's replies come from every node before the next command's do, so
+	// a command that fails on one node leaves the earlier commands whole and its
+	// own rows short, and each command's rows are counted once.
+	done := len(results)
+	for i, result := range results {
+		for _, shard := range shards {
+			if i >= len(shard) {
+				continue
+			}
+			if shard[i].Err() != nil && shard[i].Err() != redis.Nil {
+				result.Err = shard[i].Err()
+				done = i + 1
 				break
 			}
-			if cmd.Err() != nil && cmd.Err() != redis.Nil {
-				results[i].Err = cmd.Err()
-				return results[:i+1], nil
-			}
-			appendReplyRows(results[i], cmd, opts.MaxResultBytes)
+			size[i] = appendReplyRows(result, shard[i], opts.MaxResultBytes, size[i])
+		}
+		if result.Err != nil {
+			break
 		}
 	}
-	for _, result := range results {
+	for _, result := range results[:done] {
 		result.Latency = time.Since(startTime)
 	}
-	return results, nil
+	return results[:done], nil
 }
 
 // newResult is the empty result of one command: the two columns Bytebase showed
@@ -129,12 +154,13 @@ func newResult(statement string) *driver.Result {
 // appendReplyRows appends the rows one command's answer holds: an array becomes
 // one row per element, a missing key one row holding NULL, and any other answer
 // one row. It stops at maxBytes, which is positive when the caller capped the
-// result, and marks the result truncated.
-func appendReplyRows(result *driver.Result, cmd *redis.Cmd, maxBytes int64) {
+// result, and marks the result truncated. It takes the result's byte count so far
+// and returns the updated one, because an all-nodes result collects rows from
+// every node.
+func appendReplyRows(result *driver.Result, cmd *redis.Cmd, maxBytes int64, totalBytes int64) int64 {
 	if result.Truncated {
-		return
+		return totalBytes
 	}
-	totalBytes := driver.HeaderByteSize(result.Columns)
 	add := func(row []driver.Value) {
 		result.Rows = append(result.Rows, row)
 		totalBytes += driver.RowByteSize(row)
@@ -144,18 +170,19 @@ func appendReplyRows(result *driver.Result, cmd *redis.Cmd, maxBytes int64) {
 	}
 	if cmd.Err() == redis.Nil {
 		add([]driver.Value{{Kind: driver.Int32, Int64: 1}, {Kind: driver.Null}})
-		return
+		return totalBytes
 	}
 	if list, ok := cmd.Val().([]any); ok {
 		for i, value := range list {
 			if result.Truncated {
-				return
+				return totalBytes
 			}
 			add(replyRow(i+1, value))
 		}
-		return
+		return totalBytes
 	}
 	add(replyRow(1, cmd.Val()))
+	return totalBytes
 }
 
 // replyRow is one row of an answer: the element's position and its value as a

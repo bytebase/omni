@@ -2,6 +2,14 @@
 
 == TestSyncDatabase driver#1
 > raw
-| {"login":{},"op":"Do","commands":[["SET","greeting","hello world"],["HSET","user:1","name","Alice"],["RPUSH","queue","first","second"],["INCR","counter"]]}
+| {"login":{},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello world"],["HSET","user:1","name","Alice"],["RPUSH","queue","first","second"],["INCR","counter"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}},{"value":{"kind":"int","int":1}},{"value":{"kind":"int","int":2}},{"value":{"kind":"int","int":1}}]}
+> raw
+| {"login":{},"op":"CloseSession","session":1}
+< raw
+| {}

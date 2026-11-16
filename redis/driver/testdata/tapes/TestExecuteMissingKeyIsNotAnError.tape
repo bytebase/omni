@@ -2,6 +2,14 @@
 
 == TestExecuteMissingKeyIsNotAnError driver#1
 > raw
-| {"login":{},"op":"Do","commands":[["GET","missing"]]}
+| {"login":{},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["GET","missing"]]}
 < raw
 | {"commands":[{"error":"redis: nil"}]}
+> raw
+| {"login":{},"op":"CloseSession","session":1}
+< raw
+| {}

@@ -2,6 +2,14 @@
 
 == TestExecuteRefusedCommand driver#1
 > raw
-| {"login":{},"op":"Do","commands":[["SET","key","text"],["LPUSH","key","x"]]}
+| {"login":{},"op":"Session","session":1}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["SET","key","text"],["LPUSH","key","x"]]}
 < raw
 | {"commands":[{"value":{"kind":"string","string":"OK"}},{"error":"WRONGTYPE Operation against a key holding the wrong kind of value"}]}
+> raw
+| {"login":{},"op":"CloseSession","session":1}
+< raw
+| {}
