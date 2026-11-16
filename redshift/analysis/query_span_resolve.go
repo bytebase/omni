@@ -1,0 +1,1139 @@
+package analysis
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/redshift"
+	"github.com/bytebase/omni/redshift/ast"
+	"github.com/bytebase/omni/redshift/catalog"
+)
+
+const redshiftGetDatabaseMetadataError = "failed to get database metadata for database: %s"
+
+type querySpanResolver struct {
+	defaultDatabase string
+	searchPath      []string
+	opts            ResolveOptions
+}
+
+func newQuerySpanResolver(defaultDatabase string, searchPath []string, opts ResolveOptions) *querySpanResolver {
+	return &querySpanResolver{
+		defaultDatabase: defaultDatabase,
+		searchPath:      normalizeSearchPath(searchPath),
+		opts:            opts,
+	}
+}
+
+func normalizeSearchPath(searchPath []string) []string {
+	result := make([]string, 0, len(searchPath))
+	for _, schema := range searchPath {
+		if schema != "" {
+			result = append(result, schema)
+		}
+	}
+	if len(result) == 0 {
+		return []string{"public"}
+	}
+	return result
+}
+
+func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
+	return q.getQuerySpanWithFunctionStack(statement, map[string]bool{})
+}
+
+func (q *querySpanResolver) getQuerySpanWithFunctionStack(statement string, functionStack map[string]bool) (*ResolvedQuerySpan, error) {
+	stmts, err := redshift.Parse(statement)
+	if err != nil {
+		return nil, err
+	}
+	if len(stmts) == 0 || stmts[0].Empty() {
+		return emptyQuerySpan(Select), nil
+	}
+	if len(stmts) != 1 {
+		return nil, fmt.Errorf("expected exactly 1 statement, got %d", len(stmts))
+	}
+
+	node := stmts[0].AST
+	queryType := querySpanType(node, false /* allSystems */)
+	if explain, ok := node.(*ast.ExplainStmt); ok && hasExplainAnalyze(explain) {
+		return q.getExplainAnalyzeQuerySpan(explain.Query, queryType)
+	}
+	if unload, ok := node.(*ast.UnloadStmt); ok {
+		return q.getUnloadQuerySpan(unload, functionStack)
+	}
+	if _, ok := node.(*ast.VariableSetStmt); ok {
+		return emptyQuerySpan(queryType), nil
+	}
+	if queryType != Select {
+		return emptyQuerySpan(queryType), nil
+	}
+
+	accessTables, earlySpan, err := q.collectSelectAccessTables(node)
+	if err != nil {
+		return nil, err
+	}
+	if earlySpan != nil {
+		return earlySpan, nil
+	}
+
+	cat, err := q.newQuerySpanCatalog()
+	if err != nil {
+		return nil, err
+	}
+	span, err := GetQuerySpan(cat, statement)
+	if err != nil {
+		if isQuerySpanNotFound(err) {
+			return q.notFoundQuerySpan(err), nil
+		}
+		return nil, err
+	}
+
+	results := q.convertResults(span.Results)
+	functionAccessTables, functionResultSources, functionIssues, err := q.collectFunctionBodySources(node, functionStack, make(map[string]functionBodySources))
+	if err != nil {
+		return nil, err
+	}
+	for source := range functionAccessTables {
+		accessTables[source] = true
+	}
+	if functionIssues.functionNotSupportedError != nil && len(accessTables) == 0 {
+		accessTables[ColumnResource{Database: q.defaultDatabase}] = true
+	}
+	mergeFunctionResultSources(results, functionResultSources)
+	if hasRangeVar(node) && hasResultWithoutSource(results) && !q.allAccessTablesExist(accessTables) {
+		return q.notFoundQuerySpan(&ResourceNotFoundError{Database: &q.defaultDatabase}), nil
+	}
+
+	return &ResolvedQuerySpan{
+		Type:                      Select,
+		SourceColumns:             accessTables,
+		PredicateColumns:          q.convertColumnList(span.PredicateColumns),
+		Results:                   results,
+		NotFoundError:             functionIssues.notFoundError,
+		FunctionNotSupportedError: functionIssues.functionNotSupportedError,
+	}, nil
+}
+
+func (q *querySpanResolver) getExplainAnalyzeQuerySpan(query ast.Node, queryType QueryType) (*ResolvedQuerySpan, error) {
+	if queryType != Select {
+		return emptyQuerySpan(queryType), nil
+	}
+
+	accessTables, earlySpan, err := q.collectSelectAccessTables(query)
+	if err != nil {
+		return nil, err
+	}
+	if earlySpan != nil {
+		return earlySpan, nil
+	}
+	return &ResolvedQuerySpan{
+		Type:             Select,
+		SourceColumns:    accessTables,
+		PredicateColumns: ColumnSet{},
+		Results:          []ResolvedQuerySpanResult{},
+	}, nil
+}
+
+func (q *querySpanResolver) getUnloadQuerySpan(unload *ast.UnloadStmt, functionStack map[string]bool) (*ResolvedQuerySpan, error) {
+	span, err := q.getQuerySpanWithFunctionStack(unload.Query, functionStack)
+	if err != nil {
+		return nil, err
+	}
+	return &ResolvedQuerySpan{
+		Type:                      DML,
+		SourceColumns:             span.SourceColumns,
+		PredicateColumns:          span.PredicateColumns,
+		Results:                   []ResolvedQuerySpanResult{},
+		NotFoundError:             span.NotFoundError,
+		FunctionNotSupportedError: span.FunctionNotSupportedError,
+	}, nil
+}
+
+func (q *querySpanResolver) collectSelectAccessTables(node ast.Node) (ColumnSet, *ResolvedQuerySpan, error) {
+	accessTables, err := q.collectAccessTables(node)
+	if err != nil {
+		var resourceNotFound *ResourceNotFoundError
+		if errors.As(err, &resourceNotFound) {
+			return nil, q.notFoundQuerySpan(resourceNotFound), nil
+		}
+		return nil, nil, err
+	}
+	allSystems, mixed := isMixedQuery(accessTables)
+	if mixed {
+		return nil, nil, ErrMixUserSystemTables
+	}
+	if allSystems {
+		return nil, emptyQuerySpan(SelectInfoSchema), nil
+	}
+	return accessTables, nil, nil
+}
+
+func (q *querySpanResolver) notFoundQuerySpan(err error) *ResolvedQuerySpan {
+	return &ResolvedQuerySpan{
+		Type: Select,
+		SourceColumns: ColumnSet{
+			{Database: q.defaultDatabase}: true,
+		},
+		PredicateColumns: ColumnSet{},
+		Results:          []ResolvedQuerySpanResult{},
+		NotFoundError:    err,
+	}
+}
+
+func emptyQuerySpan(queryType QueryType) *ResolvedQuerySpan {
+	return &ResolvedQuerySpan{
+		Type:          queryType,
+		SourceColumns: ColumnSet{},
+		Results:       []ResolvedQuerySpanResult{},
+	}
+}
+
+func (q *querySpanResolver) newQuerySpanCatalog() (*catalog.Catalog, error) {
+	if q.opts.GetDatabaseMetadata == nil {
+		return nil, errors.New("GetDatabaseMetadataFunc is not set in GetQuerySpanContext")
+	}
+	dbMeta, err := q.getDatabaseMetadata(q.defaultDatabase)
+	if err != nil {
+		return nil, err
+	}
+	if dbMeta == nil {
+		return nil, &ResourceNotFoundError{Database: &q.defaultDatabase}
+	}
+	cat := catalog.New()
+	cat.SetSearchPath(q.searchPath)
+	cat.UseMetadata(dbMeta)
+	return cat, nil
+}
+
+type functionBodySources struct {
+	accessTables ColumnSet
+	results      []ResolvedQuerySpanResult
+	issues       functionBodyIssues
+}
+
+type functionBodyIssues struct {
+	notFoundError             error
+	functionNotSupportedError error
+}
+
+func (i *functionBodyIssues) merge(other functionBodyIssues) {
+	if i.notFoundError == nil {
+		i.notFoundError = other.notFoundError
+	}
+	if i.functionNotSupportedError == nil {
+		i.functionNotSupportedError = other.functionNotSupportedError
+	}
+}
+
+type functionSourceProjection struct {
+	names   []string
+	sources []ColumnSet
+}
+
+type functionSourceScope map[string]functionSourceProjection
+
+func (q *querySpanResolver) collectAccessTables(node ast.Node) (ColumnSet, error) {
+	result := make(ColumnSet)
+	if err := q.collectAccessTablesFromNode(node, map[string]bool{}, result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (q *querySpanResolver) collectAccessTablesFromNode(node ast.Node, ctes map[string]bool, result ColumnSet) error {
+	if node == nil {
+		return nil
+	}
+	if selectStmt, ok := node.(*ast.SelectStmt); ok {
+		return q.collectAccessTablesFromSelect(selectStmt, ctes, result)
+	}
+
+	var err error
+	ast.Inspect(node, func(n ast.Node) bool {
+		if err != nil {
+			return false
+		}
+		if n != node {
+			if selectStmt, ok := n.(*ast.SelectStmt); ok {
+				err = q.collectAccessTablesFromSelect(selectStmt, ctes, result)
+				return false
+			}
+		}
+		rangeVar, ok := n.(*ast.RangeVar)
+		if !ok || rangeVar == nil || rangeVar.Relname == "" {
+			return true
+		}
+		if isCTEReference(rangeVar, ctes) {
+			return true
+		}
+
+		resource, resolveErr := q.resolveRangeVar(rangeVar)
+		if resolveErr != nil {
+			err = resolveErr
+			return false
+		}
+		if resource.Table != "" {
+			result[resource] = true
+		}
+		return true
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (q *querySpanResolver) collectAccessTablesFromSelect(selectStmt *ast.SelectStmt, ctes map[string]bool, result ColumnSet) error {
+	localCTEs := cloneCTENameSet(ctes)
+	if selectStmt.WithClause != nil && selectStmt.WithClause.Ctes != nil {
+		cteScope := cloneCTENameSet(ctes)
+		if selectStmt.WithClause.Recursive {
+			for _, item := range selectStmt.WithClause.Ctes.Items {
+				cte, ok := item.(*ast.CommonTableExpr)
+				if ok && cte.Ctename != "" {
+					cteScope[strings.ToLower(cte.Ctename)] = true
+				}
+			}
+		}
+		for _, item := range selectStmt.WithClause.Ctes.Items {
+			cte, ok := item.(*ast.CommonTableExpr)
+			if !ok || cte.Ctename == "" {
+				continue
+			}
+			if err := q.collectAccessTablesFromNode(cte.Ctequery, cteScope, result); err != nil {
+				return err
+			}
+			name := strings.ToLower(cte.Ctename)
+			cteScope[name] = true
+			localCTEs[name] = true
+		}
+	}
+
+	for _, node := range []ast.Node{
+		selectStmt.WhereClause,
+		selectStmt.HavingClause,
+		selectStmt.QualifyClause,
+		selectStmt.LimitOffset,
+		selectStmt.LimitCount,
+	} {
+		if err := q.collectAccessTablesFromNode(node, localCTEs, result); err != nil {
+			return err
+		}
+	}
+	if selectStmt.IntoClause != nil {
+		if err := q.collectAccessTablesFromNode(selectStmt.IntoClause, localCTEs, result); err != nil {
+			return err
+		}
+	}
+	if selectStmt.Larg != nil {
+		if err := q.collectAccessTablesFromNode(selectStmt.Larg, localCTEs, result); err != nil {
+			return err
+		}
+	}
+	if selectStmt.Rarg != nil {
+		if err := q.collectAccessTablesFromNode(selectStmt.Rarg, localCTEs, result); err != nil {
+			return err
+		}
+	}
+	for _, list := range []*ast.List{
+		selectStmt.DistinctClause,
+		selectStmt.TargetList,
+		selectStmt.FromClause,
+		selectStmt.GroupClause,
+		selectStmt.WindowClause,
+		selectStmt.ExcludeList,
+		selectStmt.ValuesLists,
+		selectStmt.SortClause,
+		selectStmt.LockingClause,
+	} {
+		if err := q.collectAccessTablesFromList(list, localCTEs, result); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (q *querySpanResolver) collectAccessTablesFromList(list *ast.List, ctes map[string]bool, result ColumnSet) error {
+	if list == nil {
+		return nil
+	}
+	for _, item := range list.Items {
+		if err := q.collectAccessTablesFromNode(item, ctes, result); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (q *querySpanResolver) collectFunctionBodySources(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources) (ColumnSet, []ColumnSet, functionBodyIssues, error) {
+	accessTables, issues, err := q.collectFunctionBodyAccessTables(node, functionStack, cache)
+	if err != nil {
+		return nil, nil, functionBodyIssues{}, err
+	}
+
+	var resultSources []ColumnSet
+	if selectStmt, ok := node.(*ast.SelectStmt); ok {
+		var sourceIssues functionBodyIssues
+		resultSources, sourceIssues, err = q.collectSelectFunctionResultSources(selectStmt, functionStack, cache, nil)
+		if err != nil {
+			return nil, nil, functionBodyIssues{}, err
+		}
+		issues.merge(sourceIssues)
+	}
+	return accessTables, resultSources, issues, nil
+}
+
+func (q *querySpanResolver) collectFunctionBodyAccessTables(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	if node == nil {
+		return result, functionBodyIssues{}, nil
+	}
+
+	var err error
+	issues := functionBodyIssues{}
+	ast.Inspect(node, func(n ast.Node) bool {
+		if err != nil {
+			return false
+		}
+		call, ok := n.(*ast.FuncCall)
+		if !ok {
+			return true
+		}
+		sources, sourceErr := q.functionBodySourcesForCall(call, functionStack, cache)
+		if sourceErr != nil {
+			err = sourceErr
+			return false
+		}
+		issues.merge(sources.issues)
+		for source := range sources.accessTables {
+			result[source] = true
+		}
+		return true
+	})
+	return result, issues, err
+}
+
+func (q *querySpanResolver) collectSelectFunctionResultSources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) ([]ColumnSet, functionBodyIssues, error) {
+	if selectStmt == nil || selectStmt.TargetList == nil {
+		return nil, functionBodyIssues{}, nil
+	}
+
+	scope, issues, err := q.functionSourceScopeForSelect(selectStmt, functionStack, cache, outerScope)
+	if err != nil {
+		return nil, functionBodyIssues{}, err
+	}
+
+	result := make([]ColumnSet, 0, selectStmt.TargetList.Len())
+	for _, item := range selectStmt.TargetList.Items {
+		target, ok := item.(*ast.ResTarget)
+		if !ok {
+			result = append(result, nil)
+			continue
+		}
+		sources, sourceIssues, err := q.collectFunctionBodyResultSources(target.Val, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(sourceIssues)
+		result = append(result, sources)
+	}
+	return result, issues, nil
+}
+
+func (q *querySpanResolver) functionSourceScopeForSelect(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) (functionSourceScope, functionBodyIssues, error) {
+	scope := cloneFunctionSourceScope(outerScope)
+	issues := functionBodyIssues{}
+
+	if selectStmt.WithClause != nil && selectStmt.WithClause.Ctes != nil {
+		cteScope := cloneFunctionSourceScope(scope)
+		for _, item := range selectStmt.WithClause.Ctes.Items {
+			cte, ok := item.(*ast.CommonTableExpr)
+			if !ok || cte.Ctename == "" {
+				continue
+			}
+			cteSelect, ok := cte.Ctequery.(*ast.SelectStmt)
+			if !ok {
+				continue
+			}
+			sources, sourceIssues, err := q.collectSelectFunctionResultSources(cteSelect, functionStack, cache, cteScope)
+			if err != nil {
+				return nil, functionBodyIssues{}, err
+			}
+			issues.merge(sourceIssues)
+			projection := functionSourceProjection{
+				names:   redshiftSelectOutputNames(cteSelect),
+				sources: sources,
+			}
+			if aliasNames := redshiftStringList(cte.Aliascolnames); len(aliasNames) > 0 {
+				projection.names = aliasNames
+			}
+			name := strings.ToLower(cte.Ctename)
+			scope[name] = projection
+			cteScope[name] = projection
+		}
+	}
+
+	sourceIssues, err := q.collectFunctionSourceScopeFromList(selectStmt.FromClause, functionStack, cache, scope)
+	if err != nil {
+		return nil, functionBodyIssues{}, err
+	}
+	issues.merge(sourceIssues)
+	return scope, issues, nil
+}
+
+func (q *querySpanResolver) collectFunctionSourceScopeFromList(list *ast.List, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (functionBodyIssues, error) {
+	if list == nil {
+		return functionBodyIssues{}, nil
+	}
+	issues := functionBodyIssues{}
+	for _, item := range list.Items {
+		sourceIssues, err := q.collectFunctionSourceScopeFromNode(item, functionStack, cache, scope)
+		if err != nil {
+			return functionBodyIssues{}, err
+		}
+		issues.merge(sourceIssues)
+	}
+	return issues, nil
+}
+
+func (q *querySpanResolver) collectFunctionSourceScopeFromNode(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (functionBodyIssues, error) {
+	switch n := node.(type) {
+	case *ast.RangeVar:
+		if n == nil || n.Alias == nil || n.Alias.Aliasname == "" {
+			return functionBodyIssues{}, nil
+		}
+		projection, ok := scope[strings.ToLower(n.Relname)]
+		if !ok {
+			return functionBodyIssues{}, nil
+		}
+		if aliasNames := redshiftStringList(n.Alias.Colnames); len(aliasNames) > 0 {
+			projection.names = aliasNames
+		}
+		scope[strings.ToLower(n.Alias.Aliasname)] = projection
+		return functionBodyIssues{}, nil
+	case *ast.RangeSubselect:
+		if n == nil || n.Alias == nil || n.Alias.Aliasname == "" {
+			return functionBodyIssues{}, nil
+		}
+		selectStmt, ok := n.Subquery.(*ast.SelectStmt)
+		if !ok {
+			return functionBodyIssues{}, nil
+		}
+		sources, issues, err := q.collectSelectFunctionResultSources(selectStmt, functionStack, cache, scope)
+		if err != nil {
+			return functionBodyIssues{}, err
+		}
+		projection := functionSourceProjection{
+			names:   redshiftSelectOutputNames(selectStmt),
+			sources: sources,
+		}
+		if aliasNames := redshiftStringList(n.Alias.Colnames); len(aliasNames) > 0 {
+			projection.names = aliasNames
+		}
+		scope[strings.ToLower(n.Alias.Aliasname)] = projection
+		return issues, nil
+	case *ast.JoinExpr:
+		if n == nil {
+			return functionBodyIssues{}, nil
+		}
+		leftIssues, err := q.collectFunctionSourceScopeFromNode(n.Larg, functionStack, cache, scope)
+		if err != nil {
+			return functionBodyIssues{}, err
+		}
+		rightIssues, err := q.collectFunctionSourceScopeFromNode(n.Rarg, functionStack, cache, scope)
+		if err != nil {
+			return functionBodyIssues{}, err
+		}
+		leftIssues.merge(rightIssues)
+		return leftIssues, nil
+	default:
+		return functionBodyIssues{}, nil
+	}
+}
+
+func (q *querySpanResolver) collectFunctionBodyResultSources(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	if node == nil {
+		return result, functionBodyIssues{}, nil
+	}
+
+	var err error
+	issues := functionBodyIssues{}
+	ast.Inspect(node, func(n ast.Node) bool {
+		if err != nil {
+			return false
+		}
+		if columnRef, ok := n.(*ast.ColumnRef); ok {
+			mergeSourceColumnSet(result, resolveFunctionColumnRef(scope, columnRef))
+			return true
+		}
+		call, ok := n.(*ast.FuncCall)
+		if !ok {
+			return true
+		}
+		sources, sourceErr := q.functionBodySourcesForCall(call, functionStack, cache)
+		if sourceErr != nil {
+			err = sourceErr
+			return false
+		}
+		issues.merge(sources.issues)
+		for _, resultColumn := range sources.results {
+			for source := range resultColumn.SourceColumns {
+				result[source] = true
+			}
+		}
+		return true
+	})
+	return result, issues, err
+}
+
+func (q *querySpanResolver) functionBodySourcesForCall(call *ast.FuncCall, functionStack map[string]bool, cache map[string]functionBodySources) (functionBodySources, error) {
+	schemaName, functionName := functionCallName(call.Funcname)
+	if functionName == "" || IsSystemFunction(functionName, "") {
+		return functionBodySources{accessTables: ColumnSet{}}, nil
+	}
+
+	functionSchema, function, findErr := q.findFunctionMetadata(schemaName, functionName, call.Args.Len())
+	if findErr != nil || function == nil {
+		return functionBodySources{accessTables: ColumnSet{}}, findErr
+	}
+
+	cacheKey := strings.ToLower(functionSchema + "." + function.GetName() + "/" + function.GetSignature())
+	if sources, ok := cache[cacheKey]; ok {
+		return sources, nil
+	}
+	if functionStack[cacheKey] {
+		return functionBodySources{accessTables: ColumnSet{}}, nil
+	}
+
+	body, ok, bodyErr := extractSQLFunctionBody(function.GetDefinition())
+	if bodyErr != nil {
+		// Body extraction failures should fail closed through QuerySpan.FunctionNotSupportedError.
+		//nolint:nilerr
+		return functionBodySources{
+			accessTables: ColumnSet{},
+			issues: functionBodyIssues{
+				functionNotSupportedError: &FunctionNotSupportedError{
+					Err:        bodyErr,
+					Function:   functionSchema + "." + function.GetName(),
+					Definition: function.GetDefinition(),
+				},
+			},
+		}, nil
+	}
+	if !ok {
+		return functionBodySources{
+			accessTables: ColumnSet{},
+			issues: functionBodyIssues{
+				functionNotSupportedError: &FunctionNotSupportedError{
+					Err:        errors.New("unsupported or empty SQL function body"),
+					Function:   functionSchema + "." + function.GetName(),
+					Definition: function.GetDefinition(),
+				},
+			},
+		}, nil
+	}
+
+	functionStack[cacheKey] = true
+	span, querySpanErr := q.getQuerySpanWithFunctionStack(body, functionStack)
+	delete(functionStack, cacheKey)
+	if querySpanErr != nil {
+		return functionBodySources{}, fmt.Errorf("failed to get query span for function: %s.%s: %w", functionSchema, functionName, querySpanErr)
+	}
+	sources := functionBodySources{
+		accessTables: span.SourceColumns,
+		results:      span.Results,
+		issues: functionBodyIssues{
+			notFoundError:             span.NotFoundError,
+			functionNotSupportedError: span.FunctionNotSupportedError,
+		},
+	}
+	if sources.issues.notFoundError == nil && sources.issues.functionNotSupportedError == nil {
+		cache[cacheKey] = sources
+	}
+	return sources, nil
+}
+
+func (q *querySpanResolver) findFunctionMetadata(schemaName, functionName string, argCount int) (string, *metadata.FunctionMetadata, error) {
+	if q.opts.GetDatabaseMetadata == nil {
+		return "", nil, nil
+	}
+	metadata, err := q.getDatabaseMetadata(q.defaultDatabase)
+	if err != nil {
+		return "", nil, err
+	}
+	if metadata == nil {
+		return "", nil, nil
+	}
+
+	searchPath := q.searchPath
+	if schemaName != "" {
+		searchPath = []string{schemaName}
+	}
+	schemas, functions := searchFunctions(metadata, searchPath, functionName)
+	if len(functions) == 0 {
+		return "", nil, nil
+	}
+	if len(functions) == 1 {
+		return schemas[0], functions[0], nil
+	}
+	for i, function := range functions {
+		count, ok := functionParameterCount(function.GetDefinition())
+		if ok && count == argCount {
+			return schemas[i], function, nil
+		}
+	}
+	return "", nil, nil
+}
+
+func functionCallName(list *ast.List) (string, string) {
+	if list == nil {
+		return "", ""
+	}
+	parts := make([]string, 0, list.Len())
+	for _, item := range list.Items {
+		if value, ok := item.(*ast.String); ok {
+			parts = append(parts, value.Str)
+		}
+	}
+	switch len(parts) {
+	case 1:
+		return "", parts[0]
+	case 2:
+		return parts[0], parts[1]
+	case 3:
+		return parts[1], parts[2]
+	default:
+		return "", ""
+	}
+}
+
+func functionParameterCount(definition string) (int, bool) {
+	stmts, err := redshift.Parse(definition)
+	if err != nil || len(stmts) != 1 {
+		return 0, false
+	}
+	stmt, ok := stmts[0].AST.(*ast.CreateFunctionStmt)
+	if !ok || stmt.Parameters == nil {
+		return 0, ok
+	}
+	return stmt.Parameters.Len(), true
+}
+
+func extractSQLFunctionBody(definition string) (string, bool, error) {
+	stmts, err := redshift.Parse(definition)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse function definition: %w", err)
+	}
+	if len(stmts) != 1 {
+		return "", false, nil
+	}
+	stmt, ok := stmts[0].AST.(*ast.CreateFunctionStmt)
+	if !ok {
+		return "", false, nil
+	}
+
+	language := ""
+	body := ""
+	if stmt.Options != nil {
+		for _, item := range stmt.Options.Items {
+			elem, ok := item.(*ast.DefElem)
+			if !ok {
+				continue
+			}
+			switch strings.ToLower(elem.Defname) {
+			case "language":
+				language = defElemString(elem.Arg)
+			case "as":
+				body = defElemString(elem.Arg)
+			default:
+			}
+		}
+	}
+	if language != "" && !strings.EqualFold(language, "sql") {
+		return "", false, nil
+	}
+	body = strings.TrimSpace(body)
+	if body == "" {
+		return "", false, nil
+	}
+	return body, true, nil
+}
+
+func defElemString(node ast.Node) string {
+	switch value := node.(type) {
+	case *ast.String:
+		return value.Str
+	case *ast.List:
+		if len(value.Items) == 0 {
+			return ""
+		}
+		return defElemString(value.Items[0])
+	default:
+		return ""
+	}
+}
+
+func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResultSources []ColumnSet) {
+	if len(functionResultSources) == len(results) {
+		for i, sources := range functionResultSources {
+			for source := range sources {
+				results[i].SourceColumns[source] = true
+			}
+		}
+		return
+	}
+	for _, sources := range functionResultSources {
+		if len(sources) == 0 {
+			continue
+		}
+		for i := range results {
+			if len(results[i].SourceColumns) != 0 {
+				continue
+			}
+			for source := range sources {
+				results[i].SourceColumns[source] = true
+			}
+		}
+	}
+}
+
+func cloneFunctionSourceScope(scope functionSourceScope) functionSourceScope {
+	result := make(functionSourceScope, len(scope))
+	for name, projection := range scope {
+		result[name] = projection
+	}
+	return result
+}
+
+func mergeSourceColumnSet(dst, src ColumnSet) {
+	for source := range src {
+		dst[source] = true
+	}
+}
+
+func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRef) ColumnSet {
+	parts := redshiftColumnRefParts(columnRef)
+	switch len(parts) {
+	case 1:
+		return resolveUnqualifiedFunctionColumn(scope, parts[0])
+	case 2:
+		if projection, ok := scope[strings.ToLower(parts[0])]; ok {
+			return projection.functionSourcesForColumn(parts[1])
+		}
+		return ColumnSet{}
+	default:
+		return ColumnSet{}
+	}
+}
+
+func resolveUnqualifiedFunctionColumn(scope functionSourceScope, columnName string) ColumnSet {
+	var result ColumnSet
+	for _, projection := range scope {
+		sources := projection.functionSourcesForColumn(columnName)
+		if len(sources) == 0 {
+			continue
+		}
+		if result != nil {
+			return ColumnSet{}
+		}
+		result = sources
+	}
+	if result == nil {
+		return ColumnSet{}
+	}
+	return result
+}
+
+func (p functionSourceProjection) functionSourcesForColumn(columnName string) ColumnSet {
+	for i, name := range p.names {
+		if !strings.EqualFold(name, columnName) || i >= len(p.sources) {
+			continue
+		}
+		return p.sources[i]
+	}
+	return ColumnSet{}
+}
+
+func redshiftSelectOutputNames(selectStmt *ast.SelectStmt) []string {
+	if selectStmt == nil || selectStmt.TargetList == nil {
+		return nil
+	}
+	result := make([]string, 0, selectStmt.TargetList.Len())
+	for _, item := range selectStmt.TargetList.Items {
+		target, ok := item.(*ast.ResTarget)
+		if !ok {
+			result = append(result, "")
+			continue
+		}
+		result = append(result, redshiftTargetOutputName(target))
+	}
+	return result
+}
+
+func redshiftTargetOutputName(target *ast.ResTarget) string {
+	if target == nil {
+		return ""
+	}
+	if target.Name != "" {
+		return target.Name
+	}
+	if parts := redshiftColumnRefParts(asColumnRef(target.Val)); len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	if call, ok := target.Val.(*ast.FuncCall); ok {
+		_, functionName := functionCallName(call.Funcname)
+		return functionName
+	}
+	return ""
+}
+
+func asColumnRef(node ast.Node) *ast.ColumnRef {
+	columnRef, ok := node.(*ast.ColumnRef)
+	if !ok {
+		return nil
+	}
+	return columnRef
+}
+
+func redshiftColumnRefParts(columnRef *ast.ColumnRef) []string {
+	if columnRef == nil || columnRef.Fields == nil {
+		return nil
+	}
+	result := make([]string, 0, columnRef.Fields.Len())
+	for _, item := range columnRef.Fields.Items {
+		value, ok := item.(*ast.String)
+		if !ok {
+			return nil
+		}
+		result = append(result, value.Str)
+	}
+	return result
+}
+
+func redshiftStringList(list *ast.List) []string {
+	if list == nil {
+		return nil
+	}
+	result := make([]string, 0, list.Len())
+	for _, item := range list.Items {
+		value, ok := item.(*ast.String)
+		if !ok {
+			continue
+		}
+		result = append(result, value.Str)
+	}
+	return result
+}
+
+func cloneCTENameSet(ctes map[string]bool) map[string]bool {
+	result := make(map[string]bool, len(ctes))
+	for name, ok := range ctes {
+		result[name] = ok
+	}
+	return result
+}
+
+func isCTEReference(rangeVar *ast.RangeVar, ctes map[string]bool) bool {
+	if rangeVar == nil || rangeVar.Schemaname != "" || rangeVar.Catalogname != "" {
+		return false
+	}
+	return ctes[strings.ToLower(rangeVar.Relname)]
+}
+
+func hasResultWithoutSource(results []ResolvedQuerySpanResult) bool {
+	for _, result := range results {
+		if len(result.SourceColumns) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func hasRangeVar(node ast.Node) bool {
+	found := false
+	ast.Inspect(node, func(n ast.Node) bool {
+		if _, ok := n.(*ast.RangeVar); ok {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+func (q *querySpanResolver) allAccessTablesExist(accessTables ColumnSet) bool {
+	if len(accessTables) == 0 || q.opts.GetDatabaseMetadata == nil {
+		return false
+	}
+	for resource := range accessTables {
+		if !q.accessTableExists(resource) {
+			return false
+		}
+	}
+	return true
+}
+
+func (q *querySpanResolver) accessTableExists(resource ColumnResource) bool {
+	if isSystemResource(resource) {
+		return true
+	}
+	database := resource.Database
+	if database == "" {
+		database = q.defaultDatabase
+	}
+	metadata, err := q.getDatabaseMetadata(database)
+	if err != nil || metadata == nil {
+		return false
+	}
+	if resource.Schema == "" {
+		schemaName, objectName := searchRelation(metadata, q.searchPath, resource.Table)
+		return schemaName != "" || objectName != ""
+	}
+	schema := schemaMetadata(metadata, resource.Schema)
+	if schema == nil {
+		return false
+	}
+	// Match the relation kinds used by searchRelation above.
+	return schemaHasRelation(schema, resource.Table)
+}
+
+func (q *querySpanResolver) resolveRangeVar(rangeVar *ast.RangeVar) (ColumnResource, error) {
+	resource := ColumnResource{
+		Database: q.defaultDatabase,
+		Schema:   rangeVar.Schemaname,
+		Table:    rangeVar.Relname,
+	}
+	if rangeVar.Catalogname != "" {
+		resource.Database = rangeVar.Catalogname
+	}
+	if resource.Schema != "" || isSystemResource(resource) || q.opts.GetDatabaseMetadata == nil {
+		return resource, nil
+	}
+
+	metadata, err := q.getDatabaseMetadata(resource.Database)
+	if err != nil {
+		return ColumnResource{}, err
+	}
+	if metadata == nil {
+		return resource, nil
+	}
+	schemaName, objectName := searchRelation(metadata, q.searchPath, resource.Table)
+	if schemaName == "" && objectName == "" {
+		return ColumnResource{}, &ResourceNotFoundError{
+			Database: &resource.Database,
+			Table:    &resource.Table,
+		}
+	}
+	resource.Schema = schemaName
+	resource.Table = objectName
+	return resource, nil
+}
+
+func (q *querySpanResolver) convertResults(results []QuerySpanResult) []ResolvedQuerySpanResult {
+	converted := make([]ResolvedQuerySpanResult, 0, len(results))
+	for _, result := range results {
+		converted = append(converted, ResolvedQuerySpanResult{
+			Name:          result.Name,
+			SourceColumns: q.convertColumnList(result.SourceColumns),
+			IsPlainField:  result.IsPlainField,
+		})
+	}
+	return converted
+}
+
+func (q *querySpanResolver) convertColumnList(columns []ColumnResource) ColumnSet {
+	result := make(ColumnSet)
+	for _, column := range columns {
+		result[ColumnResource{
+			Database: q.defaultDatabase,
+			Schema:   column.Schema,
+			Table:    column.Table,
+			Column:   column.Column,
+		}] = true
+	}
+	return result
+}
+
+func querySpanType(node ast.Node, allSystems bool) QueryType {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		if hasSelectIntoClause(n) {
+			return DDL
+		}
+		if allSystems {
+			return SelectInfoSchema
+		}
+		return Select
+	case *ast.ExplainStmt:
+		if hasExplainAnalyze(n) {
+			return querySpanType(n.Query, allSystems)
+		}
+		return Explain
+	case *ast.RedshiftShowStmt, *ast.RedshiftDescStmt, *ast.VariableShowStmt:
+		return SelectInfoSchema
+	case *ast.VariableSetStmt:
+		return Select
+	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt,
+		*ast.CopyStmt, *ast.UnloadStmt, *ast.RefreshMatViewStmt, *ast.CallStmt:
+		return DML
+	case *ast.CreateStmt, *ast.CreateTableAsStmt, *ast.ViewStmt, *ast.IndexStmt, *ast.CreateSeqStmt,
+		*ast.CreateSchemaStmt, *ast.CreateFunctionStmt, *ast.CreatedbStmt, *ast.CreateTrigStmt,
+		*ast.CreateEnumStmt, *ast.CreateDomainStmt, *ast.CreateEventTrigStmt, *ast.CreatePLangStmt,
+		*ast.CreateFdwStmt, *ast.CreateForeignServerStmt, *ast.CreateForeignTableStmt,
+		*ast.CreateUserMappingStmt, *ast.CreateExtensionStmt, *ast.CreateTableSpaceStmt,
+		*ast.CreateAmStmt, *ast.CreatePolicyStmt, *ast.CreatePublicationStmt,
+		*ast.CreateSubscriptionStmt, *ast.CreateStatsStmt, *ast.CreateOpClassStmt,
+		*ast.CreateOpFamilyStmt, *ast.CreateCastStmt, *ast.CreateTransformStmt,
+		*ast.CreateConversionStmt, *ast.CreateRangeStmt, *ast.CreateRoleStmt,
+		*ast.DropStmt, *ast.DropdbStmt, *ast.DropRoleStmt, *ast.DropUserMappingStmt,
+		*ast.DropSubscriptionStmt, *ast.DropTableSpaceStmt, *ast.DropOwnedStmt,
+		*ast.AlterTableStmt, *ast.AlterTableMoveAllStmt, *ast.AlterSeqStmt,
+		*ast.AlterEnumStmt, *ast.AlterDomainStmt, *ast.AlterObjectSchemaStmt,
+		*ast.AlterOwnerStmt, *ast.AlterDatabaseStmt, *ast.AlterDatabaseSetStmt,
+		*ast.AlterDatabaseRefreshCollStmt, *ast.AlterSystemStmt, *ast.AlterCollationStmt,
+		*ast.AlterFunctionStmt, *ast.AlterEventTrigStmt, *ast.AlterFdwStmt,
+		*ast.AlterForeignServerStmt, *ast.AlterUserMappingStmt, *ast.AlterExtensionStmt,
+		*ast.AlterExtensionContentsStmt, *ast.AlterTableSpaceOptionsStmt, *ast.AlterPolicyStmt,
+		*ast.AlterPublicationStmt, *ast.AlterSubscriptionStmt, *ast.AlterObjectDependsStmt,
+		*ast.AlterOperatorStmt, *ast.AlterTypeStmt, *ast.AlterDefaultPrivilegesStmt,
+		*ast.AlterTSDictionaryStmt, *ast.AlterTSConfigurationStmt, *ast.AlterStatsStmt,
+		*ast.AlterOpFamilyStmt, *ast.AlterRoleStmt, *ast.AlterRoleSetStmt,
+		*ast.RenameStmt, *ast.TruncateStmt, *ast.VacuumStmt, *ast.GrantStmt,
+		*ast.GrantRoleStmt, *ast.CommentStmt, *ast.LockStmt, *ast.ClusterStmt,
+		*ast.ReindexStmt, *ast.RuleStmt, *ast.CheckPointStmt, *ast.DiscardStmt,
+		*ast.LoadStmt, *ast.ConstraintsSetStmt, *ast.FetchStmt, *ast.SecLabelStmt,
+		*ast.DoStmt, *ast.ImportForeignSchemaStmt, *ast.ReassignOwnedStmt,
+		*ast.RedshiftObjectStmt:
+		return DDL
+	default:
+		return QueryTypeUnknown
+	}
+}
+
+func hasSelectIntoClause(n *ast.SelectStmt) bool {
+	if n == nil {
+		return false
+	}
+	if n.IntoClause != nil {
+		return true
+	}
+	if hasSelectIntoClause(n.Larg) {
+		return true
+	}
+	if hasSelectIntoClause(n.Rarg) {
+		return true
+	}
+	return false
+}
+
+func isQuerySpanNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "does not exist") || strings.Contains(msg, "not found")
+}
