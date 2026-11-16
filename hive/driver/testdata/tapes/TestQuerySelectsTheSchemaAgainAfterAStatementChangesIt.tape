@@ -20,6 +20,9 @@
 | INSERT INTO omni_schema_b.t VALUES ('b')
 < ok - -
 > exec
+| USE `default`
+< ok - -
+> exec
 | USE `omni_schema_a`
 < ok - -
 > query

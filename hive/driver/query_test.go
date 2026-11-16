@@ -246,7 +246,36 @@ INSERT INTO omni_session_other.t VALUES ('other')`)
 	require.Equal(t, "other", tag(sess))
 	require.NoError(t, sess.Close())
 
-	require.Equal(t, "home", tag(openSession(t, d)))
+	// The tape's pool holds one connection, so each session is closed before
+	// the next opens.
+	next := openSession(t, d)
+	require.Equal(t, "home", tag(next))
+	require.NoError(t, next.Close())
+
+	// A driver opened on no database starts a session in Hive's default one.
+	anonymous := &Driver{db: db}
+	sess = openSession(t, anonymous)
+	require.Equal(t, "default", currentDatabase(t, sess))
+	results, err = sess.Query(context.Background(), "USE omni_session_other", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Err)
+	require.Equal(t, "omni_session_other", currentDatabase(t, sess))
+	require.NoError(t, sess.Close())
+
+	again := openSession(t, anonymous)
+	require.Equal(t, "default", currentDatabase(t, again))
+	require.NoError(t, again.Close())
+}
+
+func currentDatabase(t *testing.T, sess driver.Session) string {
+	t.Helper()
+	results, err := sess.Query(context.Background(), "SELECT current_database() AS db", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 1)
+	return results[0].Rows[0][0].String
 }
 
 // TestQuerySelectsTheSchemaAgainAfterAStatementChangesIt: a USE the session ran

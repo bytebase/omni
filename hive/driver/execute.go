@@ -32,13 +32,11 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	defer func() { _ = conn.Close() }()
 
 	// A pooled connection may have been left on another database by a session
-	// whose statements selected one, and the pool has no reset hook to undo it:
-	// start the script from the database this driver was opened on, so an
-	// unqualified statement reaches the caller's schema.
-	if d.databaseName != "" {
-		if _, err := conn.ExecContext(ctx, "USE "+quoteBacktick(d.databaseName)); err != nil {
-			return 0, fmt.Errorf("failed to select database %s: %w", d.databaseName, err)
-		}
+	// whose statements selected one: start the script from the database this
+	// driver was opened on, so an unqualified statement reaches the caller's
+	// schema.
+	if err := d.selectDatabase(ctx, conn); err != nil {
+		return 0, err
 	}
 
 	var totalAffected int64

@@ -5,6 +5,9 @@
 | CREATE TABLE omni_query_schema.t (id INT) STORED AS PARQUET
 < ok - -
 > exec
+| USE `default`
+< ok - -
+> exec
 | USE `omni_query_schema`
 < ok - -
 > query

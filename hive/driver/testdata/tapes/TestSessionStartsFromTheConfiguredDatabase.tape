@@ -51,3 +51,35 @@
 < row
 : string
 | home
+> exec
+| USE `default`
+< ok - -
+> query
+| SELECT current_database() AS db
+< result
+< column "db" "STRING"
+< row
+: string
+| default
+> query
+| USE omni_session_other
+< error
+| -
+| TStatus({StatusCode:ERROR_STATUS InfoMessages:[Server-side error; please check HS2 logs.] SqlState:<nil> ErrorCode:<nil> ErrorMessage:0x})
+> query
+| SELECT current_database() AS db
+< result
+< column "db" "STRING"
+< row
+: string
+| omni_session_other
+> exec
+| USE `default`
+< ok - -
+> query
+| SELECT current_database() AS db
+< result
+< column "db" "STRING"
+< row
+: string
+| default
