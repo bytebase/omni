@@ -4,4 +4,4 @@
 > raw
 | {"op":"executeStatement","statement":"SELECT * FROM \"people\""}
 < raw
-| {"items":[{"active":{"BOOL":true},"age":{"N":"33"},"email":{"S":"u1@example.com"},"flags":{"BS":["Aw==","BA=="]},"id":{"S":"u1"},"list":{"L":[{"N":"7"},{"S":"s"}]},"meta":{"M":{"k":{"S":"v"}}},"missing":{"NULL":true},"name":{"S":"Ann"},"payload":{"B":"AAEC"},"scores":{"NS":["1","2"]},"tags":{"SS":["a","b"]}},{"age":{"N":"44"},"email":{"S":"u2@example.com"},"id":{"S":"u2"},"name":{"S":"Bob"}},{"email":{"S":"u3@example.com"},"id":{"S":"u3"},"late":{"S":"last"}}]}
+| {"items":[{"active":{"BOOL":true},"age":{"N":"33"},"email":{"S":"u1@example.com"},"flags":{"BS":["/g==","/w=="]},"id":{"S":"u1"},"list":{"L":[{"N":"7"},{"S":"s"},{"B":"/g=="}]},"meta":{"M":{"k":{"S":"v"},"raw":{"B":"/w=="}}},"missing":{"NULL":true},"name":{"S":"Ann"},"payload":{"B":"/wD+"},"scores":{"NS":["1","2"]},"tags":{"SS":["a","b"]}},{"age":{"N":"44"},"email":{"S":"u2@example.com"},"id":{"S":"u2"},"name":{"S":"Bob"}},{"email":{"S":"u3@example.com"},"id":{"S":"u3"},"late":{"S":"last"}}]}

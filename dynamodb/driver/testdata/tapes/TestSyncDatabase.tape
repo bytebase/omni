@@ -12,7 +12,7 @@
 > raw
 | {"op":"describeTable","table":"paged"}
 < raw
-| {"table":{"name":"paged","status":"ACTIVE","itemCount":5,"keySchema":[{"attributeName":"owner","keyType":"HASH"},{"attributeName":"seq","keyType":"RANGE"}]}}
+| {"table":{"name":"paged","status":"ACTIVE","itemCount":5,"keySchema":[{"attributeName":"owner","keyType":"HASH"},{"attributeName":"seq","keyType":"RANGE"}],"secondaryIndexes":[{"name":"by-label","global":true,"keySchema":[{"attributeName":"label","keyType":"HASH"}]},{"name":"by-owner-label","keySchema":[{"attributeName":"owner","keyType":"HASH"},{"attributeName":"label","keyType":"RANGE"}]}]}}
 > raw
 | {"op":"describeTable","table":"people"}
 < raw

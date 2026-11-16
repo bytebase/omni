@@ -17,9 +17,6 @@
                 "pk"
               ],
               "type": "HASH"
-            },
-            {
-              "type": "RANGE"
             }
           ],
           "rowCount": "2"
@@ -27,6 +24,9 @@
         {
           "name": "paged",
           "columns": [
+            {
+              "name": "label"
+            },
             {
               "name": "owner"
             },
@@ -48,6 +48,21 @@
                 "seq"
               ],
               "type": "RANGE"
+            },
+            {
+              "name": "by-label",
+              "expressions": [
+                "label"
+              ],
+              "type": "GLOBAL SECONDARY"
+            },
+            {
+              "name": "by-owner-label",
+              "expressions": [
+                "owner",
+                "label"
+              ],
+              "type": "LOCAL SECONDARY"
             }
           ],
           "rowCount": "5"
@@ -94,9 +109,6 @@
                 "id"
               ],
               "type": "HASH"
-            },
-            {
-              "type": "RANGE"
             }
           ]
         }

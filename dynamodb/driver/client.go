@@ -39,6 +39,17 @@ type Table struct {
 	Status    string
 	ItemCount int64
 	KeySchema []KeySchemaElement
+	// SecondaryIndexes are the table's global and local secondary indexes, in
+	// the order DescribeTable reports them.
+	SecondaryIndexes []SecondaryIndex
+}
+
+// SecondaryIndex is one global or local secondary index of a table: its name,
+// its key schema, and which of the two kinds it is.
+type SecondaryIndex struct {
+	Name      string
+	Global    bool
+	KeySchema []KeySchemaElement
 }
 
 // KeySchemaElement is one key attribute and the role it plays in a table's
@@ -49,11 +60,14 @@ type KeySchemaElement struct {
 }
 
 // The values KeySchemaElement.KeyType and Table.Status hold, as DynamoDB
-// spells them.
+// spells them, and the two index types SyncDatabase reports for the secondary
+// indexes DynamoDB names.
 const (
-	keyTypeHash       = "HASH"
-	keyTypeRange      = "RANGE"
-	tableStatusActive = "ACTIVE"
+	keyTypeHash            = "HASH"
+	keyTypeRange           = "RANGE"
+	keyTypeGlobalSecondary = "GLOBAL SECONDARY"
+	keyTypeLocalSecondary  = "LOCAL SECONDARY"
+	tableStatusActive      = "ACTIVE"
 )
 
 // StatementRequest is one PartiQL statement as the driver sends it. Limit is
@@ -247,13 +261,34 @@ func (c *liveClient) DescribeTable(ctx context.Context, tableName string) (*Tabl
 		Status:    string(out.Table.TableStatus),
 		ItemCount: aws.ToInt64(out.Table.ItemCount),
 	}
-	for _, key := range out.Table.KeySchema {
-		table.KeySchema = append(table.KeySchema, KeySchemaElement{
+	table.KeySchema = keySchema(out.Table.KeySchema)
+	for _, index := range out.Table.GlobalSecondaryIndexes {
+		table.SecondaryIndexes = append(table.SecondaryIndexes, SecondaryIndex{
+			Name:      aws.ToString(index.IndexName),
+			Global:    true,
+			KeySchema: keySchema(index.KeySchema),
+		})
+	}
+	for _, index := range out.Table.LocalSecondaryIndexes {
+		table.SecondaryIndexes = append(table.SecondaryIndexes, SecondaryIndex{
+			Name:      aws.ToString(index.IndexName),
+			Global:    false,
+			KeySchema: keySchema(index.KeySchema),
+		})
+	}
+	return table, nil
+}
+
+// keySchema converts one key schema of an answer to the seam's.
+func keySchema(keys []types.KeySchemaElement) []KeySchemaElement {
+	schema := make([]KeySchemaElement, 0, len(keys))
+	for _, key := range keys {
+		schema = append(schema, KeySchemaElement{
 			AttributeName: aws.ToString(key.AttributeName),
 			KeyType:       string(key.KeyType),
 		})
 	}
-	return table, nil
+	return schema
 }
 
 func (c *liveClient) ExecuteStatement(ctx context.Context, request StatementRequest) (StatementAnswer, error) {

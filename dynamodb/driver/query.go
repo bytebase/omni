@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -35,6 +36,11 @@ func (*session) Close() error { return nil }
 // leaves an attribute out, or a later item that names an attribute the earlier
 // ones did not, is a nil cell for that row: DynamoDB's items are schemaless, and
 // the columns of one answer are the union over it.
+//
+// QueryOptions.Limit caps the rows the result holds and QueryOptions.MaxResultBytes
+// the bytes it takes, both while the answer is read: the driver asks no further
+// page once it has the rows, and stops adding them once their encoded size
+// passes the byte cap.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	if opts.Explain {
 		return nil, errors.New("DynamoDB does not support EXPLAIN")
@@ -48,7 +54,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	var results []*driver.Result
 	for _, singleSQL := range singleSQLs {
 		startTime := time.Now()
-		result, err := s.driver.querySinglePartiQL(ctx, singleSQL.Text, opts.Limit)
+		result, err := s.driver.querySinglePartiQL(ctx, singleSQL.Text, opts)
 		stop := false
 		if err != nil {
 			result = &driver.Result{
@@ -85,13 +91,13 @@ type dynamodbQueryResultMeta struct {
 	value      *driver.Value
 }
 
-func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, limit int) (*driver.Result, error) {
+func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
 	result := &driver.Result{}
 	request := StatementRequest{
 		Statement: statement,
 	}
-	if limit > 0 {
-		request.Limit = int32(limit)
+	if opts.Limit > 0 {
+		request.Limit = int32(opts.Limit)
 	}
 
 	// DynamoDB's items are schemaless, so the answer's columns are the union of
@@ -146,7 +152,15 @@ func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, limit
 		if answer.NextToken == "" {
 			break
 		}
+		if opts.Limit > 0 && totalRowCount >= opts.Limit {
+			// The rows the caller asked for are read: the rest of the answer is
+			// not, whatever the endpoint's next page holds.
+			break
+		}
 		request.NextToken = answer.NextToken
+		if opts.Limit > 0 {
+			request.Limit = int32(opts.Limit - totalRowCount)
+		}
 	}
 	sortedColumnNames := make([]string, 0, len(rowMap))
 	for key := range rowMap {
@@ -160,6 +174,7 @@ func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, limit
 		})
 	}
 	// Flatten the row map to rows.
+	totalBytes := driver.HeaderByteSize(result.Columns)
 	if len(rowMap) > 0 {
 		for i := range totalRowCount {
 			row := make([]driver.Value, 0, len(sortedColumnNames))
@@ -172,6 +187,13 @@ func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, limit
 				row = append(row, *value)
 			}
 			result.Rows = append(result.Rows, row)
+			if opts.MaxResultBytes > 0 {
+				totalBytes += driver.RowByteSize(row)
+				if totalBytes > opts.MaxResultBytes {
+					result.Truncated = true
+					break
+				}
+			}
 		}
 	}
 	return result, nil
@@ -220,13 +242,18 @@ func convertAttributeValueMapToRow(items map[string]types.AttributeValue) map[st
 func convertAttributeValueToValue(attributeValue types.AttributeValue) (driver.Value, error) {
 	switch attributeValue := attributeValue.(type) {
 	case *types.AttributeValueMemberB:
-		return driver.Value{Kind: driver.String, String: string(attributeValue.Value)}, nil
+		// A binary is bytes, not text: a proto string holding one that is not
+		// valid UTF-8 cannot be marshalled, so it crosses as the contract's
+		// Bytes kind and reaches the caller unmangled.
+		return driver.Value{Kind: driver.Bytes, Bytes: attributeValue.Value}, nil
 	case *types.AttributeValueMemberBOOL:
 		return driver.Value{Kind: driver.Bool, Bool: attributeValue.Value}, nil
 	case *types.AttributeValueMemberBS, *types.AttributeValueMemberL, *types.AttributeValueMemberM,
 		*types.AttributeValueMemberNS, *types.AttributeValueMemberSS:
 		// A set, a list and a map are documents rather than scalars, so they
-		// cross as their JSON text, as Bytebase's driver answered them.
+		// cross as their JSON text. A binary inside a document is base64, as
+		// json.Marshal would render any other invalid UTF-8 as a replacement
+		// character and lose it.
 		document := convertAttributeValueToGoPrimitives(attributeValue)
 		b, err := json.Marshal(document)
 		if err != nil {
@@ -246,13 +273,13 @@ func convertAttributeValueToValue(attributeValue types.AttributeValue) (driver.V
 func convertAttributeValueToGoPrimitives(av types.AttributeValue) any {
 	switch av := av.(type) {
 	case *types.AttributeValueMemberB:
-		return string(av.Value)
+		return base64.StdEncoding.EncodeToString(av.Value)
 	case *types.AttributeValueMemberBOOL:
 		return av.Value
 	case *types.AttributeValueMemberBS:
 		ss := make([]string, 0, len(av.Value))
 		for _, b := range av.Value {
-			ss = append(ss, string(b))
+			ss = append(ss, base64.StdEncoding.EncodeToString(b))
 		}
 		return ss
 	case *types.AttributeValueMemberL:
