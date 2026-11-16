@@ -25,7 +25,7 @@ func RewriteResultLimit(statement string, limit int) string {
 
 	stmt, err := rewriteResultLimitInline(statement, limit)
 	if err != nil {
-		return fmt.Sprintf("SELECT * FROM (%s) result LIMIT %d;", trimStatement(statement), limit)
+		return fmt.Sprintf("SELECT * FROM (\n%s\n) result LIMIT %d;", trimStatement(statement), limit)
 	}
 	return stmt
 }
@@ -159,10 +159,35 @@ func rewriteSetOpLimit(sql string, stmt *ast.SetOpStmt, limitCount int) (string,
 	if stmt.Limit != nil {
 		return rewriteExistingLimit(sql, stmt.Limit, limitCount)
 	}
+	// The grammar puts INTO OUTFILE inside the query relation, before LIMIT, so
+	// the cap goes before the export clause rather than after it.
+	if into := selectInto(stmt.Left); into != nil {
+		return sql[:into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[into.Loc.Start:], nil
+	}
+	if into := selectInto(stmt.Right); into != nil {
+		return sql[:into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + sql[into.Loc.Start:], nil
+	}
 	if hasUnparsedTail(sql, stmt.Loc.End) {
 		return "", errors.New("statement has unparsed tail content")
 	}
 	return sql[:stmt.Loc.End] + fmt.Sprintf(" LIMIT %d", limitCount) + sql[stmt.Loc.End:], nil
+}
+
+// selectInto returns the INTO OUTFILE clause an arm of a set operation carries,
+// as the parser attaches it to the arm rather than the set operation.
+func selectInto(node ast.Node) *ast.IntoOutfileClause {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		return n.Into
+	case *ast.SetOpStmt:
+		if into := selectInto(n.Left); into != nil {
+			return into
+		}
+		return selectInto(n.Right)
+	case *ast.ParenSelect:
+		return selectInto(n.Sel)
+	}
+	return nil
 }
 
 func extractLimitValue(node ast.Node) int {

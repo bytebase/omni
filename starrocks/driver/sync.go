@@ -8,9 +8,15 @@ import (
 	"strconv"
 	"strings"
 
+	gomysql "github.com/go-sql-driver/mysql"
+
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
+
+// errUnknownDatabase is the client error number for a database the server does
+// not have.
+const errUnknownDatabase = 5501
 
 const (
 	baseTableType        = "BASE TABLE"
@@ -144,7 +150,12 @@ func (d *Driver) getMaterializedViews(ctx context.Context) (map[string]*metadata
 
 // SyncDatabase reads the full schema metadata of Config.Database, returning
 // driver.ErrNotFound when that database does not exist on the server.
-func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSchemaMetadata, err error) {
+	defer func() {
+		if err != nil {
+			err = wrapSyncDatabaseErr(err)
+		}
+	}()
 	schemaMetadata := &metadatapb.SchemaMetadata{
 		Name: "",
 	}
@@ -365,6 +376,16 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	databaseMetadata.Collation = ""
 
 	return databaseMetadata, nil
+}
+
+// wrapSyncDatabaseErr reports a database the connection cannot reach as
+// driver.ErrNotFound.
+func wrapSyncDatabaseErr(err error) error {
+	var mysqlErr *gomysql.MySQLError
+	if errors.As(err, &mysqlErr) && mysqlErr.Number == errUnknownDatabase {
+		return fmt.Errorf("%w: %w", driver.ErrNotFound, err)
+	}
+	return err
 }
 
 func unescapeExpressionDefault(s string) string {

@@ -27,17 +27,29 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 	if err != nil {
 		return false, false, err
 	}
+	readOnly = true
 	var hasExecute bool
 	for _, node := range parsed {
 		switch {
 		case isReadOnlyAST(node):
+		case readsRows(node):
+			// A statement the editor does not admit as read-only may still
+			// return rows; only its read-only verdict changes.
+			readOnly = false
 		case needsExecute(node):
 			hasExecute = true
 		default:
 			return false, false, nil
 		}
 	}
-	return true, !hasExecute, nil
+	return readOnly, !hasExecute, nil
+}
+
+// readsRows reports whether a statement returns a result set without being a
+// read-only query: ADMIN SHOW inspects the cluster and answers with rows.
+func readsRows(node ast.Node) bool {
+	admin, ok := node.(*ast.AdminStmt)
+	return ok && strings.EqualFold(admin.Verb, "SHOW")
 }
 
 // parseStatements parses every non-empty statement of text, which a trailing
@@ -96,7 +108,7 @@ func needsExecute(node ast.Node) bool {
 	case *ast.SetStmt:
 		return n.Type != "DEFAULT STORAGE VOLUME" && !slices.ContainsFunc(n.Items, setsServerState)
 	case *ast.UnsetStmt:
-		return true
+		return !strings.EqualFold(n.Scope, "GLOBAL")
 	}
 	return false
 }
@@ -108,7 +120,7 @@ func setsServerState(item *ast.SetItem) bool {
 	if item.UserVariable {
 		return false
 	}
-	return item.Name == "default role" || strings.EqualFold(item.Name, "ldap_admin_password")
+	return strings.EqualFold(item.Scope, "GLOBAL") || item.Name == "default role" || strings.EqualFold(item.Name, "ldap_admin_password")
 }
 
 // isReadOnlyAST returns true when the given top-level AST node represents a

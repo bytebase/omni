@@ -5,7 +5,13 @@
 < ok
 > exec
 | CREATE TABLE items (id BIGINT NOT NULL, note VARCHAR(64) NULL) ENGINE=OLAP UNIQUE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES("replication_num" = "1");
+< ok 0 0
+> exec
+|
 | INSERT INTO items VALUES (1, 'a'), (2, 'b'), (3, 'c');
+< ok 3 0
+> exec
+|
 | UPDATE items SET note = 'z' WHERE id <= 2;
 < ok 2 0
 > commit
@@ -14,6 +20,9 @@
 < ok
 > exec
 | INSERT INTO items VALUES (10, 'rb');
+< ok 1 0
+> exec
+|
 | INSERT INTO missing_items VALUES (11, 'rb');
 < error
 | 1105 HY000 errCode = 2, detailMessage = Table [missing_items] does not exist in database [omni_qe_test].
@@ -21,6 +30,9 @@
 < ok
 > exec
 | INSERT INTO items VALUES (20, 'kept');
+< ok 1 0
+> exec
+|
 | INSERT INTO missing_items VALUES (21, 'lost');
 < error
 | 1105 HY000 errCode = 2, detailMessage = Table [missing_items] does not exist in database [omni_qe_test].

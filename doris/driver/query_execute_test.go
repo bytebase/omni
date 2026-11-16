@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	gomysql "github.com/go-sql-driver/mysql"
@@ -51,14 +52,20 @@ func TestQueryExecuteAndStats(t *testing.T) {
 	const setupScript = "CREATE TABLE items (id BIGINT NOT NULL, note VARCHAR(64) NULL) ENGINE=OLAP UNIQUE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 1 PROPERTIES(\"replication_num\" = \"1\");\nINSERT INTO items VALUES (1, 'a'), (2, 'b'), (3, 'c');\nUPDATE items SET note = 'z' WHERE id <= 2;"
 	aff, err := d.Execute(ctx, setupScript, driver.ExecuteOptions{
 		Transaction: driver.Transactional,
+		Isolation:   driver.RepeatableRead,
 		Log:         txLog,
 	})
 	if err != nil {
 		t.Fatalf("Execute tx = (%d, %v)", aff, err)
 	}
-	wantSteps := []string{"tx:BEGIN", "tx:COMMIT"}
-	if !slices.Equal(txLog.steps, wantSteps) {
-		t.Fatalf("tx steps = %v, want %v", txLog.steps, wantSteps)
+	if aff != 5 {
+		t.Fatalf("Execute tx affected %d rows, want 5", aff)
+	}
+	if txLog.steps[0] != "tx:BEGIN" || txLog.steps[len(txLog.steps)-1] != "tx:COMMIT" {
+		t.Fatalf("tx steps = %v, want a BEGIN first and a COMMIT last", txLog.steps)
+	}
+	if got := strings.Count(strings.Join(txLog.steps, "|"), "exec["); got != 3 {
+		t.Fatalf("tx steps = %v, want 3 commands", txLog.steps)
 	}
 	rbLog := &stepLogger{}
 	if _, err := d.Execute(ctx, "INSERT INTO items VALUES (10, 'rb');\nINSERT INTO missing_items VALUES (11, 'rb');", driver.ExecuteOptions{
@@ -96,10 +103,9 @@ func TestQueryExecuteAndStats(t *testing.T) {
 		}
 		return res[0].Rows[0][0].Int64
 	}
-	// Doris treats the START TRANSACTION database/sql sends as a no-op, so a
-	// failed script leaves the rows it ran before the failure, as Bytebase's
-	// driver does; 3 committed + 1 from the failed transactional script + 1
-	// from the failed auto-commit one.
+	// Doris accepts no DDL inside a transaction and commits each data change, so
+	// the failed transactional script leaves its row: 3 committed + 1 from it + 1
+	// from the failed auto-commit script.
 	if got := countRows("SELECT COUNT(*) FROM items;"); got != 5 {
 		t.Fatalf("items after the three scripts = %d rows, want 5", got)
 	}
@@ -136,6 +142,9 @@ func TestQueryExecuteAndStats(t *testing.T) {
 	}
 	if got := plan[0].Statement; got != "EXPLAIN SELECT note FROM items WHERE id > 1;" {
 		t.Fatalf("explain statement = %q", got)
+	}
+	if plan[0].Plan == nil || plan[0].Plan.Format != "TEXT" || plan[0].Plan.Executed {
+		t.Fatalf("plan metadata = %+v, want a TEXT plan that did not run the statement", plan[0].Plan)
 	}
 
 	// DML returns an affected-row count rather than rows.
