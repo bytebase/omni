@@ -42,6 +42,11 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 	for _, statement := range statements {
 		stmt := preparedStmt{text: statement}
 		if opts.Explain {
+			// The plan is made here, so the schema has to be the caller's now
+			// rather than when the plan's rows are read.
+			if err := s.applySchema(ctx, opts.Schema); err != nil {
+				return nil, err
+			}
 			statementID := s.driver.nextStatementID()
 			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("EXPLAIN PLAN SET STATEMENT_ID = '%s' FOR %s", statementID, statement)); err != nil {
 				return nil, err
@@ -80,11 +85,8 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 	for _, stmt := range prepared {
 		// The session is the caller's, so the schema is set on every statement
 		// rather than once: a script that switches it switches for the next.
-		if opts.Schema != "" {
-			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(opts.Schema))); err != nil {
-				return nil, err
-			}
-			s.schemaApplied = true
+		if err := s.applySchema(ctx, opts.Schema); err != nil {
+			return nil, err
 		}
 		startTime := time.Now()
 		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, stmt.planAsJSON, opts.MaxResultBytes)
@@ -105,6 +107,19 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 		}
 	}
 	return results, nil
+}
+
+// applySchema makes schema the one the session's unqualified names resolve in,
+// and remembers that the session has its own schema to return to.
+func (s *session) applySchema(ctx context.Context, schema string) error {
+	if schema == "" {
+		return nil
+	}
+	if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(schema))); err != nil {
+		return err
+	}
+	s.schemaApplied = true
+	return nil
 }
 
 // runStatement runs one statement and reads its rows, or its affected count.
