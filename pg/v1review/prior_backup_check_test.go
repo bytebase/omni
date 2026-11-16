@@ -391,16 +391,53 @@ func TestPriorBackupCheckDatabase(t *testing.T) {
 }
 
 func TestPriorBackupCheckSize(t *testing.T) {
-	// V1 had no size cap in this rule: the backup task enforces one, and this
-	// rule does not read the size pair.
-	facts := priorBackupFacts()
-	facts.TotalSize = 3 * 1024 * 1024
-	facts.MaxSize = 2 * 1024 * 1024
-	if diff := cmp.Diff([]priorBackupFinding(nil), judgePriorBackup(t, "UPDATE t SET a = 1", facts)); diff != "" {
-		t.Fatalf("finding mismatch (-want +got):\n%s", diff)
+	// A script above the limit the backup task enforces is reported, as the
+	// sibling engines' rules report it. V1's PostgreSQL rule had no cap.
+	tooLarge := priorBackupFinding{Code: v1review.PriorBackupScriptTooLarge, Value: "100"}
+	tests := []struct {
+		name  string
+		sql   string
+		facts v1review.PriorBackupFacts
+		want  []priorBackupFinding
+	}{
+		{
+			name:  "at the limit",
+			sql:   "UPDATE t SET a = 1",
+			facts: priorBackupFacts(),
+			want:  nil,
+		},
+		{
+			name: "one byte over",
+			sql:  "UPDATE t SET a = 1",
+			facts: func() v1review.PriorBackupFacts {
+				f := priorBackupFacts()
+				f.TotalSize = 101
+				return f
+			}(),
+			want: []priorBackupFinding{tooLarge},
+		},
+		{
+			name: "before the other findings",
+			sql:  "CREATE TABLE u (a int); UPDATE t SET a = 1; DELETE FROM t",
+			facts: func() v1review.PriorBackupFacts {
+				f := priorBackupFacts()
+				f.TotalSize = 101
+				f.DatabaseExists = false
+				return f
+			}(),
+			want: []priorBackupFinding{
+				tooLarge,
+				{Code: v1review.PriorBackupMixedDDLAndDML},
+				{Code: v1review.PriorBackupDatabaseMissing, Name: "bbdataarchive"},
+				{Code: v1review.PriorBackupMixedDMLOnTable, Table: "public.t"},
+			},
+		},
 	}
-	facts.TotalSize = facts.MaxSize
-	if diff := cmp.Diff([]priorBackupFinding(nil), judgePriorBackup(t, "UPDATE t SET a = 1", facts)); diff != "" {
-		t.Fatalf("finding mismatch (-want +got):\n%s", diff)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if diff := cmp.Diff(tt.want, judgePriorBackup(t, tt.sql, tt.facts)); diff != "" {
+				t.Fatalf("finding mismatch (-want +got):\n%s", diff)
+			}
+		})
 	}
 }

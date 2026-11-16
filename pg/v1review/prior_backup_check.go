@@ -2,6 +2,7 @@ package v1review
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/pg/analysis"
@@ -36,9 +37,13 @@ type priorBackupTable struct {
 // holds a data-modifying WITH query; the database the backup writes to is
 // missing, which does not end the check; and one table is changed by more than
 // one kind of DML. V1 reported every DDL statement, whether or not the batch
-// changes rows as well. Tables are grouped as "schema.table". V1 had no size
-// cap in this rule, unlike MySQL's and TiDB's, and reads none of facts's size
-// pair.
+// changes rows as well. Tables are grouped as "schema.table".
+//
+// The size finding is the one judgment this rule adds to the V1 advisor's, and
+// it is the sibling engines' rule: V1's PostgreSQL advisor had no size cap, so
+// a reviewed script above facts.MaxSize passed review and then failed the
+// backup task, which refuses one ("statement size %d exceeds the limit %d,
+// please disable data backup").
 //
 // A statement carries the index of the statement it reports and no range,
 // since V1 anchored every finding at the first content line of the statement's
@@ -48,6 +53,10 @@ type priorBackupTable struct {
 // only when the review enables prior backup.
 func PriorBackupCheck(stmts []ast.Node, facts v1review.PriorBackupFacts) []v1review.Finding {
 	var findings []v1review.Finding
+
+	if facts.TotalSize > facts.MaxSize {
+		findings = append(findings, v1review.Finding{Code: v1review.PriorBackupScriptTooLarge, Value: strconv.Itoa(facts.MaxSize)})
+	}
 
 	for i, stmt := range stmts {
 		node := statementNode(stmt)
