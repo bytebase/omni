@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/google/shlex"
 	"github.com/redis/go-redis/v9"
 
 	"github.com/bytebase/omni/driver"
@@ -51,7 +49,7 @@ func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	if opts.Explain {
 		return nil, errors.New("Redis does not support EXPLAIN")
 	}
-	inputs, commands, err := splitCommands(script)
+	commands, err := splitCommands(script)
 	if err != nil {
 		return nil, err
 	}
@@ -59,15 +57,15 @@ func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	results := make([]*driver.Result, 0, len(commands))
-	for i, command := range commands {
+	for _, command := range commands {
 		startTime := time.Now()
-		cmds, err := s.driver.client.Do(ctx, s.session, [][]any{inputs[i]})
+		cmds, err := s.driver.client.Do(ctx, s.session, [][]any{command.args})
 		if err != nil {
 			// The commands before this one ran, so their results stand beside the
 			// error that kept the rest from being sent.
 			return results, err
 		}
-		result := newResult(command)
+		result := newResult(command.text)
 		result.Latency = time.Since(startTime)
 		if len(cmds) == 0 {
 			results = append(results, result)
@@ -92,7 +90,7 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 	if opts.Explain {
 		return nil, errors.New("Redis does not support EXPLAIN")
 	}
-	inputs, commands, err := splitCommands(script)
+	commands, err := splitCommands(script)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +98,9 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	results := make([]*driver.Result, 0, len(commands))
-	for i, command := range commands {
+	for _, command := range commands {
 		startTime := time.Now()
-		shards, err := s.driver.client.DoEachShard(ctx, [][]any{inputs[i]})
+		shards, err := s.driver.client.DoEachShard(ctx, [][]any{command.args})
 		if err != nil {
 			// The commands before this one ran, so their results stand beside the
 			// error that kept the rest from being sent. A client of one server
@@ -117,7 +115,7 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 		// One command's rows are every node's answers, in node order, before the
 		// next command is sent, so a command that fails on one node leaves the
 		// earlier commands whole and the commands after it unsent.
-		result := newResult(command)
+		result := newResult(command.text)
 		size := driver.HeaderByteSize(result.Columns)
 		for _, shard := range shards {
 			if len(shard) == 0 {
@@ -198,30 +196,4 @@ func replyRow(i int, value any) []driver.Value {
 		{Kind: driver.Int32, Int64: int64(i)},
 		{Kind: driver.String, String: fmt.Sprintf("%v", value)},
 	}
-}
-
-// splitCommands reads one command per line, skipping lines that hold none, and
-// returns each command's arguments beside the line it came from. A result is
-// reported per command rather than per line, so the two are built together to
-// keep them aligned. A line is parsed as a shell parses one, so a quoted
-// argument may hold spaces, and a line's `#` starts a comment.
-func splitCommands(statement string) ([][]any, []string, error) {
-	var inputs [][]any
-	var commands []string
-	for _, line := range strings.Split(statement, "\n") {
-		fields, err := shlex.Split(line)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to split command %s: %w", line, err)
-		}
-		if len(fields) == 0 {
-			continue
-		}
-		var input []any
-		for _, v := range fields {
-			input = append(input, v)
-		}
-		inputs = append(inputs, input)
-		commands = append(commands, line)
-	}
-	return inputs, commands, nil
 }

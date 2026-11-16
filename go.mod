@@ -17,7 +17,6 @@ require (
 	github.com/docker/go-units v0.5.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-cmp v0.7.0
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/hjson/hjson-go/v4 v4.6.0
 	github.com/jackc/pgx/v5 v5.13.0
 	github.com/microsoft/go-mssqldb v1.9.8
