@@ -232,6 +232,9 @@ func (i *functionBodyIssues) merge(other functionBodyIssues) {
 type functionSourceProjection struct {
 	names   []string
 	sources []ColumnSet
+	// opaque marks a projection with an unresolved star, whose output width is
+	// unknown; expanding a star over it would misalign the following columns.
+	opaque bool
 }
 
 // functionSourceScope separates the CTE definitions a FROM item may reference
@@ -242,10 +245,17 @@ type functionSourceProjection struct {
 type functionSourceScope struct {
 	defs     map[string]functionSourceProjection
 	bindings map[string]functionSourceProjection
+	// projection is this query's whole FROM output, including a USING/NATURAL
+	// join's coalesced columns. Unqualified resolution uses it when every FROM
+	// item has a function projection.
+	projection    functionSourceProjection
+	hasProjection bool
 	// outerBindings are the enclosing queries' FROM bindings, kept separate so
 	// an inner relation shadows a same-named outer one and an unqualified
 	// column prefers the inner scope instead of looking ambiguous.
-	outerBindings map[string]functionSourceProjection
+	outerBindings      map[string]functionSourceProjection
+	outerProjection    functionSourceProjection
+	hasOuterProjection bool
 }
 
 func (q *querySpanResolver) collectAccessTables(node ast.Node) (ColumnSet, error) {
@@ -493,6 +503,13 @@ func (q *querySpanResolver) collectSelectFunctionProjection(selectStmt *ast.Sele
 			result.sources = append(result.sources, star.sources...)
 			continue
 		}
+		if _, isStar := redshiftStarTarget(target); isStar {
+			// The star covers a relation with no function projection. Its true
+			// width is unknown, so keep a single placeholder and mark the
+			// projection opaque; a star over this relation later stays
+			// unexpanded rather than misaligning the following columns.
+			result.opaque = true
+		}
 		sources, sourceIssues, err := q.collectFunctionBodyResultSources(target.Val, functionStack, cache, scope)
 		if err != nil {
 			return functionSourceProjection{}, functionBodyIssues{}, err
@@ -515,16 +532,22 @@ func (q *querySpanResolver) functionStarProjection(target *ast.ResTarget, from *
 	}
 	if qualifier != "" {
 		projection, ok := scope.bindings[strings.ToLower(qualifier)]
-		if !ok {
+		if !ok || projection.opaque {
 			return functionSourceProjection{}, false
 		}
 		return projection, true
 	}
+	return q.functionProjectionForList(from, scope)
+}
+
+// functionProjectionForList returns the output of a whole FROM list, or false
+// when an item has no function projection or an unresolved star width.
+func (q *querySpanResolver) functionProjectionForList(from *ast.List, scope functionSourceScope) (functionSourceProjection, bool) {
 	var result functionSourceProjection
 	if from != nil {
 		for _, item := range from.Items {
 			projection, ok := q.functionProjectionForNode(item, scope)
-			if !ok {
+			if !ok || projection.opaque {
 				return functionSourceProjection{}, false
 			}
 			appendFunctionProjection(&result, projection)
@@ -576,12 +599,16 @@ func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope funct
 func appendFunctionProjection(dst *functionSourceProjection, src functionSourceProjection) {
 	dst.names = append(dst.names, src.names...)
 	dst.sources = append(dst.sources, src.sources...)
+	dst.opaque = dst.opaque || src.opaque
 }
 
 // mergeFunctionJoinProjection combines the two sides of a join. A plain join
 // concatenates them; a USING/NATURAL join lists each common column once, first,
 // unioning its sources, then the remaining left and right columns.
 func mergeFunctionJoinProjection(left, right functionSourceProjection, n *ast.JoinExpr) (functionSourceProjection, bool) {
+	if left.opaque || right.opaque {
+		return functionSourceProjection{}, false
+	}
 	using := redshiftStringList(n.UsingClause)
 	if len(using) == 0 && !n.IsNatural {
 		var result functionSourceProjection
@@ -730,6 +757,10 @@ func (q *querySpanResolver) functionSourceScopeForSelect(selectStmt *ast.SelectS
 		return functionSourceScope{}, functionBodyIssues{}, err
 	}
 	issues.merge(sourceIssues)
+	if projection, ok := q.functionProjectionForList(selectStmt.FromClause, scope); ok {
+		scope.projection = projection
+		scope.hasProjection = true
+	}
 	return scope, issues, nil
 }
 
@@ -829,17 +860,22 @@ func (q *querySpanResolver) collectFunctionBodyResultSources(node ast.Node, func
 			if !ok {
 				return false
 			}
-			// Resolve the subquery's own FROM bindings; the outer scope alone
-			// does not expose a CTE it references.
-			projection, sourceIssues, sourceErr := q.collectSelectFunctionProjection(selectStmt, functionStack, cache, scope)
+			// Resolve everything the subquery reads in its own scope, not just
+			// its projection: a function in WHERE/HAVING still determines the
+			// result value.
+			innerScope, sourceIssues, sourceErr := q.functionSourceScopeForSelect(selectStmt, functionStack, cache, scope)
 			if sourceErr != nil {
 				err = sourceErr
 				return false
 			}
 			issues.merge(sourceIssues)
-			for _, sources := range projection.sources {
-				mergeSourceColumnSet(result, sources)
+			sources, sourceIssues, sourceErr := q.collectFunctionBodyResultSources(selectStmt, functionStack, cache, innerScope)
+			if sourceErr != nil {
+				err = sourceErr
+				return false
 			}
+			issues.merge(sourceIssues)
+			mergeSourceColumnSet(result, sources)
 			return false
 		}
 		if columnRef, ok := n.(*ast.ColumnRef); ok {
@@ -1079,9 +1115,13 @@ func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResul
 
 func cloneFunctionSourceScope(scope functionSourceScope) functionSourceScope {
 	result := functionSourceScope{
-		defs:          make(map[string]functionSourceProjection, len(scope.defs)),
-		bindings:      make(map[string]functionSourceProjection, len(scope.bindings)),
-		outerBindings: make(map[string]functionSourceProjection, len(scope.outerBindings)),
+		defs:               make(map[string]functionSourceProjection, len(scope.defs)),
+		bindings:           make(map[string]functionSourceProjection, len(scope.bindings)),
+		projection:         scope.projection,
+		hasProjection:      scope.hasProjection,
+		outerBindings:      make(map[string]functionSourceProjection, len(scope.outerBindings)),
+		outerProjection:    scope.outerProjection,
+		hasOuterProjection: scope.hasOuterProjection,
 	}
 	for name, projection := range scope.defs {
 		result.defs[name] = projection
@@ -1106,6 +1146,13 @@ func enterFunctionSourceScope(outer functionSourceScope) functionSourceScope {
 	}
 	for name, projection := range outer.defs {
 		result.defs[name] = projection
+	}
+	if outer.hasProjection {
+		result.outerProjection = outer.projection
+		result.hasOuterProjection = true
+	} else if outer.hasOuterProjection {
+		result.outerProjection = outer.outerProjection
+		result.hasOuterProjection = true
 	}
 	for name, projection := range outer.outerBindings {
 		result.outerBindings[name] = projection
@@ -1142,10 +1189,21 @@ func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRe
 }
 
 func resolveUnqualifiedFunctionColumn(scope functionSourceScope, columnName string) ColumnSet {
-	if sources, found, ambiguous := lookupUnqualifiedFunctionColumn(scope.bindings, columnName); ambiguous {
-		return ColumnSet{}
-	} else if found {
-		return sources
+	if scope.hasProjection {
+		if index, ok := functionColumnIndex(scope.projection, columnName); ok {
+			return scope.projection.sources[index]
+		}
+	} else {
+		if sources, found, ambiguous := lookupUnqualifiedFunctionColumn(scope.bindings, columnName); ambiguous {
+			return ColumnSet{}
+		} else if found {
+			return sources
+		}
+	}
+	if scope.hasOuterProjection {
+		if index, ok := functionColumnIndex(scope.outerProjection, columnName); ok {
+			return scope.outerProjection.sources[index]
+		}
 	}
 	sources, _, _ := lookupUnqualifiedFunctionColumn(scope.outerBindings, columnName)
 	return sources

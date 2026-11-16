@@ -106,6 +106,56 @@ func TestRedshiftQuerySpanScalarSubqueryShadowsOuterBinding(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanUsingJoinUnqualifiedColumn covers an unqualified common
+// column: the join exposes it once, with both inputs' sources.
+func TestRedshiftQuerySpanUsingJoinUnqualifiedColumn(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH a AS (SELECT reporting_fn() AS k), b AS (SELECT 0 AS k) SELECT k FROM a JOIN b USING (k)")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "k",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+		IsPlainField: true,
+	}}, span.Results)
+}
+
+// TestRedshiftQuerySpanSubqueryPredicateFunction covers a subquery whose result
+// depends on a SQL function only in its predicate.
+func TestRedshiftQuerySpanSubqueryPredicateFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	for _, statement := range []string{
+		"SELECT EXISTS (SELECT 1 WHERE reporting_fn() > 0) AS x",
+		"SELECT (SELECT 1 WHERE reporting_fn() > 0) AS x",
+	} {
+		t.Run(statement, func(t *testing.T) {
+			span, err := q.getQuerySpan(statement)
+			require.NoError(t, err)
+			require.Equal(t, []ResolvedQuerySpanResult{{
+				Name: "x",
+				SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+					{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+				}),
+			}}, span.Results)
+		})
+	}
+}
+
+// TestRedshiftQuerySpanOpaqueStarKeepsFollowingFunction covers a CTE whose
+// projection mixes an expanded star with an unresolved base-table star; the
+// unknown width must stop expansion so the following function keeps its source.
+func TestRedshiftQuerySpanOpaqueStarKeepsFollowingFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH a AS (SELECT reporting_fn() AS x, 0 AS n), b AS (SELECT a.*, o.* FROM a CROSS JOIN orders o) SELECT b.*, analytics.reporting_fn() AS y FROM b")
+	require.NoError(t, err)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, "y", last.Name)
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.
