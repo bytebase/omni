@@ -21,6 +21,7 @@ import (
 	sqldriver "database/sql/driver"
 	"errors"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -112,6 +113,7 @@ func Open(ctx context.Context, cfg omnidriver.Config) (*Driver, error) {
 		drv:           goora.NewDriver(),
 		dsn:           dsn,
 		tlsConfig:     tlsConfig,
+		dial:          dialFunc(cfg.Dial),
 		currentSchema: cfg.Database,
 	})
 	if cfg.Database != "" {
@@ -189,10 +191,20 @@ func serviceName(params map[string]string) (string, error) {
 // through it and copies them onto every later connection, so a shared driver
 // would decode every schema's text with the first schema's character set.
 type connector struct {
-	drv           *goora.OracleDriver
-	dsn           string
-	tlsConfig     *tls.Config
+	drv       *goora.OracleDriver
+	dsn       string
+	tlsConfig *tls.Config
+	// dial opens the network connection in place of net.Dialer, for a caller
+	// that reaches the server through a tunnel or a cloud connector.
+	dial          dialFunc
 	currentSchema string
+}
+
+// dialFunc is driver.Config.Dial, as go-ora's DialerContext.
+type dialFunc func(ctx context.Context, network, address string) (net.Conn, error)
+
+func (f dialFunc) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	return f(ctx, network, address)
 }
 
 func (c connector) Connect(ctx context.Context) (sqldriver.Conn, error) {
@@ -202,6 +214,9 @@ func (c connector) Connect(ctx context.Context) (sqldriver.Conn, error) {
 	}
 	// A nil configuration is the client's default negotiation.
 	oracleConnector.(*goora.OracleConnector).WithTLSConfig(c.tlsConfig.Clone())
+	if c.dial != nil {
+		oracleConnector.(*goora.OracleConnector).Dialer(c.dial)
+	}
 	conn, err := oracleConnector.Connect(ctx)
 	if err != nil {
 		return nil, err
@@ -228,8 +243,16 @@ func (d *Driver) Close() error {
 	return d.db.Close()
 }
 
-// version returns the release the engine version string names, such as 23.26.
-func (d *Driver) version() (*oracleanalysis.Version, error) {
+// version returns the server's release, such as 23.26, and the configured
+// engine version when the server does not answer.
+func (d *Driver) version(ctx context.Context) (*oracleanalysis.Version, error) {
+	const query = "SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'"
+	var fullVersion string
+	if err := d.db.QueryRowContext(ctx, query).Scan(&fullVersion); err == nil {
+		if version, parseErr := parseVersion(fullVersion); parseErr == nil {
+			return version, nil
+		}
+	}
 	if d.engineVersion == "" {
 		return nil, errors.New("engine version is not set")
 	}

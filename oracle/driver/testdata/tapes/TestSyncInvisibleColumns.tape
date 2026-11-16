@@ -33,6 +33,13 @@
 |
 | CREATE VIEW OMNI_APP.V (A, B INVISIBLE) AS SELECT A, B FROM OMNI_APP.T
 < ok 0 0
+> query
+| SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
+< result
+< column "VERSION_FULL" "NCHAR"
+< row
+: string
+| 23.26.3.0.0
 > begin
 < ok
 > query

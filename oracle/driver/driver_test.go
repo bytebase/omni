@@ -1,10 +1,16 @@
 package driver
 
 import (
+	"context"
+	"errors"
 	"maps"
+	"net"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+
+	omnidriver "github.com/bytebase/omni/driver"
 )
 
 func TestParseVersion(t *testing.T) {
@@ -132,6 +138,31 @@ func TestConnectionOptions(t *testing.T) {
 				t.Errorf("connectionOptions changed its input (-before +after):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestOpenDialsThroughConfig pins that a caller's Dial reaches the client
+// instead of a direct connection: the test's dialer fails, and so does the
+// connection.
+func TestOpenDialsThroughConfig(t *testing.T) {
+	dialed := false
+	_, err := Open(context.Background(), omnidriver.Config{
+		Host:     "primary.example.com",
+		Port:     "1521",
+		User:     "scott",
+		Password: "tiger",
+		Database: "APP",
+		Params:   map[string]string{"SERVICE_NAME": "ORCLPDB1"},
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			dialed = true
+			return nil, errors.New("the test's dialer refuses")
+		},
+	})
+	if !dialed {
+		t.Fatalf("the driver dialed directly: %v", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "the test's dialer refuses") {
+		t.Errorf("error = %v, want the dialer's", err)
 	}
 }
 

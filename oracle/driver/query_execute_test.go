@@ -152,18 +152,16 @@ func TestQueryTimeZone(t *testing.T) {
 	}
 }
 
-// TestQueryLocalTimeZone pins that a TIMESTAMP WITH LOCAL TIME ZONE is printed in
-// the session's zone, as SQL*Plus prints it, including a zone the script changes
-// in the middle.
-func TestQueryLocalTimeZone(t *testing.T) {
+// TestQuerySchema pins that QueryOptions.Schema selects the schema an
+// unqualified statement resolves in.
+func TestQuerySchema(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDriver(t)
 	execCorpus(t, d.db, `
 CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
 GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
-CREATE TABLE OMNI_APP.LTZ (ID NUMBER, AT TIMESTAMP WITH LOCAL TIME ZONE);
-ALTER SESSION SET TIME_ZONE = '+02:00';
-INSERT INTO OMNI_APP.LTZ (ID, AT) VALUES (1, TIMESTAMP '2026-03-04 05:06:07');
+CREATE TABLE OMNI_APP.S (ID NUMBER);
+INSERT INTO OMNI_APP.S (ID) VALUES (1);
 `)
 	s, err := d.Session(ctx)
 	if err != nil {
@@ -171,29 +169,41 @@ INSERT INTO OMNI_APP.LTZ (ID, AT) VALUES (1, TIMESTAMP '2026-03-04 05:06:07');
 	}
 	defer func() { _ = s.Close() }()
 
-	for _, test := range []struct {
-		name string
-		zone string
-		want string
-	}{
-		// The row was stored as 03:06:07 UTC.
-		{name: "offset", zone: "+02:00", want: "2026-03-04 05:06:07"},
-		{name: "utc", zone: "+00:00", want: "2026-03-04 03:06:07"},
-		{name: "region", zone: "Europe/Berlin", want: "2026-03-04 04:06:07"},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			results, err := s.Query(ctx, fmt.Sprintf("ALTER SESSION SET TIME_ZONE = '%s'; SELECT AT FROM OMNI_APP.LTZ", test.zone), omnidriver.QueryOptions{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			row := results[len(results)-1].Rows[0][0]
-			if row.Kind != omnidriver.Timestamp {
-				t.Fatalf("value = %+v, want a wall clock", row)
-			}
-			if got := row.Time.Format(time.DateTime); got != test.want {
-				t.Errorf("value = %s, want %s", got, test.want)
-			}
-		})
+	// The session runs as SYSTEM, so an unqualified name reaches no table of
+	// OMNI_APP's without the option.
+	results, err := s.Query(ctx, "SELECT ID FROM S", omnidriver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Err == nil {
+		t.Fatalf("an unqualified name resolved without QueryOptions.Schema")
+	}
+
+	results, err = s.Query(ctx, "SELECT ID FROM S", omnidriver.QueryOptions{Schema: testSchema})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Err != nil {
+		t.Fatalf("QueryOptions.Schema did not select the schema: %v", results[0].Err)
+	}
+	if len(results[0].Rows) != 1 || results[0].Rows[0][0].String != "1" {
+		t.Errorf("rows = %+v, want the one row", results[0].Rows)
+	}
+}
+
+// TestVersionFromServer pins that the driver asks the server for its release and
+// reads the configured version only when the server does not answer.
+func TestVersionFromServer(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	d.engineVersion = "11.1.0.0.0"
+
+	version, err := d.version(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version.First != 23 || version.Second != 26 {
+		t.Errorf("version = %+v, want the server's 23.26", version)
 	}
 }
 
@@ -496,6 +506,51 @@ CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
 	}
 	// The link is the instance's, not the schema's, so a later test would read it.
 	execCorpus(t, d.db, "DROP DATABASE LINK omni_link")
+}
+
+// TestQueryLocalTimeZone pins that a TIMESTAMP WITH LOCAL TIME ZONE is printed in
+// the session's zone, as SQL*Plus prints it, including a zone the script changes
+// in the middle.
+func TestQueryLocalTimeZone(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+CREATE TABLE OMNI_APP.LTZ (ID NUMBER, AT TIMESTAMP WITH LOCAL TIME ZONE);
+ALTER SESSION SET TIME_ZONE = '+02:00';
+INSERT INTO OMNI_APP.LTZ (ID, AT) VALUES (1, TIMESTAMP '2026-03-04 05:06:07');
+`)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	for _, test := range []struct {
+		name string
+		zone string
+		want string
+	}{
+		// The row was stored as 03:06:07 UTC.
+		{name: "offset", zone: "+02:00", want: "2026-03-04 05:06:07"},
+		{name: "utc", zone: "+00:00", want: "2026-03-04 03:06:07"},
+		{name: "region", zone: "Europe/Berlin", want: "2026-03-04 04:06:07"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			results, err := s.Query(ctx, fmt.Sprintf("ALTER SESSION SET TIME_ZONE = '%s'; SELECT AT FROM OMNI_APP.LTZ", test.zone), omnidriver.QueryOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			row := results[len(results)-1].Rows[0][0]
+			if row.Kind != omnidriver.Timestamp {
+				t.Fatalf("value = %+v, want a wall clock", row)
+			}
+			if got := row.Time.Format(time.DateTime); got != test.want {
+				t.Errorf("value = %s, want %s", got, test.want)
+			}
+		})
+	}
 }
 
 // TestExecuteCreateDatabase pins that Oracle refuses a database-creation step:
