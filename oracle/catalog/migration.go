@@ -23,6 +23,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	var buf strings.Builder
 	renames := findConstraintRenames(diff)
 	detached := findDetachedIncomingForeignKeys(diff, renames)
+	diff.preAltered = map[*ColumnDiff]bool{}
 
 	// Safe order for migrations:
 	// 1. Drop dependent objects first (in reverse dependency order)
@@ -273,6 +274,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 					}
 				}
 
+				preAlterDependentVirtualColumns(buf, diff, tableDiff)
 				// Drop dependent virtual columns before ordinary columns.
 				for _, colDiff := range orderedColumnDrops(tableDiff.ColumnChanges) {
 					writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
@@ -347,6 +349,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 					}
 				}
 
+				preAlterDependentVirtualColumns(buf, diff, tableDiff)
 				// Drop dependent virtual columns before ordinary columns.
 				for _, colDiff := range orderedColumnDrops(tableDiff.ColumnChanges) {
 					writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
@@ -844,6 +847,31 @@ func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMe
 	return buf.String(), nil
 }
 
+func preAlterDependentVirtualColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff) {
+	dropped := map[string]bool{}
+	for _, change := range tableDiff.ColumnChanges {
+		if change.Action == DiffActionDrop && change.OldColumn != nil {
+			dropped[change.OldColumn.GetName()] = true
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	for _, change := range tableDiff.ColumnChanges {
+		if change.Action != DiffActionAlter || change.OldColumn == nil || change.OldColumn.GetGeneration() == nil {
+			continue
+		}
+		expression := change.OldColumn.GetGeneration().GetExpression()
+		for column := range dropped {
+			if expressionReferencesColumn(expression, column) {
+				buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, change, columnNotNull{}))
+				diff.preAltered[change] = true
+				break
+			}
+		}
+	}
+}
+
 func orderedColumnDrops(changes []*ColumnDiff) []*ColumnDiff {
 	var virtual, ordinary []*ColumnDiff
 	for _, change := range changes {
@@ -867,6 +895,9 @@ func orderedColumnDrops(changes []*ColumnDiff) []*ColumnDiff {
 func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, detached incomingForeignKeySet) {
 	var oldColumns, newColumns []string
 	for _, colDiff := range tableDiff.ColumnChanges {
+		if diff.preAltered[colDiff] {
+			continue
+		}
 		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
 			oldColumns = append(oldColumns, colDiff.OldColumn.Name)
 			newColumns = append(newColumns, colDiff.NewColumn.Name)
@@ -884,7 +915,7 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	}
 	findColumnDependents(tableDiff.OldTable, oldColumns, diffObjectNames(tableDiff, DiffActionDrop)).writeDrops(buf, schemaName, tableName)
 	for _, colDiff := range tableDiff.ColumnChanges {
-		if colDiff.Action != DiffActionAlter {
+		if colDiff.Action != DiffActionAlter || diff.preAltered[colDiff] {
 			continue
 		}
 		// A named NOT NULL went with the dependents. One the diff creates is

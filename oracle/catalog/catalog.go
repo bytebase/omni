@@ -12,12 +12,13 @@ import (
 // Catalog is the in-memory Oracle catalog. Oracle has one schema per user, so a
 // snapshot is normally one schema; the metadata type still carries the list.
 type Catalog struct {
-	meta *metadatapb.DatabaseSchemaMetadata
+	meta         *metadatapb.DatabaseSchemaMetadata
+	namedNotNull map[string]bool
 }
 
 // New returns an empty catalog.
 func New() *Catalog {
-	return &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{}}
+	return &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{}, namedNotNull: map[string]bool{}}
 }
 
 // Metadata returns the catalog's snapshot.
@@ -137,6 +138,9 @@ func isDML(stmt ast.StmtNode) bool {
 
 func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	extractor := newMetadataExtractorFromMetadata(c.meta, source)
+	for key := range c.namedNotNull {
+		extractor.namedNotNull[key] = true
+	}
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
 		return extractor.err
@@ -164,6 +168,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 		}
 	}
 	c.meta = result
+	c.namedNotNull = extractor.namedNotNull
 	return nil
 }
 

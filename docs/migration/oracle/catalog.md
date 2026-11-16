@@ -156,6 +156,11 @@ replay tests exercise.
 - Trigger comparison normalizes only the declaration header, not literals in
   the body.
 - Materialized views keep their `BUILD`/`REFRESH` policy in the definition.
+- An independent CHECK does not clear a column's NOT NULL when it is dropped.
+- A retained virtual column is altered before a column it used to reference is
+  dropped.
+- An index's target table owner is validated, inline `DISABLE` triggers can be
+  re-enabled, and non-table triggers are rejected.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

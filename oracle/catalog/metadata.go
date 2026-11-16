@@ -1123,7 +1123,7 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 	if tableName == "" || indexName == "" {
 		return
 	}
-	if !e.useSchema(n.Name.Schema) {
+	if !e.useSchema(n.Name.Schema) || !e.useSchema(n.Table.Schema) {
 		return
 	}
 
@@ -1325,6 +1325,21 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 	pkg.Definition += "\n\n" + definition
 }
 
+func removeTriggerDisableClause(body string) string {
+	headerEnd := len(body)
+	upper := strings.ToUpper(body)
+	for _, marker := range []string{"\nBEGIN", "\nDECLARE"} {
+		if index := strings.Index(upper, marker); index >= 0 && index < headerEnd {
+			headerEnd = index
+		}
+	}
+	index := strings.Index(upper[:headerEnd], " DISABLE")
+	if index < 0 {
+		return body
+	}
+	return body[:index] + body[index+len(" DISABLE"):]
+}
+
 func triggerAttributes(n *ast.CreateTriggerStmt) (string, string) {
 	var events []string
 	for _, item := range listItems(n.Events) {
@@ -1392,15 +1407,26 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 	if triggerName == "" || tableName == "" {
 		return
 	}
+	if strings.EqualFold(tableName, "DATABASE") || strings.EqualFold(tableName, "SCHEMA") {
+		if e.err == nil {
+			e.err = fmt.Errorf("non-table triggers are not supported by oracle/catalog")
+		}
+		return
+	}
 	if n.OrReplace {
 		e.dropTrigger(triggerName)
 	}
 	event, timing := triggerAttributes(n)
+	body := e.definitionText(n)
+	if !n.Enable {
+		body = removeTriggerDisableClause(body)
+		body = strings.TrimSpace(body) + "\nALTER TRIGGER \"" + triggerName + "\" DISABLE;"
+	}
 	trigger := &metadatapb.TriggerMetadata{
 		Name:   triggerName,
 		Event:  event,
 		Timing: timing,
-		Body:   e.definitionText(n),
+		Body:   body,
 	}
 	e.triggers[triggerName] = trigger
 	if view := e.views[tableName]; view != nil {

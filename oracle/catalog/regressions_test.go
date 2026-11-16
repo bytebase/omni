@@ -1291,3 +1291,49 @@ func TestMaterializedViewKeepsRefreshPolicy(t *testing.T) {
 		t.Fatalf("refresh policy missing:\n%s", definition)
 	}
 }
+
+func TestRetainedVirtualColumnAltersBeforeSourceDrop(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{
+		{Name: "A", Type: "NUMBER", Position: 1},
+		{Name: "B", Type: "NUMBER", Position: 2},
+		{Name: "V", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "A+1"}},
+	}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{
+		{Name: "B", Type: "NUMBER", Position: 2},
+		{Name: "V", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "B+1"}},
+	}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	alter := strings.Index(sql, `MODIFY ("V"`)
+	drop := strings.Index(sql, `DROP COLUMN "A"`)
+	if alter < 0 || drop < 0 || alter > drop {
+		t.Fatalf("virtual column altered after source drop:\n%s", sql)
+	}
+}
+
+func TestCreateIndexRejectsAnotherTableOwner(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}}})
+	results, err := c.Exec(`CREATE INDEX APP.I ON OTHER.T(C)`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("index on another owner was applied")
+	}
+}
+
+func TestInlineDisableThenEnable(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TRG BEFORE INSERT ON T DISABLE BEGIN NULL; END; ALTER TRIGGER TRG ENABLE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := strings.ToUpper(tableByName(c.Metadata().Schemas[0])["T"].Triggers[0].Body)
+	if strings.Contains(body, "DISABLE") {
+		t.Fatalf("trigger still disabled: %s", body)
+	}
+}
+
+func TestNonTableTriggerIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TRIGGER AUDIT_TR AFTER LOGON ON DATABASE BEGIN NULL; END;`); err == nil {
+		t.Fatal("database trigger installed a phantom table")
+	}
+}
