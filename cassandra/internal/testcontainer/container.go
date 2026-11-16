@@ -106,7 +106,7 @@ func (c *Client) Query(ctx context.Context, statement string, pageSize int, page
 	}
 	rows := make([]gocql.RowData, 0, len(a.Rows))
 	for _, values := range a.Rows {
-		row := gocql.RowData{Values: make([]any, 0, len(values))}
+		row := gocql.RowData{Columns: a.RowColumns, Values: make([]any, 0, len(values))}
 		for _, value := range values {
 			decoded, err := decodeCell(value)
 			if err != nil {
@@ -178,10 +178,14 @@ func (r request) text() (string, error) {
 // answer is one call's answer as a tape holds it: the columns and rows of one
 // page, the state that continues after it, or the error gocql returned.
 type answer struct {
-	Columns   []column     `json:"columns,omitempty"`
-	Rows      [][]cell     `json:"rows,omitempty"`
-	PageState string       `json:"pageState,omitempty"`
-	Error     *clientError `json:"error,omitempty"`
+	Columns []column `json:"columns,omitempty"`
+	// RowColumns are the names gocql gives the values of one row, which differ
+	// from Columns only where a tuple column expands into one value per
+	// element ("name[0]", "name[1]", ...).
+	RowColumns []string     `json:"rowColumns,omitempty"`
+	Rows       [][]cell     `json:"rows,omitempty"`
+	PageState  string       `json:"pageState,omitempty"`
+	Error      *clientError `json:"error,omitempty"`
 }
 
 // column is one column as a tape holds it: its name and the CQL type gocql
@@ -760,6 +764,9 @@ func liveDo(t testing.TB, text, keyspace string) (string, error) {
 		}
 		for _, info := range columns {
 			a.Columns = append(a.Columns, column{Name: info.Name, Type: int(info.TypeInfo.Type())})
+		}
+		if len(rows) > 0 {
+			a.RowColumns = rows[0].Columns
 		}
 		for _, row := range rows {
 			values := make([]cell, 0, len(row.Values))

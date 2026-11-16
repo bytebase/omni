@@ -19,7 +19,7 @@ func TestQuery(t *testing.T) {
 	sess := openSession(t, d)
 
 	results, err := sess.Query(context.Background(), `
-		SELECT id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr
+		SELECT id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup
 		FROM omni_types WHERE id = 1;
 		SELECT id, txt, dec, vi FROM omni_types WHERE id = 2;`, driver.QueryOptions{})
 	require.NoError(t, err)
@@ -35,14 +35,14 @@ func TestQuery(t *testing.T) {
 	}
 	require.Equal(t, []string{
 		"id", "txt", "ascii_col", "vc", "flag", "bi", "ti", "si", "dbl", "flt", "dec", "vi",
-		"ts", "dt", "tm", "uid", "tuid", "bl", "dur", "lst", "st", "mp", "addr",
+		"ts", "dt", "tm", "uid", "tuid", "bl", "dur", "lst", "st", "mp", "addr", "tup",
 	}, columns)
 	// Cassandra reports a text column as varchar: the two names are one CQL
 	// type.
 	require.Equal(t, []string{
 		"int", "varchar", "ascii", "varchar", "boolean", "bigint", "tinyint", "smallint", "double", "float",
 		"decimal", "varint", "timestamp", "date", "time", "uuid", "timeuuid", "blob", "duration",
-		"list", "set", "map", "inet",
+		"list", "set", "map", "inet", "tuple",
 	}, types)
 
 	require.Len(t, results[0].Rows, 1)
@@ -81,6 +81,10 @@ func TestQuery(t *testing.T) {
 	// inet has no case of its own: Bytebase read it as its JSON spelling, which
 	// for a net.IP is its address text, quoted as JSON.
 	require.Equal(t, `"10.0.0.1"`, row[22].String)
+	// A tuple is one column holding one value: gocql expands its elements into
+	// separate values, and the driver reads them back as one JSON cell.
+	require.Equal(t, driver.String, row[23].Kind)
+	require.Equal(t, `[7,"seven"]`, row[23].String)
 
 	// A NULL column reads as its type's zero value: gocql hands back a pointer
 	// to the zero value, so Bytebase's nil check fired for the two types whose

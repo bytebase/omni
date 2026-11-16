@@ -111,6 +111,8 @@ func TestSearchable(t *testing.T) {
 		{name: "root search", request: elasticsearch.Request{Method: "GET", URL: "_search"}},
 		{name: "put search", request: elasticsearch.Request{Method: "PUT", URL: "/index/_search"}, wantErr: "PUT is not a search to explain"},
 		{name: "other endpoint", request: elasticsearch.Request{Method: "POST", URL: "/index/_doc/1"}, wantErr: "/index/_doc/1 is not a search to explain"},
+		// A document whose id is _search is a write, not a search.
+		{name: "document named _search", request: elasticsearch.Request{Method: "POST", URL: "/index/_doc/_search"}, wantErr: "/index/_doc/_search is not a search to explain"},
 		{name: "ndjson", request: elasticsearch.Request{Method: "POST", URL: "/_msearch", Data: []string{"{}", "{}"}}, wantErr: "/_msearch is not a search to explain"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

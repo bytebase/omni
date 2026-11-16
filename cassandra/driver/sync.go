@@ -2,9 +2,12 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
+
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -109,6 +112,16 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, err
 	}
+	exists, err := d.keyspaceExists(ctx, c)
+	if err != nil {
+		if isMissingKeyspace(err) {
+			return nil, fmt.Errorf("%w: keyspace %s does not exist", driver.ErrNotFound, d.config.Database)
+		}
+		return nil, err
+	}
+	if !exists {
+		return nil, fmt.Errorf("%w: keyspace %s does not exist", driver.ErrNotFound, d.config.Database)
+	}
 	schemaMetadata := &metadatapb.SchemaMetadata{
 		Name: "",
 	}
@@ -148,7 +161,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			kind:     kind,
 			position: position,
 		})
-		if kind != "regular" {
+		// A static column is not a key column: only the partition and
+		// clustering keys take part in the primary key's expressions and
+		// descending flags.
+		if kind == "partition_key" || kind == "clustering" {
 			tablePKMap[tableName] = append(tablePKMap[tableName], primaryKey{
 				name:            columnName,
 				kind:            kind,
@@ -294,6 +310,29 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		Name:    d.config.Database,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
 	}, nil
+}
+
+// isMissingKeyspace reports whether the server answered that the session's
+// keyspace does not exist. A session outlives its keyspace: gocql refuses a
+// query with either no keyspaces or a message naming the one that is gone.
+func isMissingKeyspace(err error) bool {
+	var requestErr gocql.RequestError
+	if !errors.As(err, &requestErr) {
+		return false
+	}
+	message := requestErr.Message()
+	return strings.Contains(message, "does not exist") || strings.Contains(message, "Keyspace")
+}
+
+// keyspaceExists reports whether the server has the driver's keyspace, so a
+// dropped keyspace is reported as gone rather than as an empty schema.
+func (d *Driver) keyspaceExists(ctx context.Context, c client) (bool, error) {
+	_, rows, _, err := c.Query(ctx, fmt.Sprintf(
+		"SELECT keyspace_name FROM system_schema.keyspaces WHERE keyspace_name = %s", sqlLiteral(d.config.Database)), 0, nil)
+	if err != nil {
+		return false, fmt.Errorf("failed to query keyspace: %w", err)
+	}
+	return len(rows) > 0, nil
 }
 
 // getDatabases reads the cluster's keyspace names, system ones included;

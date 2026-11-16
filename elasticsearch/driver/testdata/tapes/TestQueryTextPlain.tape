@@ -18,6 +18,10 @@
 < raw
 | {"status":201,"contentType":"application/json","body":"{\"_id\":\"3\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":2,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
 > raw
+| {"method":"POST","route":"/alpha/_doc/big","body":"{\"big\": 9007199254740993, \"name\": \"big\"}\n"}
+< raw
+| {"status":201,"contentType":"application/json","body":"{\"_id\":\"big\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":3,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
+> raw
 | {"method":"POST","route":"/alpha/_refresh"}
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1}}"}

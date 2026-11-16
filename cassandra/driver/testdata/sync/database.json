@@ -1,216 +1,226 @@
 {
-  "name": "omni_driver",
-  "schemas": [
+  "name":  "omni_driver",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "omni_events",
-          "columns": [
+          "name":  "omni_events",
+          "columns":  [
             {
-              "name": "group_id",
-              "nullable": true,
-              "type": "int"
+              "name":  "group_id",
+              "nullable":  true,
+              "type":  "int"
             },
             {
-              "name": "bucket",
-              "nullable": true,
-              "type": "int"
+              "name":  "bucket",
+              "nullable":  true,
+              "type":  "int"
             },
             {
-              "name": "event_id",
-              "nullable": true,
-              "type": "int"
+              "name":  "event_id",
+              "nullable":  true,
+              "type":  "int"
             },
             {
-              "name": "payload",
-              "nullable": true,
-              "type": "text"
+              "name":  "note",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "payload",
+              "nullable":  true,
+              "type":  "text"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY KEY",
-              "expressions": [
+              "name":  "PRIMARY KEY",
+              "expressions":  [
                 "group_id",
                 "bucket",
                 "event_id"
               ],
-              "descending": [
+              "descending":  [
                 false,
                 true,
                 false
               ],
-              "primary": true,
-              "definition": "(group_id,bucket,event_id)"
+              "primary":  true,
+              "definition":  "(group_id,bucket,event_id)"
             },
             {
-              "name": "omni_events_payload_idx",
-              "expressions": [
+              "name":  "omni_events_payload_idx",
+              "expressions":  [
                 "{\"target\": \"payload\"}"
               ],
-              "type": "COMPOSITES",
-              "definition": "{\"target\": \"payload\"}"
+              "type":  "COMPOSITES",
+              "definition":  "{\"target\": \"payload\"}"
             }
           ]
         },
         {
-          "name": "omni_rows",
-          "columns": [
+          "name":  "omni_rows",
+          "columns":  [
             {
-              "name": "id",
-              "nullable": true,
-              "type": "int"
+              "name":  "id",
+              "nullable":  true,
+              "type":  "int"
             },
             {
-              "name": "label",
-              "nullable": true,
-              "type": "text"
+              "name":  "label",
+              "nullable":  true,
+              "type":  "text"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY KEY",
-              "expressions": [
+              "name":  "PRIMARY KEY",
+              "expressions":  [
                 "id"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "primary": true,
-              "definition": "(id)"
+              "primary":  true,
+              "definition":  "(id)"
             }
           ]
         },
         {
-          "name": "omni_types",
-          "columns": [
+          "name":  "omni_types",
+          "columns":  [
             {
-              "name": "id",
-              "nullable": true,
-              "type": "int"
+              "name":  "id",
+              "nullable":  true,
+              "type":  "int"
             },
             {
-              "name": "addr",
-              "nullable": true,
-              "type": "inet"
+              "name":  "addr",
+              "nullable":  true,
+              "type":  "inet"
             },
             {
-              "name": "ascii_col",
-              "nullable": true,
-              "type": "ascii"
+              "name":  "ascii_col",
+              "nullable":  true,
+              "type":  "ascii"
             },
             {
-              "name": "bi",
-              "nullable": true,
-              "type": "bigint"
+              "name":  "bi",
+              "nullable":  true,
+              "type":  "bigint"
             },
             {
-              "name": "bl",
-              "nullable": true,
-              "type": "blob"
+              "name":  "bl",
+              "nullable":  true,
+              "type":  "blob"
             },
             {
-              "name": "dbl",
-              "nullable": true,
-              "type": "double"
+              "name":  "dbl",
+              "nullable":  true,
+              "type":  "double"
             },
             {
-              "name": "dec",
-              "nullable": true,
-              "type": "decimal"
+              "name":  "dec",
+              "nullable":  true,
+              "type":  "decimal"
             },
             {
-              "name": "dt",
-              "nullable": true,
-              "type": "date"
+              "name":  "dt",
+              "nullable":  true,
+              "type":  "date"
             },
             {
-              "name": "dur",
-              "nullable": true,
-              "type": "duration"
+              "name":  "dur",
+              "nullable":  true,
+              "type":  "duration"
             },
             {
-              "name": "flag",
-              "nullable": true,
-              "type": "boolean"
+              "name":  "flag",
+              "nullable":  true,
+              "type":  "boolean"
             },
             {
-              "name": "flt",
-              "nullable": true,
-              "type": "float"
+              "name":  "flt",
+              "nullable":  true,
+              "type":  "float"
             },
             {
-              "name": "lst",
-              "nullable": true,
-              "type": "list<int>"
+              "name":  "lst",
+              "nullable":  true,
+              "type":  "list<int>"
             },
             {
-              "name": "mp",
-              "nullable": true,
-              "type": "map<text, int>"
+              "name":  "mp",
+              "nullable":  true,
+              "type":  "map<text, int>"
             },
             {
-              "name": "si",
-              "nullable": true,
-              "type": "smallint"
+              "name":  "si",
+              "nullable":  true,
+              "type":  "smallint"
             },
             {
-              "name": "st",
-              "nullable": true,
-              "type": "set<text>"
+              "name":  "st",
+              "nullable":  true,
+              "type":  "set<text>"
             },
             {
-              "name": "ti",
-              "nullable": true,
-              "type": "tinyint"
+              "name":  "ti",
+              "nullable":  true,
+              "type":  "tinyint"
             },
             {
-              "name": "tm",
-              "nullable": true,
-              "type": "time"
+              "name":  "tm",
+              "nullable":  true,
+              "type":  "time"
             },
             {
-              "name": "ts",
-              "nullable": true,
-              "type": "timestamp"
+              "name":  "ts",
+              "nullable":  true,
+              "type":  "timestamp"
             },
             {
-              "name": "tuid",
-              "nullable": true,
-              "type": "timeuuid"
+              "name":  "tuid",
+              "nullable":  true,
+              "type":  "timeuuid"
             },
             {
-              "name": "txt",
-              "nullable": true,
-              "type": "text"
+              "name":  "tup",
+              "nullable":  true,
+              "type":  "frozen<tuple<int, text>>"
             },
             {
-              "name": "uid",
-              "nullable": true,
-              "type": "uuid"
+              "name":  "txt",
+              "nullable":  true,
+              "type":  "text"
             },
             {
-              "name": "vc",
-              "nullable": true,
-              "type": "text"
+              "name":  "uid",
+              "nullable":  true,
+              "type":  "uuid"
             },
             {
-              "name": "vi",
-              "nullable": true,
-              "type": "varint"
+              "name":  "vc",
+              "nullable":  true,
+              "type":  "text"
+            },
+            {
+              "name":  "vi",
+              "nullable":  true,
+              "type":  "varint"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY KEY",
-              "expressions": [
+              "name":  "PRIMARY KEY",
+              "expressions":  [
                 "id"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "primary": true,
-              "definition": "(id)"
+              "primary":  true,
+              "definition":  "(id)"
             }
           ]
         }

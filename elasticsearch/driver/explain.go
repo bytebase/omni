@@ -65,8 +65,11 @@ func searchable(request *elasticsearch.Request) error {
 		return fmt.Errorf("%s is not a search to explain: Elasticsearch profiles a search read with GET or POST", request.Method)
 	}
 	path, _, _ := strings.Cut(request.URL, "?")
-	if !strings.EqualFold(strings.TrimRight(path, "/"), searchEndpoint) &&
-		!strings.HasSuffix(strings.ToLower(strings.TrimRight(path, "/")), "/"+searchEndpoint) {
+	segments := strings.Split(strings.Trim(path, "/"), "/")
+	// A search is /_search, or /<index>/_search: two segments at most, the last
+	// one _search. A deeper path names a document, and /index/_doc/_search is a
+	// document write whose id is _search, which an explain must not run.
+	if len(segments) == 0 || len(segments) > 2 || !strings.EqualFold(segments[len(segments)-1], searchEndpoint) {
 		return fmt.Errorf("%s is not a search to explain: Elasticsearch states a plan for _search alone", request.URL)
 	}
 	if len(request.Data) > 1 {

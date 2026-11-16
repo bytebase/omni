@@ -120,6 +120,8 @@ func TestConvertRowValue(t *testing.T) {
 		{name: "varint", in: &varint, want: driver.Value{Kind: driver.String, String: "-123456789012345678901234567890"}},
 		{name: "nil varint", in: new(*big.Int), want: driver.Value{Kind: driver.Null}},
 		{name: "duration", in: &cqlDuration, want: driver.Value{Kind: driver.String, String: "1mo2d3h0m0s"}},
+		{name: "negative duration days", in: &gocql.Duration{Days: -1}, want: driver.Value{Kind: driver.String, String: "-1d0s"}},
+		{name: "negative duration months", in: &gocql.Duration{Months: -2, Nanoseconds: -5}, want: driver.Value{Kind: driver.String, String: "-2mo-5ns"}},
 		{name: "list", in: &[]int{1, 2}, want: driver.Value{Kind: driver.String, String: "[1,2]"}},
 		{name: "map", in: &map[string]int{"a": 1}, want: driver.Value{Kind: driver.String, String: `{"a":1}`}},
 	} {
@@ -127,6 +129,27 @@ func TestConvertRowValue(t *testing.T) {
 			require.Equal(t, tc.want, convertRowValue(tc.in))
 		})
 	}
+}
+
+// TestValueGroups holds gocql's tuple expansion to one group per column: a
+// tuple column answers its elements as one value, every other column one.
+func TestValueGroups(t *testing.T) {
+	columns := 3
+	require.Equal(t, []int{1, 1, 1}, valueGroups(columns, nil))
+	require.Equal(t, []int{1, 1, 1}, valueGroups(columns, []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
+	// A tuple in the middle: a, tup[0], tup[1], c.
+	require.Equal(t, []int{1, 2, 1}, valueGroups(columns, []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
+	// A tuple of three, first.
+	require.Equal(t, []int{3, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
+}
+
+func TestConvertTuple(t *testing.T) {
+	seven := 7
+	name := "seven"
+	require.Equal(t, driver.Value{Kind: driver.String, String: `[7,"seven"]`}, convertTuple([]any{&seven, &name}))
+	require.Equal(t, driver.Value{Kind: driver.String, String: `[null,"seven"]`}, convertTuple([]any{(*int)(nil), &name}))
+	huge := []int{9223372036854775807}
+	require.Equal(t, driver.Value{Kind: driver.String, String: `[[9223372036854775807]]`}, convertTuple([]any{&huge}))
 }
 
 func TestDialHostUsesTLS(t *testing.T) {

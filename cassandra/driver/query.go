@@ -95,10 +95,24 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 			}
 			totalBytes = driver.HeaderByteSize(result.Columns)
 		}
+		groups := valueGroups(len(columns), rows)
 		for _, rowData := range rows {
-			row := make([]driver.Value, 0, len(rowData.Values))
-			for _, value := range rowData.Values {
-				row = append(row, convertRowValue(value))
+			row := make([]driver.Value, 0, len(groups))
+			next := 0
+			for _, size := range groups {
+				if next+size > len(rowData.Values) {
+					// A row shorter than its columns is read as it came, so a
+					// client that answers fewer values never panics here.
+					row = append(row, convertRowValue(rowData.Values[next]))
+					next++
+					continue
+				}
+				if size == 1 {
+					row = append(row, convertRowValue(rowData.Values[next]))
+				} else {
+					row = append(row, convertTuple(rowData.Values[next:next+size]))
+				}
+				next += size
 			}
 			result.Rows = append(result.Rows, row)
 			totalBytes += driver.RowByteSize(row)
@@ -119,6 +133,49 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 		pageState = nextPageState
 	}
 	return result, nil
+}
+
+// valueGroups returns how many of a row's values each column contributes.
+// gocql expands a tuple column into one value per element and names those row
+// columns "<name>[i]"; every other column is one value. When a client answers
+// no row column names, or as many as there are columns, every column is one
+// value.
+func valueGroups(columns int, rows []gocql.RowData) []int {
+	groups := make([]int, columns)
+	for i := range groups {
+		groups[i] = 1
+	}
+	if len(rows) == 0 {
+		return groups
+	}
+	names := rows[0].Columns
+	if len(names) == 0 || len(names) == columns {
+		return groups
+	}
+	at := 0
+	for i := 0; i < columns && at < len(names); i++ {
+		base := names[at]
+		if k := strings.Index(base, "["); k >= 0 {
+			base = base[:k]
+		}
+		count := 1
+		for at+count < len(names) && strings.HasPrefix(names[at+count], base+"[") && strings.HasSuffix(names[at+count], "]") {
+			count++
+		}
+		groups[i] = count
+		at += count
+	}
+	return groups
+}
+
+// convertTuple reads a tuple column's elements as the JSON spelling the column
+// shows, the way a list or a user-defined type is read.
+func convertTuple(values []any) driver.Value {
+	encoded, err := json.Marshal(values)
+	if err != nil {
+		return driver.Value{Kind: driver.String, String: fmt.Sprintf("%v", values)}
+	}
+	return driver.Value{Kind: driver.String, String: string(encoded)}
 }
 
 // holdsNoStatement reports whether a segment is only whitespace and comments.
@@ -215,10 +272,10 @@ func convertRowValue(v any) driver.Value {
 			return driver.Value{Kind: driver.Null}
 		}
 		display := time.Duration(v.Nanoseconds).String()
-		if v.Days > 0 {
+		if v.Days != 0 {
 			display = fmt.Sprintf("%dd%s", v.Days, display)
 		}
-		if v.Months > 0 {
+		if v.Months != 0 {
 			display = fmt.Sprintf("%dmo%s", v.Months, display)
 		}
 		return driver.Value{Kind: driver.String, String: display}

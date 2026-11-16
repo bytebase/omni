@@ -19,6 +19,10 @@ func TestSplit(t *testing.T) {
 		{"SELECT * FROM users; -- comment with ; inside\nINSERT INTO t (id) VALUES (1)", 2},
 		{"SELECT * FROM users /* ; */ ; SELECT 1", 2},
 		{"CREATE FUNCTION f() RETURNS NULL ON NULL INPUT RETURNS text LANGUAGE java AS $$return \";\";$$", 1}, // semicolon in code block
+		{"BEGIN BATCH INSERT INTO t (id) VALUES (1); INSERT INTO t (id) VALUES (2); APPLY BATCH;", 1},         // a batch is one statement
+		{"BEGIN UNLOGGED BATCH INSERT INTO t (id) VALUES (1); APPLY BATCH; SELECT 1", 2},
+		{"BEGIN COUNTER BATCH UPDATE t SET c = c + 1 WHERE id = 1; APPLY BATCH", 1},
+		{"BEGIN BATCH INSERT INTO t (id) VALUES (1); -- one; two\nAPPLY BATCH;", 1}, // a semicolon in a comment does not close a batch
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {

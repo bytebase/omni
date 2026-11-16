@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"testing"
 
@@ -35,9 +36,14 @@ GET /_cat/indices?format=json`, driver.QueryOptions{})
 	require.NoError(t, results[0].Err)
 	require.NoError(t, results[1].Err)
 
-	// The search's answer is one row of one column per key. Its keys come out
-	// in no fixed order, since the answer is a Go map.
+	// The search's answer is one row of one column per key, the keys in name
+	// order so one query shows its columns the same way every run.
 	search := results[0]
+	var names []string
+	for _, column := range search.Columns {
+		names = append(names, column.Name)
+	}
+	require.Equal(t, []string{"_shards", "hits", "timed_out", "took"}, names)
 	values := map[string]string{}
 	for i, column := range search.Columns {
 		require.Empty(t, column.TypeName, "Elasticsearch states no column type")
@@ -45,7 +51,7 @@ GET /_cat/indices?format=json`, driver.QueryOptions{})
 	}
 	require.Equal(t, "0", values["took"])
 	require.Equal(t, "false", values["timed_out"])
-	require.Contains(t, values["hits"], `"total":{"relation":"eq","value":3}`)
+	require.Contains(t, values["hits"], `"total":{"relation":"eq","value":4}`)
 	require.Len(t, search.Rows, 1)
 
 	// The cat answer is an array: one column holding it.
@@ -53,7 +59,7 @@ GET /_cat/indices?format=json`, driver.QueryOptions{})
 	require.Equal(t, []driver.Column{{Name: "result"}}, cat.Columns)
 	require.Len(t, cat.Rows, 1)
 	require.Contains(t, cat.Rows[0][0].String, `"index":"alpha"`)
-	require.Contains(t, cat.Rows[0][0].String, `"docs.count":"3"`)
+	require.Contains(t, cat.Rows[0][0].String, `"docs.count":"4"`)
 }
 
 // TestQueryTextPlain reads an answer the endpoint sends as plain text.
@@ -143,6 +149,99 @@ func TestQueryUnreadableScript(t *testing.T) {
 	sess := openSession(t, d)
 	_, err := sess.Query(context.Background(), "GET /alpha\n{not json", driver.QueryOptions{})
 	require.Error(t, err)
+}
+
+// TestQueryHead holds an existence check to its status: a HEAD answer carries
+// no body, and a successful one is a result with no columns and no rows.
+func TestQueryHead(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.http")))
+	sess := openSession(t, d)
+
+	results, err := sess.Query(context.Background(), "HEAD /alpha", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.Empty(t, results[0].Columns)
+	require.Empty(t, results[0].Rows)
+
+	// A HEAD that fails still states its error in the status.
+	results, err = sess.Query(context.Background(), "HEAD /missing", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Err)
+	require.Contains(t, results[0].Err.Error(), "request failed with status code 404")
+}
+
+// TestQueryBulkFailure holds a bulk whose items failed to the answer's own
+// verdict: the request answers 200 either way, and the failures are in its body.
+func TestQueryBulkFailure(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.http")))
+	sess := openSession(t, d)
+
+	results, err := sess.Query(context.Background(), `
+POST /_bulk
+{"update":{"_index":"alpha","_id":"missing"}}
+{"doc":{"n":1}}
+`, driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Err)
+	require.Contains(t, results[0].Err.Error(), "1 of 1 bulk items failed")
+	require.Contains(t, results[0].Err.Error(), "document missing")
+}
+
+// TestQueryKeepsLargeNumbers holds a long past 2^53 to its digits: read as a
+// float64 it would come back rounded.
+func TestQueryKeepsLargeNumbers(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.http")))
+	sess := openSession(t, d)
+
+	results, err := sess.Query(context.Background(), "GET /alpha/_doc/big", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	values := map[string]string{}
+	for i, column := range results[0].Columns {
+		values[column.Name] = results[0].Rows[0][i].String
+	}
+	require.Contains(t, values["_source"], `"big":9007199254740993`)
+}
+
+type stepLogger struct {
+	steps []string
+}
+
+func (l *stepLogger) CommandExecute(cmd driver.Command) {
+	l.steps = append(l.steps, fmt.Sprintf("exec[%d:%d]%s", cmd.ByteStart, cmd.ByteEnd, cmd.Text))
+}
+
+func (l *stepLogger) CommandResponse(affected int64, perResult []int64, err error) {
+	if err != nil {
+		l.steps = append(l.steps, "resp:err")
+		return
+	}
+	l.steps = append(l.steps, fmt.Sprintf("resp:%d", affected))
+}
+
+func (*stepLogger) TransactionControl(driver.TransactionOp, error) {}
+
+func (*stepLogger) Retry(error, int, int) {}
+
+// TestExecuteLogsItsSteps holds Execute to the contract's logger: one command
+// with its range and one response for each request it sends.
+func TestExecuteLogsItsSteps(t *testing.T) {
+	d := openDriver(t)
+	log := &stepLogger{}
+	_, err := d.Execute(context.Background(), "PUT /logged\n{\"settings\": {\"number_of_shards\": 1}}\n\nGET /missing-index/_search", driver.ExecuteOptions{Log: log})
+	require.Error(t, err)
+	require.Len(t, log.steps, 4)
+	require.Contains(t, log.steps[0], "PUT /logged")
+	require.Contains(t, log.steps[1], "resp:0")
+	require.Contains(t, log.steps[2], "GET /missing-index/_search")
+	require.Equal(t, "resp:err", log.steps[3])
 }
 
 func openSession(t *testing.T, d *Driver) driver.Session {
