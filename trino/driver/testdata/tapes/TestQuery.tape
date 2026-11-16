@@ -11,6 +11,14 @@
 | WITH t AS (SELECT 1 AS x) SELECT * FROM t
 < ok 0 -
 
+== TestQuery/a_comment_ending_at_a_carriage_return default#1
+> query
+|q "-- note\rSELECT 1"
+< result
+< column "_col0" "INTEGER"
+< row
+: int64 1
+
 == TestQuery/a_leading_comment_does_not_change_the_statement_kind default#1
 > query
 | -- a comment

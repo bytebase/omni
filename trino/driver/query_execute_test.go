@@ -107,6 +107,21 @@ func TestQuery(t *testing.T) {
 		}
 	})
 
+	t.Run("a comment ending at a carriage return", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, "-- note\rSELECT 1", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		if results[0].AffectedRows != nil || len(results[0].Rows) != 1 {
+			t.Fatalf("result = %+v, want the row-returning path", results[0])
+		}
+	})
+
 	t.Run("change and query statements", func(t *testing.T) {
 		d := openDriver(t)
 		mustExec(t, d, "CREATE SCHEMA memory.omni_query;\nCREATE TABLE memory.omni_query.items (id integer, note varchar);")

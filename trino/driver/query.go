@@ -300,7 +300,8 @@ func stripComments(statement string) string {
 		}
 		switch {
 		case c == '-' && i+1 < len(statement) && statement[i+1] == '-':
-			for i < len(statement) && statement[i] != '\n' {
+			// The engine's lexer ends a line comment at either line break.
+			for i < len(statement) && statement[i] != '\n' && statement[i] != '\r' {
 				i++
 			}
 			if i < len(statement) {

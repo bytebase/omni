@@ -141,6 +141,21 @@ func TestOpenDefaultsTheCatalog(t *testing.T) {
 	}
 }
 
+func TestOpenSyncsTheCatalogTheDSNReads(t *testing.T) {
+	d, err := Open(context.Background(), driver.Config{
+		Host:     "trino.example.com",
+		Database: "memory",
+		Params:   map[string]string{"catalog": "tpch"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	if d.databaseName != "tpch" {
+		t.Errorf("databaseName = %q, want the parameter's catalog", d.databaseName)
+	}
+}
+
 func TestOpenRefusesNilTLSConfig(t *testing.T) {
 	_, err := Open(context.Background(), driver.Config{
 		Host: "trino.example.com",

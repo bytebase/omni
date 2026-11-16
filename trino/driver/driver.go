@@ -79,12 +79,17 @@ type Driver struct {
 // Open returns a driver for the server and catalog cfg names. It does not reach
 // the server; Ping does.
 func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
-	d := &Driver{databaseName: catalogName(cfg)}
-
 	dbURL, err := buildURL(cfg)
 	if err != nil {
 		return nil, err
 	}
+	// Read the catalog from the DSN, not from cfg, so a Params override syncs
+	// the catalog the connection reads.
+	catalog := dbURL.Query().Get("catalog")
+	if catalog == "" {
+		catalog = catalogName(cfg)
+	}
+	d := &Driver{databaseName: catalog}
 
 	// The client reaches a custom TLS or dial configuration through a
 	// process-wide registry of HTTP clients keyed by name, so each driver
