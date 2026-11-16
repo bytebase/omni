@@ -493,7 +493,14 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 			}
 			var cols []projColumn
 			if cte.Query != nil {
+				// A CTE definition is not the body's output: what a row condition consumes
+				// is the projection, and a CTE column reaches it through the relation's
+				// stored lineage, so projection capture is off while the definition is
+				// visited.
+				capture := w.captureFilterProjections
+				w.captureFilterProjections = false
 				cols = w.resolveCTEColumns(cte, recursive, scope, lower)
+				w.captureFilterProjections = capture
 			}
 			cols = applyCTEColumnAliases(cols, cte.Columns)
 			// Non-recursive: the name becomes visible only AFTER its body (to the
@@ -1857,6 +1864,11 @@ func (w *spanWalker) appendWrittenColumn(refs []ColumnRef, table, column string)
 		return refs
 	}
 	written := ColumnRef{Table: table, Column: column}
+	if w.filterSeen[written] {
+		// An earlier body already read this written name legitimately; nothing here
+		// may retire that read.
+		return append(refs, written)
+	}
 	if w.span.filterPlaceholderFallback == nil {
 		w.span.filterPlaceholderFallback = make(map[ColumnRef]ColumnRef, 1)
 	}
@@ -2000,6 +2012,9 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []strin
 			if segment.BaseTable != nil {
 				if len(only) > 0 {
 					for _, name := range only {
+						if excludedFilterName(except, name) {
+							continue
+						}
 						w.addFilterColumn(ColumnRef{Catalog: segment.BaseTable.Catalog, Database: segment.BaseTable.Database, Schema: segment.BaseTable.Schema, Table: segment.BaseTable.Table, Column: name})
 					}
 					continue
@@ -2020,6 +2035,15 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []strin
 			}
 		}
 		if info.StarMerge != nil {
+			if len(only) > 0 {
+				// The star's position name is known only against metadata, so narrow it
+				// by the output names the merge keeps (over-inclusion is the safe
+				// direction; the position cannot be named here).
+				for _, name := range only {
+					w.addFilterColumn(ColumnRef{Catalog: info.StarMerge.Table.Catalog, Database: info.StarMerge.Table.Database, Schema: info.StarMerge.Table.Schema, Table: info.StarMerge.Table.Table, Column: name})
+				}
+				continue
+			}
 			w.addFilterStar(info.StarMerge.Table, nil)
 		}
 		if info.SetOpMerge != nil {
@@ -2031,6 +2055,17 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []strin
 			w.addColumnInfoFilterColumns(info.SetOpMerge.Right, only)
 		}
 	}
+}
+
+// excludedFilterName reports whether a star's EXCEPT/REPLACE names remove column
+// from its output.
+func excludedFilterName(except []string, column string) bool {
+	for _, name := range except {
+		if foldKey(name) == foldKey(column) {
+			return true
+		}
+	}
+	return false
 }
 
 // addFilterStar records relation as a filter read of all its columns, minus the
