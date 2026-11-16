@@ -503,3 +503,70 @@ func TestVirtualColumnWithoutTypeStaysUntyped(t *testing.T) {
 		t.Fatalf("virtual column gained a NUMBER type:\n%s", definition)
 	}
 }
+
+func TestExecAppliesAlterSequence(t *testing.T) {
+	c, err := LoadSQL(`CREATE SEQUENCE S INCREMENT BY 1; ALTER SEQUENCE S INCREMENT BY 7`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := c.Metadata().Schemas[0].Sequences[0].Increment; got != "7" {
+		t.Fatalf("increment = %q", got)
+	}
+}
+
+func TestDefinitionConnectsOwnerQualifiedDependencies(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Name: "APP",
+		Tables: []*metadatapb.TableMetadata{
+			{Name: "Z", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}},
+			{Name: "Y", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "Y_FK", Columns: []string{"ID"}, ReferencedTable: "Z", ReferencedColumns: []string{"ID"}}}},
+		},
+		Views: []*metadatapb.ViewMetadata{{Name: "A", Definition: "SELECT ID FROM Y", DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "APP", Table: "Y", Column: "*"}}}},
+	}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Index(definition, `CREATE TABLE "Y"`) > strings.Index(definition, `CREATE VIEW "A"`) {
+		t.Fatalf("view precedes its owner-qualified dependency:\n%s", definition)
+	}
+}
+
+func TestModifyNullRemovesNamedNotNull(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER CONSTRAINT NN NOT NULL)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T MODIFY C NULL`, nil); err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if len(table.CheckConstraints) != 0 {
+		t.Fatalf("named NOT NULL survived: %+v", table.CheckConstraints)
+	}
+}
+
+func TestFunctionPrefixHandlesWhitespace(t *testing.T) {
+	meta, err := metadataFromSQL("CREATE OR REPLACE\nFUNCTION F RETURN NUMBER IS BEGIN RETURN 1; END;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := meta.Schemas[0].Functions[0].Definition
+	if strings.Contains(strings.ToUpper(definition), "OR REPLACE") || !strings.HasPrefix(strings.ToUpper(definition), "FUNCTION F") {
+		t.Fatalf("function definition = %q", definition)
+	}
+}
+
+func TestNormalizeExpressionKeepsAlternativeQuoteWhitespace(t *testing.T) {
+	if normalizeExpression(`C <> q'[it's  ok]'`) == normalizeExpression(`C <> q'[it's ok]'`) {
+		t.Fatal("whitespace inside an alternative-quoted literal was normalized")
+	}
+}
+
+func TestMigrationQualifiesIndexName(t *testing.T) {
+	table := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "I", Expressions: []string{"C"}, Visible: true}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP"}), catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{table}}))
+	if !strings.Contains(sql, `CREATE INDEX "APP"."I" ON "APP"."T"`) {
+		t.Fatalf("index name is not owner-qualified:\n%s", sql)
+	}
+}

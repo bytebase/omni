@@ -13,8 +13,12 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 
 	var buf strings.Builder
 	schema := to.Schemas[0]
-	// For Oracle, the database name (user/schema name) is stored in to.Name
+	// For Oracle, the database name (user/schema name) is stored in to.Name;
+	// a snapshot loaded from SQL may carry it only on the schema.
 	databaseName := to.Name
+	if databaseName == "" {
+		databaseName = schema.Name
+	}
 
 	// First generate sequences (they need to exist before tables that reference them)
 	for _, sequence := range schema.Sequences {

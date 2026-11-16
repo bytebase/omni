@@ -81,6 +81,13 @@ replay tests exercise.
   without a column list.
 - A virtual column declared without a datatype stays untyped, so Oracle infers
   it from the expression.
+- `Exec` applies `ALTER SEQUENCE`, and a named NOT NULL check disappears with
+  `MODIFY ... NULL`.
+- Owner-qualified dependencies connect to the same table nodes as the objects
+  themselves, and a migration qualifies the index name it creates.
+- A function declaration is recognized through whitespace between `CREATE`,
+  `OR REPLACE` and `FUNCTION`.
+- Expression comparison recognizes Oracle's alternative-quoted literals.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

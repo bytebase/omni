@@ -656,6 +656,11 @@ func normalizeExpression(expression string) string {
 	var quote byte
 	pendingSpace := false
 	for i := 0; i < len(expression); i++ {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			out.WriteString(expression[i:end])
+			i = end - 1
+			continue
+		}
 		c := expression[i]
 		if quote != 0 {
 			out.WriteByte(c)
@@ -786,4 +791,38 @@ func diffCheckName(diff *CheckConstraintDiff) string {
 		return diff.NewCheckConstraint.GetName()
 	}
 	return diff.OldCheckConstraint.GetName()
+}
+
+// alternativeQuoteEnd returns the end of Oracle's q'...' or nq'...' literal at
+// start, where the delimiter is the character after the quote and a bracket
+// delimiter closes with its pair.
+func alternativeQuoteEnd(expression string, start int) (int, bool) {
+	i := start
+	if i+1 < len(expression) && (expression[i] == 'n' || expression[i] == 'N') {
+		i++
+	}
+	if i+1 >= len(expression) || (expression[i] != 'q' && expression[i] != 'Q') || expression[i+1] != '\'' {
+		return 0, false
+	}
+	if i+2 >= len(expression) {
+		return 0, false
+	}
+	open := expression[i+2]
+	close := open
+	switch open {
+	case '[':
+		close = ']'
+	case '{':
+		close = '}'
+	case '(':
+		close = ')'
+	case '<':
+		close = '>'
+	}
+	for j := i + 3; j+1 < len(expression); j++ {
+		if expression[j] == close && expression[j+1] == '\'' {
+			return j + 2, true
+		}
+	}
+	return len(expression), true
 }

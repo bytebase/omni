@@ -224,6 +224,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		e.extractAlterTable(n)
 	case *ast.CommentStmt:
 		e.extractComment(n)
+	case *ast.AlterSequenceStmt:
+		e.extractAlterSequence(n)
 	case *ast.DropStmt:
 		e.extractDrop(n)
 	default:
@@ -331,6 +333,17 @@ func (e *oracleMetadataExtractor) addNamedNotNull(table *metadatapb.TableMetadat
 		Name:       name,
 		Expression: `"` + column + `" IS NOT NULL`,
 	})
+}
+
+func (e *oracleMetadataExtractor) removeNamedNotNull(table *metadatapb.TableMetadata, column string) {
+	want := `"` + column + `" IS NOT NULL`
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		if !strings.EqualFold(strings.Join(strings.Fields(check.Expression), " "), want) {
+			checks = append(checks, check)
+		}
+	}
+	table.CheckConstraints = checks
 }
 
 func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstraint, table *metadatapb.TableMetadata, column *metadatapb.ColumnMetadata) {
@@ -492,6 +505,7 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 			column.Nullable = false
 		case def.Null:
 			column.Nullable = true
+			e.removeNamedNotNull(table, column.Name)
 		case def.Identity != nil:
 			column.Nullable = false
 		}
@@ -1054,6 +1068,48 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 	e.sequences[sequenceName] = sequence
 }
 
+func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt) {
+	name := objectName(n.Name)
+	if name == "" {
+		return
+	}
+	sequence := e.sequences[name]
+	if sequence == nil {
+		if n.IfExists {
+			return
+		}
+		sequence = &metadatapb.SequenceMetadata{Name: name}
+		e.sequences[name] = sequence
+	}
+	if n.IncrementBy != nil {
+		sequence.Increment = e.nodeText(n.IncrementBy)
+	}
+	if n.MaxValue != nil {
+		sequence.MaxValue = e.nodeText(n.MaxValue)
+	} else if n.NoMaxValue {
+		sequence.MaxValue = ""
+	}
+	if n.MinValue != nil {
+		sequence.MinValue = e.nodeText(n.MinValue)
+	} else if n.NoMinValue {
+		sequence.MinValue = ""
+	}
+	if n.Cache != nil {
+		sequence.CacheSize = e.nodeText(n.Cache)
+	} else if n.NoCache {
+		sequence.CacheSize = ""
+	}
+	switch {
+	case n.Cycle:
+		sequence.Cycle = true
+	case n.NoCycle:
+		sequence.Cycle = false
+	}
+	if n.RestartWith != nil {
+		sequence.Start = e.nodeText(n.RestartWith)
+	}
+}
+
 func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.CreatePackageStmt) {
 	definition := e.definitionText(n)
 	if definition == "" {
@@ -1232,10 +1288,11 @@ func (e *oracleMetadataExtractor) exprListText(list *ast.List) []string {
 func (e *oracleMetadataExtractor) functionDefinitionText(node ast.Node) string {
 	definition := e.definitionText(node)
 	upper := strings.ToUpper(definition)
-	if strings.HasPrefix(upper, "CREATE OR REPLACE ") {
-		definition = definition[len("CREATE OR REPLACE "):]
-	} else if strings.HasPrefix(upper, "CREATE ") {
-		definition = definition[len("CREATE "):]
+	for _, prefix := range []string{"CREATE OR REPLACE", "CREATE"} {
+		if strings.HasPrefix(upper, prefix) {
+			definition = strings.TrimSpace(definition[len(prefix):])
+			break
+		}
 	}
 	if definition != "" && !strings.HasPrefix(strings.ToUpper(definition), "FUNCTION") {
 		definition = "FUNCTION " + definition

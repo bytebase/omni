@@ -1988,7 +1988,13 @@ func writeMigrationIndex(out *strings.Builder, schema, table string, index *meta
 	if index.Unique {
 		_, _ = out.WriteString(`UNIQUE `)
 	}
-	_, _ = out.WriteString(`INDEX "`)
+	_, _ = out.WriteString(`INDEX `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(index.Name)
 	_, _ = out.WriteString(`" ON `)
 	if schema != "" {
