@@ -10,7 +10,8 @@
               "name":  "_id_",
               "expressions":  [
                 "{\"_id\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
           "indexSize":  "4096"
@@ -22,13 +23,15 @@
               "name":  "_id_",
               "expressions":  [
                 "{\"_id\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             },
             {
               "name":  "kind_1__id_-1",
               "expressions":  [
                 "{\"kind\":1,\"_id\":-1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
           "rowCount":  "2",
@@ -42,7 +45,8 @@
               "name":  "_id_",
               "expressions":  [
                 "{\"_id\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
           "rowCount":  "1",
@@ -56,13 +60,15 @@
               "name":  "_id_",
               "expressions":  [
                 "{\"_id\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             },
             {
               "name":  "customer_id_1_created_at_-1",
               "expressions":  [
                 "{\"customer_id\":1,\"created_at\":-1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
           "rowCount":  "1",
@@ -76,13 +82,15 @@
               "name":  "_id_",
               "expressions":  [
                 "{\"_id\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             },
             {
               "name":  "created_at_1",
               "expressions":  [
                 "{\"created_at\":1}"
-              ]
+              ],
+              "definition":  "{\"expireAfterSeconds\":{\"$numberInt\":\"3600\"},\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
           "indexSize":  "8192"
@@ -94,10 +102,12 @@
               "name":  "sensor_1_at_1",
               "expressions":  [
                 "{\"sensor\":1,\"at\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
-          "indexSize":  "4096"
+          "indexSize":  "4096",
+          "createOptions":  "{\"timeseries\":{\"timeField\":\"at\",\"metaField\":\"sensor\",\"granularity\":\"seconds\",\"bucketMaxSpanSeconds\":{\"$numberInt\":\"3600\"}}}"
         },
         {
           "name":  "users",
@@ -106,20 +116,23 @@
               "name":  "_id_",
               "expressions":  [
                 "{\"_id\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             },
             {
               "name":  "age_-1_name_1",
               "expressions":  [
                 "{\"age\":-1,\"name\":1}"
-              ]
+              ],
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             },
             {
               "name":  "name_1",
               "expressions":  [
                 "{\"name\":1}"
               ],
-              "unique":  true
+              "unique":  true,
+              "definition":  "{\"v\":{\"$numberInt\":\"2\"}}"
             }
           ],
           "rowCount":  "3",
@@ -129,7 +142,8 @@
       ],
       "views":  [
         {
-          "name":  "v_adults"
+          "name":  "v_adults",
+          "definition":  "{\"viewOn\":\"users\",\"pipeline\":[{\"$match\":{\"age\":{\"$gte\":{\"$numberInt\":\"18\"}}}}]}"
         }
       ]
     }
