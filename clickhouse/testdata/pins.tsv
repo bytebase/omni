@@ -1,0 +1,9 @@
+# The server this engine's committed answers come from.
+#
+# ClickHouse has no parser in omni, so there is no grammar row: the only
+# committed answers are the driver's, recorded through
+# clickhouse/internal/testcontainer on the server below. The release is the
+# 26.8 LTS line, the newest one at the time of the move, and the digest is the
+# image's multi-architecture manifest, which a registry cannot move.
+# columns: role, image, digest, tag
+default	clickhouse/clickhouse-server:26.8.38.9	sha256:5d30ac138948b43fd928842be7da1dcd2de712d32ba6c42368ff5009ba2072ff	26.8.38.9

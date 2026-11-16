@@ -1,0 +1,10 @@
+{
+  "databases": [
+    "default",
+    "omni_testsyncinstance"
+  ],
+  "roles": [
+    "default"
+  ],
+  "version": "26.8.38.9"
+}
