@@ -51,15 +51,11 @@ func StatementRanges(script string) []Range {
 
 	// Trailing comment-only content: the splitter filters out comment-only
 	// segments, so any non-whitespace bytes between the last segment's end and
-	// the end of the trimmed input would otherwise be lost.
+	// the end of the trimmed input would otherwise be lost. Redundant
+	// delimiters open no statement, so a run of them alone adds no range.
 	if len(segments) > 0 {
-		last := segments[len(segments)-1]
-		tailStart := last.ByteEnd
-		if tailStart < len(trimmed) && trimmed[tailStart] == ';' {
-			tailStart++
-		}
-		i := tailStart
-		for i < len(trimmed) && isRangeSpace(trimmed[i]) {
+		i := segments[len(segments)-1].ByteEnd
+		for i < len(trimmed) && (isRangeSpace(trimmed[i]) || trimmed[i] == ';') {
 			i++
 		}
 		if i < len(trimmed) {
@@ -88,9 +84,10 @@ func commentOnlyRanges(trimmed string) []Range {
 	return []Range{{Start: start, End: len(trimmed)}}
 }
 
-// containsCommentMarker reports whether s contains one of the SQL comment
-// introducers (`--`, `/*`, `#`). A string literal could false-positive, but
-// this runs only when the splitter found no segments at all.
+// containsCommentMarker reports whether s contains one of the comment
+// introducers parser.Split's lexer skips (`--`, `//`, `#`, `/*`). A string
+// literal could false-positive, but this runs only when the splitter found no
+// segments at all.
 func containsCommentMarker(s string) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
@@ -101,7 +98,7 @@ func containsCommentMarker(s string) bool {
 			if c == '-' && s[i+1] == '-' {
 				return true
 			}
-			if c == '/' && s[i+1] == '*' {
+			if c == '/' && (s[i+1] == '*' || s[i+1] == '/') {
 				return true
 			}
 		}

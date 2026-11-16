@@ -943,3 +943,31 @@ func TestGetQuerySpanNestedLambdasStayLinear(t *testing.T) {
 		}
 	}
 }
+
+func TestGetQuerySpan_DMLWithClauseScopesCTEs(t *testing.T) {
+	// A WITH-prefixed DML statement scopes its CTE over the statement body:
+	// the name must not surface as a physical table — an access check against
+	// nonexistent `c` could falsely deny the statement — and the CTE body's
+	// real read must.
+	span, err := GetQuerySpan("WITH c AS (SELECT id FROM secret) DELETE FROM dest WHERE id IN (SELECT id FROM c)")
+	if err != nil {
+		t.Fatalf("GetQuerySpan error: %v", err)
+	}
+	for _, access := range span.AccessTables {
+		if access.Table == "c" {
+			t.Errorf("CTE c reported as physical table: %+v", span.AccessTables)
+		}
+	}
+	found := false
+	for _, access := range span.AccessTables {
+		if access.Table == "secret" {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("AccessTables = %+v, want secret from the CTE body", span.AccessTables)
+	}
+	if len(span.CTEs) != 1 || span.CTEs[0] != "c" {
+		t.Errorf("CTEs = %v, want [c]", span.CTEs)
+	}
+}

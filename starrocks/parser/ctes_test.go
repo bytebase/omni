@@ -263,3 +263,96 @@ func TestCTEWalk(t *testing.T) {
 		t.Error("Walk did not visit T_SelectStmt")
 	}
 }
+
+// StarRocks.g4:1201/1205 put a withClause before UPDATE and DELETE, but its
+// insertStatement has none and the pinned 3.4.10 server rejects
+// `WITH ... INSERT` (starrocks/testdata/pins.tsv), so that form stays a
+// parse error here.
+func TestCTEPrefixedDML(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		input string
+		check func(t *testing.T, node ast.Node, with *ast.WithClause)
+	}{
+		{
+			name:  "update",
+			input: "WITH c AS (SELECT 1 AS a) UPDATE t SET a = 2 WHERE a IN (SELECT a FROM c)",
+			check: func(t *testing.T, node ast.Node, with *ast.WithClause) {
+				stmt, ok := node.(*ast.UpdateStmt)
+				if !ok {
+					t.Fatalf("got %T, want *ast.UpdateStmt", node)
+				}
+				if stmt.With != with {
+					t.Error("stmt.With is not the parsed clause")
+				}
+				if len(stmt.Assignments) != 1 {
+					t.Errorf("Assignments = %d, want 1", len(stmt.Assignments))
+				}
+			},
+		},
+		{
+			name:  "delete",
+			input: "WITH c AS (SELECT 1 AS a) DELETE FROM t WHERE a IN (SELECT a FROM c)",
+			check: func(t *testing.T, node ast.Node, with *ast.WithClause) {
+				stmt, ok := node.(*ast.DeleteStmt)
+				if !ok {
+					t.Fatalf("got %T, want *ast.DeleteStmt", node)
+				}
+				if stmt.With != with {
+					t.Error("stmt.With is not the parsed clause")
+				}
+				if stmt.Where == nil {
+					t.Error("Where = nil, want the predicate")
+				}
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			file, errs := parseForTest(tc.input)
+			if len(errs) > 0 {
+				t.Fatalf("parseForTest(%q) errors: %v", tc.input, errs)
+			}
+			if len(file.Stmts) != 1 {
+				t.Fatalf("parseForTest(%q) returned %d statements, want 1", tc.input, len(file.Stmts))
+			}
+			node := file.Stmts[0]
+			var with *ast.WithClause
+			var loc ast.Loc
+			switch n := node.(type) {
+			case *ast.UpdateStmt:
+				with, loc = n.With, n.Loc
+			case *ast.DeleteStmt:
+				with, loc = n.With, n.Loc
+			}
+			if with == nil {
+				t.Fatalf("%T has no With clause", node)
+			}
+			if len(with.CTEs) != 1 || with.CTEs[0].Name != "c" {
+				t.Errorf("CTEs = %+v, want one named c", with.CTEs)
+			}
+			// The statement's range covers the WITH clause it starts with.
+			if loc.Start != 0 || loc.End != len(tc.input) {
+				t.Errorf("Loc = %+v, want [0,%d)", loc, len(tc.input))
+			}
+			tc.check(t, node, with)
+		})
+	}
+
+	// EXPLAIN plans a WITH-prefixed DML statement too.
+	file, errs := parseForTest("EXPLAIN WITH c AS (SELECT 1 AS a) DELETE FROM t")
+	if len(errs) > 0 {
+		t.Fatalf("EXPLAIN WITH ... DELETE errors: %v", errs)
+	}
+	explain, ok := file.Stmts[0].(*ast.ExplainStmt)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ExplainStmt", file.Stmts[0])
+	}
+	if _, ok := explain.Query.(*ast.DeleteStmt); !ok {
+		t.Errorf("EXPLAIN's query = %T, want *ast.DeleteStmt", explain.Query)
+	}
+
+	// WITH ... INSERT is not StarRocks SQL.
+	if _, errs := parseForTest("WITH c AS (SELECT 1 AS a) INSERT INTO t SELECT a FROM c"); len(errs) == 0 {
+		t.Error("WITH ... INSERT parsed, want a syntax error on StarRocks")
+	}
+}

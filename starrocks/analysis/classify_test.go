@@ -123,3 +123,27 @@ func TestQueryTypeString(t *testing.T) {
 		}
 	}
 }
+
+func TestClassifyStatementCTEPrefixedDML(t *testing.T) {
+	// StarRocks writes withClause before UPDATE and DELETE only
+	// (StarRocks.g4:1201,1205); its insertStatement has no withClause, and the
+	// pinned 3.4.10 server rejects `WITH ... INSERT`. So the two DML forms
+	// classify from the tree, and the INSERT form stays the keyword fallback's
+	// answer — a write the engine never accepts.
+	for _, tc := range []struct {
+		statement string
+		want      QueryType
+	}{
+		{"WITH c AS (SELECT 1 AS a) UPDATE t SET a = 2 WHERE a IN (SELECT a FROM c)", QueryTypeDML},
+		{"WITH c AS (SELECT 1 AS a) DELETE FROM t WHERE a IN (SELECT a FROM c)", QueryTypeDML},
+		{"EXPLAIN WITH c AS (SELECT 1 AS a) DELETE FROM t", QueryTypeDML},
+		{"WITH c AS (SELECT 1 AS a) INSERT INTO t (a) SELECT a FROM c", QueryTypeSelect},
+		{"WITH c AS (SELECT 1 AS a) SELECT * FROM c", QueryTypeSelect},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			if got := ClassifyStatement(tc.statement); got != tc.want {
+				t.Errorf("ClassifyStatement(%q) = %s, want %s", tc.statement, got, tc.want)
+			}
+		})
+	}
+}
