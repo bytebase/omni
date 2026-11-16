@@ -1,0 +1,729 @@
+// Package catalog is SQL Server's DDL catalog: it loads a schema from SQL or
+// from the metadata the driver syncs, renders the definition back as T-SQL,
+// diffs two snapshots, and generates the migration that takes one to the
+// other.
+//
+// The rendering and diff judgment are Bytebase's schema/mssql ported nearly
+// verbatim, so the DDL a dump emits and the migrations a release generates stay
+// byte-for-byte what they were before the move.
+package catalog
+
+import (
+	"context"
+	"slices"
+	"strconv"
+	"strings"
+
+	"google.golang.org/protobuf/proto"
+
+	"github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql"
+	"github.com/bytebase/omni/mssql/ast"
+)
+
+const (
+	defaultSchema = "dbo"
+	noAction      = "NO ACTION"
+)
+
+// Catalog is one SQL Server database: its schemas and the objects in them.
+// Unlike pg and mysql, SQL Server's objects are already the shape Bytebase
+// syncs, so the catalog holds metadata.DatabaseSchemaMetadata and applies DDL to
+// it.
+type Catalog struct {
+	database              string
+	defaultSchema         string
+	metadataDefaultSchema string
+	schemas               []*metadata.SchemaMetadata
+	schemaByName          map[string]*metadata.SchemaMetadata
+	tableByName           map[tableKey]*metadata.TableMetadata
+	indexCounter          int
+}
+
+type tableKey struct {
+	schema string
+	table  string
+}
+
+// New returns an empty catalog.
+func New() *Catalog {
+	return &Catalog{
+		defaultSchema: defaultSchema,
+		schemaByName:  make(map[string]*metadata.SchemaMetadata),
+		tableByName:   make(map[tableKey]*metadata.TableMetadata),
+	}
+}
+
+// DatabaseName returns the database the catalog describes.
+func (c *Catalog) DatabaseName() string { return c.database }
+
+// DefaultSchema returns the schema an unqualified name resolves to.
+func (c *Catalog) DefaultSchema() string { return c.defaultSchema }
+
+// GetSchema returns the named schema, or nil.
+func (c *Catalog) GetSchema(name string) *metadata.SchemaMetadata {
+	return c.schemaByName[normalize(name)]
+}
+
+// ListSchemaNames returns the schema names in load order.
+func (c *Catalog) ListSchemaNames() []string {
+	names := make([]string, 0, len(c.schemas))
+	for _, schema := range c.schemas {
+		names = append(names, schema.Name)
+	}
+	return names
+}
+
+// GetTable returns the named table in the named schema, or nil.
+func (c *Catalog) GetTable(schemaName, tableName string) *metadata.TableMetadata {
+	return c.tableByName[tableKey{schema: normalize(schemaName), table: normalize(tableName)}]
+}
+
+// Metadata returns a copy of the catalog as the metadata snapshot Bytebase
+// syncs and stores.
+func (c *Catalog) Metadata() *metadata.DatabaseSchemaMetadata {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name:          c.database,
+		DefaultSchema: c.metadataDefaultSchema,
+		Schemas:       make([]*metadata.SchemaMetadata, 0, len(c.schemas)),
+	}
+	for _, schema := range c.schemas {
+		meta.Schemas = append(meta.Schemas, cloneSchema(schema))
+	}
+	return meta
+}
+
+// LoadMetadata replaces the catalog with the snapshot. Nothing can fail to
+// install: the catalog stores the snapshot's objects as they are, and a later
+// Exec or Definition reads them through the same helpers.
+func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadata.DatabaseSchemaMetadata) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	c.database = meta.GetName()
+	c.defaultSchema = defaultSchema
+	c.metadataDefaultSchema = meta.GetDefaultSchema()
+	if meta.GetDefaultSchema() != "" {
+		c.defaultSchema = meta.GetDefaultSchema()
+	}
+	c.schemas = nil
+	c.schemaByName = make(map[string]*metadata.SchemaMetadata)
+	c.tableByName = make(map[tableKey]*metadata.TableMetadata)
+	for _, schema := range meta.GetSchemas() {
+		c.addSchema(cloneSchema(schema))
+	}
+	return nil
+}
+
+// LoadMetadataInto is LoadMetadata under a database name other than meta.Name,
+// so two snapshots of differently named databases can be diffed.
+func (c *Catalog) LoadMetadataInto(ctx context.Context, meta *metadata.DatabaseSchemaMetadata, database string) error {
+	if err := c.LoadMetadata(ctx, meta); err != nil {
+		return err
+	}
+	c.database = database
+	return nil
+}
+
+// ExecOptions selects how Exec treats a failing statement.
+type ExecOptions struct {
+	// ContinueOnError continues after a statement fails, collecting every
+	// error. When false execution stops at the first failure.
+	ContinueOnError bool
+}
+
+// ExecResult is the outcome of one statement.
+type ExecResult struct {
+	Index   int
+	SQL     string
+	Line    int
+	Skipped bool
+	Error   error
+}
+
+// Exec parses sql and applies the CREATE statements Bytebase's metadata
+// extraction models to the catalog. Batches separated by GO are handled by the
+// parser; GO itself is a no-op. ALTER, DROP and other statements are skipped,
+// exactly as Bytebase's extraction skips them, so loading a desired-state
+// script yields the same snapshot on both sides.
+func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
+	stmts, err := mssql.Parse(sql)
+	if err != nil {
+		return nil, err
+	}
+	continueOnError := false
+	if opts != nil {
+		continueOnError = opts.ContinueOnError
+	}
+	results := make([]ExecResult, 0, len(stmts))
+	for i := range stmts {
+		stmt := &stmts[i]
+		result := ExecResult{Index: i, SQL: stmt.Text, Line: stmt.Start.Line}
+		if stmt.Empty() {
+			result.Skipped = true
+			results = append(results, result)
+			continue
+		}
+		if _, ok := stmt.AST.(*ast.GoStmt); ok {
+			result.Skipped = true
+			results = append(results, result)
+			continue
+		}
+		if err := c.execStatement(stmt.AST, sql); err != nil {
+			result.Error = err
+			results = append(results, result)
+			if !continueOnError {
+				return results, nil
+			}
+			continue
+		}
+		results = append(results, result)
+	}
+	return results, nil
+}
+
+// LoadSQL parses sql into a new catalog.
+func LoadSQL(sql string) (*Catalog, error) {
+	c := New()
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(results) == 0 {
+		c.getOrCreateSchema(defaultSchema)
+	}
+	for _, result := range results {
+		if result.Error != nil {
+			return c, result.Error
+		}
+	}
+	c.sortSchemas()
+	return c, nil
+}
+
+// sortSchemas orders schemas by name, as Bytebase's metadata extraction does.
+func (c *Catalog) sortSchemas() {
+	slices.SortStableFunc(c.schemas, func(a, b *metadata.SchemaMetadata) int {
+		return strings.Compare(a.Name, b.Name)
+	})
+}
+
+func (c *Catalog) execStatement(node ast.Node, source string) error {
+	switch n := node.(type) {
+	case *ast.CreateSchemaStmt:
+		c.execCreateSchema(n, source)
+	case *ast.CreateTableStmt:
+		c.execCreateTable(n, source)
+	case *ast.CreateIndexStmt:
+		c.execCreateIndex(n)
+	case *ast.CreateSpatialIndexStmt:
+		c.execCreateSpatialIndex(n)
+	case *ast.CreateViewStmt:
+		c.execCreateRoutine("view", n.Name, n, source)
+	case *ast.CreateProcedureStmt:
+		c.execCreateRoutine("procedure", n.Name, n, source)
+	case *ast.CreateFunctionStmt:
+		c.execCreateRoutine("function", n.Name, n, source)
+	case *ast.CreateSequenceStmt:
+		c.execCreateSequence(n, source)
+	case *ast.ExecStmt:
+		c.execExtendedProperty(n, source)
+	}
+	return nil
+}
+
+func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) {
+	c.getOrCreateSchema(n.Name)
+	if n.Elements != nil {
+		for _, item := range n.Elements.Items {
+			_ = c.execStatement(item, source)
+		}
+	}
+}
+
+func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) {
+	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
+	table := c.getOrCreateTable(schemaName, tableName)
+
+	if n.Columns != nil {
+		for _, item := range n.Columns.Items {
+			column, ok := item.(*ast.ColumnDef)
+			if !ok {
+				continue
+			}
+			c.extractColumn(column, table, schemaName, source)
+		}
+	}
+	if n.Constraints != nil {
+		for _, item := range n.Constraints.Items {
+			constraint, ok := item.(*ast.ConstraintDef)
+			if !ok {
+				continue
+			}
+			c.extractTableConstraint(constraint, table, schemaName, source)
+		}
+	}
+	if n.Indexes != nil {
+		for _, item := range n.Indexes.Items {
+			index, ok := item.(*ast.InlineIndexDef)
+			if !ok {
+				continue
+			}
+			table.Indexes = append(table.Indexes, inlineIndexMetadata(index))
+		}
+	}
+}
+
+func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata, schemaName, source string) {
+	column := &metadata.ColumnMetadata{
+		Name:     n.Name,
+		Position: int32(len(table.Columns) + 1),
+		Nullable: true,
+	}
+	if n.DataType != nil {
+		column.Type = nodeText(n.DataType, source)
+	}
+	if n.Identity != nil {
+		column.IsIdentity = true
+		column.IdentitySeed = n.Identity.Seed
+		column.IdentityIncrement = n.Identity.Increment
+	}
+	if n.Nullable != nil {
+		column.Nullable = !n.Nullable.NotNull
+	}
+	if n.DefaultExpr != nil {
+		column.Default = nodeText(n.DefaultExpr, source)
+	}
+	if n.Collation != "" {
+		column.Collation = n.Collation
+	}
+
+	if n.Constraints != nil {
+		for _, item := range n.Constraints.Items {
+			constraint, ok := item.(*ast.ConstraintDef)
+			if !ok {
+				continue
+			}
+			switch constraint.Type {
+			case ast.ConstraintPrimaryKey:
+				column.Nullable = false
+				table.Indexes = append(table.Indexes, c.constraintIndexMetadata(
+					constraint,
+					constraintPrefix("PK", table.Name),
+					[]string{column.Name},
+					true,
+				))
+			case ast.ConstraintUnique:
+				table.Indexes = append(table.Indexes, c.constraintIndexMetadata(
+					constraint,
+					constraintPrefix("UQ", table.Name),
+					[]string{column.Name},
+					false,
+				))
+			case ast.ConstraintDefault:
+				if constraint.Expr != nil {
+					column.Default = nodeText(constraint.Expr, source)
+				}
+			case ast.ConstraintCheck:
+				c.appendCheckConstraint(table, constraint, source)
+			case ast.ConstraintForeignKey:
+				appendForeignKey(table, constraint, []string{column.Name}, schemaName)
+			}
+		}
+	}
+
+	table.Columns = append(table.Columns, column)
+}
+
+func constraintPrefix(kind, table string) string {
+	return kind + "_" + table
+}
+
+func constraintName(prefix string, counter int) string {
+	return prefix + "_" + strconv.Itoa(counter)
+}
+
+func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.TableMetadata, schemaName, source string) {
+	switch n.Type {
+	case ast.ConstraintPrimaryKey:
+		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", indexColumnNames(n.Columns), true))
+	case ast.ConstraintUnique:
+		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", indexColumnNames(n.Columns), false))
+	case ast.ConstraintCheck:
+		c.appendCheckConstraint(table, n, source)
+	case ast.ConstraintForeignKey:
+		appendForeignKey(table, n, stringNodeList(n.Columns), schemaName)
+	}
+}
+
+func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt) {
+	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
+	table := c.getOrCreateTable(schemaName, tableName)
+
+	index := &metadata.IndexMetadata{
+		Name:         n.Name,
+		Unique:       n.Unique,
+		Type:         indexType(n.Columnstore, n.Clustered),
+		Expressions:  []string{},
+		Descending:   []bool{},
+		IsConstraint: false,
+	}
+	appendIndexColumns(index, n.Columns)
+	table.Indexes = append(table.Indexes, index)
+}
+
+func (c *Catalog) execCreateSpatialIndex(n *ast.CreateSpatialIndexStmt) {
+	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
+	table := c.getOrCreateTable(schemaName, tableName)
+
+	index := &metadata.IndexMetadata{
+		Name:         n.Name,
+		Type:         "SPATIAL",
+		Expressions:  []string{},
+		Descending:   []bool{},
+		IsConstraint: false,
+		SpatialConfig: &metadata.SpatialIndexConfig{
+			Method: "SPATIAL",
+			Tessellation: &metadata.TessellationConfig{
+				Scheme: strings.ToUpper(n.Using),
+			},
+			Dimensional: &metadata.DimensionalConfig{
+				Dimensions: 2,
+			},
+		},
+	}
+	if n.SpatialColumn != "" {
+		index.Expressions = append(index.Expressions, n.SpatialColumn)
+		index.Descending = append(index.Descending, false)
+	}
+	if strings.Contains(index.SpatialConfig.Tessellation.Scheme, "GEOGRAPHY") {
+		index.SpatialConfig.Dimensional.DataType = "GEOGRAPHY"
+	} else {
+		index.SpatialConfig.Dimensional.DataType = "GEOMETRY"
+	}
+	parseSpatialOptions(n.Options, index)
+	table.Indexes = append(table.Indexes, index)
+}
+
+func (c *Catalog) execCreateRoutine(kind string, ref *ast.TableRef, node ast.Node, source string) {
+	schemaName, name := tableRefSchemaObject(ref, c.defaultSchema)
+	schema := c.getOrCreateSchema(schemaName)
+	definition := definitionText(node, source)
+	switch kind {
+	case "view":
+		schema.Views = append(schema.Views, &metadata.ViewMetadata{Name: name, Definition: definition})
+	case "procedure":
+		schema.Procedures = append(schema.Procedures, &metadata.ProcedureMetadata{Name: name, Definition: definition})
+	case "function":
+		schema.Functions = append(schema.Functions, &metadata.FunctionMetadata{Name: name, Definition: definition})
+	}
+}
+
+func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
+	schemaName, sequenceName := tableRefSchemaObject(n.Name, c.defaultSchema)
+	schema := c.getOrCreateSchema(schemaName)
+	sequence := &metadata.SequenceMetadata{Name: sequenceName}
+	if n.DataType != nil {
+		sequence.DataType = nodeText(n.DataType, source)
+	}
+	schema.Sequences = append(schema.Sequences, sequence)
+}
+
+func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {
+	if n.Name == nil || !strings.EqualFold(n.Name.Object, "sp_addextendedproperty") {
+		return
+	}
+	if n.Args == nil || len(n.Args.Items) < 6 {
+		return
+	}
+
+	var args []string
+	for _, item := range n.Args.Items {
+		arg, ok := item.(*ast.ExecArg)
+		if !ok || arg.Value == nil {
+			continue
+		}
+		switch v := arg.Value.(type) {
+		case *ast.Literal:
+			args = append(args, v.Str)
+		default:
+			args = append(args, nodeText(v, source))
+		}
+	}
+	if len(args) < 6 || !strings.EqualFold(args[0], "MS_Description") {
+		return
+	}
+
+	comment := args[1]
+	var schemaName, tableName, columnName string
+	for i := 2; i < len(args)-1; i += 2 {
+		switch strings.ToUpper(args[i]) {
+		case "SCHEMA":
+			schemaName = args[i+1]
+		case "TABLE":
+			tableName = args[i+1]
+		case "COLUMN":
+			columnName = args[i+1]
+		}
+	}
+	if schemaName != "" && tableName != "" {
+		c.applyComment(schemaName, tableName, columnName, comment)
+	}
+}
+
+func (c *Catalog) applyComment(schemaName, tableName, columnName, comment string) {
+	table := c.getOrCreateTable(schemaName, tableName)
+	if columnName != "" {
+		for _, column := range table.Columns {
+			if strings.EqualFold(column.Name, columnName) {
+				column.Comment = comment
+				return
+			}
+		}
+		return
+	}
+	table.Comment = comment
+}
+
+func (c *Catalog) constraintIndexMetadata(n *ast.ConstraintDef, prefix string, columns []string, primary bool) *metadata.IndexMetadata {
+	name := n.Name
+	if name == "" && prefix != "" {
+		c.indexCounter++
+		name = constraintName(prefix, c.indexCounter)
+	}
+	index := &metadata.IndexMetadata{
+		Name:         name,
+		Primary:      primary,
+		Unique:       true,
+		IsConstraint: true,
+		Expressions:  []string{},
+		Descending:   []bool{},
+		Type:         indexType(false, n.Clustered),
+	}
+	for _, column := range columns {
+		index.Expressions = append(index.Expressions, column)
+		index.Descending = append(index.Descending, false)
+	}
+	if len(columns) == 0 && n.Columns != nil {
+		appendIndexColumns(index, n.Columns)
+	}
+	return index
+}
+
+func inlineIndexMetadata(n *ast.InlineIndexDef) *metadata.IndexMetadata {
+	index := &metadata.IndexMetadata{
+		Name:         n.Name,
+		Unique:       n.Unique,
+		Type:         indexType(n.Columnstore, n.Clustered),
+		Expressions:  []string{},
+		Descending:   []bool{},
+		IsConstraint: false,
+	}
+	appendIndexColumns(index, n.Columns)
+	return index
+}
+
+func (c *Catalog) appendCheckConstraint(table *metadata.TableMetadata, n *ast.ConstraintDef, source string) {
+	table.CheckConstraints = append(table.CheckConstraints, &metadata.CheckConstraintMetadata{
+		Name:       n.Name,
+		Expression: nodeText(n.Expr, source),
+	})
+}
+
+func appendForeignKey(table *metadata.TableMetadata, n *ast.ConstraintDef, columns []string, fallbackSchema string) {
+	fk := &metadata.ForeignKeyMetadata{
+		Name:              n.Name,
+		Columns:           columns,
+		ReferencedColumns: stringNodeList(n.RefColumns),
+		OnDelete:          referentialAction(n.OnDelete),
+		OnUpdate:          referentialAction(n.OnUpdate),
+	}
+	if fk.OnDelete == "" {
+		fk.OnDelete = noAction
+	}
+	if fk.OnUpdate == "" {
+		fk.OnUpdate = noAction
+	}
+	if n.RefTable != nil {
+		refSchema, refTable := tableRefSchemaObject(n.RefTable, fallbackSchema)
+		fk.ReferencedSchema = refSchema
+		fk.ReferencedTable = refTable
+	}
+	table.ForeignKeys = append(table.ForeignKeys, fk)
+}
+
+func (c *Catalog) getOrCreateSchema(name string) *metadata.SchemaMetadata {
+	if name == "" {
+		name = c.defaultSchema
+	}
+	if schema := c.schemaByName[normalize(name)]; schema != nil {
+		return schema
+	}
+	schema := &metadata.SchemaMetadata{
+		Name:       name,
+		Tables:     []*metadata.TableMetadata{},
+		Views:      nil,
+		Procedures: nil,
+		Functions:  nil,
+		Sequences:  nil,
+	}
+	c.addSchema(schema)
+	return schema
+}
+
+func (c *Catalog) addSchema(schema *metadata.SchemaMetadata) {
+	c.schemas = append(c.schemas, schema)
+	c.schemaByName[normalize(schema.Name)] = schema
+	for _, table := range schema.Tables {
+		c.tableByName[tableKey{schema: normalize(schema.Name), table: normalize(table.Name)}] = table
+	}
+}
+
+func (c *Catalog) getOrCreateTable(schemaName, tableName string) *metadata.TableMetadata {
+	schemaName = normalizeOrDefault(schemaName, c.defaultSchema)
+	key := tableKey{schema: normalize(schemaName), table: normalize(tableName)}
+	if table := c.tableByName[key]; table != nil {
+		return table
+	}
+	table := &metadata.TableMetadata{
+		Name:             tableName,
+		Columns:          []*metadata.ColumnMetadata{},
+		Indexes:          []*metadata.IndexMetadata{},
+		ForeignKeys:      nil,
+		CheckConstraints: nil,
+	}
+	schema := c.getOrCreateSchema(schemaName)
+	schema.Tables = append(schema.Tables, table)
+	c.tableByName[key] = table
+	return table
+}
+
+func normalize(name string) string {
+	return strings.ToLower(name)
+}
+
+func normalizeOrDefault(name, fallback string) string {
+	if name == "" {
+		return fallback
+	}
+	return name
+}
+
+func tableRefSchemaObject(ref *ast.TableRef, fallbackSchema string) (string, string) {
+	if ref == nil {
+		return fallbackSchema, ""
+	}
+	schemaName := ref.Schema
+	if schemaName == "" {
+		schemaName = fallbackSchema
+	}
+	return schemaName, ref.Object
+}
+
+func nodeText(node ast.Node, source string) string {
+	loc := ast.NodeLoc(node)
+	if loc.Start < 0 || loc.End < 0 || loc.Start > loc.End || loc.End > len(source) {
+		return ""
+	}
+	return source[loc.Start:loc.End]
+}
+
+func definitionText(node ast.Node, source string) string {
+	loc := ast.NodeLoc(node)
+	if loc.Start < 0 || loc.End < 0 || loc.Start > loc.End || loc.End > len(source) {
+		return ""
+	}
+	end := loc.End
+	for end < len(source) {
+		switch source[end] {
+		case ' ', '\t', '\r', '\n':
+			end++
+		default:
+			if source[end] == ';' {
+				end++
+			}
+			return strings.TrimSpace(source[loc.Start:end])
+		}
+	}
+	return strings.TrimSpace(source[loc.Start:end])
+}
+
+func indexType(columnstore bool, clustered *bool) string {
+	if columnstore {
+		if clustered != nil && *clustered {
+			return "CLUSTERED COLUMNSTORE"
+		}
+		return "NONCLUSTERED COLUMNSTORE"
+	}
+	if clustered == nil {
+		return ""
+	}
+	if *clustered {
+		return "CLUSTERED"
+	}
+	return "NONCLUSTERED"
+}
+
+func appendIndexColumns(index *metadata.IndexMetadata, columns *ast.List) {
+	if columns == nil {
+		return
+	}
+	for _, item := range columns.Items {
+		column, ok := item.(*ast.IndexColumn)
+		if !ok {
+			continue
+		}
+		index.Expressions = append(index.Expressions, column.Name)
+		index.Descending = append(index.Descending, column.SortDir == ast.SortDesc)
+	}
+}
+
+func indexColumnNames(columns *ast.List) []string {
+	var names []string
+	if columns == nil {
+		return names
+	}
+	for _, item := range columns.Items {
+		column, ok := item.(*ast.IndexColumn)
+		if !ok {
+			continue
+		}
+		names = append(names, column.Name)
+	}
+	return names
+}
+
+func stringNodeList(list *ast.List) []string {
+	var result []string
+	if list == nil {
+		return result
+	}
+	for _, item := range list.Items {
+		switch n := item.(type) {
+		case *ast.String:
+			result = append(result, n.Str)
+		case *ast.IndexColumn:
+			result = append(result, n.Name)
+		}
+	}
+	return result
+}
+
+func referentialAction(action ast.ReferentialAction) string {
+	switch action {
+	case ast.RefActCascade:
+		return "CASCADE"
+	case ast.RefActSetNull:
+		return "SET NULL"
+	case ast.RefActSetDefault:
+		return "SET DEFAULT"
+	case ast.RefActNoAction:
+		return noAction
+	default:
+		return ""
+	}
+}
+
+func cloneSchema(schema *metadata.SchemaMetadata) *metadata.SchemaMetadata {
+	return proto.Clone(schema).(*metadata.SchemaMetadata)
+}
