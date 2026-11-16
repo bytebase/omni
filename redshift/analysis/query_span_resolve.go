@@ -583,7 +583,7 @@ func (q *querySpanResolver) collectSelectFunctionProjectionUncached(selectStmt *
 			// An unresolved star makes an arm's width unknown; positional
 			// merging would pair the wrong columns. Keep the left arm's shape as
 			// the output shape and leave the projection opaque.
-			result := left
+			result := cloneFunctionProjection(left)
 			result.opaque = true
 			mergeClauseSources(&result, clauseSources)
 			return result, issues, nil
@@ -1374,6 +1374,24 @@ func (q *querySpanResolver) collectSelectClauseSources(selectStmt *ast.SelectStm
 	return result, issues, nil
 }
 
+// cloneFunctionProjection copies the source slice and its maps so a caller can
+// add lineage without mutating a cached projection.
+func cloneFunctionProjection(projection functionSourceProjection) functionSourceProjection {
+	result := functionSourceProjection{
+		names:   append([]string(nil), projection.names...),
+		sources: make([]ColumnSet, len(projection.sources)),
+		opaque:  projection.opaque,
+	}
+	for i, sources := range projection.sources {
+		if sources == nil {
+			continue
+		}
+		result.sources[i] = make(ColumnSet, len(sources))
+		mergeSourceColumnSet(result.sources[i], sources)
+	}
+	return result
+}
+
 func mergeClauseSources(projection *functionSourceProjection, sources ColumnSet) {
 	for i := range projection.sources {
 		if projection.sources[i] == nil {
@@ -1439,6 +1457,16 @@ func (q *querySpanResolver) collectFunctionFromNodeSources(node ast.Node, functi
 			return nil, functionBodyIssues{}, err
 		}
 		issues.merge(subIssues)
+		mergeSourceColumnSet(result, sources)
+	case *ast.RangeFunction:
+		if n == nil || n.Functions == nil {
+			return result, issues, nil
+		}
+		sources, functionIssues, err := q.collectFunctionBodyResultSources(n.Functions, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(functionIssues)
 		mergeSourceColumnSet(result, sources)
 	}
 	return result, issues, nil

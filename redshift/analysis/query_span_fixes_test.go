@@ -505,6 +505,46 @@ func TestRedshiftQuerySpanSubqueryCTEPredicateFunction(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanSubqueryFromFunction covers a function in a subquery
+// FROM item, which determines whether the subquery produces rows.
+func TestRedshiftQuerySpanSubqueryFromFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT EXISTS (SELECT 1 FROM generate_series(1, reporting_fn())) AS x")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "x",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
+// TestRedshiftQuerySpanSetOpClauseDoesNotMutateCTE covers adding a set-operation
+// clause to an opaque arm: it must not mutate a CTE projection shared with a
+// later query.
+func TestRedshiftQuerySpanSetOpClauseDoesNotMutateCTE(t *testing.T) {
+	snapshot := redshiftQuerySpanMetadata()
+	snapshot.Schemas[0].MaterializedViews = append(snapshot.Schemas[0].MaterializedViews, &metadata.MaterializedViewMetadata{
+		Name:       "star_mv",
+		Definition: "CREATE MATERIALIZED VIEW public.star_mv AS SELECT * FROM public.orders;",
+	})
+	getter, _ := redshiftMockDatabaseMetadataGetter([]*metadata.DatabaseSchemaMetadata{snapshot})
+	q := newQuerySpanResolver("db", []string{"public"}, ResolveOptions{
+		DefaultDatabase:     "db",
+		SearchPath:          []string{"public"},
+		GetDatabaseMetadata: getter,
+	})
+	span, err := q.getQuerySpan("WITH c AS (SELECT reporting_fn() AS x), unused AS (SELECT c.*, m.* FROM c CROSS JOIN star_mv m UNION ALL SELECT c.*, m.* FROM c CROSS JOIN star_mv m OFFSET analytics.reporting_fn()) SELECT x FROM c")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "x",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+		IsPlainField: true,
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
