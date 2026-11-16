@@ -96,7 +96,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action == DiffDrop {
-			if functionUsedByComputed(diff, funcDiff.FunctionName) {
+			if functionReplacementUsedByComputed(diff, funcDiff) {
 				fmt.Fprintf(&buf, "-- UNSUPPORTED: function %s.%s is used by a computed column; left unchanged.\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 				continue
 			}
@@ -191,6 +191,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	dropSequenceDefaults(from, diff, &buf)
 	for _, sequenceDiff := range diff.Sequences {
 		if sequenceDiff.Action == DiffDrop {
 			fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(sequenceDiff.SchemaName), quote(sequenceDiff.SequenceName))
@@ -250,7 +251,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	tableFunctions := migrationTableFunctions(diff)
 	for _, funcDiff := range diff.Functions {
-		if tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] && !functionUsedByComputed(diff, funcDiff.FunctionName) {
+		if tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] && !functionReplacementUsedByComputed(diff, funcDiff) {
 			writeFunctionMigration(&buf, funcDiff)
 		}
 	}
@@ -410,7 +411,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		delete(earlyFunctions, name)
 	}
 	for _, funcDiff := range diff.Functions {
-		if !earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || functionUsedByComputed(diff, funcDiff.FunctionName) {
+		if !earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || functionReplacementUsedByComputed(diff, funcDiff) {
 			continue
 		}
 		writeFunctionMigration(&buf, funcDiff)
@@ -422,7 +423,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if funcDiff.Action != DiffCreate {
 			continue
 		}
-		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || functionUsedByComputed(diff, funcDiff.FunctionName) {
+		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || functionReplacementUsedByComputed(diff, funcDiff) {
 			continue
 		}
 		buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
@@ -487,9 +488,13 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 	}
 	if newSequence.MinValue != "" {
 		fmt.Fprintf(&buf, " MINVALUE %s", newSequence.MinValue)
+	} else if oldSequence.MinValue != "" {
+		buf.WriteString(" NO MINVALUE")
 	}
 	if newSequence.MaxValue != "" {
 		fmt.Fprintf(&buf, " MAXVALUE %s", newSequence.MaxValue)
+	} else if oldSequence.MaxValue != "" {
+		buf.WriteString(" NO MAXVALUE")
 	}
 	if newSequence.Cycle {
 		buf.WriteString(" CYCLE")
@@ -572,7 +577,7 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 				}
 			}
 			for _, colDiff := range tableDiff.Columns {
-				if colDiff.Action == DiffAlter && colDiff.OldColumn.Type != colDiff.NewColumn.Type {
+				if colDiff.Action == DiffAlter && (colDiff.OldColumn.Type != colDiff.NewColumn.Type || colDiff.OldColumn.Collation != colDiff.NewColumn.Collation) {
 					droppedKey = true
 				}
 			}
@@ -709,6 +714,9 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 			}
 			rebuiltIndexes = append(rebuiltIndexes, index.Name)
 		}
+		if colDiff.OldColumn.Default != "" && colDiff.OldColumn.DefaultConstraintName != "" {
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.DefaultConstraintName))
+		}
 		for _, check := range tableDiff.OldTable.CheckConstraints {
 			if !strings.Contains(strings.ToLower(check.Expression), strings.ToLower(colDiff.OldColumn.Name)) {
 				continue
@@ -722,7 +730,8 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
 	}
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action != DiffAlter || columnRequiresRebuild(colDiff) || colDiff.OldColumn.Type == colDiff.NewColumn.Type {
+		if colDiff.Action != DiffAlter || columnRequiresRebuild(colDiff) ||
+			(colDiff.OldColumn.Type == colDiff.NewColumn.Type && colDiff.OldColumn.Collation == colDiff.NewColumn.Collation) {
 			continue
 		}
 		for _, index := range tableDiff.OldTable.Indexes {
@@ -830,6 +839,37 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	return buf.String()
 }
 
+func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder) {
+	if from == nil {
+		return
+	}
+	dropped := make(map[string]bool)
+	for _, sequenceDiff := range diff.Sequences {
+		if sequenceDiff.Action == DiffDrop {
+			dropped[strings.ToLower(sequenceDiff.SchemaName+"."+sequenceDiff.SequenceName)] = true
+		}
+	}
+	for _, schema := range from.Metadata().Schemas {
+		for _, table := range schema.Tables {
+			for _, column := range table.Columns {
+				if column.Default == "" || column.DefaultConstraintName == "" {
+					continue
+				}
+				for name := range dropped {
+					parts := strings.SplitN(name, ".", 2)
+					if len(parts) != 2 {
+						continue
+					}
+					if strings.Contains(strings.ToLower(column.Default), strings.ToLower(parts[1])) {
+						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
 func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
 	if schema == nil {
 		return false
@@ -856,6 +896,18 @@ func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
 	}
 	for _, sequence := range schema.Sequences {
 		if sequence.GetSkipDump() {
+			return true
+		}
+	}
+	return false
+}
+
+func functionReplacementUsedByComputed(diff *SchemaDiff, funcDiff *FunctionDiffEntry) bool {
+	if !functionUsedByComputed(diff, funcDiff.FunctionName) {
+		return false
+	}
+	for _, other := range diff.Functions {
+		if other.Action == DiffDrop && other.FunctionName == funcDiff.FunctionName {
 			return true
 		}
 	}
