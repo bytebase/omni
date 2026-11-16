@@ -372,7 +372,11 @@ func convertValue(typeName string, value any) driver.Value {
 		if raw.Valid {
 			if strings.Contains(typeName, "TIMESTAMP") {
 				if t, err := time.Parse(time.RFC3339, raw.String); err == nil {
-					return driver.Value{Kind: driver.Timestamp, Time: t, Precision: 6}
+					kind := driver.Timestamp
+					if strings.Contains(typeName, "TIME ZONE") {
+						kind = driver.TimestampTZ
+					}
+					return driver.Value{Kind: kind, Time: t, Precision: 6}
 				}
 			}
 			return driver.Value{Kind: driver.String, String: raw.String}

@@ -123,6 +123,24 @@ func TestOpenWithoutTLSRegistersNoClient(t *testing.T) {
 	}
 }
 
+func TestOpenDefaultsTheCatalog(t *testing.T) {
+	for _, tc := range []struct{ database, want string }{
+		{"", "system"},
+		{"memory", "memory"},
+	} {
+		d, err := Open(context.Background(), driver.Config{Host: "trino.example.com", Database: tc.database})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if d.databaseName != tc.want {
+			t.Errorf("databaseName = %q, want %q", d.databaseName, tc.want)
+		}
+		if err := d.Close(); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestOpenRefusesNilTLSConfig(t *testing.T) {
 	_, err := Open(context.Background(), driver.Config{
 		Host: "trino.example.com",

@@ -3,6 +3,9 @@
 // catalog's metadata into omni/metadata, dumps it as DDL, and runs interactive
 // queries and change scripts.
 //
+// Config.Database is the catalog the driver connects to and syncs; empty means
+// Trino's default catalog, system.
+//
 // It implements Driver, Syncer, Dumper, Querier and Executor. It has no planner
 // row estimate and no live probe for the reviews: Trino offers no engine-side
 // estimate to read, and Bytebase runs no review rule against a Trino instance.
@@ -76,7 +79,7 @@ type Driver struct {
 // Open returns a driver for the server and catalog cfg names. It does not reach
 // the server; Ping does.
 func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
-	d := &Driver{databaseName: cfg.Database}
+	d := &Driver{databaseName: catalogName(cfg)}
 
 	dbURL, err := buildURL(cfg)
 	if err != nil {
@@ -162,16 +165,22 @@ func buildURL(cfg driver.Config) (*url.URL, error) {
 		source = "bytebase"
 	}
 	query.Set("source", source)
-	catalog := cfg.Database
-	if catalog == "" {
-		catalog = defaultCatalog
-	}
-	query.Set("catalog", catalog)
+	query.Set("catalog", catalogName(cfg))
 	for key, value := range cfg.Params {
 		query.Set(key, value)
 	}
 	u.RawQuery = query.Encode()
 	return u, nil
+}
+
+// catalogName returns the catalog the connection and Syncer.SyncDatabase read:
+// Config.Database, or Trino's default catalog. SyncDatabase reads it so an empty
+// Config.Database syncs the catalog the driver connected to, not nothing.
+func catalogName(cfg driver.Config) string {
+	if cfg.Database == "" {
+		return defaultCatalog
+	}
+	return cfg.Database
 }
 
 // hostWithoutBrackets removes the brackets an IPv6 address may carry.

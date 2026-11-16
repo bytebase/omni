@@ -88,7 +88,7 @@ func TestQuery(t *testing.T) {
 			{Kind: driver.String, String: "12:34:56.789"},
 			{Kind: driver.String, String: "12:34:56+02:00"},
 			{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 12, 34, 56, 0, time.UTC), Precision: 6},
-			{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 12, 34, 56, 123000000, time.FixedZone("", 2*60*60)), Precision: 6},
+			{Kind: driver.TimestampTZ, Time: time.Date(2026, 1, 2, 12, 34, 56, 123000000, time.FixedZone("", 2*60*60)), Precision: 6},
 			{Kind: driver.Bytes, Bytes: []byte{1, 2}},
 			{Kind: driver.String, String: "12151fd2-7586-11e9-8f9e-2a86e4085a59"},
 			{Kind: driver.String, String: "10.0.0.1"},
