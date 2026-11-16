@@ -550,13 +550,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// attaches outside the parens (see parseOutfileTail).
 		return p.parseOutfileTail(node)
 	case kwWITH:
-		stmt, err := p.parseWithSelect()
-		if err != nil {
-			return nil, err
-		}
-		// WITH ... SELECT continues with set operators and their trailing
-		// clauses just like a bare SELECT (engine-verified).
-		return p.parseQueryStmt(stmt)
+		return p.parseWithStatement()
 	case kwINSERT:
 		return p.parseInsert()
 	case kwUPDATE:

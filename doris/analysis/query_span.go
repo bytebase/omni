@@ -231,6 +231,34 @@ func (w *spanWalker) noteNonQuerySubquery(loc ast.Loc) {
 // surface as an error instead of silently returning an empty span, and a
 // well-formed one contributes its table reads to AccessTables.
 func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
+	// CTE-prefixed DML (Doris WITH ... INSERT/UPDATE/DELETE): install the WITH
+	// scope before walking, or the CTE names read inside subqueries would be
+	// reported as physical tables — an access check against a nonexistent
+	// table can falsely deny a valid statement. The CTE bodies themselves are
+	// ordinary SelectStmt children, which the walk below analyzes with this
+	// scope already in place.
+	var with *ast.WithClause
+	switch n := node.(type) {
+	case *ast.InsertStmt:
+		with = n.With
+	case *ast.UpdateStmt:
+		with = n.With
+	case *ast.DeleteStmt:
+		with = n.With
+	}
+	if with != nil {
+		scope := &cteScope{names: make(map[string]bool), parent: w.scope}
+		for _, cte := range with.CTEs {
+			if cte == nil || cte.Name == "" {
+				continue
+			}
+			scope.names[strings.ToLower(cte.Name)] = true
+			w.span.CTEs = append(w.span.CTEs, cte.Name)
+		}
+		w.enterScope(scope)
+		defer w.leaveScope(scope)
+	}
+
 	ast.Inspect(node, func(n ast.Node) bool {
 		switch q := n.(type) {
 		case *ast.SubqueryExpr:

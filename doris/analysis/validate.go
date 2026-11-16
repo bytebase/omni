@@ -60,6 +60,9 @@ func readsRows(node ast.Node) bool {
 // parseStatements parses every non-empty statement of text, which a trailing
 // semicolon and comments do not make a statement of their own.
 func parseStatements(text string) ([]ast.Node, error) {
+	if err := firstLexError(text); err != nil {
+		return nil, err
+	}
 	var nodes []ast.Node
 	for _, segment := range parser.Split(text) {
 		if segment.Empty() || strings.TrimSpace(segment.Text) == "" {

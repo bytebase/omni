@@ -54,6 +54,14 @@ var ErrMixUserSystemTables = errors.New("cannot access user and system tables at
 // checks see the tables the plan reads. The span fails closed on a parse error
 // exactly as GetQuerySpan does.
 func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan, error) {
+	// Validate the whole text before splitting: a buffer that holds only a
+	// broken comment ("/*") splits into no statement, and an unterminated
+	// comment after a real statement is not part of any segment, so both would
+	// otherwise answer a span for text the engine rejects.
+	if err := firstLexError(statement); err != nil {
+		return nil, err
+	}
+
 	stmts := SplitStatements(statement)
 	nonEmpty := 0
 	var single string
@@ -151,13 +159,18 @@ func isMixedQuery(resources SourceColumnSet, ignoreCaseSensitive bool) (bool, bo
 	return !hasUser && hasSystem, false
 }
 
-// systemDatabases contains Doris system databases.
-// Reference: https://doris.apache.org/docs/3.x/admin-manual/system-tables/overview
+// systemDatabases contains Doris system databases: the information schema,
+// the MySQL-protocol database, and the internal schema that holds audit and
+// statistics tables.
+//
+// The pinned 3.1.4 server answers SHOW DATABASES with exactly these three
+// (doris/testdata/pins.tsv); `_statistics_` is not one of them, even after
+// ANALYZE TABLE. Reference:
+// https://doris.apache.org/docs/3.x/admin-manual/system-tables/overview
 var systemDatabases = map[string]bool{
 	"information_schema": true,
 	"mysql":              true,
 	"__internal_schema":  true,
-	"_statistics_":       true,
 }
 
 // IsSystemDatabase reports whether name is one of the engine's system

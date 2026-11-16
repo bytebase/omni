@@ -41,12 +41,15 @@ type StatementChanges struct {
 // text, which a DML statement is sampled from.
 func ExtractChangedResources(node ast.Node, database, text string) StatementChanges {
 	var changes StatementChanges
-	addTable := func(name *ast.ObjectName, affectsData bool) {
-		db, table := objectName(name, database)
+	addTableIn := func(name *ast.ObjectName, defaultDatabase string, affectsData bool) {
+		db, table := objectName(name, defaultDatabase)
 		if table == "" {
 			return
 		}
 		changes.Resources = append(changes.Resources, ChangedResource{Database: db, Table: table, AffectsData: affectsData})
+	}
+	addTable := func(name *ast.ObjectName, affectsData bool) {
+		addTableIn(name, database, affectsData)
 	}
 	// addObjectDatabase records a database-only write target for a non-table
 	// object DDL (view, materialized view, routine) ONLY when the object's own
@@ -69,7 +72,19 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		addTable(n.Target, true)
 
 	case *ast.AlterTableStmt:
-		addTable(n.Name, true)
+		db, table := objectName(n.Name, database)
+		if table != "" {
+			changes.Resources = append(changes.Resources, ChangedResource{Database: db, Table: table, AffectsData: true})
+		}
+		// SWAP WITH exchanges the altered table's data with the partner's,
+		// which resolves in the altered table's database (engine-verified: a
+		// session in another database still finds it there), and both tables
+		// change.
+		for _, action := range n.Actions {
+			if action != nil && action.Type == ast.AlterSwapTable && action.NewName != "" {
+				changes.Resources = append(changes.Resources, ChangedResource{Database: db, Table: action.NewName, AffectsData: true})
+			}
+		}
 
 	case *ast.CreateIndexStmt:
 		addTable(n.Table, false)
@@ -78,12 +93,27 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		addTable(n.Table, false)
 
 	case *ast.LoadDataStmt:
-		// One LOAD LABEL carries a data description per target table.
+		// A LOAD LABEL's database qualifier is the database the job runs in,
+		// and an unqualified data-description target resolves against it
+		// (engine-verified: with the session in another database, LOAD LABEL
+		// db_b.job (... INTO TABLE t ...) loads db_b.t). LOAD DATA carries no
+		// label and keeps the request database.
+		loadDatabase := database
+		if label := labelDatabase(n.Label); label != "" {
+			loadDatabase = label
+		}
 		for _, desc := range n.DataDescs {
 			if desc != nil {
-				addTable(desc.Target, false)
+				addTableIn(desc.Target, loadDatabase, false)
 			}
 		}
+
+	case *ast.CopyIntoStmt:
+		// COPY INTO writes its target table; the stage is a source. StarRocks's
+		// grammar has no COPY statement and the pinned 3.4.10 server rejects
+		// it, but this parser still builds the node it inherited from Doris, so
+		// the case keeps the two engines' analysis consistent.
+		addTable(n.Target, false)
 
 	case *ast.InsertStmt:
 		// INSERT INTO FILES(...) writes to external storage and leaves Target
@@ -164,4 +194,13 @@ func statementText(text string) string {
 		text += ";"
 	}
 	return text
+}
+
+// labelDatabase returns the database part of a LOAD LABEL, which the parser
+// joins as "db.label", or "" when the label carries no qualifier.
+func labelDatabase(label string) string {
+	if dot := strings.LastIndexByte(label, '.'); dot >= 0 {
+		return label[:dot]
+	}
+	return ""
 }

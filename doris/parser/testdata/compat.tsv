@@ -681,7 +681,7 @@ accept	accept	engine	supportedDmlStatement(explain)?/explain	EXPLAIN DELETE FROM
 reject	reject	engine	supportedDmlStatement(explain)?/explain!insert	EXPLAIN zzz DELETE FROM a
 reject	reject	engine	supportedDmlStatement(explain)?/explain!swap	EXPORT DELETE FROM a
 accept	accept	engine	supportedDmlStatement(cte)?/%empty	DELETE FROM a
-reject	accept	engine	supportedDmlStatement(cte)?/cte	WITH a AS(SELECT CURRENT_DATE) DELETE FROM a
+accept	accept	engine	supportedDmlStatement(cte)?/cte	WITH a AS(SELECT CURRENT_DATE) DELETE FROM a
 reject	reject	engine	supportedDmlStatement(cte)?/cte!drop-1	a AS(SELECT CURRENT_DATE) DELETE FROM a
 reject	reject	engine	supportedDmlStatement(cte)?/cte!drop-2	WITH AS(SELECT CURRENT_DATE) DELETE FROM a
 reject	reject	engine	supportedDmlStatement(cte)?/cte!drop-3	WITH a(SELECT CURRENT_DATE) DELETE FROM a
