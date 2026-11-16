@@ -1,0 +1,8 @@
+{
+    "databases": [
+      "sync_inst_db  "
+    ],
+    "lowerCaseTableNames": 0,
+    "roles": null,
+    "version": "8.0.33"
+  }

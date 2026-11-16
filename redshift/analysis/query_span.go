@@ -10,11 +10,13 @@ import (
 	"github.com/bytebase/omni/redshift/catalog"
 )
 
-// ColumnResource identifies a source or predicate column.
+// ColumnResource identifies a source or predicate column. Database is empty
+// when the analysis has no database context.
 type ColumnResource struct {
-	Schema string
-	Table  string
-	Column string
+	Database string
+	Schema   string
+	Table    string
+	Column   string
 }
 
 // QuerySpanResult describes one output column.

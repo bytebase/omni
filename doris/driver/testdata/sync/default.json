@@ -1,0 +1,162 @@
+{
+  "name":  "omni_sync_corpus",
+  "schemas":  [
+    {
+      "tables":  [
+        {
+          "name":  "accounts",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint(20)"
+            },
+            {
+              "name":  "email",
+              "position":  2,
+              "type":  "varchar(190)",
+              "comment":  "login email"
+            },
+            {
+              "name":  "bio",
+              "position":  3,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "string"
+            },
+            {
+              "name":  "status",
+              "position":  4,
+              "default":  "open",
+              "type":  "varchar(16)"
+            },
+            {
+              "name":  "balance",
+              "position":  5,
+              "default":  "0.0000",
+              "type":  "decimalv3(12, 4)"
+            },
+            {
+              "name":  "flag",
+              "position":  6,
+              "default":  "1",
+              "type":  "tinyint(4)"
+            },
+            {
+              "name":  "created_at",
+              "position":  7,
+              "default":  "CURRENT_TIMESTAMP",
+              "type":  "datetime"
+            },
+            {
+              "name":  "updated_at",
+              "position":  8,
+              "default":  "CURRENT_TIMESTAMP(6)",
+              "nullable":  true,
+              "type":  "datetime(6)"
+            },
+            {
+              "name":  "note",
+              "position":  9,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(100)",
+              "comment":  "owner''s note"
+            },
+            {
+              "name":  "dt",
+              "position":  10,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "date"
+            },
+            {
+              "name":  "payload",
+              "position":  11,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "json"
+            }
+          ],
+          "engine":  "Doris",
+          "collation":  "utf-8",
+          "comment":  "customer accounts"
+        },
+        {
+          "name":  "metrics",
+          "columns":  [
+            {
+              "name":  "ts",
+              "position":  1,
+              "type":  "datetime"
+            },
+            {
+              "name":  "val",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "bigint(20)"
+            }
+          ],
+          "engine":  "Doris",
+          "collation":  "utf-8"
+        },
+        {
+          "name":  "orders",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint(20)"
+            },
+            {
+              "name":  "account_id",
+              "position":  2,
+              "type":  "bigint(20)"
+            },
+            {
+              "name":  "total",
+              "position":  3,
+              "default":  "0",
+              "nullable":  true,
+              "type":  "int(11)"
+            },
+            {
+              "name":  "created_on",
+              "position":  4,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "date"
+            }
+          ],
+          "engine":  "Doris",
+          "collation":  "utf-8"
+        }
+      ],
+      "views":  [
+        {
+          "name":  "v_open_accounts",
+          "definition":  "SELECT `internal`.`omni_sync_corpus`.`accounts`.`id` AS `acct_id`, `internal`.`omni_sync_corpus`.`accounts`.`email` AS `acct_email` FROM `internal`.`omni_sync_corpus`.`accounts` WHERE `internal`.`omni_sync_corpus`.`accounts`.`status` = 'open'",
+          "columns":  [
+            {
+              "name":  "acct_id",
+              "position":  1,
+              "type":  "bigint(20)"
+            },
+            {
+              "name":  "acct_email",
+              "position":  2,
+              "type":  "varchar(190)"
+            }
+          ]
+        }
+      ],
+      "materializedViews":  [
+        {
+          "name":  "mv_account_status",
+          "definition":  "SELECT `internal`.`omni_sync_corpus`.`accounts`.`id`, `internal`.`omni_sync_corpus`.`accounts`.`status` FROM `internal`.`omni_sync_corpus`.`accounts`"
+        }
+      ]
+    }
+  ]
+}
