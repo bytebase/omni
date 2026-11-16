@@ -146,11 +146,11 @@ func (c *liveClient) Page(ctx context.Context, req PageRequest) (PageAnswer, err
 			options.QueryEngine = gonative.Default()
 		}
 	}
+	// The pages read are part of the answer even when the query failed: they
+	// tell a query that failed outright from one that failed partway through,
+	// and only the first may run again through the engine.
 	items, pages, err := drainQuery(ctx, container, req.Statement, options, req.Limit)
-	if err != nil {
-		return PageAnswer{}, err
-	}
-	return PageAnswer{Items: items, Pages: pages}, nil
+	return PageAnswer{Items: items, Pages: pages}, err
 }
 
 // drainQuery pages a query to exhaustion or to limit, reporting how many pages

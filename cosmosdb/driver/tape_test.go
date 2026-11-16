@@ -91,14 +91,14 @@ func (c *tapeClient) Page(ctx context.Context, req PageRequest) (PageAnswer, err
 		Engine:    req.Engine,
 		Limit:     req.Limit,
 	})
-	if err != nil {
-		return PageAnswer{}, err
-	}
+	// The answer's pages come back with the error: a query that failed after a
+	// page must not be retried through the engine, in a replay as in a
+	// recording.
 	items := make([][]byte, len(a.Items))
 	for i, item := range a.Items {
 		items[i] = item
 	}
-	return PageAnswer{Items: items, Pages: a.Pages}, nil
+	return PageAnswer{Items: items, Pages: a.Pages}, err
 }
 
 // do sends one call and returns its answer.
@@ -116,7 +116,7 @@ func (c *tapeClient) do(_ context.Context, r request) (answer, error) {
 		return answer{}, fmt.Errorf("testcontainer: unreadable answer to %s: %w", text, err)
 	}
 	if a.Error != nil {
-		return answer{}, a.Error.err()
+		return a, a.Error.err()
 	}
 	return a, nil
 }
