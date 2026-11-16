@@ -411,9 +411,16 @@ func withStatementIsQuery(statement string) bool {
 		}
 		switch token.text {
 		case "SELECT":
-			if previousWord(tokens, i) != "AS" && nextWord(tokens, i) != "AS" {
-				return true
+			if previousWord(tokens, i) == "AS" {
+				continue
 			}
+			if nextWord(tokens, i) == "AS" {
+				switch previousToken(tokens, i) {
+				case "WITH", ",", "(":
+					continue
+				}
+			}
+			return true
 		case "INSERT":
 			if nextWord(tokens, i) == "INTO" {
 				return false
@@ -470,6 +477,13 @@ func previousWord(tokens []keywordToken, i int) string {
 		}
 	}
 	return ""
+}
+
+func previousToken(tokens []keywordToken, i int) string {
+	if i == 0 {
+		return ""
+	}
+	return tokens[i-1].text
 }
 
 func nextWord(tokens []keywordToken, i int) string {

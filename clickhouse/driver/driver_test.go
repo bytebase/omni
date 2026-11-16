@@ -341,6 +341,7 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"WITH x AS (SELECT 1) SELECT * FROM x", true},
 		{"WITH 1 AS `x` SELECT 2", true},
 		{"WITH 1 AS x SELECT 'foo' AS y", true},
+		{"WITH 1 AS x SELECT [] AS y", true},
 		{"WITH x AS (SELECT 1) INSERT INTO t SELECT * FROM x", false},
 		{"INSERT INTO t VALUES (1)", false},
 		{"SELECT 'DROP TABLE t' AS x", true},
@@ -372,6 +373,7 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"WITH x AS (SELECT 1) SELECT * FROM x", true},
 		{"WITH 1 AS `x` SELECT 2", true},
 		{"WITH 1 AS x SELECT 'foo' AS y", true},
+		{"WITH 1 AS x SELECT [] AS y", true},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {
