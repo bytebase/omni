@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -148,6 +149,51 @@ func TestQueryTimeZone(t *testing.T) {
 	// Bytebase does.
 	if row[1].Kind != omnidriver.String || len(row[1].String) == 0 {
 		t.Errorf("BLOB = %+v, want the client's text", row[1])
+	}
+}
+
+// TestQueryLocalTimeZone pins that a TIMESTAMP WITH LOCAL TIME ZONE is printed in
+// the session's zone, as SQL*Plus prints it, including a zone the script changes
+// in the middle.
+func TestQueryLocalTimeZone(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+CREATE TABLE OMNI_APP.LTZ (ID NUMBER, AT TIMESTAMP WITH LOCAL TIME ZONE);
+ALTER SESSION SET TIME_ZONE = '+02:00';
+INSERT INTO OMNI_APP.LTZ (ID, AT) VALUES (1, TIMESTAMP '2026-03-04 05:06:07');
+`)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	for _, test := range []struct {
+		name string
+		zone string
+		want string
+	}{
+		// The row was stored as 03:06:07 UTC.
+		{name: "offset", zone: "+02:00", want: "2026-03-04 05:06:07"},
+		{name: "utc", zone: "+00:00", want: "2026-03-04 03:06:07"},
+		{name: "region", zone: "Europe/Berlin", want: "2026-03-04 04:06:07"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			results, err := s.Query(ctx, fmt.Sprintf("ALTER SESSION SET TIME_ZONE = '%s'; SELECT AT FROM OMNI_APP.LTZ", test.zone), omnidriver.QueryOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			row := results[len(results)-1].Rows[0][0]
+			if row.Kind != omnidriver.Timestamp {
+				t.Fatalf("value = %+v, want a wall clock", row)
+			}
+			if got := row.Time.Format(time.DateTime); got != test.want {
+				t.Errorf("value = %s, want %s", got, test.want)
+			}
+		})
 	}
 }
 

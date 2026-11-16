@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	omnidriver "github.com/bytebase/omni/driver"
@@ -128,14 +129,89 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		}
 		return res, nil
 	}
-	res, err := readRows(rows, maxResultBytes)
+	res, localZones, err := readRows(rows, maxResultBytes)
 	if err != nil {
 		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	// A TIMESTAMP WITH LOCAL TIME ZONE comes back as the instant it names, and
+	// SQL*Plus prints that instant in the session's zone. Reading the zone needs
+	// the statement's rows closed, so the conversion happens here.
+	if len(localZones) > 0 {
+		// The connection holds one result set at a time.
+		if err := rows.Close(); err != nil {
+			return nil, err
+		}
+		location, err := s.localTimeZone(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, cell := range localZones {
+			inZone := res.Rows[cell.row][cell.column].Time.In(location)
+			res.Rows[cell.row][cell.column].Time = time.Date(
+				inZone.Year(), inZone.Month(), inZone.Day(),
+				inZone.Hour(), inZone.Minute(), inZone.Second(), inZone.Nanosecond(),
+				time.UTC,
+			)
+		}
+	}
 	return res, nil
+}
+
+// localTimeZone returns the zone the session prints a TIMESTAMP WITH LOCAL TIME
+// ZONE in, as SESSIONTIMEZONE states it: an offset such as +02:00, or a region
+// name such as Europe/Berlin.
+func (s *session) localTimeZone(ctx context.Context) (*time.Location, error) {
+	var zone string
+	if err := s.conn.QueryRowContext(ctx, "SELECT SESSIONTIMEZONE FROM DUAL").Scan(&zone); err != nil {
+		return nil, fmt.Errorf("failed to read the session time zone: %w", err)
+	}
+	return oracleLocation(zone), nil
+}
+
+var oracleLocations sync.Map
+
+// oracleLocation reads SESSIONTIMEZONE, which names a zone as an offset or as a
+// region such as Europe/Berlin, and leaves a name the system cannot resolve in
+// UTC.
+func oracleLocation(zone string) *time.Location {
+	if zone == "" || zone == "UTC" {
+		return time.UTC
+	}
+	if cached, ok := oracleLocations.Load(zone); ok {
+		if location, ok := cached.(*time.Location); ok {
+			return location
+		}
+	}
+	var location *time.Location
+	if offset, ok := zoneOffset(zone); ok {
+		location = time.FixedZone(zone, offset)
+	} else if loaded, err := time.LoadLocation(zone); err == nil {
+		location = loaded
+	} else {
+		location = time.UTC
+	}
+	oracleLocations.Store(zone, location)
+	return location
+}
+
+// zoneOffset reads SESSIONTIMEZONE's offset spelling, hours and minutes east of
+// UTC, with an optional fractional part on the minutes.
+func zoneOffset(zone string) (int, bool) {
+	if len(zone) < 3 || (zone[0] != '+' && zone[0] != '-') {
+		return 0, false
+	}
+	var hours, minutes int
+	if _, err := fmt.Sscanf(zone[1:], "%d:%d", &hours, &minutes); err != nil {
+		return 0, false
+	}
+	offset := hours*3600 + minutes*60
+	if zone[0] == '-' {
+		offset = -offset
+	}
+	return offset, true
 }
 
 // isJSONExplainFormat reports whether format asks for the plan as a document.
@@ -190,15 +266,23 @@ func readPlanSteps(rows *sql.Rows) (*omnidriver.Result, error) {
 	}, nil
 }
 
-// readRows reads one result set, stopping at maxResultBytes.
-func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, error) {
+// localZoneCell names one value a TIMESTAMP WITH LOCAL TIME ZONE column
+// returned, which the session's zone renders.
+type localZoneCell struct {
+	row    int
+	column int
+}
+
+// readRows reads one result set, stopping at maxResultBytes, and reports the
+// values the session's time zone renders.
+func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, []localZoneCell, error) {
 	columnNames, err := rows.Columns()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	columnTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	columns := make([]omnidriver.Column, len(columnNames))
 	for i, columnType := range columnTypes {
@@ -209,20 +293,24 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, error) 
 	}
 	res := &omnidriver.Result{Columns: columns}
 	if len(columns) == 0 {
-		return res, nil
+		return res, nil, nil
 	}
 	totalBytes := omnidriver.HeaderByteSize(columns)
+	var localZones []localZoneCell
 	for rows.Next() {
 		dest := make([]any, len(columns))
 		for i := range columns {
 			dest[i] = makeValueByTypeName(columns[i].TypeName)
 		}
 		if err := rows.Scan(dest...); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		row := make([]omnidriver.Value, len(columns))
 		for i := range columns {
 			row[i] = convertValue(columns[i].TypeName, columnTypes[i], dest[i])
+			if columns[i].TypeName == "TIMESTAMPLTZ_DTY" && row[i].Kind == omnidriver.Timestamp {
+				localZones = append(localZones, localZoneCell{row: len(res.Rows), column: i})
+			}
 		}
 		res.Rows = append(res.Rows, row)
 		if maxResultBytes > 0 {
@@ -233,7 +321,7 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, error) 
 			}
 		}
 	}
-	return res, nil
+	return res, localZones, nil
 }
 
 // makeValueByTypeName creates appropriate Go types for Oracle column types.
@@ -302,13 +390,9 @@ func convertTimestamp(typeName string, columnType *sql.ColumnType, t time.Time) 
 		stripped := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 		return omnidriver.Value{Kind: omnidriver.Timestamp, Time: stripped, Precision: int32(scale)}
 	case "TIMESTAMPLTZ_DTY":
-		// A local-time-zone timestamp is not consistent with sqlplus, which
-		// depends on the database's and the session's zone.
-		parsed, err := time.Parse(time.DateTime, t.Format("2006-01-02 15:04:05.000000000"))
-		if err != nil {
-			return omnidriver.Value{Kind: omnidriver.Null}
-		}
-		return omnidriver.Value{Kind: omnidriver.Timestamp, Time: parsed, Precision: int32(scale)}
+		// The client states the value as the instant it names; the session's zone
+		// renders it, in the pass that runs once the statement's rows are closed.
+		return omnidriver.Value{Kind: omnidriver.Timestamp, Time: t.UTC(), Precision: int32(scale)}
 	default:
 		// The client returns the value in the database's zone, which is the
 		// zone the session renders it in.
