@@ -517,69 +517,132 @@ func (q *querySpanResolver) functionStarProjection(target *ast.ResTarget, from *
 		return projection, true
 	}
 	var result functionSourceProjection
-	ok := true
-	add := func(projection functionSourceProjection) {
-		result.sources = append(result.sources, projection.sources...)
-		for i := range projection.sources {
-			name := ""
-			if i < len(projection.names) {
-				name = projection.names[i]
-			}
-			result.names = append(result.names, name)
-		}
-	}
-	var walk func(ast.Node)
-	walk = func(node ast.Node) {
-		if !ok {
-			return
-		}
-		switch n := node.(type) {
-		case *ast.RangeVar:
-			if n == nil {
-				ok = false
-				return
-			}
-			name := n.Relname
-			if n.Alias != nil && n.Alias.Aliasname != "" {
-				name = n.Alias.Aliasname
-			}
-			projection, found := scope.bindings[strings.ToLower(name)]
-			if !found {
-				ok = false
-				return
-			}
-			add(projection)
-		case *ast.RangeSubselect:
-			if n == nil || n.Alias == nil || n.Alias.Aliasname == "" {
-				ok = false
-				return
-			}
-			projection, found := scope.bindings[strings.ToLower(n.Alias.Aliasname)]
-			if !found {
-				ok = false
-				return
-			}
-			add(projection)
-		case *ast.JoinExpr:
-			if n == nil {
-				ok = false
-				return
-			}
-			walk(n.Larg)
-			walk(n.Rarg)
-		default:
-			ok = false
-		}
-	}
 	if from != nil {
 		for _, item := range from.Items {
-			walk(item)
+			projection, ok := q.functionProjectionForNode(item, scope)
+			if !ok {
+				return functionSourceProjection{}, false
+			}
+			appendFunctionProjection(&result, projection)
 		}
 	}
-	if !ok {
+	return result, true
+}
+
+// functionProjectionForNode returns one FROM item's output names and function
+// sources. A USING/NATURAL join coalesces its common columns into one output
+// column, so expanding `*` over it must not list both inputs' copies.
+func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope functionSourceScope) (functionSourceProjection, bool) {
+	switch n := node.(type) {
+	case *ast.RangeVar:
+		if n == nil {
+			return functionSourceProjection{}, false
+		}
+		name := n.Relname
+		if n.Alias != nil && n.Alias.Aliasname != "" {
+			name = n.Alias.Aliasname
+		}
+		projection, ok := scope.bindings[strings.ToLower(name)]
+		return projection, ok
+	case *ast.RangeSubselect:
+		if n == nil || n.Alias == nil || n.Alias.Aliasname == "" {
+			return functionSourceProjection{}, false
+		}
+		projection, ok := scope.bindings[strings.ToLower(n.Alias.Aliasname)]
+		return projection, ok
+	case *ast.JoinExpr:
+		if n == nil {
+			return functionSourceProjection{}, false
+		}
+		left, ok := q.functionProjectionForNode(n.Larg, scope)
+		if !ok {
+			return functionSourceProjection{}, false
+		}
+		right, ok := q.functionProjectionForNode(n.Rarg, scope)
+		if !ok {
+			return functionSourceProjection{}, false
+		}
+		return mergeFunctionJoinProjection(left, right, n)
+	default:
 		return functionSourceProjection{}, false
 	}
+}
+
+// appendFunctionProjection concatenates one projection onto another.
+func appendFunctionProjection(dst *functionSourceProjection, src functionSourceProjection) {
+	dst.names = append(dst.names, src.names...)
+	dst.sources = append(dst.sources, src.sources...)
+}
+
+// mergeFunctionJoinProjection combines the two sides of a join. A plain join
+// concatenates them; a USING/NATURAL join lists each common column once, first,
+// unioning its sources, then the remaining left and right columns.
+func mergeFunctionJoinProjection(left, right functionSourceProjection, n *ast.JoinExpr) (functionSourceProjection, bool) {
+	if len(n.UsingClause.Items) == 0 && !n.IsNatural {
+		var result functionSourceProjection
+		appendFunctionProjection(&result, left)
+		appendFunctionProjection(&result, right)
+		return result, true
+	}
+	var names []string
+	if n.IsNatural {
+		seen := make(map[string]bool, len(left.names))
+		for _, name := range left.names {
+			key := strings.ToLower(name)
+			if seen[key] {
+				continue
+			}
+			if _, ok := functionColumnIndex(right, name); !ok {
+				continue
+			}
+			seen[key] = true
+			names = append(names, name)
+		}
+	} else {
+		names = redshiftStringList(n.UsingClause)
+	}
+	usedLeft := make([]bool, len(left.names))
+	usedRight := make([]bool, len(right.names))
+	var result functionSourceProjection
+	for _, name := range names {
+		li, ok := functionColumnIndex(left, name)
+		if !ok {
+			return functionSourceProjection{}, false
+		}
+		ri, ok := functionColumnIndex(right, name)
+		if !ok {
+			return functionSourceProjection{}, false
+		}
+		merged := make(ColumnSet)
+		mergeSourceColumnSet(merged, left.sources[li])
+		mergeSourceColumnSet(merged, right.sources[ri])
+		result.names = append(result.names, left.names[li])
+		result.sources = append(result.sources, merged)
+		usedLeft[li] = true
+		usedRight[ri] = true
+	}
+	for i, name := range left.names {
+		if !usedLeft[i] {
+			result.names = append(result.names, name)
+			result.sources = append(result.sources, left.sources[i])
+		}
+	}
+	for i, name := range right.names {
+		if !usedRight[i] {
+			result.names = append(result.names, name)
+			result.sources = append(result.sources, right.sources[i])
+		}
+	}
 	return result, true
+}
+
+func functionColumnIndex(p functionSourceProjection, name string) (int, bool) {
+	for i, candidate := range p.names {
+		if strings.EqualFold(candidate, name) && i < len(p.sources) {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 // redshiftStarTarget reports the relation qualifier of a star select item and
@@ -745,6 +808,33 @@ func (q *querySpanResolver) collectFunctionBodyResultSources(node ast.Node, func
 	issues := functionBodyIssues{}
 	ast.Inspect(node, func(n ast.Node) bool {
 		if err != nil {
+			return false
+		}
+		if sub, ok := n.(*ast.SubLink); ok {
+			if sub.Testexpr != nil {
+				sources, sourceIssues, sourceErr := q.collectFunctionBodyResultSources(sub.Testexpr, functionStack, cache, scope)
+				if sourceErr != nil {
+					err = sourceErr
+					return false
+				}
+				issues.merge(sourceIssues)
+				mergeSourceColumnSet(result, sources)
+			}
+			selectStmt, ok := sub.Subselect.(*ast.SelectStmt)
+			if !ok {
+				return false
+			}
+			// Resolve the subquery's own FROM bindings; the outer scope alone
+			// does not expose a CTE it references.
+			projection, sourceIssues, sourceErr := q.collectSelectFunctionProjection(selectStmt, functionStack, cache, scope)
+			if sourceErr != nil {
+				err = sourceErr
+				return false
+			}
+			issues.merge(sourceIssues)
+			for _, sources := range projection.sources {
+				mergeSourceColumnSet(result, sources)
+			}
 			return false
 		}
 		if columnRef, ok := n.(*ast.ColumnRef); ok {

@@ -39,6 +39,41 @@ func TestRedshiftQuerySpanStarOverFunctionCTE(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanStarOverUsingJoinKeepsFunctionAligned covers a star over
+// a USING join: its common column is listed once, so a following function still
+// lines up with the output projection.
+func TestRedshiftQuerySpanStarOverUsingJoinKeepsFunctionAligned(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH a AS (SELECT reporting_fn() AS k), b AS (SELECT 0 AS k) SELECT *, analytics.reporting_fn() AS y FROM a JOIN b USING (k)")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 2)
+	require.Equal(t, "k", span.Results[0].Name)
+	require.Equal(t, ColumnSet{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"}: true,
+	}, span.Results[0].SourceColumns)
+	require.Equal(t, ResolvedQuerySpanResult{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+		}),
+	}, span.Results[1])
+}
+
+// TestRedshiftQuerySpanScalarSubqueryFunctionCTE covers a function-producing CTE
+// referenced only inside a scalar subquery: the subquery's own FROM binding must
+// expose it.
+func TestRedshiftQuerySpanScalarSubqueryFunctionCTE(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH c AS (SELECT reporting_fn() AS x) SELECT (SELECT x FROM c) AS y")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.
