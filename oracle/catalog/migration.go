@@ -517,6 +517,27 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
+	// A virtual column can call a function, so the function must exist first.
+	for tableID, tableDiff := range tableMap {
+		if tableDiff.NewTable == nil {
+			continue
+		}
+		for _, column := range tableDiff.NewTable.Columns {
+			if column.GetGeneration() == nil {
+				continue
+			}
+			for functionID, functionDiff := range functionMap {
+				function := functionDiff.NewFunction
+				if function == nil {
+					function = functionDiff.OldFunction
+				}
+				if function != nil && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
+					graph.AddEdge(functionID, tableID)
+				}
+			}
+		}
+	}
+
 	// Add dependency edges
 	// For tables with foreign keys depending on other tables (only for CREATE operations)
 	for tableID, tableDiff := range tableMap {

@@ -358,7 +358,8 @@ func (e *oracleMetadataExtractor) removeNamedNotNull(table *metadatapb.TableMeta
 	want := `"` + column + `" IS NOT NULL`
 	var checks []*metadatapb.CheckConstraintMetadata
 	for _, check := range table.CheckConstraints {
-		if !strings.EqualFold(strings.Join(strings.Fields(check.Expression), " "), want) {
+		namedNotNull := e.namedNotNull[table.Name+"\x00"+check.Name]
+		if !namedNotNull || !strings.EqualFold(strings.Join(strings.Fields(check.Expression), " "), want) {
 			checks = append(checks, check)
 		}
 	}
@@ -608,7 +609,11 @@ func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, na
 
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
-		if !slices.ContainsFunc(index.Expressions, func(expression string) bool { return expressionReferencesColumn(expression, name) }) {
+		matches := func(expression string) bool { return expressionReferencesColumn(expression, name) }
+		if index.IsConstraint {
+			matches = func(expression string) bool { return strings.Trim(expression, `"`) == name }
+		}
+		if !slices.ContainsFunc(index.Expressions, matches) {
 			indexes = append(indexes, index)
 		}
 	}
@@ -660,7 +665,7 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 	for _, index := range table.Indexes {
 		for i, expression := range index.Expressions {
 			if index.IsConstraint {
-				if strings.EqualFold(strings.Trim(expression, `"`), oldName) {
+				if strings.Trim(expression, `"`) == oldName {
 					index.Expressions[i] = newName
 				}
 				continue
@@ -765,6 +770,22 @@ func writeRenamedIdentifier(out *strings.Builder, name string, forceQuote bool) 
 	out.WriteString(`"`)
 	out.WriteString(strings.ReplaceAll(name, `"`, `""`))
 	out.WriteString(`"`)
+}
+
+func expressionReferencesFunction(expression, function string) bool {
+	upper := strings.ToUpper(expression)
+	needle := strings.ToUpper(function) + "("
+	for offset := 0; ; {
+		index := strings.Index(upper[offset:], needle)
+		if index < 0 {
+			return false
+		}
+		start := offset + index
+		if start == 0 || !isIdentifierByte(expression[start-1]) {
+			return true
+		}
+		offset = start + len(needle)
+	}
 }
 
 func isIdentifierByte(c byte) bool {

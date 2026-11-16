@@ -100,6 +100,21 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// Procedures will be created after tables by default order
 	}
 
+	// A virtual column can call a function, so the function must exist first.
+	for _, table := range tables {
+		tableID := getObjectID(databaseName, table.Name)
+		for _, column := range table.Columns {
+			if column.GetGeneration() == nil {
+				continue
+			}
+			for functionID, function := range functionMap {
+				if expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
+					graph.AddEdge(functionID, tableID)
+				}
+			}
+		}
+	}
+
 	// Add foreign key dependencies between tables
 	for _, table := range tables {
 		tableID := getObjectID(databaseName, table.Name)

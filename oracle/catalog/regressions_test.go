@@ -1337,3 +1337,77 @@ func TestNonTableTriggerIsRejected(t *testing.T) {
 		t.Fatal("database trigger installed a phantom table")
 	}
 }
+
+func TestRenameQuotedColumnKeepsConstraintOnUnquoted(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, "c" NUMBER, CONSTRAINT PK PRIMARY KEY(C))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T RENAME COLUMN "c" TO D`, nil); err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	for _, index := range table.Indexes {
+		if index.Primary && !slices.Equal(index.Expressions, []string{"C"}) {
+			t.Fatalf("primary key moved: %v", index.Expressions)
+		}
+	}
+}
+
+func TestDropQuotedColumnRemovesItsConstraint(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T ("c" NUMBER PRIMARY KEY, D NUMBER); ALTER TABLE T DROP COLUMN "c"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	for _, index := range table.Indexes {
+		if index.Primary {
+			t.Fatalf("primary key survived: %+v", index)
+		}
+	}
+}
+
+func TestModifyNullKeepsIndependentCheck(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER NOT NULL, CONSTRAINT CK CHECK ("C" IS NOT NULL)); ALTER TABLE T MODIFY C NULL`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if !table.Columns[0].Nullable || len(table.CheckConstraints) != 1 {
+		t.Fatalf("column/check = %+v / %+v", table.Columns[0], table.CheckConstraints)
+	}
+}
+
+func TestDiffNormalizesUnnamedSyncedSchema(t *testing.T) {
+	oldMeta := &metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}}}}}
+	newCatalog, err := LoadSQL(`CREATE TABLE APP.T (C NUMBER NOT NULL)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	diff := Diff(&Catalog{meta: oldMeta}, newCatalog)
+	if !diff.IsEmpty() {
+		t.Fatalf("equivalent schemas diff: schemas=%d tables=%d", len(diff.SchemaChanges), len(diff.TableChanges))
+	}
+}
+
+func TestVirtualColumnFunctionOrdersBeforeTable(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Tables:    []*metadatapb.TableMetadata{{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "Z(ID)"}}}}},
+		Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z(P NUMBER) RETURN NUMBER IS BEGIN RETURN P; END;"}},
+	}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, "CREATE OR REPLACE FUNCTION Z")
+	table := strings.Index(definition, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("table precedes its virtual-column function:\n%s", definition)
+	}
+	sql := migrationFor(t, New(), &Catalog{meta: meta})
+	function = strings.Index(sql, "CREATE OR REPLACE FUNCTION Z")
+	table = strings.Index(sql, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("migration table precedes its virtual-column function:\n%s", sql)
+	}
+}

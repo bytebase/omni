@@ -161,19 +161,33 @@ func Diff(from, to *Catalog) *SchemaDiff {
 
 	oldSchemas := schemaByName(oldMeta)
 	newSchemas := schemaByName(newMeta)
-	for name, oldSchema := range oldSchemas {
-		if _, ok := newSchemas[name]; !ok {
-			diff.SchemaChanges = append(diff.SchemaChanges, &SchemaDiffEntry{Action: DiffActionDrop, SchemaName: name, OldSchema: oldSchema})
-		}
-	}
+	matchedOld := map[*metadatapb.SchemaMetadata]bool{}
 	for name, newSchema := range newSchemas {
-		oldSchema, ok := oldSchemas[name]
-		if !ok {
+		oldSchema := oldSchemas[name]
+		if oldSchema == nil {
+			switch {
+			case name != "" && name == oldMeta.GetName():
+				oldSchema = oldSchemas[""]
+			case name == "" && oldMeta.GetName() != "":
+				oldSchema = oldSchemas[oldMeta.GetName()]
+			}
+		}
+		if oldSchema == nil {
 			diff.SchemaChanges = append(diff.SchemaChanges, &SchemaDiffEntry{Action: DiffActionCreate, SchemaName: name, NewSchema: newSchema})
 			addNewSchemaObjects(diff, name, newSchema)
 			continue
 		}
+		matchedOld[oldSchema] = true
 		compareSchemaObjects(diff, name, oldSchema, newSchema)
+	}
+	for name, oldSchema := range oldSchemas {
+		if matchedOld[oldSchema] {
+			continue
+		}
+		if name == "" && newMeta.GetName() != "" && newSchemas[newMeta.GetName()] != nil {
+			continue
+		}
+		diff.SchemaChanges = append(diff.SchemaChanges, &SchemaDiffEntry{Action: DiffActionDrop, SchemaName: name, OldSchema: oldSchema})
 	}
 
 	sortDiff(diff)

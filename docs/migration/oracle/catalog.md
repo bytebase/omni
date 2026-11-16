@@ -161,6 +161,11 @@ replay tests exercise.
   dropped.
 - An index's target table owner is validated, inline `DISABLE` triggers can be
   re-enabled, and non-table triggers are rejected.
+- Constraint column names are matched exactly during renames and drops, and
+  `MODIFY ... NULL` leaves an independent CHECK in place.
+- Diff matches an unnamed synced schema to the same owner-named schema.
+- A virtual column's function is ordered before its table in both definitions
+  and initial migrations.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
