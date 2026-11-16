@@ -41,6 +41,7 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 
 	writeSynonyms(&buf, to.Schemas)
 	writeSequences(&buf, to.Schemas)
+	hasPreamble := hasSynonyms(to.Schemas) || hasSequences(to.Schemas)
 
 	if hasTables(to.Schemas) {
 		writeAllTablesInOrder(&buf, to.Schemas)
@@ -48,7 +49,7 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 
 	earlyFunctions := functionsReferencedByViews(to.Schemas)
 	if len(earlyFunctions) > 0 {
-		if hasTables(to.Schemas) {
+		if hasTables(to.Schemas) || hasPreamble {
 			buf.WriteString("GO\n\n")
 		}
 		for _, schema := range to.Schemas {
@@ -61,13 +62,13 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 	}
 
 	if hasViews(to.Schemas) {
-		if hasTables(to.Schemas) && len(earlyFunctions) == 0 {
+		if (hasTables(to.Schemas) || hasPreamble) && len(earlyFunctions) == 0 {
 			buf.WriteString("GO\n\n")
 		}
 		writeAllViewsInOrder(&buf, to.Schemas)
 	}
 
-	if !hasViews(to.Schemas) && hasTables(to.Schemas) && (hasRoutines(to.Schemas) || hasTriggers(to.Schemas)) {
+	if !hasViews(to.Schemas) && (hasTables(to.Schemas) || hasPreamble) && (hasRoutines(to.Schemas) || hasTriggers(to.Schemas)) {
 		buf.WriteString("GO\n\n")
 	}
 
@@ -101,6 +102,26 @@ func functionsReferencedByViews(schemas []*metadata.SchemaMetadata) map[string]b
 		}
 	}
 	return referenced
+}
+
+func hasSynonyms(schemas []*metadata.SchemaMetadata) bool {
+	for _, schema := range schemas {
+		if len(schema.Synonyms) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func hasSequences(schemas []*metadata.SchemaMetadata) bool {
+	for _, schema := range schemas {
+		for _, sequence := range schema.Sequences {
+			if !sequence.GetSkipDump() {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func hasTriggers(schemas []*metadata.SchemaMetadata) bool {
@@ -457,6 +478,25 @@ func writeDeferredForeignKey(out *strings.Builder, schemaName, tableName string,
 	out.WriteString(";\n\n")
 }
 
+func writeXMLIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
+	column := ""
+	if len(index.Expressions) > 0 {
+		column = quote(index.Expressions[0])
+	}
+	if strings.HasPrefix(index.Definition, "USING XML INDEX ") {
+		rest := strings.TrimPrefix(index.Definition, "USING XML INDEX ")
+		parent, secondaryType := rest, "PATH"
+		if before, after, ok := strings.Cut(rest, " FOR "); ok {
+			parent, secondaryType = before, after
+		}
+		fmt.Fprintf(out, "CREATE XML INDEX %s ON %s.%s (%s)\nUSING XML INDEX %s FOR %s;\n\n",
+			quote(index.Name), quote(schemaName), quote(tableName), column, quote(parent), secondaryType)
+		return
+	}
+	fmt.Fprintf(out, "CREATE PRIMARY XML INDEX %s ON %s.%s (%s);\n\n",
+		quote(index.Name), quote(schemaName), quote(tableName), column)
+}
+
 func writeClusteredColumnStoreIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
 	fmt.Fprintf(out, "CREATE CLUSTERED COLUMNSTORE INDEX %s ON %s.%s;\n\n", quote(index.Name), quote(schemaName), quote(tableName))
 }
@@ -506,6 +546,8 @@ func writeNormalIndex(out *strings.Builder, schemaName, tableName string, index 
 
 func writeIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
 	switch strings.ToUpper(index.Type) {
+	case "XML":
+		writeXMLIndex(out, schemaName, tableName, index)
 	case "CLUSTERED COLUMNSTORE":
 		writeClusteredColumnStoreIndex(out, schemaName, tableName, index)
 	case "NONCLUSTERED COLUMNSTORE":

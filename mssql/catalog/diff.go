@@ -488,6 +488,9 @@ func indexesEqual(a, b *metadata.IndexMetadata) bool {
 	if a.Visible != b.Visible {
 		return false
 	}
+	if a.Type == "XML" && a.Definition != b.Definition {
+		return false
+	}
 	if !spatialConfigsEqual(a.SpatialConfig, b.SpatialConfig) {
 		return false
 	}

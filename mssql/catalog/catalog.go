@@ -339,7 +339,7 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 			case ast.ConstraintCheck:
 				c.appendCheckConstraint(table, constraint, source)
 			case ast.ConstraintForeignKey:
-				appendForeignKey(table, constraint, []string{column.Name}, schemaName)
+				c.appendForeignKey(table, constraint, []string{column.Name}, schemaName)
 			}
 		}
 	}
@@ -370,7 +370,7 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 	case ast.ConstraintCheck:
 		c.appendCheckConstraint(table, n, source)
 	case ast.ConstraintForeignKey:
-		appendForeignKey(table, n, stringNodeList(n.Columns), schemaName)
+		c.appendForeignKey(table, n, stringNodeList(n.Columns), schemaName)
 	}
 }
 
@@ -602,15 +602,25 @@ func inlineIndexMetadata(n *ast.InlineIndexDef, source string) *metadata.IndexMe
 }
 
 func (c *Catalog) appendCheckConstraint(table *metadata.TableMetadata, n *ast.ConstraintDef, source string) {
+	name := n.Name
+	if name == "" {
+		c.indexCounter++
+		name = constraintName(constraintPrefix("CK", table.Name), c.indexCounter)
+	}
 	table.CheckConstraints = append(table.CheckConstraints, &metadata.CheckConstraintMetadata{
-		Name:       n.Name,
+		Name:       name,
 		Expression: nodeText(n.Expr, source),
 	})
 }
 
-func appendForeignKey(table *metadata.TableMetadata, n *ast.ConstraintDef, columns []string, fallbackSchema string) {
+func (c *Catalog) appendForeignKey(table *metadata.TableMetadata, n *ast.ConstraintDef, columns []string, fallbackSchema string) {
+	name := n.Name
+	if name == "" {
+		c.indexCounter++
+		name = constraintName(constraintPrefix("FK", table.Name), c.indexCounter)
+	}
 	fk := &metadata.ForeignKeyMetadata{
-		Name:              n.Name,
+		Name:              name,
 		Columns:           columns,
 		ReferencedColumns: stringNodeList(n.RefColumns),
 		OnDelete:          referentialAction(n.OnDelete),

@@ -67,5 +67,7 @@ func objectID(schema, name string) string {
 	if schema == "" {
 		return name
 	}
-	return schema + "." + name
+	// NUL cannot occur in an identifier, so a name containing a dot cannot
+	// collide with another schema/name split.
+	return schema + "\x00" + name
 }

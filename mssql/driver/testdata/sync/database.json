@@ -133,7 +133,8 @@
               "descending":  [
                 false
               ],
-              "type":  "XML"
+              "type":  "XML",
+              "definition":  "PRIMARY"
             }
           ],
           "comment":  "customer accounts",

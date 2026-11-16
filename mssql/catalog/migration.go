@@ -652,13 +652,17 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 			continue
 		}
 		for _, index := range tableDiff.OldTable.Indexes {
-			if index.IsConstraint || !indexUsesColumn(index, colDiff.OldColumn.Name) {
+			if !indexUsesColumn(index, colDiff.OldColumn.Name) {
 				continue
 			}
 			if indexChangeScheduled(tableDiff, index.Name) || containsString(rebuiltIndexes, index.Name) {
 				continue
 			}
-			fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(index.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
+			if index.IsConstraint {
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(index.Name))
+			} else {
+				fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(index.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
+			}
 			rebuiltIndexes = append(rebuiltIndexes, index.Name)
 		}
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
@@ -965,6 +969,8 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 	var buf strings.Builder
 	buf.WriteString("CREATE")
 	switch strings.ToUpper(index.Type) {
+	case "XML":
+		return generateXMLIndex(schemaName, tableName, index)
 	case "CLUSTERED COLUMNSTORE":
 		fmt.Fprintf(&buf, " CLUSTERED COLUMNSTORE INDEX %s ON %s.%s", quote(index.Name), quote(schemaName), quote(tableName))
 		return buf.String()
@@ -1007,6 +1013,24 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 		}
 		return buf.String()
 	}
+}
+
+func generateXMLIndex(schemaName, tableName string, index *metadata.IndexMetadata) string {
+	column := ""
+	if len(index.Expressions) > 0 {
+		column = quote(index.Expressions[0])
+	}
+	if strings.HasPrefix(index.Definition, "USING XML INDEX ") {
+		rest := strings.TrimPrefix(index.Definition, "USING XML INDEX ")
+		parent, secondaryType := rest, "PATH"
+		if before, after, ok := strings.Cut(rest, " FOR "); ok {
+			parent, secondaryType = before, after
+		}
+		return fmt.Sprintf("CREATE XML INDEX %s ON %s.%s (%s) USING XML INDEX %s FOR %s",
+			quote(index.Name), quote(schemaName), quote(tableName), column, quote(parent), secondaryType)
+	}
+	return fmt.Sprintf("CREATE PRIMARY XML INDEX %s ON %s.%s (%s)",
+		quote(index.Name), quote(schemaName), quote(tableName), column)
 }
 
 func generateAddForeignKey(schemaName, tableName string, fk *metadata.ForeignKeyMetadata) string {

@@ -429,3 +429,29 @@ func TestIdentityChangeIsExplicitlyUnsupported(t *testing.T) {
 	require.Contains(t, sql, "UNSUPPORTED: identity property change")
 	require.NotContains(t, sql, "DROP COLUMN [id]")
 }
+
+func TestDefinitionAndMigrationRenderXMLIndexes(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "doc", Type: "xml", Nullable: true}},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "pxml", Type: "XML", Expressions: []string{"doc"}, Definition: "PRIMARY"},
+				{Name: "sxml", Type: "XML", Expressions: []string{"doc"}, Definition: "USING XML INDEX pxml FOR PATH"},
+			},
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE PRIMARY XML INDEX [pxml] ON [dbo].[t] ([doc]);")
+	require.Contains(t, def, "CREATE XML INDEX [sxml] ON [dbo].[t] ([doc])\nUSING XML INDEX [pxml] FOR PATH;")
+
+	from := New()
+	require.NoError(t, from.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{}))
+	to := New()
+	require.NoError(t, to.LoadMetadata(t.Context(), meta))
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "CREATE PRIMARY XML INDEX [pxml] ON [dbo].[t] ([doc])")
+	require.Contains(t, sql, "USING XML INDEX [pxml] FOR PATH")
+}

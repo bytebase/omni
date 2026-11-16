@@ -858,11 +858,15 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		i.name,
 		i.type_desc,
 		i.is_unique,
+		xi.secondary_type_desc,
+		pi.name AS using_index_name,
 		col.name AS column_name,
 		ic.is_descending_key
 	FROM sys.indexes i
 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
@@ -881,7 +885,9 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		var schemaName, tableName, indexName, typeDesc, colName sql.NullString
 		var objectID, indexID sql.NullInt32
 		var isUnique, isDescending sql.NullBool
-		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique, &colName, &isDescending); err != nil {
+		var secondaryTypeDesc, usingIndexName sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique,
+			&secondaryTypeDesc, &usingIndexName, &colName, &isDescending); err != nil {
 			return nil, err
 		}
 
@@ -904,6 +910,16 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 			}
 			if typeDesc.Valid {
 				index.Type = typeDesc.String
+				if typeDesc.String == "XML" {
+					if usingIndexName.Valid {
+						index.Definition = "USING XML INDEX " + usingIndexName.String
+						if secondaryTypeDesc.Valid {
+							index.Definition += " FOR " + secondaryTypeDesc.String
+						}
+					} else {
+						index.Definition = "PRIMARY"
+					}
+				}
 				// If this is a spatial index, populate basic spatial config
 				if typeDesc.String == "SPATIAL" {
 					index.SpatialConfig = &metadatapb.SpatialIndexConfig{
