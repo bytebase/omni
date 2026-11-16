@@ -18,10 +18,14 @@
 // An SRV endpoint, mongodb+srv://, is an engine-specific setting: Options.SRV
 // selects it, since a DNS seed list's domain is not a host list.
 //
-// Config.TLS supplies the TLS settings for the endpoint and makes TLS
-// required; nil leaves the client's own default, which Params may change.
-// Config.Dial, when set, becomes the client's dialer, so an SSH tunnel or a
-// cloud connector reaches the server the same way.
+// Config.TLS supplies the TLS settings for one host and makes TLS required: the
+// driver dials each server itself and asks for that server's settings, so a
+// replica set's members and an SRV seed list's hosts are each verified against
+// their own name. A tls or ssl value in Params does nothing then, since the
+// driver has taken TLS over; nil leaves the client's own TLS negotiation, which
+// Params and the mongodb+srv scheme do configure. Config.Dial, when set, opens
+// the connection the driver hands to TLS, so an SSH tunnel or a cloud connector
+// reaches the server the same way.
 //
 // Config.ReadOnly, QueryOptions.Schema, QueryOptions.MaskingEnabled and
 // ExecuteOptions' transaction settings do nothing: MongoDB has no read-only
@@ -35,6 +39,7 @@ package driver
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net"
@@ -104,6 +109,12 @@ func connectionURI(cfg driver.Config, opts Options) (string, error) {
 		}
 		values.Set(key, value)
 	}
+	if cfg.TLS != nil {
+		// The driver dials TLS itself, one host at a time. The scheme's own
+		// implicit TLS for mongodb+srv, and a caller's tls or ssl value, would
+		// wrap that connection twice, so this wins over Params.
+		values.Set("tls", "false")
+	}
 	u.RawQuery = values.Encode()
 	return u.String(), nil
 }
@@ -122,6 +133,9 @@ func endpoint(host, port string) (string, error) {
 	if _, _, err := net.SplitHostPort(host); err == nil {
 		return host, nil
 	}
+	// A bracketed literal is an address without its port, so the brackets come
+	// off before JoinHostPort puts them back.
+	host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
 	if port == "" {
 		if net.ParseIP(host) != nil {
 			return "[" + host + "]", nil
@@ -143,21 +157,10 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 		return nil, err
 	}
 	clientOptions := options.Client().ApplyURI(connectionString)
-	if cfg.TLS != nil {
-		host, _, err := net.SplitHostPort(strings.TrimSpace(cfg.Host))
-		if err != nil {
-			host = strings.Trim(strings.TrimSpace(cfg.Host), "[]")
-		}
-		tlsConfig, err := cfg.TLS(host)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get TLS config: %w", err)
-		}
-		if tlsConfig == nil {
-			return nil, errors.New("TLS configuration must not be nil")
-		}
-		clientOptions.SetTLSConfig(tlsConfig)
-	}
-	if cfg.Dial != nil {
+	switch {
+	case cfg.TLS != nil:
+		clientOptions.SetDialer(tlsDialer{config: cfg})
+	case cfg.Dial != nil:
 		clientOptions.SetDialer(dialFunc(cfg.Dial))
 	}
 	client, err := mongo.Connect(clientOptions)
@@ -175,6 +178,53 @@ type dialFunc func(ctx context.Context, network, address string) (net.Conn, erro
 
 func (f dialFunc) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
 	return f(ctx, network, address)
+}
+
+// tlsDialer opens the connection to one server and hands it to TLS with the
+// settings Config.TLS returns for that server's host. One *tls.Config for a
+// whole cluster would verify every member against the seed it was built from.
+type tlsDialer struct {
+	config driver.Config
+}
+
+func (d tlsDialer) DialContext(ctx context.Context, network, address string) (net.Conn, error) {
+	host, _, err := net.SplitHostPort(address)
+	if err != nil {
+		host = strings.Trim(address, "[]")
+	}
+	// The settings come first, so a caller that refuses the host costs no
+	// connection.
+	tlsConfig, err := d.config.TLS(host)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get TLS config: %w", err)
+	}
+	if tlsConfig == nil {
+		return nil, errors.New("TLS configuration must not be nil")
+	}
+	conn, err := dial(ctx, d.config.Dial, network, address)
+	if err != nil {
+		return nil, err
+	}
+	tlsConfig = tlsConfig.Clone()
+	if tlsConfig.ServerName == "" {
+		tlsConfig.ServerName = host
+	}
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		_ = conn.Close()
+		return nil, err
+	}
+	return tlsConn, nil
+}
+
+// dial opens the network connection, through Config.Dial when the caller set
+// one and the default dialer otherwise.
+func dial(ctx context.Context, via func(ctx context.Context, network, address string) (net.Conn, error), network, address string) (net.Conn, error) {
+	if via != nil {
+		return via(ctx, network, address)
+	}
+	var d net.Dialer
+	return d.DialContext(ctx, network, address)
 }
 
 // MinSupportedServerVersion is the oldest MongoDB release the driver in go.mod
