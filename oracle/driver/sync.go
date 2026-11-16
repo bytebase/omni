@@ -234,15 +234,29 @@ func (d *Driver) SyncInstance(ctx context.Context) (*omnidriver.Instance, error)
 	}, nil
 }
 
+// schema returns the schema the driver reads — Config.Database, or the account's
+// own when the caller named none — resolving the latter once, since a driver is
+// shared and its sessions start in that schema.
+func (d *Driver) schema(ctx context.Context) (string, error) {
+	d.schemaOnce.Do(func() {
+		d.schemaName = d.databaseName
+		if d.schemaName != "" {
+			return
+		}
+		d.schemaErr = d.db.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&d.schemaName)
+	})
+	if d.schemaErr != nil {
+		return "", fmt.Errorf("failed to read the current schema: %w", d.schemaErr)
+	}
+	return d.schemaName, nil
+}
+
 // SyncDatabase reads the full schema metadata of Config.Database, or of the
 // account's own schema when Config names none.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	if d.databaseName == "" {
-		// An Oracle session's names resolve in the account's schema unless the
-		// session switched; SYS_CONTEXT states which that is.
-		if err := d.db.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&d.databaseName); err != nil {
-			return nil, fmt.Errorf("failed to read the current schema: %w", err)
-		}
+	schemaName, err := d.schema(ctx)
+	if err != nil {
+		return nil, err
 	}
 	// The version comes from the server on a connection of its own: the
 	// dictionary reads below hold the transaction's.
@@ -257,49 +271,49 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	defer func() { _ = txn.Rollback() }()
 
-	identityColumns, err := getIdentityColumns(txn, d.databaseName, version)
+	identityColumns, err := getIdentityColumns(txn, schemaName, version)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get identity columns from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get identity columns from database %q: %w", schemaName, err)
 	}
-	columnMap, err := getTableColumns(txn, d.databaseName, version, identityColumns)
+	columnMap, err := getTableColumns(txn, schemaName, version, identityColumns)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get table columns from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get table columns from database %q: %w", schemaName, err)
 	}
-	tableTriggerMap, viewTriggerMap, err := getTriggers(txn, d.databaseName)
+	tableTriggerMap, viewTriggerMap, err := getTriggers(txn, schemaName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get triggers from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get triggers from database %q: %w", schemaName, err)
 	}
-	indexMap, checkConstraintMap, foreignKeyMap, err := getIndexesAndConstraints(txn, d.databaseName)
+	indexMap, checkConstraintMap, foreignKeyMap, err := getIndexesAndConstraints(txn, schemaName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indices: %w", err)
 	}
-	tableMap, err := getTables(txn, d.databaseName, columnMap, indexMap, checkConstraintMap, foreignKeyMap, tableTriggerMap)
+	tableMap, err := getTables(txn, schemaName, columnMap, indexMap, checkConstraintMap, foreignKeyMap, tableTriggerMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tables from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get tables from database %q: %w", schemaName, err)
 	}
-	viewMap, err := getViews(txn, d.databaseName, columnMap, viewTriggerMap)
+	viewMap, err := getViews(txn, schemaName, columnMap, viewTriggerMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get views from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get views from database %q: %w", schemaName, err)
 	}
-	sequences, err := getSequences(txn, d.databaseName)
+	sequences, err := getSequences(txn, schemaName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sequences from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get sequences from database %q: %w", schemaName, err)
 	}
 	dbLinks, err := getDBLinks(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get db links from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get db links from database %q: %w", schemaName, err)
 	}
-	functions, procedures, packages, err := getRoutines(txn, d.databaseName)
+	functions, procedures, packages, err := getRoutines(txn, schemaName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get routines from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get routines from database %q: %w", schemaName, err)
 	}
-	materializedViews, err := getMaterializedViews(txn, d.databaseName, indexMap, tableTriggerMap)
+	materializedViews, err := getMaterializedViews(txn, schemaName, indexMap, tableTriggerMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", schemaName, err)
 	}
-	synonyms, err := getSynonyms(txn, d.databaseName)
+	synonyms, err := getSynonyms(txn, schemaName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", schemaName, err)
 	}
 	publicSynonyms, err := getSynonyms(txn, publicSchema)
 	if err != nil {
@@ -311,15 +325,15 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
-		Name:            d.databaseName,
+		Name:            schemaName,
 		ServiceName:     d.serviceName,
 		LinkedDatabases: dbLinks,
 		PublicSynonyms:  publicSynonyms,
 	}
 	databaseMetadata.Schemas = append(databaseMetadata.Schemas, &metadatapb.SchemaMetadata{
 		Name:              "",
-		Tables:            tableMap[d.databaseName],
-		Views:             viewMap[d.databaseName],
+		Tables:            tableMap[schemaName],
+		Views:             viewMap[schemaName],
 		MaterializedViews: materializedViews,
 		Sequences:         sequences,
 		Functions:         functions,

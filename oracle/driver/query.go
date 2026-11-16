@@ -87,12 +87,14 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 
 // limitStatement bounds the rows statement returns. The rewrite reads the
 // statement's first keyword, so a leading comment is set aside and put back
-// around the bounded statement; a statement neither form can bound keeps its
-// text, as it does in Bytebase.
+// around the bounded statement; a statement the rewrite refuses falls back to
+// the ROWNUM wrapper, as it does in Bytebase.
 func limitStatement(statement string, limit int, engineVersion string) string {
 	start := skipSpaceAndComments(statement)
 	prefix, body := statement[:start], statement[start:]
-	if rewritten, err := oracleanalysis.RewriteResultLimit(body, limit, engineVersion); err == nil && rewritten != body {
+	// An unchanged result is the rewrite's own answer for a statement it leaves
+	// alone, such as a sequence read from DUAL; only an error falls back.
+	if rewritten, err := oracleanalysis.RewriteResultLimit(body, limit, engineVersion); err == nil {
 		return prefix + rewritten
 	}
 	return prefix + oracleanalysis.RowNumResultLimit(body, limit)
