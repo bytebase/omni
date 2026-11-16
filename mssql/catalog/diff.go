@@ -502,7 +502,7 @@ func compareIndexes(oldTable, newTable *metadata.TableMetadata) []*IndexDiffEntr
 }
 
 func indexesEqual(a, b *metadata.IndexMetadata) bool {
-	if a.Type != b.Type || a.Unique != b.Unique || a.Primary != b.Primary || a.IsConstraint != b.IsConstraint {
+	if !indexTypesEqual(a, b) || a.Unique != b.Unique || a.Primary != b.Primary || a.IsConstraint != b.IsConstraint {
 		return false
 	}
 	if len(a.Expressions) != len(b.Expressions) {
@@ -537,6 +537,24 @@ func indexesEqual(a, b *metadata.IndexMetadata) bool {
 		return false
 	}
 	return whereClausesEqual(a.Definition, b.Definition)
+}
+
+func indexTypesEqual(a, b *metadata.IndexMetadata) bool {
+	if a.Type == b.Type {
+		return true
+	}
+	// An omitted keyword takes SQL Server's default. A key constraint defaults
+	// to CLUSTERED, every other index to NONCLUSTERED.
+	effective := func(index *metadata.IndexMetadata) string {
+		if index.Type != "" {
+			return index.Type
+		}
+		if index.IsConstraint && index.Primary {
+			return "CLUSTERED"
+		}
+		return "NONCLUSTERED"
+	}
+	return effective(a) == effective(b)
 }
 
 func descendingArraysEqual(a, b []bool) bool {
@@ -1087,6 +1105,42 @@ func normalizeExpression(expression string) string {
 			continue
 		}
 		switch {
+		case ch == '[':
+			if space {
+				out.WriteByte(' ')
+				space = false
+			}
+			for i < len(expression) {
+				out.WriteByte(expression[i])
+				if expression[i] == ']' {
+					if i+1 < len(expression) && expression[i+1] == ']' {
+						out.WriteByte(']')
+						i += 2
+						continue
+					}
+					i++
+					break
+				}
+				i++
+			}
+			i--
+		case ch == '"':
+			if space {
+				out.WriteByte(' ')
+				space = false
+			}
+			out.WriteByte(ch)
+			for i++; i < len(expression); i++ {
+				out.WriteByte(expression[i])
+				if expression[i] == '"' {
+					if i+1 < len(expression) && expression[i+1] == '"' {
+						out.WriteByte('"')
+						i++
+						continue
+					}
+					break
+				}
+			}
 		case ch == '\'':
 			if space {
 				out.WriteByte(' ')

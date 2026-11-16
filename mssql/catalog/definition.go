@@ -553,6 +553,15 @@ func writeTableBody(out *strings.Builder, schemaName string, table *metadata.Tab
 		}
 		writeIndex(out, schemaName, table.Name, index)
 	}
+	if table.Comment != "" {
+		fmt.Fprintf(out, "%s;\nGO\n\n", generateTableCommentSQL("ADD", schemaName, table.Name, table.Comment))
+	}
+	for _, column := range table.Columns {
+		if column.Comment == "" {
+			continue
+		}
+		fmt.Fprintf(out, "%s;\nGO\n\n", generateColumnCommentSQL("ADD", schemaName, table.Name, column.Name, column.Comment))
+	}
 }
 
 func writeDeferredForeignKey(out *strings.Builder, schemaName, tableName string, fk *metadata.ForeignKeyMetadata) {
@@ -712,8 +721,46 @@ func checkExpression(expression string) string {
 
 func balancedOuterParens(expression string) bool {
 	depth := 0
-	for i, ch := range expression {
+	inSingle, inDouble, inBracket := false, false, false
+	for i := 0; i < len(expression); i++ {
+		ch := expression[i]
+		if inSingle {
+			if ch == '\'' {
+				if i+1 < len(expression) && expression[i+1] == '\'' {
+					i++
+					continue
+				}
+				inSingle = false
+			}
+			continue
+		}
+		if inDouble {
+			if ch == '"' {
+				if i+1 < len(expression) && expression[i+1] == '"' {
+					i++
+					continue
+				}
+				inDouble = false
+			}
+			continue
+		}
+		if inBracket {
+			if ch == ']' {
+				if i+1 < len(expression) && expression[i+1] == ']' {
+					i++
+					continue
+				}
+				inBracket = false
+			}
+			continue
+		}
 		switch ch {
+		case '\'':
+			inSingle = true
+		case '"':
+			inDouble = true
+		case '[':
+			inBracket = true
 		case '(':
 			depth++
 		case ')':

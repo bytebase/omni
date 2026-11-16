@@ -11,6 +11,7 @@ package catalog
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
@@ -217,7 +218,9 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 	case *ast.CreateTableStmt:
 		c.execCreateTable(n, source)
 	case *ast.CreateIndexStmt:
-		c.execCreateIndex(n, source)
+		if err := c.execCreateIndex(n, source); err != nil {
+			return err
+		}
 	case *ast.CreateSpatialIndexStmt:
 		c.execCreateSpatialIndex(n)
 	case *ast.CreateXmlIndexStmt:
@@ -391,8 +394,17 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 	}
 }
 
-func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) {
+func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) error {
 	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
+	if table := c.GetTable(schemaName, tableName); table == nil {
+		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+			for _, view := range schema.Views {
+				if strings.EqualFold(view.Name, tableName) {
+					return fmt.Errorf("indexes on views are not supported: %s.%s", schemaName, tableName)
+				}
+			}
+		}
+	}
 	table := c.getOrCreateTable(schemaName, tableName)
 
 	index := &metadata.IndexMetadata{
@@ -406,6 +418,7 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) {
 	appendIndexColumns(index, n.Columns)
 	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
 	table.Indexes = append(table.Indexes, index)
+	return nil
 }
 
 func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) {
@@ -704,6 +717,16 @@ func (c *Catalog) appendForeignKey(table *metadata.TableMetadata, n *ast.Constra
 		refSchema, refTable := tableRefSchemaObject(n.RefTable, fallbackSchema)
 		fk.ReferencedSchema = refSchema
 		fk.ReferencedTable = refTable
+		if len(fk.ReferencedColumns) == 0 {
+			if parent := c.GetTable(refSchema, refTable); parent != nil {
+				for _, index := range parent.Indexes {
+					if index.Primary {
+						fk.ReferencedColumns = append([]string(nil), index.Expressions...)
+						break
+					}
+				}
+			}
+		}
 	}
 	table.ForeignKeys = append(table.ForeignKeys, fk)
 }

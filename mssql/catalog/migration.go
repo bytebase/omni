@@ -53,6 +53,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		text := fmt.Sprintf("-- UNSUPPORTED: replacing view %s under schema-bound dependent view %s; rebuild the dependent view manually.\n", view, view)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
+	if function := blockingFunctionCheck(diff); function != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: function %s is used by a CHECK constraint; rebuild the constraint manually.\n", function)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
 	if column := blockingComputedColumn(diff); column != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: column change under computed column %s; drop and recreate the computed column manually.\n", column)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
@@ -134,10 +138,25 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				break
 			}
 		}
-		for i, colDiff := range tableDiff.Columns {
-			if colDiff.Action != DiffDrop {
-				continue
+		droppedColumns := make([]*ColumnDiffEntry, 0)
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffDrop {
+				droppedColumns = append(droppedColumns, colDiff)
 			}
+		}
+		slices.SortStableFunc(droppedColumns, func(a, b *ColumnDiffEntry) int {
+			aComputed := a.OldColumn != nil && isComputedColumnType(a.OldColumn.Type)
+			bComputed := b.OldColumn != nil && isComputedColumnType(b.OldColumn.Type)
+			if aComputed == bComputed {
+				return 0
+			}
+			if aComputed {
+				return -1
+			}
+			return 1
+		})
+		for i, colDiff := range droppedColumns {
+			_ = i
 			if i == 0 && hasDroppedIndex {
 				buf.WriteString("GO\n")
 			}
@@ -199,7 +218,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for name := range droppedFunctionDefaults {
 		droppedDefaults[name] = true
 	}
-	for _, funcDiff := range diff.Functions {
+	for _, funcDiff := range orderedFunctionDrops(diff.Functions) {
 		if funcDiff.Action != DiffDrop {
 			continue
 		}
@@ -464,7 +483,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				created = true
 			}
 		}
-		if !created {
+		if !created || columnDefaultChanged(diff, ref.schema, ref.table, ref.column) {
 			continue
 		}
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s DEFAULT %s FOR %s;\n",
@@ -519,6 +538,8 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 	}
 	if newSequence.Increment != "" {
 		fmt.Fprintf(&buf, " INCREMENT BY %s", newSequence.Increment)
+	} else if oldSequence.Increment != "" {
+		buf.WriteString(" INCREMENT BY 1")
 	}
 	if newSequence.MinValue != "" {
 		fmt.Fprintf(&buf, " MINVALUE %s", newSequence.MinValue)
@@ -840,8 +861,13 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 			}
 		}
 	}
+	var secondaryXML []*metadata.IndexMetadata
 	for _, indexDiff := range tableDiff.Indexes {
 		if indexDiff.Action != DiffCreate {
+			continue
+		}
+		if indexDiff.NewIndex.Type == "XML" && strings.HasPrefix(indexDiff.NewIndex.Definition, "USING XML INDEX ") {
+			secondaryXML = append(secondaryXML, indexDiff.NewIndex)
 			continue
 		}
 		if indexDiff.NewIndex.IsConstraint {
@@ -872,6 +898,10 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 			buf.WriteString(";\n")
 		}
 	}
+	for _, index := range secondaryXML {
+		buf.WriteString(generateCreateIndex(tableDiff.SchemaName, tableDiff.TableName, index))
+		buf.WriteString(";\n")
+	}
 	for _, checkDiff := range tableDiff.Checks {
 		if checkDiff.Action == DiffCreate {
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n",
@@ -879,6 +909,35 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 		}
 	}
 	return buf.String()
+}
+
+func blockingFunctionCheck(diff *SchemaDiff) string {
+	replaced := make(map[string]bool)
+	for _, funcDiff := range diff.Functions {
+		if funcDiff.Action == DiffDrop || funcDiff.Action == DiffAlter {
+			replaced[strings.ToLower(funcDiff.FunctionName)] = true
+		}
+	}
+	if len(replaced) == 0 {
+		return ""
+	}
+	for _, tableDiff := range diff.Tables {
+		table := tableDiff.OldTable
+		if table == nil {
+			table = tableDiff.NewTable
+		}
+		if table == nil {
+			continue
+		}
+		for _, check := range table.CheckConstraints {
+			for name := range replaced {
+				if strings.Contains(strings.ToLower(check.Expression), name) {
+					return quote(tableDiff.SchemaName) + "." + quote(tableDiff.TableName) + "." + quote(check.Name)
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func blockingComputedColumn(diff *SchemaDiff) string {
@@ -1019,6 +1078,23 @@ type functionDefaultRef struct {
 	functionName string
 }
 
+func columnDefaultChanged(diff *SchemaDiff, schemaName, tableName, columnName string) bool {
+	for _, tableDiff := range diff.Tables {
+		if !strings.EqualFold(tableDiff.SchemaName, schemaName) || !strings.EqualFold(tableDiff.TableName, tableName) {
+			continue
+		}
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffDrop && colDiff.OldColumn != nil && strings.EqualFold(colDiff.OldColumn.Name, columnName) {
+				return true
+			}
+			if colDiff.Action == DiffAlter && colDiff.NewColumn != nil && strings.EqualFold(colDiff.NewColumn.Name, columnName) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder) (map[string]bool, []functionDefaultRef) {
 	removed := make(map[string]bool)
 	var restore []functionDefaultRef
@@ -1142,6 +1218,45 @@ func functionUsedByComputed(diff *SchemaDiff, functionName string) bool {
 		}
 	}
 	return false
+}
+
+func orderedFunctionDrops(functions []*FunctionDiffEntry) []*FunctionDiffEntry {
+	graph := newGraph()
+	byName := make(map[string]*FunctionDiffEntry)
+	for _, function := range functions {
+		if function.Action != DiffDrop {
+			continue
+		}
+		id := function.SchemaName + "." + function.FunctionName
+		graph.addNode(id)
+		byName[id] = function
+	}
+	for _, function := range functions {
+		if function.Action != DiffDrop || function.OldFunction == nil {
+			continue
+		}
+		id := function.SchemaName + "." + function.FunctionName
+		for _, other := range functions {
+			if other.Action != DiffDrop || other == function {
+				continue
+			}
+			name := other.FunctionName
+			if strings.Contains(strings.ToLower(function.OldFunction.Definition), strings.ToLower(name)) {
+				graph.addEdge(id, other.SchemaName+"."+other.FunctionName)
+			}
+		}
+	}
+	order, err := graph.topologicalSort()
+	if err != nil {
+		return functions
+	}
+	result := make([]*FunctionDiffEntry, 0, len(functions))
+	for _, id := range order {
+		if function := byName[id]; function != nil {
+			result = append(result, function)
+		}
+	}
+	return result
 }
 
 func orderedFunctionDiffs(functions []*FunctionDiffEntry) []*FunctionDiffEntry {
@@ -1321,6 +1436,11 @@ func indexUsesColumn(index *metadata.IndexMetadata, name string) bool {
 	}
 	for _, column := range indexIncludeColumns(index.Definition) {
 		if strings.EqualFold(column, name) {
+			return true
+		}
+	}
+	if predicate := indexWhereClause(index.Definition); predicate != "" {
+		if strings.Contains(strings.ToLower(predicate), strings.ToLower(name)) {
 			return true
 		}
 	}
