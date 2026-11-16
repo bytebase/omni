@@ -313,7 +313,18 @@ func writeTableWithForeignKeys(buf *strings.Builder, table *metadatapb.TableMeta
 		}
 	}
 
-	return writeTriggers(buf, table.Triggers)
+	if err := writeTriggers(buf, table.Triggers); err != nil {
+		return err
+	}
+	if table.Comment != "" {
+		writeTableComment(buf, "", table.Name, table.Comment)
+	}
+	for _, column := range table.Columns {
+		if column.Comment != "" {
+			writeColumnComment(buf, "", table.Name, column.Name, column.Comment)
+		}
+	}
+	return nil
 }
 
 func writeIndex(buf *strings.Builder, table string, index *metadatapb.IndexMetadata) error {

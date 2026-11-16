@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	oracleparser "github.com/bytebase/omni/oracle/parser"
 )
 
 // GenerateMigration renders the DDL that turns from into to.
@@ -2614,7 +2615,7 @@ func writeConstraintColumn(out *strings.Builder, expression string) {
 		_, _ = out.WriteString(expression)
 		return
 	}
-	if isSimpleIdentifier(expression) && expression != strings.ToUpper(expression) {
+	if needsConstraintQuotes(expression) {
 		_, _ = out.WriteString(`"`)
 		_, _ = out.WriteString(strings.ReplaceAll(expression, `"`, `""`))
 		_, _ = out.WriteString(`"`)
@@ -2685,4 +2686,14 @@ func waitsForKeyAddition(diff *MetadataDiff, schemaName string, fk *metadatapb.F
 		}
 	}
 	return false
+}
+
+func needsConstraintQuotes(expression string) bool {
+	if !isSimpleIdentifier(expression) {
+		return true
+	}
+	if expression != strings.ToUpper(expression) {
+		return true
+	}
+	return oracleparser.IsReservedKeyword(expression)
 }

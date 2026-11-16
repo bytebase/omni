@@ -99,6 +99,12 @@ replay tests exercise.
   expressions.
 - Dropping a named NOT NULL check makes its column nullable when no other check
   still requires it.
+- `ALTER TABLE` validates the statement's owner, and renaming a table leaves
+  foreign keys owned by another schema alone.
+- An identity column renders `ON NULL` when its metadata requests it.
+- A table definition renders its table and column comments.
+- A constraint column that is reserved or not a simple identifier is quoted in
+  a migration.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

@@ -451,7 +451,7 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 
 func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 	tableName := objectName(n.Name)
-	if tableName == "" {
+	if tableName == "" || !e.useSchema(n.Name.Schema) {
 		return
 	}
 	table := e.getOrCreateTable(tableName)
@@ -785,13 +785,13 @@ func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
 	delete(e.tables, oldName)
 	table.Name = newName
 	for _, fk := range table.ForeignKeys {
-		if fk.ReferencedTable == oldName {
+		if fk.ReferencedTable == oldName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
 			fk.ReferencedTable = newName
 		}
 	}
 	for _, other := range e.tables {
 		for _, fk := range other.ForeignKeys {
-			if fk.ReferencedTable == oldName {
+			if fk.ReferencedTable == oldName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
 				fk.ReferencedTable = newName
 			}
 		}
