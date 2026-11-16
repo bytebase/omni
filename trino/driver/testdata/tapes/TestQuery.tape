@@ -578,6 +578,18 @@
 : int64 1
 < row
 : int64 2
+> query
+| SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x LIMIT 1
+< result
+< column "x" "INTEGER"
+< row
+: int64 1
+> query
+| SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x
+< result
+< column "x" "INTEGER"
+< row
+: int64 1
 
 == TestQuery/types default#1
 > query

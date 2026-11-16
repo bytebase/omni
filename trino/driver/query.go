@@ -312,29 +312,31 @@ func limitable(statement string) bool {
 // last; it lands just past the last token so a trailing comment does not
 // swallow it.
 func applyLimit(statement string, limit int) string {
-	if hasRowLimit(statement) {
+	hasCap, known := rowCap(statement)
+	// A statement the parser cannot read is left as written: the rewrite would
+	// risk a second clause on a tree we cannot see (Trino accepts syntax the
+	// local parser does not, and a syntax error needs no cap).
+	if !known || hasCap {
 		return statement
 	}
 	at := codeEnd(statement)
 	return fmt.Sprintf("%s LIMIT %d%s", statement[:at], limit, statement[at:])
 }
 
-// hasRowLimit reports whether the parsed statement already caps its rows with a
-// LIMIT or FETCH clause. It asks the parser because LIMIT and FETCH are
-// non-reserved in Trino: `SELECT t.limit FROM t(limit)` names a column, and only
-// the tree tells the clause from the name. A statement the parser cannot read is
-// treated as having none, which keeps the caller's cap and lets the server
-// report the syntax error it would report anyway.
-func hasRowLimit(statement string) bool {
+// rowCap reports whether statement already caps its rows with a LIMIT or FETCH
+// clause, and whether the parser could tell. It asks the parser because LIMIT
+// and FETCH are non-reserved in Trino: `SELECT t.limit FROM t(limit)` names a
+// column, and only the tree tells the clause from the name.
+func rowCap(statement string) (hasCap, known bool) {
 	file, err := parser.Parse(statement)
 	if err != nil || file == nil || len(file.Stmts) != 1 {
-		return false
+		return false, false
 	}
 	query, ok := file.Stmts[0].(*parser.QueryStmt)
 	if !ok || query.Query == nil {
-		return false
+		return false, false
 	}
-	return query.Query.Limit != nil || query.Query.Fetch != nil
+	return query.Query.Limit != nil || query.Query.Fetch != nil, true
 }
 
 // trimStatement trims a segment the way Bytebase's splitter trimmed the

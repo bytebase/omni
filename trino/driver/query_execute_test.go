@@ -385,6 +385,10 @@ func TestQuery(t *testing.T) {
 			{"a column named limit does not suppress the cap", "SELECT t.limit FROM (VALUES 1, 2, 3) AS t(limit)", 2, " LIMIT 2", ""},
 			{"LIMIT ALL is the caller's own cap", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT ALL", 5, "LIMIT ALL", " LIMIT 2"},
 			{"FETCH FIRST is the caller's own cap", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) FETCH FIRST 2 ROWS ONLY", 2, "FETCH FIRST 2 ROWS ONLY", " LIMIT 2"},
+			// UNION CORRESPONDING is valid Trino the local parser does not read,
+			// so its own clause must survive.
+			{"a statement the parser cannot read keeps its own cap", "SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x LIMIT 1", 1, "LIMIT 1", " LIMIT 2"},
+			{"a statement the parser cannot read gets no rewrite", "SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x", 1, "", " LIMIT 2"},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				results, err := session.Query(ctx, tc.script, driver.QueryOptions{Limit: 2})
