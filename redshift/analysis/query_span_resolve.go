@@ -924,7 +924,9 @@ func functionDefinitionOutputNames(definition string) ([]string, bool) {
 		}
 		names = append(names, redshiftTargetOutputName(target))
 	}
-	return applyFunctionColumnAliases(names, aliases), true
+	projection := functionSourceProjection{names: names, sources: make([]ColumnSet, len(names))}
+	applyFunctionExclude(&projection, redshiftStringList(selectStmt.ExcludeList))
+	return applyFunctionColumnAliases(projection.names, aliases), true
 }
 
 func findFunctionTable(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {
