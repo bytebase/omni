@@ -1,0 +1,682 @@
+- statement: SELECT name, email FROM users WHERE id = 123
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: id
+- statement: SELECT * FROM products
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: products
+  predicatecolumns: []
+- statement: SELECT * FROM products
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: products
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: products
+          column: name
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: products
+  predicatecolumns: []
+- statement: SELECT id, name FROM myapp.customers
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: myapp
+          table: customers
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: myapp
+          table: customers
+          column: name
+      isplainfield: true
+  sourcecolumns:
+    - database: myapp
+      table: customers
+  predicatecolumns: []
+- statement: SELECT id FROM "MyTable"
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: MyTable
+          column: id
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: MyTable
+  predicatecolumns: []
+- statement: SELECT "FirstName", "LastName" FROM users
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: FirstName
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: FirstName
+      isplainfield: true
+    - name: LastName
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: LastName
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns: []
+- statement: SELECT id FROM "MyKeyspace"."MyTable"
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: MyKeyspace
+          table: MyTable
+          column: id
+      isplainfield: true
+  sourcecolumns:
+    - database: MyKeyspace
+      table: MyTable
+  predicatecolumns: []
+- statement: SELECT name AS user_name, email AS user_email FROM users
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: user_name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: user_email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns: []
+- statement: SELECT name AS "User Name", email AS "User Email" FROM users
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: User Name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: User Email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns: []
+- statement: SELECT FROM WHERE
+  defaultKeyspace: test_keyspace
+  type: -1
+  error: true
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: ""
+  defaultKeyspace: test_keyspace
+  type: 0
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: SELECT "unclosed FROM users
+  defaultKeyspace: test_keyspace
+  type: -1
+  error: true
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: SELECT , , FROM users
+  defaultKeyspace: test_keyspace
+  type: -1
+  error: true
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: SELECT * FROM users WHERE addr.city = 'x'
+  defaultKeyspace: test_keyspace
+  type: -1
+  error: true
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: SELECT * FROM users WHERE addr.city = 'x'
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: -1
+  error: true
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: SELECT name FROM users WHERE id = 123 AND status = 'active'
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: id
+    - database: test_keyspace
+      table: users
+      column: status
+- statement: SELECT * FROM users WHERE age > 18 AND age < 65
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: age
+- statement: SELECT * FROM users WHERE age > 18 AND age < 65
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+    - name: secret
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: secret
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: age
+- statement: SELECT * FROM users WHERE status IN ('active', 'pending')
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: status
+- statement: SELECT * FROM users WHERE status IN ('active', 'pending')
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+    - name: secret
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: secret
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: status
+- statement: SELECT * FROM users WHERE "UserId" = 123 AND "UserStatus" = 'active'
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: UserId
+    - database: test_keyspace
+      table: users
+      column: UserStatus
+- statement: SELECT * FROM users WHERE "UserId" = 123 AND "UserStatus" = 'active'
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+    - name: secret
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: secret
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: UserId
+    - database: test_keyspace
+      table: users
+      column: UserStatus
+- statement: UPDATE users SET status = 'inactive' WHERE id = 123 AND age > 65
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: age
+    - database: test_keyspace
+      table: users
+      column: id
+- statement: DELETE FROM users WHERE status = 'deleted' AND created_at < 1000000
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: created_at
+    - database: test_keyspace
+      table: users
+      column: status
+- statement: UPDATE products SET category = 'archived' WHERE id IN (1, 2, 3)
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: products
+  predicatecolumns:
+    - database: test_keyspace
+      table: products
+      column: id
+- statement: SELECT * FROM users WHERE (id, name) IN ((1, 'a'), (2, 'b'))
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: id
+    - database: test_keyspace
+      table: users
+      column: name
+- statement: SELECT * FROM users WHERE (id, name) IN ((1, 'a'), (2, 'b'))
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+    - name: secret
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: secret
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: id
+    - database: test_keyspace
+      table: users
+      column: name
+- statement: SELECT * FROM users
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns: []
+- statement: SELECT * FROM users
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: name
+      isplainfield: true
+    - name: email
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: email
+      isplainfield: true
+    - name: secret
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: secret
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns: []
+- statement: SELECT * FROM myapp.customers
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: myapp
+      table: customers
+  predicatecolumns: []
+- statement: SELECT * FROM myapp.customers
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: myapp
+      table: customers
+  predicatecolumns: []
+- statement: INSERT INTO products (id, name) VALUES (1, 'Widget')
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: products
+  predicatecolumns: []
+- statement: UPDATE inventory SET quantity = 10 WHERE id = 1
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: inventory
+  predicatecolumns:
+    - database: test_keyspace
+      table: inventory
+      column: id
+- statement: DELETE FROM orders WHERE id = 1
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: orders
+  predicatecolumns:
+    - database: test_keyspace
+      table: orders
+      column: id
+- statement: CREATE TABLE users (id uuid PRIMARY KEY, name text)
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: ALTER TABLE users ADD email text
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP TABLE users
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: 'CREATE KEYSPACE myapp WITH replication = {''class'': ''SimpleStrategy'', ''replication_factor'': 1}'
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: 'ALTER KEYSPACE myapp WITH replication = {''class'': ''SimpleStrategy'', ''replication_factor'': 3}'
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP KEYSPACE myapp
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: CREATE INDEX user_email_idx ON users (email)
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP INDEX user_email_idx
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: CREATE MATERIALIZED VIEW user_summary AS SELECT id, name FROM users WHERE id IS NOT NULL PRIMARY KEY (id)
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: 'ALTER MATERIALIZED VIEW user_summary WITH compression = {''sstable_compression'': ''LZ4Compressor''}'
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP MATERIALIZED VIEW user_summary
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: CREATE TYPE address (street text, city text, zip text)
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: ALTER TYPE address ADD country text
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP TYPE address
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: CREATE FUNCTION myfunction(val int) RETURNS NULL ON NULL INPUT RETURNS int LANGUAGE java AS 'return val * 2;'
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP FUNCTION myfunction
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: CREATE TRIGGER mytrigger ON users USING 'org.apache.cassandra.triggers.AuditTrigger'
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: DROP TRIGGER mytrigger ON users
+  defaultKeyspace: test_keyspace
+  type: 4
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: SELECT WRITETIME(name), secret FROM users
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+    - name: secret
+      sourcecolumns:
+        - database: test_keyspace
+          table: users
+          column: secret
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns: []
+- statement: TRUNCATE users
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns: []
+  predicatecolumns: []
+- statement: BEGIN BATCH INSERT INTO users (id, name) VALUES (1, 'a'); UPDATE users SET name = 'b' WHERE id = 1; APPLY BATCH
+  defaultKeyspace: test_keyspace
+  type: 5
+  sourcecolumns:
+    - database: test_keyspace
+      table: users
+  predicatecolumns:
+    - database: test_keyspace
+      table: users
+      column: id
