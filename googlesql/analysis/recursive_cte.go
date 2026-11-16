@@ -170,6 +170,7 @@ func (w *spanWalker) substituteFilterPlaceholders(ph map[ColumnRef]int, cols []p
 		return
 	}
 	var added []ColumnRef
+	consumed := make(map[ColumnRef]bool, len(ph))
 	kept := make([]ColumnRef, 0, len(w.span.filterColumns))
 	for _, ref := range w.span.filterColumns {
 		j, ok := ph[ref]
@@ -177,11 +178,23 @@ func (w *spanWalker) substituteFilterPlaceholders(ph map[ColumnRef]int, cols []p
 			kept = append(kept, ref)
 			continue
 		}
+		consumed[ref] = true
 		if j < len(cols) {
 			added = append(added, cols[j].sources...)
 		}
 	}
-	w.span.filterColumns = kept
+	// A written reference recorded only to keep a bailed fixpoint matchable retires
+	// with the placeholder it stood in for: keeping it would let it match an
+	// unrelated column of the same name.
+	retained := kept[:0]
+	for _, ref := range kept {
+		if placeholder, ok := w.span.filterPlaceholderFallback[ref]; ok && consumed[placeholder] {
+			delete(w.span.filterPlaceholderFallback, ref)
+			continue
+		}
+		retained = append(retained, ref)
+	}
+	w.span.filterColumns = retained
 	for _, ref := range added {
 		if ref.Column != "" {
 			w.addFilterColumn(ref)

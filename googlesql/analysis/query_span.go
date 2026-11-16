@@ -62,6 +62,11 @@ type QuerySpan struct {
 	// condition cannot read an output column the star does not project.
 	filterStarExcept map[ColumnRef]map[string]bool
 
+	// filterPlaceholderFallback maps a written reference recorded beside a recursive
+	// CTE placeholder to that placeholder, so substituting the placeholder also
+	// retires the written name it stood in for.
+	filterPlaceholderFallback map[ColumnRef]ColumnRef
+
 	// CTEs lists the names defined by WITH clauses at any scope, in declaration
 	// order.
 	CTEs []string
@@ -1756,7 +1761,9 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 			// too (an EXISTS body only decides whether a row exists). Its own
 			// WHERE/ON/HAVING are recorded by its body visit either way.
 			prev := w.captureFilterProjections
-			w.captureFilterProjections = true
+			// Only a consumed projection reads its expression subqueries; an EXISTS
+			// body's output is not read, nested projections included.
+			w.captureFilterProjections = projects
 			projection := w.visitBody(query)
 			w.captureFilterProjections = prev
 			if !projects {
@@ -1792,10 +1799,14 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 		// An unqualified name the current body can only attribute to a base relation
 		// may belong to an enclosing body's CTE or derived relation, whose columns
 		// ARE enumerable: add that reading too. Both are candidate reads, and this
-		// pass cannot know which the engine picks without a catalog.
-		refs = append(refs, w.resolveOuterUnqualified(parts[0])...)
+		// pass cannot know which the engine picks without a catalog — unless the
+		// current body's own derived relation projects the name, which shadows the
+		// enclosing one (even when it reads nothing).
+		if _, shadowed := w.leaves.derivedColumn(parts[0]); !shadowed {
+			refs = append(refs, w.resolveOuterUnqualified(parts[0])...)
+		}
 		if len(refs) > 0 {
-			return appendWrittenColumn(refs, "", parts[0])
+			return w.appendWrittenColumn(refs, "", parts[0])
 		}
 		return []ColumnRef{{Column: parts[0]}}
 	}
@@ -1803,7 +1814,7 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 		// A derived relation's column that reads no column of its own (a constant)
 		// resolves to no lineage and must not fall through to a physical column of
 		// the same name.
-		return appendWrittenColumn(refs, parts[0], parts[1])
+		return w.appendWrittenColumn(refs, parts[0], parts[1])
 	}
 	if w.namesAccessRelation(parts[0]) {
 		return []ColumnRef{{Table: parts[0], Column: parts[1]}}
@@ -1813,7 +1824,7 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 		return []ColumnRef{ref}
 	}
 	_, refs := w.resolvePath(parts)
-	return appendWrittenColumn(refs, "", parts[len(parts)-1])
+	return w.appendWrittenColumn(refs, "", parts[len(parts)-1])
 }
 
 // appendWrittenColumn returns refs, adding a written reference to column when
@@ -1821,11 +1832,18 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 // column itself, so the fixpoint substitutes its converged lineage
 // (substituteFilterPlaceholders) and the written reference keeps a fixpoint that
 // bailed out matchable by name.
-func appendWrittenColumn(refs []ColumnRef, table, column string) []ColumnRef {
+func (w *spanWalker) appendWrittenColumn(refs []ColumnRef, table, column string) []ColumnRef {
 	if len(refs) == 0 || !placeholderRefs(refs) {
 		return refs
 	}
-	return append(refs, ColumnRef{Table: table, Column: column})
+	written := ColumnRef{Table: table, Column: column}
+	if w.span.filterPlaceholderFallback == nil {
+		w.span.filterPlaceholderFallback = make(map[ColumnRef]ColumnRef, 1)
+	}
+	for _, ref := range refs {
+		w.span.filterPlaceholderFallback[written] = ref
+	}
+	return append(refs, written)
 }
 
 // resolveOuterUnqualified resolves an unqualified column name against the CTE and
@@ -1924,6 +1942,13 @@ func (w *spanWalker) addStarSegmentFilterColumns(segment projColumn, except []st
 		w.addFilterStar(*segment.baseStar, append(append([]string{}, except...), segment.baseStarExcept...))
 		return
 	}
+	for _, name := range except {
+		if foldKey(name) == foldKey(segment.name) {
+			// The star does not project this output column, so nothing it reads is a
+			// row condition.
+			return
+		}
+	}
 	w.addProjectionFilterColumns([]projColumn{segment})
 }
 
@@ -1934,13 +1959,22 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo) {
 		for _, ref := range info.SourceColumns {
 			w.addFilterColumn(ref)
 		}
+		except := info.StarExcept
+		for _, item := range info.StarReplace {
+			except = append(append([]string{}, except...), item.Name)
+		}
 		for _, segment := range info.StarSegments {
 			if segment.BaseTable != nil {
-				w.addFilterStar(*segment.BaseTable, append(append([]string{}, info.StarExcept...), segment.ExceptColumns...))
+				w.addFilterStar(*segment.BaseTable, append(append([]string{}, except...), segment.ExceptColumns...))
 				continue
 			}
-			for _, ref := range segment.Sources {
-				w.addFilterColumn(ref)
+			w.addStarSegmentFilterColumns(projColumn{name: segment.Name, sources: segment.Sources}, except)
+		}
+		for _, item := range info.StarReplace {
+			for _, ref := range item.Sources {
+				if ref.Column != "" {
+					w.addFilterColumn(ref)
+				}
 			}
 		}
 		if info.StarMerge != nil {

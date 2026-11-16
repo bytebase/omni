@@ -4730,3 +4730,276 @@
         schema: ""
         table: audit_t
         column: secret
+- description: "predicate columns: a deferred set-operation arm's REPLACE is what the condition reads"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (secret) REPLACE (secret AS id) FROM audit_t UNION ALL SELECT 0)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+
+- description: "predicate columns: an EXISTS body's nested projection is not a row condition"
+  statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT (SELECT secret FROM audit_t))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: an inner derived column shadows an enclosing CTE column"
+  statement: WITH c AS (SELECT secret AS k FROM audit_t) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM (SELECT 1 AS k) u WHERE k = 1)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a star EXCEPT excludes a concrete segment by output name"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (id) FROM (SELECT secret AS id, public AS x FROM audit_t))
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                },
+                {
+                  "name": "public"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: public
+
+- description: "predicate columns: a recursive arm's written fallback retires with its placeholder"
+  statement: WITH RECURSIVE c AS (SELECT secret AS k FROM audit_t UNION ALL SELECT c.k + 1 FROM c CROSS JOIN audit_u WHERE c.k < 10) SELECT 1 FROM c
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "k"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+
