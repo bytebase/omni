@@ -87,6 +87,8 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	dropViewsInOrder(diff, &buf)
+
 	for _, procDiff := range diff.Procedures {
 		if procDiff.Action == DiffDrop {
 			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
@@ -97,7 +99,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			fmt.Fprintf(&buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 		}
 	}
-	dropViewsInOrder(diff, &buf)
 
 	for _, tableDiff := range diff.Tables {
 		if tableDiff.Action != DiffAlter {
@@ -841,10 +842,7 @@ func columnRequiresRebuild(diff *ColumnDiffEntry) bool {
 	if diff.OldColumn == nil || diff.NewColumn == nil {
 		return false
 	}
-	return computedColumnChanged(diff) ||
-		diff.OldColumn.IsIdentity != diff.NewColumn.IsIdentity ||
-		diff.OldColumn.IdentitySeed != diff.NewColumn.IdentitySeed ||
-		diff.OldColumn.IdentityIncrement != diff.NewColumn.IdentityIncrement
+	return computedColumnChanged(diff)
 }
 
 func computedColumnChanged(diff *ColumnDiffEntry) bool {
@@ -911,7 +909,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 	var buf strings.Builder
 	if colDiff.OldColumn.Type != colDiff.NewColumn.Type {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ALTER COLUMN %s %s", quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name), colDiff.NewColumn.Type)
-		if colDiff.OldColumn.Collation != colDiff.NewColumn.Collation && colDiff.NewColumn.Collation != "" {
+		if colDiff.NewColumn.Collation != "" {
 			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
 		}
 		if colDiff.NewColumn.Nullable {
@@ -931,6 +929,12 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 			buf.WriteString(" NOT NULL")
 		}
 		buf.WriteString(";\n")
+	}
+	if colDiff.OldColumn.IsIdentity != colDiff.NewColumn.IsIdentity ||
+		colDiff.OldColumn.IdentitySeed != colDiff.NewColumn.IdentitySeed ||
+		colDiff.OldColumn.IdentityIncrement != colDiff.NewColumn.IdentityIncrement {
+		fmt.Fprintf(&buf, "-- UNSUPPORTED: identity property change on %s.%s.%s requires a table rebuild; left unchanged.\n",
+			quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name))
 	}
 	oldDefault := getColumnDefaultValue(colDiff.OldColumn)
 	newDefault := getColumnDefaultValue(colDiff.NewColumn)

@@ -216,12 +216,15 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 
 func writeFunctionsAndProcedures(out *strings.Builder, schema *metadata.SchemaMetadata, early map[string]bool) {
 	for _, function := range schema.Functions {
-		if early[objectID(schema.Name, function.Name)] {
+		if function.GetSkipDump() || early[objectID(schema.Name, function.Name)] {
 			continue
 		}
 		writeFunction(out, function)
 	}
 	for _, procedure := range schema.Procedures {
+		if procedure.SkipDump {
+			continue
+		}
 		writeProcedure(out, procedure)
 	}
 }
@@ -248,6 +251,9 @@ func writeAllTablesInOrder(out *strings.Builder, schemas []*metadata.SchemaMetad
 	var allTables []tableWithSchema
 	for _, schema := range schemas {
 		for _, table := range schema.Tables {
+			if table.GetSkipDump() {
+				continue
+			}
 			allTables = append(allTables, tableWithSchema{schema: schema.Name, table: table})
 		}
 	}
@@ -317,6 +323,9 @@ func writeAllViewsInOrder(out *strings.Builder, schemas []*metadata.SchemaMetada
 	var allViews []viewWithSchema
 	for _, schema := range schemas {
 		for _, view := range schema.Views {
+			if view.GetSkipDump() {
+				continue
+			}
 			allViews = append(allViews, viewWithSchema{schema: schema.Name, view: view})
 		}
 	}

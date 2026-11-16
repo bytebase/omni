@@ -463,7 +463,7 @@ func compareIndexes(oldTable, newTable *metadata.TableMetadata) []*IndexDiffEntr
 }
 
 func indexesEqual(a, b *metadata.IndexMetadata) bool {
-	if a.Type != b.Type || a.Unique != b.Unique || a.Primary != b.Primary {
+	if a.Type != b.Type || a.Unique != b.Unique || a.Primary != b.Primary || a.IsConstraint != b.IsConstraint {
 		return false
 	}
 	if len(a.Expressions) != len(b.Expressions) {

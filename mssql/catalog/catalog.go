@@ -226,6 +226,8 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		c.execCreateRoutine("function", n.Name, n, source)
 	case *ast.CreateSequenceStmt:
 		c.execCreateSequence(n, source)
+	case *ast.CreateTriggerStmt:
+		c.execCreateTrigger(n, source)
 	case *ast.ExecStmt:
 		c.execExtendedProperty(n, source)
 	}
@@ -464,6 +466,42 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
 		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	}
 	schema.Sequences = append(schema.Sequences, sequence)
+}
+
+func (c *Catalog) execCreateTrigger(n *ast.CreateTriggerStmt, source string) {
+	if n.Table == nil || n.Name == nil {
+		return
+	}
+	schemaName, parentName := tableRefSchemaObject(n.Table, c.defaultSchema)
+	var events []string
+	if n.Events != nil {
+		for _, item := range n.Events.Items {
+			switch event := item.(type) {
+			case *ast.String:
+				events = append(events, event.Str)
+			case *ast.TriggerEvent:
+				events = append(events, event.Name)
+			}
+		}
+	}
+	trigger := &metadata.TriggerMetadata{
+		Name:   n.Name.Object,
+		Timing: n.TriggerType,
+		Event:  strings.Join(events, ","),
+		Body:   definitionText(n, source),
+	}
+	if table := c.GetTable(schemaName, parentName); table != nil {
+		table.Triggers = append(table.Triggers, trigger)
+		return
+	}
+	if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+		for _, view := range schema.Views {
+			if strings.EqualFold(view.Name, parentName) {
+				view.Triggers = append(view.Triggers, trigger)
+				return
+			}
+		}
+	}
 }
 
 func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {

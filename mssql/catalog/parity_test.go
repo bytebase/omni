@@ -102,7 +102,8 @@ var knownMigrationImprovements = map[string]bool{
 	"Reverse of table and column comments - dropping extended properties":                                          true,
 	"Reverse of default constraint operations - dropping tables, columns with defaults, and default constraints":   true,
 	"Reverse of comments with special characters - dropping comments with quotes, unicode, and special formatting": true,
-	"Reverse of edge case defaults - dropping special default constraints and columns":                             true,
+	"Reverse of edge case defaults - dropping special default constraints and columns":                             true, "Safe order - drop dependent objects before tables": true,
+	"Self-referencing foreign keys and complex view dependencies": true,
 }
 
 // normalizeMetadataParity removes the fields the catalog deliberately improves

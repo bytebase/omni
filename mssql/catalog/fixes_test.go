@@ -360,3 +360,72 @@ func TestMigrationDeduplicatesCompositeKeyRebuild(t *testing.T) {
 	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [PK_t]"))
 	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [PK_t]"))
 }
+
+func TestLoadSQLExtractsTriggers(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS SELECT 1;
+`)
+	require.NoError(t, err)
+	table := c.GetTable("dbo", "t")
+	require.Len(t, table.Triggers, 1)
+	require.Equal(t, "trg", table.Triggers[0].Name)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE TRIGGER [dbo].[trg]")
+}
+
+func TestDefinitionHonorsSkipDump(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "hidden", SkipDump: true,
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+		}},
+		Views:     []*metadata.ViewMetadata{{Name: "hidden_view", SkipDump: true, Definition: "CREATE VIEW [dbo].[hidden_view] AS SELECT 1 AS n"}},
+		Functions: []*metadata.FunctionMetadata{{Name: "hidden_fn", SkipDump: true, Definition: "CREATE FUNCTION [dbo].[hidden_fn]() RETURNS int AS BEGIN RETURN 1 END"}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, def, "hidden")
+}
+
+func TestIndexComparisonIncludesConstraintBacking(t *testing.T) {
+	plain := &metadata.IndexMetadata{Name: "ux", Type: "NONCLUSTERED", Unique: true, Expressions: []string{"a"}, Descending: []bool{false}}
+	constraint := &metadata.IndexMetadata{Name: "ux", Type: "NONCLUSTERED", Unique: true, IsConstraint: true, Expressions: []string{"a"}, Descending: []bool{false}}
+	require.False(t, indexesEqual(plain, constraint))
+}
+
+func TestAlterColumnKeepsCollationOnTypeChange(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] varchar(20) COLLATE Latin1_General_CS_AS NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([v]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] varchar(40) COLLATE Latin1_General_CS_AS NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([v]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "ALTER COLUMN [v] varchar(40) COLLATE Latin1_General_CS_AS NOT NULL")
+}
+
+func TestDropFunctionFollowsSchemaBoundView(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE SCHEMA [s];
+CREATE TABLE [s].[t] ([id] int NOT NULL, CONSTRAINT [PK_s_t] PRIMARY KEY ([id]));
+CREATE FUNCTION [s].[f]() RETURNS int AS BEGIN RETURN 1 END;
+CREATE VIEW [s].[v] WITH SCHEMABINDING AS SELECT [s].[f]() AS n;
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE SCHEMA [s];`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Less(t, strings.Index(sql, "DROP VIEW [s].[v]"), strings.Index(sql, "DROP FUNCTION [s].[f]"))
+}
+
+func TestIdentityChangeIsExplicitlyUnsupported(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int IDENTITY(1,1) NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int IDENTITY(1,10) NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "UNSUPPORTED: identity property change")
+	require.NotContains(t, sql, "DROP COLUMN [id]")
+}
