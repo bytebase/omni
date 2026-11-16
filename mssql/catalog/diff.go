@@ -729,12 +729,7 @@ func triggersEqual(a, b *metadata.TriggerMetadata) bool {
 // normalizeTriggerBody is Bytebase's whitespace- and case-insensitive trigger
 // body comparison.
 func normalizeTriggerBody(body string) string {
-	body = strings.ReplaceAll(body, " ", "")
-	body = strings.ReplaceAll(body, "\r\n", "")
-	body = strings.ReplaceAll(body, "\r", "")
-	body = strings.ReplaceAll(body, "\n", "")
-	body = strings.ReplaceAll(body, "\t", "")
-	return strings.ToUpper(body)
+	return normalizeExpression(body)
 }
 
 func compareViews(diff *SchemaDiff, schemaName string, oldSchema, newSchema *metadata.SchemaMetadata) {

@@ -354,6 +354,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		buf.WriteString("\nGO\n")
 	}
 
+	if hasCreateOrAlterTables(diff) && hasTriggerCreations(diff) {
+		buf.WriteString("\nGO\n")
+	}
 	for _, tableDiff := range diff.Tables {
 		switch tableDiff.Action {
 		case DiffCreate:
@@ -389,7 +392,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
 			continue
 		}
-		buf.WriteString(funcDiff.NewFunction.Definition)
+		buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
 		if !strings.HasSuffix(strings.TrimSpace(funcDiff.NewFunction.Definition), ";") {
 			buf.WriteString(";")
 		}
@@ -403,14 +406,14 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for _, procDiff := range diff.Procedures {
 		switch procDiff.Action {
 		case DiffCreate:
-			buf.WriteString(procDiff.NewProcedure.Definition)
+			buf.WriteString(creationDefinition(procDiff.NewProcedure.Definition))
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
 			buf.WriteString("\nGO\n")
 		case DiffAlter:
 			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
-			buf.WriteString(procDiff.NewProcedure.Definition)
+			buf.WriteString(creationDefinition(procDiff.NewProcedure.Definition))
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
@@ -651,7 +654,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 			if index.IsConstraint || !indexUsesColumn(index, colDiff.OldColumn.Name) {
 				continue
 			}
-			if indexChangeScheduled(tableDiff, index.Name) {
+			if indexChangeScheduled(tableDiff, index.Name) || containsString(rebuiltIndexes, index.Name) {
 				continue
 			}
 			fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(index.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
@@ -664,7 +667,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 			continue
 		}
 		for _, index := range tableDiff.OldTable.Indexes {
-			if !indexUsesColumn(index, colDiff.OldColumn.Name) || indexChangeScheduled(tableDiff, index.Name) {
+			if !indexUsesColumn(index, colDiff.OldColumn.Name) || indexChangeScheduled(tableDiff, index.Name) || containsString(rebuiltIndexes, index.Name) {
 				continue
 			}
 			if index.IsConstraint {
@@ -790,7 +793,7 @@ func writeFunctionMigration(buf *strings.Builder, funcDiff *FunctionDiffEntry) {
 	if funcDiff.NewFunction == nil {
 		return
 	}
-	buf.WriteString(funcDiff.NewFunction.Definition)
+	buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
 	if !strings.HasSuffix(strings.TrimSpace(funcDiff.NewFunction.Definition), ";") {
 		buf.WriteString(";")
 	}
@@ -801,11 +804,36 @@ func writeFunctionMigration(buf *strings.Builder, funcDiff *FunctionDiffEntry) {
 	}
 }
 
+func hasTriggerCreations(diff *SchemaDiff) bool {
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.Action == DiffCreate && tableDiff.NewTable != nil && len(tableDiff.NewTable.Triggers) > 0 {
+			return true
+		}
+		if tableDiff.Action == DiffAlter {
+			for _, triggerDiff := range tableDiff.Triggers {
+				if triggerDiff.Action == DiffCreate || triggerDiff.Action == DiffAlter {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+func containsString(values []string, value string) bool {
+	for _, v := range values {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
 func writeTriggerMigration(buf *strings.Builder, trigger *metadata.TriggerMetadata) {
 	if trigger == nil || trigger.Body == "" {
 		return
 	}
-	buf.WriteString(strings.TrimRight(strings.TrimSpace(trigger.Body), ";"))
+	buf.WriteString(strings.TrimRight(strings.TrimSpace(creationDefinition(trigger.Body)), ";"))
 	buf.WriteString("\nGO\n")
 }
 
@@ -1172,7 +1200,7 @@ func createViewsInOrder(diff *SchemaDiff, buf *strings.Builder) {
 		}
 	}
 	writeView := func(viewDiff *ViewDiffEntry) {
-		buf.WriteString(viewDiff.NewView.Definition)
+		buf.WriteString(creationDefinition(viewDiff.NewView.Definition))
 		if !strings.HasSuffix(strings.TrimSpace(viewDiff.NewView.Definition), ";") {
 			buf.WriteString(";")
 		}

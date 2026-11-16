@@ -38,6 +38,7 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 		}
 	}
 
+	writeSynonyms(&buf, to.Schemas)
 	writeSequences(&buf, to.Schemas)
 
 	if hasTables(to.Schemas) {
@@ -126,6 +127,29 @@ func hasRoutines(schemas []*metadata.SchemaMetadata) bool {
 	return false
 }
 
+// writeSynonyms renders the aliases the sync reports before objects that may
+// use them.
+func writeSynonyms(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
+	for _, schema := range schemas {
+		for _, synonym := range schema.Synonyms {
+			fmt.Fprintf(out, "CREATE SYNONYM %s.%s FOR ", quote(schema.Name), quote(synonym.Name))
+			var parts []string
+			if synonym.TargetServer != "" {
+				parts = append(parts, quote(synonym.TargetServer))
+			}
+			if synonym.TargetDatabase != "" {
+				parts = append(parts, quote(synonym.TargetDatabase))
+			}
+			if synonym.TargetSchema != "" {
+				parts = append(parts, quote(synonym.TargetSchema))
+			}
+			parts = append(parts, quote(synonym.TargetName))
+			out.WriteString(strings.Join(parts, "."))
+			out.WriteString(";\n\n")
+		}
+	}
+}
+
 // writeSequences renders CREATE SEQUENCE before tables, since a table may use
 // NEXT VALUE FOR in a default.
 func writeSequences(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
@@ -175,7 +199,7 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
 				}
-				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(trigger.Body, ";"))
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(creationDefinition(trigger.Body), ";"))
 			}
 		}
 		for _, view := range schema.Views {
@@ -183,7 +207,7 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
 				}
-				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(trigger.Body, ";"))
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(creationDefinition(trigger.Body), ";"))
 			}
 		}
 	}
@@ -584,19 +608,38 @@ func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
 	}
 }
 
+// creationDefinition turns the stored module statement into a CREATE, so a
+// view, function or procedure last updated with ALTER restores into an empty
+// database.
+func creationDefinition(definition string) string {
+	upper := strings.ToUpper(definition)
+	for _, kind := range []string{"VIEW", "PROCEDURE", "PROC", "FUNCTION", "TRIGGER"} {
+		for _, prefix := range []string{"ALTER " + kind, "CREATE OR ALTER " + kind} {
+			if index := strings.Index(upper, prefix); index != -1 {
+				create := "CREATE " + kind
+				if kind == "PROC" {
+					create = "CREATE PROCEDURE"
+				}
+				return definition[:index] + create + definition[index+len(prefix):]
+			}
+		}
+	}
+	return definition
+}
+
 func writeView(out *strings.Builder, view *metadata.ViewMetadata) {
 	// A synced definition keeps the trailing semicolon the CREATE VIEW was run
 	// with. Trimming and adding one back makes a dump of a dump identical:
 	// appending unconditionally would add a semicolon on every restore.
-	fmt.Fprintf(out, "%s;\n\nGO\n\n", strings.TrimRight(strings.TrimSpace(view.Definition), ";"))
+	fmt.Fprintf(out, "%s;\n\nGO\n\n", strings.TrimRight(strings.TrimSpace(creationDefinition(view.Definition)), ";"))
 }
 
 func writeFunction(out *strings.Builder, function *metadata.FunctionMetadata) {
-	fmt.Fprintf(out, "%s\n\nGO\n\n", function.Definition)
+	fmt.Fprintf(out, "%s\n\nGO\n\n", creationDefinition(function.Definition))
 }
 
 func writeProcedure(out *strings.Builder, procedure *metadata.ProcedureMetadata) {
-	fmt.Fprintf(out, "%s\n\nGO\n\n", procedure.Definition)
+	fmt.Fprintf(out, "%s\n\nGO\n\n", creationDefinition(procedure.Definition))
 }
 
 // GetViewDefinition renders one view the way DatabaseDefinition does.

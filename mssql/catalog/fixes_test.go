@@ -311,3 +311,52 @@ func TestMigrationRebuildsKeyAroundColumnTypeChange(t *testing.T) {
 	require.Less(t, strings.Index(sql, "DROP CONSTRAINT [PK_t]"), strings.Index(sql, "ALTER COLUMN [id] bigint"))
 	require.Less(t, strings.Index(sql, "ALTER COLUMN [id] bigint"), strings.Index(sql, "ADD CONSTRAINT [PK_t]"))
 }
+
+func TestDefinitionRendersSynonyms(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Synonyms: []*metadata.SynonymMetadata{{
+			Name: "orders_alias", TargetServer: "srv", TargetDatabase: "db", TargetSchema: "sales", TargetName: "orders",
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE SYNONYM [dbo].[orders_alias] FOR [srv].[db].[sales].[orders];")
+}
+
+func TestDefinitionNormalizesAlterModules(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+		}},
+		Views:      []*metadata.ViewMetadata{{Name: "v", Definition: "ALTER VIEW [dbo].[v] AS SELECT 1 AS n"}},
+		Functions:  []*metadata.FunctionMetadata{{Name: "f", Definition: "ALTER FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END"}},
+		Procedures: []*metadata.ProcedureMetadata{{Name: "p", Definition: "ALTER PROCEDURE [dbo].[p] AS SELECT 1"}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE VIEW [dbo].[v]")
+	require.Contains(t, def, "CREATE FUNCTION [dbo].[f]()")
+	require.Contains(t, def, "CREATE PROCEDURE [dbo].[p]")
+	require.NotContains(t, def, "ALTER VIEW")
+	require.NotContains(t, def, "ALTER FUNCTION")
+	require.NotContains(t, def, "ALTER PROCEDURE")
+}
+
+func TestTriggerComparisonKeepsLiterals(t *testing.T) {
+	oldTrigger := &metadata.TriggerMetadata{Name: "trg", Event: "INSERT", Timing: "AFTER", Body: "SELECT 'pending'"}
+	newTrigger := &metadata.TriggerMetadata{Name: "trg", Event: "INSERT", Timing: "AFTER", Body: "SELECT 'PENDING'"}
+	require.False(t, triggersEqual(oldTrigger, newTrigger))
+}
+
+func TestMigrationDeduplicatesCompositeKeyRebuild(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([a] int NOT NULL, [b] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([a], [b]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([a] bigint NOT NULL, [b] bigint NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([a], [b]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [PK_t]"))
+	require.Equal(t, 1, strings.Count(sql, "ADD CONSTRAINT [PK_t]"))
+}
