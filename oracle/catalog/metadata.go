@@ -262,6 +262,12 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 		}
 		return
 	}
+	if n.Global || n.Private {
+		if e.err == nil {
+			e.err = fmt.Errorf("temporary tables are not supported by oracle/catalog")
+		}
+		return
+	}
 	table := e.getOrCreateTable(tableName)
 	for _, item := range listItems(n.Columns) {
 		column, ok := item.(*ast.ColumnDef)
@@ -648,6 +654,12 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 	}
 	for _, index := range table.Indexes {
 		for i, expression := range index.Expressions {
+			if index.IsConstraint {
+				if strings.EqualFold(strings.Trim(expression, `"`), oldName) {
+					index.Expressions[i] = newName
+				}
+				continue
+			}
 			index.Expressions[i] = renameIdentifier(expression, oldName, newName)
 		}
 	}
@@ -725,7 +737,7 @@ func renameIdentifier(expression, oldName, newName string) string {
 				end++
 			}
 			token := expression[i:end]
-			if strings.EqualFold(token, oldName) {
+			if strings.ToUpper(token) == oldName {
 				writeRenamedIdentifier(&out, newName, false)
 			} else {
 				out.WriteString(token)
@@ -903,6 +915,9 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 		name := objectName(nameNode)
 		switch n.ObjectType {
 		case ast.OBJECT_TABLE:
+			if n.Cascade {
+				e.dropIncomingForeignKeys(name)
+			}
 			delete(e.tables, name)
 		case ast.OBJECT_VIEW:
 			delete(e.views, name)
@@ -922,6 +937,22 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			e.dropTrigger(name)
 		default:
 		}
+	}
+}
+
+func (e *oracleMetadataExtractor) dropIncomingForeignKeys(tableName string) {
+	for _, table := range e.tables {
+		if table.Name == tableName {
+			continue
+		}
+		var foreignKeys []*metadatapb.ForeignKeyMetadata
+		for _, fk := range table.ForeignKeys {
+			if fk.ReferencedTable == tableName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				continue
+			}
+			foreignKeys = append(foreignKeys, fk)
+		}
+		table.ForeignKeys = foreignKeys
 	}
 }
 
@@ -1271,6 +1302,9 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 	tableName := objectName(n.Table)
 	if triggerName == "" || tableName == "" {
 		return
+	}
+	if n.OrReplace {
+		e.dropTrigger(triggerName)
 	}
 	trigger := &metadatapb.TriggerMetadata{
 		Name: triggerName,

@@ -132,6 +132,12 @@ replay tests exercise.
 - CTE exclusion is scoped to its query block.
 - Trigger comparison keeps line-comment boundaries.
 - Synced and extracted constraint indexes compare by their logical attributes.
+- A self-referencing foreign key is detached around a key replacement.
+- A renamed key column stays a raw constraint name, while a quoted reference is
+  matched case-sensitively.
+- Temporary tables are rejected rather than installed as permanent.
+- `CREATE OR REPLACE TRIGGER` replaces the previous target, and a cascading
+  table drop removes incoming local foreign keys.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

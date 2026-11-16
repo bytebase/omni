@@ -1062,3 +1062,71 @@ func TestConstraintIndexRepresentationsCompareEqual(t *testing.T) {
 		t.Fatal("synced and extracted constraint indexes differ")
 	}
 }
+
+func TestKeyReplacementDetachesSelfForeignKey(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "PARENT_ID", Type: "NUMBER", Position: 2}}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_T", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "FK_T", Columns: []string{"PARENT_ID"}, ReferencedTable: "T", ReferencedColumns: []string{"ID"}}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: oldTable.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "UK_T", Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}, ForeignKeys: oldTable.ForeignKeys}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if !strings.Contains(sql, `DROP CONSTRAINT "FK_T"`) || !strings.Contains(sql, `ADD CONSTRAINT "FK_T"`) {
+		t.Fatalf("self foreign key not detached:\n%s", sql)
+	}
+}
+
+func TestRenameConstraintColumnKeepsRawName(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER PRIMARY KEY)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T RENAME COLUMN C TO "d"`, nil); err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `PRIMARY KEY ("d")`) || strings.Contains(definition, `PRIMARY KEY (""d"")`) {
+		t.Fatalf("constraint column wrong:\n%s", definition)
+	}
+}
+
+func TestRenameQuotedColumnLeavesUnquotedReference(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, "c" NUMBER, CONSTRAINT CK CHECK (C > 0))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T RENAME COLUMN "c" TO D`, nil); err != nil {
+		t.Fatal(err)
+	}
+	check := tableByName(c.Metadata().Schemas[0])["T"].CheckConstraints[0]
+	if check.Expression != "C > 0" {
+		t.Fatalf("check expression = %q", check.Expression)
+	}
+}
+
+func TestTemporaryTableIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE GLOBAL TEMPORARY TABLE SESSION_DATA (ID NUMBER) ON COMMIT DELETE ROWS`); err == nil {
+		t.Fatal("temporary table installed as permanent")
+	}
+}
+
+func TestCreateOrReplaceTriggerMovesTarget(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE A (ID NUMBER); CREATE TABLE Z (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON Z FOR EACH ROW BEGIN NULL; END; CREATE OR REPLACE TRIGGER TR BEFORE INSERT ON A FOR EACH ROW BEGIN NULL; END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := c.Metadata().Schemas[0]
+	if len(tableByName(schema)["Z"].Triggers) != 0 || len(tableByName(schema)["A"].Triggers) != 1 {
+		t.Fatalf("triggers A=%d Z=%d", len(tableByName(schema)["A"].Triggers), len(tableByName(schema)["Z"].Triggers))
+	}
+}
+
+func TestDropTableCascadeRemovesIncomingForeignKey(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE P (ID NUMBER PRIMARY KEY); CREATE TABLE C (P_ID NUMBER, CONSTRAINT C_FK FOREIGN KEY (P_ID) REFERENCES P(ID)); DROP TABLE P CASCADE CONSTRAINTS`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	child := tableByName(c.Metadata().Schemas[0])["C"]
+	if len(child.ForeignKeys) != 0 {
+		t.Fatalf("incoming foreign key survived: %+v", child.ForeignKeys)
+	}
+}

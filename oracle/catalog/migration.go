@@ -2526,6 +2526,12 @@ func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenam
 			for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, indexDiff.OldIndex.GetExpressions(), DiffActionDrop) {
 				detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = incoming
 			}
+			for _, fk := range tableDiff.OldTable.GetForeignKeys() {
+				if fk.GetReferencedTable() == tableDiff.TableName &&
+					referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, indexDiff.OldIndex.GetExpressions()) {
+					detached[incomingForeignKeyKey(tableDiff.TableName, fk.GetName())] = incomingForeignKey{schema: tableDiff.SchemaName, table: tableDiff.TableName, foreignKey: fk}
+				}
+			}
 		}
 	}
 	return detached
