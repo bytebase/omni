@@ -326,7 +326,13 @@ func regexLiteral(value *jsonValue) (string, bool, error) {
 			options = text
 		}
 	}
-	// A regex literal is the one spelling gomongo turns into a BSON regex.
+	// A regex literal is the one spelling gomongo turns into a BSON regex. An
+	// empty pattern and a line terminator would end the literal early, so both
+	// take a spelling that matches the same strings.
+	if pattern == "" {
+		pattern = "(?:)"
+	}
+	pattern = strings.NewReplacer("\n", `\n`, "\r", `\r`, "\u2028", `\u2028`, "\u2029", `\u2029`).Replace(pattern)
 	escaped := strings.ReplaceAll(pattern, `\/`, `/`)
 	escaped = strings.ReplaceAll(escaped, `/`, `\/`)
 	return "/" + escaped + "/" + options, true, nil

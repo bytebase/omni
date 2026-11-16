@@ -28,6 +28,8 @@ func TestRenderExtendedJSON(t *testing.T) {
 		{name: "date", in: `{"$date":{"$numberLong":"1767323045000"}}`, want: `ISODate("2026-01-02T03:04:05.000Z")`},
 		{name: "timestamp", in: `{"$timestamp":{"t":123,"i":{"$numberInt":"4"}}}`, want: `Timestamp(123, 4)`},
 		{name: "regular expression", in: `{"$regularExpression":{"pattern":"^a/b","options":"i"}}`, want: `/^a\/b/i`},
+		{name: "empty regular expression", in: `{"$regularExpression":{"pattern":"","options":"i"}}`, want: `/(?:)/i`},
+		{name: "regular expression with a newline", in: `{"$regularExpression":{"pattern":"a\nb","options":""}}`, want: `/a\nb/`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := renderExtendedJSON(tc.in)
