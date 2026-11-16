@@ -159,6 +159,9 @@ func (v *jsonValue) objectLiteral() (string, error) {
 		if field.key == "__proto__" {
 			return "", fmt.Errorf("a __proto__ field has no own-property spelling in a mongosh object literal")
 		}
+		if isArrayIndex(field.key) {
+			return "", fmt.Errorf("an integer-like field name %q loses its order in a JavaScript object literal", field.key)
+		}
 		literal, err := field.value.literal()
 		if err != nil {
 			return "", err
@@ -166,6 +169,24 @@ func (v *jsonValue) objectLiteral() (string, error) {
 		parts[i] = quoteString(field.key) + ": " + literal
 	}
 	return "{" + strings.Join(parts, ", ") + "}", nil
+}
+
+// isArrayIndex reports a field name JavaScript treats as an array index, which
+// an object literal enumerates in numeric order rather than source order.
+func isArrayIndex(key string) bool {
+	if key == "0" {
+		return true
+	}
+	if key == "" || key[0] < '1' || key[0] > '9' {
+		return false
+	}
+	for i := 1; i < len(key); i++ {
+		if key[i] < '0' || key[i] > '9' {
+			return false
+		}
+	}
+	number, err := strconv.ParseUint(key, 10, 32)
+	return err == nil && number <= 4294967294
 }
 
 // isJavaScriptWithScope reports an Extended JSON JavaScript-with-scope
@@ -237,7 +258,7 @@ func extendedJSONLiteral(field jsonField) (literal string, handled bool, err err
 	case "$timestamp":
 		return timestampLiteral(field.value)
 	case "$regularExpression":
-		return regexLiteral(field.value)
+		return "", true, fmt.Errorf("a BSON regular expression has no faithful mongosh spelling: MongoDB regexes are PCRE and gomongo builds one only from a JavaScript literal")
 	case "$binary", "$minKey", "$maxKey", "$symbol", "$code", "$scope", "$dbPointer", "$undefined", "$uuid":
 		return "", true, fmt.Errorf("%s has no mongosh spelling gomongo can execute", field.key)
 	}
@@ -282,7 +303,11 @@ func dateLiteral(value *jsonValue) (string, bool, error) {
 	if err != nil {
 		return "", true, fmt.Errorf("$date.$numberLong %q: %w", text, err)
 	}
-	iso := time.UnixMilli(milliseconds).UTC().Format("2006-01-02T15:04:05.000Z")
+	date := time.UnixMilli(milliseconds).UTC()
+	if date.Year() < 0 || date.Year() > 9999 {
+		return "", true, fmt.Errorf("the date %d is outside the years a mongosh ISODate literal can carry", milliseconds)
+	}
+	iso := date.Format("2006-01-02T15:04:05.000Z")
 	return "ISODate(" + quoteString(iso) + ")", true, nil
 }
 
@@ -333,69 +358,6 @@ func uint32Field(doc *jsonValue, key string) (uint32, bool, error) {
 		return uint32(number), true, nil
 	}
 	return 0, false, nil
-}
-
-func regexLiteral(value *jsonValue) (string, bool, error) {
-	if value.kind != jsonObject {
-		return "", true, fmt.Errorf("$regularExpression is not a document")
-	}
-	var pattern, options string
-	for _, field := range value.fields {
-		text, ok := field.value.stringValue()
-		if !ok {
-			return "", true, fmt.Errorf("$regularExpression.%s is not a string", field.key)
-		}
-		switch field.key {
-		case "pattern":
-			pattern = text
-		case "options":
-			options = text
-		}
-	}
-	// A regex literal is the one spelling gomongo turns into a BSON regex. An
-	// empty pattern takes a spelling that matches the same strings, and the
-	// pattern itself is escaped for a JavaScript literal.
-	if pattern == "" {
-		pattern = "(?:)"
-	}
-	return "/" + regexPattern(pattern) + "/" + options, true, nil
-}
-
-// regexPattern escapes a BSON regex pattern for a JavaScript literal. A slash
-// ends the literal unless an odd number of backslashes already escapes it, and
-// a line terminator cannot appear raw.
-func regexPattern(pattern string) string {
-	var b strings.Builder
-	backslashes := 0
-	for _, r := range pattern {
-		switch r {
-		case '\\':
-			backslashes++
-			b.WriteRune(r)
-		case '/':
-			if backslashes%2 == 0 {
-				b.WriteByte('\\')
-			}
-			b.WriteRune(r)
-			backslashes = 0
-		case '\n':
-			b.WriteString(`\n`)
-			backslashes = 0
-		case '\r':
-			b.WriteString(`\r`)
-			backslashes = 0
-		case '\u2028':
-			b.WriteString(`\u2028`)
-			backslashes = 0
-		case '\u2029':
-			b.WriteString(`\u2029`)
-			backslashes = 0
-		default:
-			b.WriteRune(r)
-			backslashes = 0
-		}
-	}
-	return b.String()
 }
 
 // quoteString renders s as a JavaScript string literal. JSON's string grammar

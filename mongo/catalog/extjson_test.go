@@ -27,10 +27,6 @@ func TestRenderExtendedJSON(t *testing.T) {
 		{name: "object id", in: `{"$oid":"0123456789abcdef01234567"}`, want: `ObjectId("0123456789abcdef01234567")`},
 		{name: "date", in: `{"$date":{"$numberLong":"1767323045000"}}`, want: `ISODate("2026-01-02T03:04:05.000Z")`},
 		{name: "timestamp", in: `{"$timestamp":{"t":123,"i":{"$numberInt":"4"}}}`, want: `Timestamp(123, 4)`},
-		{name: "regular expression", in: `{"$regularExpression":{"pattern":"^a/b","options":"i"}}`, want: `/^a\/b/i`},
-		{name: "empty regular expression", in: `{"$regularExpression":{"pattern":"","options":"i"}}`, want: `/(?:)/i`},
-		{name: "regular expression with a newline", in: `{"$regularExpression":{"pattern":"a\nb","options":""}}`, want: `/a\nb/`},
-		{name: "regular expression keeps a backslash before a slash", in: `{"$regularExpression":{"pattern":"\\\\/","options":""}}`, want: `/\\\//`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := renderExtendedJSON(tc.in)
@@ -53,6 +49,9 @@ func TestRenderExtendedJSONRefusesAKindGomongoCannotBuild(t *testing.T) {
 		{name: "code", in: `{"$code":"x"}`, want: "no mongosh spelling"},
 		{name: "JavaScript with scope", in: `{"$code":"function(){}","$scope":{}}`, want: "JavaScript with scope"},
 		{name: "__proto__", in: `{"__proto__":"kept","normal":1}`, want: "own-property"},
+		{name: "regular expression", in: `{"$regularExpression":{"pattern":"^a","options":"i"}}`, want: "PCRE"},
+		{name: "integer-like field name", in: `{"2":1,"1":-1}`, want: "integer-like"},
+		{name: "expanded date", in: `{"$date":{"$numberLong":"253402300800000"}}`, want: "outside the years"},
 		{name: "nan", in: `{"$numberDouble":"NaN"}`, want: "no mongosh literal"},
 		{name: "infinity", in: `{"$numberDouble":"Infinity"}`, want: "no mongosh literal"},
 		{name: "trailing data", in: `{} {}`, want: "trailing data"},
