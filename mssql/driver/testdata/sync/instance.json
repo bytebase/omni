@@ -1,0 +1,7 @@
+{
+  "databases": [
+    "omni_instance_extra SQL_Latin1_General_CP1_CI_AS",
+    "omni_TestSyncInstance SQL_Latin1_General_CP1_CI_AS"
+  ],
+  "version": "16.0.4305.5 (2022)"
+}
