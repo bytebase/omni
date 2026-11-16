@@ -11,7 +11,7 @@ SQL toolchain for multiple database engines. Each engine provides a parser, AST,
 
 ## Engines
 
-Every engine lives in its own top-level directory and follows the same shape: `ast/` holds the node types, `parser/` the hand-written recursive descent parser, and further packages add capabilities on top. The table lists the packages each engine ships today.
+Every engine lives in its own top-level directory and follows the same shape: `ast/` holds the node types, `parser/` the hand-written recursive descent parser, and further packages add capabilities on top. ClickHouse is the exception so far: its tree starts at the driver layer, with no parser, catalog, or analysis yet. The table lists the packages each engine ships today.
 
 | Engine | Directory | Packages beyond `ast` + `parser` |
 |--------|-----------|----------------------------------|
@@ -32,6 +32,7 @@ Every engine lives in its own top-level directory and follows the same shape: `a
 | MongoDB (mongosh) | `mongo/` | `catalog`, `completion`, `analysis` |
 | Azure Cosmos DB | `cosmosdb/` | `analysis` |
 | Elasticsearch (Dev Console) | `elasticsearch/` | `analysis` |
+| ClickHouse | `clickhouse/` | driver only: no parser, catalog, or analysis yet |
 
 Package roles:
 

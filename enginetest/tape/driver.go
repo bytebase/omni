@@ -6,9 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // errPrepared is what a test gets for a driver-level prepared statement. A
@@ -87,9 +90,11 @@ func (s *session) reproduces() {
 		if s.got[i].req.render() != s.want[i].req.render() {
 			return
 		}
-		if was, now := s.spelledNow(s.want[i].ans).render(), s.got[i].ans.render(); was != now {
+		was, now := normalizedAnswer(s.spelledNow(s.want[i].ans)), normalizedAnswer(s.got[i].ans)
+		normalizeScans(&was, &now)
+		if was.render() != now.render() {
 			s.t.Errorf("stream %q: the engine answered request %d (%s) differently than the committed tape. Make the test's requests deterministic, or pin what varies.\nwas:\n%snow:\n%s",
-				s.name, i+1, s.got[i].req.describe(), was, now)
+				s.name, i+1, s.got[i].req.describe(), was.render(), now.render())
 			return
 		}
 	}
@@ -106,6 +111,33 @@ func (s *session) spelledNow(a answer) answer {
 		a.err = text
 	}
 	return a
+}
+
+// normalizedAnswer copies the column slices, so comparison can normalize a
+// scan type without changing the answer a recording holds or writes.
+func normalizedAnswer(a answer) answer {
+	out := a
+	out.sets = make([]resultSet, len(a.sets))
+	for i, set := range a.sets {
+		out.sets[i] = set
+		out.sets[i].cols = append([]column(nil), set.cols...)
+	}
+	return out
+}
+
+// normalizeScans clears a scan type one answer names and the other does not, so
+// a recording that adds the optional metadata to an older tape is not a
+// different answer.
+func normalizeScans(was, now *answer) {
+	for i := 0; i < len(was.sets) && i < len(now.sets); i++ {
+		n := min(len(was.sets[i].cols), len(now.sets[i].cols))
+		for j := 0; j < n; j++ {
+			if was.sets[i].cols[j].scan == "" || now.sets[i].cols[j].scan == "" {
+				was.sets[i].cols[j].scan = ""
+				now.sets[i].cols[j].scan = ""
+			}
+		}
+	}
 }
 
 // names is the stand-ins one test's recording has given out. The streams of
@@ -259,14 +291,15 @@ type conn struct {
 }
 
 var (
-	_ driver.ExecerContext      = (*conn)(nil)
-	_ driver.QueryerContext     = (*conn)(nil)
-	_ driver.ConnBeginTx        = (*conn)(nil)
-	_ driver.NamedValueChecker  = (*conn)(nil)
-	_ driver.Pinger             = (*conn)(nil)
-	_ driver.RowsNextResultSet  = (*rows)(nil)
-	_ driver.SessionResetter    = (*conn)(nil)
-	_ driver.ConnPrepareContext = (*conn)(nil)
+	_ driver.ExecerContext          = (*conn)(nil)
+	_ driver.QueryerContext         = (*conn)(nil)
+	_ driver.ConnBeginTx            = (*conn)(nil)
+	_ driver.NamedValueChecker      = (*conn)(nil)
+	_ driver.Pinger                 = (*conn)(nil)
+	_ driver.RowsNextResultSet      = (*rows)(nil)
+	_ driver.RowsColumnTypeScanType = (*rows)(nil)
+	_ driver.SessionResetter        = (*conn)(nil)
+	_ driver.ConnPrepareContext     = (*conn)(nil)
 )
 
 func (c *conn) Prepare(string) (driver.Stmt, error) { return nil, errPrepared }
@@ -424,10 +457,16 @@ func readAll(lr driver.Rows) (answer, error) {
 	for {
 		var s resultSet
 		typed, _ := lr.(driver.RowsColumnTypeDatabaseTypeName)
+		scanned, _ := lr.(driver.RowsColumnTypeScanType)
 		for i, name := range lr.Columns() {
 			c := column{name: name}
 			if typed != nil {
 				c.typ = typed.ColumnTypeDatabaseTypeName(i)
+			}
+			if scanned != nil {
+				if t := scanned.ColumnTypeScanType(i); knownScanType(t) {
+					c.scan = t.String()
+				}
 			}
 			s.cols = append(s.cols, c)
 		}
@@ -464,6 +503,51 @@ func readAll(lr driver.Rows) (answer, error) {
 	}
 }
 
+// knownScanTypes are the Go types a tape can name. A column whose live scan
+// type is not here is recorded without one and replays as any.
+var knownScanTypes = map[string]reflect.Type{
+	"int":          reflect.TypeOf(int(0)),
+	"int8":         reflect.TypeOf(int8(0)),
+	"int16":        reflect.TypeOf(int16(0)),
+	"int32":        reflect.TypeOf(int32(0)),
+	"int64":        reflect.TypeOf(int64(0)),
+	"uint":         reflect.TypeOf(uint(0)),
+	"uint8":        reflect.TypeOf(uint8(0)),
+	"uint16":       reflect.TypeOf(uint16(0)),
+	"uint32":       reflect.TypeOf(uint32(0)),
+	"uint64":       reflect.TypeOf(uint64(0)),
+	"float32":      reflect.TypeOf(float32(0)),
+	"float64":      reflect.TypeOf(float64(0)),
+	"bool":         reflect.TypeOf(false),
+	"string":       reflect.TypeOf(""),
+	"[]uint8":      reflect.TypeOf([]byte(nil)),
+	"time.Time":    reflect.TypeOf(time.Time{}),
+	"interface {}": reflect.TypeOf((*any)(nil)).Elem(),
+}
+
+var anyType = reflect.TypeOf((*any)(nil)).Elem()
+
+func knownScanType(t reflect.Type) bool {
+	return namedScanType(t.String()) != nil
+}
+
+// namedScanType rebuilds a recorded scan type, including the pointer a
+// nullable column scans into.
+func namedScanType(name string) reflect.Type {
+	if name == "" {
+		return nil
+	}
+	if t, ok := knownScanTypes[name]; ok {
+		return t
+	}
+	if strings.HasPrefix(name, "*") {
+		if t, ok := knownScanTypes[strings.TrimPrefix(name, "*")]; ok {
+			return reflect.PointerTo(t)
+		}
+	}
+	return nil
+}
+
 type rows struct {
 	sets []resultSet
 	set  int
@@ -480,6 +564,16 @@ func (r *rows) Columns() []string {
 }
 
 func (r *rows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].cols[i].typ }
+
+// ColumnTypeScanType is the type the live driver's rows scanned into. A tape
+// recorded without one, or with a type this package cannot name, answers the
+// default any, which is what database/sql uses when the interface is absent.
+func (r *rows) ColumnTypeScanType(i int) reflect.Type {
+	if t := namedScanType(r.sets[r.set].cols[i].scan); t != nil {
+		return t
+	}
+	return anyType
+}
 
 func (r *rows) Close() error { return nil }
 

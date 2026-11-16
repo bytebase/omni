@@ -1,0 +1,147 @@
+{
+  "name": "omni_testsyncdatabase",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "events",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "NULL",
+              "type": "UInt64"
+            },
+            {
+              "name": "name",
+              "position": 2,
+              "default": "NULL",
+              "type": "String",
+              "comment": "the event name"
+            },
+            {
+              "name": "at",
+              "position": 3,
+              "default": "NULL",
+              "type": "DateTime64(3, 'UTC')"
+            },
+            {
+              "name": "amount",
+              "position": 4,
+              "default": "NULL",
+              "nullable": true,
+              "type": "Nullable(Decimal(12, 2))"
+            },
+            {
+              "name": "tags",
+              "position": 5,
+              "default": "NULL",
+              "type": "Array(String)"
+            },
+            {
+              "name": "attrs",
+              "position": 6,
+              "default": "NULL",
+              "type": "Map(String, String)"
+            },
+            {
+              "name": "fixed",
+              "position": 7,
+              "default": "NULL",
+              "type": "FixedString(4)"
+            },
+            {
+              "name": "flag",
+              "position": 8,
+              "default": "NULL",
+              "type": "Bool"
+            },
+            {
+              "name": "level",
+              "position": 9,
+              "default": "NULL",
+              "type": "Enum8('info' = 1, 'warn' = 2)"
+            },
+            {
+              "name": "seen",
+              "position": 10,
+              "default": "'2026-01-02'",
+              "type": "Date"
+            }
+          ],
+          "indexes": [
+            {
+              "expressions": [
+                "id"
+              ],
+              "primary": true
+            }
+          ],
+          "engine": "MergeTree",
+          "comment": "events the sync reads",
+          "sortingKeys": [
+            "id",
+            "name"
+          ]
+        },
+        {
+          "name": "skipped",
+          "columns": [
+            {
+              "name": "url",
+              "position": 1,
+              "default": "NULL",
+              "type": "String"
+            },
+            {
+              "name": "body",
+              "position": 2,
+              "default": "NULL",
+              "type": "String"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "url_bloom",
+              "expressions": [
+                "url"
+              ],
+              "type": "bloom_filter",
+              "granularity": "4"
+            },
+            {
+              "expressions": [
+                "url"
+              ],
+              "primary": true
+            }
+          ],
+          "engine": "MergeTree",
+          "sortingKeys": [
+            "url"
+          ]
+        }
+      ],
+      "views": [
+        {
+          "name": "event_names",
+          "definition": "CREATE VIEW omni_testsyncdatabase.event_names (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testsyncdatabase.events",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "NULL",
+              "type": "UInt64"
+            },
+            {
+              "name": "name",
+              "position": 2,
+              "default": "NULL",
+              "type": "String"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
