@@ -1,0 +1,106 @@
+{
+  "name": "123456789012-us-east-1",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "orders",
+          "columns": [
+            {
+              "name": "pk"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "pk",
+              "expressions": [
+                "pk"
+              ],
+              "type": "HASH"
+            },
+            {
+              "type": "RANGE"
+            }
+          ],
+          "rowCount": "2"
+        },
+        {
+          "name": "paged",
+          "columns": [
+            {
+              "name": "owner"
+            },
+            {
+              "name": "seq"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "owner",
+              "expressions": [
+                "owner"
+              ],
+              "type": "HASH"
+            },
+            {
+              "name": "seq",
+              "expressions": [
+                "seq"
+              ],
+              "type": "RANGE"
+            }
+          ],
+          "rowCount": "5"
+        },
+        {
+          "name": "people",
+          "columns": [
+            {
+              "name": "email"
+            },
+            {
+              "name": "id"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "id",
+              "expressions": [
+                "id"
+              ],
+              "type": "HASH"
+            },
+            {
+              "name": "email",
+              "expressions": [
+                "email"
+              ],
+              "type": "RANGE"
+            }
+          ],
+          "rowCount": "3"
+        },
+        {
+          "name": "writes",
+          "columns": [
+            {
+              "name": "id"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "id",
+              "expressions": [
+                "id"
+              ],
+              "type": "HASH"
+            },
+            {
+              "type": "RANGE"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
