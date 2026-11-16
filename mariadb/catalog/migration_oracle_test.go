@@ -326,10 +326,17 @@ func TestOracle_MigrationEscapesCommentsForSQLMode(t *testing.T) {
 	if err := applyPlan(conn, GenerateMigration(to, after, Diff(to, after))); err != nil {
 		t.Fatalf("alter: %v", err)
 	}
-	for query, want := range map[string]string{
-		"SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'": `z\y`,
-		"SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'":         `c\d`,
+	// A slice, not a map: the tape replays the queries in the order they were
+	// recorded, and map iteration would ask for them in a different order each
+	// run.
+	for _, check := range []struct {
+		query string
+		want  string
+	}{
+		{query: "SELECT ROUTINE_COMMENT FROM information_schema.ROUTINES WHERE ROUTINE_SCHEMA = DATABASE() AND ROUTINE_NAME = 'f'", want: `z\y`},
+		{query: "SELECT EVENT_COMMENT FROM information_schema.EVENTS WHERE EVENT_SCHEMA = DATABASE() AND EVENT_NAME = 'e'", want: `c\d`},
 	} {
+		query, want := check.query, check.want
 		var got string
 		if err := conn.QueryRowContext(context.Background(), query).Scan(&got); err != nil {
 			t.Fatal(err)
