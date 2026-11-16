@@ -51,8 +51,12 @@
 | )
 < ok 0 -
 > exec
-| -- Views are not part of the synced metadata: the sync reads table_type
-| -- 'TABLE'. TestDumpGaps holds what that costs a dump.
+| CREATE TABLE memory.omni_driver."a""b" (
+|     "c""d" varchar,
+|     id integer
+| )
+< ok 0 -
+> exec
 | CREATE VIEW memory.omni_driver.v_types AS
 |     SELECT c_integer, c_varchar FROM memory.omni_driver.types
 < ok 0 -
@@ -122,6 +126,11 @@
 : string
 | omni_driver
 : string
+| a"b
+< row
+: string
+| omni_driver
+: string
 | mixedcase
 < row
 : string
@@ -133,6 +142,24 @@
 | omni_driver
 : string
 | types
+> query
+| SELECT table_schema, table_name, view_definition FROM "memory".information_schema.views ORDER BY table_schema, table_name
+< result
+< column "table_schema" "VARCHAR"
+< column "table_name" "VARCHAR"
+< column "view_definition" "VARCHAR"
+< row
+: string
+| omni_driver
+: string
+| v_types
+: string
+| SELECT
+|   c_integer
+| , c_varchar
+| FROM
+|   memory.omni_driver.types
+|
 > query
 | SELECT table_schem, table_name, column_name, type_name, is_nullable FROM system.jdbc.columns WHERE table_cat = ? ORDER BY table_schem, table_name, ordinal_position
 : string
@@ -515,6 +542,28 @@
 | view_definition
 : string
 | varchar
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
+| a"b
+: string
+| c"d
+: string
+| varchar
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
+| a"b
+: string
+| id
+: string
+| integer
 : string
 | YES
 < row

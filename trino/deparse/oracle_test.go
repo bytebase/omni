@@ -75,6 +75,13 @@ func TestGeneratedSDLParsesOnTrino(t *testing.T) {
 				{Name: "table", Type: "varchar", Nullable: true},
 			},
 		},
+		{
+			// An embedded double quote must reach Trino escaped, as two.
+			Name: `a"b`,
+			Columns: []*ColumnMetadata{
+				{Name: `c"d`, Type: "varchar", Nullable: true},
+			},
+		},
 	}
 
 	for _, table := range tables {
@@ -117,17 +124,18 @@ func TestEmptyColumnTableRejectedByTrino(t *testing.T) {
 		t.Fatalf("GetDatabaseDefinition: %v", err)
 	}
 	stmts := splitStatements(ddl)
-	if len(stmts) != 1 {
-		t.Fatalf("expected one statement, got %d: %q", len(stmts), ddl)
+	if len(stmts) != 2 {
+		t.Fatalf("expected CREATE SCHEMA and CREATE TABLE, got %d: %q", len(stmts), ddl)
 	}
+	table := stmts[1]
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	res, err := o.CheckSyntax(ctx, stmts[0])
+	res, err := o.CheckSyntax(ctx, table)
 	if err != nil {
-		t.Fatalf("oracle CheckSyntax(%q): %v", stmts[0], err)
+		t.Fatalf("oracle CheckSyntax(%q): %v", table, err)
 	}
 	if res.Accepted {
-		t.Errorf("expected Trino to reject the column-less CREATE TABLE, but it was accepted:\n%s", stmts[0])
+		t.Errorf("expected Trino to reject the column-less CREATE TABLE, but it was accepted:\n%s", table)
 	}
 	if res.ErrorName != "SYNTAX_ERROR" {
 		t.Errorf("expected SYNTAX_ERROR for column-less CREATE TABLE, got errorName=%q (msg=%s)", res.ErrorName, res.Message)

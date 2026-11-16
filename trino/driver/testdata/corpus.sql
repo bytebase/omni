@@ -43,7 +43,10 @@ CREATE TABLE memory.omni_driver."MixedCase" (
     normal varchar
 );
 
--- Views are not part of the synced metadata: the sync reads table_type
--- 'TABLE'. TestDumpGaps holds what that costs a dump.
+CREATE TABLE memory.omni_driver."a""b" (
+    "c""d" varchar,
+    id integer
+);
+
 CREATE VIEW memory.omni_driver.v_types AS
     SELECT c_integer, c_varchar FROM memory.omni_driver.types;

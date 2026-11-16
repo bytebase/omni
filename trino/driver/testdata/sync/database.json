@@ -223,6 +223,21 @@
       "name": "omni_driver",
       "tables": [
         {
+          "name": "a\"b",
+          "columns": [
+            {
+              "name": "c\"d",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "id",
+              "nullable": true,
+              "type": "integer"
+            }
+          ]
+        },
+        {
           "name": "mixedcase",
           "columns": [
             {
@@ -381,6 +396,24 @@
               "name": "c_row",
               "nullable": true,
               "type": "row(\"x\" integer, \"y\" varchar)"
+            }
+          ]
+        }
+      ],
+      "views": [
+        {
+          "name": "v_types",
+          "definition": "SELECT\n  c_integer\n, c_varchar\nFROM\n  memory.omni_driver.types\n",
+          "columns": [
+            {
+              "name": "c_integer",
+              "nullable": true,
+              "type": "integer"
+            },
+            {
+              "name": "c_varchar",
+              "nullable": true,
+              "type": "varchar"
             }
           ]
         }
