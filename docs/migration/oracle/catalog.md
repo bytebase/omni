@@ -197,6 +197,8 @@ replay tests exercise.
 - Primary-key nullability provenance follows a renamed column.
 - Incoming-key lookup resolves an unnamed synced schema to its owner.
 - A literal default containing `ISEQ$$_` is kept.
+- Identifier renames leave function names alone.
+- Primary-key and named-NOT-NULL provenance move with a renamed table.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

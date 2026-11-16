@@ -835,7 +835,12 @@ func renameIdentifier(expression, oldName, newName string) string {
 				end++
 			}
 			token := expression[i:end]
-			if strings.ToUpper(token) == oldName {
+			next := end
+			for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+				next++
+			}
+			isFunction := next < len(expression) && expression[next] == '('
+			if !isFunction && strings.ToUpper(token) == oldName {
 				writeRenamedIdentifier(&out, newName, false)
 			} else {
 				out.WriteString(token)
@@ -1034,12 +1039,25 @@ func scanTriggerIdentifier(body string, start int) (string, int, int) {
 	return body[start:end], start, end
 }
 
+func rekeyProvenance(provenance map[string]bool, oldTable, newTable string) {
+	prefix := oldTable + "\x00"
+	for key := range provenance {
+		if strings.HasPrefix(key, prefix) {
+			value := provenance[key]
+			delete(provenance, key)
+			provenance[newTable+"\x00"+strings.TrimPrefix(key, prefix)] = value
+		}
+	}
+}
+
 func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
 	table := e.tables[oldName]
 	if table == nil {
 		return
 	}
 	delete(e.tables, oldName)
+	rekeyProvenance(e.primaryKeyNotNull, oldName, newName)
+	rekeyProvenance(e.namedNotNull, oldName, newName)
 	table.Name = newName
 	for _, trigger := range table.Triggers {
 		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)

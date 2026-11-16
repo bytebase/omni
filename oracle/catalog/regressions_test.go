@@ -1816,3 +1816,25 @@ func TestDefinitionKeepsLiteralSequenceLikeDefault(t *testing.T) {
 		t.Fatalf("literal default dropped:\n%s", definition)
 	}
 }
+
+func TestRenameColumnKeepsFunctionName(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T ("ABS" NUMBER, D NUMBER, CONSTRAINT CK CHECK(ABS(D) > 0)); ALTER TABLE T RENAME COLUMN "ABS" TO X`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := tableByName(c.Metadata().Schemas[0])["T"].CheckConstraints[0]
+	if !strings.Contains(check.Expression, "ABS(D)") {
+		t.Fatalf("function call renamed: %q", check.Expression)
+	}
+}
+
+func TestRenameTableMovesPrimaryKeyProvenance(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY); ALTER TABLE T RENAME TO U; ALTER TABLE U DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["U"]
+	if !table.Columns[0].Nullable {
+		t.Fatalf("renamed table's primary-key column kept NOT NULL: %+v", table.Columns[0])
+	}
+}
