@@ -69,17 +69,26 @@ const (
 	// connection, DNS lookup included, so an unreachable address fails over in
 	// seconds. It does not limit how long a statement runs.
 	defaultDialTimeoutSeconds = "10"
+	// defaultPort is the port the client reads from the URL when the caller
+	// names none, which its own dialer makes irrelevant.
+	defaultPort = 1521
 )
 
 // Open returns a driver for the server, service and schema cfg names. It reaches
 // the server when Config.Database names a schema, so a schema the account cannot
 // switch to fails here rather than at the first statement.
 func Open(ctx context.Context, cfg omnidriver.Config) (*Driver, error) {
-	port, err := strconv.Atoi(strings.TrimSpace(cfg.Port))
-	if err != nil {
-		return nil, fmt.Errorf("invalid port %q", cfg.Port)
+	// A caller-supplied dialer names the server itself, so the endpoint may be
+	// empty; the client still parses a URL, and an unused port satisfies it.
+	port := defaultPort
+	if cfg.Port != "" {
+		parsed, err := strconv.Atoi(strings.TrimSpace(cfg.Port))
+		if err != nil {
+			return nil, fmt.Errorf("invalid port %q", cfg.Port)
+		}
+		port = parsed
 	}
-	if strings.TrimSpace(cfg.Host) == "" {
+	if strings.TrimSpace(cfg.Host) == "" && cfg.Dial == nil {
 		return nil, errors.New("host must be set")
 	}
 	if cfg.User == "" {
@@ -100,8 +109,15 @@ func Open(ctx context.Context, cfg omnidriver.Config) (*Driver, error) {
 			return nil, errors.New("TLS configuration must not be nil")
 		}
 	}
+	// The client refuses an empty host in its URL, and a caller whose dialer
+	// names the server may leave it empty: the placeholder only fills the URL,
+	// since the dialer replaces the transport that would read it.
+	urlHost := strings.TrimSpace(cfg.Host)
+	if urlHost == "" {
+		urlHost = "localhost"
+	}
 	dsn := goora.BuildUrl(
-		strings.TrimSpace(cfg.Host), port, service, cfg.User, cfg.Password,
+		urlHost, port, service, cfg.User, cfg.Password,
 		connectionOptions(cfg.Params, tlsConfig != nil),
 	)
 	d := &Driver{
