@@ -215,6 +215,14 @@ func TestPriorBackupCheckDataModifyingCTE(t *testing.T) {
 			want: nil,
 		},
 		{
+			name: "a CTE before a DDL statement keeps statement order",
+			sql:  "WITH d AS (DELETE FROM orders RETURNING order_id) SELECT 1;\nCREATE TABLE u (a int)",
+			want: []priorBackupFinding{
+				cte(`"d"`),
+				{Code: v1review.PriorBackupMixedDDLAndDML, Statement: 1},
+			},
+		},
+		{
 			name: "one finding per statement",
 			sql:  "WITH a AS (DELETE FROM orders RETURNING order_id) SELECT 1; WITH b AS (DELETE FROM orders RETURNING order_id) SELECT 2",
 			want: []priorBackupFinding{cte(`"a"`), {Code: v1review.PriorBackupDataModifyingCTE, Value: `"b"`, Statement: 1}},
