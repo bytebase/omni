@@ -15,6 +15,7 @@
 | 	token UNIQUEIDENTIFIER NULL,
 | 	created_at DATETIME2(3) NOT NULL CONSTRAINT df_accounts_created DEFAULT SYSUTCDATETIME(),
 | 	offset_at DATETIMEOFFSET(0) NULL,
+| 	xml_doc XML NULL,
 | 	updated_at DATETIME2(3) NULL,
 | 	email_lower AS LOWER(email) PERSISTED,
 | 	PRIMARY KEY (id),
@@ -32,6 +33,9 @@
 | CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 < ok 0 -
 > exec
+| CREATE PRIMARY XML INDEX pxml_accounts_doc ON app.accounts (xml_doc);
+< ok 0 -
+> exec
 | CREATE TABLE app.orders (
 | 	id BIGINT IDENTITY NOT NULL PRIMARY KEY,
 | 	account_id BIGINT NOT NULL CONSTRAINT fk_orders_account REFERENCES app.accounts (id) ON DELETE CASCADE,
@@ -45,6 +49,9 @@
 | 	val BIGINT NOT NULL,
 | 	CONSTRAINT pk_metrics PRIMARY KEY (ts)
 | );
+< ok 0 -
+> exec
+| CREATE NONCLUSTERED COLUMNSTORE INDEX ncc_metrics ON app.metrics (ts, val);
 < ok 0 -
 > exec
 | CREATE SEQUENCE app.seq_orders AS BIGINT START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CYCLE CACHE 50;
@@ -429,6 +436,29 @@
 : int64 901578250
 : int64 10
 : string
+| xml_doc
+: string
+| xml
+: bool false
+: null
+: null
+: int64 -1
+: int64 0
+: int64 0
+: null
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| app
+: string
+| accounts
+: int64 901578250
+: int64 11
+: string
 | updated_at
 : string
 | datetime2
@@ -450,7 +480,7 @@
 : string
 | accounts
 : int64 901578250
-: int64 11
+: int64 12
 : string
 | email_lower
 : string
@@ -474,7 +504,7 @@
 | app
 : string
 | orders
-: int64 1013578649
+: int64 1029578706
 : int64 1
 : string
 | id
@@ -497,7 +527,7 @@
 | app
 : string
 | orders
-: int64 1013578649
+: int64 1029578706
 : int64 2
 : string
 | account_id
@@ -520,7 +550,7 @@
 | app
 : string
 | orders
-: int64 1013578649
+: int64 1029578706
 : int64 3
 : string
 | total
@@ -543,7 +573,7 @@
 | app
 : string
 | orders
-: int64 1013578649
+: int64 1029578706
 : int64 4
 : string
 | note
@@ -567,7 +597,7 @@
 | app
 : string
 | metrics
-: int64 1061578820
+: int64 1077578877
 : int64 1
 : string
 | ts
@@ -590,7 +620,7 @@
 | app
 : string
 | metrics
-: int64 1061578820
+: int64 1077578877
 : int64 2
 : string
 | val
@@ -613,7 +643,7 @@
 | app
 : string
 | v_open_accounts
-: int64 1109578991
+: int64 1125579048
 : int64 1
 : string
 | acct_id
@@ -636,7 +666,7 @@
 | app
 : string
 | v_open_accounts
-: int64 1109578991
+: int64 1125579048
 : int64 2
 : string
 | acct_email
@@ -660,7 +690,7 @@
 | app
 : string
 | fn_orders_of
-: int64 1141579105
+: int64 1157579162
 : int64 1
 : string
 | id
@@ -683,7 +713,7 @@
 | app
 : string
 | fn_orders_of
-: int64 1141579105
+: int64 1157579162
 : int64 2
 : string
 | total
@@ -823,8 +853,11 @@
 | 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
-| 		AND s.name in (N'app',N'dbo') AND o.type IN ('U', 'S', 'V') AND ic.key_ordinal > 0
-| 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal
+| 		AND s.name in (N'app',N'dbo') AND o.type IN ('U', 'S', 'V')
+| 		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
+| 		-- key; a columnstore or XML index states every one of its columns that way.
+| 		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
+| 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 | 	
 < result
 < column "schema_name" "NVARCHAR"
@@ -850,6 +883,51 @@
 : bool false
 : string
 | status
+: bool false
+< row
+: string
+| app
+: string
+| accounts
+: int64 901578250
+: int64 256000
+: string
+| pxml_accounts_doc
+: string
+| XML
+: bool false
+: string
+| xml_doc
+: bool false
+< row
+: string
+| app
+: string
+| metrics
+: int64 1077578877
+: int64 2
+: string
+| ncc_metrics
+: string
+| NONCLUSTERED COLUMNSTORE
+: bool false
+: string
+| ts
+: bool false
+< row
+: string
+| app
+: string
+| metrics
+: int64 1077578877
+: int64 2
+: string
+| ncc_metrics
+: string
+| NONCLUSTERED COLUMNSTORE
+: bool false
+: string
+| val
 : bool false
 > query
 |
@@ -985,7 +1063,7 @@
 | app
 : string
 | orders
-: int64 1045578763
+: int64 1061578820
 : string
 | fk_orders_account
 : string
@@ -1027,13 +1105,13 @@
 : string
 | accounts
 < row
-: int64 1013578649
+: int64 1029578706
 : string
 | app
 : string
 | orders
 < row
-: int64 1061578820
+: int64 1077578877
 : string
 | app
 : string
@@ -1088,13 +1166,13 @@
 : string
 | accounts
 < row
-: int64 1013578649
+: int64 1029578706
 : string
 | app
 : string
 | orders
 < row
-: int64 1061578820
+: int64 1077578877
 : string
 | app
 : string
@@ -1112,7 +1190,7 @@
 : string
 | customer accounts
 < row
-: int64 1093578934
+: int64 1109578991
 : string
 | order sequence
 > query
@@ -1126,22 +1204,22 @@
 < column "total_rows" "BIGINT"
 < row
 : int64 3
-: int64 1509
+: int64 1530
 < row
 : int64 5
-: int64 191
+: int64 196
 < row
 : int64 6
 : int64 0
 < row
 : int64 7
-: int64 226
+: int64 234
 < row
 : int64 8
 : int64 2
 < row
 : int64 9
-: int64 0
+: int64 3
 < row
 : int64 17
 : int64 0
@@ -1180,7 +1258,7 @@
 : int64 229
 < row
 : int64 34
-: int64 2799
+: int64 2800
 < row
 : int64 35
 : int64 0
@@ -1198,7 +1276,7 @@
 : int64 0
 < row
 : int64 41
-: int64 1251
+: int64 1264
 < row
 : int64 42
 : int64 0
@@ -1231,10 +1309,10 @@
 : int64 0
 < row
 : int64 54
-: int64 225
+: int64 228
 < row
 : int64 55
-: int64 452
+: int64 457
 < row
 : int64 56
 : int64 0
@@ -1249,7 +1327,7 @@
 : int64 0
 < row
 : int64 60
-: int64 283
+: int64 287
 < row
 : int64 62
 : int64 0
@@ -1282,7 +1360,7 @@
 : int64 0
 < row
 : int64 74
-: int64 208
+: int64 210
 < row
 : int64 75
 : int64 123
@@ -1366,7 +1444,7 @@
 : int64 1
 < row
 : int64 245575913
-: int64 1
+: int64 3
 < row
 : int64 261575970
 : int64 0
@@ -1428,7 +1506,10 @@
 : int64 1013578649
 : int64 0
 < row
-: int64 1061578820
+: int64 1029578706
+: int64 0
+< row
+: int64 1077578877
 : int64 0
 < row
 : int64 1993058136
@@ -1467,13 +1548,13 @@
 : string
 | accounts
 < row
-: int64 1061578820
+: int64 1077578877
 : string
 | app
 : string
 | metrics
 < row
-: int64 1013578649
+: int64 1029578706
 : string
 | app
 : string
@@ -1509,7 +1590,7 @@
 | app
 : string
 | v_open_accounts
-: int64 1109578991
+: int64 1125579048
 : string
 | CREATE VIEW app.v_open_accounts AS
 | 	SELECT id AS acct_id, email AS acct_email FROM app.accounts WHERE status = 'open';
@@ -1694,7 +1775,7 @@
 < column "schemaName" "NVARCHAR"
 < column "objectType" "CHAR"
 < row
-: int64 1189579276
+: int64 1205579333
 : string
 | trg_open_accounts_io
 : string
@@ -1713,7 +1794,7 @@
 : string
 | V 
 < row
-: int64 1221579390
+: int64 1237579447
 : string
 | trg_orders_bi
 : string

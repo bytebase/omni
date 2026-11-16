@@ -482,8 +482,9 @@ func classifyStmtType(node ast.Node) (stmtType, error) {
 		return dmlStmtType(n.OutputClause), nil
 
 	case *ast.ReceiveStmt:
-		if n.IntoVar == "" {
-			// RECEIVE without INTO returns the messages it consumed.
+		if n.IntoVar == "" && !receiveAssignsVariables(n) {
+			// RECEIVE without INTO returns the messages it consumed, unless every
+			// column it names is assigned to a variable.
 			return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating, nil
 		}
 		return stmtTypeRowCountGenerating, nil
@@ -527,6 +528,24 @@ func dmlStmtType(output *ast.OutputClause) stmtType {
 		return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeOutput
 	}
 	return stmtTypeRowCountGenerating
+}
+
+// receiveAssignsVariables reports whether every column a RECEIVE names is
+// assigned to a local variable, which returns no rows.
+func receiveAssignsVariables(receive *ast.ReceiveStmt) bool {
+	if receive.Columns == nil || receive.AllColumns || len(receive.Columns.Items) == 0 {
+		return false
+	}
+	for _, item := range receive.Columns.Items {
+		column, ok := item.(*ast.ReceiveColumn)
+		if !ok {
+			return false
+		}
+		if _, ok := column.Expr.(*ast.SelectAssign); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func assignsVariables(sel *ast.SelectStmt) bool {

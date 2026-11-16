@@ -12,6 +12,7 @@ import (
 	gomssqldb "github.com/microsoft/go-mssqldb"
 
 	"github.com/bytebase/omni/driver"
+	omnimssql "github.com/bytebase/omni/mssql"
 )
 
 func quoteIdent(name string) string {
@@ -351,5 +352,28 @@ UPDATE STATISTICS c_big;
 	}
 	if _, err := d.CountAffectedRows(ctx, "SELECT * FROM app.missing_table;"); err == nil {
 		t.Fatal("a missing table should fail its plan")
+	}
+}
+
+func TestClassifyReceiveAndReadText(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want stmtType
+	}{
+		{"RECEIVE conversation_handle FROM dbo.q;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating},
+		{"RECEIVE @h = conversation_handle FROM dbo.q;", stmtTypeRowCountGenerating},
+		{"READTEXT t.c @ptr 0 100;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating},
+	} {
+		stmts, err := omnimssql.Parse(tc.sql)
+		if err != nil || len(stmts) != 1 {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		got, err := getStmtType(stmts[0].AST)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got != tc.want {
+			t.Errorf("%q: type = %d, want %d", tc.sql, got, tc.want)
+		}
 	}
 }

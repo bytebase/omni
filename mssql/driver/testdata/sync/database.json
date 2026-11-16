@@ -70,14 +70,20 @@
               "type":  "datetimeoffset(0)"
             },
             {
-              "name":  "updated_at",
+              "name":  "xml_doc",
               "position":  10,
+              "nullable":  true,
+              "type":  "xml"
+            },
+            {
+              "name":  "updated_at",
+              "position":  11,
               "nullable":  true,
               "type":  "datetime2(3)"
             },
             {
               "name":  "email_lower",
-              "position":  11,
+              "position":  12,
               "nullable":  true,
               "type":  "AS (lower([email])) PERSISTED",
               "collation":  "SQL_Latin1_General_CP1_CI_AS"
@@ -118,6 +124,16 @@
                 false
               ],
               "type":  "NONCLUSTERED"
+            },
+            {
+              "name":  "pxml_accounts_doc",
+              "expressions":  [
+                "xml_doc"
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "XML"
             }
           ],
           "comment":  "customer accounts",
@@ -155,6 +171,18 @@
               "unique":  true,
               "primary":  true,
               "isConstraint":  true
+            },
+            {
+              "name":  "ncc_metrics",
+              "expressions":  [
+                "ts",
+                "val"
+              ],
+              "descending":  [
+                false,
+                false
+              ],
+              "type":  "NONCLUSTERED COLUMNSTORE"
             }
           ]
         },

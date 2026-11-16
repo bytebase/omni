@@ -11,6 +11,7 @@ CREATE TABLE app.accounts (
 	token UNIQUEIDENTIFIER NULL,
 	created_at DATETIME2(3) NOT NULL CONSTRAINT df_accounts_created DEFAULT SYSUTCDATETIME(),
 	offset_at DATETIMEOFFSET(0) NULL,
+	xml_doc XML NULL,
 	updated_at DATETIME2(3) NULL,
 	email_lower AS LOWER(email) PERSISTED,
 	PRIMARY KEY (id),
@@ -28,6 +29,10 @@ GO
 CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 GO
 
+CREATE PRIMARY XML INDEX pxml_accounts_doc ON app.accounts (xml_doc);
+GO
+
+
 CREATE TABLE app.orders (
 	id BIGINT IDENTITY NOT NULL PRIMARY KEY,
 	account_id BIGINT NOT NULL CONSTRAINT fk_orders_account REFERENCES app.accounts (id) ON DELETE CASCADE,
@@ -41,6 +46,9 @@ CREATE TABLE app.metrics (
 	val BIGINT NOT NULL,
 	CONSTRAINT pk_metrics PRIMARY KEY (ts)
 );
+GO
+
+CREATE NONCLUSTERED COLUMNSTORE INDEX ncc_metrics ON app.metrics (ts, val);
 GO
 
 CREATE SEQUENCE app.seq_orders AS BIGINT START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CYCLE CACHE 50;

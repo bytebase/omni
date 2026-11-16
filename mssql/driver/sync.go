@@ -859,8 +859,11 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
-		AND s.name in (%s) AND o.type IN ('U', 'S', 'V') AND ic.key_ordinal > 0
-	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal
+		AND s.name in (%s) AND o.type IN ('U', 'S', 'V')
+		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
+		-- key; a columnstore or XML index states every one of its columns that way.
+		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
+	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 	`, quoteList(schemas))
 	rows, err := txn.Query(query)
 	if err != nil {
