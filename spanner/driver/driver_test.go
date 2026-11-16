@@ -80,6 +80,21 @@ func TestClassifyStatement(t *testing.T) {
 
 // TestStatements splits a script into the statements the driver runs, skipping
 // the segments that ask Spanner nothing.
+// TestFirstTwoKeywords reads the keywords a creation script's check needs.
+func TestFirstTwoKeywords(t *testing.T) {
+	tests := map[string][2]string{
+		"CREATE DATABASE `d`":                       {"CREATE", "DATABASE"},
+		"create database `d`":                       {"CREATE", "DATABASE"},
+		"-- a note\nCREATE DATABASE `d`":            {"CREATE", "DATABASE"},
+		"/* a note */\nCREATE /* x */ DATABASE `d`": {"CREATE", "DATABASE"},
+		"CREATE":         {"CREATE", ""},
+		"-- only a note": {"", ""},
+	}
+	for text, want := range tests {
+		require.Equal(t, want, firstTwoKeywords(text), text)
+	}
+}
+
 func TestStatements(t *testing.T) {
 	a := require.New(t)
 	stmts := statements(`SELECT 1;

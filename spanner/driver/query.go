@@ -90,6 +90,22 @@ func classifyStatement(text string) (statementKind, bool) {
 	}
 }
 
+// firstTwoKeywords returns text's first two keywords as they are written,
+// upper case, with the comments before and between them skipped. A text with
+// fewer words answers what it has.
+func firstTwoKeywords(text string) [2]string {
+	var keywords [2]string
+	lexer := parser.NewLexer(text)
+	for i := range keywords {
+		tok := lexer.NextToken()
+		if tok.Loc.End <= tok.Loc.Start {
+			break
+		}
+		keywords[i] = strings.ToUpper(text[tok.Loc.Start:tok.Loc.End])
+	}
+	return keywords
+}
+
 // Query runs each statement of script in order and returns one Result per
 // statement run. A statement that fails ends the script with its error on its
 // own Result; the error returned is nil, since the script ran as far as it
@@ -230,12 +246,20 @@ func (s *session) explainStatement(ctx context.Context, script string, _ driver.
 				Plan: &driver.Plan{Format: "JSON"},
 			}, nil
 		}()
+		stop := false
 		if err != nil {
 			result = &driver.Result{Err: err}
+			stop = true
 		}
 		result.Statement = statement.Text
 		result.Latency = time.Since(startTime)
 		results = append(results, result)
+		if stop {
+			// A statement that failed ends the script, as it does for a query:
+			// asking for the plan of a statement after the failure is asking the
+			// server what the script never ran.
+			break
+		}
 	}
 	return results, nil
 }

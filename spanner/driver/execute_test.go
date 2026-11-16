@@ -147,6 +147,29 @@ func TestExecuteCreateDatabase(t *testing.T) {
 	a.Contains(dumped.String(), "CREATE TABLE Written")
 }
 
+// TestExecuteCreateDatabaseWithAHeaderComment creates a database from a script
+// that begins with a comment: the comment is part of the statement's text now,
+// and asking the lexer for the first two keywords skips it, as Bytebase's
+// comment-stripping splitter did.
+func TestExecuteCreateDatabaseWithAHeaderComment(t *testing.T) {
+	a := require.New(t)
+	testcontainer.Create(t, "createdb", "createdb", nil, nil)
+	d := openDriver(t, "createdb", "createdb")
+	defer d.Close()
+
+	count, err := d.Execute(context.Background(),
+		"-- provision the database\n/* and its schema */ CREATE DATABASE `createdheader`; CREATE TABLE Written (Id INT64 NOT NULL) PRIMARY KEY (Id)",
+		driver.ExecuteOptions{CreateDatabase: true})
+	a.NoError(err)
+	a.Equal(int64(0), count)
+
+	created := openDriver(t, "createdb", "createdheader")
+	defer created.Close()
+	var dumped strings.Builder
+	a.NoError(created.Dump(context.Background(), &dumped, nil))
+	a.Contains(dumped.String(), "CREATE TABLE Written")
+}
+
 // TestExecuteCreateDatabaseRefusesOtherStatements refuses a creation script whose
 // first statement is not CREATE DATABASE, which is what Bytebase's check did.
 func TestExecuteCreateDatabaseRefusesOtherStatements(t *testing.T) {

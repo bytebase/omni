@@ -167,6 +167,22 @@ func TestQueryExplain(t *testing.T) {
 	a.Contains(results[0].Err.Error(), "query plan unavailable")
 }
 
+// TestQueryExplainStopsAtError ends an explaining script at the statement that
+// failed, as a query script does: the plan of a statement after the failure is
+// not asked for.
+func TestQueryExplainStopsAtError(t *testing.T) {
+	a := require.New(t)
+	d := openFixture(t, "query")
+	defer d.Close()
+
+	results, err := sessionOf(t, d).Query(context.Background(),
+		`SELECT * FROM Missing; SELECT 1 AS a`, driver.QueryOptions{Explain: true, MaxResultBytes: maxResultBytes})
+	a.NoError(err)
+	a.Len(results, 1)
+	a.Error(results[0].Err)
+	a.Contains(results[0].Err.Error(), "Table not found")
+}
+
 // TestQueryStructRefused refuses a result that declares a Spanner STRUCT, which
 // the contract has no cell kind for.
 func TestQueryStructRefused(t *testing.T) {

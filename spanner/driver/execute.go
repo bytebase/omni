@@ -3,7 +3,6 @@ package driver
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -25,7 +24,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		if len(stmts) == 0 {
 			return 0, fmt.Errorf("expect sanitized SQLs to have at least one entry, original statement: %v", script)
 		}
-		if !strings.HasPrefix(strings.TrimSpace(stmts[0].Text), "CREATE DATABASE") {
+		if !startsWithCreateDatabase(stmts[0].Text) {
 			return 0, fmt.Errorf("expect the first entry of the sanitized SQLs to start with 'CREATE DATABASE', sql %v", stmts[0].Text)
 		}
 		extra := make([]string, 0, len(stmts)-1)
@@ -97,6 +96,13 @@ func (d *Driver) executeInAutoCommitMode(ctx context.Context, stmts []string) (i
 		rowCount += count
 	}
 	return rowCount, nil
+}
+
+// startsWithCreateDatabase reports whether statement begins with CREATE
+// DATABASE, after any comment before it: a creation script may carry a header
+// comment, which Bytebase's comment-stripping splitter removed before this check.
+func startsWithCreateDatabase(statement string) bool {
+	return firstTwoKeywords(statement) == [2]string{"CREATE", "DATABASE"}
 }
 
 func logTransactionControl(log driver.ExecuteLogger, op driver.TransactionOp, err error) {
