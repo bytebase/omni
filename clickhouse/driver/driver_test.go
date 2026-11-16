@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"math"
 	"net"
 	"reflect"
 	"strings"
@@ -265,6 +266,14 @@ func TestConvertMapWithFloatKeys(t *testing.T) {
 	}
 }
 
+func TestConvertNonFiniteFloatInArray(t *testing.T) {
+	value := any([]any{math.NaN(), math.Inf(1), math.Inf(-1)})
+	got := convertValue("ARRAY(FLOAT64)", nil, &value)
+	if want := `["nan","inf","-inf"]`; got.Kind != driver.String || got.String != want {
+		t.Errorf("array of floats = %+v, want %s", got, want)
+	}
+}
+
 func TestConvertUUIDInArray(t *testing.T) {
 	id := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
 	value := any([]any{id})
@@ -330,6 +339,8 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"EXPLAIN SELECT 1", true},
 		{"EXPLAIN ANALYZE SELECT 1", false},
 		{"WITH x AS (SELECT 1) SELECT * FROM x", true},
+		{"WITH 1 AS `x` SELECT 2", true},
+		{"WITH 1 AS x SELECT 'foo' AS y", true},
 		{"WITH x AS (SELECT 1) INSERT INTO t SELECT * FROM x", false},
 		{"INSERT INTO t VALUES (1)", false},
 		{"SELECT 'DROP TABLE t' AS x", true},
@@ -359,6 +370,8 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"WITH x AS (SELECT 1) UPDATE t SET a = 1", false},
 		{"WITH x AS (SELECT 1) DELETE FROM t", false},
 		{"WITH x AS (SELECT 1) SELECT * FROM x", true},
+		{"WITH 1 AS `x` SELECT 2", true},
+		{"WITH 1 AS x SELECT 'foo' AS y", true},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {

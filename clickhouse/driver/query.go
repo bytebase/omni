@@ -6,6 +6,7 @@ import (
 	"encoding"
 	"encoding/json"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 	"reflect"
@@ -356,6 +357,18 @@ func normalizeJSONValue(value any) any {
 			out[fmt.Sprint(iter.Key().Interface())] = normalizeJSONValue(iter.Value().Interface())
 		}
 		return out
+	case reflect.Float32, reflect.Float64:
+		f := rv.Float()
+		switch {
+		case math.IsNaN(f):
+			return "nan"
+		case math.IsInf(f, 1):
+			return "inf"
+		case math.IsInf(f, -1):
+			return "-inf"
+		default:
+			return value
+		}
 	case reflect.Slice:
 		if rv.Type().Elem().Kind() == reflect.Uint8 {
 			return value

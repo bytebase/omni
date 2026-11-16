@@ -522,28 +522,28 @@ func removeQuotedTextAndComment(statement string) (string, error) {
 			if err := scanString(runes, &i); err != nil {
 				return "'", err
 			}
-			buf.WriteByte(' ')
+			buf.WriteString(" x ")
 			start = i
 		case i < len(runes) && runes[i] == '"':
 			buf.WriteString(string(runes[start:i]))
 			if err := scanIdentifier(runes, &i, '"'); err != nil {
 				return "", err
 			}
-			buf.WriteByte(' ')
+			buf.WriteString(" x ")
 			start = i
 		case i < len(runes) && runes[i] == '`':
 			buf.WriteString(string(runes[start:i]))
 			if err := scanIdentifier(runes, &i, '`'); err != nil {
 				return "", err
 			}
-			buf.WriteByte(' ')
+			buf.WriteString(" x ")
 			start = i
 		case i < len(runes) && runes[i] == '$' && isHeredocStart(runes, i):
 			buf.WriteString(string(runes[start:i]))
 			if err := scanHeredoc(runes, &i); err != nil {
 				return "", err
 			}
-			buf.WriteByte(' ')
+			buf.WriteString(" x ")
 			start = i
 		case i >= len(runes):
 			buf.WriteString(string(runes[start:]))
