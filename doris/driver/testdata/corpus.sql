@@ -1,0 +1,47 @@
+CREATE TABLE accounts (
+	id BIGINT NOT NULL,
+	email VARCHAR(190) NOT NULL COMMENT 'login email',
+	bio TEXT NULL,
+	status VARCHAR(16) NOT NULL DEFAULT 'open',
+	balance DECIMAL(12, 4) NOT NULL DEFAULT '0.0000',
+	flag TINYINT NOT NULL DEFAULT '1',
+	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_at DATETIME(6) NULL DEFAULT CURRENT_TIMESTAMP(6),
+	note VARCHAR(100) NULL COMMENT 'owner''s note',
+	dt DATE NULL,
+	payload JSON NULL
+) ENGINE=OLAP
+DUPLICATE KEY(id, email)
+COMMENT 'customer accounts'
+DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES("replication_num" = "1")
+
+CREATE TABLE orders (
+	id BIGINT NOT NULL,
+	account_id BIGINT NOT NULL,
+	total INT NULL DEFAULT '0',
+	created_on DATE NULL
+) ENGINE=OLAP
+DUPLICATE KEY(id)
+DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES("replication_num" = "1")
+
+CREATE TABLE metrics (
+	ts DATETIME NOT NULL,
+	val BIGINT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(ts)
+PARTITION BY RANGE(ts) (
+	PARTITION p2025 VALUES [('2025-01-01 00:00:00'), ('2026-01-01 00:00:00')),
+	PARTITION p2026 VALUES [('2026-01-01 00:00:00'), ('2027-01-01 00:00:00'))
+)
+DISTRIBUTED BY HASH(ts) BUCKETS 1
+PROPERTIES("replication_num" = "1")
+
+CREATE VIEW v_open_accounts AS
+	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open'
+
+CREATE MATERIALIZED VIEW mv_account_status
+DISTRIBUTED BY HASH(id) BUCKETS 1
+PROPERTIES("replication_num" = "1")
+AS SELECT id, status FROM accounts
