@@ -57,10 +57,23 @@ func TestSyncDatabaseReadsWhatTheEndpointReports(t *testing.T) {
 	orders := tables[testcontainer.Orders]
 	require.NotNil(t, orders)
 	require.Equal(t, []string{"pk"}, columnNames(orders))
-	require.Len(t, orders.Indexes, 2)
-	require.Equal(t, "RANGE", orders.Indexes[1].Type)
-	require.Empty(t, orders.Indexes[1].Name)
-	require.Empty(t, orders.Indexes[1].Expressions)
+	require.Len(t, orders.Indexes, 1, "a key with no sort key reports no RANGE index")
+	require.Equal(t, "HASH", orders.Indexes[0].Type)
+
+	// A secondary index is an index of the table, and an attribute it keys on is
+	// a column whether or not the table's own key names it.
+	paged := tables[testcontainer.Paged]
+	require.NotNil(t, paged)
+	require.Equal(t, []string{"label", "owner", "seq"}, columnNames(paged))
+	require.Len(t, paged.Indexes, 4)
+	indexes := map[string]*metadatapb.IndexMetadata{}
+	for _, index := range paged.Indexes {
+		indexes[index.Name] = index
+	}
+	require.Equal(t, "GLOBAL SECONDARY", indexes[testcontainer.GlobalIndex].Type)
+	require.Equal(t, []string{"label"}, indexes[testcontainer.GlobalIndex].Expressions)
+	require.Equal(t, "LOCAL SECONDARY", indexes[testcontainer.LocalIndex].Type)
+	require.Equal(t, []string{"owner", "label"}, indexes[testcontainer.LocalIndex].Expressions)
 }
 
 // TestListAllTablesWalksPages holds that the listing the driver reads is every
