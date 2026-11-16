@@ -109,10 +109,13 @@ func TestSplit_Comments(t *testing.T) {
 		{"dash line before", "-- comment\nSELECT 1;", []Segment{
 			{"-- comment\nSELECT 1", 0, 19},
 		}},
-		{"slash-slash line before", "// comment\nSELECT 1;", []Segment{
+		// Neither '//' nor '#' opens a comment (settled against the pinned
+		// server, see the lexer's skipWhitespaceAndComments), so nothing is
+		// hidden on their line and the segment boundaries do not move.
+		{"slash-slash is not a comment", "// comment\nSELECT 1;", []Segment{
 			{"// comment\nSELECT 1", 0, 19},
 		}},
-		{"hash comment", "# comment\nSELECT 1;", []Segment{
+		{"hash is not a comment", "# comment\nSELECT 1;", []Segment{
 			{"# comment\nSELECT 1", 0, 18},
 		}},
 		{"block before", "/* comment */ SELECT 1;", []Segment{
@@ -123,6 +126,10 @@ func TestSplit_Comments(t *testing.T) {
 		}},
 		{"comment-only filtered", "-- just a comment\n", nil},
 		{"block comment only filtered", "/* only */", nil},
+		// A buffer of '//' or '#' holds tokens, so it is a statement chunk and
+		// Split keeps it; only the engines' own comment forms are filtered.
+		{"slash-slash only kept", "// note\n", []Segment{{"// note\n", 0, 8}}},
+		{"hash only kept", "# note\n", []Segment{{"# note\n", 0, 7}}},
 	}
 	runSplitCases(t, cases)
 }

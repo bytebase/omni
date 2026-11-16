@@ -16306,3 +16306,10 @@ reject	reject	engine	suite:conformance	ALTER ROUTINE LOAD FOR zzrl17 FROM KAFKA 
 reject	reject	engine	suite:conformance	ALTER ROUTINE LOAD FOR zzrl18 FROM KAFKA ("kafka_partitions"=1)
 reject	reject	engine	suite:conformance	SELECT 1 INTO @v
 reject	reject	engine	suite:conformance	SELECT 1 INTO DUMPFILE '/tmp/x'
+reject	reject	engine	suite:comments	SELECT 1 // x
+reject	reject	engine	suite:comments	SELECT 1 # x
+reject	reject	engine	suite:comments	// x
+reject	reject	engine	suite:comments	# x
+reject	reject	engine	suite:comments	CREATE TABLE t (a INT) # x
+accept	accept	engine	suite:comments	SELECT 1 -- x
+accept	accept	engine	suite:comments	SELECT 1 /* x */

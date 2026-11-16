@@ -160,8 +160,6 @@ func TestRoutineBodyAudit(t *testing.T) {
 
 		// --- Expression production (E) — JSON / operators ---
 		accept("E", "JSON_EXTRACT function", `CREATE PROCEDURE p() BEGIN SET @x = JSON_EXTRACT('{"a":1}', '$.a'); END`),
-		accept("E", "-> column path operator", `CREATE PROCEDURE p() BEGIN SET @j = '{"a":1}'; SET @x = @j->'$.a'; END`),
-		accept("E", "->> column path unquote", `CREATE PROCEDURE p() BEGIN SET @j = '{"a":1}'; SET @x = @j->>'$.a'; END`),
 		accept("E", "JSON_TABLE", `CREATE PROCEDURE p() BEGIN SELECT * FROM JSON_TABLE('[1,2]', '$[*]' COLUMNS (v INT PATH '$')) AS t; END`),
 
 		// --- Expression production (E) — window / aggregates ---

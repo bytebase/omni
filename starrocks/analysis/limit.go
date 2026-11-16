@@ -95,7 +95,9 @@ func hasUnparsedTail(sql string, locEnd int) bool {
 		if pos >= len(sql) {
 			return false
 		}
-		if strings.HasPrefix(sql[pos:], "--") || strings.HasPrefix(sql[pos:], "#") {
+		// Doris rejects a '#' and StarRocks skips it; neither has a '#' comment,
+		// so a leading '#' here is not a comment to read past.
+		if strings.HasPrefix(sql[pos:], "--") {
 			nl := strings.IndexByte(sql[pos:], '\n')
 			if nl < 0 {
 				return false
@@ -233,7 +235,7 @@ func skipWhitespaceAndComments(sql string, pos int) int {
 		for pos < len(sql) && (sql[pos] == ' ' || sql[pos] == '\t' || sql[pos] == '\n' || sql[pos] == '\r') {
 			pos++
 		}
-		if strings.HasPrefix(sql[pos:], "--") || strings.HasPrefix(sql[pos:], "#") {
+		if strings.HasPrefix(sql[pos:], "--") {
 			nl := strings.IndexByte(sql[pos:], '\n')
 			if nl < 0 {
 				return len(sql)

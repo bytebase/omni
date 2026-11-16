@@ -164,8 +164,6 @@ func NodeLoc(n Node) Loc {
 		return v.Loc
 	case *TruncateTableStmt:
 		return v.Loc
-	case *CopyIntoStmt:
-		return v.Loc
 	case *LoadDataDesc:
 		return v.Loc
 	case *LoadDataStmt:

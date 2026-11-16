@@ -6,11 +6,6 @@ import "testing"
 // which MariaDB removed in 11.4 (the OF object list is MySQL-only). FOR UPDATE /
 // FOR SHARE without OF are unaffected (FOR SHARE itself remains a separately
 // tracked over-accept — see subtractiveDivergences).
-//
-// The JSON -> / ->> arrow over-accept is a deferred sibling prune: the grammar
-// fix is one line but it ripples into inherited mysql accept-tests and the
-// routine_body_audit, so it is deferred from this surgical arm (see the fidelity
-// note in expr.go).
 func TestForUpdateOfReject(t *testing.T) {
 	reject := []string{
 		"SELECT * FROM t FOR UPDATE OF t",

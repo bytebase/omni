@@ -234,8 +234,7 @@ func delimiterCommands(script string) []driver.Command {
 			} else {
 				i = len(script)
 			}
-		case dashComment(script, i), script[i] == '#',
-			strings.HasPrefix(script[i:], "//") && delimiter != "//":
+		case dashComment(script, i):
 			if nl := strings.IndexByte(script[i:], '\n'); nl >= 0 {
 				i += nl + 1
 			} else {
@@ -259,7 +258,8 @@ func delimiterCommands(script string) []driver.Command {
 
 // dashComment reports whether script[i:] opens a line comment: "--" followed by
 // a space, a tab, a line break or the end of the input, as both engines' lexers
-// require, so "1--2" is a subtraction.
+// require, so "1--2" is a subtraction. It is the only line comment they have:
+// neither engine has a "//" or a "#" one, so those stay in the statement text.
 func dashComment(script string, i int) bool {
 	if !strings.HasPrefix(script[i:], "--") {
 		return false

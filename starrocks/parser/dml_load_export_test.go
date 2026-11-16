@@ -58,22 +58,6 @@ func mustParseExport(t *testing.T, input string) *ast.ExportStmt {
 	return stmt
 }
 
-func mustParseCopyInto(t *testing.T, input string) *ast.CopyIntoStmt {
-	t.Helper()
-	file, errs := parseForTest(input)
-	if len(errs) > 0 {
-		t.Fatalf("parseForTest(%q) errors: %v", input, errs)
-	}
-	if len(file.Stmts) == 0 {
-		t.Fatalf("parseForTest(%q) returned no statements", input)
-	}
-	stmt, ok := file.Stmts[0].(*ast.CopyIntoStmt)
-	if !ok {
-		t.Fatalf("parseForTest(%q) got %T, want *ast.CopyIntoStmt", input, file.Stmts[0])
-	}
-	return stmt
-}
-
 // ---------------------------------------------------------------------------
 // TRUNCATE TABLE tests
 // ---------------------------------------------------------------------------
@@ -176,38 +160,39 @@ func TestTruncateTableLegacyCorpus(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// COPY INTO tests
+// COPY INTO
 // ---------------------------------------------------------------------------
 
-func TestCopyIntoBasic(t *testing.T) {
-	stmt := mustParseCopyInto(t, "COPY INTO my_table FROM 'stage/path'")
-	if len(stmt.Target.Parts) != 1 || stmt.Target.Parts[0] != "my_table" {
-		t.Fatalf("target = %v, want [my_table]", stmt.Target.Parts)
-	}
-	if stmt.Source != "stage/path" {
-		t.Errorf("source = %q, want stage/path", stmt.Source)
-	}
-}
-
-func TestCopyIntoWithProperties(t *testing.T) {
-	stmt := mustParseCopyInto(t,
-		`COPY INTO my_table FROM 'stage/path' PROPERTIES ("key"="val")`)
-	if len(stmt.Properties) != 1 {
-		t.Fatalf("properties len = %d, want 1", len(stmt.Properties))
-	}
-	if stmt.Properties[0].Key != "key" || stmt.Properties[0].Value != "val" {
-		t.Errorf("property = %q=%q, want key=val", stmt.Properties[0].Key, stmt.Properties[0].Value)
+// StarRocks has no COPY statement: StarRocks.g4 has no rule for one, and the
+// pinned 3.4.10 server answers COPY INTO t FROM @stage with a syntax error at
+// COPY. The node and the rule came with the Doris fork.
+func TestCopyIntoRejected(t *testing.T) {
+	for _, sql := range []string{
+		"COPY INTO my_table FROM 'stage/path'",
+		`COPY INTO my_table FROM 'stage/path' PROPERTIES ("key"="val")`,
+		`COPY INTO my_table FROM 'stage/' FILES = ('f1.csv', 'f2.csv')`,
+		"COPY INTO t FROM @stage",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, errs := parseForTest(sql); len(errs) == 0 {
+				t.Errorf("parseForTest(%q) accepted COPY INTO", sql)
+			}
+		})
 	}
 }
 
-func TestCopyIntoWithFiles(t *testing.T) {
-	stmt := mustParseCopyInto(t,
-		`COPY INTO my_table FROM 'stage/' FILES = ('f1.csv', 'f2.csv')`)
-	if len(stmt.Files) != 2 {
-		t.Fatalf("files len = %d, want 2", len(stmt.Files))
-	}
-	if stmt.Files[0] != "f1.csv" || stmt.Files[1] != "f2.csv" {
-		t.Errorf("files = %v, want [f1.csv f2.csv]", stmt.Files)
+// COPY is an ordinary identifier in StarRocks, not a keyword: the pinned server
+// parses CREATE TABLE t (copy INT) and SELECT copy FROM t.
+func TestCopyIsAnIdentifier(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT copy FROM t",
+		"CREATE TABLE t (copy INT)",
+	} {
+		t.Run(sql, func(t *testing.T) {
+			if _, errs := parseForTest(sql); len(errs) > 0 {
+				t.Errorf("parseForTest(%q) errors: %v", sql, errs)
+			}
+		})
 	}
 }
 
@@ -437,11 +422,6 @@ func TestT6NodeTags(t *testing.T) {
 	truncate := &ast.TruncateTableStmt{}
 	if truncate.Tag() != ast.T_TruncateTableStmt {
 		t.Errorf("TruncateTableStmt tag = %v", truncate.Tag())
-	}
-
-	copyInto := &ast.CopyIntoStmt{}
-	if copyInto.Tag() != ast.T_CopyIntoStmt {
-		t.Errorf("CopyIntoStmt tag = %v", copyInto.Tag())
 	}
 
 	loadDesc := &ast.LoadDataDesc{}

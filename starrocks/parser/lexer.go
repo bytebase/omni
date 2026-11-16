@@ -125,6 +125,17 @@ func isIdentCont(ch byte) bool {
 
 // --- Whitespace & Comments -------------------------------------------------
 
+// skipWhitespaceAndComments skips what StarRocksLex.g4 puts on a hidden
+// channel: WS, SIMPLE_COMMENT (a `--` to the end of the line) and
+// BRACKETED_COMMENT. The grammar has no `//` and no `#` token, and the pinned
+// 3.4.10 server treats them as two different things.
+//
+// `//` is two SLASH_SYMBOLs, so `SELECT 1 // x` is a syntax error at the
+// second '/'. `#` is a character the front end's ANTLR lexer has no token for,
+// which it reports and skips: the server reads `SELECT 1 # x` as `SELECT 1 x`
+// (one column named x), `SELECT 1+#2` as `SELECT 1+2`, `SELECT 1 # 2` as a
+// syntax error at the 2, and `# x` as a syntax error at the x. So a '#'
+// separates tokens without ending the line.
 func (l *Lexer) skipWhitespaceAndComments() {
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
@@ -137,16 +148,8 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 				l.pos++
 			}
-		case ch == '/' && l.peek(1) == '/':
-			l.pos += 2
-			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
-				l.pos++
-			}
 		case ch == '#':
 			l.pos++
-			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
-				l.pos++
-			}
 		case ch == '/' && l.peek(1) == '*' && l.peek(2) != '+':
 			// Block comment (but NOT hint /*+)
 			l.scanBlockComment()

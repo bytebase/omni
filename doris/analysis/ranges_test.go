@@ -69,9 +69,11 @@ func firstLine(s string) string {
 }
 
 func TestStatementRangesCommentOnlyBuffers(t *testing.T) {
-	// A buffer of comments only still gets a range: an editor that counts
-	// statement positions must not lose ground to it. That includes '//', a
-	// form parser.Split's lexer skips and so the splitter drops as empty.
+	// A buffer that holds no statement still gets a range: an editor that
+	// counts statement positions must not lose ground to it. For a comment-only
+	// buffer the comment-only path supplies it; for '//' and '#' it is an
+	// ordinary chunk the splitter keeps, because neither engine has those
+	// comments (see containsCommentMarker).
 	for _, tc := range []struct {
 		script string
 		want   []Range

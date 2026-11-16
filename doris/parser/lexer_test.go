@@ -429,11 +429,28 @@ func TestComments_DashDashEOF(t *testing.T) {
 }
 
 func TestComments_DoubleSlash(t *testing.T) {
-	assertKinds(t, "1 // comment\n2", []TokenKind{tokInt, tokInt})
+	// DorisLexer.g4 has no '//' rule, and the pinned 3.1.4 server answers
+	// "SELECT 1 // x" with extraneous input '/': the two slashes are division
+	// operators, so the lexer emits both.
+	assertKinds(t, "1 // comment\n2", []TokenKind{tokInt, int('/'), int('/'), kwCOMMENT, tokInt})
 }
 
 func TestComments_Hash(t *testing.T) {
-	assertKinds(t, "1 # comment\n2", []TokenKind{tokInt, tokInt})
+	// DorisLexer.g4 has no '#' rule either: the pinned 3.1.4 server refuses the
+	// character ("mismatched input '#'"), and the lexer reports it as unknown.
+	toks, errs := Tokenize("1 # comment")
+	if len(errs) != 1 || errs[0].Msg != errUnknownChar {
+		t.Fatalf("Tokenize(%q) errors = %v, want one %q", "1 # comment", errs, errUnknownChar)
+	}
+	want := []TokenKind{tokInt, tokInvalid, kwCOMMENT, tokEOF}
+	if len(toks) != len(want) {
+		t.Fatalf("Tokenize(%q) = %d tokens, want %d", "1 # comment", len(toks), len(want))
+	}
+	for i, k := range want {
+		if toks[i].Kind != k {
+			t.Errorf("Tokenize(%q) token[%d] kind = %d, want %d", "1 # comment", i, toks[i].Kind, k)
+		}
+	}
 }
 
 func TestComments_BlockComment(t *testing.T) {
