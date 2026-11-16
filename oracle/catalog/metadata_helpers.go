@@ -92,33 +92,11 @@ func normalizeDataTypeText(text string) string {
 	case normalized == "FLOAT":
 		return "FLOAT(126)"
 	case strings.HasPrefix(normalized, "NVARCHAR2"):
-		if strings.HasPrefix(normalized, "NVARCHAR2(") && strings.HasSuffix(normalized, ")") {
-			start := strings.Index(normalized, "(") + 1
-			end := strings.LastIndex(normalized, ")")
-			if start < end {
-				sizeStr := normalized[start:end]
-				if size := parseInt(sizeStr); size > 0 {
-					if size == 2000 {
-						return "NVARCHAR2(4000)"
-					}
-					if size <= 2000 {
-						return fmt.Sprintf("NVARCHAR2(%d)", size*2)
-					}
-				}
-			}
-		}
+		// National character types declare character counts. Sync reads
+		// CHAR_LENGTH, so doubling here would make SQL-derived metadata and a
+		// synced snapshot disagree.
 		return normalized
 	case strings.HasPrefix(normalized, "NCHAR"):
-		if strings.HasPrefix(normalized, "NCHAR(") && strings.HasSuffix(normalized, ")") {
-			start := strings.Index(normalized, "(") + 1
-			end := strings.LastIndex(normalized, ")")
-			if start < end {
-				sizeStr := normalized[start:end]
-				if size := parseInt(sizeStr); size > 0 {
-					return fmt.Sprintf("NCHAR(%d)", size*2)
-				}
-			}
-		}
 		return normalized
 	default:
 		return normalized

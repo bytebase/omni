@@ -747,15 +747,20 @@ func (e *oracleMetadataExtractor) checkConstraintNameNextSet(table *metadatapb.T
 	return next
 }
 
-func (*oracleMetadataExtractor) appendForeignKey(table *metadatapb.TableMetadata, name string, columns []string, refTable *ast.ObjectName, refColumns *ast.List, onDelete string) {
+func (e *oracleMetadataExtractor) appendForeignKey(table *metadatapb.TableMetadata, name string, columns []string, refTable *ast.ObjectName, refColumns *ast.List, onDelete string) {
 	referencedTable := objectName(refTable)
 	referencedColumns := stringList(refColumns)
 	if len(columns) == 0 || referencedTable == "" {
 		return
 	}
+	referencedSchema := ""
+	if refTable != nil && refTable.Schema != "" && refTable.Schema != e.currentSchema && refTable.Schema != e.currentDatabase {
+		referencedSchema = refTable.Schema
+	}
 	foreignKey := &metadatapb.ForeignKeyMetadata{
 		Name:              name,
 		Columns:           columns,
+		ReferencedSchema:  referencedSchema,
 		ReferencedTable:   referencedTable,
 		ReferencedColumns: referencedColumns,
 		OnDelete:          onDelete,

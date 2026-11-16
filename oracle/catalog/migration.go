@@ -21,6 +21,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 func generateMigration(diff *MetadataDiff) (string, error) {
 	var buf strings.Builder
+	renames := findConstraintRenames(diff)
 
 	// Safe order for migrations:
 	// 1. Drop dependent objects first (in reverse dependency order)
@@ -29,7 +30,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	//    - Use topological sort to create in safe order
 
 	// Phase 1: Drop dependent objects using topological sort
-	dropObjectsInOrder(diff, &buf)
+	dropObjectsInOrder(diff, &buf, renames)
 
 	// Only add blank line if we have drops AND we're about to create something
 	dropPhaseHasContent := buf.Len() > 0
@@ -40,13 +41,13 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	}
 
 	// Phase 2: Create/Alter objects using topological sort
-	createObjectsInOrder(diff, &buf)
+	createObjectsInOrder(diff, &buf, renames)
 
 	return buf.String(), nil
 }
 
 // dropObjectsInOrder drops all objects in reverse topological order (most dependent first)
-func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
+func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet) {
 	// Build dependency graph for all objects being dropped or altered
 	graph := newGraph()
 
@@ -254,6 +255,9 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
 				for _, indexDiff := range tableDiff.IndexChanges {
 					if indexDiff.Action == DiffActionDrop {
 						if indexDiff.OldIndex.IsConstraint {
+							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
+								continue
+							}
 							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
@@ -327,6 +331,9 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
 				for _, indexDiff := range tableDiff.IndexChanges {
 					if indexDiff.Action == DiffActionDrop {
 						if indexDiff.OldIndex.IsConstraint {
+							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
+								continue
+							}
 							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
@@ -397,7 +404,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
 }
 
 // createObjectsInOrder creates all objects in topological order (dependencies first)
-func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
+func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet) {
 	// First create schemas (they don't have dependencies)
 	var schemasToCreate []string
 	for _, schemaDiff := range diff.SchemaChanges {
@@ -423,6 +430,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
 				continue
 			}
 			writeMigrationCreateSequence(buf, seqDiff.SchemaName, seqDiff.NewSequence)
+		}
+	}
+	for _, seqDiff := range diff.SequenceChanges {
+		if seqDiff.Action == DiffActionAlter && !isSystemGeneratedSequence(seqDiff.SequenceName) {
+			writeMigrationAlterSequence(buf, seqDiff.SchemaName, seqDiff.OldSequence, seqDiff.NewSequence)
 		}
 	}
 
@@ -691,6 +703,10 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder) {
 			// Add indexes
 			for _, indexDiff := range tableDiff.IndexChanges {
 				if indexDiff.Action == DiffActionCreate {
+					if oldName := renames.oldNameForNew(tableDiff, indexDiff.NewIndex.Name); oldName != "" {
+						writeRenameConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, oldName, indexDiff.NewIndex.Name)
+						continue
+					}
 					if indexDiff.NewIndex.IsConstraint {
 						// Add constraint (primary key or unique constraint)
 						if indexDiff.NewIndex.Primary {
@@ -992,7 +1008,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			// Add new default if needed
 			if newHasDefault {
 				defaultExpr := getDefaultExpression(colDiff.NewColumn)
-				writeAlterColumnSetDefault(&buf, schemaName, tableName, colDiff.NewColumn.Name, defaultExpr)
+				writeAlterColumnSetDefault(&buf, schemaName, tableName, colDiff.NewColumn.Name, defaultExpr, colDiff.NewColumn.DefaultOnNull)
 			}
 		}
 	}
@@ -1196,6 +1212,9 @@ func defaultValuesEqual(col1, col2 *metadatapb.ColumnMetadata) bool {
 	}
 
 	// Check default value
+	if col1.GetDefaultOnNull() != col2.GetDefaultOnNull() {
+		return false
+	}
 	def1 := col1.GetDefault()
 	def2 := col2.GetDefault()
 	return def1 == def2
@@ -1410,6 +1429,9 @@ func writeColumnAttributes(out *strings.Builder, column *metadatapb.ColumnMetada
 		_, _ = out.WriteString(virtualColumnClause(column.Generation))
 	} else if defaultExpr := getDefaultExpression(column); defaultExpr != "" {
 		_, _ = out.WriteString(` DEFAULT `)
+		if column.DefaultOnNull {
+			_, _ = out.WriteString(`ON NULL `)
+		}
 		_, _ = out.WriteString(defaultExpr)
 	}
 	if !column.Nullable {
@@ -1482,7 +1504,7 @@ func writeAlterColumnDropNotNull(out *strings.Builder, schema, table, column str
 	_, _ = out.WriteString("\n")
 }
 
-func writeAlterColumnSetDefault(out *strings.Builder, schema, table, column, defaultExpr string) {
+func writeAlterColumnSetDefault(out *strings.Builder, schema, table, column, defaultExpr string, defaultOnNull bool) {
 	_, _ = out.WriteString(`ALTER TABLE `)
 	if schema != "" {
 		_, _ = out.WriteString(`"`)
@@ -1494,6 +1516,9 @@ func writeAlterColumnSetDefault(out *strings.Builder, schema, table, column, def
 	_, _ = out.WriteString(`" MODIFY "`)
 	_, _ = out.WriteString(column)
 	_, _ = out.WriteString(`" DEFAULT `)
+	if defaultOnNull {
+		_, _ = out.WriteString(`ON NULL `)
+	}
 	_, _ = out.WriteString(defaultExpr)
 	_, _ = out.WriteString(`;`)
 	_, _ = out.WriteString("\n")
@@ -1732,6 +1757,9 @@ func writeMigrationView(out *strings.Builder, schema string, view *metadatapb.Vi
 	if view.Comment != "" {
 		writeViewComment(out, schema, view.Name, view.Comment)
 	}
+	for _, trigger := range view.Triggers {
+		writeMigrationTrigger(out, trigger)
+	}
 }
 
 // writeMaterializedView writes a CREATE MATERIALIZED VIEW statement
@@ -1754,6 +1782,9 @@ func writeMigrationMaterializedView(out *strings.Builder, schema string, view *m
 	// Add comment if present
 	if view.Comment != "" {
 		writeMaterializedViewComment(out, schema, view.Name, view.Comment)
+	}
+	for _, trigger := range view.Triggers {
+		writeMigrationTrigger(out, trigger)
 	}
 }
 
@@ -1870,7 +1901,7 @@ func writeMigrationPrimaryKey(out *strings.Builder, schema, table string, index 
 		if i > 0 {
 			_, _ = out.WriteString(`, `)
 		}
-		_, _ = out.WriteString(expr)
+		writeConstraintColumn(out, expr)
 	}
 
 	_, _ = out.WriteString(`);`)
@@ -1895,7 +1926,7 @@ func writeMigrationUniqueKey(out *strings.Builder, schema, table string, index *
 		if i > 0 {
 			_, _ = out.WriteString(`, `)
 		}
-		_, _ = out.WriteString(expr)
+		writeConstraintColumn(out, expr)
 	}
 
 	_, _ = out.WriteString(`);`)
@@ -1905,6 +1936,9 @@ func writeMigrationUniqueKey(out *strings.Builder, schema, table string, index *
 // writeIndex writes a CREATE INDEX statement
 func writeMigrationIndex(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
 	_, _ = out.WriteString(`CREATE `)
+	if strings.Contains(index.Type, "BITMAP") {
+		_, _ = out.WriteString(`BITMAP `)
+	}
 	if index.Unique {
 		_, _ = out.WriteString(`UNIQUE `)
 	}
@@ -2331,4 +2365,159 @@ func writeDropTrigger(out *strings.Builder, triggerName string) {
 	_, _ = out.WriteString(triggerName)
 	_, _ = out.WriteString(`";`)
 	_, _ = out.WriteString("\n")
+}
+
+// constraintRenameSet pairs a dropped primary or unique constraint with the
+// identical constraint that replaces it under a new name. Renaming keeps the
+// incoming foreign keys attached, where DROP would fail with ORA-02273.
+type constraintRenameSet struct {
+	oldToNew map[*TableDiff]map[string]string
+	newToOld map[*TableDiff]map[string]string
+}
+
+func (r constraintRenameSet) oldName(table *TableDiff, name string) string {
+	return r.oldToNew[table][name]
+}
+
+func (r constraintRenameSet) oldNameForNew(table *TableDiff, name string) string {
+	return r.newToOld[table][name]
+}
+
+func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
+	set := constraintRenameSet{
+		oldToNew: make(map[*TableDiff]map[string]string),
+		newToOld: make(map[*TableDiff]map[string]string),
+	}
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter {
+			continue
+		}
+		for _, drop := range tableDiff.IndexChanges {
+			if drop.Action != DiffActionDrop || !drop.OldIndex.GetIsConstraint() {
+				continue
+			}
+			for _, create := range tableDiff.IndexChanges {
+				if create.Action != DiffActionCreate || !create.NewIndex.GetIsConstraint() || create.NewIndex.GetName() == drop.OldIndex.GetName() {
+					continue
+				}
+				if !indexEqual(drop.OldIndex, create.NewIndex) {
+					continue
+				}
+				if set.oldToNew[tableDiff] == nil {
+					set.oldToNew[tableDiff] = make(map[string]string)
+					set.newToOld[tableDiff] = make(map[string]string)
+				}
+				set.oldToNew[tableDiff][drop.OldIndex.GetName()] = create.NewIndex.GetName()
+				set.newToOld[tableDiff][create.NewIndex.GetName()] = drop.OldIndex.GetName()
+			}
+		}
+	}
+	return set
+}
+
+func writeRenameConstraint(out *strings.Builder, schema, table, oldName, newName string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" RENAME CONSTRAINT "`)
+	_, _ = out.WriteString(oldName)
+	_, _ = out.WriteString(`" TO "`)
+	_, _ = out.WriteString(newName)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeMigrationAlterSequence(out *strings.Builder, schema string, oldSeq, newSeq *metadatapb.SequenceMetadata) {
+	var clauses []string
+	if oldSeq.GetStart() != newSeq.GetStart() && newSeq.GetStart() != "" {
+		clauses = append(clauses, "START WITH "+newSeq.GetStart())
+	}
+	if oldSeq.GetIncrement() != newSeq.GetIncrement() && newSeq.GetIncrement() != "" {
+		clauses = append(clauses, "INCREMENT BY "+newSeq.GetIncrement())
+	}
+	if oldSeq.GetMinValue() != newSeq.GetMinValue() {
+		if newSeq.GetMinValue() == "" {
+			clauses = append(clauses, "NOMINVALUE")
+		} else {
+			clauses = append(clauses, "MINVALUE "+newSeq.GetMinValue())
+		}
+	}
+	if oldSeq.GetMaxValue() != newSeq.GetMaxValue() {
+		if newSeq.GetMaxValue() == "" {
+			clauses = append(clauses, "NOMAXVALUE")
+		} else {
+			clauses = append(clauses, "MAXVALUE "+newSeq.GetMaxValue())
+		}
+	}
+	if oldSeq.GetCacheSize() != newSeq.GetCacheSize() {
+		if newSeq.GetCacheSize() == "" {
+			clauses = append(clauses, "NOCACHE")
+		} else {
+			clauses = append(clauses, "CACHE "+newSeq.GetCacheSize())
+		}
+	}
+	if oldSeq.GetCycle() != newSeq.GetCycle() {
+		if newSeq.GetCycle() {
+			clauses = append(clauses, "CYCLE")
+		} else {
+			clauses = append(clauses, "NOCYCLE")
+		}
+	}
+	if len(clauses) == 0 {
+		return
+	}
+	_, _ = out.WriteString(`ALTER SEQUENCE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(newSeq.GetName())
+	_, _ = out.WriteString(`" `)
+	_, _ = out.WriteString(strings.Join(clauses, " "))
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+	if newSeq.GetComment() != "" && newSeq.GetComment() != oldSeq.GetComment() {
+		writeSequenceComment(out, schema, newSeq.GetName(), newSeq.GetComment())
+	}
+}
+
+// writeConstraintColumn quotes a key column whose spelling Oracle would fold.
+// An expression is left as written.
+func writeConstraintColumn(out *strings.Builder, expression string) {
+	if len(expression) >= 2 && expression[0] == '"' && expression[len(expression)-1] == '"' {
+		_, _ = out.WriteString(expression)
+		return
+	}
+	if isSimpleIdentifier(expression) && expression != strings.ToUpper(expression) {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(strings.ReplaceAll(expression, `"`, `""`))
+		_, _ = out.WriteString(`"`)
+		return
+	}
+	_, _ = out.WriteString(expression)
+}
+
+func isSimpleIdentifier(expression string) bool {
+	if expression == "" {
+		return false
+	}
+	for i, c := range expression {
+		switch {
+		case c == '_' || c == '$' || c == '#':
+		case c >= 'A' && c <= 'Z':
+		case c >= 'a' && c <= 'z':
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	c := expression[0]
+	return !(c >= '0' && c <= '9')
 }

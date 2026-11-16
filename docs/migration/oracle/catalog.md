@@ -27,7 +27,19 @@ replay tests exercise.
   definition's round trip.
 - `CREATE SEQUENCE` records `MINVALUE`, `MAXVALUE`, `CACHE` and `CYCLE` as well
   as `START WITH` and `INCREMENT BY`. The Bytebase extractor dropped the rest,
-  so a deparse could not restore them.
+  so a deparse could not restore them. A changed sequence renders
+  `ALTER SEQUENCE` instead of being silently skipped.
+- `NVARCHAR2` and `NCHAR` keep the character length they declare. The Bytebase
+  extractor doubled it, while sync reads `CHAR_LENGTH`; SQL-derived metadata and
+  a synced snapshot therefore disagreed.
+- Cross-schema foreign keys keep the referenced owner, so deparse and migration
+  qualify the reference.
+- A primary or unique constraint recreated under a new name is rendered as
+  `RENAME CONSTRAINT`, not drop and create, so its incoming foreign keys stay
+  attached.
+- `DEFAULT ON NULL` is kept in CREATE/ADD and changed through MODIFY.
+- Migration statements keep a bitmap index's `BITMAP` modifier, quote a
+  case-sensitive key column, and recreate a changed view's triggers.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
@@ -57,6 +69,9 @@ replay tests exercise.
 - `catalog_test.go` replays the Bytebase definition, metadata and migration
   fixtures, checks definition round trips, and replays every generated migration
   through the catalog.
+- `regressions_test.go` pins sequence alterations, `DEFAULT ON NULL`,
+  cross-schema foreign keys, national character lengths, view triggers, bitmap
+  indexes, case-sensitive key columns and constraint renames.
 - `oracle_test.go` executes every definition and a quoted, case-sensitive
   fixture on the pinned Oracle in `oracle/internal/testcontainer` and reads the
   objects back. It is a tape test; record it with `OMNI_RECORD=1`.

@@ -639,9 +639,48 @@ func sequenceEqual(a, b *metadatapb.SequenceMetadata) bool {
 		a.GetComment() == b.GetComment()
 }
 
-// normalizeExpression makes whitespace-only differences irrelevant.
+// normalizeExpression makes whitespace-only differences outside quoted text
+// irrelevant. Whitespace inside a string literal or a quoted identifier is part
+// of the value and stays.
 func normalizeExpression(expression string) string {
-	return strings.Join(strings.Fields(expression), " ")
+	var out strings.Builder
+	var quote byte
+	pendingSpace := false
+	for i := 0; i < len(expression); i++ {
+		c := expression[i]
+		if quote != 0 {
+			out.WriteByte(c)
+			if c == quote {
+				if i+1 < len(expression) && expression[i+1] == quote {
+					out.WriteByte(expression[i+1])
+					i++
+				} else {
+					quote = 0
+				}
+			}
+			continue
+		}
+		if c == '\'' || c == '"' {
+			if pendingSpace && out.Len() > 0 {
+				out.WriteByte(' ')
+			}
+			pendingSpace = false
+			quote = c
+			out.WriteByte(c)
+			continue
+		}
+		switch c {
+		case ' ', '\t', '\n', '\r', '\f':
+			pendingSpace = true
+		default:
+			if pendingSpace && out.Len() > 0 {
+				out.WriteByte(' ')
+			}
+			pendingSpace = false
+			out.WriteByte(c)
+		}
+	}
+	return out.String()
 }
 
 func sortDiff(diff *MetadataDiff) {

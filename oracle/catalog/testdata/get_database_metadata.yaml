@@ -246,7 +246,7 @@
                   "name": "NVARCHAR2_COL",
                   "position": 9,
                   "nullable": true,
-                  "type": "NVARCHAR2(4000)"
+                  "type": "NVARCHAR2(2000)"
                 },
                 {
                   "name": "CHAR_COL",
@@ -258,7 +258,7 @@
                   "name": "NCHAR_COL",
                   "position": 11,
                   "nullable": true,
-                  "type": "NCHAR(200)"
+                  "type": "NCHAR(100)"
                 },
                 {
                   "name": "DATE_COL",
