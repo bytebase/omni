@@ -866,7 +866,7 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 			var ok bool
 			names, ok = functionDefinitionOutputNames(view.GetDefinition())
 			if !ok {
-				names, ok = q.functionDefinitionCatalogNames(view.GetDefinition())
+				names, ok = q.functionDefinitionCatalogNames(view.GetDefinition(), schema.GetName())
 			}
 			if !ok {
 				return functionSourceProjection{}, false
@@ -883,7 +883,7 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 		if !ok {
 			// A star definition cannot be named without analyzing the query;
 			// the catalog knows the base relation's columns.
-			names, ok = q.functionDefinitionCatalogNames(definition)
+			names, ok = q.functionDefinitionCatalogNames(definition, schema.GetName())
 		}
 		if !ok {
 			return functionSourceProjection{}, false
@@ -899,7 +899,7 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 
 // functionDefinitionCatalogNames analyzes a view definition against the span
 // catalog to recover output names a star definition hides from the AST.
-func (q *querySpanResolver) functionDefinitionCatalogNames(definition string) ([]string, bool) {
+func (q *querySpanResolver) functionDefinitionCatalogNames(definition, schemaName string) ([]string, bool) {
 	stmts, err := parseRedshiftSpan(definition)
 	if err != nil || len(stmts) != 1 {
 		return nil, false
@@ -921,7 +921,11 @@ func (q *querySpanResolver) functionDefinitionCatalogNames(definition string) ([
 	if selectStmt == nil {
 		return nil, false
 	}
-	cat, err := q.newQuerySpanCatalog()
+	// Resolve the definition in the view's own schema, as the catalog does when
+	// it installs the view, rather than in the session search path.
+	definitionResolver := *q
+	definitionResolver.searchPath = []string{schemaName}
+	cat, err := definitionResolver.newQuerySpanCatalog()
 	if err != nil {
 		return nil, false
 	}

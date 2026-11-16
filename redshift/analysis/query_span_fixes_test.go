@@ -678,6 +678,34 @@ func TestRedshiftQuerySpanViewWithoutColumnsKeepsFunction(t *testing.T) {
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanViewWidthUsesOwnSchema covers a definition-only view in
+// a non-default schema, whose star must resolve against that schema.
+func TestRedshiftQuerySpanViewWidthUsesOwnSchema(t *testing.T) {
+	snapshot := redshiftQuerySpanMetadata()
+	snapshot.Schemas[1].Tables = append(snapshot.Schemas[1].Tables, &metadata.TableMetadata{
+		Name:    "orders",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+	})
+	snapshot.Schemas[1].Views = append(snapshot.Schemas[1].Views, &metadata.ViewMetadata{
+		Name:       "v",
+		Definition: "CREATE VIEW analytics.v AS SELECT * FROM orders;",
+	})
+	getter, _ := redshiftMockDatabaseMetadataGetter([]*metadata.DatabaseSchemaMetadata{snapshot})
+	q := newQuerySpanResolver("db", []string{"public"}, ResolveOptions{
+		DefaultDatabase:     "db",
+		SearchPath:          []string{"public"},
+		GetDatabaseMetadata: getter,
+	})
+	span, err := q.getQuerySpan("SELECT v.*, analytics.reporting_fn() + v.id AS y FROM analytics.v v")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 2)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "analytics", Table: "orders", Column: "id"},
+		{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
