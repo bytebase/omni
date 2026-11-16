@@ -4115,3 +4115,255 @@
         schema: ""
         table: audit_t2
         column: b
+- description: "predicate columns: a grouped star subquery reads its relation's columns"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * EXCEPT (id) FROM audit_secrets)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_guards",
+              "columns":  [
+                {
+                  "name":  "flag"
+                }
+              ]
+            },
+            {
+              "name":  "audit_secrets",
+              "columns":  [
+                {
+                  "name":  "id"
+                },
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: secret
+
+- description: "predicate columns: an unqualified condition on an enclosing CTE column"
+  statement: WITH c AS (SELECT secret AS k FROM audit_vault) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM audit_keys WHERE k = 1)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            },
+            {
+              "name":  "audit_keys",
+              "columns":  [
+                {
+                  "name":  "id"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_keys
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: c
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+
+- description: "predicate columns: a HAVING over a constant select alias reads no column"
+  statement: SELECT COUNT(*) AS n, 1 AS secret FROM audit_vault HAVING secret = 1
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: "N"
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+      - name: "SECRET"
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+    predicatecolumns: []
+
+- description: "predicate columns: a subquery inside a WITH expression"
+  statement: SELECT 1 FROM audit_vault WHERE WITH(x AS 1, (SELECT MAX(secret) FROM audit_vault) > x)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: secret
+
+- description: "predicate columns: EXTRACT's date part is not a column"
+  statement: SELECT 1 FROM audit_vault WHERE EXTRACT(YEAR FROM d) = 2020
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name":  "ds1",
+      "schemas":  [
+        {
+          "tables":  [
+            {
+              "name":  "audit_vault",
+              "columns":  [
+                {
+                  "name":  "d"
+                },
+                {
+                  "name":  "year"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_vault
+        column: d
+

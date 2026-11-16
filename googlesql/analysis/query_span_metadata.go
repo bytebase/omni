@@ -664,14 +664,20 @@ func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColum
 		if ref.Column == "" {
 			continue
 		}
-		if q.addMatchingPredicateColumns(out, fullSourceColumns, ref, true) {
+		var excluded map[string]bool
+		if ref.Column == filterStarColumn {
+			key := ref
+			key.Column = ""
+			excluded = span.filterStarExcept[key]
+		}
+		if q.addMatchingPredicateColumns(out, fullSourceColumns, ref, true, excluded) {
 			continue
 		}
 		// A qualified ref the expansion cannot attribute (a recursive CTE's
 		// self-reference, a relation only an outer body knows) falls back to the
 		// column name alone.
 		if ref.Table != "" {
-			q.addMatchingPredicateColumns(out, fullSourceColumns, ColumnRef{Column: ref.Column}, false)
+			q.addMatchingPredicateColumns(out, fullSourceColumns, ColumnRef{Column: ref.Column}, false, excluded)
 		}
 	}
 	return out
@@ -682,8 +688,9 @@ func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColum
 // on the table — narrowed by the database and schema it carries, so the same
 // table name in two datasets or schemas of the statement does not over-match —
 // and a star ref (a subquery projecting `*` it could not enumerate) matches every
-// column of its relation. With matchTable false only the column name is compared.
-func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns ColumnSet, ref ColumnRef, matchTable bool) bool {
+// column of its relation, minus the names in excluded (its star's EXCEPT list).
+// With matchTable false only the column name is compared.
+func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns ColumnSet, ref ColumnRef, matchTable bool, excluded map[string]bool) bool {
 	star := ref.Column == filterStarColumn
 	found := false
 	for sc := range fullSourceColumns {
@@ -702,6 +709,9 @@ func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns C
 			}
 		}
 		if !star && !strings.EqualFold(sc.Column, ref.Column) {
+			continue
+		}
+		if star && excluded[foldKey(sc.Column)] {
 			continue
 		}
 		dst[sc] = true

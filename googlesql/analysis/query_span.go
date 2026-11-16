@@ -57,6 +57,11 @@ type QuerySpan struct {
 	// resolved span's PredicateColumns is the public shape.
 	filterColumns []ColumnRef
 
+	// filterStarExcept holds, for a relation some filter star reference stands for,
+	// the column names that star's EXCEPT modifier removes from its output: a
+	// condition cannot read an output column the star does not project.
+	filterStarExcept map[ColumnRef]map[string]bool
+
 	// CTEs lists the names defined by WITH clauses at any scope, in declaration
 	// order.
 	CTEs []string
@@ -865,9 +870,6 @@ func selectAliasColumns(stmt *ast.SelectStmt, results []projColumn) map[string][
 	byName := make(map[string][]ColumnRef, len(results))
 	for _, result := range results {
 		folded := strings.ToLower(result.name)
-		if len(result.sources) == 0 {
-			continue
-		}
 		if _, seen := byName[folded]; !seen {
 			byName[folded] = result.sources
 		}
@@ -879,6 +881,8 @@ func selectAliasColumns(stmt *ast.SelectStmt, results []projColumn) map[string][
 		}
 		folded := strings.ToLower(item.Alias)
 		if sources, ok := byName[folded]; ok {
+			// An alias whose expression reads no column (a literal, COUNT(*)) is
+			// still an alias: HAVING over it reads a constant, not a physical column.
 			out[folded] = sources
 		}
 	}
@@ -1751,19 +1755,7 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 			if !projects {
 				return
 			}
-			for _, col := range projection {
-				for _, ref := range col.sources {
-					w.addFilterColumn(ref)
-				}
-				// A star the walker cannot enumerate stands for every column of its
-				// relation; without this the projection contributes nothing and the
-				// condition would read no column at all.
-				if col.baseStar != nil {
-					star := *col.baseStar
-					star.Column = filterStarColumn
-					w.addFilterColumn(star)
-				}
-			}
+			w.addProjectionFilterColumns(projection)
 		},
 	}
 	ew.walk(expr)
@@ -1786,10 +1778,16 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 		return nil
 	}
 	if len(parts) == 1 {
-		if refs := w.selectAliases[strings.ToLower(parts[0])]; len(refs) > 0 && !placeholderRefs(refs) {
+		if refs, ok := w.selectAliases[strings.ToLower(parts[0])]; ok && !placeholderRefs(refs) {
 			return refs
 		}
-		if refs := w.resolveColumn("", parts[0]); len(refs) > 0 {
+		refs := w.resolveColumn("", parts[0])
+		// An unqualified name the current body can only attribute to a base relation
+		// may belong to an enclosing body's CTE or derived relation, whose columns
+		// ARE enumerable: add that reading too. Both are candidate reads, and this
+		// pass cannot know which the engine picks without a catalog.
+		refs = append(refs, w.resolveOuterUnqualified(parts[0])...)
+		if len(refs) > 0 {
 			return appendWrittenColumn(refs, "", parts[0])
 		}
 		return []ColumnRef{{Column: parts[0]}}
@@ -1818,6 +1816,24 @@ func appendWrittenColumn(refs []ColumnRef, table, column string) []ColumnRef {
 		return refs
 	}
 	return append(refs, ColumnRef{Table: table, Column: column})
+}
+
+// resolveOuterUnqualified resolves an unqualified column name against the CTE and
+// derived relations of the enclosing bodies, innermost first. Only those relations
+// enumerate their columns (a base relation's are not), so an enclosing CTE column
+// the name matches contributes its lineage.
+func (w *spanWalker) resolveOuterUnqualified(column string) []ColumnRef {
+	var out []ColumnRef
+	for i := len(w.outerLeaves) - 1; i >= 0; i-- {
+		outer := w.outerLeaves[i]
+		if outer == nil {
+			continue
+		}
+		if refs, ok := outer.derivedColumn(column); ok {
+			out = append(out, refs...)
+		}
+	}
+	return out
 }
 
 // resolveFilterQualifier resolves `qualifier.column` for a row condition against
@@ -1849,6 +1865,101 @@ func (w *spanWalker) resolveFilterQualifier(qualifier, column string) []ColumnRe
 // star projection stands for; the metadata-aware resolver reads it as "any
 // column of the named relation".
 const filterStarColumn = "*"
+
+// addProjectionFilterColumns records what a query body's projection reads, for a
+// row condition whose value is that projection: the concrete lineage of each
+// output column, every column of a relation a star stands for, and the parts of a
+// grouped (`* EXCEPT`/`REPLACE`) or set-operation projection the walker deferred
+// to the metadata-aware consumer.
+func (w *spanWalker) addProjectionFilterColumns(cols []projColumn) {
+	for _, col := range cols {
+		switch {
+		case col.setOpMerge != nil:
+			w.addColumnInfoFilterColumns(col.setOpMerge.left)
+			w.addColumnInfoFilterColumns(col.setOpMerge.right)
+		case col.starGroup != nil:
+			for _, segment := range col.starGroup.segments {
+				w.addStarSegmentFilterColumns(segment, col.starGroup.except)
+			}
+			for _, item := range col.starGroup.replace {
+				for _, ref := range item.Sources {
+					if ref.Column != "" {
+						w.addFilterColumn(ref)
+					}
+				}
+			}
+		default:
+			for _, ref := range col.sources {
+				w.addFilterColumn(ref)
+			}
+			if col.baseStar != nil {
+				w.addFilterStar(*col.baseStar, col.baseStarExcept)
+			}
+			if col.starMerge != nil {
+				w.addFilterStar(col.starMerge.table, nil)
+			}
+		}
+	}
+}
+
+// addStarSegmentFilterColumns records one star segment: every column of its
+// relation (minus the star's EXCEPT names), or a concrete column's lineage.
+func (w *spanWalker) addStarSegmentFilterColumns(segment projColumn, except []string) {
+	if segment.baseStar != nil {
+		w.addFilterStar(*segment.baseStar, append(append([]string{}, except...), segment.baseStarExcept...))
+		return
+	}
+	w.addProjectionFilterColumns([]projColumn{segment})
+}
+
+// addColumnInfoFilterColumns is addProjectionFilterColumns over the wire form a
+// deferred set-operation merge keeps its arms in.
+func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo) {
+	for _, info := range infos {
+		for _, ref := range info.SourceColumns {
+			w.addFilterColumn(ref)
+		}
+		for _, segment := range info.StarSegments {
+			if segment.BaseTable != nil {
+				w.addFilterStar(*segment.BaseTable, append(append([]string{}, info.StarExcept...), segment.ExceptColumns...))
+				continue
+			}
+			for _, ref := range segment.Sources {
+				w.addFilterColumn(ref)
+			}
+		}
+		if info.StarMerge != nil {
+			w.addFilterStar(info.StarMerge.Table, nil)
+		}
+		if info.SetOpMerge != nil {
+			w.addColumnInfoFilterColumns(info.SetOpMerge.Left)
+			w.addColumnInfoFilterColumns(info.SetOpMerge.Right)
+		}
+	}
+}
+
+// addFilterStar records relation as a filter read of all its columns, minus the
+// names a star EXCEPT modifier removes from the star's output.
+func (w *spanWalker) addFilterStar(relation ColumnRef, except []string) {
+	key := relation
+	key.Column = ""
+	relation.Column = filterStarColumn
+	w.addFilterColumn(relation)
+	if len(except) == 0 {
+		return
+	}
+	if w.span.filterStarExcept == nil {
+		w.span.filterStarExcept = make(map[ColumnRef]map[string]bool, 1)
+	}
+	set := w.span.filterStarExcept[key]
+	if set == nil {
+		set = make(map[string]bool, len(except))
+		w.span.filterStarExcept[key] = set
+	}
+	for _, name := range except {
+		set[foldKey(name)] = true
+	}
+}
 
 // placeholderRefs reports whether refs are the lineage of a recursive CTE's
 // PLACEHOLDER projection, which the fixpoint substitutes for the CTE's columns
@@ -2036,7 +2147,7 @@ func (ew *exprWalk) walk(node ast.Node) {
 		ew.walk(e.Format)
 		ew.walk(e.TimeZone)
 	case *ast.ExtractExpr:
-		ew.walk(e.Part)
+		// The date part (YEAR, DAY, ...) is a keyword, not a column reference.
 		ew.walk(e.From)
 		ew.walk(e.TimeZone)
 	case *ast.IntervalExpr:
@@ -2232,7 +2343,7 @@ func (ew *exprWalk) walkBoundBody(bound []string, body ast.Node) {
 			names[strings.ToLower(b)] = true
 		}
 	}
-	inner := &exprWalk{w: ew.w, followSub: ew.followSub}
+	inner := &exprWalk{w: ew.w, followSub: ew.followSub, onSubquery: ew.onSubquery}
 	if ew.onColumn != nil {
 		outer := ew.onColumn
 		inner.onColumn = func(ref ColumnRef) {
