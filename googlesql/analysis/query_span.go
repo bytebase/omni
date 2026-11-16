@@ -47,6 +47,16 @@ type QuerySpan struct {
 	// (WHERE, JOIN ON / USING, HAVING, QUALIFY, GROUP BY). Deduplicated.
 	PredicateColumns []ColumnRef
 
+	// filterColumns is the subset of PredicateColumns that came from a query's row
+	// conditions: WHERE, JOIN ... ON / USING, and HAVING. Those are the positions
+	// whose columns decide which rows a query returns, which is what Bytebase's
+	// predicate-columns check reads; the other predicate positions (GROUP BY,
+	// QUALIFY, ORDER BY, LIMIT/OFFSET, VALUES, table-valued-function and UNNEST
+	// arguments) stay in PredicateColumns only. Deduplicated. Unexported: the
+	// metadata-aware resolver in this package is the only consumer, and the
+	// resolved span's PredicateColumns is the public shape.
+	filterColumns []ColumnRef
+
 	// CTEs lists the names defined by WITH clauses at any scope, in declaration
 	// order.
 	CTEs []string
@@ -338,9 +348,19 @@ type spanWalker struct {
 	// here (mirroring the legacy tableSourceFrom, which held each table AND the join
 	// anchor), so `x.id` over `t x JOIN t y` resolves against leaf `x`. Saved and
 	// restored around each SELECT so nested blocks do not leak relations.
-	leaves   *leafSet
-	accessed map[tableKey]bool
-	predSeen map[ColumnRef]bool
+	leaves *leafSet
+	// outerLeaves holds the leaf sets of the enclosing query bodies, outermost
+	// first, so a correlated row-condition reference resolves to the relation an
+	// outer body holds.
+	outerLeaves []*leafSet
+	// selectAliases maps each select-list alias of the current body (folded) to
+	// the lineage its output column reads. Set once the projection is resolved, so
+	// a HAVING condition — the one row condition that sees select aliases — can
+	// resolve `HAVING total > 1` to the columns the aggregate read.
+	selectAliases map[string][]ColumnRef
+	accessed      map[tableKey]bool
+	predSeen      map[ColumnRef]bool
+	filterSeen    map[ColumnRef]bool
 	// failure, when set, marks the span as fail-closed: the walker met a shape it
 	// parses but cannot resolve to correct lineage without catalog metadata
 	// (NATURAL JOIN; JOIN USING over a deferred set-op projection). GetQuerySpan
@@ -381,11 +401,12 @@ type tableKey struct {
 
 func newSpanWalker(span *QuerySpan, dialect Dialect) *spanWalker {
 	return &spanWalker{
-		span:     span,
-		dialect:  dialect,
-		leaves:   &leafSet{},
-		accessed: make(map[tableKey]bool),
-		predSeen: make(map[ColumnRef]bool),
+		span:       span,
+		dialect:    dialect,
+		leaves:     &leafSet{},
+		accessed:   make(map[tableKey]bool),
+		predSeen:   make(map[ColumnRef]bool),
+		filterSeen: make(map[ColumnRef]bool),
 	}
 }
 
@@ -763,7 +784,15 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	w.fromAliases = map[string]bool{}
 	prevLeaves := w.leaves
 	w.leaves = &leafSet{}
-	defer func() { w.fromAliases = prevFrom; w.leaves = prevLeaves }()
+	prevAliases := w.selectAliases
+	w.selectAliases = nil
+	w.outerLeaves = append(w.outerLeaves, prevLeaves)
+	defer func() {
+		w.fromAliases = prevFrom
+		w.leaves = prevLeaves
+		w.selectAliases = prevAliases
+		w.outerLeaves = w.outerLeaves[:len(w.outerLeaves)-1]
+	}()
 
 	// Resolve the FROM clause into the comma-item relations (a join collapses into
 	// one combined relation, used for a bare `*`); building them also populates
@@ -772,7 +801,7 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	// is recorded, a subquery body walked, ON/USING predicates collected).
 	fromRels := w.buildFromRelations(stmt.From)
 
-	w.walkPredicate(stmt.Where)
+	w.walkFilter(stmt.Where)
 	if stmt.GroupBy != nil {
 		for _, item := range stmt.GroupBy.Items {
 			if item == nil {
@@ -784,13 +813,6 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 			}
 		}
 	}
-	w.walkPredicate(stmt.Having)
-	w.walkPredicate(stmt.Qualify)
-	for _, win := range stmt.Window {
-		if win != nil {
-			w.walkWindowSpec(win.Spec)
-		}
-	}
 
 	// Resolve the select list against the FROM relations (relation-aware lineage),
 	// then walk each item for nested-subquery tables (the direct refs are resolved
@@ -798,6 +820,18 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 	var results []projColumn
 	if !w.tablesOnly {
 		results = w.resolveSelectProjection(stmt, fromRels)
+		w.selectAliases = selectAliasColumns(stmt, results)
+	}
+
+	// HAVING comes after the projection because it is the row condition that can
+	// name a select-list alias, and the alias's lineage is the columns its
+	// expression read.
+	w.walkFilter(stmt.Having)
+	w.walkPredicate(stmt.Qualify)
+	for _, win := range stmt.Window {
+		if win != nil {
+			w.walkWindowSpec(win.Spec)
+		}
 	}
 	for _, item := range stmt.Items {
 		if item == nil {
@@ -813,6 +847,45 @@ func (w *spanWalker) visitSelect(stmt *ast.SelectStmt) []projColumn {
 		}
 	}
 	return results
+}
+
+// selectAliasColumns maps each select-list alias in the body to the lineage its
+// output column reads. It matches by resolved output name rather than position,
+// so an expanded star before an aliased item cannot shift the association.
+func selectAliasColumns(stmt *ast.SelectStmt, results []projColumn) map[string][]ColumnRef {
+	aliased := 0
+	for _, item := range stmt.Items {
+		if item != nil && item.Alias != "" {
+			aliased++
+		}
+	}
+	if aliased == 0 {
+		return nil
+	}
+	byName := make(map[string][]ColumnRef, len(results))
+	for _, result := range results {
+		folded := strings.ToLower(result.name)
+		if len(result.sources) == 0 {
+			continue
+		}
+		if _, seen := byName[folded]; !seen {
+			byName[folded] = result.sources
+		}
+	}
+	out := make(map[string][]ColumnRef, aliased)
+	for _, item := range stmt.Items {
+		if item == nil || item.Alias == "" {
+			continue
+		}
+		folded := strings.ToLower(item.Alias)
+		if sources, ok := byName[folded]; ok {
+			out[folded] = sources
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 // ---------------------------------------------------------------------------
@@ -924,15 +997,37 @@ func (w *spanWalker) buildJoinPart(b *joinBuilder, top *ast.JoinExpr) joinPart {
 	for i := len(spine) - 1; i >= 0; i-- {
 		join := spine[i]
 		right := w.buildJoinOperand(b, join.Right)
-		w.walkPredicate(join.On)
+		w.walkFilter(join.On)
 		for _, col := range join.Using {
 			if col != "" {
 				w.addPredicateColumn(ColumnRef{Column: col})
 			}
 		}
 		acc = w.joinParts(b, acc, right, join)
+		w.addUsingFilterColumns(b, acc, join.Using)
 	}
 	return acc
+}
+
+// addUsingFilterColumns records each USING key's coalesced lineage (both operands
+// contribute, see usingKeyColumns) as a row-condition read, so a key a side
+// projects under another name keeps the column it stands for. acc.using is nil
+// when the join did not coalesce (a side is absent, or the join failed closed),
+// where the keys were recorded as written refs above instead.
+func (w *spanWalker) addUsingFilterColumns(b *joinBuilder, acc joinPart, keys []string) {
+	if acc.using == nil {
+		return
+	}
+	for i := range keys {
+		if acc.start+i >= len(b.cols) {
+			return
+		}
+		for _, ref := range b.cols[acc.start+i].sources {
+			if ref.Column != "" {
+				w.addFilterColumn(ref)
+			}
+		}
+	}
 }
 
 // buildJoinOperand builds one join operand into b: a nested join through
@@ -1625,6 +1720,166 @@ func (w *spanWalker) walkPredicate(expr ast.Node) {
 	ew.walk(expr)
 }
 
+// walkFilter walks a row-condition expression (WHERE, JOIN ... ON / USING,
+// HAVING): every column it references is both a predicate column and a filter
+// column, the subset the resolved span exposes. The filter refs are resolved to
+// base lineage the way a select item's are (a reference through a CTE or derived
+// relation becomes a reference to the table that owns the column), so the
+// metadata-aware resolver can map them onto physical columns; PredicateColumns
+// keeps the written refs. A subquery inside one is walked by its own body visit,
+// so its WHERE/ON/HAVING are recorded the same way while its GROUP BY / ORDER BY
+// stay predicate-only.
+func (w *spanWalker) walkFilter(expr ast.Node) {
+	if expr == nil {
+		return
+	}
+	ew := &exprWalk{
+		w:         w,
+		followSub: true,
+		onColumn:  w.addPredicateColumn,
+		onParts: func(parts []string) {
+			for _, ref := range w.filterRefs(parts) {
+				w.addFilterColumn(ref)
+			}
+		},
+		onSubquery: func(query ast.Node) {
+			// A scalar or IN subquery in a row condition: its projected columns
+			// decide which rows return, so they are row-condition reads too. Its
+			// own WHERE/ON/HAVING are recorded by its body visit.
+			for _, col := range w.visitBody(query) {
+				for _, ref := range col.sources {
+					w.addFilterColumn(ref)
+				}
+			}
+		},
+	}
+	ew.walk(expr)
+}
+
+// filterRefs resolves one column path from a row condition to the refs the
+// metadata-aware resolver matches against expanded columns.
+//
+// A path whose head names a relation in scope resolves through it, so a
+// reference through a CTE or derived relation becomes a reference to the table
+// that owns the column (the same resolution a select item gets), and an
+// unqualified reference over a single base relation is attributed to that
+// relation. A head that names a table or alias recorded ANYWHERE in the
+// statement is a correlated reference from a nested body to an outer relation;
+// it is kept as written so the resolver's alias map can follow it. Every other
+// shape (a struct/field path whose head is a column, or an unresolvable
+// qualifier) keeps the walker's best-effort ref.
+func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
+	if len(parts) == 0 {
+		return nil
+	}
+	if len(parts) == 1 {
+		if refs := w.selectAliases[strings.ToLower(parts[0])]; len(refs) > 0 && !placeholderRefs(refs) {
+			return refs
+		}
+		if refs := w.resolveColumn("", parts[0]); len(refs) > 0 {
+			return appendWrittenColumn(refs, "", parts[0])
+		}
+		return []ColumnRef{{Column: parts[0]}}
+	}
+	if refs := w.resolveFilterQualifier(parts[0], parts[1]); len(refs) > 0 {
+		return appendWrittenColumn(refs, parts[0], parts[1])
+	}
+	if w.namesAccessRelation(parts[0]) {
+		return []ColumnRef{{Table: parts[0], Column: parts[1]}}
+	}
+	ref := columnRefFromParts(parts, w.dialect)
+	if ref.Table != "" && w.namesAccessRelation(ref.Table) {
+		return []ColumnRef{ref}
+	}
+	_, refs := w.resolvePath(parts)
+	return appendWrittenColumn(refs, "", parts[len(parts)-1])
+}
+
+// appendWrittenColumn returns refs, adding a written reference to column when
+// refs are a recursive CTE's placeholder lineage: the placeholder names no
+// column itself, so the fixpoint substitutes its converged lineage
+// (substituteFilterPlaceholders) and the written reference keeps a fixpoint that
+// bailed out matchable by name.
+func appendWrittenColumn(refs []ColumnRef, table, column string) []ColumnRef {
+	if len(refs) == 0 || !placeholderRefs(refs) {
+		return refs
+	}
+	return append(refs, ColumnRef{Table: table, Column: column})
+}
+
+// resolveFilterQualifier resolves `qualifier.column` for a row condition against
+// the relations in scope, innermost body first, then the enclosing bodies: a
+// correlated reference reaches a relation only an outer query body holds (a CTE
+// or derived relation there included, whose projection is the lineage the
+// reference stands for).
+func (w *spanWalker) resolveFilterQualifier(qualifier, column string) []ColumnRef {
+	if w.leaves.find(qualifier) != nil {
+		return w.resolveColumn(qualifier, column)
+	}
+	for i := len(w.outerLeaves) - 1; i >= 0; i-- {
+		outer := w.outerLeaves[i]
+		if outer == nil || outer.find(qualifier) == nil {
+			continue
+		}
+		prev := w.leaves
+		w.leaves = outer
+		refs := w.resolveColumn(qualifier, column)
+		w.leaves = prev
+		if len(refs) > 0 {
+			return refs
+		}
+	}
+	return nil
+}
+
+// placeholderRefs reports whether refs are the lineage of a recursive CTE's
+// PLACEHOLDER projection, which the fixpoint substitutes for the CTE's columns
+// while it resolves the recursive arm. A placeholder names no column, so a
+// filter reference that resolves to one also keeps its written column name and
+// relies on substituteFilterPlaceholders for the physical lineage.
+func placeholderRefs(refs []ColumnRef) bool {
+	if len(refs) == 0 {
+		return false
+	}
+	for _, ref := range refs {
+		if ref.Column != "" {
+			return false
+		}
+	}
+	return true
+}
+
+// namesAccessRelation reports whether name is the table name or alias of a
+// relation the walker recorded anywhere in the statement — a base table or a CTE
+// reference, including one an outer query body holds and a nested body's
+// correlated reference reaches.
+func (w *spanWalker) namesAccessRelation(name string) bool {
+	if name == "" {
+		return false
+	}
+	for _, group := range [][]TableAccess{w.span.AccessTables, w.span.CTEReferences} {
+		for _, t := range group {
+			if strings.EqualFold(t.Alias, name) || strings.EqualFold(t.Table, name) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// addFilterColumn records ref in the filter set, once. The same column is also
+// recorded in PredicateColumns as a written ref by the pass's onColumn callback
+// (or, for a JOIN ... USING key, by its call site), so the two sets answer
+// different questions: PredicateColumns the written references, filterColumns
+// the relation-resolved ones.
+func (w *spanWalker) addFilterColumn(ref ColumnRef) {
+	if w.filterSeen[ref] {
+		return
+	}
+	w.filterSeen[ref] = true
+	w.span.filterColumns = append(w.span.filterColumns, ref)
+}
+
 // walkSubqueriesOnly walks an expression purely to discover the base tables
 // inside nested subqueries; column refs are ignored (the direct refs of a select
 // item are captured separately by makeColumnInfo).
@@ -1664,10 +1919,11 @@ func (w *spanWalker) walkWindowSpec(spec *ast.WindowSpec) {
 // collecting a select item's DIRECT columns, which must not cross a subquery
 // boundary).
 type exprWalk struct {
-	w         *spanWalker
-	onColumn  func(ColumnRef)
-	onParts   func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
-	followSub bool
+	w          *spanWalker
+	onColumn   func(ColumnRef)
+	onParts    func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
+	onSubquery func(ast.Node) // a subquery body, instead of the plain table-discovery visit; nil to visit the body
+	followSub  bool
 }
 
 // walk is the shared expression traversal over the googlesql expression AST. It
@@ -1839,6 +2095,13 @@ func (ew *exprWalk) emitParts(parts []string) {
 // filled, so the walk reaches it directly.
 func (ew *exprWalk) followSubquery(query ast.Node) {
 	if !ew.followSub || query == nil {
+		return
+	}
+	// onSubquery, when set, takes the visit so it can read the body's projection:
+	// in a row condition a scalar or IN subquery's OUTPUT decides which rows
+	// return, so a filter pass needs the lineage the plain visit discards.
+	if ew.onSubquery != nil {
+		ew.onSubquery(query)
 		return
 	}
 	// A subquery in an expression position is walked for its tables/predicates;

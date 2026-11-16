@@ -120,14 +120,10 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 	results := q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap)
 
 	span := &ResolvedQuerySpan{
-		Type:          queryType,
-		SourceColumns: accessTables,
-		// PredicateColumns is intentionally left empty: the legacy GoogleSQL
-		// extractors never populated predicate-column lineage (the recorded
-		// corpora have predicatecolumns: [] on every case). The walker DOES
-		// collect predicate columns; surfacing them is a separate behavior
-		// change for the masking layer, not part of this move.
-		Results: results,
+		Type:             queryType,
+		SourceColumns:    accessTables,
+		PredicateColumns: q.mapPredicateColumns(rawSpan, fullSourceColumns, aliasMap),
+		Results:          results,
 	}
 	if notFound != nil {
 		span.NotFoundError = notFound
@@ -643,6 +639,41 @@ func resultName(r ColumnInfo) string {
 		name = r.SourceColumns[0].Column
 	}
 	return strings.ToUpper(name)
+}
+
+// mapPredicateColumns maps the walker's row-condition column refs (WHERE,
+// JOIN ... ON / USING, HAVING) onto the expanded source columns — matching on
+// column name, and on the table when the ref carries one (a relation alias is
+// resolved through aliasMap). The resolved resources therefore carry the
+// dialect's name model: the default database fill-in, the Spanner schema
+// bucketing, and the METADATA-canonical table and column names.
+//
+// A qualified ref whose relation the expansion cannot attribute — a recursive
+// CTE's self-reference, a relation only an outer query body knows — falls back
+// to matching the column name alone, because under-attributing a row condition
+// leaves a sensitive predicate unchecked while over-attributing only makes the
+// check stricter. A map-independent ref that matches no expanded column (a
+// referenced column the metadata does not hold, a pseudo-column) is dropped: a
+// resource the metadata does not have cannot carry a policy.
+func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSet, aliasMap map[string][]string) ColumnSet {
+	out := ColumnSet{}
+	if span == nil {
+		return out
+	}
+	for _, ref := range span.filterColumns {
+		if ref.Column == "" {
+			continue
+		}
+		matched := ColumnSet{}
+		addMatchingColumns(matched, fullSourceColumns, ref.Column, ref.Table, aliasMap)
+		if len(matched) == 0 && ref.Table != "" {
+			addMatchingColumns(matched, fullSourceColumns, ref.Column, "", aliasMap)
+		}
+		for resource := range matched {
+			out[resource] = true
+		}
+	}
+	return out
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches

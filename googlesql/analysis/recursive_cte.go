@@ -94,6 +94,8 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 		}
 	}
 	if len(last) == 0 {
+		w.substituteFilterPlaceholders(phA, anchor)
+		w.substituteFilterPlaceholders(phB, anchor)
 		return anchor, true
 	}
 
@@ -149,7 +151,30 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 		cols[i] = projColumn{name: c.name, sources: sources}
 	}
 	scope.columns[lower] = cols
+	w.substituteFilterPlaceholders(phA, cols)
+	w.substituteFilterPlaceholders(phB, cols)
 	return cols, true
+}
+
+// substituteFilterPlaceholders replaces each row-condition reference to a
+// placeholder of the CTE's placeholder projection — recorded while the fixpoint
+// resolved the recursive arm — with that column's converged lineage, which is
+// what the arm's output positions stand for.
+func (w *spanWalker) substituteFilterPlaceholders(ph map[ColumnRef]int, cols []projColumn) {
+	if len(ph) == 0 {
+		return
+	}
+	for _, ref := range w.span.filterColumns {
+		j, ok := ph[ref]
+		if !ok || j >= len(cols) {
+			continue
+		}
+		for _, source := range cols[j].sources {
+			if source.Column != "" {
+				w.addFilterColumn(source)
+			}
+		}
+	}
 }
 
 // holdsRecursiveWith reports whether n's subtree holds a WITH RECURSIVE
