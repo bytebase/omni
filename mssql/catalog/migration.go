@@ -195,7 +195,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 
 	droppedDefaults := make(map[string]bool)
-	droppedFunctionDefaults := dropFunctionDefaults(from, diff, &buf)
+	droppedFunctionDefaults, restoreFunctionDefaults := dropFunctionDefaults(from, diff, &buf)
 	for name := range droppedFunctionDefaults {
 		droppedDefaults[name] = true
 	}
@@ -455,6 +455,20 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			buf.WriteString(generateFunctionCommentSQL("ADD", funcDiff.SchemaName, funcDiff.FunctionName, funcDiff.NewFunction.Comment))
 			buf.WriteString(";\nGO\n")
 		}
+	}
+
+	for _, ref := range restoreFunctionDefaults {
+		created := false
+		for _, funcDiff := range diff.Functions {
+			if funcDiff.Action == DiffCreate && strings.EqualFold(funcDiff.FunctionName, ref.functionName) {
+				created = true
+			}
+		}
+		if !created {
+			continue
+		}
+		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s DEFAULT %s FOR %s;\n",
+			quote(ref.schema), quote(ref.table), quote(ref.constraint), ref.expression, quote(ref.column))
 	}
 
 	for _, procDiff := range diff.Procedures {
@@ -996,10 +1010,20 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 	return removed
 }
 
-func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder) map[string]bool {
+type functionDefaultRef struct {
+	schema       string
+	table        string
+	column       string
+	constraint   string
+	expression   string
+	functionName string
+}
+
+func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder) (map[string]bool, []functionDefaultRef) {
 	removed := make(map[string]bool)
+	var restore []functionDefaultRef
 	if from == nil {
-		return removed
+		return removed, restore
 	}
 	droppedFunctions := make(map[string]bool)
 	for _, funcDiff := range diff.Functions {
@@ -1026,13 +1050,18 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 					if strings.Contains(strings.ToLower(column.Default), name) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
 						removed[schema.Name+"."+column.DefaultConstraintName] = true
+						restore = append(restore, functionDefaultRef{
+							schema: schema.Name, table: table.Name, column: column.Name,
+							constraint: column.DefaultConstraintName, expression: column.Default,
+							functionName: name,
+						})
 						break
 					}
 				}
 			}
 		}
 	}
-	return removed
+	return removed, restore
 }
 
 func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
