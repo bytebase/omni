@@ -220,6 +220,10 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 
 // databaseIndex reads the numeric database index a driver's session selects.
 // Empty is database 0, the one every Redis has.
+//
+// A negative index is refused rather than recorded: go-redis selects a database
+// only when the index is positive, so a driver opened with -1 would answer for a
+// database named "-1" while every command ran against 0.
 func databaseIndex(database string) (int, error) {
 	if database == "" {
 		return 0, nil
@@ -227,6 +231,9 @@ func databaseIndex(database string) (int, error) {
 	index, err := strconv.Atoi(database)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert database %s to int: %w", database, err)
+	}
+	if index < 0 {
+		return 0, fmt.Errorf("a Redis database index cannot be negative, but %d was given", index)
 	}
 	return index, nil
 }

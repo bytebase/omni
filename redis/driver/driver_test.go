@@ -81,12 +81,13 @@ func TestDatabaseIndex(t *testing.T) {
 		{database: "0", want: 0},
 		{database: "3", want: 3},
 		{database: "fifteen", wantErr: true},
+		{database: "-1", wantErr: true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.database, func(t *testing.T) {
 			got, err := databaseIndex(tc.database)
 			if tc.wantErr {
-				require.ErrorContains(t, err, "failed to convert database "+tc.database+" to int")
+				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
