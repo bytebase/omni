@@ -405,7 +405,11 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			column.Default = e.nodeText(n.Expr)
 		}
 	case ast.CONSTRAINT_PRIMARY:
+		pkMadeNotNull := column.Nullable
 		column.Nullable = false
+		if pkMadeNotNull {
+			e.primaryKeyNotNull[table.Name+"\x00"+column.Name] = true
+		}
 		if !hasPrimaryIndex(table) {
 			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
 				Name:         fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name)),
@@ -451,6 +455,13 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 		if len(columns) == 0 {
 			return
 		}
+		for _, columnName := range columns {
+			for _, column := range table.Columns {
+				if column.Name == columnName && column.Nullable {
+					e.primaryKeyNotNull[table.Name+"\x00"+columnName] = true
+				}
+			}
+		}
 		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
 			Name:         fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name)),
 			Primary:      true,
@@ -461,9 +472,6 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 			IsConstraint: true,
 		})
 		markColumnsNotNull(table, columns)
-		for _, column := range columns {
-			e.primaryKeyNotNull[table.Name+"\x00"+column] = true
-		}
 	case ast.CONSTRAINT_UNIQUE:
 		if len(columns) == 0 {
 			return
@@ -899,7 +907,7 @@ func expressionsMatchColumns(expressions, columns []string) bool {
 	for i, expression := range expressions {
 		expression = strings.Trim(expression, `"`)
 		column := strings.Trim(columns[i], `"`)
-		if !strings.EqualFold(expression, column) {
+		if expression != column {
 			return false
 		}
 	}
@@ -937,26 +945,38 @@ func renameTriggerTarget(body, oldName, newName string) string {
 			return body
 		}
 		start := offset + index + len(" ON ")
-		end := start
-		if end < len(body) && body[end] == '"' {
-			end++
-			for end < len(body) && body[end] != '"' {
-				end++
-			}
-			if end < len(body) {
-				end++
-			}
-		} else {
-			for end < len(body) && isIdentifierByte(body[end]) {
-				end++
-			}
+		first, firstStart, end := scanTriggerIdentifier(body, start)
+		relation, relationStart, relationEnd := first, firstStart, end
+		if end < len(body) && body[end] == '.' {
+			relation, relationStart, relationEnd = scanTriggerIdentifier(body, end+1)
 		}
-		token := strings.Trim(body[start:end], `"`)
-		if strings.EqualFold(token, oldName) {
-			return body[:start] + newName + body[end:]
+		if strings.EqualFold(relation, oldName) {
+			return body[:relationStart] + newName + body[relationEnd:]
 		}
 		offset = end
 	}
+}
+
+func scanTriggerIdentifier(body string, start int) (string, int, int) {
+	if start >= len(body) {
+		return "", start, start
+	}
+	if body[start] == '"' {
+		end := start + 1
+		for end < len(body) && body[end] != '"' {
+			end++
+		}
+		token := body[start+1 : end]
+		if end < len(body) {
+			end++
+		}
+		return token, start, end
+	}
+	end := start
+	for end < len(body) && isIdentifierByte(body[end]) {
+		end++
+	}
+	return body[start:end], start, end
 }
 
 func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {

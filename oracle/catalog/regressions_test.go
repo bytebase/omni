@@ -1527,3 +1527,56 @@ func TestStandaloneRenameTable(t *testing.T) {
 		t.Fatalf("standalone rename not applied: %+v", schema.Tables)
 	}
 }
+
+func TestDropPrimaryKeyKeepsExplicitNotNull(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER NOT NULL, CONSTRAINT PK PRIMARY KEY(ID)); ALTER TABLE T DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if table.Columns[0].Nullable {
+		t.Fatalf("explicit NOT NULL cleared: %+v", table.Columns[0])
+	}
+}
+
+func TestDropUniqueMatchesQuotedColumnCase(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, "c" NUMBER, CONSTRAINT U1 UNIQUE(C), CONSTRAINT U2 UNIQUE("c")); ALTER TABLE T DROP UNIQUE ("c")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	var unique [][]string
+	for _, index := range table.Indexes {
+		if index.Unique && !index.Primary {
+			unique = append(unique, index.Expressions)
+		}
+	}
+	if len(unique) != 1 || !slices.Equal(unique[0], []string{"C"}) {
+		t.Fatalf("unique keys = %v", unique)
+	}
+}
+
+func TestRenameTableRewritesQualifiedTriggerTarget(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE APP.T (C NUMBER); CREATE TRIGGER APP.TR BEFORE INSERT ON APP.T BEGIN NULL; END; ALTER TABLE APP.T RENAME TO U`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["U"]
+	if table == nil || len(table.Triggers) != 1 {
+		t.Fatalf("renamed table/triggers: %+v", c.Metadata().Schemas[0].Tables)
+	}
+	if !strings.Contains(table.Triggers[0].Body, " ON APP.U ") {
+		t.Fatalf("trigger body = %q", table.Triggers[0].Body)
+	}
+}
+
+func TestCreateSchemaEmitsValidAuthentication(t *testing.T) {
+	to, err := LoadSQL(`CREATE TABLE APP.T (C NUMBER)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, New(), to)
+	if !strings.Contains(sql, `CREATE USER "APP" NO AUTHENTICATION;`) {
+		t.Fatalf("schema creation lacks authentication:\n%s", sql)
+	}
+}

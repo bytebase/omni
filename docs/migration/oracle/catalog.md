@@ -173,8 +173,11 @@ replay tests exercise.
 - Exec resolves an unnamed synced schema to its database owner, trigger owners
   are validated, and new source columns are added before a virtual-column
   expression change.
-- Dropping a primary key restores the nullability it implied, and standalone
-  `RENAME` moves the table.
+- Dropping a primary key restores only the nullability it implied, and
+  standalone `RENAME` moves the table.
+- `DROP UNIQUE (columns)` matches raw column names exactly.
+- A qualified trigger target follows a table rename and keeps its owner.
+- `CREATE USER` for a generated schema includes `NO AUTHENTICATION`.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

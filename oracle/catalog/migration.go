@@ -1558,7 +1558,7 @@ func writeDropSchema(out *strings.Builder, schema string) {
 func writeCreateSchema(out *strings.Builder, schema string) {
 	_, _ = out.WriteString(`CREATE USER "`)
 	_, _ = out.WriteString(schema)
-	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString(`" NO AUTHENTICATION;`)
 	_, _ = out.WriteString("\n")
 }
 
