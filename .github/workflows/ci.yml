@@ -29,7 +29,7 @@ jobs:
 
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25'
+          go-version: '1.27'
           cache: false # the runner keeps GOCACHE/GOMODCACHE between runs
 
       # Both steps regenerate committed code and fail if the result differs from

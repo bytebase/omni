@@ -13,20 +13,28 @@
 // session defaults to; in a recording each top-level test starts with that
 // catalog empty.
 //
-// The tape is the statement endpoint's: each request is one statement, and
-// each answer ok, or the error Trino answered (QueryError).
+// The oracle's tape is the statement endpoint's: each request is one statement,
+// and each answer ok, or the error Trino answered (QueryError).
+//
+// trino/driver asks more of the server, so OpenDB returns the same tape around
+// the client library the driver uses: the tape holds the statements the driver
+// sends and the rows the client decoded, and each answer is ok, the client's
+// error, or a result set.
 package testcontainer
 
 import (
 	"bytes"
 	"context"
-	"database/sql/driver"
+	"database/sql"
+	sqldriver "database/sql/driver"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -36,6 +44,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
+	trinoclient "github.com/trinodb/trino-go-client/trino"
 
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/tape"
@@ -204,9 +213,18 @@ func started(t testing.TB, pin enginetest.Pin) string {
 // live connects to the pinned Trino. On t's top-level test's first
 // connection it empties the memory catalog of what other tests made, so a
 // test reads the same answers recorded alone as in a run of its package.
-func live(t testing.TB, pin enginetest.Pin) driver.Connector {
+func live(t testing.TB, pin enginetest.Pin) sqldriver.Connector {
 	t.Helper()
 	c := newClient(started(t, pin))
+	emptyOnce(t, c)
+	return connector{c}
+}
+
+// emptyOnce empties the memory catalog on t's top-level test's first
+// connection, so a test reads the same answers recorded alone as in a run of
+// its package.
+func emptyOnce(t testing.TB, c *client) {
+	t.Helper()
 	top := enginetest.TopName(t.Name())
 	shared.mu.Lock()
 	defer shared.mu.Unlock()
@@ -219,7 +237,242 @@ func live(t testing.TB, pin enginetest.Pin) driver.Connector {
 		}
 		shared.emptied[top] = true
 	}
-	return connector{c}
+}
+
+// OpenDB returns t's connection to the pinned server in catalog, as
+// trino/driver opens one: a *sql.DB over the tape whose live side is the client
+// library the driver links. In a recording the client talks to the pinned
+// server; in a replay its requests and the rows it decoded come from the tape.
+// The pool holds one connection, so a statement's session state holds for the
+// next, as on a pinned *sql.Conn.
+func OpenDB(t testing.TB, catalog, schema string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{
+		Pins:  Pins,
+		Live:  clientLive(catalog, schema),
+		Codec: ClientCodec{},
+	}
+	return tape.Open(t, s, Default)
+}
+
+// clientLive connects t's tape to the pinned server with the client library,
+// as trino/driver does, in catalog and schema.
+func clientLive(catalog, schema string) func(testing.TB, enginetest.Pin) sqldriver.Connector {
+	return func(t testing.TB, pin enginetest.Pin) sqldriver.Connector {
+		c := newClient(started(t, pin))
+		emptyOnce(t, c)
+		return clientConnector{url: c.baseURL, catalog: catalog, schema: schema}
+	}
+}
+
+// clientConnector opens client library connections to the pinned server.
+type clientConnector struct {
+	url             string
+	catalog, schema string
+}
+
+func (c clientConnector) Connect(ctx context.Context) (sqldriver.Conn, error) {
+	u, err := url.Parse(c.url)
+	if err != nil {
+		return nil, err
+	}
+	u.User = url.User("omni-driver")
+	query := u.Query()
+	query.Set("catalog", c.catalog)
+	query.Set("schema", c.schema)
+	query.Set("source", "omni-driver")
+	u.RawQuery = query.Encode()
+	conn, err := (&trinoclient.Driver{}).Open(u.String())
+	if err != nil {
+		return nil, err
+	}
+	return clientConn{Conn: conn}, nil
+}
+
+func (c clientConnector) Driver() sqldriver.Driver { return &trinoclient.Driver{} }
+
+// clientConn adapts the client's connection to what a tape records: the client
+// itself offers only Prepare, and database/sql reaches Exec and Query through a
+// statement, so the adapter does the same.
+type clientConn struct {
+	sqldriver.Conn
+}
+
+var (
+	_ sqldriver.ExecerContext      = clientConn{}
+	_ sqldriver.QueryerContext     = clientConn{}
+	_ sqldriver.SessionResetter    = clientConn{}
+	_ sqldriver.ConnPrepareContext = clientConn{}
+)
+
+// PrepareContext prepares one statement. The client offers only this path to
+// Exec and Query, which is also how database/sql would reach it.
+func (c clientConn) PrepareContext(ctx context.Context, query string) (sqldriver.Stmt, error) {
+	preparer, ok := c.Conn.(sqldriver.ConnPrepareContext)
+	if !ok {
+		return nil, errors.New("testcontainer: the Trino client connection does not prepare")
+	}
+	return preparer.PrepareContext(ctx, query)
+}
+
+func (c clientConn) ExecContext(ctx context.Context, query string, args []sqldriver.NamedValue) (sqldriver.Result, error) {
+	stmt, err := c.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer stmt.Close()
+	exec, ok := stmt.(sqldriver.StmtExecContext)
+	if !ok {
+		return nil, errors.New("testcontainer: the Trino client statement does not exec")
+	}
+	return exec.ExecContext(ctx, args)
+}
+
+func (c clientConn) QueryContext(ctx context.Context, query string, args []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	stmt, err := c.PrepareContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	queryer, ok := stmt.(sqldriver.StmtQueryContext)
+	if !ok {
+		stmt.Close()
+		return nil, errors.New("testcontainer: the Trino client statement does not query")
+	}
+	rows, err := queryer.QueryContext(ctx, args)
+	if err != nil {
+		stmt.Close()
+		return nil, err
+	}
+	return &statementRows{Rows: rows, stmt: stmt}, nil
+}
+
+func (c clientConn) ResetSession(ctx context.Context) error {
+	if resetter, ok := c.Conn.(sqldriver.SessionResetter); ok {
+		return resetter.ResetSession(ctx)
+	}
+	return nil
+}
+
+// statementRows closes the statement a query came from with its rows, and
+// forwards the column metadata the client's rows report: a tape holds a column's
+// type only when the rows implement RowsColumnTypeDatabaseTypeName.
+type statementRows struct {
+	sqldriver.Rows
+	stmt sqldriver.Stmt
+}
+
+var (
+	_ sqldriver.RowsColumnTypeScanType         = (*statementRows)(nil)
+	_ sqldriver.RowsColumnTypeDatabaseTypeName = (*statementRows)(nil)
+	_ sqldriver.RowsColumnTypeLength           = (*statementRows)(nil)
+	_ sqldriver.RowsColumnTypePrecisionScale   = (*statementRows)(nil)
+	_ sqldriver.RowsColumnTypeNullable         = (*statementRows)(nil)
+)
+
+func (r *statementRows) Close() error {
+	err := r.Rows.Close()
+	if cerr := r.stmt.Close(); err == nil {
+		err = cerr
+	}
+	return err
+}
+
+func (r *statementRows) ColumnTypeDatabaseTypeName(index int) string {
+	if typed, ok := r.Rows.(sqldriver.RowsColumnTypeDatabaseTypeName); ok {
+		return typed.ColumnTypeDatabaseTypeName(index)
+	}
+	return ""
+}
+
+func (r *statementRows) ColumnTypeScanType(index int) reflect.Type {
+	if typed, ok := r.Rows.(sqldriver.RowsColumnTypeScanType); ok {
+		return typed.ColumnTypeScanType(index)
+	}
+	return reflect.TypeOf(new(any)).Elem()
+}
+
+func (r *statementRows) ColumnTypeLength(index int) (int64, bool) {
+	if typed, ok := r.Rows.(sqldriver.RowsColumnTypeLength); ok {
+		return typed.ColumnTypeLength(index)
+	}
+	return 0, false
+}
+
+func (r *statementRows) ColumnTypePrecisionScale(index int) (int64, int64, bool) {
+	if typed, ok := r.Rows.(sqldriver.RowsColumnTypePrecisionScale); ok {
+		return typed.ColumnTypePrecisionScale(index)
+	}
+	return 0, 0, false
+}
+
+func (r *statementRows) ColumnTypeNullable(index int) (bool, bool) {
+	if typed, ok := r.Rows.(sqldriver.RowsColumnTypeNullable); ok {
+		return typed.ColumnTypeNullable(index)
+	}
+	return false, false
+}
+
+// ClientCodec writes a Trino query error on a tape as the client's fields and
+// reads it back into the same type, so a replay's errors.As finds what a
+// recording's did.
+type ClientCodec struct{}
+
+// tapeClientError is the client's ErrQueryFailed and its ErrTrino reason as a
+// tape holds them.
+type tapeClientError struct {
+	Status   int
+	Type     string
+	Message  string
+	SqlState string
+	Name     string
+	Code     int
+	Line     int
+	Column   int
+}
+
+// EncodeError implements tape.Codec.
+func (ClientCodec) EncodeError(err error) (string, bool) {
+	var failed *trinoclient.ErrQueryFailed
+	if !errors.As(err, &failed) {
+		return "", false
+	}
+	var reason *trinoclient.ErrTrino
+	if !errors.As(err, &reason) {
+		return "", false
+	}
+	b, merr := json.Marshal(tapeClientError{
+		Status:   failed.StatusCode,
+		Type:     reason.ErrorType,
+		Message:  reason.Message,
+		SqlState: reason.SqlState,
+		Name:     reason.ErrorName,
+		Code:     reason.ErrorCode,
+		Line:     reason.ErrorLocation.LineNumber,
+		Column:   reason.ErrorLocation.ColumnNumber,
+	})
+	if merr != nil {
+		return "", false
+	}
+	return string(b), true
+}
+
+// DecodeError implements tape.Codec.
+func (ClientCodec) DecodeError(text string) error {
+	var e tapeClientError
+	if err := json.Unmarshal([]byte(text), &e); err != nil {
+		return fmt.Errorf("testcontainer: unreadable Trino client error on tape: %w", err)
+	}
+	return &trinoclient.ErrQueryFailed{
+		StatusCode: e.Status,
+		Reason: &trinoclient.ErrTrino{
+			Message:       e.Message,
+			SqlState:      e.SqlState,
+			ErrorCode:     e.Code,
+			ErrorName:     e.Name,
+			ErrorType:     e.Type,
+			ErrorLocation: trinoclient.ErrorLocation{LineNumber: e.Line, ColumnNumber: e.Column},
+		},
+	}
 }
 
 func start(ctx context.Context, pin enginetest.Pin) (url string, err error) {
@@ -314,20 +567,20 @@ func Terminate() {
 // enginetest/tape can record it: ExecContext sends one statement.
 type connector struct{ c *client }
 
-func (c connector) Connect(context.Context) (driver.Conn, error) { return conn(c), nil }
-func (c connector) Driver() driver.Driver                        { return nil }
+func (c connector) Connect(context.Context) (sqldriver.Conn, error) { return conn(c), nil }
+func (c connector) Driver() sqldriver.Driver                        { return nil }
 
 type conn struct{ c *client }
 
-var _ driver.ExecerContext = conn{}
+var _ sqldriver.ExecerContext = conn{}
 
-func (conn) Prepare(string) (driver.Stmt, error) {
+func (conn) Prepare(string) (sqldriver.Stmt, error) {
 	return nil, errors.New("testcontainer: Trino statements are not prepared")
 }
-func (conn) Close() error              { return nil }
-func (conn) Begin() (driver.Tx, error) { return nil, errors.New("testcontainer: no transactions") }
+func (conn) Close() error                 { return nil }
+func (conn) Begin() (sqldriver.Tx, error) { return nil, errors.New("testcontainer: no transactions") }
 
-func (c conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
+func (c conn) ExecContext(ctx context.Context, query string, args []sqldriver.NamedValue) (sqldriver.Result, error) {
 	if len(args) > 0 {
 		return nil, errors.New("testcontainer: Trino statements take no arguments")
 	}

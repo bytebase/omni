@@ -1,0 +1,11 @@
+{
+  "databases": [
+    "jmx",
+    "memory",
+    "system",
+    "tpcds",
+    "tpch"
+  ],
+  "roles": null,
+  "version": "482"
+}

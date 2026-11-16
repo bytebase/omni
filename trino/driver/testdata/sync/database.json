@@ -1,0 +1,390 @@
+{
+  "name": "memory",
+  "schemas": [
+    {
+      "name": "default"
+    },
+    {
+      "name": "information_schema",
+      "tables": [
+        {
+          "name": "applicable_roles",
+          "columns": [
+            {
+              "name": "grantee",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "grantee_type",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "role_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "is_grantable",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "columns",
+          "columns": [
+            {
+              "name": "table_catalog",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_schema",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "column_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "ordinal_position",
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "column_default",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "is_nullable",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "data_type",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "enabled_roles",
+          "columns": [
+            {
+              "name": "role_name",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "roles",
+          "columns": [
+            {
+              "name": "role_name",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "schemata",
+          "columns": [
+            {
+              "name": "catalog_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "schema_name",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "table_privileges",
+          "columns": [
+            {
+              "name": "grantor",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "grantor_type",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "grantee",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "grantee_type",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_catalog",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_schema",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "privilege_type",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "is_grantable",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "with_hierarchy",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "tables",
+          "columns": [
+            {
+              "name": "table_catalog",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_schema",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_type",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "views",
+          "columns": [
+            {
+              "name": "table_catalog",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_schema",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "table_name",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "view_definition",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "omni_driver",
+      "tables": [
+        {
+          "name": "mixedcase",
+          "columns": [
+            {
+              "name": "id",
+              "type": "integer"
+            },
+            {
+              "name": "weird name",
+              "nullable": true,
+              "type": "varchar(10)"
+            },
+            {
+              "name": "normal",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "not_null",
+          "columns": [
+            {
+              "name": "id",
+              "type": "bigint"
+            },
+            {
+              "name": "note",
+              "type": "varchar(64)"
+            },
+            {
+              "name": "maybe",
+              "nullable": true,
+              "type": "varchar"
+            }
+          ]
+        },
+        {
+          "name": "types",
+          "columns": [
+            {
+              "name": "c_boolean",
+              "nullable": true,
+              "type": "boolean"
+            },
+            {
+              "name": "c_tinyint",
+              "nullable": true,
+              "type": "tinyint"
+            },
+            {
+              "name": "c_smallint",
+              "nullable": true,
+              "type": "smallint"
+            },
+            {
+              "name": "c_integer",
+              "nullable": true,
+              "type": "integer"
+            },
+            {
+              "name": "c_bigint",
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "c_real",
+              "nullable": true,
+              "type": "real"
+            },
+            {
+              "name": "c_double",
+              "nullable": true,
+              "type": "double"
+            },
+            {
+              "name": "c_decimal",
+              "nullable": true,
+              "type": "decimal(10,2)"
+            },
+            {
+              "name": "c_varchar",
+              "nullable": true,
+              "type": "varchar"
+            },
+            {
+              "name": "c_varchar_length",
+              "nullable": true,
+              "type": "varchar(20)"
+            },
+            {
+              "name": "c_char",
+              "nullable": true,
+              "type": "char(5)"
+            },
+            {
+              "name": "c_varbinary",
+              "nullable": true,
+              "type": "varbinary"
+            },
+            {
+              "name": "c_date",
+              "nullable": true,
+              "type": "date"
+            },
+            {
+              "name": "c_time",
+              "nullable": true,
+              "type": "time(3)"
+            },
+            {
+              "name": "c_time_tz",
+              "nullable": true,
+              "type": "time(3) with time zone"
+            },
+            {
+              "name": "c_timestamp",
+              "nullable": true,
+              "type": "timestamp(3)"
+            },
+            {
+              "name": "c_timestamp_tz",
+              "nullable": true,
+              "type": "timestamp(3) with time zone"
+            },
+            {
+              "name": "c_json",
+              "nullable": true,
+              "type": "json"
+            },
+            {
+              "name": "c_uuid",
+              "nullable": true,
+              "type": "uuid"
+            },
+            {
+              "name": "c_ipaddress",
+              "nullable": true,
+              "type": "ipaddress"
+            },
+            {
+              "name": "c_interval",
+              "nullable": true,
+              "type": "interval day to second"
+            },
+            {
+              "name": "c_array",
+              "nullable": true,
+              "type": "array(integer)"
+            },
+            {
+              "name": "c_map",
+              "nullable": true,
+              "type": "map(varchar, integer)"
+            },
+            {
+              "name": "c_row",
+              "nullable": true,
+              "type": "row(\"x\" integer, \"y\" varchar)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
