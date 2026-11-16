@@ -74,9 +74,26 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 		return nil, fmt.Errorf("expecting only one statement to get query span, but got %d", nonEmpty)
 	}
 
+	// Parse once: EXPLAIN resolution, the span walk and the classification
+	// all read this tree.
+	file, err := parser.Parse(single)
+	if err != nil {
+		return nil, parser.FirstError(err)
+	}
+	var node ast.Node
+	if file != nil && len(file.Stmts) > 0 {
+		node = file.Stmts[0]
+	}
 	// GetQuerySpan walks only a top-level SELECT/set operation, so EXPLAIN
-	// would report no access tables unless the planned statement is unwrapped.
-	span, err := GetQuerySpan(unwrapExplainForSpan(single))
+	// would report no access tables unless the planned statement is walked.
+	if explain, ok := node.(*ast.ExplainStmt); ok && explain.Query != nil {
+		node = explain.Query
+	}
+	queryType := Classify(single)
+	if classified, ok := astQueryType(node); ok {
+		queryType = classified
+	}
+	span, err := getQuerySpan(queryType, &ast.File{Stmts: []ast.Node{node}})
 	if err != nil {
 		return nil, err
 	}
@@ -95,35 +112,18 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 		return nil, ErrMixUserSystemTables
 	}
 
+	queryType = promoteAllSystemQuery(queryType, allSystems)
+
 	return &ResolvedQuerySpan{
-		Type:          classifiedQueryType(single, allSystems),
+		Type:          queryType,
 		SourceColumns: sources,
 		Results:       span.Results,
 	}, nil
 }
 
-// unwrapExplainForSpan returns the text of the statement an EXPLAIN plans, or
-// the original text when it does not parse to a top-level EXPLAIN.
-func unwrapExplainForSpan(statement string) string {
-	file, err := parser.Parse(statement)
-	if err != nil || file == nil || len(file.Stmts) == 0 {
-		return statement
-	}
-	explain, ok := file.Stmts[0].(*ast.ExplainStmt)
-	if !ok || explain.Query == nil {
-		return statement
-	}
-	inner := ast.NodeLoc(explain.Query)
-	if inner.Start < 0 || inner.End > len(statement) || inner.Start >= inner.End {
-		return statement
-	}
-	return statement[inner.Start:inner.End]
-}
-
-// classifiedQueryType classifies statement and promotes a user SELECT to
-// SelectInfoSchema when every table it reads is a system table.
-func classifiedQueryType(statement string, allSystems bool) QueryType {
-	queryType := ClassifyStatement(statement)
+// promoteAllSystemQuery promotes a user SELECT to SelectInfoSchema when every
+// table it reads is a system table.
+func promoteAllSystemQuery(queryType QueryType, allSystems bool) QueryType {
 	if queryType == QueryTypeSelect && allSystems {
 		return QueryTypeSelectInfoSchema
 	}
