@@ -33,8 +33,10 @@
 // multi-statement transaction the API this driver serves takes part in.
 // Execute runs each statement on its own.
 //
-// QueryOptions.MaxResultBytes does nothing either: Query returns every row the
-// client read and leaves Result.Truncated false, as Bytebase's driver did.
+// QueryOptions.MaxResultBytes stops a result once its rows pass the cap and
+// sets Result.Truncated; QueryOptions.Limit caps the rows a read asks the
+// client for. A count keeps counting every document: a cap on the rows an
+// editor shows is not a cap on what a count counts.
 package driver
 
 import (
