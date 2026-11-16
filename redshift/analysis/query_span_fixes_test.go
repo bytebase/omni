@@ -39,6 +39,22 @@ func TestRedshiftQuerySpanStarOverFunctionCTE(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
+// with a multi-column star followed by a function: the function's output name
+// and sources must stay aligned after the star expands.
+func TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH a AS (SELECT 0 AS n, reporting_fn() AS x), b AS (SELECT *, analytics.reporting_fn() AS y FROM a) SELECT y FROM b")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+		}),
+		IsPlainField: true,
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanAliasedCTEIsNotAmbiguous covers defect 8: an aliased CTE
 // is visible only under its alias, so an unqualified column is not ambiguous.
 func TestRedshiftQuerySpanAliasedCTEIsNotAmbiguous(t *testing.T) {
