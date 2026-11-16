@@ -229,6 +229,9 @@ func trailingCommentStart(statement string) int {
 				line = true
 				i++
 				last = i - 1
+			case c == '#':
+				line = true
+				last = i
 			case c == '/' && i+1 < len(runes) && runes[i+1] == '*':
 				block = true
 				i++
@@ -299,7 +302,7 @@ func statementBody(statement string) string {
 	for {
 		s = strings.TrimLeft(s, " \t\r\n\v\f")
 		switch {
-		case strings.HasPrefix(s, "--"):
+		case strings.HasPrefix(s, "--"), strings.HasPrefix(s, "#"):
 			_, rest, found := strings.Cut(s, "\n")
 			if !found {
 				return ""
@@ -416,6 +419,13 @@ func removeQuotedTextAndComment(statement string) (string, error) {
 			}
 			buf.WriteByte(' ')
 			start = i
+		case i < len(runes) && runes[i] == '#':
+			buf.WriteString(string(runes[start:i]))
+			if err := scanComment(runes, &i); err != nil {
+				return "", err
+			}
+			buf.WriteByte(' ')
+			start = i
 		case i < len(runes) && runes[i] == '\'':
 			buf.WriteString(string(runes[start:i]))
 			if err := scanString(runes, &i); err != nil {
@@ -463,6 +473,15 @@ func scanComment(runes []rune, i *int) error {
 		}
 	case *i+1 < len(runes) && runes[*i] == '-' && runes[*i+1] == '-':
 		*i += 2
+		for *i < len(runes) && runes[*i] != '\n' {
+			*i++
+		}
+		if *i < len(runes) {
+			*i++
+		}
+		return nil
+	case *i < len(runes) && runes[*i] == '#':
+		*i++
 		for *i < len(runes) && runes[*i] != '\n' {
 			*i++
 		}

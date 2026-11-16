@@ -193,7 +193,10 @@ func makeValueByTypeName(typeName string, columnType *sql.ColumnType) any {
 func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 	// TUPLE, ARRAY, MAP, JSON
 	if v, ok := value.(*any); ok && v != nil {
-		b, err := json.Marshal(v)
+		if *v == nil {
+			return driver.Value{Kind: driver.Null}
+		}
+		b, err := json.Marshal(normalizeJSONValue(*v))
 		if err != nil {
 			return driver.Value{Kind: driver.Null}
 		}
@@ -330,6 +333,38 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 		return driver.Value{Kind: driver.String, String: (*v).String()}
 	}
 	return driver.Value{Kind: driver.Null}
+}
+
+// normalizeJSONValue turns typed maps into string-keyed maps, which is what a
+// document can hold: a ClickHouse Map(Float64, ...) arrives as
+// map[float64]..., and encoding/json refuses such a key.
+func normalizeJSONValue(value any) any {
+	rv := reflect.ValueOf(value)
+	if !rv.IsValid() {
+		return nil
+	}
+	switch rv.Kind() {
+	case reflect.Map:
+		out := make(map[string]any, rv.Len())
+		iter := rv.MapRange()
+		for iter.Next() {
+			out[fmt.Sprint(iter.Key().Interface())] = normalizeJSONValue(iter.Value().Interface())
+		}
+		return out
+	case reflect.Slice:
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			return value
+		}
+		fallthrough
+	case reflect.Array:
+		out := make([]any, rv.Len())
+		for i := 0; i < rv.Len(); i++ {
+			out[i] = normalizeJSONValue(rv.Index(i).Interface())
+		}
+		return out
+	default:
+		return value
+	}
 }
 
 // translateAggregateFunctionError rewrites the client's opaque "unsupported

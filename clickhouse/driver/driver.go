@@ -45,6 +45,7 @@ package driver
 
 import (
 	"context"
+	"crypto/tls"
 	"database/sql"
 	"fmt"
 	"net"
@@ -135,19 +136,31 @@ func connOptions(cfg driver.Config) (*clickhouse.Options, error) {
 		Settings:    settings,
 		DialTimeout: 10 * time.Second,
 	}
+	var tlsConfig *tls.Config
 	if cfg.TLS != nil {
-		tlsConfig, err := cfg.TLS(host)
+		var err error
+		tlsConfig, err = cfg.TLS(host)
 		if err != nil {
 			return nil, fmt.Errorf("TLS config: %w", err)
 		}
 		if tlsConfig == nil {
 			return nil, fmt.Errorf("TLS configuration must not be nil")
 		}
+		if tlsConfig.ServerName == "" && host != "" {
+			tlsConfig = tlsConfig.Clone()
+			tlsConfig.ServerName = host
+		}
 		options.TLS = tlsConfig
 	}
 	if cfg.Dial != nil {
 		options.DialContext = func(ctx context.Context, address string) (net.Conn, error) {
-			return cfg.Dial(ctx, "tcp", address)
+			conn, err := cfg.Dial(ctx, "tcp", address)
+			if err != nil || tlsConfig == nil {
+				return conn, err
+			}
+			// clickhouse-go's own dial picks either DialContext or TLS, never
+			// both, so a custom path carries the TLS the caller required.
+			return tls.Client(conn, tlsConfig), nil
 		}
 	}
 	return options, nil

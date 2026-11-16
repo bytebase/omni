@@ -127,6 +127,30 @@ func TestConnOptionsTLSAndDial(t *testing.T) {
 	}
 }
 
+func TestConnOptionsTLSOverDial(t *testing.T) {
+	cfg := baseConfig()
+	cfg.TLS = func(string) (*tls.Config, error) {
+		return &tls.Config{InsecureSkipVerify: true}, nil
+	}
+	cfg.Dial = func(context.Context, string, string) (net.Conn, error) {
+		client, server := net.Pipe()
+		_ = server.Close()
+		return client, nil
+	}
+	options, err := connOptions(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn, err := options.DialContext(context.Background(), options.Addr[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, ok := conn.(*tls.Conn); !ok {
+		t.Fatalf("dialed connection is %T, want TLS", conn)
+	}
+}
+
 func TestConnOptionsValidation(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -207,6 +231,8 @@ func TestStatementWithResultLimit(t *testing.T) {
 		{"SELECT 1; -- note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
 		{"SELECT 1; /* note */", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
 		{"SELECT '你好' -- note", "WITH result AS (SELECT '你好') SELECT * FROM result LIMIT 5;"},
+		{"SELECT 1 # note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
+		{"SELECT 1; # note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
 	} {
 		if got := statementWithResultLimit(tc.statement, 5); got != tc.want {
 			t.Errorf("limit(%q) = %q, want %q", tc.statement, got, tc.want)
@@ -225,6 +251,14 @@ func TestStatementWithResultLimit(t *testing.T) {
 		if got := statementWithResultLimit(statement, 5); !strings.HasSuffix(got, "LIMIT 5;") {
 			t.Errorf("limit(%q) = %q", statement, got)
 		}
+	}
+}
+
+func TestConvertMapWithFloatKeys(t *testing.T) {
+	value := any(map[float64]string{1.5: "x"})
+	got := convertValue("MAP(FLOAT64, STRING)", nil, &value)
+	if got.Kind != driver.String || got.String != `{"1.5":"x"}` {
+		t.Errorf("map = %+v", got)
 	}
 }
 
@@ -301,6 +335,8 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"SELECT(1)", true},
 		{"SELECT*FROM q", true},
 		{"SELECT 'x'", true},
+		{"# note\nSELECT 1", true},
+		{"SELECT 1 # note", true},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {
