@@ -3,6 +3,7 @@ module github.com/bytebase/omni
 go 1.27
 
 require (
+	github.com/apache/cassandra-gocql-driver/v2 v2.1.2
 	github.com/bytebase/gomongo v0.0.0-20260730033313-67ba6e249735
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-units v0.5.0
@@ -20,6 +21,7 @@ require (
 	github.com/trinodb/trino-go-client v1.4.1
 	go.mongodb.org/mongo-driver/v2 v2.9.3
 	google.golang.org/protobuf v1.36.11
+	gopkg.in/inf.v0 v0.9.1
 	gopkg.in/yaml.v3 v3.0.1
 )
 
