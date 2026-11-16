@@ -24,6 +24,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	renames := findConstraintRenames(diff)
 	detached := findDetachedIncomingForeignKeys(diff, renames)
 	diff.preAltered = map[*ColumnDiff]bool{}
+	diff.preAdded = map[*ColumnDiff]bool{}
 
 	// Safe order for migrations:
 	// 1. Drop dependent objects first (in reverse dependency order)
@@ -649,7 +650,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		for _, tableDiff := range tableMap {
 			if tableDiff.Action == DiffActionAlter {
 				for _, colDiff := range tableDiff.ColumnChanges {
-					if colDiff.Action == DiffActionCreate {
+					if colDiff.Action == DiffActionCreate && !diff.preAdded[colDiff] {
 						writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn)
 					}
 				}
@@ -699,7 +700,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 				case DiffActionAlter:
 					// Handle column additions for ALTER operations (only columns in topological order)
 					for _, colDiff := range tableDiff.ColumnChanges {
-						if colDiff.Action == DiffActionCreate {
+						if colDiff.Action == DiffActionCreate && !diff.preAdded[colDiff] {
 							writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn)
 						}
 					}
@@ -909,11 +910,24 @@ func preAlterDependentVirtualColumns(buf *strings.Builder, diff *MetadataDiff, t
 		}
 		expression := change.OldColumn.GetGeneration().GetExpression()
 		for column := range dropped {
-			if expressionReferencesColumn(expression, column) {
-				buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, change, columnNotNull{}))
-				diff.preAltered[change] = true
-				break
+			if !expressionReferencesColumn(expression, column) {
+				continue
 			}
+			if change.NewColumn.GetGeneration() != nil {
+				required := change.NewColumn.GetGeneration().GetExpression()
+				for _, candidate := range tableDiff.ColumnChanges {
+					if candidate.Action != DiffActionCreate || candidate.NewColumn == nil || diff.preAdded[candidate] {
+						continue
+					}
+					if expressionReferencesColumn(required, candidate.NewColumn.GetName()) {
+						writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, candidate.NewColumn)
+						diff.preAdded[candidate] = true
+					}
+				}
+			}
+			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, change, columnNotNull{}))
+			diff.preAltered[change] = true
+			break
 		}
 	}
 }

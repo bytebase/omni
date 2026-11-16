@@ -1470,3 +1470,60 @@ func TestFallbackOrdersVirtualColumnFunctionBeforeTable(t *testing.T) {
 		t.Fatalf("migration table precedes function:\n%s", sql)
 	}
 }
+
+func TestVirtualAlterAddsNewSourceColumnFirst(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "A", Type: "NUMBER", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "A+1"}}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "B", Type: "NUMBER", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "B+1"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	add := strings.Index(sql, `ADD "B"`)
+	alter := strings.Index(sql, `MODIFY ("V"`)
+	drop := strings.Index(sql, `DROP COLUMN "A"`)
+	if add < 0 || alter < 0 || drop < 0 || add > alter || alter > drop {
+		t.Fatalf("new source column ordering wrong:\n%s", sql)
+	}
+}
+
+func TestExecRejectsQualifiedDDLOnUnnamedSyncedSchema(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}}}}}
+	c := &Catalog{meta: meta, namedNotNull: map[string]bool{}}
+	results, err := c.Exec(`ALTER TABLE OTHER.T ADD X NUMBER`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("qualified DDL from another owner was applied")
+	}
+}
+
+func TestTriggerRejectsAnotherOwner(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}}})
+	results, err := c.Exec(`CREATE OR REPLACE TRIGGER OTHER.TR BEFORE INSERT ON APP.T BEGIN NULL; END;`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("trigger from another owner was installed")
+	}
+}
+
+func TestDropPrimaryKeyRestoresNullability(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY); ALTER TABLE T DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if !table.Columns[0].Nullable {
+		t.Fatalf("primary-key nullability not restored: %+v", table.Columns[0])
+	}
+}
+
+func TestStandaloneRenameTable(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER); RENAME T TO U`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := c.Metadata().Schemas[0]
+	if tableByName(schema)["U"] == nil || tableByName(schema)["T"] != nil {
+		t.Fatalf("standalone rename not applied: %+v", schema.Tables)
+	}
+}

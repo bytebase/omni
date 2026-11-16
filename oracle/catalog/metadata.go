@@ -40,6 +40,7 @@ func metadataFromSQL(schemaText string) (*metadatapb.DatabaseSchemaMetadata, err
 func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 	return &oracleMetadataExtractor{
 		namedNotNull:      make(map[string]bool),
+		primaryKeyNotNull: make(map[string]bool),
 		tables:            make(map[string]*metadatapb.TableMetadata),
 		views:             make(map[string]*metadatapb.ViewMetadata),
 		materializedViews: make(map[string]*metadatapb.MaterializedViewMetadata),
@@ -57,6 +58,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 type oracleMetadataExtractor struct {
 	err               error
 	namedNotNull      map[string]bool
+	primaryKeyNotNull map[string]bool
 	currentDatabase   string
 	currentSchema     string
 	tables            map[string]*metadatapb.TableMetadata
@@ -229,6 +231,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		e.extractAlterSequence(n)
 	case *ast.AlterTriggerStmt:
 		e.extractAlterTrigger(n)
+	case *ast.RenameStmt:
+		e.extractRename(n)
 	case *ast.DropStmt:
 		e.extractDrop(n)
 	default:
@@ -412,6 +416,7 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 				Visible:      true,
 				IsConstraint: true,
 			})
+			e.primaryKeyNotNull[table.Name+"\x00"+column.Name] = true
 		}
 	case ast.CONSTRAINT_UNIQUE:
 		name := fallbackName(n.Name, fmt.Sprintf("UK_%s_%s", table.Name, column.Name))
@@ -456,6 +461,9 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 			IsConstraint: true,
 		})
 		markColumnsNotNull(table, columns)
+		for _, column := range columns {
+			e.primaryKeyNotNull[table.Name+"\x00"+column] = true
+		}
 	case ast.CONSTRAINT_UNIQUE:
 		if len(columns) == 0 {
 			return
@@ -480,6 +488,18 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 		e.appendForeignKey(table, fallbackName(n.Name, fmt.Sprintf("FK_%s_%d", table.Name, len(table.ForeignKeys)+1)), columns, n.RefTable, n.RefColumns, n.OnDelete)
 	default:
 	}
+}
+
+func (e *oracleMetadataExtractor) extractRename(n *ast.RenameStmt) {
+	oldName := objectName(n.OldName)
+	newName := objectName(n.NewName)
+	if oldName == "" || newName == "" {
+		return
+	}
+	if !e.useSchema(n.OldName.Schema) || !e.useSchema(n.NewName.Schema) {
+		return
+	}
+	e.renameTable(oldName, newName)
 }
 
 func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
@@ -811,9 +831,13 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	}
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
-		if index.Name != name {
-			indexes = append(indexes, index)
+		if index.Name == name {
+			if index.Primary {
+				e.clearPrimaryKeyNotNull(table, index.Expressions)
+			}
+			continue
 		}
+		indexes = append(indexes, index)
 	}
 	table.Indexes = indexes
 	var checks []*metadatapb.CheckConstraintMetadata
@@ -845,9 +869,27 @@ func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableM
 		}
 		if !drop {
 			indexes = append(indexes, index)
+		} else if index.Primary {
+			e.clearPrimaryKeyNotNull(table, index.Expressions)
 		}
 	}
 	table.Indexes = indexes
+}
+
+func (e *oracleMetadataExtractor) clearPrimaryKeyNotNull(table *metadatapb.TableMetadata, columns []string) {
+	for _, columnName := range columns {
+		columnName = strings.Trim(columnName, `"`)
+		key := table.Name + "\x00" + columnName
+		if !e.primaryKeyNotNull[key] {
+			continue
+		}
+		delete(e.primaryKeyNotNull, key)
+		for _, column := range table.Columns {
+			if column.Name == columnName {
+				column.Nullable = true
+			}
+		}
+	}
 }
 
 func expressionsMatchColumns(expressions, columns []string) bool {
@@ -1441,6 +1483,9 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 	if triggerName == "" || tableName == "" {
 		return
 	}
+	if !e.useSchema(n.Name.Schema) || !e.useSchema(n.Table.Schema) {
+		return
+	}
 	if strings.EqualFold(tableName, "DATABASE") || strings.EqualFold(tableName, "SCHEMA") {
 		if e.err == nil {
 			e.err = fmt.Errorf("non-table triggers are not supported by oracle/catalog")
@@ -1742,6 +1787,9 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 	}
 	schema := meta.GetSchemas()[0]
 	e.currentSchema = schema.GetName()
+	if e.currentSchema == "" {
+		e.currentSchema = meta.GetName()
+	}
 	for _, table := range schema.GetTables() {
 		cloned := cloneTable(table)
 		e.tables[table.GetName()] = cloned

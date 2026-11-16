@@ -12,13 +12,14 @@ import (
 // Catalog is the in-memory Oracle catalog. Oracle has one schema per user, so a
 // snapshot is normally one schema; the metadata type still carries the list.
 type Catalog struct {
-	meta         *metadatapb.DatabaseSchemaMetadata
-	namedNotNull map[string]bool
+	meta              *metadatapb.DatabaseSchemaMetadata
+	namedNotNull      map[string]bool
+	primaryKeyNotNull map[string]bool
 }
 
 // New returns an empty catalog.
 func New() *Catalog {
-	return &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{}, namedNotNull: map[string]bool{}}
+	return &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{}, namedNotNull: map[string]bool{}, primaryKeyNotNull: map[string]bool{}}
 }
 
 // Metadata returns the catalog's snapshot.
@@ -141,6 +142,9 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	for key := range c.namedNotNull {
 		extractor.namedNotNull[key] = true
 	}
+	for key := range c.primaryKeyNotNull {
+		extractor.primaryKeyNotNull[key] = true
+	}
 	extractor.extractStatement(stmt)
 	if extractor.err != nil {
 		return extractor.err
@@ -156,7 +160,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 		} else {
 			oldSchema, newSchema := result.Schemas[0], meta.Schemas[0]
 			merged := cloneSchema(oldSchema)
-			merged.Name = newSchema.GetName()
+			merged.Name = oldSchema.GetName()
 			merged.Tables = newSchema.GetTables()
 			merged.Views = newSchema.GetViews()
 			merged.MaterializedViews = newSchema.GetMaterializedViews()
@@ -169,6 +173,7 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	}
 	c.meta = result
 	c.namedNotNull = extractor.namedNotNull
+	c.primaryKeyNotNull = extractor.primaryKeyNotNull
 	return nil
 }
 

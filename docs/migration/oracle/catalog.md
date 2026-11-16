@@ -170,6 +170,11 @@ replay tests exercise.
 - Routine owners are validated, colliding constraint renames fall back to
   drop/create, and deferrable foreign keys are rejected.
 - The cycle fallback still creates a virtual column's function before its table.
+- Exec resolves an unnamed synced schema to its database owner, trigger owners
+  are validated, and new source columns are added before a virtual-column
+  expression change.
+- Dropping a primary key restores the nullability it implied, and standalone
+  `RENAME` moves the table.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

@@ -128,6 +128,7 @@ type MetadataDiff struct {
 	SequenceChanges         []*SequenceDiff
 
 	preAltered map[*ColumnDiff]bool
+	preAdded   map[*ColumnDiff]bool
 }
 
 // SchemaDiff is the diff Diff returns.
