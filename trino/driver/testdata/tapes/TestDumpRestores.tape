@@ -951,76 +951,7 @@
 | CREATE SCHEMA IF NOT EXISTS "default"
 < ok 0 -
 > exec
-| CREATE SCHEMA IF NOT EXISTS "information_schema"
-< ok 0 -
-> exec
 | CREATE SCHEMA IF NOT EXISTS "omni_driver"
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."applicable_roles" (
-|     "grantee" varchar,
-|     "grantee_type" varchar,
-|     "role_name" varchar,
-|     "is_grantable" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."columns" (
-|     "table_catalog" varchar,
-|     "table_schema" varchar,
-|     "table_name" varchar,
-|     "column_name" varchar,
-|     "ordinal_position" bigint,
-|     "column_default" varchar,
-|     "is_nullable" varchar,
-|     "data_type" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."enabled_roles" (
-|     "role_name" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."roles" (
-|     "role_name" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."schemata" (
-|     "catalog_name" varchar,
-|     "schema_name" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."table_privileges" (
-|     "grantor" varchar,
-|     "grantor_type" varchar,
-|     "grantee" varchar,
-|     "grantee_type" varchar,
-|     "table_catalog" varchar,
-|     "table_schema" varchar,
-|     "table_name" varchar,
-|     "privilege_type" varchar,
-|     "is_grantable" varchar,
-|     "with_hierarchy" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."tables" (
-|     "table_catalog" varchar,
-|     "table_schema" varchar,
-|     "table_name" varchar,
-|     "table_type" varchar
-| )
-< ok 0 -
-> exec
-| CREATE TABLE IF NOT EXISTS "information_schema"."views" (
-|     "table_catalog" varchar,
-|     "table_schema" varchar,
-|     "table_name" varchar,
-|     "view_definition" varchar
-| )
 < ok 0 -
 > exec
 | CREATE TABLE IF NOT EXISTS "omni_driver"."a""b" (
