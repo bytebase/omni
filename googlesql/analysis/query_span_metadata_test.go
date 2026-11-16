@@ -242,3 +242,38 @@ func TestQuerySpanMetadataErrorIsFatal(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "failed to get database metadata for database: ds1")
 }
+
+// TestPredicateColumns_NarrowedByDatabase: a predicate reference resolved from a
+// table written without a database names the DEFAULT database's column only, so
+// another database's table of the same name and column is not reported. It cannot
+// live in the recorded corpora, which serve one database per case.
+func TestPredicateColumns_NarrowedByDatabase(t *testing.T) {
+	column := func(name string) *metadata.ColumnMetadata { return &metadata.ColumnMetadata{Name: name} }
+	databases := map[string]*metadata.DatabaseSchemaMetadata{
+		"ds1": {Name: "ds1", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+			{Name: "t", Columns: []*metadata.ColumnMetadata{column("id"), column("secret")}},
+		}}}},
+		"other": {Name: "other", Schemas: []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+			{Name: "t", Columns: []*metadata.ColumnMetadata{column("id"), column("secret")}},
+		}}}},
+	}
+	opts := bigqueryResolveOptions()
+	opts.DefaultDatabase = "ds1"
+	opts.GetDatabaseMetadata = func(name string) (*metadata.DatabaseSchemaMetadata, error) {
+		return databases[name], nil
+	}
+	span, err := ResolveQuerySpan("SELECT 1 FROM t CROSS JOIN other.t u WHERE t.secret = 1", opts)
+	require.NoError(t, err)
+	require.Equal(t, []string{"ds1.t.secret"}, predicateSourcesOf(span))
+}
+
+// predicateSourcesOf renders the predicate set as sorted "database.table.column"
+// names.
+func predicateSourcesOf(span *ResolvedQuerySpan) []string {
+	out := make([]string, 0, len(span.PredicateColumns))
+	for c := range span.PredicateColumns {
+		out = append(out, c.Database+"."+c.Table+"."+c.Column)
+	}
+	slices.Sort(out)
+	return out
+}

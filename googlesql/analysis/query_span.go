@@ -1932,17 +1932,24 @@ const filterStarColumn = "*"
 // grouped (`* EXCEPT`/`REPLACE`) or set-operation projection the walker deferred
 // to the metadata-aware consumer.
 func (w *spanWalker) addProjectionFilterColumns(cols []projColumn) {
+	w.addProjectionFilterColumnsOnly(cols, nil)
+}
+
+// addProjectionFilterColumnsOnly is addProjectionFilterColumns where an enclosing
+// merge has already restricted the output names (`only`): a merge without its own
+// ON list keeps that restriction, since it cannot widen what an outer merge keeps.
+func (w *spanWalker) addProjectionFilterColumnsOnly(cols []projColumn, only []string) {
 	for _, col := range cols {
 		switch {
 		case col.setOpMerge != nil:
 			// A BY NAME merge with ON (cols) projects exactly those output names, so
 			// only they can be read from the merged subquery.
-			var only []string
-			if col.setOpMerge.byName {
-				only = col.setOpMerge.matchColumns
+			merged := only
+			if col.setOpMerge.byName && len(col.setOpMerge.matchColumns) > 0 {
+				merged = col.setOpMerge.matchColumns
 			}
-			w.addColumnInfoFilterColumns(col.setOpMerge.left, only)
-			w.addColumnInfoFilterColumns(col.setOpMerge.right, only)
+			w.addColumnInfoFilterColumns(col.setOpMerge.left, merged)
+			w.addColumnInfoFilterColumns(col.setOpMerge.right, merged)
 		case col.starGroup != nil:
 			// A REPLACE overrides an output column with another expression, so the
 			// original star does not project it and the replacement's sources are what
@@ -1952,9 +1959,12 @@ func (w *spanWalker) addProjectionFilterColumns(cols []projColumn) {
 				except = append(append([]string{}, except...), item.Name)
 			}
 			for _, segment := range col.starGroup.segments {
-				w.addStarSegmentFilterColumns(segment, except)
+				w.addStarSegmentFilterColumnsOnly(segment, except, only)
 			}
 			for _, item := range col.starGroup.replace {
+				if len(only) > 0 && !containsFold(only, item.Name) {
+					continue
+				}
 				for _, ref := range item.Sources {
 					if ref.Column != "" {
 						w.addFilterColumn(ref)
@@ -1978,6 +1988,15 @@ func (w *spanWalker) addProjectionFilterColumns(cols []projColumn) {
 // addStarSegmentFilterColumns records one star segment: every column of its
 // relation (minus the star's EXCEPT names), or a concrete column's lineage.
 func (w *spanWalker) addStarSegmentFilterColumns(segment projColumn, except []string) {
+	w.addStarSegmentFilterColumnsOnly(segment, except, nil)
+}
+
+// addStarSegmentFilterColumnsOnly is addStarSegmentFilterColumns narrowed to an
+// enclosing merge'"'"'s output names.
+func (w *spanWalker) addStarSegmentFilterColumnsOnly(segment projColumn, except, only []string) {
+	if len(only) > 0 && !containsFold(only, segment.name) {
+		return
+	}
 	if segment.baseStar != nil {
 		w.addFilterStar(*segment.baseStar, append(append([]string{}, except...), segment.baseStarExcept...))
 		return
@@ -2028,6 +2047,9 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []strin
 			w.addStarSegmentFilterColumns(projColumn{name: segment.Name, sources: segment.Sources}, except)
 		}
 		for _, item := range info.StarReplace {
+			if len(only) > 0 && !containsFold(only, item.Name) {
+				continue
+			}
 			for _, ref := range item.Sources {
 				if ref.Column != "" {
 					w.addFilterColumn(ref)

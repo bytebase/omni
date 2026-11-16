@@ -702,7 +702,10 @@ func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns C
 			if !strings.EqualFold(sc.Table, ref.Table) {
 				continue
 			}
-			if ref.Database != "" && !strings.EqualFold(sc.Database, q.resourceDatabase(ref.Database)) {
+			// A table written without a database resolves against the default one, so
+			// the database always narrows the match (an unqualified `t` is not also
+			// `other.t`).
+			if !strings.EqualFold(sc.Database, q.resourceDatabase(ref.Database)) {
 				continue
 			}
 			if ref.Schema != "" && !strings.EqualFold(sc.Schema, ref.Schema) {
