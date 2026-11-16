@@ -425,7 +425,14 @@ func compareColumns(oldTable, newTable *metadata.TableMetadata) []*ColumnDiffEnt
 }
 
 func columnsEqual(a, b *metadata.ColumnMetadata) bool {
-	if !typesEqual(a.Type, b.Type) || a.Nullable != b.Nullable {
+	if isComputedColumnType(a.Type) || isComputedColumnType(b.Type) {
+		if !expressionsEqual(a.Type, b.Type) {
+			return false
+		}
+	} else if !typesEqual(a.Type, b.Type) {
+		return false
+	}
+	if a.Nullable != b.Nullable {
 		return false
 	}
 	if !expressionsEqual(a.Default, b.Default) {
