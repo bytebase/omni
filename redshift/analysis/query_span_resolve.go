@@ -237,6 +237,12 @@ type functionSourceProjection struct {
 	opaque bool
 }
 
+// functionResultSource is one output column's name and SQL-function sources.
+type functionResultSource struct {
+	Name    string
+	Sources ColumnSet
+}
+
 // functionProjection is a FROM item's output, kept as a concatenation tree for
 // ordinary joins so a left-deep chain does not copy its accumulated left side
 // at every node. It is flattened once for a star or a coalescing join.
@@ -450,22 +456,35 @@ func (q *querySpanResolver) collectAccessTablesFromList(list *ast.List, ctes map
 	return nil
 }
 
-func (q *querySpanResolver) collectFunctionBodySources(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources) (ColumnSet, []ColumnSet, functionBodyIssues, error) {
+func (q *querySpanResolver) collectFunctionBodySources(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources) (ColumnSet, []functionResultSource, functionBodyIssues, error) {
 	accessTables, issues, err := q.collectFunctionBodyAccessTables(node, functionStack, cache)
 	if err != nil {
 		return nil, nil, functionBodyIssues{}, err
 	}
 
-	var resultSources []ColumnSet
+	var resultSources []functionResultSource
 	if selectStmt, ok := node.(*ast.SelectStmt); ok {
-		var sourceIssues functionBodyIssues
-		resultSources, sourceIssues, err = q.collectSelectFunctionResultSources(selectStmt, functionStack, cache, functionSourceScope{})
+		projection, sourceIssues, err := q.collectSelectFunctionProjection(selectStmt, functionStack, cache, functionSourceScope{})
 		if err != nil {
 			return nil, nil, functionBodyIssues{}, err
 		}
 		issues.merge(sourceIssues)
+		resultSources = functionSourcesFromProjection(projection)
 	}
 	return accessTables, resultSources, issues, nil
+}
+
+// functionSourcesFromProjection pairs each source set with its output name.
+func functionSourcesFromProjection(projection functionSourceProjection) []functionResultSource {
+	result := make([]functionResultSource, len(projection.sources))
+	for i, sources := range projection.sources {
+		name := ""
+		if i < len(projection.names) {
+			name = projection.names[i]
+		}
+		result[i] = functionResultSource{Name: name, Sources: sources}
+	}
+	return result
 }
 
 func (q *querySpanResolver) collectFunctionBodyAccessTables(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources) (ColumnSet, functionBodyIssues, error) {
@@ -496,11 +515,6 @@ func (q *querySpanResolver) collectFunctionBodyAccessTables(node ast.Node, funct
 		return true
 	})
 	return result, issues, err
-}
-
-func (q *querySpanResolver) collectSelectFunctionResultSources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) ([]ColumnSet, functionBodyIssues, error) {
-	projection, issues, err := q.collectSelectFunctionProjection(selectStmt, functionStack, cache, outerScope)
-	return projection.sources, issues, err
 }
 
 // collectSelectFunctionProjection returns a select's output names and their
@@ -1220,26 +1234,30 @@ func defElemString(node ast.Node) string {
 	}
 }
 
-func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResultSources []ColumnSet) {
+func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResultSources []functionResultSource) {
 	if len(functionResultSources) == len(results) {
-		for i, sources := range functionResultSources {
-			for source := range sources {
-				results[i].SourceColumns[source] = true
+		for i, source := range functionResultSources {
+			for column := range source.Sources {
+				results[i].SourceColumns[column] = true
 			}
 		}
 		return
 	}
-	for _, sources := range functionResultSources {
-		if len(sources) == 0 {
+	// A partially expanded star makes the source list narrower than the result
+	// list. Match by output name rather than filling the first empty result,
+	// which would attach a later function's sources to the star's column.
+	for _, source := range functionResultSources {
+		if len(source.Sources) == 0 || source.Name == "" {
 			continue
 		}
 		for i := range results {
-			if len(results[i].SourceColumns) != 0 {
+			if len(results[i].SourceColumns) != 0 || !strings.EqualFold(results[i].Name, source.Name) {
 				continue
 			}
-			for source := range sources {
-				results[i].SourceColumns[source] = true
+			for column := range source.Sources {
+				results[i].SourceColumns[column] = true
 			}
+			break
 		}
 	}
 }
