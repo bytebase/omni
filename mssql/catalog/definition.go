@@ -43,26 +43,31 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 	writeSequences(&buf, to.Schemas)
 	hasPreamble := hasSynonyms(to.Schemas) || hasSequences(to.Schemas)
 
+	tableFunctions := functionsReferencedByTables(to.Schemas)
+	if len(tableFunctions) > 0 {
+		if hasPreamble {
+			buf.WriteString("GO\n\n")
+		}
+		writeReferencedFunctions(&buf, to.Schemas, tableFunctions)
+	}
+
 	if hasTables(to.Schemas) {
 		writeAllTablesInOrder(&buf, to.Schemas)
 	}
 
-	earlyFunctions := functionsReferencedByViews(to.Schemas)
-	if len(earlyFunctions) > 0 {
-		if hasTables(to.Schemas) || hasPreamble {
+	viewFunctions := functionsReferencedByViews(to.Schemas)
+	for name := range tableFunctions {
+		delete(viewFunctions, name)
+	}
+	if len(viewFunctions) > 0 {
+		if hasTables(to.Schemas) || hasPreamble || len(tableFunctions) > 0 {
 			buf.WriteString("GO\n\n")
 		}
-		for _, schema := range to.Schemas {
-			for _, function := range schema.Functions {
-				if earlyFunctions[objectID(schema.Name, function.Name)] {
-					writeFunction(&buf, function)
-				}
-			}
-		}
+		writeReferencedFunctions(&buf, to.Schemas, viewFunctions)
 	}
 
 	if hasViews(to.Schemas) {
-		if (hasTables(to.Schemas) || hasPreamble) && len(earlyFunctions) == 0 {
+		if (hasTables(to.Schemas) || hasPreamble) && len(tableFunctions) == 0 && len(viewFunctions) == 0 {
 			buf.WriteString("GO\n\n")
 		}
 		writeAllViewsInOrder(&buf, to.Schemas)
@@ -74,11 +79,56 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 
 	writeTriggers(&buf, to.Schemas)
 
+	remaining := make(map[string]bool)
+	for name := range tableFunctions {
+		remaining[name] = true
+	}
+	for name := range viewFunctions {
+		remaining[name] = true
+	}
 	for _, schema := range to.Schemas {
-		writeFunctionsAndProcedures(&buf, schema, earlyFunctions)
+		writeFunctionsAndProcedures(&buf, schema, remaining)
 	}
 
 	return buf.String(), nil
+}
+
+func writeReferencedFunctions(out *strings.Builder, schemas []*metadata.SchemaMetadata, names map[string]bool) {
+	for _, schema := range schemas {
+		for _, function := range schema.Functions {
+			if function.GetSkipDump() {
+				continue
+			}
+			if names[objectID(schema.Name, function.Name)] {
+				writeFunction(out, function)
+			}
+		}
+	}
+}
+
+// functionsReferencedByTables names the functions a column default or computed
+// expression mentions, so a table can install them before it needs them.
+func functionsReferencedByTables(schemas []*metadata.SchemaMetadata) map[string]bool {
+	var expressions []string
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			for _, column := range table.Columns {
+				expressions = append(expressions, column.Default, column.Type)
+			}
+		}
+	}
+	referenced := make(map[string]bool)
+	for _, schema := range schemas {
+		for _, function := range schema.Functions {
+			for _, expression := range expressions {
+				if strings.Contains(strings.ToLower(expression), strings.ToLower(function.Name)) {
+					referenced[objectID(schema.Name, function.Name)] = true
+					break
+				}
+			}
+		}
+	}
+	return referenced
 }
 
 // functionsReferencedByViews names the functions a view body mentions, so they
@@ -513,7 +563,11 @@ func writeNonClusteredColumnStoreIndex(out *strings.Builder, schemaName, tableNa
 		}
 		fmt.Fprintf(out, "    %s", quote(column))
 	}
-	out.WriteString("\n);\n\n")
+	out.WriteString("\n)")
+	if where := indexWhereClause(index.Definition); where != "" {
+		fmt.Fprintf(out, "\nWHERE %s", where)
+	}
+	out.WriteString(";\n\n")
 }
 
 func writeSpatialIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {

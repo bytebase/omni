@@ -190,6 +190,11 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	for _, synonymDiff := range diff.Synonyms {
+		if synonymDiff.Action == DiffDrop {
+			fmt.Fprintf(&buf, "DROP SYNONYM %s.%s;\nGO\n", quote(synonymDiff.SchemaName), quote(synonymDiff.SynonymName))
+		}
+	}
 	for _, schemaDiff := range diff.Schemas {
 		if schemaDiff.Action != DiffDrop || strings.ToLower(schemaDiff.SchemaName) == defaultSchema {
 			continue
@@ -207,11 +212,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	for _, schemaName := range schemasToCreate {
 		fmt.Fprintf(&buf, "CREATE SCHEMA %s;\nGO\n", quote(schemaName))
-	}
-	for _, synonymDiff := range diff.Synonyms {
-		if synonymDiff.Action == DiffDrop {
-			fmt.Fprintf(&buf, "DROP SYNONYM %s.%s;\nGO\n", quote(synonymDiff.SchemaName), quote(synonymDiff.SynonymName))
-		}
 	}
 	for _, synonymDiff := range diff.Synonyms {
 		if synonymDiff.Action == DiffCreate || synonymDiff.Action == DiffAlter {
@@ -234,6 +234,13 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			}
 		case DiffAlter:
 			buf.WriteString(generateAlterSequence(sequenceDiff))
+		}
+	}
+
+	tableFunctions := migrationTableFunctions(diff)
+	for _, funcDiff := range diff.Functions {
+		if tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+			writeFunctionMigration(&buf, funcDiff)
 		}
 	}
 
@@ -388,6 +395,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 
 	earlyFunctions := migrationEarlyFunctions(diff)
+	for name := range tableFunctions {
+		delete(earlyFunctions, name)
+	}
 	for _, funcDiff := range diff.Functions {
 		if !earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
 			continue
@@ -401,7 +411,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if funcDiff.Action != DiffCreate {
 			continue
 		}
-		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
 			continue
 		}
 		buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
@@ -824,6 +834,35 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	return buf.String()
 }
 
+func migrationTableFunctions(diff *SchemaDiff) map[string]bool {
+	var expressions []string
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.NewTable == nil {
+			continue
+		}
+		for _, column := range tableDiff.NewTable.Columns {
+			expressions = append(expressions, column.Default, column.Type)
+		}
+	}
+	referenced := make(map[string]bool)
+	for _, funcDiff := range diff.Functions {
+		if funcDiff.Action != DiffCreate && funcDiff.Action != DiffAlter {
+			continue
+		}
+		name := funcDiff.FunctionName
+		if funcDiff.NewFunction != nil && funcDiff.NewFunction.Name != "" {
+			name = funcDiff.NewFunction.Name
+		}
+		for _, expression := range expressions {
+			if strings.Contains(strings.ToLower(expression), strings.ToLower(name)) {
+				referenced[funcDiff.SchemaName+"."+funcDiff.FunctionName] = true
+				break
+			}
+		}
+	}
+	return referenced
+}
+
 func migrationEarlyFunctions(diff *SchemaDiff) map[string]bool {
 	var definitions []string
 	for _, viewDiff := range diff.Views {
@@ -1055,6 +1094,9 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 				fmt.Fprintf(&buf, "%s", quote(expr))
 			}
 			buf.WriteString(")")
+		}
+		if where := indexWhereClause(index.Definition); where != "" {
+			fmt.Fprintf(&buf, " WHERE %s", where)
 		}
 		return buf.String()
 	case "SPATIAL":

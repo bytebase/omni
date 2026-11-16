@@ -602,3 +602,50 @@ CREATE INDEX [IX_t] ON [dbo].[t] ([a]) INCLUDE ([c]);
 	require.Contains(t, sql, "DROP COLUMN [c]")
 	require.Contains(t, sql, "INCLUDE ([c])")
 }
+
+func TestLoadSQLExtractsSynonyms(t *testing.T) {
+	c, err := LoadSQL(`CREATE SYNONYM [dbo].[alias] FOR [srv].[db].[sales].[orders];`)
+	require.NoError(t, err)
+	synonyms := c.GetSchema("dbo").Synonyms
+	require.Len(t, synonyms, 1)
+	require.Equal(t, "srv", synonyms[0].TargetServer)
+	require.Equal(t, "db", synonyms[0].TargetDatabase)
+	require.Equal(t, "sales", synonyms[0].TargetSchema)
+	require.Equal(t, "orders", synonyms[0].TargetName)
+}
+
+func TestSynonymDropsBeforeSchema(t *testing.T) {
+	from := New()
+	require.NoError(t, from.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:     "app",
+		Synonyms: []*metadata.SynonymMetadata{{Name: "s", TargetSchema: "dbo", TargetName: "t"}},
+	}}}))
+	to := New()
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Less(t, strings.Index(sql, "DROP SYNONYM [app].[s]"), strings.Index(sql, "DROP SCHEMA [app]"))
+}
+
+func TestDefinitionCreatesFunctionBeforeTableDefault(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE FUNCTION [dbo].[initial_value]() RETURNS int AS BEGIN RETURN 1 END;
+CREATE TABLE [dbo].[t] ([id] int NOT NULL CONSTRAINT [DF_t_id] DEFAULT ([dbo].[initial_value]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(def, "CREATE FUNCTION [dbo].[initial_value]"), strings.Index(def, "CREATE TABLE [dbo].[t]"))
+}
+
+func TestFilteredColumnstoreIndexRendersPredicate(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([active] bit NOT NULL, [amount] int NULL);
+CREATE NONCLUSTERED COLUMNSTORE INDEX [ix] ON [dbo].[t] ([amount]) WHERE [active] = 1;
+`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE NONCLUSTERED COLUMNSTORE INDEX [ix] ON [dbo].[t] (\n    [amount]\n)\nWHERE [active] = 1;")
+	empty := New()
+	sql := GenerateMigration(empty, c, Diff(empty, c)).SQL()
+	require.Contains(t, sql, "WHERE [active] = 1")
+}

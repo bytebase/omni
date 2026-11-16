@@ -229,6 +229,8 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		c.execCreateSequence(n, source)
 	case *ast.CreateTriggerStmt:
 		c.execCreateTrigger(n, source)
+	case *ast.CreateSynonymStmt:
+		c.execCreateSynonym(n)
 	case *ast.ExecStmt:
 		c.execExtendedProperty(n, source)
 	}
@@ -491,6 +493,21 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
 		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	}
 	schema.Sequences = append(schema.Sequences, sequence)
+}
+
+func (c *Catalog) execCreateSynonym(n *ast.CreateSynonymStmt) {
+	if n.Name == nil || n.Target == nil {
+		return
+	}
+	schemaName, name := tableRefSchemaObject(n.Name, c.defaultSchema)
+	schema := c.getOrCreateSchema(schemaName)
+	schema.Synonyms = append(schema.Synonyms, &metadata.SynonymMetadata{
+		Name:           name,
+		TargetServer:   n.Target.Server,
+		TargetDatabase: n.Target.Database,
+		TargetSchema:   n.Target.Schema,
+		TargetName:     n.Target.Object,
+	})
 }
 
 func (c *Catalog) execCreateTrigger(n *ast.CreateTriggerStmt, source string) {
