@@ -47,12 +47,6 @@ func (p *Parser) parseWithClause() (*ast.WithClause, error) {
 		Loc: ast.Loc{Start: withTok.Loc.Start},
 	}
 
-	// Optional RECURSIVE keyword.
-	if p.cur.Kind == kwRECURSIVE {
-		p.advance()
-		with.Recursive = true
-	}
-
 	// Parse comma-separated CTE definitions.
 	cte, err := p.parseCTE()
 	if err != nil {

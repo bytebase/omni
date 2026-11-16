@@ -16,7 +16,10 @@ import (
 // corpusCase is one row of testdata/query_span.yaml. The goldens were recorded
 // from the query-span extractor Bytebase shipped for Cassandra — the behavior
 // this package replaces — so they are the parity bar, never re-recorded against
-// this implementation.
+// this implementation. The trailing `SELECT * FROM user_summary` rows are the
+// exception: they pin the later behavior change that expands a star over a view,
+// so they were written against what Cassandra records for a materialized view,
+// not recorded from the old extractor.
 type corpusCase struct {
 	Statement        string           `yaml:"statement"`
 	DefaultKeyspace  string           `yaml:"defaultKeyspace"`
@@ -42,6 +45,8 @@ type corpusResource struct {
 }
 
 // corpusMetadata is the keyspace fixture the withMetadata rows expand against.
+// user_summary is a view: a materialized view reaches a synced Cassandra
+// snapshot that way (system_schema.views), with its own column list.
 func corpusMetadata() *metadata.DatabaseSchemaMetadata {
 	return &metadata.DatabaseSchemaMetadata{
 		Name: "test_keyspace",
@@ -50,6 +55,9 @@ func corpusMetadata() *metadata.DatabaseSchemaMetadata {
 			Tables: []*metadata.TableMetadata{
 				{Name: "users", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "name"}, {Name: "email"}, {Name: "secret"}}},
 				{Name: "products", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "name"}}},
+			},
+			Views: []*metadata.ViewMetadata{
+				{Name: "user_summary", Columns: []*metadata.ColumnMetadata{{Name: "id"}, {Name: "name"}}},
 			},
 		}},
 	}
@@ -140,19 +148,44 @@ func TestQuerySpanMultiStatement(t *testing.T) {
 	require.EqualError(t, err, "expecting only one statement to get query span, but got 2")
 }
 
-// TestQuerySpanMetadataErrors: a metadata error makes a star unexpanded (the
-// SelectAsterisk marker keeps the read recorded), never a failed span.
-func TestQuerySpanMetadataErrors(t *testing.T) {
+// TestQuerySpanMetadataError: a failed metadata lookup fails the span. Answering
+// a SelectAsterisk marker instead would read as a statement that touches no
+// column after a transient store failure, which no consumer can tell from a
+// statement that genuinely reads nothing.
+func TestQuerySpanMetadataError(t *testing.T) {
+	errStore := errors.New("store unavailable")
 	span, err := ResolveQuerySpan("SELECT * FROM users", ResolveOptions{
 		DefaultKeyspace: "test_keyspace",
 		GetDatabaseMetadata: func(string) (*metadata.DatabaseSchemaMetadata, error) {
-			return nil, errors.New("store unavailable")
+			return nil, errStore
+		},
+	})
+	require.Error(t, err)
+	require.Nil(t, span)
+	require.ErrorContains(t, err, `failed to get database metadata for keyspace "test_keyspace"`)
+	require.ErrorIs(t, err, errStore)
+
+	// A keyspace the caller does not hold is not an error: the star stays a
+	// SelectAsterisk marker so the read is still recorded.
+	span, err = ResolveQuerySpan("SELECT * FROM users", ResolveOptions{
+		DefaultKeyspace: "test_keyspace",
+		GetDatabaseMetadata: func(string) (*metadata.DatabaseSchemaMetadata, error) {
+			return nil, nil
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, Select, span.Type)
 	require.Equal(t, []ResolvedQuerySpanResult{{SourceColumns: ColumnSet{}, SelectAsterisk: true}}, span.Results)
-	require.Equal(t, ColumnSet{{Database: "test_keyspace", Table: "users"}: true}, span.SourceColumns)
+}
+
+// TestQuerySpanStarOverView expands a star over a view the way a table's is
+// expanded: from the relation's own ordered column list.
+func TestQuerySpanStarOverView(t *testing.T) {
+	span, err := ResolveQuerySpan("SELECT * FROM user_summary", corpusOptions(true))
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{
+		{Name: "id", SourceColumns: ColumnSet{{Database: "test_keyspace", Table: "user_summary", Column: "id"}: true}, IsPlainField: true},
+		{Name: "name", SourceColumns: ColumnSet{{Database: "test_keyspace", Table: "user_summary", Column: "name"}: true}, IsPlainField: true},
+	}, span.Results)
 }
 
 // TestQuerySpanStarTableNotFound: a star over a table the keyspace metadata

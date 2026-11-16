@@ -2309,16 +2309,16 @@ reject	reject	engine	createIndexStatement(comment)?/comment!swap	CREATE INDEX a 
 accept	accept	engine	dropIndexStatement/DROP_INDEX_identifier_ON_qualifiedName	DROP INDEX a ON a;
 accept	accept	engine	indexType/USING_(BITMAP|GIN|NGRAMBF|VECTOR)	CREATE INDEX a ON a(a) USING BITMAP;
 accept	accept	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/BITMAP	CREATE INDEX a ON a(a) USING BITMAP;
-accept	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/BITMAP!swap	CREATE INDEX a ON a(a) USING BITMAP_UNION;
+reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/BITMAP!swap	CREATE INDEX a ON a(a) USING BITMAP_UNION;
 accept	accept	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/GIN	CREATE INDEX a ON a(a) USING GIN;
 reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/GIN!insert	CREATE INDEX a ON a(a) USING GIN zzz;
-accept	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/GIN!swap	CREATE INDEX a ON a(a) USING GLOBAL;
+reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/GIN!swap	CREATE INDEX a ON a(a) USING GLOBAL;
 accept	accept	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/NGRAMBF	CREATE INDEX a ON a(a) USING NGRAMBF;
 reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/NGRAMBF!insert	CREATE INDEX a ON a(a) USING NGRAMBF zzz;
-accept	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/NGRAMBF!swap	CREATE INDEX a ON a(a) USING NO;
+reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/NGRAMBF!swap	CREATE INDEX a ON a(a) USING NO;
 accept	accept	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/VECTOR	CREATE INDEX a ON a(a) USING VECTOR;
 reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/VECTOR!insert	CREATE INDEX a ON a(a) USING VECTOR zzz;
-accept	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/VECTOR!swap	CREATE INDEX a ON a(a) USING VERBOSE;
+reject	reject	engine	indexType(BITMAP|GIN|NGRAMBF|VECTOR)/VECTOR!swap	CREATE INDEX a ON a(a) USING VERBOSE;
 accept	accept	engine	showTableStatement/SHOW_(FULL)?_TABLES_((FROM|IN)_qualifiedName)?_((LIKE_s~f42df3e1	SHOW TABLES;
 accept	accept	engine	showTableStatement(FULL)?/%empty	SHOW TABLES;
 reject	reject	engine	showTableStatement(FULL)?/%empty!insert	SHOW zzz TABLES;
@@ -7387,7 +7387,7 @@ reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!drop-2	SET 
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!drop-3	SET a =;
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!truncate	SET a =
 reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!insert	SET a = DEFAULT zzz;
-accept	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!swap	SET a = DEFERRED;
+reject	reject	engine	setVar/(varType)?_identifier_=_setExprOrDefault!swap	SET a = DEFERRED;
 accept	accept	engine	setVar/systemVariable_=_setExprOrDefault	SET@@a = DEFAULT;
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-1	SET@a = DEFAULT;
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-3	SET@@= DEFAULT;
@@ -7395,7 +7395,7 @@ reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-4	SET@@a DEFA
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!drop-5	SET@@a =;
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!truncate	SET@@a =
 reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!insert	SET@@a = DEFAULT zzz;
-accept	reject	engine	setVar/systemVariable_=_setExprOrDefault!swap	SET@@a = DEFERRED;
+reject	reject	engine	setVar/systemVariable_=_setExprOrDefault!swap	SET@@a = DEFERRED;
 accept	accept	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics	SET TRANSACTION READ ONLY;
 reject	reject	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics!drop-1	SET READ ONLY;
 reject	reject	engine	setVar/(varType)?_TRANSACTION_transaction_characteristics!drop-2	SET TRANSACTION ONLY;
@@ -7419,7 +7419,7 @@ reject	reject	engine	setVar(CHAR_SET|CHARSET|CHARACTER_SET)/CHARACTER_SET!swap	S
 accept	accept	engine	setVar(identifierOrString|DEFAULT)/identifierOrString	SET CHARSET a;
 accept	accept	engine	setVar(identifierOrString|DEFAULT)/DEFAULT	SET CHARSET DEFAULT;
 reject	reject	engine	setVar(identifierOrString|DEFAULT)/DEFAULT!insert	SET CHARSET DEFAULT zzz;
-accept	reject	engine	setVar(identifierOrString|DEFAULT)/DEFAULT!swap	SET CHARSET DEFERRED;
+reject	reject	engine	setVar(identifierOrString|DEFAULT)/DEFAULT!swap	SET CHARSET DEFERRED;
 accept	accept	engine	setVar(COLLATE_(identifierOrString|DEFAULT))?/%empty	SET NAMES a;
 accept	accept	engine	setVar(COLLATE_(identifierOrString|DEFAULT))?/COLLATE_(identifierOrString|DEFAULT)	SET NAMES a COLLATE a;
 reject	reject	engine	setVar(COLLATE_(identifierOrString|DEFAULT))?/COLLATE_(identifierOrString|DEFAULT)!drop-1	SET NAMES a a;
@@ -7965,10 +7965,10 @@ reject	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956
 reject	reject	engine	querySpecification(QUALIFY_selectItem_comparisonOperato~956cecde)?/QUALIFY_selectItem_comparisonOperator_INTEGER_VALUE!swap	SELECT CURRENT_USER QUARTER CURRENT_USER = 1;
 accept	accept	engine	fromClause/(FROM_relations_pivotClause?)?	SELECT CURRENT_USER;
 accept	accept	engine	fromClause/FROM_DUAL	SELECT CURRENT_USER FROM DUAL;
-accept	reject	engine	fromClause/FROM_DUAL!drop-1	SELECT CURRENT_USER DUAL;
+reject	reject	engine	fromClause/FROM_DUAL!drop-1	SELECT CURRENT_USER DUAL;
 reject	reject	engine	fromClause/FROM_DUAL!drop-2	SELECT CURRENT_USER FROM;
 reject	reject	engine	fromClause/FROM_DUAL!truncate	SELECT CURRENT_USER FROM
-accept	reject	engine	fromClause/FROM_DUAL!insert	SELECT CURRENT_USER FROM DUAL zzz;
+reject	reject	engine	fromClause/FROM_DUAL!insert	SELECT CURRENT_USER FROM DUAL zzz;
 reject	reject	engine	fromClause/FROM_DUAL!swap	SELECT CURRENT_USER FRONTEND DUAL;
 accept	accept	engine	fromClause(FROM_relations_pivotClause?)?/%empty	SELECT CURRENT_USER;
 accept	accept	engine	fromClause(FROM_relations_pivotClause?)?/FROM_relations_(pivotClause)?	SELECT CURRENT_USER FROM a;
@@ -8081,7 +8081,7 @@ accept	accept	engine	relations(LATERAL)?/%empty	SELECT CURRENT_USER FROM a, a;
 accept	accept	engine	relations(LATERAL)?/%empty!insert	SELECT CURRENT_USER FROM a, zzz a;
 accept	accept	engine	relations(LATERAL)?/LATERAL	SELECT CURRENT_USER FROM a, LATERAL a;
 accept	accept	engine	relations(LATERAL)?/LATERAL!insert	SELECT CURRENT_USER FROM a, LATERAL zzz a;
-accept	reject	engine	relations(LATERAL)?/LATERAL!swap	SELECT CURRENT_USER FROM a, LEAD a;
+reject	reject	engine	relations(LATERAL)?/LATERAL!swap	SELECT CURRENT_USER FROM a, LEAD a;
 accept	accept	engine	relation/relationPrimary_(joinRelation)*	SELECT CURRENT_USER FROM a;
 accept	accept	engine	relation/(_relationPrimary_(joinRelation)*_)	SELECT CURRENT_USER FROM(a);
 reject	reject	engine	relation/(_relationPrimary_(joinRelation)*_)!drop-1	SELECT CURRENT_USER FROM a);
@@ -8311,7 +8311,7 @@ accept	accept	engine	joinRelation(bracketHint)?/bracketHint!insert	SELECT CURREN
 accept	accept	engine	joinRelation(LATERAL)?/%empty	SELECT CURRENT_USER FROM a JOIN a;
 accept	accept	engine	joinRelation(LATERAL)?/LATERAL	SELECT CURRENT_USER FROM a JOIN LATERAL a;
 accept	accept	engine	joinRelation(LATERAL)?/LATERAL!insert	SELECT CURRENT_USER FROM a JOIN LATERAL zzz a;
-accept	reject	engine	joinRelation(LATERAL)?/LATERAL!swap	SELECT CURRENT_USER FROM a JOIN LEAD a;
+reject	reject	engine	joinRelation(LATERAL)?/LATERAL!swap	SELECT CURRENT_USER FROM a JOIN LEAD a;
 accept	accept	engine	joinRelation(joinCriteria)?/%empty	SELECT CURRENT_USER FROM a JOIN a;
 accept	accept	engine	joinRelation(joinCriteria)?/joinCriteria	SELECT CURRENT_USER FROM a JOIN a ON CURRENT_USER;
 reject	reject	engine	joinRelation(joinCriteria)?/joinCriteria!drop-1	SELECT CURRENT_USER FROM a JOIN a CURRENT_USER;
@@ -8324,7 +8324,7 @@ accept	accept	engine	crossOrInnerJoinType/INNER_JOIN	SELECT CURRENT_USER FROM a 
 reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!drop-2	SELECT CURRENT_USER FROM a INNER a;
 reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!truncate	SELECT CURRENT_USER FROM a INNER
 accept	accept	engine	crossOrInnerJoinType/INNER_JOIN!insert	SELECT CURRENT_USER FROM a INNER JOIN zzz a;
-accept	reject	engine	crossOrInnerJoinType/INNER_JOIN!swap	SELECT CURRENT_USER FROM a INSERT JOIN a;
+reject	reject	engine	crossOrInnerJoinType/INNER_JOIN!swap	SELECT CURRENT_USER FROM a INSERT JOIN a;
 accept	accept	engine	crossOrInnerJoinType/CROSS	SELECT CURRENT_USER FROM a CROSS a;
 accept	accept	engine	crossOrInnerJoinType/CROSS!insert	SELECT CURRENT_USER FROM a CROSS zzz a;
 reject	reject	engine	crossOrInnerJoinType/CROSS!swap	SELECT CURRENT_USER FROM a CUBE a;
@@ -8339,12 +8339,12 @@ accept	accept	engine	outerAndSemiJoinType/RIGHT_JOIN	SELECT CURRENT_USER FROM a 
 reject	reject	engine	outerAndSemiJoinType/RIGHT_JOIN!drop-2	SELECT CURRENT_USER FROM a RIGHT a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_JOIN!truncate	SELECT CURRENT_USER FROM a RIGHT
 accept	accept	engine	outerAndSemiJoinType/RIGHT_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT JOIN zzz a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/RIGHT_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE JOIN a ON CURRENT_USER;
+reject	reject	engine	outerAndSemiJoinType/RIGHT_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/FULL_JOIN	SELECT CURRENT_USER FROM a FULL JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_JOIN!drop-2	SELECT CURRENT_USER FROM a FULL a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_JOIN!truncate	SELECT CURRENT_USER FROM a FULL
 accept	accept	engine	outerAndSemiJoinType/FULL_JOIN!insert	SELECT CURRENT_USER FROM a FULL JOIN zzz a ON CURRENT_USER;
-accept	reject	engine	outerAndSemiJoinType/FULL_JOIN!swap	SELECT CURRENT_USER FROM a FUNCTION JOIN a ON CURRENT_USER;
+reject	reject	engine	outerAndSemiJoinType/FULL_JOIN!swap	SELECT CURRENT_USER FROM a FUNCTION JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN	SELECT CURRENT_USER FROM a LEFT OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!drop-1	SELECT CURRENT_USER FROM a OUTER JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_OUTER_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT OUTER a ON CURRENT_USER;
@@ -8362,7 +8362,7 @@ reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!truncate	SELECT CURREN
 accept	accept	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!insert	SELECT CURRENT_USER FROM a FULL OUTER JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/FULL_OUTER_JOIN!swap	SELECT CURRENT_USER FROM a FUNCTION OUTER JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN	SELECT CURRENT_USER FROM a LEFT SEMI JOIN a ON CURRENT_USER;
-reject	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-1	SELECT CURRENT_USER FROM a SEMI JOIN a ON CURRENT_USER;
+accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-1	SELECT CURRENT_USER FROM a SEMI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT SEMI a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT SEMI
 accept	accept	engine	outerAndSemiJoinType/LEFT_SEMI_JOIN!insert	SELECT CURRENT_USER FROM a LEFT SEMI JOIN zzz a ON CURRENT_USER;
@@ -8373,7 +8373,7 @@ reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!truncate	SELECT CURREN
 accept	accept	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!insert	SELECT CURRENT_USER FROM a RIGHT SEMI JOIN zzz a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/RIGHT_SEMI_JOIN!swap	SELECT CURRENT_USER FROM a RLIKE SEMI JOIN a ON CURRENT_USER;
 accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN	SELECT CURRENT_USER FROM a LEFT ANTI JOIN a ON CURRENT_USER;
-reject	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-1	SELECT CURRENT_USER FROM a ANTI JOIN a ON CURRENT_USER;
+accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-1	SELECT CURRENT_USER FROM a ANTI JOIN a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!drop-3	SELECT CURRENT_USER FROM a LEFT ANTI a ON CURRENT_USER;
 reject	reject	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!truncate	SELECT CURRENT_USER FROM a LEFT ANTI
 accept	accept	engine	outerAndSemiJoinType/LEFT_ANTI_JOIN!insert	SELECT CURRENT_USER FROM a LEFT ANTI JOIN zzz a ON CURRENT_USER;
@@ -8531,7 +8531,7 @@ accept	accept	engine	expressionOrDefault/expression	UPDATE a SET a = CURRENT_USE
 accept	accept	engine	expressionOrDefault/expression!swap	UPDATE a SET a = DATA;
 reject	accept	engine	expressionOrDefault/DEFAULT	UPDATE a SET a = DEFAULT;
 reject	reject	engine	expressionOrDefault/DEFAULT!insert	UPDATE a SET a = DEFAULT zzz;
-accept	reject	engine	expressionOrDefault/DEFAULT!swap	UPDATE a SET a = DEFERRED;
+reject	reject	engine	expressionOrDefault/DEFAULT!swap	UPDATE a SET a = DEFERRED;
 accept	accept	engine	mapExpressionList/mapExpression_(,_mapExpression)*	SELECT MAP { CURRENT_USER : CURRENT_USER };
 reject	reject	engine	mapExpressionList/mapExpression_(,_mapExpression)*!drop-1	SELECT MAP { : CURRENT_USER };
 reject	reject	engine	mapExpressionList/mapExpression_(,_mapExpression)*!drop-2	SELECT MAP { CURRENT_USER CURRENT_USER };
@@ -8979,7 +8979,7 @@ reject	reject	engine	primaryExpression(arrayType)?/arrayType!drop-1	SELECT < BOO
 reject	reject	engine	primaryExpression(arrayType)?/arrayType!drop-2	SELECT ARRAY BOOLEAN > [ ];
 reject	reject	engine	primaryExpression(arrayType)?/arrayType!drop-3	SELECT ARRAY < > [ ];
 reject	reject	engine	primaryExpression(arrayType)?/arrayType!drop-4	SELECT ARRAY < BOOLEAN [ ];
-accept	reject	engine	primaryExpression(arrayType)?/arrayType!truncate	SELECT ARRAY < BOOLEAN
+reject	reject	engine	primaryExpression(arrayType)?/arrayType!truncate	SELECT ARRAY < BOOLEAN
 reject	reject	engine	primaryExpression(arrayType)?/arrayType!insert	SELECT ARRAY < BOOLEAN > zzz [ ];
 accept	accept	engine	primaryExpression(arrayType)?/arrayType!swap	SELECT ARRAY_AGG < BOOLEAN > [ ];
 accept	accept	engine	primaryExpression(expressionList)?/%empty	SELECT [ ];
@@ -9054,7 +9054,7 @@ reject	reject	engine	functionCall/GROUPING_ID_(_(expression_(,_expression)*)?_)!
 reject	reject	engine	functionCall/GROUPING_ID_(_(expression_(,_expression)*)?_)!drop-3	SELECT GROUPING_ID(;
 reject	reject	engine	functionCall/GROUPING_ID_(_(expression_(,_expression)*)?_)!truncate	SELECT GROUPING_ID(
 accept	accept	engine	functionCall/GROUPING_ID_(_(expression_(,_expression)*)?_)!insert	SELECT GROUPING_ID() zzz;
-accept	reject	engine	functionCall/GROUPING_ID_(_(expression_(,_expression)*)?_)!swap	SELECT GROUPS();
+reject	reject	engine	functionCall/GROUPING_ID_(_(expression_(,_expression)*)?_)!swap	SELECT GROUPS();
 accept	accept	engine	functionCall/informationFunctionExpression	SELECT CURRENT_USER;
 accept	accept	engine	functionCall/specialDateTimeExpression	SELECT CURRENT_DATE;
 accept	accept	engine	functionCall/specialDateTimeExpression!insert	SELECT CURRENT_DATE zzz;
@@ -9063,7 +9063,7 @@ reject	reject	engine	functionCall/specialFunctionExpression!drop-2	SELECT IF);
 reject	reject	engine	functionCall/specialFunctionExpression!drop-3	SELECT IF(;
 reject	reject	engine	functionCall/specialFunctionExpression!truncate	SELECT IF(
 accept	accept	engine	functionCall/specialFunctionExpression!insert	SELECT IF() zzz;
-accept	reject	engine	functionCall/specialFunctionExpression!swap	SELECT IGNORE();
+reject	reject	engine	functionCall/specialFunctionExpression!swap	SELECT IGNORE();
 accept	accept	engine	functionCall/aggregationFunction_(over)?	SELECT COUNT();
 reject	reject	engine	functionCall/aggregationFunction_(over)?!drop-2	SELECT COUNT);
 reject	reject	engine	functionCall/aggregationFunction_(over)?!drop-3	SELECT COUNT(;
@@ -9133,7 +9133,7 @@ accept	accept	engine	aggregationFunction/MIN_(_(setQuantifier)?_expression_)!dro
 reject	reject	engine	aggregationFunction/MIN_(_(setQuantifier)?_expression_)!drop-4	SELECT MIN(CURRENT_USER;
 reject	reject	engine	aggregationFunction/MIN_(_(setQuantifier)?_expression_)!truncate	SELECT MIN(CURRENT_USER
 accept	accept	engine	aggregationFunction/MIN_(_(setQuantifier)?_expression_)!insert	SELECT MIN(CURRENT_USER) zzz;
-reject	accept	engine	aggregationFunction/MIN_(_(setQuantifier)?_expression_)!swap	SELECT MINUS(CURRENT_USER);
+accept	accept	engine	aggregationFunction/MIN_(_(setQuantifier)?_expression_)!swap	SELECT MINUS(CURRENT_USER);
 accept	accept	engine	aggregationFunction/SUM_(_(setQuantifier)?_expression_)	SELECT SUM(CURRENT_USER);
 reject	reject	engine	aggregationFunction/SUM_(_(setQuantifier)?_expression_)!drop-2	SELECT SUM CURRENT_USER);
 accept	accept	engine	aggregationFunction/SUM_(_(setQuantifier)?_expression_)!drop-3	SELECT SUM();
@@ -9291,7 +9291,7 @@ accept	reject	engine	specialFunctionExpression/CHAR_(_expression_)!drop-3	SELECT
 reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!drop-4	SELECT CHAR(CURRENT_USER;
 reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!truncate	SELECT CHAR(CURRENT_USER
 accept	accept	engine	specialFunctionExpression/CHAR_(_expression_)!insert	SELECT CHAR(CURRENT_USER) zzz;
-accept	reject	engine	specialFunctionExpression/CHAR_(_expression_)!swap	SELECT CHARACTER(CURRENT_USER);
+reject	reject	engine	specialFunctionExpression/CHAR_(_expression_)!swap	SELECT CHARACTER(CURRENT_USER);
 accept	accept	engine	specialFunctionExpression/DAY_(_expression_)	SELECT DAY(CURRENT_USER);
 reject	reject	engine	specialFunctionExpression/DAY_(_expression_)!drop-2	SELECT DAY CURRENT_USER);
 accept	accept	engine	specialFunctionExpression/DAY_(_expression_)!drop-3	SELECT DAY();
@@ -9529,7 +9529,7 @@ accept	accept	engine	windowFunction(ignoreNulls)?/%empty	SELECT LEAD() OVER();
 accept	accept	engine	windowFunction(ignoreNulls)?/ignoreNulls	SELECT LEAD() IGNORE NULLS OVER();
 reject	reject	engine	windowFunction(ignoreNulls)?/ignoreNulls!drop-1	SELECT LEAD() NULLS OVER();
 reject	reject	engine	windowFunction(ignoreNulls)?/ignoreNulls!drop-2	SELECT LEAD() IGNORE OVER();
-accept	reject	engine	windowFunction(ignoreNulls)?/ignoreNulls!truncate	SELECT LEAD() IGNORE
+reject	reject	engine	windowFunction(ignoreNulls)?/ignoreNulls!truncate	SELECT LEAD() IGNORE
 reject	reject	engine	windowFunction(ignoreNulls)?/ignoreNulls!insert	SELECT LEAD() IGNORE NULLS zzz OVER();
 reject	reject	engine	windowFunction(ignoreNulls)?/ignoreNulls!swap	SELECT LEAD() IMAGE NULLS OVER();
 accept	accept	engine	windowFunction(,_expression)*/%empty	SELECT LEAD(CURRENT_USER) OVER();
@@ -10253,7 +10253,7 @@ reject	reject	engine	taskUnitIdentifier/SECOND	SUBMIT TASK SCHEDULE EVERY(INTERV
 reject	reject	engine	taskUnitIdentifier/SECOND!insert	SUBMIT TASK SCHEDULE EVERY(INTERVAL CURRENT_USER SECOND zzz) AS INSERT INTO a SELECT CURRENT_USER;
 reject	reject	engine	taskUnitIdentifier/SECOND!swap	SUBMIT TASK SCHEDULE EVERY(INTERVAL CURRENT_USER SECURITY) AS INSERT INTO a SELECT CURRENT_USER;
 accept	accept	engine	unitIdentifier/YEAR	SELECT INTERVAL CURRENT_USER YEAR;
-accept	reject	engine	unitIdentifier/YEAR!swap	SELECT INTERVAL CURRENT_USER ACCESS;
+reject	reject	engine	unitIdentifier/YEAR!swap	SELECT INTERVAL CURRENT_USER ACCESS;
 accept	accept	engine	unitIdentifier/MONTH	SELECT INTERVAL CURRENT_USER MONTH;
 accept	accept	engine	unitIdentifier/MONTH!insert	SELECT INTERVAL CURRENT_USER MONTH zzz;
 reject	reject	engine	unitIdentifier/MONTH!swap	SELECT INTERVAL CURRENT_USER NAME;
@@ -10271,10 +10271,10 @@ accept	accept	engine	unitIdentifier/MINUTE!insert	SELECT INTERVAL CURRENT_USER M
 reject	reject	engine	unitIdentifier/MINUTE!swap	SELECT INTERVAL CURRENT_USER MINUTES;
 accept	accept	engine	unitIdentifier/SECOND	SELECT INTERVAL CURRENT_USER SECOND;
 accept	accept	engine	unitIdentifier/SECOND!insert	SELECT INTERVAL CURRENT_USER SECOND zzz;
-accept	reject	engine	unitIdentifier/SECOND!swap	SELECT INTERVAL CURRENT_USER SECURITY;
+reject	reject	engine	unitIdentifier/SECOND!swap	SELECT INTERVAL CURRENT_USER SECURITY;
 accept	accept	engine	unitIdentifier/QUARTER	SELECT INTERVAL CURRENT_USER QUARTER;
 accept	accept	engine	unitIdentifier/QUARTER!insert	SELECT INTERVAL CURRENT_USER QUARTER zzz;
-accept	reject	engine	unitIdentifier/QUARTER!swap	SELECT INTERVAL CURRENT_USER QUERIES;
+reject	reject	engine	unitIdentifier/QUARTER!swap	SELECT INTERVAL CURRENT_USER QUERIES;
 accept	accept	engine	unitIdentifier/MILLISECOND	SELECT INTERVAL CURRENT_USER MILLISECOND;
 accept	accept	engine	unitIdentifier/MILLISECOND!insert	SELECT INTERVAL CURRENT_USER MILLISECOND zzz;
 reject	reject	engine	unitIdentifier/MILLISECOND!swap	SELECT INTERVAL CURRENT_USER MIN;
@@ -10553,7 +10553,7 @@ accept	accept	engine	nonReserved/AGGREGATE!insert	SELECT AGGREGATE zzz;
 reject	reject	engine	nonReserved/AGGREGATE!swap	SELECT ALL;
 accept	accept	engine	nonReserved/APPLY	SELECT APPLY;
 accept	accept	engine	nonReserved/APPLY!insert	SELECT APPLY zzz;
-accept	reject	engine	nonReserved/APPLY!swap	SELECT ARRAY;
+reject	reject	engine	nonReserved/APPLY!swap	SELECT ARRAY;
 accept	accept	engine	nonReserved/ASYNC	SELECT ASYNC;
 accept	accept	engine	nonReserved/ASYNC!insert	SELECT ASYNC zzz;
 accept	accept	engine	nonReserved/AUTHORS	SELECT AUTHORS;
@@ -10562,8 +10562,8 @@ accept	accept	engine	nonReserved/AVG	SELECT AVG;
 accept	accept	engine	nonReserved/AVG!insert	SELECT AVG zzz;
 accept	accept	engine	nonReserved/ADMIN	SELECT ADMIN;
 accept	accept	engine	nonReserved/ADMIN!insert	SELECT ADMIN zzz;
-reject	accept	engine	nonReserved/ANTI	SELECT ANTI;
-reject	accept	engine	nonReserved/ANTI!insert	SELECT ANTI zzz;
+accept	accept	engine	nonReserved/ANTI	SELECT ANTI;
+accept	accept	engine	nonReserved/ANTI!insert	SELECT ANTI zzz;
 accept	accept	engine	nonReserved/AUTHENTICATION	SELECT AUTHENTICATION;
 accept	accept	engine	nonReserved/AUTHENTICATION!insert	SELECT AUTHENTICATION zzz;
 accept	accept	engine	nonReserved/AUTO_INCREMENT	SELECT AUTO_INCREMENT;
@@ -10586,14 +10586,14 @@ reject	accept	engine	nonReserved/BEGIN!insert	SELECT BEGIN zzz;
 reject	reject	engine	nonReserved/BEGIN!swap	SELECT BETWEEN;
 accept	accept	engine	nonReserved/BITMAP_UNION	SELECT BITMAP_UNION;
 accept	accept	engine	nonReserved/BITMAP_UNION!insert	SELECT BITMAP_UNION zzz;
-accept	reject	engine	nonReserved/BITMAP_UNION!swap	SELECT BITSHIFTLEFT;
+reject	reject	engine	nonReserved/BITMAP_UNION!swap	SELECT BITSHIFTLEFT;
 accept	accept	engine	nonReserved/BLACKLIST	SELECT BLACKLIST;
 accept	accept	engine	nonReserved/BLACKLIST!insert	SELECT BLACKLIST zzz;
 accept	accept	engine	nonReserved/BLACKHOLE	SELECT BLACKHOLE;
 accept	accept	engine	nonReserved/BLACKHOLE!insert	SELECT BLACKHOLE zzz;
 reject	accept	engine	nonReserved/BINARY	SELECT BINARY;
 accept	accept	engine	nonReserved/BINARY!insert	SELECT BINARY zzz;
-accept	reject	engine	nonReserved/BINARY!swap	SELECT BITMAP;
+reject	reject	engine	nonReserved/BINARY!swap	SELECT BITMAP;
 accept	accept	engine	nonReserved/BODY	SELECT BODY;
 accept	accept	engine	nonReserved/BODY!insert	SELECT BODY zzz;
 accept	accept	engine	nonReserved/BOOLEAN	SELECT BOOLEAN;
@@ -10626,10 +10626,10 @@ accept	accept	engine	nonReserved/CATALOGS!insert	SELECT CATALOGS zzz;
 accept	reject	engine	nonReserved/CEIL	SELECT CEIL;
 accept	accept	engine	nonReserved/CHAIN	SELECT CHAIN;
 accept	accept	engine	nonReserved/CHAIN!insert	SELECT CHAIN zzz;
-accept	reject	engine	nonReserved/CHAIN!swap	SELECT CHAR;
+reject	reject	engine	nonReserved/CHAIN!swap	SELECT CHAR;
 accept	accept	engine	nonReserved/CHARSET	SELECT CHARSET;
 accept	accept	engine	nonReserved/CHARSET!insert	SELECT CHARSET zzz;
-accept	reject	engine	nonReserved/CHARSET!swap	SELECT CHECK;
+reject	reject	engine	nonReserved/CHARSET!swap	SELECT CHECK;
 accept	accept	engine	nonReserved/CLEAN	SELECT CLEAN;
 accept	accept	engine	nonReserved/CLEAN!insert	SELECT CLEAN zzz;
 accept	accept	engine	nonReserved/CLEAR	SELECT CLEAR;
@@ -10639,8 +10639,8 @@ accept	accept	engine	nonReserved/CLUSTER!insert	SELECT CLUSTER zzz;
 accept	accept	engine	nonReserved/CLUSTERS	SELECT CLUSTERS;
 accept	accept	engine	nonReserved/CLUSTERS!insert	SELECT CLUSTERS zzz;
 reject	reject	engine	nonReserved/CLUSTERS!swap	SELECT COLLATE;
-reject	accept	engine	nonReserved/CURRENT	SELECT CURRENT;
-reject	accept	engine	nonReserved/CURRENT!insert	SELECT CURRENT zzz;
+accept	accept	engine	nonReserved/CURRENT	SELECT CURRENT;
+accept	accept	engine	nonReserved/CURRENT!insert	SELECT CURRENT zzz;
 accept	accept	engine	nonReserved/COLLATION	SELECT COLLATION;
 accept	accept	engine	nonReserved/COLLATION!insert	SELECT COLLATION zzz;
 reject	reject	engine	nonReserved/COLLATION!swap	SELECT COLUMN;
@@ -10662,7 +10662,7 @@ accept	accept	engine	nonReserved/CONNECTION	SELECT CONNECTION;
 accept	accept	engine	nonReserved/CONNECTION!insert	SELECT CONNECTION zzz;
 accept	accept	engine	nonReserved/CONSISTENT	SELECT CONSISTENT;
 accept	accept	engine	nonReserved/CONSISTENT!insert	SELECT CONSISTENT zzz;
-accept	reject	engine	nonReserved/CONSISTENT!swap	SELECT CONVERT;
+reject	reject	engine	nonReserved/CONSISTENT!swap	SELECT CONVERT;
 accept	accept	engine	nonReserved/COSTS	SELECT COSTS;
 accept	accept	engine	nonReserved/COSTS!insert	SELECT COSTS zzz;
 accept	accept	engine	nonReserved/COUNT	SELECT COUNT;
@@ -10672,7 +10672,7 @@ accept	accept	engine	nonReserved/CONFIG	SELECT CONFIG;
 accept	accept	engine	nonReserved/CONFIG!insert	SELECT CONFIG zzz;
 accept	accept	engine	nonReserved/COMPACT	SELECT COMPACT;
 accept	accept	engine	nonReserved/COMPACT!insert	SELECT COMPACT zzz;
-accept	reject	engine	nonReserved/COMPACT!swap	SELECT COMPACTION;
+reject	reject	engine	nonReserved/COMPACT!swap	SELECT COMPACTION;
 accept	accept	engine	nonReserved/DATA	SELECT DATA;
 accept	accept	engine	nonReserved/DATA!insert	SELECT DATA zzz;
 reject	reject	engine	nonReserved/DATA!swap	SELECT DATABASE;
@@ -10710,7 +10710,7 @@ accept	accept	engine	nonReserved/DICTIONARY_GET	SELECT DICTIONARY_GET;
 accept	accept	engine	nonReserved/DICTIONARY_GET!insert	SELECT DICTIONARY_GET zzz;
 accept	accept	engine	nonReserved/DEALLOCATE	SELECT DEALLOCATE;
 accept	accept	engine	nonReserved/DEALLOCATE!insert	SELECT DEALLOCATE zzz;
-accept	reject	engine	nonReserved/DEALLOCATE!swap	SELECT DECIMAL;
+reject	reject	engine	nonReserved/DEALLOCATE!swap	SELECT DECIMAL;
 accept	accept	engine	nonReserved/ENABLE	SELECT ENABLE;
 accept	accept	engine	nonReserved/ENABLE!insert	SELECT ENABLE zzz;
 accept	accept	engine	nonReserved/END	SELECT END;
@@ -10747,15 +10747,15 @@ accept	accept	engine	nonReserved/FIELDS	SELECT FIELDS;
 accept	accept	engine	nonReserved/FIELDS!insert	SELECT FIELDS zzz;
 accept	accept	engine	nonReserved/FILE	SELECT FILE;
 accept	accept	engine	nonReserved/FILE!insert	SELECT FILE zzz;
-accept	reject	engine	nonReserved/FILE!swap	SELECT FILES;
+reject	reject	engine	nonReserved/FILE!swap	SELECT FILES;
 accept	accept	engine	nonReserved/FILTER	SELECT FILTER;
 accept	accept	engine	nonReserved/FILTER!insert	SELECT FILTER zzz;
 accept	accept	engine	nonReserved/FIRST	SELECT FIRST;
 accept	accept	engine	nonReserved/FIRST!insert	SELECT FIRST zzz;
-accept	reject	engine	nonReserved/FIRST!swap	SELECT FIRST_VALUE;
+reject	reject	engine	nonReserved/FIRST!swap	SELECT FIRST_VALUE;
 accept	reject	engine	nonReserved/FLOOR	SELECT FLOOR;
-reject	accept	engine	nonReserved/FOLLOWING	SELECT FOLLOWING;
-reject	accept	engine	nonReserved/FOLLOWING!insert	SELECT FOLLOWING zzz;
+accept	accept	engine	nonReserved/FOLLOWING	SELECT FOLLOWING;
+accept	accept	engine	nonReserved/FOLLOWING!insert	SELECT FOLLOWING zzz;
 reject	reject	engine	nonReserved/FOLLOWING!swap	SELECT FOR;
 accept	accept	engine	nonReserved/FORMAT	SELECT FORMAT;
 accept	accept	engine	nonReserved/FORMAT!insert	SELECT FORMAT zzz;
@@ -10773,7 +10773,7 @@ accept	accept	engine	nonReserved/FREE!insert	SELECT FREE zzz;
 reject	reject	engine	nonReserved/FREE!swap	SELECT FROM;
 accept	accept	engine	nonReserved/FUNCTIONS	SELECT FUNCTIONS;
 accept	accept	engine	nonReserved/FUNCTIONS!insert	SELECT FUNCTIONS zzz;
-accept	reject	engine	nonReserved/FUNCTIONS!swap	SELECT GIN;
+reject	reject	engine	nonReserved/FUNCTIONS!swap	SELECT GIN;
 accept	accept	engine	nonReserved/GLOBAL	SELECT GLOBAL;
 accept	accept	engine	nonReserved/GLOBAL!insert	SELECT GLOBAL zzz;
 reject	reject	engine	nonReserved/GLOBAL!swap	SELECT GRANT;
@@ -10805,7 +10805,7 @@ accept	accept	engine	nonReserved/IDENTIFIED!insert	SELECT IDENTIFIED zzz;
 reject	reject	engine	nonReserved/IDENTIFIED!swap	SELECT IF;
 accept	accept	engine	nonReserved/IMAGE	SELECT IMAGE;
 accept	accept	engine	nonReserved/IMAGE!insert	SELECT IMAGE zzz;
-accept	reject	engine	nonReserved/IMAGE!swap	SELECT IMMEDIATE;
+reject	reject	engine	nonReserved/IMAGE!swap	SELECT IMMEDIATE;
 accept	accept	engine	nonReserved/IMPERSONATE	SELECT IMPERSONATE;
 accept	accept	engine	nonReserved/IMPERSONATE!insert	SELECT IMPERSONATE zzz;
 reject	reject	engine	nonReserved/IMPERSONATE!swap	SELECT IN;
@@ -10837,10 +10837,10 @@ accept	accept	engine	nonReserved/JOB!insert	SELECT JOB zzz;
 reject	reject	engine	nonReserved/JOB!swap	SELECT JOIN;
 accept	accept	engine	nonReserved/LABEL	SELECT LABEL;
 accept	accept	engine	nonReserved/LABEL!insert	SELECT LABEL zzz;
-accept	reject	engine	nonReserved/LABEL!swap	SELECT LAG;
+reject	reject	engine	nonReserved/LABEL!swap	SELECT LAG;
 accept	accept	engine	nonReserved/LAST	SELECT LAST;
 accept	accept	engine	nonReserved/LAST!insert	SELECT LAST zzz;
-accept	reject	engine	nonReserved/LAST!swap	SELECT LAST_VALUE;
+reject	reject	engine	nonReserved/LAST!swap	SELECT LAST_VALUE;
 accept	accept	engine	nonReserved/LESS	SELECT LESS;
 accept	accept	engine	nonReserved/LESS!insert	SELECT LESS zzz;
 accept	accept	engine	nonReserved/LEVEL	SELECT LEVEL;
@@ -10873,8 +10873,8 @@ accept	accept	engine	nonReserved/MAPPINGS	SELECT MAPPINGS;
 accept	accept	engine	nonReserved/MAPPINGS!insert	SELECT MAPPINGS zzz;
 accept	accept	engine	nonReserved/MASKING	SELECT MASKING;
 accept	accept	engine	nonReserved/MASKING!insert	SELECT MASKING zzz;
-reject	accept	engine	nonReserved/MATCH	SELECT MATCH;
-reject	accept	engine	nonReserved/MATCH!insert	SELECT MATCH zzz;
+accept	accept	engine	nonReserved/MATCH	SELECT MATCH;
+accept	accept	engine	nonReserved/MATCH!insert	SELECT MATCH zzz;
 accept	accept	engine	nonReserved/MAPPINGS#2	SELECT MAPPINGS;
 accept	accept	engine	nonReserved/MATERIALIZED	SELECT MATERIALIZED;
 accept	accept	engine	nonReserved/MATERIALIZED!insert	SELECT MATERIALIZED zzz;
@@ -10883,14 +10883,14 @@ accept	accept	engine	nonReserved/MAX!insert	SELECT MAX zzz;
 reject	reject	engine	nonReserved/MAX!swap	SELECT MAXVALUE;
 accept	accept	engine	nonReserved/META	SELECT META;
 accept	accept	engine	nonReserved/META!insert	SELECT META zzz;
-accept	reject	engine	nonReserved/META!swap	SELECT MICROSECOND;
+reject	reject	engine	nonReserved/META!swap	SELECT MICROSECOND;
 accept	accept	engine	nonReserved/MIN	SELECT MIN;
 accept	accept	engine	nonReserved/MIN!insert	SELECT MIN zzz;
 accept	accept	engine	nonReserved/MINUTE	SELECT MINUTE;
 accept	accept	engine	nonReserved/MINUTE!insert	SELECT MINUTE zzz;
 accept	accept	engine	nonReserved/MINUTES	SELECT MINUTES;
 accept	accept	engine	nonReserved/MINUTES!insert	SELECT MINUTES zzz;
-accept	reject	engine	nonReserved/MINUTES!swap	SELECT MOD;
+reject	reject	engine	nonReserved/MINUTES!swap	SELECT MOD;
 accept	accept	engine	nonReserved/MODE	SELECT MODE;
 accept	accept	engine	nonReserved/MODE!insert	SELECT MODE zzz;
 accept	accept	engine	nonReserved/MODIFY	SELECT MODIFY;
@@ -10899,8 +10899,8 @@ accept	accept	engine	nonReserved/MONTH	SELECT MONTH;
 accept	accept	engine	nonReserved/MONTH!insert	SELECT MONTH zzz;
 accept	accept	engine	nonReserved/MERGE	SELECT MERGE;
 accept	accept	engine	nonReserved/MERGE!insert	SELECT MERGE zzz;
-reject	accept	engine	nonReserved/MINUS	SELECT MINUS;
-reject	accept	engine	nonReserved/MINUS!insert	SELECT MINUS zzz;
+accept	accept	engine	nonReserved/MINUS	SELECT MINUS;
+accept	accept	engine	nonReserved/MINUS!insert	SELECT MINUS zzz;
 accept	accept	engine	nonReserved/NAME	SELECT NAME;
 accept	accept	engine	nonReserved/NAME!insert	SELECT NAME zzz;
 accept	accept	engine	nonReserved/NAMES	SELECT NAMES;
@@ -10936,7 +10936,7 @@ accept	accept	engine	nonReserved/OPEN	SELECT OPEN;
 accept	accept	engine	nonReserved/OPEN!insert	SELECT OPEN zzz;
 accept	accept	engine	nonReserved/OPERATE	SELECT OPERATE;
 accept	accept	engine	nonReserved/OPERATE!insert	SELECT OPERATE zzz;
-accept	reject	engine	nonReserved/OPERATE!swap	SELECT OPTIMIZE;
+reject	reject	engine	nonReserved/OPERATE!swap	SELECT OPTIMIZE;
 accept	accept	engine	nonReserved/OPTION	SELECT OPTION;
 accept	accept	engine	nonReserved/OPTION!insert	SELECT OPTION zzz;
 reject	reject	engine	nonReserved/OPTION!swap	SELECT OR;
@@ -10955,7 +10955,7 @@ accept	accept	engine	nonReserved/PAUSE	SELECT PAUSE;
 accept	accept	engine	nonReserved/PAUSE!insert	SELECT PAUSE zzz;
 accept	accept	engine	nonReserved/PENDING	SELECT PENDING;
 accept	accept	engine	nonReserved/PENDING!insert	SELECT PENDING zzz;
-accept	reject	engine	nonReserved/PENDING!swap	SELECT PERCENTILE;
+reject	reject	engine	nonReserved/PENDING!swap	SELECT PERCENTILE;
 accept	accept	engine	nonReserved/PERCENTILE_UNION	SELECT PERCENTILE_UNION;
 accept	accept	engine	nonReserved/PERCENTILE_UNION!insert	SELECT PERCENTILE_UNION zzz;
 accept	accept	engine	nonReserved/PIVOT	SELECT PIVOT;
@@ -10972,8 +10972,8 @@ accept	accept	engine	nonReserved/POLICIES	SELECT POLICIES;
 accept	accept	engine	nonReserved/POLICIES!insert	SELECT POLICIES zzz;
 accept	accept	engine	nonReserved/PERCENT_RANK	SELECT PERCENT_RANK;
 accept	accept	engine	nonReserved/PERCENT_RANK!insert	SELECT PERCENT_RANK zzz;
-reject	accept	engine	nonReserved/PRECEDING	SELECT PRECEDING;
-reject	accept	engine	nonReserved/PRECEDING!insert	SELECT PRECEDING zzz;
+accept	accept	engine	nonReserved/PRECEDING	SELECT PRECEDING;
+accept	accept	engine	nonReserved/PRECEDING!insert	SELECT PRECEDING zzz;
 reject	reject	engine	nonReserved/PRECEDING!swap	SELECT PREPARE;
 accept	accept	engine	nonReserved/PRIORITY	SELECT PRIORITY;
 accept	accept	engine	nonReserved/PRIORITY!insert	SELECT PRIORITY zzz;
@@ -11033,7 +11033,7 @@ accept	accept	engine	nonReserved/REPAIR	SELECT REPAIR;
 accept	accept	engine	nonReserved/REPAIR!insert	SELECT REPAIR zzz;
 accept	accept	engine	nonReserved/REPEATABLE	SELECT REPEATABLE;
 accept	accept	engine	nonReserved/REPEATABLE!insert	SELECT REPEATABLE zzz;
-accept	reject	engine	nonReserved/REPEATABLE!swap	SELECT REPLACE;
+reject	reject	engine	nonReserved/REPEATABLE!swap	SELECT REPLACE;
 accept	accept	engine	nonReserved/REPLACE_IF_NOT_NULL	SELECT REPLACE_IF_NOT_NULL;
 accept	accept	engine	nonReserved/REPLACE_IF_NOT_NULL!insert	SELECT REPLACE_IF_NOT_NULL zzz;
 accept	accept	engine	nonReserved/REPLICA	SELECT REPLICA;
@@ -11071,8 +11071,8 @@ accept	accept	engine	nonReserved/ROLLBACK	SELECT ROLLBACK;
 accept	accept	engine	nonReserved/ROLLBACK!insert	SELECT ROLLBACK zzz;
 accept	accept	engine	nonReserved/ROUTINE	SELECT ROUTINE;
 accept	accept	engine	nonReserved/ROUTINE!insert	SELECT ROUTINE zzz;
-reject	accept	engine	nonReserved/ROW	SELECT ROW;
-reject	accept	engine	nonReserved/ROW!insert	SELECT ROW zzz;
+accept	accept	engine	nonReserved/ROW	SELECT ROW;
+accept	accept	engine	nonReserved/ROW!insert	SELECT ROW zzz;
 reject	reject	engine	nonReserved/ROW!swap	SELECT ROWS;
 accept	accept	engine	nonReserved/RUNNING	SELECT RUNNING;
 accept	accept	engine	nonReserved/RUNNING!insert	SELECT RUNNING zzz;
@@ -11086,7 +11086,7 @@ accept	accept	engine	nonReserved/SCHEDULE	SELECT SCHEDULE;
 accept	accept	engine	nonReserved/SCHEDULE!insert	SELECT SCHEDULE zzz;
 accept	accept	engine	nonReserved/SCHEDULER	SELECT SCHEDULER;
 accept	accept	engine	nonReserved/SCHEDULER!insert	SELECT SCHEDULER zzz;
-accept	reject	engine	nonReserved/SCHEDULER!swap	SELECT SCHEMA;
+reject	reject	engine	nonReserved/SCHEDULER!swap	SELECT SCHEMA;
 accept	accept	engine	nonReserved/SECOND	SELECT SECOND;
 accept	accept	engine	nonReserved/SECOND!insert	SELECT SECOND zzz;
 accept	accept	engine	nonReserved/SECURITY	SELECT SECURITY;
@@ -11096,14 +11096,14 @@ accept	accept	engine	nonReserved/SEPARATOR	SELECT SEPARATOR;
 accept	accept	engine	nonReserved/SEPARATOR!insert	SELECT SEPARATOR zzz;
 accept	accept	engine	nonReserved/SERIALIZABLE	SELECT SERIALIZABLE;
 accept	accept	engine	nonReserved/SERIALIZABLE!insert	SELECT SERIALIZABLE zzz;
-reject	accept	engine	nonReserved/SEMI	SELECT SEMI;
-reject	accept	engine	nonReserved/SEMI!insert	SELECT SEMI zzz;
+accept	accept	engine	nonReserved/SEMI	SELECT SEMI;
+accept	accept	engine	nonReserved/SEMI!insert	SELECT SEMI zzz;
 accept	accept	engine	nonReserved/SESSION	SELECT SESSION;
 accept	accept	engine	nonReserved/SESSION!insert	SELECT SESSION zzz;
 reject	reject	engine	nonReserved/SESSION!swap	SELECT SET;
 accept	accept	engine	nonReserved/SETS	SELECT SETS;
 accept	accept	engine	nonReserved/SETS!insert	SELECT SETS zzz;
-accept	reject	engine	nonReserved/SETS!swap	SELECT SET_VAR;
+reject	reject	engine	nonReserved/SETS!swap	SELECT SET_VAR;
 accept	accept	engine	nonReserved/SIGNED	SELECT SIGNED;
 accept	accept	engine	nonReserved/SIGNED!insert	SELECT SIGNED zzz;
 accept	accept	engine	nonReserved/SNAPSHOT	SELECT SNAPSHOT;
@@ -11188,8 +11188,8 @@ accept	accept	engine	nonReserved/TYPE	SELECT TYPE;
 accept	accept	engine	nonReserved/TYPE!insert	SELECT TYPE zzz;
 accept	accept	engine	nonReserved/TYPES	SELECT TYPES;
 accept	accept	engine	nonReserved/TYPES!insert	SELECT TYPES zzz;
-reject	accept	engine	nonReserved/UNBOUNDED	SELECT UNBOUNDED;
-reject	accept	engine	nonReserved/UNBOUNDED!insert	SELECT UNBOUNDED zzz;
+accept	accept	engine	nonReserved/UNBOUNDED	SELECT UNBOUNDED;
+accept	accept	engine	nonReserved/UNBOUNDED!insert	SELECT UNBOUNDED zzz;
 accept	accept	engine	nonReserved/UNCOMMITTED	SELECT UNCOMMITTED;
 accept	accept	engine	nonReserved/UNCOMMITTED!insert	SELECT UNCOMMITTED zzz;
 accept	accept	engine	nonReserved/UNSET	SELECT UNSET;
@@ -11213,7 +11213,7 @@ accept	accept	engine	nonReserved/VALUE!insert	SELECT VALUE zzz;
 reject	reject	engine	nonReserved/VALUE!swap	SELECT VALUES;
 accept	accept	engine	nonReserved/VARBINARY	SELECT VARBINARY;
 accept	accept	engine	nonReserved/VARBINARY!insert	SELECT VARBINARY zzz;
-accept	reject	engine	nonReserved/VARBINARY!swap	SELECT VARCHAR;
+reject	reject	engine	nonReserved/VARBINARY!swap	SELECT VARCHAR;
 accept	accept	engine	nonReserved/VARIABLES	SELECT VARIABLES;
 accept	accept	engine	nonReserved/VARIABLES!insert	SELECT VARIABLES zzz;
 accept	accept	engine	nonReserved/VIEW	SELECT VIEW;
@@ -11704,3 +11704,471 @@ reject	reject	engine	suite:copy-into	COPY INTO t FROM 'stage/path'
 reject	reject	engine	suite:copy-into	COPY INTO t FROM @stage PROPERTIES ("k"="v")
 accept	accept	engine	suite:copy-into	CREATE TABLE t (copy INT)
 accept	accept	engine	suite:copy-into	SELECT copy FROM t
+accept	accept	engine	suite:keywords	SELECT 1 AS ACCESS
+accept	accept	engine	suite:keywords	SELECT 1 AS ACCOUNT_LOCK
+accept	accept	engine	suite:keywords	SELECT 1 AS ACCOUNT_UNLOCK
+accept	accept	engine	suite:keywords	SELECT 1 AS ACTIONS
+accept	accept	engine	suite:keywords	SELECT 1 AS ACTIVE
+accept	accept	engine	suite:keywords	SELECT 1 AS ADMIN
+accept	accept	engine	suite:keywords	SELECT 1 AS ADVISOR
+accept	accept	engine	suite:keywords	SELECT 1 AS AGG_STATE
+accept	accept	engine	suite:keywords	SELECT 1 AS ALIAS
+accept	accept	engine	suite:keywords	SELECT 1 AS ALWAYS
+accept	accept	engine	suite:keywords	SELECT 1 AS ANALYZED
+accept	accept	engine	suite:keywords	SELECT 1 AS ANALYZER
+accept	accept	engine	suite:keywords	SELECT 1 AS ANN
+accept	accept	engine	suite:keywords	SELECT 1 AS ANTI
+accept	accept	engine	suite:keywords	SELECT 1 AS APPEND
+accept	accept	engine	suite:keywords	SELECT 1 AS APPLY
+reject	reject	engine	suite:keywords	SELECT 1 AS ARRAY
+accept	accept	engine	suite:keywords	SELECT 1 AS ARRAY_AGG
+accept	accept	engine	suite:keywords	SELECT 1 AS ARRAY_AGG_DISTINCT
+accept	accept	engine	suite:keywords	SELECT 1 AS ASYNC
+accept	accept	engine	suite:keywords	SELECT 1 AS AT
+accept	accept	engine	suite:keywords	SELECT 1 AS AUTHENTICATION
+accept	accept	engine	suite:keywords	SELECT 1 AS AUTO
+accept	accept	engine	suite:keywords	SELECT 1 AS AUTOMATED
+accept	accept	engine	suite:keywords	SELECT 1 AS AVG
+accept	accept	engine	suite:keywords	SELECT 1 AS BACKEND
+accept	accept	engine	suite:keywords	SELECT 1 AS BASE
+accept	accept	engine	suite:keywords	SELECT 1 AS BEFORE
+accept	accept	engine	suite:keywords	SELECT 1 AS BELONG
+accept	accept	engine	suite:keywords	SELECT 1 AS BIN
+accept	accept	engine	suite:keywords	SELECT 1 AS BINARY
+accept	accept	engine	suite:keywords	SELECT 1 AS BINLOG
+accept	accept	engine	suite:keywords	SELECT 1 AS BITAND
+reject	reject	engine	suite:keywords	SELECT 1 AS BITMAP
+accept	accept	engine	suite:keywords	SELECT 1 AS BITMAP_EMPTY
+accept	accept	engine	suite:keywords	SELECT 1 AS BITOR
+reject	reject	engine	suite:keywords	SELECT 1 AS BITSHIFTLEFT
+reject	reject	engine	suite:keywords	SELECT 1 AS BITSHIFTRIGHT
+reject	reject	engine	suite:keywords	SELECT 1 AS BITSHIFTRIGHTLOGICAL
+accept	accept	engine	suite:keywords	SELECT 1 AS BITXOR
+accept	accept	engine	suite:keywords	SELECT 1 AS BLACKHOLE
+accept	accept	engine	suite:keywords	SELECT 1 AS BLACKLIST
+accept	accept	engine	suite:keywords	SELECT 1 AS BLOB
+accept	accept	engine	suite:keywords	SELECT 1 AS BODY
+accept	accept	engine	suite:keywords	SELECT 1 AS BRIEF
+accept	accept	engine	suite:keywords	SELECT 1 AS BUILD
+accept	accept	engine	suite:keywords	SELECT 1 AS BULK
+accept	accept	engine	suite:keywords	SELECT 1 AS CACHED
+accept	accept	engine	suite:keywords	SELECT 1 AS CALL
+accept	accept	engine	suite:keywords	SELECT 1 AS CANCEL
+accept	accept	engine	suite:keywords	SELECT 1 AS CAST
+accept	accept	engine	suite:keywords	SELECT 1 AS CEIL
+reject	reject	engine	suite:keywords	SELECT 1 AS CHAR
+reject	reject	engine	suite:keywords	SELECT 1 AS CHARACTER
+accept	accept	engine	suite:keywords	SELECT 1 AS CHAR_FILTER
+reject	reject	engine	suite:keywords	SELECT 1 AS CHECK
+accept	accept	engine	suite:keywords	SELECT 1 AS CLEAN
+accept	accept	engine	suite:keywords	SELECT 1 AS CLEAR
+accept	accept	engine	suite:keywords	SELECT 1 AS COLLECT
+accept	accept	engine	suite:keywords	SELECT 1 AS COLOCATE
+reject	reject	engine	suite:keywords	SELECT 1 AS COMPACTION
+accept	accept	engine	suite:keywords	SELECT 1 AS COMPLETE
+accept	accept	engine	suite:keywords	SELECT 1 AS COMPRESS_TYPE
+accept	accept	engine	suite:keywords	SELECT 1 AS CONDITIONS
+accept	accept	engine	suite:keywords	SELECT 1 AS CONNECTION_ID
+accept	accept	engine	suite:keywords	SELECT 1 AS CONSTRAINT
+accept	accept	engine	suite:keywords	SELECT 1 AS CONSTRAINTS
+reject	reject	engine	suite:keywords	SELECT 1 AS CONVERT
+accept	accept	engine	suite:keywords	SELECT 1 AS CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS
+accept	accept	engine	suite:keywords	SELECT 1 AS COPY
+accept	accept	engine	suite:keywords	SELECT 1 AS CREATION
+accept	accept	engine	suite:keywords	SELECT 1 AS CRON
+accept	accept	engine	suite:keywords	SELECT 1 AS CUME_DIST
+accept	accept	engine	suite:keywords	SELECT 1 AS CUMULATIVE
+accept	accept	engine	suite:keywords	SELECT 1 AS CURRENT
+accept	accept	engine	suite:keywords	SELECT 1 AS CURRENT_CATALOG
+reject	reject	engine	suite:keywords	SELECT 1 AS CURRENT_DATE
+reject	reject	engine	suite:keywords	SELECT 1 AS CURRENT_ROLE
+reject	reject	engine	suite:keywords	SELECT 1 AS CURRENT_TIME
+reject	reject	engine	suite:keywords	SELECT 1 AS CURRENT_TIMESTAMP
+accept	accept	engine	suite:keywords	SELECT 1 AS DATACACHE
+accept	accept	engine	suite:keywords	SELECT 1 AS DATETIMEV1
+accept	accept	engine	suite:keywords	SELECT 1 AS DATETIMEV2
+accept	accept	engine	suite:keywords	SELECT 1 AS DATEV1
+accept	accept	engine	suite:keywords	SELECT 1 AS DATEV2
+accept	accept	engine	suite:keywords	SELECT 1 AS DAY_HOUR
+accept	accept	engine	suite:keywords	SELECT 1 AS DAY_SECOND
+accept	accept	engine	suite:keywords	SELECT 1 AS DEALLOCATE
+reject	reject	engine	suite:keywords	SELECT 1 AS DECIMAL
+reject	reject	engine	suite:keywords	SELECT 1 AS DECIMAL128
+reject	reject	engine	suite:keywords	SELECT 1 AS DECIMAL32
+reject	reject	engine	suite:keywords	SELECT 1 AS DECIMAL64
+reject	reject	engine	suite:keywords	SELECT 1 AS DECIMALV2
+accept	accept	engine	suite:keywords	SELECT 1 AS DECIMALV3
+accept	accept	engine	suite:keywords	SELECT 1 AS DECOMMISSION
+reject	reject	engine	suite:keywords	SELECT 1 AS DEFERRED
+accept	accept	engine	suite:keywords	SELECT 1 AS DEMAND
+reject	reject	engine	suite:keywords	SELECT 1 AS DENSE_RANK
+accept	accept	engine	suite:keywords	SELECT 1 AS DIAGNOSE
+accept	accept	engine	suite:keywords	SELECT 1 AS DIAGNOSIS
+accept	accept	engine	suite:keywords	SELECT 1 AS DICTIONARIES
+accept	accept	engine	suite:keywords	SELECT 1 AS DICTIONARY_GET
+accept	accept	engine	suite:keywords	SELECT 1 AS DISABLE
+accept	accept	engine	suite:keywords	SELECT 1 AS DISK
+accept	accept	engine	suite:keywords	SELECT 1 AS DISTINCTPC
+accept	accept	engine	suite:keywords	SELECT 1 AS DISTINCTPCSA
+accept	accept	engine	suite:keywords	SELECT 1 AS DISTRIBUTED
+accept	accept	engine	suite:keywords	SELECT 1 AS DISTRIBUTION
+accept	accept	engine	suite:keywords	SELECT 1 AS DO
+accept	accept	engine	suite:keywords	SELECT 1 AS DORIS_INTERNAL_TABLE_ID
+accept	accept	engine	suite:keywords	SELECT 1 AS DROPP
+reject	reject	engine	suite:keywords	SELECT 1 AS DUAL
+accept	accept	engine	suite:keywords	SELECT 1 AS DUMP
+accept	accept	engine	suite:keywords	SELECT 1 AS DUPLICATE
+accept	accept	engine	suite:keywords	SELECT 1 AS E
+accept	accept	engine	suite:keywords	SELECT 1 AS ENCLOSE
+accept	accept	engine	suite:keywords	SELECT 1 AS ENCRYPTION
+accept	accept	engine	suite:keywords	SELECT 1 AS ENCRYPTKEY
+accept	accept	engine	suite:keywords	SELECT 1 AS ENCRYPTKEYS
+accept	accept	engine	suite:keywords	SELECT 1 AS ENDS
+accept	accept	engine	suite:keywords	SELECT 1 AS ENTER
+accept	accept	engine	suite:keywords	SELECT 1 AS EXCLUDE
+accept	accept	engine	suite:keywords	SELECT 1 AS EXECUTE
+accept	accept	engine	suite:keywords	SELECT 1 AS EXPIRED
+accept	accept	engine	suite:keywords	SELECT 1 AS EXPORT
+accept	accept	engine	suite:keywords	SELECT 1 AS EXTENDED
+accept	accept	engine	suite:keywords	SELECT 1 AS EXTRACT
+accept	accept	engine	suite:keywords	SELECT 1 AS FAILED_LOGIN_ATTEMPTS
+accept	accept	engine	suite:keywords	SELECT 1 AS FAILPOINT
+accept	accept	engine	suite:keywords	SELECT 1 AS FAILPOINTS
+accept	accept	engine	suite:keywords	SELECT 1 AS FAST
+accept	accept	engine	suite:keywords	SELECT 1 AS FEATURE
+reject	reject	engine	suite:keywords	SELECT 1 AS FILES
+reject	reject	engine	suite:keywords	SELECT 1 AS FIRST_VALUE
+accept	accept	engine	suite:keywords	SELECT 1 AS FLOOR
+accept	accept	engine	suite:keywords	SELECT 1 AS FN
+accept	accept	engine	suite:keywords	SELECT 1 AS FOLLOWER
+accept	accept	engine	suite:keywords	SELECT 1 AS FOLLOWING
+accept	accept	engine	suite:keywords	SELECT 1 AS FOREIGN
+accept	accept	engine	suite:keywords	SELECT 1 AS FRONTEND
+reject	reject	engine	suite:keywords	SELECT 1 AS FUNCTION
+accept	accept	engine	suite:keywords	SELECT 1 AS FUNCTIONS
+accept	accept	engine	suite:keywords	SELECT 1 AS GENERATED
+accept	accept	engine	suite:keywords	SELECT 1 AS GENERIC
+reject	reject	engine	suite:keywords	SELECT 1 AS GIN
+accept	accept	engine	suite:keywords	SELECT 1 AS GRANTS
+accept	accept	engine	suite:keywords	SELECT 1 AS GRAPH
+reject	reject	engine	suite:keywords	SELECT 1 AS GROUPING
+reject	reject	engine	suite:keywords	SELECT 1 AS GROUPING_ID
+reject	reject	engine	suite:keywords	SELECT 1 AS GROUPS
+accept	accept	engine	suite:keywords	SELECT 1 AS HASH_MAP
+accept	accept	engine	suite:keywords	SELECT 1 AS HDFS
+accept	accept	engine	suite:keywords	SELECT 1 AS HOST
+accept	accept	engine	suite:keywords	SELECT 1 AS HOSTNAME
+accept	accept	engine	suite:keywords	SELECT 1 AS HOTSPOT
+reject	reject	engine	suite:keywords	SELECT 1 AS IGNORE
+accept	accept	engine	suite:keywords	SELECT 1 AS IMAGE
+reject	reject	engine	suite:keywords	SELECT 1 AS IMMEDIATE
+accept	accept	engine	suite:keywords	SELECT 1 AS IMPERSONATE
+accept	accept	engine	suite:keywords	SELECT 1 AS INACTIVE
+reject	reject	engine	suite:keywords	SELECT 1 AS INSERT
+accept	accept	engine	suite:keywords	SELECT 1 AS INSTALL
+accept	accept	engine	suite:keywords	SELECT 1 AS INTEGRATION
+accept	accept	engine	suite:keywords	SELECT 1 AS INTEGRATIONS
+accept	accept	engine	suite:keywords	SELECT 1 AS INTERMEDIATE
+accept	accept	engine	suite:keywords	SELECT 1 AS INTERVAL
+accept	accept	engine	suite:keywords	SELECT 1 AS INVERTED
+reject	reject	engine	suite:keywords	SELECT 1 AS INVOKER
+accept	accept	engine	suite:keywords	SELECT 1 AS IPV4
+accept	accept	engine	suite:keywords	SELECT 1 AS IPV6
+accept	accept	engine	suite:keywords	SELECT 1 AS IP_TRIE
+accept	accept	engine	suite:keywords	SELECT 1 AS ISNULL
+accept	accept	engine	suite:keywords	SELECT 1 AS IS_NOT_NULL_PRED
+accept	accept	engine	suite:keywords	SELECT 1 AS IS_NULL_PRED
+accept	accept	engine	suite:keywords	SELECT 1 AS JOBS
+reject	reject	engine	suite:keywords	SELECT 1 AS JSON
+accept	accept	engine	suite:keywords	SELECT 1 AS JSONB
+reject	reject	engine	suite:keywords	SELECT 1 AS LAG
+reject	reject	engine	suite:keywords	SELECT 1 AS LAST_VALUE
+accept	accept	engine	suite:keywords	SELECT 1 AS LAYOUT
+accept	accept	engine	suite:keywords	SELECT 1 AS LDAP
+accept	accept	engine	suite:keywords	SELECT 1 AS LDAP_ADMIN_PASSWORD
+reject	reject	engine	suite:keywords	SELECT 1 AS LEAD
+accept	accept	engine	suite:keywords	SELECT 1 AS LEADING
+accept	accept	engine	suite:keywords	SELECT 1 AS LINES
+accept	accept	engine	suite:keywords	SELECT 1 AS LINK
+accept	accept	engine	suite:keywords	SELECT 1 AS LIST
+reject	reject	engine	suite:keywords	SELECT 1 AS LOCALTIME
+reject	reject	engine	suite:keywords	SELECT 1 AS LOCALTIMESTAMP
+accept	accept	engine	suite:keywords	SELECT 1 AS LOCATIONS
+accept	accept	engine	suite:keywords	SELECT 1 AS LOGS
+accept	accept	engine	suite:keywords	SELECT 1 AS LOW_PRIORITY
+accept	accept	engine	suite:keywords	SELECT 1 AS MAPPING
+accept	accept	engine	suite:keywords	SELECT 1 AS MAPPINGS
+accept	accept	engine	suite:keywords	SELECT 1 AS MASKING
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCHED
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_ALL
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_ANY
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_NAME
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_NAME_GLOB
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_PHRASE
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_PHRASE_EDGE
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_PHRASE_PREFIX
+accept	accept	engine	suite:keywords	SELECT 1 AS MATCH_REGEXP
+accept	accept	engine	suite:keywords	SELECT 1 AS MEMO
+accept	accept	engine	suite:keywords	SELECT 1 AS META
+reject	reject	engine	suite:keywords	SELECT 1 AS MICROSECOND
+accept	accept	engine	suite:keywords	SELECT 1 AS MID
+accept	accept	engine	suite:keywords	SELECT 1 AS MIGRATE
+accept	accept	engine	suite:keywords	SELECT 1 AS MIGRATIONS
+reject	reject	engine	suite:keywords	SELECT 1 AS MILLISECOND
+accept	accept	engine	suite:keywords	SELECT 1 AS MINUS
+accept	accept	engine	suite:keywords	SELECT 1 AS MINUTE_SECOND
+reject	reject	engine	suite:keywords	SELECT 1 AS MOD
+accept	accept	engine	suite:keywords	SELECT 1 AS MODE
+accept	accept	engine	suite:keywords	SELECT 1 AS MTMV
+accept	accept	engine	suite:keywords	SELECT 1 AS NATURAL
+accept	accept	engine	suite:keywords	SELECT 1 AS NEVER
+accept	accept	engine	suite:keywords	SELECT 1 AS NEXT
+accept	accept	engine	suite:keywords	SELECT 1 AS NGRAMBF
+accept	accept	engine	suite:keywords	SELECT 1 AS NGRAM_BF
+accept	accept	engine	suite:keywords	SELECT 1 AS NODE
+accept	accept	engine	suite:keywords	SELECT 1 AS NODES
+accept	accept	engine	suite:keywords	SELECT 1 AS NONE
+accept	accept	engine	suite:keywords	SELECT 1 AS NON_NULLABLE
+accept	accept	engine	suite:keywords	SELECT 1 AS NO_USE_MV
+reject	reject	engine	suite:keywords	SELECT 1 AS NTILE
+accept	accept	engine	suite:keywords	SELECT 1 AS NUMBER
+accept	accept	engine	suite:keywords	SELECT 1 AS NUMERIC
+accept	accept	engine	suite:keywords	SELECT 1 AS OBSERVER
+accept	accept	engine	suite:keywords	SELECT 1 AS OPERATE
+reject	reject	engine	suite:keywords	SELECT 1 AS OPTIMIZE
+accept	accept	engine	suite:keywords	SELECT 1 AS OPTIMIZED
+accept	accept	engine	suite:keywords	SELECT 1 AS OPTIMIZER
+accept	accept	engine	suite:keywords	SELECT 1 AS OPTION
+accept	accept	engine	suite:keywords	SELECT 1 AS OVERWRITE
+accept	accept	engine	suite:keywords	SELECT 1 AS PARAMETER
+accept	accept	engine	suite:keywords	SELECT 1 AS PARSED
+accept	accept	engine	suite:keywords	SELECT 1 AS PASSWORD_EXPIRE
+accept	accept	engine	suite:keywords	SELECT 1 AS PASSWORD_HISTORY
+accept	accept	engine	suite:keywords	SELECT 1 AS PASSWORD_LOCK_TIME
+accept	accept	engine	suite:keywords	SELECT 1 AS PASSWORD_REUSE
+accept	accept	engine	suite:keywords	SELECT 1 AS PENDING
+accept	accept	engine	suite:keywords	SELECT 1 AS PERCENT
+reject	reject	engine	suite:keywords	SELECT 1 AS PERCENTILE
+accept	accept	engine	suite:keywords	SELECT 1 AS PERCENT_RANK
+accept	accept	engine	suite:keywords	SELECT 1 AS PERIOD
+accept	accept	engine	suite:keywords	SELECT 1 AS PERMISSIVE
+accept	accept	engine	suite:keywords	SELECT 1 AS PERSISTENT
+accept	accept	engine	suite:keywords	SELECT 1 AS PHYSICAL
+accept	accept	engine	suite:keywords	SELECT 1 AS PI
+accept	accept	engine	suite:keywords	SELECT 1 AS PIPE
+accept	accept	engine	suite:keywords	SELECT 1 AS PIPES
+accept	accept	engine	suite:keywords	SELECT 1 AS PIVOT
+accept	accept	engine	suite:keywords	SELECT 1 AS PLAY
+accept	accept	engine	suite:keywords	SELECT 1 AS POLICIES
+accept	accept	engine	suite:keywords	SELECT 1 AS POSITION
+accept	accept	engine	suite:keywords	SELECT 1 AS PRECEDING
+accept	accept	engine	suite:keywords	SELECT 1 AS PRIORITY
+accept	accept	engine	suite:keywords	SELECT 1 AS PROBABILITY
+accept	accept	engine	suite:keywords	SELECT 1 AS PROCESS
+accept	accept	engine	suite:keywords	SELECT 1 AS PROFILELIST
+accept	accept	engine	suite:keywords	SELECT 1 AS QUANTILE_STATE
+accept	accept	engine	suite:keywords	SELECT 1 AS QUANTILE_UNION
+accept	accept	engine	suite:keywords	SELECT 1 AS QUERIES
+accept	accept	engine	suite:keywords	SELECT 1 AS QUEUE
+accept	accept	engine	suite:keywords	SELECT 1 AS QUEUED
+accept	accept	engine	suite:keywords	SELECT 1 AS RANK
+accept	accept	engine	suite:keywords	SELECT 1 AS REAL
+accept	accept	engine	suite:keywords	SELECT 1 AS REASON
+accept	accept	engine	suite:keywords	SELECT 1 AS REBALANCE
+accept	accept	engine	suite:keywords	SELECT 1 AS RECENT
+accept	accept	engine	suite:keywords	SELECT 1 AS RECURSIVE
+accept	accept	engine	suite:keywords	SELECT 1 AS RECYCLE
+accept	accept	engine	suite:keywords	SELECT 1 AS REFERENCES
+accept	accept	engine	suite:keywords	SELECT 1 AS REMOVE
+accept	accept	engine	suite:keywords	SELECT 1 AS REPAIR
+reject	reject	engine	suite:keywords	SELECT 1 AS REPLACE
+accept	accept	engine	suite:keywords	SELECT 1 AS REPLAYER
+accept	accept	engine	suite:keywords	SELECT 1 AS REPLICA
+accept	accept	engine	suite:keywords	SELECT 1 AS RESTRICTIVE
+accept	accept	engine	suite:keywords	SELECT 1 AS RETRY
+accept	accept	engine	suite:keywords	SELECT 1 AS REVERT
+accept	accept	engine	suite:keywords	SELECT 1 AS REWRITE
+accept	accept	engine	suite:keywords	SELECT 1 AS REWRITTEN
+reject	reject	engine	suite:keywords	SELECT 1 AS RLIKE
+accept	accept	engine	suite:keywords	SELECT 1 AS ROLE
+accept	accept	engine	suite:keywords	SELECT 1 AS ROLES
+accept	accept	engine	suite:keywords	SELECT 1 AS ROOT
+accept	accept	engine	suite:keywords	SELECT 1 AS ROTATE
+accept	accept	engine	suite:keywords	SELECT 1 AS ROW
+reject	reject	engine	suite:keywords	SELECT 1 AS ROW_NUMBER
+accept	accept	engine	suite:keywords	SELECT 1 AS RULE
+accept	accept	engine	suite:keywords	SELECT 1 AS RULES
+accept	accept	engine	suite:keywords	SELECT 1 AS RUNNING
+accept	accept	engine	suite:keywords	SELECT 1 AS S3
+reject	reject	engine	suite:keywords	SELECT 1 AS SCHEMA
+accept	accept	engine	suite:keywords	SELECT 1 AS SECURITY
+accept	accept	engine	suite:keywords	SELECT 1 AS SEMI
+accept	accept	engine	suite:keywords	SELECT 1 AS SESSION_USER
+accept	accept	engine	suite:keywords	SELECT 1 AS SETS
+accept	accept	engine	suite:keywords	SELECT 1 AS SET_SESSION_VARIABLE
+reject	reject	engine	suite:keywords	SELECT 1 AS SET_VAR
+accept	accept	engine	suite:keywords	SELECT 1 AS SHAPE
+accept	accept	engine	suite:keywords	SELECT 1 AS SIGNED
+accept	accept	engine	suite:keywords	SELECT 1 AS SKEW
+accept	accept	engine	suite:keywords	SELECT 1 AS SKIP_HEADER
+accept	accept	engine	suite:keywords	SELECT 1 AS SONAME
+accept	accept	engine	suite:keywords	SELECT 1 AS SPLIT
+accept	accept	engine	suite:keywords	SELECT 1 AS SQL
+accept	accept	engine	suite:keywords	SELECT 1 AS SQLBLACKLIST
+accept	accept	engine	suite:keywords	SELECT 1 AS SQL_BLOCK_RULE
+accept	accept	engine	suite:keywords	SELECT 1 AS STAGE
+accept	accept	engine	suite:keywords	SELECT 1 AS STAGES
+accept	accept	engine	suite:keywords	SELECT 1 AS STARTS
+accept	accept	engine	suite:keywords	SELECT 1 AS STREAMING
+accept	accept	engine	suite:keywords	SELECT 1 AS SUBMIT
+accept	accept	engine	suite:keywords	SELECT 1 AS SUBSTR
+accept	accept	engine	suite:keywords	SELECT 1 AS SUBSTRING
+accept	accept	engine	suite:keywords	SELECT 1 AS SUPERUSER
+accept	accept	engine	suite:keywords	SELECT 1 AS SUSPEND
+accept	accept	engine	suite:keywords	SELECT 1 AS SWAP
+accept	accept	engine	suite:keywords	SELECT 1 AS SWITCH
+accept	accept	engine	suite:keywords	SELECT 1 AS SYNC
+accept	accept	engine	suite:keywords	SELECT 1 AS SYSTEM_TIME
+accept	accept	engine	suite:keywords	SELECT 1 AS TABLESAMPLE
+accept	accept	engine	suite:keywords	SELECT 1 AS TABLET
+accept	accept	engine	suite:keywords	SELECT 1 AS TABLETS
+accept	accept	engine	suite:keywords	SELECT 1 AS TASKS
+accept	accept	engine	suite:keywords	SELECT 1 AS TDE
+reject	reject	engine	suite:keywords	SELECT 1 AS TEXT
+accept	accept	engine	suite:keywords	SELECT 1 AS TIMES
+accept	accept	engine	suite:keywords	SELECT 1 AS TIMESTAMPADD
+accept	accept	engine	suite:keywords	SELECT 1 AS TIMESTAMPDIFF
+accept	accept	engine	suite:keywords	SELECT 1 AS TOKENIZER
+accept	accept	engine	suite:keywords	SELECT 1 AS TOKEN_FILTER
+accept	accept	engine	suite:keywords	SELECT 1 AS TRACE
+accept	accept	engine	suite:keywords	SELECT 1 AS TRAILING
+accept	accept	engine	suite:keywords	SELECT 1 AS TRANSLATE
+accept	accept	engine	suite:keywords	SELECT 1 AS TRASH
+accept	accept	engine	suite:keywords	SELECT 1 AS TREE
+accept	accept	engine	suite:keywords	SELECT 1 AS TRIM
+accept	accept	engine	suite:keywords	SELECT 1 AS TRIM_SPACE
+accept	accept	engine	suite:keywords	SELECT 1 AS TRY_CAST
+accept	accept	engine	suite:keywords	SELECT 1 AS TYPE_CAST
+accept	accept	engine	suite:keywords	SELECT 1 AS UNBOUNDED
+accept	accept	engine	suite:keywords	SELECT 1 AS UNINSTALL
+accept	accept	engine	suite:keywords	SELECT 1 AS UP
+accept	accept	engine	suite:keywords	SELECT 1 AS USAGE
+accept	accept	engine	suite:keywords	SELECT 1 AS USERS
+accept	accept	engine	suite:keywords	SELECT 1 AS USE_MV
+reject	reject	engine	suite:keywords	SELECT 1 AS VARCHAR
+accept	accept	engine	suite:keywords	SELECT 1 AS VARIABLE
+accept	accept	engine	suite:keywords	SELECT 1 AS VARIANT
+accept	accept	engine	suite:keywords	SELECT 1 AS VAULT
+accept	accept	engine	suite:keywords	SELECT 1 AS VAULTS
+accept	accept	engine	suite:keywords	SELECT 1 AS VECTOR
+accept	accept	engine	suite:keywords	SELECT 1 AS VOLUME
+accept	accept	engine	suite:keywords	SELECT 1 AS VOLUMES
+accept	accept	engine	suite:keywords	SELECT 1 AS WAREHOUSE
+accept	accept	engine	suite:keywords	SELECT 1 AS WAREHOUSES
+accept	accept	engine	suite:keywords	SELECT 1 AS WARM
+accept	accept	engine	suite:keywords	SELECT 1 AS WHITELIST
+accept	accept	engine	suite:keywords	SELECT 1 AS WORKLOAD
+accept	accept	engine	suite:keywords	SELECT 1 AS WRITE
+accept	accept	engine	suite:keywords	SELECT 1 AS XOR
+accept	reject	engine	suite:doris-residue	CALL my_proc()
+accept	reject	engine	suite:doris-residue	CALL db.my_proc(1)
+accept	reject	engine	suite:doris-residue	CREATE WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="10%")
+accept	reject	engine	suite:doris-residue	ALTER WORKLOAD GROUP g1 PROPERTIES ("max_cpu_percent"="20%")
+accept	reject	engine	suite:doris-residue	DROP WORKLOAD GROUP IF EXISTS g1
+reject	reject	engine	suite:doris-residue	SHOW WORKLOAD GROUPS
+reject	reject	engine	suite:doris-residue	CREATE WORKLOAD POLICY p1 CONDITION (be_id = 1) ACTION (SET (k = 1))
+accept	reject	engine	suite:doris-residue	CREATE SQL_BLOCK_RULE r1 PROPERTIES("sql"="select 1")
+accept	reject	engine	suite:doris-residue	ALTER SQL_BLOCK_RULE r1 PROPERTIES("enable"="false")
+accept	reject	engine	suite:doris-residue	DROP SQL_BLOCK_RULE IF EXISTS r1
+accept	reject	engine	suite:doris-residue	CREATE STAGE s PROPERTIES("endpoint"="ep")
+accept	reject	engine	suite:doris-residue	DROP STAGE s
+reject	reject	engine	suite:doris-residue	CREATE ENCRYPT KEY k AS 'abc'
+reject	reject	engine	suite:doris-residue	DROP ENCRYPT KEY k
+accept	reject	engine	suite:doris-residue	CREATE STORAGE VAULT v PROPERTIES("type"="S3")
+accept	reject	engine	suite:doris-residue	ALTER STORAGE VAULT v PROPERTIES("type"="S3")
+accept	reject	engine	suite:doris-residue	DROP STORAGE VAULT v
+reject	reject	engine	suite:doris-residue	UNSET DEFAULT STORAGE VAULT
+accept	reject	engine	suite:doris-residue	MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (c1 INT, c2 INT GENERATED ALWAYS AS (c1 + 1)) DUPLICATE KEY(c1) DISTRIBUTED BY HASH(c1) BUCKETS 1
+accept	reject	engine	suite:doris-residue	ALTER TABLE t ADD CONSTRAINT pk_id PRIMARY KEY (id)
+accept	reject	engine	suite:doris-residue	ALTER TABLE t DROP CONSTRAINT pk_id
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATEV1) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATEV2) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATETIMEV1(3)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DATETIMEV2(3)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (d DECIMALV3(10, 2)) DUPLICATE KEY(d) DISTRIBUTED BY HASH(d) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (j JSONB) DUPLICATE KEY(j) DISTRIBUTED BY HASH(j) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (i IPV4) DUPLICATE KEY(i) DISTRIBUTED BY HASH(i) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (i IPV6) DUPLICATE KEY(i) DISTRIBUTED BY HASH(i) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (v VARIANT) DUPLICATE KEY(v) DISTRIBUTED BY HASH(v) BUCKETS 1
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (q QUANTILE_STATE) DUPLICATE KEY(q) DISTRIBUTED BY HASH(q) BUCKETS 1
+accept	reject	engine	suite:doris-residue	SELECT CAST(1 AS AGG_STATE)
+accept	reject	engine	suite:doris-residue	CREATE TABLE t (id INT) DISTRIBUTED BY RANDOM BUCKETS AUTO
+accept	reject	engine	suite:doris-residue	CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_HISTORY 8
+accept	reject	engine	suite:doris-residue	CREATE USER 'jack' IDENTIFIED BY '12345' PASSWORD_EXPIRE INTERVAL 10 DAY
+accept	reject	engine	suite:doris-residue	ALTER USER 'jack' FAILED_LOGIN_ATTEMPTS 3
+accept	reject	engine	suite:doris-residue	ALTER USER 'jack' PASSWORD_LOCK_TIME 1 DAY
+reject	reject	engine	suite:doris-residue	ALTER USER 'jack' ACCOUNT LOCK
+reject	reject	engine	suite:doris-residue	ALTER USER 'jack' ACCOUNT UNLOCK
+reject	reject	engine	suite:doris-residue	CREATE ROW POLICY p ON t AS PERMISSIVE FOR SELECT USING (a = 1)
+reject	reject	engine	suite:doris-residue	CREATE ROW POLICY p ON t AS RESTRICTIVE FOR SELECT USING (a = 1)
+reject	reject	engine	suite:doris-residue	SHOW EXTENDED TABLES
+reject	reject	engine	suite:doris-residue	SHOW BRIEF CREATE TABLE demo.test_table
+reject	reject	engine	suite:doris-residue	SHOW JOBS
+reject	reject	engine	suite:doris-residue	SHOW QUEUED ANALYZE
+reject	reject	engine	suite:doris-residue	SHOW CONSTRAINTS FROM mytable
+reject	reject	engine	suite:doris-residue	UNSET VARIABLE myvar
+reject	reject	engine	suite:doris-residue	ALTER MATERIALIZED VIEW partition_mv REFRESH COMPLETE
+reject	reject	engine	suite:doris-residue	CREATE MATERIALIZED VIEW mv REFRESH ASYNC STARTS '2024-12-01 20:30:00' AS SELECT 1
+reject	reject	engine	suite:doris-residue	CREATE JOB j ON SCHEDULE EVERY 1 MINUTE DO INSERT INTO t SELECT 1
+accept	reject	engine	suite:doris-residue	INSTALL PLUGIN FROM SONAME "mylib.so"
+reject	reject	engine	suite:doris-residue	GRANT USAGE ON WORKLOAD GROUP 'g1' TO a
+accept	reject	engine	suite:doris-residue	ALTER TABLE orders ADD CONSTRAINT fk_cust FOREIGN KEY (customer_id) REFERENCES customers (id)
+accept	reject	engine	suite:doris-residue	CREATE REPOSITORY s3_repo WITH S3 ON LOCATION "s3://bucket/path" PROPERTIES("s3.endpoint" = "s3.us-east-1.amazonaws.com")
+accept	reject	engine	suite:doris-residue	CREATE REPOSITORY hdfs_repo WITH HDFS ON LOCATION "hdfs://path" PROPERTIES("dfs.nameservices" = "ns")
+accept	reject	engine	suite:doris-residue	CREATE DICTIONARY IF NOT EXISTS my_dict USING my_table (id KEY, name VALUE) LAYOUT(HASH_MAP) PROPERTIES("read_timeout" = "3000")
+reject	reject	engine	suite:characters	SELECT 1 \ 2
+accept	accept	engine	suite:characters	SELECT 1 \
+reject	reject	engine	suite:characters	SELECT 1 AS a\b
+accept	accept	engine	suite:characters	SELECT 'a#b'
+accept	accept	engine	suite:characters	SELECT 'a\b'
+reject	reject	engine	suite:characters	SELECT 1 ¿ 2
+accept	accept	engine	suite:characters	SELECT 1 AS ¿
+accept	accept	engine	suite:characters	SELECT 1 AS a¿b
+reject	reject	engine	suite:characters	SELECT 1 😀 2
+reject	reject	engine	suite:characters	SELECT 1 AS a😀b
+reject	reject	engine	suite:characters	SELECT 1 AS 😀
+reject	accept	engine	suite:characters	SELECT 1　AS x
+reject	reject	engine	suite:characters	SELECT　*
+accept	accept	engine	suite:characters	SELECT 1 AS a　b
+reject	reject	engine	suite:characters	SELECT 1　 2
+reject	reject	engine	suite:keywords	SELECT INTERVAL 1 DAY_HOUR
+reject	reject	engine	suite:keywords	SELECT INTERVAL 1 MINUTE_SECOND
+reject	reject	engine	suite:keywords	SELECT TRY_CAST('1' AS INT)
+accept	accept	engine	suite:keywords	SELECT TRY_CAST('1')
+reject	reject	engine	suite:keywords	SELECT 1 XOR 0
+reject	reject	engine	suite:keywords	SELECT TRIM(BOTH 'x' FROM 'xx')
+accept	accept	engine	suite:keywords	SELECT TRIM(' x ')
+accept	accept	engine	suite:keywords	SELECT CHAR(65)
+reject	reject	engine	suite:keywords	SELECT ADD(1, 2)
+accept	accept	engine	suite:keywords	SELECT CURRENT_ROLE
+accept	accept	engine	suite:keywords	SELECT GROUPING_ID()
+accept	accept	engine	suite:keywords	SELECT ROW_NUMBER() OVER () FROM (SELECT 1) t
+accept	accept	engine	suite:keywords	SELECT MINUS
+accept	accept	engine	suite:keywords	SELECT 1 MINUS SELECT 1
+accept	accept	engine	suite:keywords	WITH RECURSIVE AS (SELECT 1) SELECT * FROM RECURSIVE
+reject	reject	engine	suite:keywords	WITH RECURSIVE c AS (SELECT 1) SELECT * FROM c
+accept	accept	engine	suite:keywords	SELECT * FROM a NATURAL JOIN b
+reject	reject	engine	suite:keywords	SELECT array < 5
+reject	reject	engine	suite:keywords	CREATE INDEX i ON t (c) USING INVERTED
+accept	accept	engine	suite:keywords	CREATE INDEX i ON t (c) USING NGRAMBF
+reject	reject	engine	suite:keywords	SELECT CAST(1 AS dump)
+accept	accept	engine	suite:keywords	SELECT 1 AS dump
+accept	accept	engine	suite:keywords	SELECT TIMESTAMPDIFF(MICROSECOND, '2024-01-01', '2024-01-02')
+accept	accept	engine	suite:keywords	SELECT TIMESTAMPADD(MILLISECOND, 1, '2024-01-01')
+accept	accept	engine	suite:keywords	SELECT TIMESTAMPDIFF(DAY, '2024-01-01', '2024-01-02')
+accept	accept	engine	suite:keywords	CREATE MATERIALIZED VIEW mv (a, INDEX idx (a) USING GIN) AS SELECT a FROM t
+accept	accept	engine	suite:keywords	CREATE MATERIALIZED VIEW mv (a, INDEX idx (a) USING VECTOR) AS SELECT a FROM t
+accept	accept	engine	suite:keywords	CREATE MATERIALIZED VIEW mv (a, INDEX idx (a) USING NGRAMBF) AS SELECT a FROM t
+reject	reject	engine	suite:keywords	CREATE MATERIALIZED VIEW mv (a, INDEX idx (a) USING INVERTED) AS SELECT a FROM t

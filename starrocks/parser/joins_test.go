@@ -62,9 +62,6 @@ func TestJoinInnerExplicit(t *testing.T) {
 	if join.On == nil {
 		t.Error("On = nil, want non-nil")
 	}
-	if join.Natural {
-		t.Error("Natural = true, want false")
-	}
 }
 
 func TestJoinInnerImplicit(t *testing.T) {
@@ -208,16 +205,22 @@ func TestJoinRightAnti(t *testing.T) {
 // NATURAL JOIN
 // ---------------------------------------------------------------------------
 
-// TestJoinNatural: joinRelation (StarRocks.g4:2229) has no NATURAL.
+// TestJoinNatural: joinRelation (StarRocks.g4:2229) has no NATURAL, and
+// StarRocksLex.g4 has no NATURAL token, so `a NATURAL JOIN b` reads as a
+// relation aliased NATURAL joined to b. The 3.4.10 server parses it and fails
+// later for want of a database.
 func TestJoinNatural(t *testing.T) {
-	for _, sql := range []string{
-		"SELECT * FROM a NATURAL JOIN b",
-		"SELECT * FROM a NATURAL LEFT JOIN b",
-		"SELECT * FROM a NATURAL RIGHT JOIN b",
-	} {
-		if _, err := Parse(sql); err == nil {
-			t.Errorf("Parse(%q) succeeded; StarRocks has no NATURAL join", sql)
-		}
+	stmt := mustParseSelect(t, "SELECT * FROM a NATURAL JOIN b")
+	join, ok := stmt.From[0].(*ast.JoinClause)
+	if !ok {
+		t.Fatalf("From[0] = %T, want *ast.JoinClause", stmt.From[0])
+	}
+	left, ok := join.Left.(*ast.TableRef)
+	if !ok {
+		t.Fatalf("Join.Left = %T, want *ast.TableRef", join.Left)
+	}
+	if left.Alias != "NATURAL" {
+		t.Errorf("Join.Left.Alias = %q, want NATURAL", left.Alias)
 	}
 }
 

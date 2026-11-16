@@ -260,6 +260,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Call != nil {
 			Walk(v, n.Call)
 		}
+		for _, prop := range n.Properties {
+			Walk(v, prop)
+		}
 	case *JoinClause:
 		Walk(v, n.Left)
 		Walk(v, n.Right)

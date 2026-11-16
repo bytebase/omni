@@ -23,7 +23,7 @@ func (p *Parser) parseAlterColumnDesc() (*ast.ColumnDef, error) {
 	}
 	col := &ast.ColumnDef{Name: name, Loc: start}
 	// CHAR SET is charsetName, not the CHAR type, so it leaves the type out.
-	if p.cur.Kind == kwCHAR && p.peekNext().Kind == kwSET {
+	if (p.cur.Kind == kwCHAR || p.cur.Kind == kwCHARACTER) && p.peekNext().Kind == kwSET {
 		return nil, p.syntaxErrorAtCur()
 	}
 	if col.Type, err = p.parseAlterType(); err != nil {
@@ -32,7 +32,7 @@ func (p *Parser) parseAlterColumnDesc() (*ast.ColumnDef, error) {
 	// StarRocks.g4:402 charsetName: CHAR SET identifier | CHARSET identifier
 	// | CHARACTER SET identifier
 	switch {
-	case p.cur.Kind == kwCHAR || p.alterAt("CHARACTER"):
+	case p.cur.Kind == kwCHAR || p.cur.Kind == kwCHARACTER:
 		p.advance()
 		if _, err := p.expect(kwSET); err != nil {
 			return nil, err

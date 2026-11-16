@@ -69,9 +69,7 @@ func (p *Parser) parseCreateIndex(startLoc ast.Loc) (ast.Node, error) {
 		case kwUSING:
 			p.advance()
 			typeTok := p.cur
-			// Index type is one of: BITMAP, NGRAM_BF, INVERTED, ANN (all non-reserved).
-			// Accept any non-reserved keyword or plain identifier as an index type name.
-			if !isIdentifierToken(typeTok.Kind) {
+			if !isIndexTypeToken(typeTok.Kind) {
 				return nil, p.syntaxErrorAtCur()
 			}
 			// Normalize to lowercase for case-insensitive comparison.
@@ -180,3 +178,14 @@ func (p *Parser) parseIdentifierList() ([]string, error) {
 // parseProperties parses a PROPERTIES("key"="value", ...) clause.
 // cur must be kwPROPERTIES on entry; it is consumed here.
 // parseProperties is defined in database.go and shared by index.go.
+
+// isIndexTypeToken reports whether kind is one of indexType's words
+// (StarRocks.g4:526): BITMAP, GIN, NGRAMBF or VECTOR. They are keyword tokens,
+// so a reader that took an identifier before takes these.
+func isIndexTypeToken(kind TokenKind) bool {
+	switch kind {
+	case kwBITMAP, kwGIN, kwNGRAMBF, kwVECTOR:
+		return true
+	}
+	return false
+}

@@ -1,8 +1,6 @@
 package parser
 
 import (
-	"strings"
-
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
@@ -535,7 +533,10 @@ func (p *Parser) parseSelectItem() (*ast.SelectItem, error) {
 		Loc:  ast.Loc{Start: startLoc.Start},
 	}
 
-	alias, aliased := p.parseOptionalAlias(true)
+	alias, aliased, err := p.parseOptionalAlias(true)
+	if err != nil {
+		return nil, err
+	}
 	if aliased {
 		item.Alias = alias
 		item.Aliased = true
@@ -564,19 +565,21 @@ func (p *Parser) isSelectIdentToken() bool {
 //
 // The second return reports whether an alias was present at all: AS followed
 // by an empty string literal is engine-valid and distinct from "no alias", so
-// the value alone cannot carry presence.
-func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool) {
+// the value alone cannot carry presence. The error is the one an AS with no
+// identifier after it makes: `SELECT a AS FROM t` has an alias that is not
+// there, and the server refuses it rather than reading the AS as nothing.
+func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool, error) {
 	// Explicit: AS alias
 	if p.cur.Kind == kwAS {
 		p.advance() // consume AS
 		if stringOK && p.cur.Kind == tokString {
-			return p.advance().Str, true
+			return p.advance().Str, true, nil
 		}
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		return name, true
+		return name, true, nil
 	}
 
 	// Implicit alias: current token is an identifier or non-reserved keyword
@@ -584,12 +587,12 @@ func (p *Parser) parseOptionalAlias(stringOK bool) (string, bool) {
 	if p.isAliasIdentToken() {
 		name, _, err := p.parseAliasIdentifier()
 		if err != nil {
-			return "", false
+			return "", false, err
 		}
-		return name, true
+		return name, true, nil
 	}
 
-	return "", false
+	return "", false, nil
 }
 
 // isAliasIdentToken reports whether the current token can be used as an
@@ -631,7 +634,7 @@ func isSelectClauseKeyword(t int) bool {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwORDER,
 		kwLIMIT, kwOFFSET, kwUNION, kwEXCEPT, kwINTERSECT,
 		kwINTO, kwON, kwJOIN, kwINNER, kwLEFT, kwRIGHT, kwFULL,
-		kwCROSS, kwNATURAL, kwWITH, kwSELECT, kwSET,
+		kwCROSS, kwWITH, kwSELECT, kwSET, kwMINUS,
 		kwFOR, kwLOCK, kwUSING, kwOUTER:
 		return true
 	}
@@ -706,7 +709,10 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 				Loc: ast.Loc{Start: startLoc.Start},
 			}
 			// subqueryWithAlias (StarRocks.g4:2192): subquery (AS? alias columnAliases?)?
-			alias, _ := p.parseOptionalAlias(false)
+			alias, _, err := p.parseOptionalAlias(false)
+			if err != nil {
+				return nil, err
+			}
 			if alias != "" {
 				ref.Alias = alias
 				if p.cur.Kind == int('(') {
@@ -757,6 +763,49 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 
 	if p.cur.Kind == kwTABLE && p.peekNext().Kind == int('(') {
 		return p.parseNormalizedTableFunction()
+	}
+
+	// FILES propertyList (StarRocks.g4:2197). FILES is a reserved token, so
+	// it can neither start a qualifiedName nor be a bare table name.
+	if p.cur.Kind == kwFILES {
+		fileTok := p.advance() // consume FILES
+		props, err := p.parsePropertyList()
+		if err != nil {
+			return nil, err
+		}
+		tf := &ast.TableFunctionRef{
+			Call: &ast.FuncCallExpr{
+				Name: &ast.ObjectName{Parts: []string{"FILES"}, Loc: fileTok.Loc},
+				Loc:  fileTok.Loc,
+			},
+			Properties: props,
+			Loc:        fileTok.Loc,
+		}
+		alias, _, err := p.parseOptionalAlias(false)
+		if err != nil {
+			return nil, err
+		}
+		if alias != "" {
+			tf.Alias = alias
+			if p.cur.Kind == int('(') {
+				cols, err := p.parseColumnAliasList()
+				if err != nil {
+					return nil, err
+				}
+				tf.ColumnAliases = cols
+			}
+		}
+		tf.Loc.End = p.prev.Loc.End
+		return tf, nil
+	}
+
+	// DUAL (StarRocks.g4:2149): a FROM of its own, with no alias or joins.
+	if p.cur.Kind == kwDUAL {
+		tok := p.advance()
+		return &ast.TableRef{
+			Name: &ast.ObjectName{Parts: []string{"DUAL"}, Loc: tok.Loc},
+			Loc:  tok.Loc,
+		}, nil
 	}
 
 	// Default: a table reference or a table function.
@@ -858,7 +907,9 @@ func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 		}
 	}
 
-	if alias, _ := p.parseOptionalAlias(false); alias != "" {
+	if alias, _, err := p.parseOptionalAlias(false); err != nil {
+		return nil, err
+	} else if alias != "" {
 		ref.Alias = alias
 	}
 	if p.cur.Kind == int('[') {
@@ -875,14 +926,8 @@ func (p *Parser) parseTableOrFunction() (ast.Node, error) {
 	return ref, nil
 }
 
-// atWordToken reports whether cur is the unquoted word w, spelled as a
-// keyword or, where omni has no keyword for it, as an identifier.
-func (p *Parser) atWordToken(w string) bool {
-	if kind, ok := KeywordToken(w); ok {
-		return p.cur.Kind == kind
-	}
-	return p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, w)
-}
+// atWordToken reports whether cur is the unquoted word w.
+func (p *Parser) atWordToken(w string) bool { return p.atWord(w) }
 
 // parseIntegerIDList reads WORD '(' INTEGER_VALUE (',' INTEGER_VALUE)* ')',
 // tabletList and replicaList (StarRocks.g4:2278, :2299); cur is the word.
@@ -915,7 +960,7 @@ func periodTypeWord(tok Token) string {
 		return "TIMESTAMP"
 	case tok.Kind == kwVERSION:
 		return "VERSION"
-	case tok.Kind == tokIdent && strings.EqualFold(tok.Str, "SYSTEM_TIME"):
+	case isWordToken(tok, "SYSTEM_TIME"):
 		return "SYSTEM_TIME"
 	}
 	return ""
@@ -1106,7 +1151,9 @@ func (p *Parser) parseNormalizedTableFunction() (ast.Node, error) {
 	if _, err := p.expect(int(')')); err != nil {
 		return nil, err
 	}
-	if alias, _ := p.parseOptionalAlias(false); alias != "" {
+	if alias, _, err := p.parseOptionalAlias(false); err != nil {
+		return nil, err
+	} else if alias != "" {
 		tf.Alias = alias
 		if p.cur.Kind == int('(') {
 			cols, err := p.parseColumnAliasList()
@@ -1159,7 +1206,9 @@ func (p *Parser) parseTableFunction(name *ast.ObjectName) (ast.Node, error) {
 		Call: call,
 		Loc:  ast.Loc{Start: name.Loc.Start},
 	}
-	if alias, _ := p.parseOptionalAlias(false); alias != "" {
+	if alias, _, err := p.parseOptionalAlias(false); err != nil {
+		return nil, err
+	} else if alias != "" {
 		tf.Alias = alias
 		if p.cur.Kind == int('(') {
 			cols, err := p.parseColumnAliasList()
@@ -1197,7 +1246,10 @@ func (p *Parser) parseInlineTable(start int) (ast.Node, error) {
 	}
 
 	// Optional alias, then an optional column-alias list (requires the alias).
-	alias, _ := p.parseOptionalAlias(false)
+	alias, _, err := p.parseOptionalAlias(false)
+	if err != nil {
+		return nil, err
+	}
 	if alias != "" {
 		tbl.Alias = alias
 		if p.cur.Kind == int('(') {
@@ -1302,7 +1354,7 @@ func (p *Parser) parseColumnAliasList() ([]string, error) {
 func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 	for {
 		start := p.cur
-		joinType, natural, ok := p.parseJoinKeywords()
+		joinType, ok := p.parseJoinKeywords()
 		if !ok {
 			if p.cur.Loc.Start != start.Loc.Start {
 				// LEFT/RIGHT/FULL [OUTER | SEMI | ANTI] without JOIN: those
@@ -1329,19 +1381,18 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 		}
 
 		join := &ast.JoinClause{
-			Type:    joinType,
-			Left:    left,
-			Right:   right,
-			Natural: natural,
-			Hints:   hints,
-			Loc:     ast.Loc{Start: ast.NodeLoc(left).Start},
+			Type:  joinType,
+			Left:  left,
+			Right: right,
+			Hints: hints,
+			Loc:   ast.Loc{Start: ast.NodeLoc(left).Start},
 		}
 
 		// joinCriteria: optional after crossOrInnerJoinType, required after
 		// outerAndSemiJoinType (StarRocks.g4:2229-2234).
 		switch {
 		case p.cur.Kind != kwON && p.cur.Kind != kwUSING:
-			if joinType != ast.JoinCross && joinType != ast.JoinInner && !natural {
+			if joinType != ast.JoinCross && joinType != ast.JoinInner {
 				return nil, p.syntaxErrorAtCur()
 			}
 
@@ -1386,19 +1437,19 @@ func (p *Parser) parseJoinChain(left ast.Node) (ast.Node, error) {
 
 // parseJoinKeywords checks whether the current token position starts a
 // JOIN keyword sequence. If so, it consumes the tokens and returns
-// (joinType, natural, true). If not, returns (0, false, false)
-// without consuming any tokens.
-func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
-	// NATURAL: joinRelation (StarRocks.g4:2229) has none.
+// (joinType, true). If not, returns (0, false) without consuming any tokens.
+func (p *Parser) parseJoinKeywords() (ast.JoinType, bool) {
+	// NATURAL: joinRelation (StarRocks.g4:2229) has none, and StarRocksLex.g4
+	// has no NATURAL token, so `a NATURAL JOIN b` is a relation aliased NATURAL.
 	// INNER JOIN
 	if p.cur.Kind == kwINNER {
 		next := p.peekNext()
 		if next.Kind == kwJOIN {
 			p.advance() // consume INNER
 			p.advance() // consume JOIN
-			return ast.JoinInner, false, true
+			return ast.JoinInner, true
 		}
-		return 0, false, false
+		return 0, false
 	}
 
 	// LEFT variants: LEFT [OUTER] JOIN | LEFT SEMI JOIN | LEFT ANTI JOIN
@@ -1409,25 +1460,25 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 			p.advance() // consume LEFT
 			p.advance() // consume SEMI
 			if p.cur.Kind != kwJOIN {
-				return 0, false, false
+				return 0, false
 			}
 			p.advance() // consume JOIN
-			return ast.JoinLeftSemi, false, true
+			return ast.JoinLeftSemi, true
 		case kwANTI:
 			p.advance() // consume LEFT
 			p.advance() // consume ANTI
 			if p.cur.Kind != kwJOIN {
-				return 0, false, false
+				return 0, false
 			}
 			p.advance() // consume JOIN
-			return ast.JoinLeftAnti, false, true
+			return ast.JoinLeftAnti, true
 		case kwJOIN, kwOUTER:
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinLeft {
-				return jt, false, true
+				return jt, true
 			}
 		}
-		return 0, false, false
+		return 0, false
 	}
 
 	// RIGHT variants: RIGHT [OUTER] JOIN | RIGHT SEMI JOIN | RIGHT ANTI JOIN
@@ -1438,25 +1489,25 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 			p.advance() // consume RIGHT
 			p.advance() // consume SEMI
 			if p.cur.Kind != kwJOIN {
-				return 0, false, false
+				return 0, false
 			}
 			p.advance() // consume JOIN
-			return ast.JoinRightSemi, false, true
+			return ast.JoinRightSemi, true
 		case kwANTI:
 			p.advance() // consume RIGHT
 			p.advance() // consume ANTI
 			if p.cur.Kind != kwJOIN {
-				return 0, false, false
+				return 0, false
 			}
 			p.advance() // consume JOIN
-			return ast.JoinRightAnti, false, true
+			return ast.JoinRightAnti, true
 		case kwJOIN, kwOUTER:
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinRight {
-				return jt, false, true
+				return jt, true
 			}
 		}
-		return 0, false, false
+		return 0, false
 	}
 
 	// FULL [OUTER] JOIN
@@ -1465,10 +1516,10 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		if next.Kind == kwJOIN || next.Kind == kwOUTER {
 			jt := p.consumeDirectionAndJoin()
 			if jt == ast.JoinFull {
-				return jt, false, true
+				return jt, true
 			}
 		}
-		return 0, false, false
+		return 0, false
 	}
 
 	// CROSS | CROSS JOIN (crossOrInnerJoinType, StarRocks.g4:2236)
@@ -1477,16 +1528,16 @@ func (p *Parser) parseJoinKeywords() (ast.JoinType, bool, bool) {
 		if p.cur.Kind == kwJOIN {
 			p.advance() // consume JOIN
 		}
-		return ast.JoinCross, false, true
+		return ast.JoinCross, true
 	}
 
 	// Bare JOIN (= INNER)
 	if p.cur.Kind == kwJOIN {
 		p.advance() // consume JOIN
-		return ast.JoinInner, false, true
+		return ast.JoinInner, true
 	}
 
-	return 0, false, false
+	return 0, false
 }
 
 // consumeDirectionAndJoin consumes LEFT/RIGHT/FULL [OUTER] JOIN and returns

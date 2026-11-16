@@ -765,12 +765,6 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		cleanTok := p.advance() // consume CLEAN
 		return p.parseClean(cleanTok.Loc)
 
-	// BUILD INDEX came with the doris fork, but the StarRocks engine rejects
-	// the statement in every form (container-verified) — index builds happen
-	// through ALTER TABLE here. Rejecting keeps parity with the engine.
-	case kwBUILD:
-		return nil, p.unknownStatementError()
-
 	default:
 		return nil, p.unknownStatementError()
 	}

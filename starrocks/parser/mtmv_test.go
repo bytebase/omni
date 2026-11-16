@@ -367,3 +367,18 @@ func TestMTMVGrammar(t *testing.T) {
 		}
 	}
 }
+
+// TestMTMVIndexTypes: indexDesc's indexType (StarRocks.g4:526) is USING
+// (BITMAP | GIN | NGRAMBF | VECTOR); GIN, NGRAMBF and VECTOR are keyword
+// tokens, and INVERTED is not an index type at all.
+func TestMTMVIndexTypes(t *testing.T) {
+	for _, typ := range []string{"BITMAP", "GIN", "NGRAMBF", "VECTOR"} {
+		sql := "CREATE MATERIALIZED VIEW mv (a, INDEX idx (a) USING " + typ + ") AS SELECT a FROM t"
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%s: unexpected errors: %v", sql, errs)
+		}
+	}
+	if _, err := Parse("CREATE MATERIALIZED VIEW mv (a, INDEX idx (a) USING INVERTED) AS SELECT a FROM t"); err == nil {
+		t.Error("USING INVERTED parsed; INVERTED is not an indexType")
+	}
+}
