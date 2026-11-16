@@ -368,6 +368,26 @@ func TestPriorBackupCheckMixedDML(t *testing.T) {
 			want: nil,
 		},
 		{
+			name: "a column two tables share changes both",
+			sql:  "UPDATE tech_book JOIN orders ON tech_book.id = orders.order_id SET name = 'x'; DELETE FROM orders",
+			want: []priorBackupFinding{mixed("test.orders")},
+		},
+		{
+			name: "a column no table has changes every table",
+			sql:  "UPDATE tech_book JOIN orders ON tech_book.id = orders.order_id SET nonexistent = 1; DELETE FROM orders",
+			want: []priorBackupFinding{mixed("test.orders")},
+		},
+		{
+			name: "a schema-qualified column names one of two same-named tables",
+			sql:  "UPDATE db1.tech_book JOIN db2.tech_book ON db1.tech_book.id = db2.tech_book.id SET db1.tech_book.id = 1; DELETE FROM db1.tech_book",
+			want: []priorBackupFinding{mixed("db1.tech_book")},
+		},
+		{
+			name: "a USING clause table is not a target",
+			sql:  "UPDATE orders SET note = 'x'; DELETE FROM tech_book USING orders",
+			want: nil,
+		},
+		{
 			name: "a WITH reference is grouped as a table",
 			// The V1 rule did not tell a WITH-clause reference from a table.
 			sql:  "WITH t AS (SELECT 1 AS id) UPDATE t SET id = 2; DELETE FROM t",
