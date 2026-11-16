@@ -256,6 +256,12 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 	if n.IfNotExists && e.tables[tableName] != nil {
 		return
 	}
+	if n.AsQuery != nil {
+		if e.err == nil {
+			e.err = fmt.Errorf("CREATE TABLE AS SELECT is not supported by oracle/catalog")
+		}
+		return
+	}
 	table := e.getOrCreateTable(tableName)
 	for _, item := range listItems(n.Columns) {
 		column, ok := item.(*ast.ColumnDef)
@@ -487,7 +493,13 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				e.modifyColumn(column, table)
 			}
 		case ast.AT_DROP_COLUMN:
-			e.dropColumn(table, action.ColumnName)
+			columns := []string{action.ColumnName}
+			if action.Options != nil && len(action.Options.Items) > 0 {
+				columns = stringList(action.Options)
+			}
+			for _, column := range columns {
+				e.dropColumn(table, column)
+			}
 		case ast.AT_RENAME_COLUMN:
 			e.renameColumn(table, action.ColumnName, action.NewName)
 		case ast.AT_ADD_CONSTRAINT:
@@ -651,7 +663,7 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 	}
 	for _, other := range e.tables {
 		for _, fk := range other.ForeignKeys {
-			if fk.ReferencedTable == table.Name {
+			if fk.ReferencedTable == table.Name && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
 				fk.ReferencedColumns = renameColumnNames(fk.ReferencedColumns, oldName, newName)
 			}
 		}
@@ -820,6 +832,38 @@ func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetada
 	}
 }
 
+// renameTriggerTarget rewrites the ON relation in a trigger declaration and
+// leaves the rest of its body alone.
+func renameTriggerTarget(body, oldName, newName string) string {
+	upper := strings.ToUpper(body)
+	for offset := 0; ; {
+		index := strings.Index(upper[offset:], " ON ")
+		if index < 0 {
+			return body
+		}
+		start := offset + index + len(" ON ")
+		end := start
+		if end < len(body) && body[end] == '"' {
+			end++
+			for end < len(body) && body[end] != '"' {
+				end++
+			}
+			if end < len(body) {
+				end++
+			}
+		} else {
+			for end < len(body) && isIdentifierByte(body[end]) {
+				end++
+			}
+		}
+		token := strings.Trim(body[start:end], `"`)
+		if strings.EqualFold(token, oldName) {
+			return body[:start] + newName + body[end:]
+		}
+		offset = end
+	}
+}
+
 func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
 	table := e.tables[oldName]
 	if table == nil {
@@ -827,6 +871,9 @@ func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
 	}
 	delete(e.tables, oldName)
 	table.Name = newName
+	for _, trigger := range table.Triggers {
+		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
+	}
 	for _, fk := range table.ForeignKeys {
 		if fk.ReferencedTable == oldName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
 			fk.ReferencedTable = newName

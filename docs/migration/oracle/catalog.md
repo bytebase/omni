@@ -119,7 +119,14 @@ replay tests exercise.
 - View definitions keep `WITH READ ONLY` and `WITH CHECK OPTION`.
 - A sequence definition keeps explicit zero starts and bounds.
 - An added foreign key waits for a referenced column rebuild as well as a key
-  addition.
+  addition, and a key replacement plus a column rebuild detaches and restores
+  an unchanged foreign key once.
+- An identity column's backing-sequence default is not treated as an ordinary
+  default during a MODIFY.
+- A column rename leaves an external foreign key's referenced columns alone.
+- A parenthesized `DROP (A, B)` drops every listed column.
+- `CREATE TABLE AS SELECT` is rejected instead of installing an empty table.
+- Renaming a table rewrites the target relation of its triggers.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

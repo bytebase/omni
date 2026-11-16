@@ -31,7 +31,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	//    - Use topological sort to create in safe order
 
 	// Phase 1: Drop dependent objects using topological sort
-	dropObjectsInOrder(diff, &buf, renames)
+	dropObjectsInOrder(diff, &buf, renames, detached)
 
 	// Only add blank line if we have drops AND we're about to create something
 	dropPhaseHasContent := buf.Len() > 0
@@ -48,10 +48,12 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 }
 
 // dropObjectsInOrder drops all objects in reverse topological order (most dependent first)
-func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet) {
+func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet, detached incomingForeignKeySet) {
 	// Build dependency graph for all objects being dropped or altered
 	graph := newGraph()
-	incomingDropped := map[string]bool{}
+	for _, incoming := range detached.sorted() {
+		writeDropForeignKey(buf, incoming.schema, incoming.table, incoming.foreignKey.GetName())
+	}
 
 	// Maps to store different object types
 	viewMap := make(map[string]*ViewDiff)
@@ -264,7 +266,6 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
 								continue
 							}
-							writeIncomingForeignKeysToDrop(buf, diff, tableDiff, indexDiff.OldIndex.Expressions, incomingDropped)
 							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
@@ -341,7 +342,6 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
 								continue
 							}
-							writeIncomingForeignKeysToDrop(buf, diff, tableDiff, indexDiff.OldIndex.Expressions, incomingDropped)
 							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
@@ -707,7 +707,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			// Handle other ALTER operations
 
 			// Alter columns (type changes, nullability, etc.)
-			writeAlterColumns(buf, diff, tableDiff)
+			writeAlterColumns(buf, diff, tableDiff, detached)
 
 			// Add indexes
 			for _, indexDiff := range tableDiff.IndexChanges {
@@ -854,7 +854,7 @@ func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMe
 // ORA-54023), so those of every rebuilt column are dropped before any column
 // changes and made again once all have, each once: a constraint shared by two
 // rebuilt columns is checked only against the finished table.
-func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff) {
+func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, detached incomingForeignKeySet) {
 	var oldColumns, newColumns []string
 	for _, colDiff := range tableDiff.ColumnChanges {
 		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
@@ -867,6 +867,9 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	// Other tables' foreign keys on a rebuilt key go first, or dropping the key
 	// fails (ORA-02273), and come back after it.
 	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldColumns, DiffActionDrop) {
+		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+			continue
+		}
 		writeDropForeignKey(buf, schemaName, incoming.table, incoming.foreignKey.Name)
 	}
 	findColumnDependents(tableDiff.OldTable, oldColumns, diffObjectNames(tableDiff, DiffActionDrop)).writeDrops(buf, schemaName, tableName)
@@ -884,6 +887,9 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	}
 	findColumnDependents(tableDiff.NewTable, newColumns, created).writeCreates(buf, schemaName, tableName)
 	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, newColumns, DiffActionCreate) {
+		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+			continue
+		}
 		writeMigrationForeignKey(buf, schemaName, incoming.table, incoming.foreignKey)
 	}
 }
@@ -942,17 +948,6 @@ func findIncomingForeignKeys(diff *MetadataDiff, database *metadatapb.DatabaseSc
 		}
 	}
 	return result
-}
-
-func writeIncomingForeignKeysToDrop(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, columns []string, seen map[string]bool) {
-	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, columns, DiffActionDrop) {
-		key := incoming.table + "\x00" + incoming.foreignKey.GetName()
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		writeDropForeignKey(buf, tableDiff.SchemaName, incoming.table, incoming.foreignKey.GetName())
-	}
 }
 
 // waitsForRebuild reports whether a new table's foreign key references a column
@@ -1065,7 +1060,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 	// Handle default value changes
 	oldHasDefault := hasDefaultValue(colDiff.OldColumn)
 	newHasDefault := hasDefaultValue(colDiff.NewColumn)
-	if oldHasDefault || newHasDefault {
+	if (oldHasDefault || newHasDefault) && !colDiff.OldColumn.GetIsIdentity() && !colDiff.NewColumn.GetIsIdentity() {
 		if !defaultValuesEqual(colDiff.OldColumn, colDiff.NewColumn) {
 			// First drop the old default if it exists
 			if oldHasDefault {
@@ -2501,6 +2496,8 @@ func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
 	return set
 }
 
+func incomingForeignKeyKey(table, name string) string { return table + "\x00" + name }
+
 type incomingForeignKeySet map[string]incomingForeignKey
 
 func (s incomingForeignKeySet) sorted() []incomingForeignKey {
@@ -2527,7 +2524,7 @@ func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenam
 				continue
 			}
 			for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, indexDiff.OldIndex.GetExpressions(), DiffActionDrop) {
-				detached[incoming.table+"\x00"+incoming.foreignKey.GetName()] = incoming
+				detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = incoming
 			}
 		}
 	}

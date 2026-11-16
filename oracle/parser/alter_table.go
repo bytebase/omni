@@ -895,11 +895,14 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if err != nil {
 			return nil, err
 		}
+		names := []string{name}
 		for p.cur.Type == ',' {
 			p.advance()
-			if err := p.parseATName(); err != nil {
+			next, err := p.parseATNameString()
+			if err != nil {
 				return nil, err
 			}
+			names = append(names, next)
 		}
 		if err := p.atExpect(')'); err != nil {
 			return nil, err
@@ -907,9 +910,14 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if err := p.parseATDropColumnTrailing(true); err != nil {
 			return nil, err
 		}
+		options := &nodes.List{}
+		for _, column := range names {
+			options.Items = append(options.Items, &nodes.String{Str: column})
+		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_DROP_COLUMN,
 			ColumnName: name,
+			Options:    options,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 

@@ -928,3 +928,68 @@ func TestSequenceKeepsExplicitZero(t *testing.T) {
 		}
 	}
 }
+
+func TestIdentityDefaultIsNotAltered(t *testing.T) {
+	oldColumn := &metadatapb.ColumnMetadata{Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT, Default: `"APP"."ISEQ$$_1".nextval`}
+	newColumn := cloneColumn(oldColumn)
+	newColumn.DefaultOnNull = true
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{oldColumn}}}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{newColumn}}}}))
+	if strings.Contains(sql, "DEFAULT NULL") || strings.Contains(sql, ".nextval") {
+		t.Fatalf("identity default altered:\n%s", sql)
+	}
+}
+
+func TestRenameColumnLeavesExternalForeignKey(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{
+		{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}},
+		{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedSchema: "OTHER", ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}},
+	}})
+	if _, err := c.Exec(`ALTER TABLE P RENAME COLUMN ID TO NEW_ID`, nil); err != nil {
+		t.Fatal(err)
+	}
+	fk := tableByName(c.Metadata().Schemas[0])["C"].ForeignKeys[0]
+	if !slices.Equal(fk.ReferencedColumns, []string{"ID"}) {
+		t.Fatalf("external reference rewritten: %v", fk.ReferencedColumns)
+	}
+}
+
+func TestDropParenthesizedColumns(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (A NUMBER, B NUMBER, C NUMBER); ALTER TABLE T DROP (A, B)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if len(table.Columns) != 1 || table.Columns[0].Name != "C" {
+		t.Fatalf("columns = %+v", table.Columns)
+	}
+}
+
+func TestCreateTableAsSelectIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T AS SELECT 1 AS ID FROM DUAL`); err == nil {
+		t.Fatal("CTAS installed an empty table")
+	}
+}
+
+func TestRenameTableRewritesTriggerTarget(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Triggers: []*metadatapb.TriggerMetadata{{Name: "TRG", Body: "CREATE OR REPLACE TRIGGER TRG BEFORE INSERT ON T FOR EACH ROW BEGIN NULL; END;"}}}}})
+	if _, err := c.Exec(`ALTER TABLE T RENAME TO U`, nil); err != nil {
+		t.Fatal(err)
+	}
+	body := tableByName(c.Metadata().Schemas[0])["U"].Triggers[0].Body
+	if !strings.Contains(body, " ON U ") || strings.Contains(body, " ON T ") {
+		t.Fatalf("trigger body = %q", body)
+	}
+}
+
+func TestKeyReplacementWithColumnRebuildDropsForeignKeyOnce(t *testing.T) {
+	oldColumn := &metadatapb.ColumnMetadata{Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}
+	newColumn := cloneColumn(oldColumn)
+	newColumn.Generation.Expression = "C+2"
+	oldParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, oldColumn}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_P", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"V"}}}}
+	newParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, newColumn}, Indexes: []*metadatapb.IndexMetadata{{Name: "UK_P", Unique: true, IsConstraint: true, Expressions: []string{"V"}}}}
+	child := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_V", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_V"}, ReferencedTable: "P", ReferencedColumns: []string{"V"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldParent, child}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newParent, child}}))
+	if strings.Count(sql, `DROP CONSTRAINT "C_FK"`) != 1 || strings.Count(sql, `ADD CONSTRAINT "C_FK"`) != 1 {
+		t.Fatalf("foreign key detached/restored more than once:\n%s", sql)
+	}
+}
