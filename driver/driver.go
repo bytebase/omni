@@ -107,7 +107,9 @@ type Syncer interface {
 
 // Dumper renders a synced schema as the engine's DDL. A dump renders the
 // metadata it is given and nothing else: a caller that leaves schemas out
-// removes them first.
+// removes them first. An engine whose server states its own DDL and has no
+// catalog to render metadata with dumps that instead, and its package says the
+// metadata narrows nothing (Spanner).
 type Dumper interface {
 	Dump(ctx context.Context, w io.Writer, db *metadata.DatabaseSchemaMetadata) error
 }
