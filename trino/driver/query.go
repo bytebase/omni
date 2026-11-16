@@ -87,8 +87,11 @@ func (s *session) runStatement(ctx context.Context, statement string, opts drive
 		returnsData = true
 	} else if returnsData && opts.Limit > 0 && !strings.Contains(strings.ToUpper(stripComments(statement)), " LIMIT ") {
 		// A plan of a statement the caller did not write answers the wrong
-		// question, so the limit applies only when the statement runs.
-		statement = fmt.Sprintf("%s LIMIT %d", statement, opts.Limit)
+		// question, so the limit applies only when the statement runs. The
+		// clause goes before any trailing comment, which would otherwise
+		// comment it out.
+		at := codeEnd(statement)
+		statement = fmt.Sprintf("%s LIMIT %d%s", statement[:at], opts.Limit, statement[at:])
 	}
 
 	if returnsData {
@@ -240,6 +243,21 @@ func nodeSpan(node ast.Node) (ast.Loc, bool) {
 		return spanned.Span(), true
 	}
 	return ast.Loc{}, false
+}
+
+// codeEnd returns the offset just past statement's last token, before any
+// trailing comment or whitespace.
+func codeEnd(statement string) int {
+	tokens, _ := parser.Tokenize(statement)
+	end := 0
+	for i, token := range tokens {
+		if i == len(tokens)-1 {
+			// The list ends with the end-of-input token.
+			break
+		}
+		end = token.Loc.End
+	}
+	return end
 }
 
 // returnsRows reports whether statement returns rows: Bytebase's rule, the

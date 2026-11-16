@@ -148,6 +148,16 @@
 < row
 : int64 3
 
+== TestQuery/limit_goes_before_a_trailing_comment default#1
+> query
+| SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT 2 -- note
+< result
+< column "x" "BIGINT"
+< row
+: int64 1
+< row
+: int64 2
+
 == TestQuery/ping default#1
 > query
 | SELECT 1

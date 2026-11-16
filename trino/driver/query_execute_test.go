@@ -190,6 +190,24 @@ func TestQuery(t *testing.T) {
 		}
 	})
 
+	t.Run("limit goes before a trailing comment", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) -- note", driver.QueryOptions{Limit: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		if !strings.Contains(results[0].Statement, " LIMIT 2 -- note") {
+			t.Errorf("Statement = %q, want the limit before the trailing comment", results[0].Statement)
+		}
+		if len(results[0].Rows) != 2 {
+			t.Errorf("rows = %d, want 2", len(results[0].Rows))
+		}
+	})
+
 	t.Run("explain", func(t *testing.T) {
 		d := openDriver(t)
 		session := openSession(t, d)
