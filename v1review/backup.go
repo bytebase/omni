@@ -4,7 +4,9 @@ package v1review
 // The judgment reads two facts Bytebase resolves: the size of the reviewed
 // SQL against the size a backup may take, and whether the database a backup
 // writes to exists. Both arrive in a PriorBackupFacts, so no connection
-// crosses the contract.
+// crosses the contract. Oracle's LONG/LONG RAW warning reads the pre-change
+// snapshot instead, through the v1review.Schema every rule that looks
+// something up already receives.
 const (
 	// PriorBackupScriptTooLarge: the reviewed SQL is larger than a prior
 	// backup can take. Value holds the limit in bytes, as the V1 advisor
@@ -16,13 +18,27 @@ const (
 	// the index of the DDL statement; the V1 advisor anchored each at the
 	// statement's start.
 	PriorBackupMixedDDLAndDML Code = "prior-backup-mixed-ddl-and-dml"
+	// PriorBackupDDLInBatch: the reviewed batch holds a DDL statement, which a
+	// prior backup cannot take. The Oracle and MSSQL V1 advisors reported this
+	// once for the batch wherever the DDL is, and anchored it at the script's
+	// start rather than the statement's, so the finding carries no statement
+	// index and no range; MySQL's per-statement code is
+	// PriorBackupMixedDDLAndDML.
+	PriorBackupDDLInBatch Code = "prior-backup-ddl-in-batch"
 	// PriorBackupDatabaseMissing: the database a prior backup writes to does
 	// not exist. Name holds it as the V1 advisor printed it.
 	PriorBackupDatabaseMissing Code = "prior-backup-database-missing"
 	// PriorBackupMixedDMLOnTable: the reviewed statements change one table
-	// with more than one kind of DML. Table holds the table as
-	// "database.table", the text the V1 advisor printed.
+	// with more than one kind of DML. Table holds the table as the V1 advisor
+	// printed it, qualified by every name it resolved: "database.table" for
+	// MySQL, "schema.table" for Oracle, "database.schema.table" for MSSQL.
 	PriorBackupMixedDMLOnTable Code = "prior-backup-mixed-dml-on-table"
+	// PriorBackupUncopyableColumn: a table the reviewed statements change has
+	// a column a backup cannot copy: Oracle's LONG and LONG RAW, which CREATE
+	// TABLE AS SELECT rejects (ORA-00997). Schema and Table hold the table as
+	// the V1 advisor printed them, and Value the column names as it printed
+	// them, each double-quoted and separated by ", ".
+	PriorBackupUncopyableColumn Code = "prior-backup-uncopyable-column"
 )
 
 // PriorBackupFacts is what Bytebase resolves for a prior-backup check: what
