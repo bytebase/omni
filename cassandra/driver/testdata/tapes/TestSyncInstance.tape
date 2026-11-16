@@ -4,8 +4,8 @@
 > raw
 | {"op":"query","statement":"SELECT release_version FROM system.local"}
 < raw
-| {"columns":[{"name":"release_version","type":13}],"rows":[[{"kind":"string","text":"5.0.9"}]]}
+| {"columns":[{"name":"release_version","type":13}],"rowColumns":["release_version"],"rows":[[{"kind":"string","text":"5.0.9"}]]}
 > raw
 | {"op":"query","statement":"SELECT keyspace_name FROM system_schema.keyspaces"}
 < raw
-| {"columns":[{"name":"keyspace_name","type":13}],"rows":[[{"kind":"string","text":"system_auth"}],[{"kind":"string","text":"system_schema"}],[{"kind":"string","text":"omni_instance_b"}],[{"kind":"string","text":"system_distributed"}],[{"kind":"string","text":"system"}],[{"kind":"string","text":"omni_instance_a"}],[{"kind":"string","text":"system_traces"}]]}
+| {"columns":[{"name":"keyspace_name","type":13}],"rowColumns":["keyspace_name"],"rows":[[{"kind":"string","text":"system_auth"}],[{"kind":"string","text":"system_schema"}],[{"kind":"string","text":"omni_instance_b"}],[{"kind":"string","text":"system_distributed"}],[{"kind":"string","text":"system"}],[{"kind":"string","text":"omni_instance_a"}],[{"kind":"string","text":"system_traces"}]]}

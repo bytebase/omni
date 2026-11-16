@@ -200,8 +200,10 @@ func (vs *viewState) projectionFor(key viewKey, v *catalog.View) *viewProjection
 			// A star the inner analysis could not expand (over an unknown base
 			// table, a coalescing join, …) leaves the projection's width
 			// unknown; mark it opaque so star expansion through this view
-			// bails while named-column lookups still work.
-			opaque: r.Name == "*" || isQualifiedStarName(r.Name),
+			// bails while named-column lookups still work. The flag comes from
+			// the select item, not the name, so a column aliased to "*" is an
+			// ordinary output column.
+			opaque: r.Star,
 		})
 	}
 	// The view's metadata column list names the outputs the OUTER query
@@ -251,12 +253,6 @@ func (vs *viewState) collectTables(tables []TableAccess) {
 		return
 	}
 	*vs.tablesOut = append(*vs.tablesOut, tables...)
-}
-
-// isQualifiedStarName reports whether a result name has the unexpanded
-// qualified-star form "<rel>.*".
-func isQualifiedStarName(name string) bool {
-	return len(name) > 2 && name[len(name)-2:] == ".*"
 }
 
 // appendViewTables merges the base tables collected from resolved views into a

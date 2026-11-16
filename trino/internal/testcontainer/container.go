@@ -42,7 +42,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/moby/moby/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	"github.com/testcontainers/testcontainers-go"
 	trinoclient "github.com/trinodb/trino-go-client/trino"
 

@@ -120,6 +120,8 @@ func TestConvertRowValue(t *testing.T) {
 		{name: "varint", in: &varint, want: driver.Value{Kind: driver.String, String: "-123456789012345678901234567890"}},
 		{name: "nil varint", in: new(*big.Int), want: driver.Value{Kind: driver.Null}},
 		{name: "duration", in: &cqlDuration, want: driver.Value{Kind: driver.String, String: "1mo2d3h0m0s"}},
+		{name: "negative duration days", in: &gocql.Duration{Days: -1}, want: driver.Value{Kind: driver.String, String: "-1d0s"}},
+		{name: "negative duration months", in: &gocql.Duration{Months: -2, Nanoseconds: -5}, want: driver.Value{Kind: driver.String, String: "-2mo-5ns"}},
 		{name: "list", in: &[]int{1, 2}, want: driver.Value{Kind: driver.String, String: "[1,2]"}},
 		{name: "map", in: &map[string]int{"a": 1}, want: driver.Value{Kind: driver.String, String: `{"a":1}`}},
 	} {
@@ -127,6 +129,56 @@ func TestConvertRowValue(t *testing.T) {
 			require.Equal(t, tc.want, convertRowValue(tc.in))
 		})
 	}
+}
+
+// TestValueGroups holds gocql's tuple expansion to one group per column: a
+// tuple column answers its elements as one value, every other column one.
+func TestValueGroups(t *testing.T) {
+	scalar := testType{gocql.TypeInt, 0}
+	tuple := testType{gocql.TypeTuple, 2}
+	three := testType{gocql.TypeTuple, 3}
+	col := func(name string, info testType) gocql.ColumnInfo {
+		return gocql.ColumnInfo{Name: name, TypeInfo: info}
+	}
+	require.Equal(t, []int{1, 1, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("b", scalar), col("c", scalar)}, nil))
+	require.Equal(t, []int{1, 1, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("b", scalar), col("c", scalar)}, []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
+	// A tuple in the middle: a, tup[0], tup[1], c.
+	require.Equal(t, []int{1, 2, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("tup", tuple), col("c", scalar)}, []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
+	// A tuple of three, first.
+	require.Equal(t, []int{3, 1}, valueGroups([]gocql.ColumnInfo{col("tup", three), col("b", scalar)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
+	// The same tuple selected twice: its names repeat, and the declared element
+	// count tells the two groups apart.
+	require.Equal(t, []int{2, 2}, valueGroups([]gocql.ColumnInfo{col("tup", tuple), col("tup", tuple)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[0]", "tup[1]"}}}))
+	require.Equal(t, []int{2, 1}, valueGroups([]gocql.ColumnInfo{col("tup", tuple), col("id", scalar)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "id"}}}))
+	// A scalar alias that looks like a tuple element is one value: the column's
+	// type, not its name, says what it holds.
+	require.Equal(t, []int{1, 1, 2}, valueGroups([]gocql.ColumnInfo{col("x[0]", scalar), col("x[1]", scalar), col("tup", tuple)}, []gocql.RowData{{Columns: []string{"x[0]", "x[1]", "tup[0]", "tup[1]"}}}))
+	// A scalar alias that continues a real tuple's numbering is a value of its
+	// own: the tuple's declared element count bounds its group.
+	require.Equal(t, []int{2, 1}, valueGroups([]gocql.ColumnInfo{col("tup", tuple), col("tup[2]", scalar)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]"}}}))
+	// A grouping that does not consume every value is not one to align by.
+	require.Equal(t, []int{1, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("b", tuple)}, []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
+}
+
+// testType is a CQL type for the grouping test: only the type itself is read.
+type testType struct {
+	typ      gocql.Type
+	elements int
+}
+
+func (t testType) Type() gocql.Type          { return t.typ }
+func (t testType) Elements() int             { return t.elements }
+func (testType) Zero() any                   { return nil }
+func (testType) Marshal(any) ([]byte, error) { return nil, nil }
+func (testType) Unmarshal([]byte, any) error { return nil }
+
+func TestConvertTuple(t *testing.T) {
+	seven := 7
+	name := "seven"
+	require.Equal(t, driver.Value{Kind: driver.String, String: `[7,"seven"]`}, convertTuple([]any{&seven, &name}))
+	require.Equal(t, driver.Value{Kind: driver.String, String: `[null,"seven"]`}, convertTuple([]any{(*int)(nil), &name}))
+	huge := []int{9223372036854775807}
+	require.Equal(t, driver.Value{Kind: driver.String, String: `[[9223372036854775807]]`}, convertTuple([]any{&huge}))
 }
 
 func TestDialHostUsesTLS(t *testing.T) {

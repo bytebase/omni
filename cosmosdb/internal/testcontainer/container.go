@@ -55,8 +55,8 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
 	"github.com/bytebase/omni/enginetest"
 	"github.com/bytebase/omni/enginetest/tape"
-	dockercontainer "github.com/moby/moby/api/types/container"
-	"github.com/moby/moby/api/types/network"
+	dockercontainer "github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
@@ -146,11 +146,11 @@ func startEmulator(pin enginetest.Pin) (endpoint string, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
 
-	emulatorPort := network.MustParsePort(Port + "/tcp")
+	emulatorPort := nat.Port(Port + "/tcp")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        pin.Image,
-			ExposedPorts: []string{Port + "/tcp"},
+			ExposedPorts: []string{string(emulatorPort)},
 			Env: map[string]string{
 				"AZURE_COSMOS_EMULATOR_PARTITION_COUNT":         "8",
 				"AZURE_COSMOS_EMULATOR_ENABLE_DATA_PERSISTENCE": "false",
@@ -164,7 +164,7 @@ func startEmulator(pin enginetest.Pin) (endpoint string, err error) {
 			// and was measured at 216 s on a loaded one, so the timeout clears the
 			// longest boot seen rather than the typical one.
 			WaitingFor: wait.ForHTTP("/_explorer/emulator.pem").
-				WithPort(Port).
+				WithPort(emulatorPort).
 				WithTLS(true, &tls.Config{
 					MinVersion:         tls.VersionTLS12,
 					InsecureSkipVerify: true, //nolint:gosec // the emulator signs its certificate itself
@@ -178,7 +178,7 @@ func startEmulator(pin enginetest.Pin) (endpoint string, err error) {
 			// concurrent start fails on that binding instead of sharing the first
 			// one's databases.
 			HostConfigModifier: func(hc *dockercontainer.HostConfig) {
-				hc.PortBindings = network.PortMap{emulatorPort: []network.PortBinding{{HostPort: Port}}}
+				hc.PortBindings = nat.PortMap{emulatorPort: []nat.PortBinding{{HostPort: Port}}}
 			},
 		},
 		Started: true,

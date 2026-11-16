@@ -25,16 +25,17 @@ CREATE TABLE omni_types (
     lst list<int>,
     st set<text>,
     mp map<text,int>,
-    addr inet
+    addr inet,
+    tup tuple<int, text>
 );
 
 INSERT INTO omni_types (
-    id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr
+    id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup
 ) VALUES (
     1, 'text value', 'ascii', 'varchar', true, 9223372036854775807, 7, 300, 3.5, 1.25, 1.5,
     123456789012345678901234567890, '2026-01-02 03:04:05.678', '2026-01-02', '08:12:54.123456789',
     6afaf7c2-c0c2-0ddc-7f22-71b8f0a0b0c0, 50554d6e-29bb-11e5-b345-feff819cdc9f,
-    0xdeadbeef, 1mo2d3h, [1, 2, 3], {'a', 'b'}, {'a': 1, 'b': 2}, '10.0.0.1'
+    0xdeadbeef, 1mo2d3h, [1, 2, 3], {'a', 'b'}, {'a': 1, 'b': 2}, '10.0.0.1', (7, 'seven')
 );
 
 INSERT INTO omni_types (id, txt) VALUES (2, NULL);
@@ -60,11 +61,12 @@ CREATE TABLE omni_events (
     bucket int,
     event_id int,
     payload text,
+    note text static,
     PRIMARY KEY ((group_id), bucket, event_id)
 ) WITH CLUSTERING ORDER BY (bucket DESC, event_id ASC);
 
-INSERT INTO omni_events (group_id, bucket, event_id, payload) VALUES (1, 2, 3, 'p1');
+INSERT INTO omni_events (group_id, bucket, event_id, payload, note) VALUES (1, 2, 3, 'p1', 'first group');
 INSERT INTO omni_events (group_id, bucket, event_id, payload) VALUES (1, 1, 4, 'p2');
-INSERT INTO omni_events (group_id, bucket, event_id, payload) VALUES (2, 9, 1, 'p3');
+INSERT INTO omni_events (group_id, bucket, event_id, payload, note) VALUES (2, 9, 1, 'p3', 'second group');
 
 CREATE INDEX omni_events_payload_idx ON omni_events (payload);

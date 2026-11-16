@@ -725,6 +725,7 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 		RelOID:        rel.OID,
 		RelName:       rv.Relname,
 		SchemaName:    rv.Schemaname,
+		CatalogName:   rv.Catalogname,
 		Alias:         alias,
 		ERef:          eref,
 		ColNames:      colNames,
@@ -5360,6 +5361,12 @@ func buildResolvedArgs(argTypes []uint32, candidateArgTypes []uint32) []uint32 {
 		}
 	}
 	return resolved
+}
+
+// FigureColName returns the output column name the analyzer would give an
+// expression, for callers that compare against analyzed result names.
+func FigureColName(n nodes.Node) string {
+	return figureColName(n)
 }
 
 // figureColName determines the output column name for an expression.

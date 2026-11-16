@@ -393,6 +393,8 @@ func narrow(route, contentType string, body []byte) ([]byte, bool) {
 		sort.SliceStable(entries, func(i, j int) bool { return entries[i].Index < entries[j].Index })
 		narrowed, err := json.Marshal(entries)
 		return narrowed, err == nil
+	case isBulkEndpoint(route):
+		return narrowBulk(body)
 	case strings.HasPrefix(route, "/_security/user"), strings.HasPrefix(route, "/_plugins/_security/api/internalusers"):
 		var users map[string]struct {
 			Roles []string `json:"roles"`
@@ -412,6 +414,52 @@ func narrow(route, contentType string, body []byte) ([]byte, bool) {
 		return nil, false
 	}
 	narrowed, err := json.Marshal(withoutTimings(document))
+	return narrowed, err == nil
+}
+
+// isBulkEndpoint reports whether a route names the bulk endpoint, "/_bulk" or
+// "/<index>/_bulk". A document whose id or index carries the word is not one:
+// its answer is the document's, and narrowing it would fabricate a verdict.
+func isBulkEndpoint(route string) bool {
+	path, _, _ := strings.Cut(route, "?")
+	path = strings.TrimRight(path, "/")
+	return path == "_bulk" || strings.HasSuffix(path, "/_bulk")
+}
+
+// narrowBulk keeps what the driver reads of a bulk answer: whether any item
+// failed and, per item, its status and its error's type and reason. The rest of
+// an item names the index, its UUID and the shard, which a container makes up
+// afresh.
+func narrowBulk(body []byte) ([]byte, bool) {
+	decoder := json.NewDecoder(bytes.NewReader(body))
+	decoder.UseNumber()
+	var answer struct {
+		Errors bool                        `json:"errors"`
+		Items  []map[string]map[string]any `json:"items"`
+	}
+	if err := decoder.Decode(&answer); err != nil {
+		return nil, false
+	}
+	items := make([]any, 0, len(answer.Items))
+	for _, item := range answer.Items {
+		for op, outcome := range item {
+			kept := map[string]any{}
+			if status, ok := outcome["status"]; ok {
+				kept["status"] = status
+			}
+			if failure, ok := outcome["error"].(map[string]any); ok {
+				reason := map[string]any{}
+				for _, key := range []string{"type", "reason"} {
+					if value, ok := failure[key]; ok {
+						reason[key] = value
+					}
+				}
+				kept["error"] = reason
+			}
+			items = append(items, map[string]any{op: kept})
+		}
+	}
+	narrowed, err := json.Marshal(map[string]any{"errors": answer.Errors, "items": items})
 	return narrowed, err == nil
 }
 

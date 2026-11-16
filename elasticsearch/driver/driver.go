@@ -28,9 +28,10 @@
 // ExecuteOptions' transaction settings, CreateDatabase and MaxRetries do
 // nothing: every REST request stands alone.
 //
-// A search answered by a JSON object becomes one column per key, in no fixed
-// order: the answer is a Go map. A column carries no type name, because
-// Elasticsearch's answer states none.
+// A search answered by a JSON object becomes one column per key, the keys in
+// name order so one query shows its columns the same way every run. A column
+// carries no type name, because Elasticsearch's answer states none. A number in
+// an answer keeps its digits, so a long past 2^53 is not rounded.
 //
 // Open builds the HTTP client and reaches nothing; Ping does. Every method is
 // safe for concurrent use.
@@ -48,6 +49,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
@@ -332,6 +334,13 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 	}
 
 	result := &driver.Result{Statement: requestText(request, data)}
+	if request.Method == http.MethodHead || len(respBytes) == 0 {
+		// A HEAD answer, and any other answer with no body, states its verdict
+		// in the status alone: a successful one is a result with no columns and
+		// no rows, and decode nothing.
+		result.Latency = time.Since(startTime)
+		return result, nil
+	}
 	var (
 		columns []driver.Column
 		row     []driver.Value
@@ -342,7 +351,11 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 		// most APIs return, and an array, which the _cat APIs with format=json
 		// return. Neither is a primitive type.
 		var document any
-		if err := json.Unmarshal(respBytes, &document); err != nil {
+		decoder := json.NewDecoder(strings.NewReader(string(respBytes)))
+		// Numbers keep their digits: a long past 2^53 read as a float64 would
+		// come back rounded.
+		decoder.UseNumber()
+		if err := decoder.Decode(&document); err != nil {
 			return nil, fmt.Errorf("failed to parse json body: %w", err)
 		}
 		switch value := document.(type) {
@@ -360,10 +373,23 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 				result.Plan = explainQueryPlan()
 				break
 			}
-			// Object response: one column per key.
-			for key, val := range value {
+			// Only a bulk request's own answer states its items' verdicts; a
+			// document a caller reads may hold fields with the same names.
+			if isBulkRoute(request.URL) {
+				if failed, total, reason := bulkFailures(value); failed > 0 {
+					return nil, fmt.Errorf("%d of %d bulk items failed: %s", failed, total, reason)
+				}
+			}
+			// Object response: one column per key, ordered by name so one query
+			// shows its columns the same way every run.
+			keys := make([]string, 0, len(value))
+			for key := range value {
+				keys = append(keys, key)
+			}
+			slices.Sort(keys)
+			for _, key := range keys {
 				columns = append(columns, driver.Column{Name: key})
-				encoded, err := json.Marshal(val)
+				encoded, err := json.Marshal(value[key])
 				if err != nil {
 					return nil, err
 				}
@@ -394,6 +420,55 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 	result.Rows = [][]driver.Value{row}
 	result.Latency = time.Since(startTime)
 	return result, nil
+}
+
+// isBulkRoute reports whether a route names Elasticsearch's bulk endpoint, at
+// "/_bulk" or under an index. A document read may carry the word anywhere in its
+// path, such as /alpha/_source/app_bulk.
+func isBulkRoute(route string) bool {
+	path, _, _ := strings.Cut(route, "?")
+	path = strings.TrimRight(path, "/")
+	return path == "_bulk" || strings.HasSuffix(path, "/_bulk")
+}
+
+// bulkFailures reads a bulk answer's verdict: how many of its items failed, how
+// many there were, and the first failure's reason. A bulk request answers 200
+// whether or not its items applied, and states the failures only in the body.
+func bulkFailures(answer map[string]any) (failed, total int, reason string) {
+	errorsValue, ok := answer["errors"].(bool)
+	if !ok || !errorsValue {
+		return 0, 0, ""
+	}
+	items, ok := answer["items"].([]any)
+	if !ok {
+		return 0, 0, ""
+	}
+	for _, item := range items {
+		operations, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		total++
+		for _, operation := range operations {
+			outcome, ok := operation.(map[string]any)
+			if !ok {
+				continue
+			}
+			failure, ok := outcome["error"].(map[string]any)
+			if !ok {
+				continue
+			}
+			failed++
+			if reason == "" {
+				if text, ok := failure["reason"].(string); ok {
+					reason = text
+				} else if text, ok := failure["type"].(string); ok {
+					reason = text
+				}
+			}
+		}
+	}
+	return failed, total, reason
 }
 
 // requestText is the statement a Result carries: the request as the server will

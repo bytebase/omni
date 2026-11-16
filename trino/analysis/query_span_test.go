@@ -871,6 +871,11 @@ func TestGetQuerySpanChainsStayLinear(t *testing.T) {
 		{"UNION ALL of distinct columns", list(20000, func(i int) string { return "SELECT " + col(i) }, " UNION ALL ")},
 		{"joins whose relations the select list names", "SELECT " + list(40000, func(i int) string { return "t" + strconv.Itoa(i) + ".x" }, ", ") +
 			" FROM " + list(40000, func(i int) string { return "t t" + strconv.Itoa(i) }, " CROSS JOIN ")},
+		// Every relation is resolved here, so the join projections are real.
+		// Copying the accumulated left projection at each node made this
+		// quadratic; it is kept as a tree until the star needs it.
+		{"star over a chain of resolved CTE joins", "WITH c AS (SELECT 1 AS x) SELECT * FROM " +
+			list(20000, func(i int) string { return "c c" + strconv.Itoa(i) }, " CROSS JOIN ")},
 		{"columns of a wide derived table", "SELECT " + cols + " FROM (SELECT " + cols + " FROM t) d"},
 		{"qualified stars", "SELECT " + list(40000, func(i int) string { return "d" + strconv.Itoa(i) + ".*" }, ", ") +
 			" FROM " + list(40000, func(i int) string { return "(SELECT 1 AS x) d" + strconv.Itoa(i) }, ", ")},
