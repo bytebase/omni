@@ -54,6 +54,14 @@ var ErrMixUserSystemTables = errors.New("cannot access user and system tables at
 // checks see the tables the plan reads. The span fails closed on a parse error
 // exactly as GetQuerySpan does.
 func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan, error) {
+	// Validate the whole text before splitting: a buffer that holds only a
+	// broken comment ("/*") splits into no statement, and an unterminated
+	// comment after a real statement is not part of any segment, so both would
+	// otherwise answer a span for text the engine rejects.
+	if err := firstLexError(statement); err != nil {
+		return nil, err
+	}
+
 	stmts := SplitStatements(statement)
 	nonEmpty := 0
 	var single string
@@ -151,13 +159,15 @@ func isMixedQuery(resources SourceColumnSet, ignoreCaseSensitive bool) (bool, bo
 	return !hasUser && hasSystem, false
 }
 
-// systemDatabases contains StarRocks system databases. StarRocks exposes a
-// read-only `sys` metadatabase and does not have Doris's `mysql` or
-// `__internal_schema`.
-// Reference: https://docs.starrocks.io/docs/administration/management/system_catalogs/sys/
+// systemDatabases contains StarRocks system databases: the information schema
+// and the read-only `sys` metadatabase. StarRocks does not have Doris's
+// `mysql` or `__internal_schema`, and it has no `_statistics_` database
+// either: the pinned 3.4.10 server answers SHOW DATABASES with
+// information_schema and sys only, and ANALYZE TABLE does not create one
+// (starrocks/testdata/pins.tsv). Reference:
+// https://docs.starrocks.io/docs/administration/management/system_catalogs/sys/
 var systemDatabases = map[string]bool{
 	"information_schema": true,
-	"_statistics_":       true,
 	"sys":                true,
 }
 

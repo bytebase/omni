@@ -16,6 +16,84 @@ import (
 //
 // The WITH keyword has NOT yet been consumed when this is called.
 func (p *Parser) parseWithSelect() (*ast.SelectStmt, error) {
+	with, err := p.parseWithClause()
+	if err != nil {
+		return nil, err
+	}
+
+	// The trailing SELECT statement (WITH must be followed by SELECT here).
+	stmt, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+
+	// Attach the WITH clause and extend the overall Loc to cover WITH.
+	stmt.With = with
+	stmt.Loc.Start = with.Loc.Start
+
+	return stmt, nil
+}
+
+// parseWithStatement parses a statement that begins with a WITH clause. Doris
+// prefixes a query (SELECT, and a set operation after it) or a DML statement
+// with it:
+//
+//	explain? cte? INSERT ...   (DorisParser.g4:138)
+//	explain? cte? UPDATE ...   (DorisParser.g4:145)
+//	explain? cte? DELETE ...   (DorisParser.g4:149)
+//
+// The WITH keyword has NOT yet been consumed when this is called.
+func (p *Parser) parseWithStatement() (ast.Node, error) {
+	with, err := p.parseWithClause()
+	if err != nil {
+		return nil, err
+	}
+
+	switch p.cur.Kind {
+	case kwINSERT:
+		stmt, err := p.parseInsert()
+		if err != nil {
+			return nil, err
+		}
+		stmt.With = with
+		stmt.Loc.Start = with.Loc.Start
+		return stmt, nil
+	case kwUPDATE:
+		updateTok := p.advance() // consume UPDATE
+		stmt, err := p.parseUpdateStmt(updateTok.Loc.Start)
+		if err != nil {
+			return nil, err
+		}
+		stmt.With = with
+		stmt.Loc.Start = with.Loc.Start
+		return stmt, nil
+	case kwDELETE:
+		deleteTok := p.advance() // consume DELETE
+		stmt, err := p.parseDeleteStmt(deleteTok.Loc.Start)
+		if err != nil {
+			return nil, err
+		}
+		stmt.With = with
+		stmt.Loc.Start = with.Loc.Start
+		return stmt, nil
+	}
+
+	stmt, err := p.parseSelectStmt()
+	if err != nil {
+		return nil, err
+	}
+	stmt.With = with
+	stmt.Loc.Start = with.Loc.Start
+
+	// WITH ... SELECT continues with set operators and their trailing clauses
+	// as a bare SELECT does (engine-verified).
+	return p.parseQueryStmt(stmt)
+}
+
+// parseWithClause parses WITH [RECURSIVE] cte (',' cte)* and returns the
+// clause, leaving the cursor at the statement keyword that follows it. The
+// WITH keyword has NOT yet been consumed when this is called.
+func (p *Parser) parseWithClause() (*ast.WithClause, error) {
 	withTok, err := p.expect(kwWITH)
 	if err != nil {
 		return nil, err
@@ -48,18 +126,7 @@ func (p *Parser) parseWithSelect() (*ast.SelectStmt, error) {
 	}
 
 	with.Loc.End = p.prev.Loc.End
-
-	// The trailing SELECT statement (WITH must be followed by SELECT).
-	stmt, err := p.parseSelectStmt()
-	if err != nil {
-		return nil, err
-	}
-
-	// Attach the WITH clause and extend the overall Loc to cover WITH.
-	stmt.With = with
-	stmt.Loc.Start = withTok.Loc.Start
-
-	return stmt, nil
+	return with, nil
 }
 
 // parseCTE parses one CTE definition:

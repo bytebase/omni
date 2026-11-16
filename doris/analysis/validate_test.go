@@ -70,3 +70,14 @@ func TestDescribeExplain(t *testing.T) {
 		t.Errorf("EXPLAIN VERBOSE = (%q, %v, %v), want (VERBOSE, false, true)", format, executed, ok)
 	}
 }
+
+// A buffer that cannot lex is not read-only anything: the chunk it sits in
+// holds no statement, so parser.Split drops it and a per-segment parse never
+// sees it. The check runs on the whole text before splitting.
+func TestValidateQueryFailsClosedOnLexError(t *testing.T) {
+	for _, script := range []string{"/*", "SELECT 1; /*"} {
+		if readOnly, returnsData, err := ValidateQuery(script); err == nil {
+			t.Errorf("ValidateQuery(%q) = %v, %v, nil; want the lex error", script, readOnly, returnsData)
+		}
+	}
+}

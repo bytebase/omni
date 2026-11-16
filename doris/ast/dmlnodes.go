@@ -8,12 +8,13 @@ package ast
 
 // InsertStmt represents an INSERT INTO or INSERT OVERWRITE TABLE statement.
 //
-//	INSERT [INTO | OVERWRITE TABLE] [TEMPORARY PARTITION] table_name
+//	[WITH ...] INSERT [INTO | OVERWRITE TABLE] [TEMPORARY PARTITION] table_name
 //	    [PARTITION(p1, p2, ...) | PARTITION(*)]
 //	    [WITH LABEL label_name]
 //	    [(col1, col2, ...)]
 //	    { VALUES (expr, ...) [, (...)] | SELECT ... | WITH ... SELECT ... }
 type InsertStmt struct {
+	With          *WithClause // optional leading CTE clause (Doris WITH ... INSERT); nil if absent
 	Overwrite     bool        // true for INSERT OVERWRITE TABLE; false for INSERT INTO
 	Target        *ObjectName // target table name
 	Label         string      // optional WITH LABEL name; empty if absent
@@ -59,11 +60,12 @@ var _ Node = (*Assignment)(nil)
 
 // UpdateStmt represents an UPDATE statement:
 //
-//	UPDATE table [AS alias]
+//	[WITH ...] UPDATE table [AS alias]
 //	    SET col1 = expr1 [, col2 = expr2 ...]
 //	    [FROM table_refs]
 //	    [WHERE condition]
 type UpdateStmt struct {
+	With        *WithClause   // optional leading CTE clause (Doris WITH ... UPDATE); nil if absent
 	Target      *ObjectName   // table to update
 	TargetAlias string        // optional alias (AS alias or bare alias)
 	Assignments []*Assignment // SET clause assignments
@@ -84,11 +86,12 @@ var _ Node = (*UpdateStmt)(nil)
 
 // DeleteStmt represents a DELETE statement:
 //
-//	DELETE FROM table [AS alias]
+//	[WITH ...] DELETE FROM table [AS alias]
 //	    [PARTITION(p1 [, p2 ...])]
 //	    [USING table_refs]
 //	    [WHERE condition]
 type DeleteStmt struct {
+	With        *WithClause // optional leading CTE clause (Doris WITH ... DELETE); nil if absent
 	Target      *ObjectName // table to delete from
 	TargetAlias string      // optional alias
 	Partition   []string    // optional PARTITION(p1, p2, ...) names

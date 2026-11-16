@@ -459,6 +459,9 @@ func walkChildren(v Visitor, node Node) {
 
 	// DML — INSERT statement (T4.1).
 	case *InsertStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
@@ -474,6 +477,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Column)
 		Walk(v, n.Value)
 	case *UpdateStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		Walk(v, n.Target)
 		for _, a := range n.Assignments {
 			Walk(v, a)
@@ -483,6 +489,9 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Where)
 		}
 	case *DeleteStmt:
+		if n.With != nil {
+			Walk(v, n.With)
+		}
 		Walk(v, n.Target)
 		walkNodes(v, n.Using)
 		if n.Where != nil {
