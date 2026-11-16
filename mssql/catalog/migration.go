@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -46,6 +47,10 @@ func (p *MigrationPlan) IsEmpty() bool { return p.SQL() == "" }
 func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	if view := blockingSchemaBoundView(from, to, diff); view != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: column change under schema-bound view %s; drop and recreate the view manually.\n", view)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
+	if column := blockingComputedColumn(diff); column != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: column change under computed column %s; drop and recreate the computed column manually.\n", column)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
 	var buf strings.Builder
@@ -842,6 +847,22 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 	return buf.String()
 }
 
+func blockingComputedColumn(diff *SchemaDiff) string {
+	for _, tableDiff := range diff.Tables {
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action != DiffAlter || colDiff.OldColumn.Type == colDiff.NewColumn.Type {
+				continue
+			}
+			for _, column := range tableDiff.OldTable.Columns {
+				if isComputedColumnType(column.Type) && strings.Contains(strings.ToLower(column.Type), strings.ToLower(colDiff.OldColumn.Name)) {
+					return quote(tableDiff.SchemaName) + "." + quote(tableDiff.TableName) + "." + quote(column.Name)
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func blockingSchemaBoundView(from, to *Catalog, diff *SchemaDiff) string {
 	for _, tableDiff := range diff.Tables {
 		changed := false
@@ -912,8 +933,7 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 					if len(parts) != 2 {
 						continue
 					}
-					if strings.Contains(strings.ToLower(column.Default), strings.ToLower(parts[0]+"."+parts[1])) ||
-						strings.Contains(strings.ToLower(column.Default), strings.ToLower(parts[1])) {
+					if defaultReferencesSequence(column.Default, parts[0], parts[1]) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
 						removed[schema.Name+"."+column.DefaultConstraintName] = true
 						break
@@ -924,6 +944,25 @@ func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 	}
 	return removed
 }
+
+func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
+	matches := sequenceReference.FindAllStringSubmatch(expression, -1)
+	for _, match := range matches {
+		parts := strings.Split(match[1], ".")
+		for i := range parts {
+			parts[i] = strings.Trim(parts[i], "[]")
+		}
+		if len(parts) == 0 || !strings.EqualFold(parts[len(parts)-1], sequenceName) {
+			continue
+		}
+		if len(parts) == 1 || strings.EqualFold(parts[len(parts)-2], schemaName) {
+			return true
+		}
+	}
+	return false
+}
+
+var sequenceReference = regexp.MustCompile(`(?i)NEXT\s+VALUE\s+FOR\s+((?:\[[^\]]+\]|[A-Za-z0-9_]+)(?:\.(?:\[[^\]]+\]|[A-Za-z0-9_]+))*)`)
 
 func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
 	if schema == nil {

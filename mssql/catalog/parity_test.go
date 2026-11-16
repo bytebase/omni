@@ -109,6 +109,7 @@ var knownMigrationImprovements = map[string]bool{
 	"Complex default expressions using system functions, variables, and conditional logic":                     true,
 	"Reverse of complex default expressions - dropping columns with system functions and conditional defaults": true,
 	"Spatial table schema changes - adding columns and indexes while preserving existing spatial indexes":      true,
+	"Reverse of schema operations - dropping cross-schema foreign key, table, and schema":                      true,
 }
 
 // normalizeMetadataParity removes the fields the catalog deliberately improves

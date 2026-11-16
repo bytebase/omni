@@ -1079,6 +1079,30 @@ func normalizeExpression(expression string) string {
 			}
 			continue
 		}
+		if ch == '-' && i+1 < len(expression) && expression[i+1] == '-' {
+			for i < len(expression) && expression[i] != '\n' {
+				out.WriteByte(expression[i])
+				i++
+			}
+			if i < len(expression) {
+				out.WriteByte('\n')
+			}
+			space = false
+			continue
+		}
+		if ch == '/' && i+1 < len(expression) && expression[i+1] == '*' {
+			for i < len(expression) {
+				out.WriteByte(expression[i])
+				if expression[i] == '*' && i+1 < len(expression) && expression[i+1] == '/' {
+					out.WriteByte('/')
+					i++
+					break
+				}
+				i++
+			}
+			space = false
+			continue
+		}
 		switch {
 		case ch == '\'':
 			if space {

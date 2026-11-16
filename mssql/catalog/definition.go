@@ -738,6 +738,9 @@ func writeKey(out *strings.Builder, key *metadata.IndexMetadata) {
 
 func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
 	fmt.Fprintf(out, "    %s %s", quote(column.Name), column.Type)
+	if isComputedColumnType(column.Type) {
+		return
+	}
 	if column.IsIdentity {
 		fmt.Fprintf(out, " IDENTITY(%d,%d)", column.IdentitySeed, column.IdentityIncrement)
 	}

@@ -231,6 +231,8 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		c.execCreateTrigger(n, source)
 	case *ast.CreateSynonymStmt:
 		c.execCreateSynonym(n)
+	case *ast.AlterTableStmt:
+		c.execAlterTable(n, source)
 	case *ast.ExecStmt:
 		c.execExtendedProperty(n, source)
 	}
@@ -240,9 +242,14 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 func (c *Catalog) execCreateSchema(n *ast.CreateSchemaStmt, source string) {
 	c.getOrCreateSchema(n.Name)
 	if n.Elements != nil {
+		previous := c.defaultSchema
+		if n.Name != "" {
+			c.defaultSchema = n.Name
+		}
 		for _, item := range n.Elements.Items {
 			_ = c.execStatement(item, source)
 		}
+		c.defaultSchema = previous
 	}
 }
 
@@ -493,6 +500,24 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
 		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	}
 	schema.Sequences = append(schema.Sequences, sequence)
+}
+
+// execAlterTable applies the ALTER TABLE form a generated definition uses for
+// deferred cyclic foreign keys. Other alterations stay outside the catalog's
+// desired-state boundary.
+func (c *Catalog) execAlterTable(n *ast.AlterTableStmt, source string) {
+	schemaName, tableName := tableRefSchemaObject(n.Name, c.defaultSchema)
+	table := c.GetTable(schemaName, tableName)
+	if table == nil || n.Actions == nil {
+		return
+	}
+	for _, item := range n.Actions.Items {
+		action, ok := item.(*ast.AlterTableAction)
+		if !ok || action.Type != ast.ATAddConstraint || action.Constraint == nil {
+			continue
+		}
+		c.extractTableConstraint(action.Constraint, table, schemaName, source)
+	}
 }
 
 func (c *Catalog) execCreateSynonym(n *ast.CreateSynonymStmt) {
