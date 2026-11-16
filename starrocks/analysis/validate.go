@@ -50,13 +50,34 @@ func parseStatements(text string) ([]ast.Node, error) {
 		}
 		file, err := parser.Parse(segment.Text)
 		if err != nil {
-			return nil, err
+			return nil, offsetParseError(err, segment.ByteStart)
 		}
 		if file != nil && len(file.Stmts) > 0 {
 			nodes = append(nodes, file.Stmts[0])
 		}
 	}
 	return nodes, nil
+}
+
+// offsetParseError moves the positions parse reported for the text at base
+// into the coordinates of the script it was cut from.
+func offsetParseError(err error, base int) error {
+	if base == 0 {
+		return err
+	}
+	errs := parser.AllErrors(err)
+	if len(errs) == 0 {
+		return err
+	}
+	for i := range errs {
+		if errs[i].Position >= 0 {
+			errs[i].Position += base
+		}
+		if errs[i].End >= 0 {
+			errs[i].End += base
+		}
+	}
+	return parser.ParseErrors(errs)
 }
 
 // needsExecute reports whether a statement is allowed in the editor but is not a

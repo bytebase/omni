@@ -66,7 +66,13 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		return nil, nil
 	}
 
-	var results []*driver.Result
+	// Rewrite every statement before running any, so a rewrite that fails
+	// leaves no statement results behind.
+	type preparedStatement struct {
+		text        string
+		returnsData bool
+	}
+	prepared := make([]preparedStatement, 0, len(commands))
 	for _, cmd := range commands {
 		statement := cmd.Text
 		if opts.Explain {
@@ -85,16 +91,20 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			// it, and the server's answer decides.
 			returnsData = true
 		}
+		prepared = append(prepared, preparedStatement{text: statement, returnsData: returnsData})
+	}
 
+	var results []*driver.Result
+	for _, stmt := range prepared {
 		startTime := time.Now()
-		res, err := s.runStatement(ctx, statement, returnsData, opts.MaxResultBytes)
+		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, opts.MaxResultBytes)
 		stop := false
 		if err != nil {
 			s.driver.killQueryOnCancel(err, s.connID)
 			res = &driver.Result{Err: err}
 			stop = true
 		}
-		res.Statement = statement
+		res.Statement = stmt.text
 		res.Latency = time.Since(startTime)
 		results = append(results, res)
 		if stop {

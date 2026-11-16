@@ -76,6 +76,19 @@ func TestConnConfig(t *testing.T) {
 	_ = d.Close()
 }
 
+// sanitizeCommentToken keeps an application name inside the app comment it is
+// written into, even when removing its terminator would join another.
+func TestSanitizeCommentToken(t *testing.T) {
+	for _, name := range []string{"**//", "*/ SELECT 2; -- ", "a*/b*/c"} {
+		if got := sanitizeCommentToken(name); strings.Contains(got, "*/") {
+			t.Errorf("sanitizeCommentToken(%q) = %q still ends the comment", name, got)
+		}
+	}
+	if got := sanitizeCommentToken("bytebase"); got != "bytebase" {
+		t.Errorf("sanitizeCommentToken(bytebase) = %q", got)
+	}
+}
+
 func TestParseVersion(t *testing.T) {
 	tests := []struct {
 		version  string

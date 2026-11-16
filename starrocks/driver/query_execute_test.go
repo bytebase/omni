@@ -143,6 +143,12 @@ func TestQueryExecuteAndStats(t *testing.T) {
 		t.Fatalf("DML result = %+v, %v", dmlRes, err)
 	}
 
+	// A rewrite that fails runs no statement at all: the plan of the first
+	// statement is not reported, and no request reaches the server.
+	if _, err := sess.Query(ctx, "SELECT 1;\nSELECT FROM WHERE;", driver.QueryOptions{Explain: true}); err == nil {
+		t.Fatal("expected an explain rewrite error")
+	}
+
 	// A runtime error wraps *mysql.MySQLError and stops the script.
 	errRes, err := sess.Query(ctx, "SELECT 1;\nSELECT * FROM missing_tbl;\nSELECT 2;", driver.QueryOptions{})
 	if err != nil || len(errRes) != 2 {

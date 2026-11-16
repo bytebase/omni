@@ -166,8 +166,10 @@ func validateExtraParams(params map[string]string) error {
 	return nil
 }
 
+// sanitizeCommentToken keeps s inside the comment withAppComment opens: the
+// terminator becomes "* /", which cannot form another one.
 func sanitizeCommentToken(s string) string {
-	return strings.ReplaceAll(s, "*/", "")
+	return strings.ReplaceAll(s, "*/", "* /")
 }
 
 func (d *Driver) withAppComment(stmt string) string {
