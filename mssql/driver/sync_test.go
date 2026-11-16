@@ -1,0 +1,143 @@
+package driver
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/google/go-cmp/cmp"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/testing/protocmp"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/mssql/internal/testcontainer"
+)
+
+var update = flag.Bool("update", false, "rewrite the golden files under testdata/sync from this run")
+
+// openTestDriver returns a driver on the database of the top-level test, with
+// the corpus applied.
+func openTestDriver(t *testing.T) *Driver {
+	t.Helper()
+	db := testcontainer.Open(t)
+	t.Cleanup(func() { _ = db.Close() })
+	return &Driver{db: db, databaseName: testcontainer.Database(t)}
+}
+
+// execCorpus applies a script of GO-separated batches.
+func execCorpus(t *testing.T, db *sql.DB, script string) {
+	t.Helper()
+	var batch strings.Builder
+	flush := func() {
+		text := strings.TrimSpace(batch.String())
+		batch.Reset()
+		if text == "" {
+			return
+		}
+		if _, err := db.ExecContext(context.Background(), text); err != nil {
+			t.Fatalf("%s:\n%v", text, err)
+		}
+	}
+	for _, line := range strings.Split(script, "\n") {
+		if strings.EqualFold(strings.TrimSpace(line), "GO") {
+			flush()
+			continue
+		}
+		batch.WriteString(line)
+		batch.WriteString("\n")
+	}
+	flush()
+}
+
+func TestSyncDatabase(t *testing.T) {
+	corpus, err := os.ReadFile(filepath.Join("testdata", "corpus.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := openTestDriver(t)
+	execCorpus(t, d.db, string(corpus))
+
+	got, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "sync", "database.json")
+	if *update {
+		if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(got)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(golden, append(b, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want := readGolden(t, golden)
+	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+		t.Errorf("SyncDatabase differs from %s (-want +got):\n%s", golden, diff)
+	}
+}
+
+func readGolden(t *testing.T, path string) *metadatapb.DatabaseSchemaMetadata {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &metadatapb.DatabaseSchemaMetadata{}
+	if err := protojson.Unmarshal(b, m); err != nil {
+		t.Fatalf("%s: %v", path, err)
+	}
+	return m
+}
+
+func TestSyncInstance(t *testing.T) {
+	d := openTestDriver(t)
+	if _, err := d.db.ExecContext(context.Background(), "CREATE DATABASE "+quoteIdent("omni_instance_extra")); err != nil {
+		t.Fatal(err)
+	}
+	instance, err := d.SyncInstance(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The server's own databases and whatever an earlier test left differ
+	// between runs, so the golden holds the version and this test's database.
+	var names []string
+	for _, database := range instance.Databases {
+		if database.Name == "omni_instance_extra" || database.Name == testcontainer.Database(t) {
+			names = append(names, fmt.Sprintf("%s %s", database.Name, database.Collation))
+		}
+	}
+	out, err := json.MarshalIndent(map[string]any{"version": instance.Version, "databases": names}, "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := string(out) + "\n"
+
+	golden := filepath.Join("testdata", "sync", "instance.json")
+	if *update {
+		if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(golden, []byte(got), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if diff := cmp.Diff(string(want), got); diff != "" {
+		t.Errorf("SyncInstance differs from %s (-want +got):\n%s", golden, diff)
+	}
+}
