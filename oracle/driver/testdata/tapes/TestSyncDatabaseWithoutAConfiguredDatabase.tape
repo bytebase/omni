@@ -35,6 +35,16 @@
 < ok
 > query
 |
+| 		SELECT TABLE_NAME, COLUMN_NAME, GENERATION_TYPE, IDENTITY_OPTIONS
+| 		FROM all_tab_identity_cols
+| 		WHERE OWNER = 'OMNI_APP'
+< result
+< column "TABLE_NAME" "NCHAR"
+< column "COLUMN_NAME" "NCHAR"
+< column "GENERATION_TYPE" "NCHAR"
+< column "IDENTITY_OPTIONS" "NCHAR"
+> query
+|
 | 		SELECT
 | 			OWNER,
 | 			TABLE_NAME,
@@ -50,7 +60,8 @@
 | 			NULLABLE,
 | 			COLLATION,
 | 			DEFAULT_ON_NULL,
-| 			VIRTUAL_COLUMN
+| 			VIRTUAL_COLUMN,
+| 			IDENTITY_COLUMN
 | 		FROM sys.all_tab_cols
 | 		WHERE OWNER = 'OMNI_APP' AND USER_GENERATED = 'YES'
 | 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME
@@ -70,6 +81,7 @@
 < column "COLLATION" "NCHAR"
 < column "DEFAULT_ON_NULL" "NCHAR"
 < column "VIRTUAL_COLUMN" "NCHAR"
+< column "IDENTITY_COLUMN" "NCHAR"
 < row
 : string
 | OMNI_APP
@@ -92,6 +104,8 @@
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string

@@ -270,7 +270,11 @@ CREATE VIEW OMNI_APP.V (A, B INVISIBLE) AS SELECT A, B FROM OMNI_APP.T;
 		t.Fatal(err)
 	}
 	defer func() { _ = txn.Rollback() }()
-	columnMap, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1})
+	identityColumns, err := getIdentityColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	columnMap, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1}, identityColumns)
 	if err != nil {
 		t.Fatal(err)
 	}

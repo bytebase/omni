@@ -257,7 +257,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	defer func() { _ = txn.Rollback() }()
 
-	columnMap, err := getTableColumns(txn, d.databaseName, version)
+	identityColumns, err := getIdentityColumns(txn, d.databaseName, version)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get identity columns from database %q: %w", d.databaseName, err)
+	}
+	columnMap, err := getTableColumns(txn, d.databaseName, version, identityColumns)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get table columns from database %q: %w", d.databaseName, err)
 	}
@@ -695,6 +699,86 @@ func getTableColumnComments(txn *sql.Tx, schemaName string) (map[columnKey]strin
 	return columnCommentsMap, nil
 }
 
+// identityColumn is what ALL_TAB_IDENTITY_COLS states about an identity column
+// beyond its default.
+type identityColumn struct {
+	generation metadatapb.ColumnMetadata_IdentityGeneration
+	seed       int64
+	increment  int64
+}
+
+// getIdentityColumns reads the identity columns of a schema. Identity arrived in
+// Oracle 12.1, and the generation and seed live in a dictionary view of their
+// own, so this is a query of its own rather than another column of the one above.
+func getIdentityColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Version) (map[columnKey]identityColumn, error) {
+	identityColumns := make(map[columnKey]identityColumn)
+	if version.First < 12 {
+		return identityColumns, nil
+	}
+	query := fmt.Sprintf(`
+		SELECT TABLE_NAME, COLUMN_NAME, GENERATION_TYPE, IDENTITY_OPTIONS
+		FROM all_tab_identity_cols
+		WHERE OWNER = '%s'`, sqlLiteral(schemaName))
+	rows, err := txn.Query(query)
+	if err != nil {
+		// The view needs a privilege the account may not hold; the columns then
+		// keep the default Oracle wrote for them, as before.
+		slog.Warn("failed to list Oracle identity columns", slog.String("schema", schemaName), slog.String("error", err.Error()))
+		return identityColumns, nil
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var tableName, columnName, generationType string
+		var options sql.NullString
+		if err := rows.Scan(&tableName, &columnName, &generationType, &options); err != nil {
+			return nil, err
+		}
+		identity := identityColumn{
+			generation: metadatapb.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED,
+			seed:       1,
+			increment:  1,
+		}
+		switch generationType {
+		case "ALWAYS":
+			identity.generation = metadatapb.ColumnMetadata_ALWAYS
+		case "BY DEFAULT":
+			identity.generation = metadatapb.ColumnMetadata_BY_DEFAULT
+		}
+		if options.Valid {
+			identity.seed, identity.increment = identityOptions(options.String)
+		}
+		identityColumns[columnKey{Schema: schemaName, Table: tableName, Column: columnName}] = identity
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return identityColumns, nil
+}
+
+// identityOptions reads START WITH and INCREMENT BY out of the option list Oracle
+// writes for an identity, such as
+// "START WITH: 5, INCREMENT BY: 3, MAX_VALUE: 999…, CYCLE_FLAG: N".
+func identityOptions(options string) (seed, increment int64) {
+	seed, increment = 1, 1
+	for _, part := range strings.Split(options, ",") {
+		name, value, ok := strings.Cut(part, ":")
+		if !ok {
+			continue
+		}
+		parsed, err := strconv.ParseInt(strings.TrimSpace(value), 10, 64)
+		if err != nil {
+			continue
+		}
+		switch strings.TrimSpace(name) {
+		case "START WITH":
+			seed = parsed
+		case "INCREMENT BY":
+			increment = parsed
+		}
+	}
+	return seed, increment
+}
+
 // isGeneratedNotNull reports whether a check constraint's condition is the
 // NOT NULL Oracle records for a column, which it names itself.
 func isGeneratedNotNull(searchCondition string) bool {
@@ -708,7 +792,7 @@ func sqlLiteral(s string) string {
 }
 
 // getTableColumns gets the columns of a table.
-func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Version) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
+func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Version, identityColumns map[columnKey]identityColumn) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
 	columnsMap := make(map[tableKey][]*metadatapb.ColumnMetadata)
 
 	// Invisible columns have no COLUMN_ID. They sort after the visible columns
@@ -736,7 +820,8 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			NULLABLE,
 			COLLATION,
 			DEFAULT_ON_NULL,
-			VIRTUAL_COLUMN
+			VIRTUAL_COLUMN,
+			IDENTITY_COLUMN
 		FROM sys.all_tab_cols
 		WHERE OWNER = '%s' AND USER_GENERATED = 'YES'
 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME`, sqlLiteral(schemaName))
@@ -764,6 +849,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			NULLABLE,
 			NULL,
 			NULL,
+			NULL,
 			NULL
 		FROM sys.all_tab_columns
 		WHERE OWNER = '%s'
@@ -781,7 +867,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		var schemaName, tableName, nullable string
 		var defaultStr, collation, defaultOnNull, virtualColumn sql.NullString
 		var dataLength, dataPrecision, dataScale, charLength sql.NullInt64
-		var charUsed sql.NullString
+		var charUsed, identityColumnValue sql.NullString
 		var columnID sql.NullInt32
 		if err := rows.Scan(
 			&schemaName,
@@ -799,6 +885,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			&collation,
 			&defaultOnNull,
 			&virtualColumn,
+			&identityColumnValue,
 		); err != nil {
 			return nil, err
 		}
@@ -823,6 +910,13 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		column.Nullable = isNullBool
 		if collation.Valid {
 			column.Collation = collation.String
+		}
+		if identityColumnValue.String == "YES" {
+			identity := identityColumns[columnKey{Schema: schemaName, Table: tableName, Column: column.Name}]
+			column.IsIdentity = true
+			column.IdentityGeneration = identity.generation
+			column.IdentitySeed = identity.seed
+			column.IdentityIncrement = identity.increment
 		}
 		if defaultOnNull.Valid && defaultOnNull.String == "YES" {
 			column.DefaultOnNull = true
@@ -1717,6 +1811,12 @@ func cleanDefaultExpression(defaultExpr, currentSchema string) string {
 
 	// Remove leading/trailing whitespace
 	cleaned := strings.TrimSpace(defaultExpr)
+
+	// A string literal is a value, not an expression: its text may hold the
+	// qualification a sequence default carries, which it keeps.
+	if strings.HasPrefix(cleaned, "'") {
+		return cleaned
+	}
 
 	// Fix schema-qualified sequence NEXTVAL calls
 	// Pattern: "SCHEMA"."SEQUENCE_NAME"."NEXTVAL" -> "SEQUENCE_NAME".NEXTVAL
