@@ -1218,7 +1218,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 
 func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStmt) {
 	sequenceName := objectName(n.Name)
-	if sequenceName == "" {
+	if sequenceName == "" || !e.useSchema(n.Name.Schema) {
 		return
 	}
 	sequence := &metadatapb.SequenceMetadata{Name: sequenceName}
@@ -1240,7 +1240,7 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 
 func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt) {
 	name := objectName(n.Name)
-	if name == "" {
+	if name == "" || !e.useSchema(n.Name.Schema) {
 		return
 	}
 	sequence := e.sequences[name]
@@ -1297,6 +1297,40 @@ func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.Creat
 	pkg.Definition += "\n\n" + definition
 }
 
+func triggerAttributes(n *ast.CreateTriggerStmt) (string, string) {
+	var events []string
+	for _, item := range listItems(n.Events) {
+		switch event := item.(type) {
+		case *ast.Integer:
+			switch ast.TriggerEvent(event.Ival) {
+			case ast.TRIGGER_INSERT:
+				events = append(events, "INSERT")
+			case ast.TRIGGER_UPDATE:
+				events = append(events, "UPDATE")
+			case ast.TRIGGER_DELETE:
+				events = append(events, "DELETE")
+			}
+		case *ast.ColumnRef:
+			events = append(events, strings.ToUpper(event.Column))
+		}
+	}
+	var timing string
+	switch n.Timing {
+	case ast.TRIGGER_BEFORE:
+		timing = "BEFORE"
+	case ast.TRIGGER_AFTER:
+		timing = "AFTER"
+	case ast.TRIGGER_INSTEAD_OF:
+		timing = "INSTEAD OF"
+	}
+	if n.ForEachRow {
+		timing += " EACH ROW"
+	} else {
+		timing += " STATEMENT"
+	}
+	return strings.Join(events, " OR "), timing
+}
+
 func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt) {
 	triggerName := objectName(n.Name)
 	tableName := objectName(n.Table)
@@ -1306,9 +1340,12 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 	if n.OrReplace {
 		e.dropTrigger(triggerName)
 	}
+	event, timing := triggerAttributes(n)
 	trigger := &metadatapb.TriggerMetadata{
-		Name: triggerName,
-		Body: e.definitionText(n),
+		Name:   triggerName,
+		Event:  event,
+		Timing: timing,
+		Body:   e.definitionText(n),
 	}
 	e.triggers[triggerName] = trigger
 	if view := e.views[tableName]; view != nil {
@@ -1460,12 +1497,8 @@ func (e *oracleMetadataExtractor) exprListText(list *ast.List) []string {
 
 func (e *oracleMetadataExtractor) functionDefinitionText(node ast.Node) string {
 	definition := e.definitionText(node)
-	upper := strings.ToUpper(definition)
-	for _, prefix := range []string{"CREATE OR REPLACE", "CREATE"} {
-		if strings.HasPrefix(upper, prefix) {
-			definition = strings.TrimSpace(definition[len(prefix):])
-			break
-		}
+	if match := functionCreatePrefix.FindStringIndex(definition); match != nil {
+		definition = strings.TrimSpace(definition[match[1]:])
 	}
 	if definition != "" && !strings.HasPrefix(strings.ToUpper(definition), "FUNCTION") {
 		definition = "FUNCTION " + definition
@@ -1621,6 +1654,7 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 var (
 	identityStartPattern     = regexp.MustCompile(`(?i)START\s+WITH\s+([-+]?[0-9]+)`)
 	identityIncrementPattern = regexp.MustCompile(`(?i)INCREMENT\s+BY\s+([-+]?[0-9]+)`)
+	functionCreatePrefix     = regexp.MustCompile(`(?is)^\s*CREATE(?:\s+OR\s+REPLACE)?(?:\s+(?:NON)?EDITIONABLE)?\s+`)
 )
 
 func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClause, text string) {

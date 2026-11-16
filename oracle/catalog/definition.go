@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"slices"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -127,15 +128,8 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				}
 			}
 		}
-		for _, view := range schema.Views {
-			if err := writeView(&buf, view); err != nil {
-				return "", err
-			}
-		}
-		for _, view := range schema.MaterializedViews {
-			if err := writeMaterializedView(&buf, view); err != nil {
-				return "", err
-			}
+		if err := writeViewsInDependencyOrder(&buf, schema); err != nil {
+			return "", err
 		}
 		for _, function := range schema.Functions {
 			if err := writeFunction(&buf, function); err != nil {
@@ -186,6 +180,61 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	}
 
 	return buf.String(), nil
+}
+
+func writeViewsInDependencyOrder(buf *strings.Builder, schema *metadatapb.SchemaMetadata) error {
+	graph := newGraph()
+	views := map[string]*metadatapb.ViewMetadata{}
+	matViews := map[string]*metadatapb.MaterializedViewMetadata{}
+	for _, view := range schema.Views {
+		key := "v:" + view.Name
+		views[key] = view
+		graph.AddNode(key)
+	}
+	for _, view := range schema.MaterializedViews {
+		key := "m:" + view.Name
+		matViews[key] = view
+		graph.AddNode(key)
+	}
+	addEdges := func(key string, dependencies []*metadatapb.DependencyColumn) {
+		for _, dependency := range dependencies {
+			for _, candidate := range []string{"v:" + dependency.Table, "m:" + dependency.Table} {
+				if views[candidate] != nil || matViews[candidate] != nil {
+					graph.AddEdge(candidate, key)
+				}
+			}
+		}
+	}
+	for key, view := range views {
+		addEdges(key, view.DependencyColumns)
+	}
+	for key, view := range matViews {
+		addEdges(key, view.DependencyColumns)
+	}
+	ordered, err := graph.TopologicalSort()
+	if err != nil {
+		ordered = nil
+		for key := range views {
+			ordered = append(ordered, key)
+		}
+		for key := range matViews {
+			ordered = append(ordered, key)
+		}
+		slices.Sort(ordered)
+	}
+	for _, key := range ordered {
+		if view := views[key]; view != nil {
+			if err := writeView(buf, view); err != nil {
+				return err
+			}
+		}
+		if view := matViews[key]; view != nil {
+			if err := writeMaterializedView(buf, view); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func writeDeferredFunctionIndexes(buf *strings.Builder, tables []*metadatapb.TableMetadata) error {

@@ -1130,3 +1130,60 @@ func TestDropTableCascadeRemovesIncomingForeignKey(t *testing.T) {
 		t.Fatalf("incoming foreign key survived: %+v", child.ForeignKeys)
 	}
 }
+
+func TestAlterSequenceRejectsAnotherOwner(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Sequences: []*metadatapb.SequenceMetadata{{Name: "S", Increment: "1"}}})
+	results, err := c.Exec(`ALTER SEQUENCE OTHER.S INCREMENT BY 10`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("sequence alteration from another owner was applied")
+	}
+	if got := c.Metadata().Schemas[0].Sequences[0].Increment; got != "1" {
+		t.Fatalf("increment = %q", got)
+	}
+}
+
+func TestFunctionPrefixHandlesOrReplaceOnNewLine(t *testing.T) {
+	meta, err := metadataFromSQL("CREATE\nOR REPLACE FUNCTION F RETURN NUMBER IS BEGIN RETURN 1; END;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition := meta.Schemas[0].Functions[0].Definition
+	if strings.Contains(strings.ToUpper(definition), "OR REPLACE") {
+		t.Fatalf("definition = %q", definition)
+	}
+}
+
+func TestTriggerAttributesMatchSyncedForm(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TRG BEFORE INSERT ON T FOR EACH ROW BEGIN NULL; END;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trigger := meta.Schemas[0].Tables[0].Triggers[0]
+	if trigger.Event != "INSERT" || trigger.Timing != "BEFORE EACH ROW" {
+		t.Fatalf("trigger = %+v", trigger)
+	}
+	synced := clone(trigger)
+	synced.Body = "CREATE OR REPLACE TRIGGER APP.TRG BEFORE INSERT ON APP.T FOR EACH ROW BEGIN NULL; END;"
+	if !triggerEqual(trigger, synced) {
+		t.Fatal("synced and extracted triggers differ")
+	}
+}
+
+func TestDefinitionOrdersViewsWhenTablesCycle(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE P (ID NUMBER, C_ID NUMBER REFERENCES C(ID)); CREATE TABLE C (ID NUMBER, P_ID NUMBER REFERENCES P(ID)); CREATE VIEW Z AS SELECT ID FROM P; CREATE VIEW A AS SELECT ID FROM Z;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	z := strings.Index(definition, `CREATE VIEW "Z"`)
+	a := strings.Index(definition, `CREATE VIEW "A"`)
+	if z < 0 || a < 0 || z > a {
+		t.Fatalf("views out of dependency order:\n%s", definition)
+	}
+}

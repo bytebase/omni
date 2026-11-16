@@ -1087,6 +1087,8 @@
               "triggers": [
                 {
                   "name": "AUDIT_LOG_TRIGGER",
+                  "event": "INSERT",
+                  "timing": "BEFORE EACH ROW",
                   "body": "CREATE OR REPLACE TRIGGER audit_log_trigger\n    BEFORE INSERT ON AUDIT_LOG\n    FOR EACH ROW\nBEGIN\n    IF :NEW.LOG_ID IS NULL THEN\n        SELECT audit_log_seq.NEXTVAL INTO :NEW.LOG_ID FROM DUAL;\n    END IF;\nEND;"
                 }
               ]
@@ -1157,6 +1159,8 @@
               "triggers": [
                 {
                   "name": "INVENTORY_AUDIT_TRIGGER",
+                  "event": "INSERT OR UPDATE OR DELETE",
+                  "timing": "AFTER EACH ROW",
                   "body": "CREATE OR REPLACE TRIGGER inventory_audit_trigger\n    AFTER INSERT OR UPDATE OR DELETE ON INVENTORY\n    FOR EACH ROW\nBEGIN\n    IF INSERTING THEN\n        INSERT INTO AUDIT_LOG (TABLE_NAME, OPERATION, NEW_VALUES)\n        VALUES ('INVENTORY', 'INSERT', 'ID=' || :NEW.ITEM_ID || ',CODE=' || :NEW.ITEM_CODE);\n    ELSIF UPDATING THEN\n        INSERT INTO AUDIT_LOG (TABLE_NAME, OPERATION, OLD_VALUES, NEW_VALUES)\n        VALUES ('INVENTORY', 'UPDATE',\n                'ID=' || :OLD.ITEM_ID || ',QTY=' || :OLD.QUANTITY_ON_HAND,\n                'ID=' || :NEW.ITEM_ID || ',QTY=' || :NEW.QUANTITY_ON_HAND);\n    ELSIF DELETING THEN\n        INSERT INTO AUDIT_LOG (TABLE_NAME, OPERATION, OLD_VALUES)\n        VALUES ('INVENTORY', 'DELETE', 'ID=' || :OLD.ITEM_ID || ',CODE=' || :OLD.ITEM_CODE);\n    END IF;\nEND;"
                 }
               ]

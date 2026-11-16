@@ -614,19 +614,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			}
 		}
 
-		// Create views
-		for _, viewDiff := range viewMap {
-			if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
-				writeMigrationView(buf, viewDiff.SchemaName, viewDiff.NewView)
-			}
-		}
-
-		// Create materialized views
-		for _, mvDiff := range materializedViewMap {
-			if mvDiff.Action == DiffActionCreate || (mvDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(mvDiff.OldMaterializedView, mvDiff.NewMaterializedView)) {
-				writeMigrationMaterializedView(buf, mvDiff.SchemaName, mvDiff.NewMaterializedView)
-			}
-		}
+		writeMigrationViewsInDependencyOrder(buf, viewMap, materializedViewMap)
 
 		// Create functions
 		for _, funcDiff := range functionMap {
@@ -1801,6 +1789,73 @@ func writeProcedureDiff(out *strings.Builder, procDiff *ProcedureDiff) {
 		_, _ = out.WriteString("\n")
 	default:
 		// Handle other actions if needed
+	}
+}
+
+func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string]*ViewDiff, materializedViews map[string]*MaterializedViewDiff) {
+	graph := newGraph()
+	for key, diff := range views {
+		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView)) {
+			graph.AddNode("v:" + key)
+		}
+	}
+	for key, diff := range materializedViews {
+		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && materializedViewNeedsRecreate(diff.OldMaterializedView, diff.NewMaterializedView)) {
+			graph.AddNode("m:" + key)
+		}
+	}
+	addEdges := func(key string, dependencies []*metadatapb.DependencyColumn) {
+		for _, dependency := range dependencies {
+			for _, candidate := range []string{"v:" + getMigrationObjectID(dependency.Schema, dependency.Table), "m:" + getMigrationObjectID(dependency.Schema, dependency.Table)} {
+				graph.AddEdge(candidate, "v:"+key)
+			}
+		}
+	}
+	for key, diff := range views {
+		view := diff.NewView
+		if view == nil {
+			view = diff.OldView
+		}
+		if view != nil {
+			addEdges(key, view.DependencyColumns)
+		}
+	}
+	for key, diff := range materializedViews {
+		view := diff.NewMaterializedView
+		if view == nil {
+			view = diff.OldMaterializedView
+		}
+		if view != nil {
+			for _, dependency := range view.DependencyColumns {
+				for _, candidate := range []string{"v:" + getMigrationObjectID(dependency.Schema, dependency.Table), "m:" + getMigrationObjectID(dependency.Schema, dependency.Table)} {
+					graph.AddEdge(candidate, "v:"+key)
+				}
+			}
+		}
+	}
+	ordered, err := graph.TopologicalSort()
+	if err != nil {
+		ordered = nil
+		for key := range views {
+			ordered = append(ordered, "v:"+key)
+		}
+		for key := range materializedViews {
+			ordered = append(ordered, "m:"+key)
+		}
+		slices.Sort(ordered)
+	}
+	for _, node := range ordered {
+		if strings.HasPrefix(node, "v:") {
+			key := strings.TrimPrefix(node, "v:")
+			if diff := views[key]; diff != nil {
+				writeMigrationView(out, diff.SchemaName, diff.NewView)
+			}
+			continue
+		}
+		key := strings.TrimPrefix(node, "m:")
+		if diff := materializedViews[key]; diff != nil {
+			writeMigrationMaterializedView(out, diff.SchemaName, diff.NewMaterializedView)
+		}
 	}
 }
 

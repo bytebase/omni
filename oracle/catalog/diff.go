@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"regexp"
 	"slices"
 	"strings"
 
@@ -621,7 +622,17 @@ func compareTriggers(oldTriggers, newTriggers []*metadatapb.TriggerMetadata) []*
 
 func triggerEqual(a, b *metadatapb.TriggerMetadata) bool {
 	return a.GetName() == b.GetName() && a.GetEvent() == b.GetEvent() && a.GetTiming() == b.GetTiming() &&
-		normalizeExpression(a.GetBody()) == normalizeExpression(b.GetBody())
+		normalizeTriggerBody(a.GetBody()) == normalizeTriggerBody(b.GetBody())
+}
+
+var (
+	triggerQualifiedName = regexp.MustCompile(`(?i)(TRIGGER\s+|\sON\s+)[A-Z][A-Z0-9_$#]*\.`)
+	triggerCreateReplace = regexp.MustCompile(`(?i)CREATE\s+OR\s+REPLACE\s+TRIGGER`)
+)
+
+func normalizeTriggerBody(body string) string {
+	normalized := triggerCreateReplace.ReplaceAllString(normalizeExpression(body), "CREATE TRIGGER")
+	return triggerQualifiedName.ReplaceAllString(normalized, `$1`)
 }
 
 func viewChanged(a, b *metadatapb.ViewMetadata) bool {
@@ -643,7 +654,7 @@ func materializedViewNeedsRecreate(a, b *metadatapb.MaterializedViewMetadata) bo
 func normalizeTriggers(triggers []*metadatapb.TriggerMetadata) string {
 	var parts []string
 	for _, trigger := range triggers {
-		parts = append(parts, trigger.GetName()+"\x00"+normalizeExpression(trigger.GetBody()))
+		parts = append(parts, trigger.GetName()+"\x00"+normalizeTriggerBody(trigger.GetBody()))
 	}
 	return strings.Join(parts, "\x01")
 }

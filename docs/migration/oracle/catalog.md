@@ -138,6 +138,12 @@ replay tests exercise.
 - Temporary tables are rejected rather than installed as permanent.
 - `CREATE OR REPLACE TRIGGER` replaces the previous target, and a cascading
   table drop removes incoming local foreign keys.
+- A table-cycle fallback still orders views by their dependencies.
+- Sequence owners are validated before creation and alteration.
+- Function declarations are normalized by tokenized prefixes, including
+  `CREATE`/`OR REPLACE` on separate lines and `EDITIONABLE`.
+- Triggers extracted from SQL carry their event and timing, and trigger bodies
+  compare without schema qualification or `OR REPLACE` spelling differences.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
