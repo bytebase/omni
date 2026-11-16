@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -601,7 +602,11 @@ func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
 		fmt.Fprintf(out, " COLLATE %s", column.Collation)
 	}
 	if column.GetDefault() != "" {
-		fmt.Fprintf(out, " DEFAULT %s", column.GetDefault())
+		if column.DefaultConstraintName != "" {
+			fmt.Fprintf(out, " CONSTRAINT %s DEFAULT %s", quote(column.DefaultConstraintName), column.GetDefault())
+		} else {
+			fmt.Fprintf(out, " DEFAULT %s", column.GetDefault())
+		}
 	}
 	if !column.Nullable {
 		out.WriteString(" NOT NULL")
@@ -610,22 +615,20 @@ func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
 
 // creationDefinition turns the stored module statement into a CREATE, so a
 // view, function or procedure last updated with ALTER restores into an empty
-// database.
+// database. Only the leading module header is rewritten, not its body.
 func creationDefinition(definition string) string {
-	upper := strings.ToUpper(definition)
-	for _, kind := range []string{"VIEW", "PROCEDURE", "PROC", "FUNCTION", "TRIGGER"} {
-		for _, prefix := range []string{"ALTER " + kind, "CREATE OR ALTER " + kind} {
-			if index := strings.Index(upper, prefix); index != -1 {
-				create := "CREATE " + kind
-				if kind == "PROC" {
-					create = "CREATE PROCEDURE"
-				}
-				return definition[:index] + create + definition[index+len(prefix):]
-			}
-		}
+	match := creationHeader.FindStringSubmatchIndex(definition)
+	if match == nil {
+		return definition
 	}
-	return definition
+	kind := strings.ToUpper(definition[match[2]:match[3]])
+	if kind == "PROC" {
+		kind = "PROCEDURE"
+	}
+	return definition[:match[0]] + "CREATE " + kind + definition[match[1]:]
 }
+
+var creationHeader = regexp.MustCompile(`(?is)^\s*(?:(?:--[^\n]*\n)|(?:/\*.*?\*/)\s*)*(?:CREATE\s+OR\s+ALTER|ALTER)\s+(VIEW|PROCEDURE|PROC|FUNCTION|TRIGGER)\b`)
 
 func writeView(out *strings.Builder, view *metadata.ViewMetadata) {
 	// A synced definition keeps the trailing semicolon the CREATE VIEW was run

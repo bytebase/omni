@@ -1358,8 +1358,8 @@
 |     [id] int NOT NULL,
 |     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
 |     [email] nvarchar(255) COLLATE SQL_Latin1_General_CP1_CI_AS,
-|     [created_at] datetime2(3) DEFAULT (sysutcdatetime()) NOT NULL,
-|     [balance] decimal(12, 2) DEFAULT ((0)) NOT NULL,
+|     [created_at] datetime2(3) CONSTRAINT [DF_customers_created_at] DEFAULT (sysutcdatetime()) NOT NULL,
+|     [balance] decimal(12, 2) CONSTRAINT [DF_customers_balance] DEFAULT ((0)) NOT NULL,
 |     CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC)
 | );
 |
@@ -1368,7 +1368,7 @@
 |     [customer_id] int NOT NULL,
 |     [status] varchar(20) COLLATE Latin1_General_CS_AS NOT NULL,
 |     [note] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS,
-|     [total] money DEFAULT ((0)) NOT NULL,
+|     [total] money CONSTRAINT [DF_orders_total] DEFAULT ((0)) NOT NULL,
 |     CONSTRAINT [PK_orders] PRIMARY KEY NONCLUSTERED ([id] ASC),
 |     CONSTRAINT [UQ_orders_customer_status] UNIQUE CLUSTERED ([customer_id] ASC, [status] ASC),
 |     CONSTRAINT [FK_orders_customers] FOREIGN KEY ([customer_id]) REFERENCES [fid_cols].[customers] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION,
@@ -1431,19 +1431,19 @@
 : string
 | (sysutcdatetime())
 : string
-| DF__customers__creat__standin1
+| DF_customers_created_at
 < row
 : int64 1109578991
 : string
 | ((0))
 : string
-| DF__customers__balan__standin2
+| DF_customers_balance
 < row
 : int64 1173579219
 : string
 | ((0))
 : string
-| DF__orders__total__standin3
+| DF_orders_total
 > query
 |
 | 	SELECT
@@ -2781,19 +2781,19 @@
 : string
 | (sysutcdatetime())
 : string
-| DF__customers__creat__standin1
+| DF_customers_created_at
 < row
 : int64 1109578991
 : string
 | ((0))
 : string
-| DF__customers__balan__standin2
+| DF_customers_balance
 < row
 : int64 1173579219
 : string
 | ((0))
 : string
-| DF__orders__total__standin3
+| DF_orders_total
 > query
 |
 | 	SELECT
@@ -4279,8 +4279,8 @@
 |     [id] int NOT NULL,
 |     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
 |     [email] nvarchar(255) COLLATE SQL_Latin1_General_CP1_CI_AS,
-|     [created_at] datetime2(3) DEFAULT (sysutcdatetime()) NOT NULL,
-|     [balance] decimal(12, 2) DEFAULT ((0)) NOT NULL,
+|     [created_at] datetime2(3) CONSTRAINT [DF_customers_created_at] DEFAULT (sysutcdatetime()) NOT NULL,
+|     [balance] decimal(12, 2) CONSTRAINT [DF_customers_balance] DEFAULT ((0)) NOT NULL,
 |     CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC)
 | );
 |
@@ -4295,7 +4295,7 @@
 |     [customer_id] int NOT NULL,
 |     [status] varchar(20) COLLATE Latin1_General_CS_AS NOT NULL,
 |     [note] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS,
-|     [total] money DEFAULT ((0)) NOT NULL,
+|     [total] money CONSTRAINT [DF_orders_total] DEFAULT ((0)) NOT NULL,
 |     CONSTRAINT [PK_orders] PRIMARY KEY NONCLUSTERED ([id] ASC),
 |     CONSTRAINT [UQ_orders_customer_status] UNIQUE CLUSTERED ([customer_id] ASC, [status] ASC),
 |     CONSTRAINT [FK_orders_customers] FOREIGN KEY ([customer_id]) REFERENCES [fid_cols].[customers] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION,
@@ -4384,19 +4384,19 @@
 : string
 | (sysutcdatetime())
 : string
-| DF__customers__creat__standin4
+| DF_customers_created_at
 < row
 : int64 1397580017
 : string
 | ((0))
 : string
-| DF__customers__balan__standin5
+| DF_customers_balance
 < row
 : int64 1493580359
 : string
 | ((0))
 : string
-| DF__orders__total__standin6
+| DF_orders_total
 > query
 |
 | 	SELECT
@@ -5928,19 +5928,19 @@
 : string
 | (sysutcdatetime())
 : string
-| DF__customers__creat__standin4
+| DF_customers_created_at
 < row
 : int64 1397580017
 : string
 | ((0))
 : string
-| DF__customers__balan__standin5
+| DF_customers_balance
 < row
 : int64 1493580359
 : string
 | ((0))
 : string
-| DF__orders__total__standin6
+| DF_orders_total
 > query
 |
 | 	SELECT
@@ -7601,8 +7601,8 @@
 |     [id] int NOT NULL,
 |     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
 |     [email] nvarchar(255) COLLATE SQL_Latin1_General_CP1_CI_AS,
-|     [created_at] datetime2(3) DEFAULT (sysutcdatetime()) NOT NULL,
-|     [balance] decimal(12, 2) DEFAULT ((0)) NOT NULL,
+|     [created_at] datetime2(3) CONSTRAINT [DF_customers_created_at] DEFAULT (sysutcdatetime()) NOT NULL,
+|     [balance] decimal(12, 2) CONSTRAINT [DF_customers_balance] DEFAULT ((0)) NOT NULL,
 |     CONSTRAINT [PK_customers] PRIMARY KEY CLUSTERED ([id] ASC)
 | );
 |
@@ -7624,7 +7624,7 @@
 |     [customer_id] int NOT NULL,
 |     [status] varchar(20) COLLATE Latin1_General_CS_AS NOT NULL,
 |     [note] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS,
-|     [total] money DEFAULT ((0)) NOT NULL,
+|     [total] money CONSTRAINT [DF_orders_total] DEFAULT ((0)) NOT NULL,
 |     CONSTRAINT [PK_orders] PRIMARY KEY NONCLUSTERED ([id] ASC),
 |     CONSTRAINT [UQ_orders_customer_status] UNIQUE CLUSTERED ([customer_id] ASC, [status] ASC),
 |     CONSTRAINT [FK_orders_customers] FOREIGN KEY ([customer_id]) REFERENCES [fid_cols].[customers] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION,
@@ -7719,19 +7719,19 @@
 : string
 | (sysutcdatetime())
 : string
-| DF__customers__creat__standin7
+| DF_customers_created_at
 < row
 : int64 1781581385
 : string
 | ((0))
 : string
-| DF__customers__balan__standin8
+| DF_customers_balance
 < row
 : int64 1925581898
 : string
 | ((0))
 : string
-| DF__orders__total__standin9
+| DF_orders_total
 > query
 |
 | 	SELECT

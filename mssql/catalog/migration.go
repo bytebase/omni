@@ -647,7 +647,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	// that use it, drop the column, add the new expression, and rebuild them.
 	var rebuiltIndexes []string
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action != DiffAlter || !computedColumnChanged(colDiff) {
+		if colDiff.Action != DiffAlter || !columnRequiresRebuild(colDiff) {
 			continue
 		}
 		for _, index := range tableDiff.OldTable.Indexes {
@@ -663,7 +663,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
 	}
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action != DiffAlter || computedColumnChanged(colDiff) || colDiff.OldColumn.Type == colDiff.NewColumn.Type {
+		if colDiff.Action != DiffAlter || columnRequiresRebuild(colDiff) || colDiff.OldColumn.Type == colDiff.NewColumn.Type {
 			continue
 		}
 		for _, index := range tableDiff.OldTable.Indexes {
@@ -679,12 +679,12 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 		}
 	}
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action == DiffCreate || (colDiff.Action == DiffAlter && computedColumnChanged(colDiff)) {
+		if colDiff.Action == DiffCreate || (colDiff.Action == DiffAlter && columnRequiresRebuild(colDiff)) {
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), generateColumnDefinition(colDiff.NewColumn))
 		}
 	}
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action == DiffAlter && !computedColumnChanged(colDiff) {
+		if colDiff.Action == DiffAlter && !columnRequiresRebuild(colDiff) {
 			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, colDiff))
 		}
 	}
@@ -837,6 +837,16 @@ func writeTriggerMigration(buf *strings.Builder, trigger *metadata.TriggerMetada
 	buf.WriteString("\nGO\n")
 }
 
+func columnRequiresRebuild(diff *ColumnDiffEntry) bool {
+	if diff.OldColumn == nil || diff.NewColumn == nil {
+		return false
+	}
+	return computedColumnChanged(diff) ||
+		diff.OldColumn.IsIdentity != diff.NewColumn.IsIdentity ||
+		diff.OldColumn.IdentitySeed != diff.NewColumn.IdentitySeed ||
+		diff.OldColumn.IdentityIncrement != diff.NewColumn.IdentityIncrement
+}
+
 func computedColumnChanged(diff *ColumnDiffEntry) bool {
 	if diff.OldColumn == nil || diff.NewColumn == nil {
 		return false
@@ -887,8 +897,12 @@ func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 		buf.WriteString(" NOT NULL")
 	}
 	if column.GetDefault() != "" {
-		buf.WriteString(" DEFAULT ")
-		buf.WriteString(column.GetDefault())
+		if column.DefaultConstraintName != "" {
+			fmt.Fprintf(&buf, " CONSTRAINT %s DEFAULT %s", quote(column.DefaultConstraintName), column.GetDefault())
+		} else {
+			buf.WriteString(" DEFAULT ")
+			buf.WriteString(column.GetDefault())
+		}
 	}
 	return buf.String()
 }
@@ -925,8 +939,12 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schemaName), quote(tableName), quote(colDiff.OldColumn.DefaultConstraintName))
 		}
 		if newDefault != "" {
+			constraintName := colDiff.NewColumn.DefaultConstraintName
+			if constraintName == "" {
+				constraintName = "DF_" + tableName + "_" + colDiff.NewColumn.Name
+			}
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s DEFAULT %s FOR %s;\n",
-				quote(schemaName), quote(tableName), quote("DF_"+tableName+"_"+colDiff.NewColumn.Name), newDefault, quote(colDiff.NewColumn.Name))
+				quote(schemaName), quote(tableName), quote(constraintName), newDefault, quote(colDiff.NewColumn.Name))
 		}
 	}
 	return buf.String()
@@ -1035,9 +1053,9 @@ func generateExtendedPropertySQL(action, objectType, schemaName, objectName, com
 	var buf strings.Builder
 	switch action {
 	case "ADD":
-		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', '%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, objectType, objectName)
+		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, objectType, objectName)
 	case "UPDATE":
-		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', '%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, objectType, objectName)
+		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, objectType, objectName)
 	case "DROP":
 		fmt.Fprintf(&buf, "EXEC sp_dropextendedproperty 'MS_Description', 'SCHEMA', '%s', '%s', '%s'", schemaName, objectType, objectName)
 	}
@@ -1064,9 +1082,9 @@ func generateColumnCommentSQL(action, schemaName, tableName, columnName, comment
 	var buf strings.Builder
 	switch action {
 	case "ADD":
-		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', '%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, tableName, columnName)
+		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, tableName, columnName)
 	case "UPDATE":
-		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', '%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, tableName, columnName)
+		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, tableName, columnName)
 	case "DROP":
 		fmt.Fprintf(&buf, "EXEC sp_dropextendedproperty 'MS_Description', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", schemaName, tableName, columnName)
 	}
@@ -1208,6 +1226,9 @@ func createViewsInOrder(diff *SchemaDiff, buf *strings.Builder) {
 		if viewDiff.NewView.Comment != "" {
 			buf.WriteString(generateViewCommentSQL("ADD", viewDiff.SchemaName, viewDiff.ViewName, viewDiff.NewView.Comment))
 			buf.WriteString(";\nGO\n")
+		}
+		for _, trigger := range viewDiff.NewView.Triggers {
+			writeTriggerMigration(buf, trigger)
 		}
 	}
 	ordered, err := graph.topologicalSort()

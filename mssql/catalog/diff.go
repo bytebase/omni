@@ -417,7 +417,8 @@ func columnsEqual(a, b *metadata.ColumnMetadata) bool {
 	if !generationEqual(a.Generation, b.Generation) {
 		return false
 	}
-	if a.IsIdentity != b.IsIdentity || a.IdentityGeneration != b.IdentityGeneration || a.IdentitySeed != b.IdentitySeed {
+	if a.IsIdentity != b.IsIdentity || a.IdentityGeneration != b.IdentityGeneration ||
+		a.IdentitySeed != b.IdentitySeed || a.IdentityIncrement != b.IdentityIncrement {
 		return false
 	}
 	if (a.Srid == nil) != (b.Srid == nil) || a.GetSrid() != b.GetSrid() {
@@ -751,10 +752,22 @@ func compareViews(diff *SchemaDiff, schemaName string, oldSchema, newSchema *met
 			diff.Views = append(diff.Views, &ViewDiffEntry{Action: DiffCreate, SchemaName: schemaName, ViewName: name, NewView: newView})
 			continue
 		}
-		if !oldView.GetSkipDump() && oldView.Definition != newView.Definition {
+		if !oldView.GetSkipDump() && (oldView.Definition != newView.Definition || !triggerListsEqual(oldView.Triggers, newView.Triggers)) {
 			diff.Views = append(diff.Views, &ViewDiffEntry{Action: DiffAlter, SchemaName: schemaName, ViewName: name, OldView: oldView, NewView: newView})
 		}
 	}
+}
+
+func triggerListsEqual(a, b []*metadata.TriggerMetadata) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if !triggersEqual(a[i], b[i]) {
+			return false
+		}
+	}
+	return true
 }
 
 func compareFunctions(diff *SchemaDiff, schemaName string, oldSchema, newSchema *metadata.SchemaMetadata) {
