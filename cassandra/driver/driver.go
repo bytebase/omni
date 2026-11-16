@@ -68,7 +68,6 @@ type Driver struct {
 
 	mu   sync.Mutex
 	live *liveClient
-	err  error
 }
 
 // Open returns a driver for the cluster and keyspace cfg names. It does not
@@ -80,25 +79,26 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 	return &Driver{config: cfg}, nil
 }
 
-// conn returns the client, building the gocql session the first time.
+// conn returns the client, building the gocql session the first time. A
+// failure is not cached: a cluster that was unreachable when the driver was
+// first used answers the next call, as a caller retrying after an outage
+// expects.
 func (d *Driver) conn() (client, error) {
 	if d.client != nil {
 		return d.client, nil
 	}
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if d.live != nil || d.err != nil {
-		return d.live, d.err
+	if d.live != nil {
+		return d.live, nil
 	}
 	cluster, err := clusterConfig(d.config)
 	if err != nil {
-		d.err = err
-		return nil, d.err
+		return nil, err
 	}
 	session, err := cluster.CreateSession()
 	if err != nil {
-		d.err = fmt.Errorf("failed to create session: %w", err)
-		return nil, d.err
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 	d.live = &liveClient{session: session}
 	return d.live, nil

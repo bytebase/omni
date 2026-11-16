@@ -45,6 +45,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -81,6 +82,10 @@ type Driver struct {
 	client client
 	// openSearch selects the security API's path for the instance's users.
 	openSearch bool
+	// transport is the one Open built, nil when the caller supplied one, so
+	// Close releases the idle connections the driver opened and none of the
+	// caller's.
+	transport *http.Transport
 }
 
 // Open returns a driver for the endpoint cfg names. It does not reach the
@@ -97,16 +102,19 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 	}
 
 	httpClient := &http.Client{Transport: opt.Transport}
+	var transport *http.Transport
 	if opt.Transport == nil {
 		tlsConfig, err := tlsSettings(cfg, base.Hostname())
 		if err != nil {
 			return nil, err
 		}
-		httpClient.Transport = &http.Transport{
+		transport = &http.Transport{
 			MaxIdleConnsPerHost:   10,
+			IdleConnTimeout:       90 * time.Second,
 			ResponseHeaderTimeout: 5 * time.Second,
 			TLSClientConfig:       tlsConfig,
 		}
+		httpClient.Transport = transport
 	}
 
 	auth := ""
@@ -117,10 +125,14 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 	return &Driver{
 		client:     &liveClient{base: base, http: httpClient, auth: auth},
 		openSearch: opt.OpenSearch,
+		transport:  transport,
 	}, nil
 }
 
-// endpoint is the base URL the driver sends its requests to.
+// endpoint is the base URL the driver sends its requests to. A host may carry
+// its own scheme and port; a scheme that contradicts Config.TLS is refused
+// rather than silently used, since a caller that supplies TLS expects the
+// credentials and the answers to travel inside it.
 func endpoint(host, port string, secure bool) (*url.URL, error) {
 	host = strings.TrimSpace(host)
 	if host == "" {
@@ -131,16 +143,26 @@ func endpoint(host, port string, secure bool) (*url.URL, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to parse address: %v: %w", host, err)
 		}
+		if secure && base.Scheme != "https" {
+			return nil, fmt.Errorf("address %q is %s, but TLS is required", host, base.Scheme)
+		}
 		return base, nil
 	}
 	scheme := "http"
 	if secure {
 		scheme = "https"
 	}
+	// A host may carry its own port, which then wins. Brackets come off a
+	// literal so JoinHostPort can put them back.
+	if ownHost, ownPort, err := net.SplitHostPort(host); err == nil {
+		host, port = ownHost, ownPort
+	} else {
+		host = strings.TrimSuffix(strings.TrimPrefix(host, "["), "]")
+	}
 	if port == "" {
 		port = "9200"
 	}
-	return url.Parse(scheme + "://" + host + ":" + port)
+	return url.Parse(scheme + "://" + net.JoinHostPort(host, port))
 }
 
 // tlsSettings returns the TLS settings the endpoint's host is verified with.
@@ -214,9 +236,14 @@ func (d *Driver) Ping(ctx context.Context) error {
 	return nil
 }
 
-// Close releases nothing: Elasticsearch's protocol is stateless HTTP, and the
-// client's idle connections are the transport's.
-func (*Driver) Close() error { return nil }
+// Close releases the idle connections of the transport Open built. Elasticsearch
+// keeps no session, and a caller's transport is the caller's to close.
+func (d *Driver) Close() error {
+	if d.transport != nil {
+		d.transport.CloseIdleConnections()
+	}
+	return nil
+}
 
 // Session returns one session. Elasticsearch has no per-session state this
 // driver sets, so a session is the driver itself.

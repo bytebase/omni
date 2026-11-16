@@ -27,6 +27,10 @@ func TestEndpoint(t *testing.T) {
 		{name: "default port", host: "es.example.com", want: "http://es.example.com:9200"},
 		{name: "tls", host: "es.example.com", port: "9243", secure: true, want: "https://es.example.com:9243"},
 		{name: "host with a scheme", host: "https://search.example.com", want: "https://search.example.com"},
+		{name: "host with its own port", host: "es.example.com:9243", port: "9200", want: "http://es.example.com:9243"},
+		{name: "host with its own port under tls", host: "es.example.com:9243", secure: true, want: "https://es.example.com:9243"},
+		{name: "ipv6 literal", host: "::1", port: "9200", want: "http://[::1]:9200"},
+		{name: "ipv6 literal with a port", host: "[::1]:9243", want: "http://[::1]:9243"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := endpoint(tc.host, tc.port, tc.secure)
@@ -36,6 +40,10 @@ func TestEndpoint(t *testing.T) {
 	}
 	_, err := endpoint("", "", false)
 	require.EqualError(t, err, "host must be set")
+
+	// A scheme that contradicts Config.TLS is refused, not silently used.
+	_, err = endpoint("http://es.example.com", "", true)
+	require.EqualError(t, err, `address "http://es.example.com" is http, but TLS is required`)
 }
 
 func TestTLSSettings(t *testing.T) {

@@ -68,8 +68,14 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 	}
 	result := &driver.Result{Statement: statement}
 	pageSize := 0
-	if opts.Limit > 0 {
+	switch {
+	case opts.Limit > 0:
 		pageSize = opts.Limit
+	case opts.MaxResultBytes > 0:
+		// Without a page size Cassandra answers a whole table in one reply,
+		// and the cap could not stop the reading: the page bounds what one
+		// answer holds, the cap bounds how many rows are kept.
+		pageSize = pageSizeForACappedRead
 	}
 	var (
 		totalBytes int64
@@ -114,6 +120,10 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 	}
 	return result, nil
 }
+
+// pageSizeForACappedRead is the page size a read with only a byte cap is
+// fetched in.
+const pageSizeForACappedRead = 1000
 
 // convertRowValue reads one cell gocql handed back. gocql allocates a pointer
 // per column from the CQL type's Go type, and a list, map, set, tuple or UDT

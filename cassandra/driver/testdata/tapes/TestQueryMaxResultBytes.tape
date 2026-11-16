@@ -78,6 +78,6 @@
 < raw
 | {}
 > raw
-| {"op":"query","statement":"SELECT id, label FROM omni_rows"}
+| {"op":"query","statement":"SELECT id, label FROM omni_rows","pageSize":1000}
 < raw
 | {"columns":[{"name":"id","type":9},{"name":"label","type":13}],"rows":[[{"kind":"int","text":"5"},{"kind":"string","text":"row-5"}],[{"kind":"int","text":"10"},{"kind":"string","text":"row-10"}],[{"kind":"int","text":"1"},{"kind":"string","text":"row-1"}],[{"kind":"int","text":"8"},{"kind":"string","text":"row-8"}],[{"kind":"int","text":"2"},{"kind":"string","text":"row-2"}],[{"kind":"int","text":"4"},{"kind":"string","text":"row-4"}],[{"kind":"int","text":"7"},{"kind":"string","text":"row-7"}],[{"kind":"int","text":"6"},{"kind":"string","text":"row-6"}],[{"kind":"int","text":"9"},{"kind":"string","text":"row-9"}],[{"kind":"int","text":"3"},{"kind":"string","text":"row-3"}]]}
