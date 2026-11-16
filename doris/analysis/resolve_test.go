@@ -2,7 +2,10 @@ package analysis
 
 import (
 	"errors"
+	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/doris/parser"
 )
 
 func spanResources(span *ResolvedQuerySpan) map[string]bool {
@@ -250,5 +253,22 @@ func TestResolveQuerySpanFailsClosed(t *testing.T) {
 		if !span.SourceColumns[ColumnResource{Database: "db1", Table: "secret"}] {
 			t.Errorf("%q SourceColumns = %v, missing db1.secret", statement, spanResources(span))
 		}
+	}
+}
+
+// A script with an empty leading segment reports its parse error in the
+// script's coordinates, not the segment's.
+func TestResolveQuerySpanReportsScriptPositions(t *testing.T) {
+	const script = ";SELECT FROM"
+	_, err := ResolveQuerySpan(script, ResolveOptions{DefaultDatabase: "testdb"})
+	if err == nil {
+		t.Fatal("ResolveQuerySpan accepted a syntax error")
+	}
+	errs := parser.AllErrors(err)
+	if len(errs) == 0 {
+		t.Fatalf("error = %v, want a ParseError", err)
+	}
+	if want := strings.Index(script, "FROM"); errs[0].Position != want {
+		t.Errorf("error position = %d, want %d", errs[0].Position, want)
 	}
 }

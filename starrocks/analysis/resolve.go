@@ -57,12 +57,14 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	stmts := SplitStatements(statement)
 	nonEmpty := 0
 	var single string
+	var singleStart int
 	for _, s := range stmts {
 		if s.Empty {
 			continue
 		}
 		nonEmpty++
 		single = s.Text
+		singleStart = s.Start
 	}
 	if nonEmpty == 0 {
 		return &ResolvedQuerySpan{
@@ -78,7 +80,9 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	// all read this tree.
 	file, err := parser.Parse(single)
 	if err != nil {
-		return nil, parser.FirstError(err)
+		// The segment was cut out of the script, so its parse errors are
+		// relative to the segment; move them back into script coordinates.
+		return nil, offsetParseError(parser.FirstError(err), singleStart)
 	}
 	var node ast.Node
 	if file != nil && len(file.Stmts) > 0 {
