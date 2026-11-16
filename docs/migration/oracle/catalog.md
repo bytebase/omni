@@ -191,8 +191,12 @@ replay tests exercise.
   conversions are reported unsupported rather than emitted as invalid DDL.
 - Constraint column names compare exactly, whitespace included.
 - DEFAULT ON NULL implies NOT NULL during extraction and MODIFY.
-- Dependency scanning skips alternative-quoted literals, and dropping a
-  constraint leaves a standalone index that shares its name.
+- Dependency scanning skips alternative-quoted literals and function calls, and
+  dropping or renaming a constraint leaves a standalone index that shares its
+  name.
+- Primary-key nullability provenance follows a renamed column.
+- Incoming-key lookup resolves an unnamed synced schema to its owner.
+- A literal default containing `ISEQ$$_` is kept.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

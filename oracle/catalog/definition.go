@@ -819,8 +819,10 @@ func writeColumn(buf *strings.Builder, column *metadatapb.ColumnMetadata) error 
 	if hasDefault {
 		defaultExpr := column.Default
 
-		// Skip system-generated sequence references as they can't be manually created
-		if defaultExpr != "" && !strings.Contains(defaultExpr, "ISEQ$$_") {
+		// Skip system-generated sequence references as they can't be manually
+		// created. A quoted literal that merely contains the prefix is a value.
+		systemSequence := strings.Contains(defaultExpr, "ISEQ$$_") && !strings.HasPrefix(strings.TrimSpace(defaultExpr), "'")
+		if defaultExpr != "" && !systemSequence {
 			if _, err := buf.WriteString(` DEFAULT `); err != nil {
 				return err
 			}

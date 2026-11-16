@@ -733,6 +733,12 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 	if oldName == "" || newName == "" {
 		return
 	}
+	oldKey := table.Name + "\x00" + oldName
+	newKey := table.Name + "\x00" + newName
+	if e.primaryKeyNotNull[oldKey] {
+		delete(e.primaryKeyNotNull, oldKey)
+		e.primaryKeyNotNull[newKey] = true
+	}
 	for _, column := range table.Columns {
 		if column.Name == oldName {
 			column.Name = newName
@@ -968,7 +974,7 @@ func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetada
 		return
 	}
 	for _, index := range table.Indexes {
-		if index.Name == oldName {
+		if index.Name == oldName && index.IsConstraint {
 			index.Name = newName
 		}
 	}

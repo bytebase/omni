@@ -1755,3 +1755,64 @@ func TestDropConstraintKeepsStandaloneSameNameIndex(t *testing.T) {
 		t.Fatalf("index/check = %+v / %+v", table.Indexes, table.CheckConstraints)
 	}
 }
+
+func TestRenamePrimaryKeyColumnMovesProvenance(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY); ALTER TABLE T RENAME COLUMN ID TO X; ALTER TABLE T DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if !table.Columns[0].Nullable {
+		t.Fatalf("renamed primary-key column kept NOT NULL: %+v", table.Columns[0])
+	}
+}
+
+func TestRenameConstraintLeavesStandaloneIndex(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, D NUMBER, CONSTRAINT CK CHECK(C > 0)); CREATE UNIQUE INDEX CK ON T(D); ALTER TABLE T RENAME CONSTRAINT CK TO CK_NEW`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	found := false
+	for _, index := range table.Indexes {
+		if index.Name == "CK" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("standalone index renamed: %+v", table.Indexes)
+	}
+}
+
+func TestDropColumnKeepsCheckFunctionName(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T ("ABS" NUMBER, D NUMBER, CONSTRAINT CK CHECK(ABS(D) > 0)); ALTER TABLE T DROP COLUMN "ABS"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["T"].CheckConstraints) != 1 {
+		t.Fatal("check depending on function name was removed")
+	}
+}
+
+func TestIncomingForeignKeyFindsUnnamedSnapshotSchema(t *testing.T) {
+	oldParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_P", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	newParent := &metadatapb.TableMetadata{Name: "P", Columns: oldParent.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "UK_P", Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	child := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}}
+	from := &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{Name: "APP", Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{oldParent, child}}}}}
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{newParent, child}})
+	sql := migrationFor(t, from, to)
+	if !strings.Contains(sql, `DROP CONSTRAINT "C_FK"`) || !strings.Contains(sql, `ADD CONSTRAINT "C_FK"`) {
+		t.Fatalf("incoming foreign key not detached:\n%s", sql)
+	}
+}
+
+func TestDefinitionKeepsLiteralSequenceLikeDefault(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "VARCHAR2(30 BYTE)", Default: "'ISEQ$$_tag'", Position: 1}}}}}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `DEFAULT 'ISEQ$$_tag'`) {
+		t.Fatalf("literal default dropped:\n%s", definition)
+	}
+}

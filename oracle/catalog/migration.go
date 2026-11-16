@@ -1054,6 +1054,14 @@ func findIncomingForeignKeys(diff *MetadataDiff, database *metadatapb.DatabaseSc
 			break
 		}
 	}
+	if schemaMetadata == nil && tableDiff.SchemaName == database.GetName() {
+		for _, candidate := range database.GetSchemas() {
+			if candidate.GetName() == "" {
+				schemaMetadata = candidate
+				break
+			}
+		}
+	}
 	if schemaMetadata == nil {
 		return nil
 	}
@@ -1401,7 +1409,13 @@ func expressionReferencesColumn(expression, column string) bool {
 			}
 			// A run that starts with a digit is a number, such as 1E5.
 			if (c < '0' || c > '9') && strings.ToUpper(expression[i:j]) == column {
-				return true
+				next := j
+				for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t') {
+					next++
+				}
+				if next >= len(expression) || expression[next] != '(' {
+					return true
+				}
 			}
 			i = j
 		default:
