@@ -897,13 +897,18 @@ func functionDefinitionOutputNames(definition string) ([]string, bool) {
 		return nil, false
 	}
 	var selectStmt *ast.SelectStmt
+	var aliases []string
 	switch n := stmts[0].AST.(type) {
 	case *ast.SelectStmt:
 		selectStmt = n
 	case *ast.ViewStmt:
 		selectStmt, _ = n.Query.(*ast.SelectStmt)
+		aliases = redshiftStringList(n.Aliases)
 	case *ast.CreateTableAsStmt:
 		selectStmt, _ = n.Query.(*ast.SelectStmt)
+		if n.Into != nil {
+			aliases = redshiftStringList(n.Into.ColNames)
+		}
 	}
 	if selectStmt == nil || selectStmt.TargetList == nil {
 		return nil, false
@@ -919,7 +924,7 @@ func functionDefinitionOutputNames(definition string) ([]string, bool) {
 		}
 		names = append(names, redshiftTargetOutputName(target))
 	}
-	return names, true
+	return applyFunctionColumnAliases(names, aliases), true
 }
 
 func findFunctionTable(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {

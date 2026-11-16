@@ -545,6 +545,19 @@ func TestRedshiftQuerySpanSetOpClauseDoesNotMutateCTE(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanMaterializedViewAliasKeepsFunction covers an explicit
+// materialized-view column list, which renames the definition's outputs and
+// must also drive EXCLUDE.
+func TestRedshiftQuerySpanMaterializedViewAliasKeepsFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT m.*, reporting_fn() + 1 EXCLUDE (order_id) FROM aliased_orders_mv m")
+	require.NoError(t, err)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
