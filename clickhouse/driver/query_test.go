@@ -226,6 +226,24 @@ func TestQueryExplainJSON(t *testing.T) {
 	}
 }
 
+func TestQueryExplainPreserved(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "EXPLAIN SELECT id FROM q;\nEXPLAIN json = 1, indexes = 1 SELECT id FROM q",
+		driver.QueryOptions{Explain: true, ExplainFormat: "JSON"})
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want 2", len(results))
+	}
+	if results[0].Statement != "EXPLAIN SELECT id FROM q;" {
+		t.Errorf("text explain was rewritten: %q", results[0].Statement)
+	}
+	if results[0].Plan == nil || results[0].Plan.Format != "TEXT" {
+		t.Errorf("text plan = %+v, want TEXT", results[0].Plan)
+	}
+	if results[1].Plan == nil || results[1].Plan.Format != "JSON" {
+		t.Errorf("json plan = %+v, want JSON", results[1].Plan)
+	}
+}
+
 func TestQueryStopsAtTheFailingStatement(t *testing.T) {
 	d := setupQuery(t)
 	results := query(t, d, "SELECT 1;\nSELECT * FROM no_such_table;\nSELECT 3", driver.QueryOptions{})

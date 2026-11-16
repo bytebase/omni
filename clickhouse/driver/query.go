@@ -64,7 +64,11 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	var results []*driver.Result
 	for _, single := range statements {
 		statement := single.Text
+		explainFormat := opts.ExplainFormat
 		if opts.Explain {
+			if startsWithExplain(statement) {
+				explainFormat = explainFormatOf(statement)
+			}
 			statement = explainStatement(statement, opts.ExplainFormat)
 		} else if opts.Limit > 0 {
 			statement = statementWithResultLimit(statement, opts.Limit)
@@ -92,7 +96,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		result.Statement = statement
 		result.Latency = time.Since(startTime)
 		if opts.Explain && queryErr == nil {
-			result.Plan = &driver.Plan{Format: explainPlanFormat(opts.ExplainFormat)}
+			result.Plan = &driver.Plan{Format: explainPlanFormat(explainFormat)}
 		}
 		results = append(results, result)
 		if stop {
@@ -454,6 +458,21 @@ func normalizeJSONValue(value any) any {
 
 func explainPlanFormat(format string) string {
 	if strings.EqualFold(format, "JSON") {
+		return "JSON"
+	}
+	return "TEXT"
+}
+
+// explainFormatOf reads the format from an EXPLAIN the caller wrote, which the
+// driver runs as written. Only the statement's second word states one; every
+// other EXPLAIN kind is text.
+func explainFormatOf(statement string) string {
+	body, err := removeQuotedTextAndComment(statement)
+	if err != nil {
+		return "TEXT"
+	}
+	fields := strings.Fields(body)
+	if len(fields) >= 2 && strings.EqualFold(fields[1], "JSON") {
 		return "JSON"
 	}
 	return "TEXT"
