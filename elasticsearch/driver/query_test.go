@@ -175,13 +175,14 @@ func TestQueryHead(t *testing.T) {
 
 // TestQueryReadsADocumentThatLooksLikeABulkAnswer holds a document whose own
 // fields are named like a bulk answer's to the document: only a bulk request's
-// answer states a bulk verdict.
+// answer states a bulk verdict, and a document read under a path holding the
+// word is still a document.
 func TestQueryReadsADocumentThatLooksLikeABulkAnswer(t *testing.T) {
 	d := openDriver(t)
 	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.http")))
 	sess := openSession(t, d)
 
-	results, err := sess.Query(context.Background(), "GET /alpha/_source/app-errors", driver.QueryOptions{})
+	results, err := sess.Query(context.Background(), "GET /alpha/_source/app_bulk", driver.QueryOptions{})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	require.NoError(t, results[0].Err)

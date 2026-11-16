@@ -134,36 +134,40 @@ func TestConvertRowValue(t *testing.T) {
 // TestValueGroups holds gocql's tuple expansion to one group per column: a
 // tuple column answers its elements as one value, every other column one.
 func TestValueGroups(t *testing.T) {
-	scalar := testType(gocql.TypeInt)
-	tuple := testType(gocql.TypeTuple)
-	columns := func(types ...gocql.TypeInfo) []gocql.ColumnInfo {
-		out := make([]gocql.ColumnInfo, len(types))
-		for i, info := range types {
-			out[i] = gocql.ColumnInfo{Name: "c", TypeInfo: info}
-		}
-		return out
+	scalar := testType{gocql.TypeInt, 0}
+	tuple := testType{gocql.TypeTuple, 2}
+	three := testType{gocql.TypeTuple, 3}
+	col := func(name string, info testType) gocql.ColumnInfo {
+		return gocql.ColumnInfo{Name: name, TypeInfo: info}
 	}
-	require.Equal(t, []int{1, 1, 1}, valueGroups(columns(scalar, scalar, scalar), nil))
-	require.Equal(t, []int{1, 1, 1}, valueGroups(columns(scalar, scalar, scalar), []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
+	require.Equal(t, []int{1, 1, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("b", scalar), col("c", scalar)}, nil))
+	require.Equal(t, []int{1, 1, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("b", scalar), col("c", scalar)}, []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
 	// A tuple in the middle: a, tup[0], tup[1], c.
-	require.Equal(t, []int{1, 2, 1}, valueGroups(columns(scalar, tuple, scalar), []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
+	require.Equal(t, []int{1, 2, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("tup", tuple), col("c", scalar)}, []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
 	// A tuple of three, first.
-	require.Equal(t, []int{3, 1}, valueGroups(columns(tuple, scalar), []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
-	// The same tuple selected twice: its names repeat, and the position is
-	// what tells the two groups apart.
-	require.Equal(t, []int{2, 2}, valueGroups(columns(tuple, tuple), []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[0]", "tup[1]"}}}))
-	require.Equal(t, []int{2, 1}, valueGroups(columns(tuple, scalar), []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "id"}}}))
+	require.Equal(t, []int{3, 1}, valueGroups([]gocql.ColumnInfo{col("tup", three), col("b", scalar)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
+	// The same tuple selected twice: its names repeat, and the declared element
+	// count tells the two groups apart.
+	require.Equal(t, []int{2, 2}, valueGroups([]gocql.ColumnInfo{col("tup", tuple), col("tup", tuple)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[0]", "tup[1]"}}}))
+	require.Equal(t, []int{2, 1}, valueGroups([]gocql.ColumnInfo{col("tup", tuple), col("id", scalar)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "id"}}}))
 	// A scalar alias that looks like a tuple element is one value: the column's
 	// type, not its name, says what it holds.
-	require.Equal(t, []int{1, 1, 2}, valueGroups(columns(scalar, scalar, tuple), []gocql.RowData{{Columns: []string{"x[0]", "x[1]", "tup[0]", "tup[1]"}}}))
+	require.Equal(t, []int{1, 1, 2}, valueGroups([]gocql.ColumnInfo{col("x[0]", scalar), col("x[1]", scalar), col("tup", tuple)}, []gocql.RowData{{Columns: []string{"x[0]", "x[1]", "tup[0]", "tup[1]"}}}))
+	// A scalar alias that continues a real tuple's numbering is a value of its
+	// own: the tuple's declared element count bounds its group.
+	require.Equal(t, []int{2, 1}, valueGroups([]gocql.ColumnInfo{col("tup", tuple), col("tup[2]", scalar)}, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]"}}}))
 	// A grouping that does not consume every value is not one to align by.
-	require.Equal(t, []int{1, 1}, valueGroups(columns(scalar, tuple), []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
+	require.Equal(t, []int{1, 1}, valueGroups([]gocql.ColumnInfo{col("a", scalar), col("b", tuple)}, []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
 }
 
 // testType is a CQL type for the grouping test: only the type itself is read.
-type testType gocql.Type
+type testType struct {
+	typ      gocql.Type
+	elements int
+}
 
-func (t testType) Type() gocql.Type          { return gocql.Type(t) }
+func (t testType) Type() gocql.Type          { return t.typ }
+func (t testType) Elements() int             { return t.elements }
 func (testType) Zero() any                   { return nil }
 func (testType) Marshal(any) ([]byte, error) { return nil, nil }
 func (testType) Unmarshal([]byte, any) error { return nil }

@@ -22,9 +22,9 @@
 < raw
 | {"status":201,"contentType":"application/json","body":"{\"_id\":\"big\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":3,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
 > raw
-| {"method":"POST","route":"/alpha/_doc/app-errors","body":"{\"errors\": true, \"items\": [{\"update\": {\"error\": {\"reason\": \"logged application error\"}}}]}\n"}
+| {"method":"POST","route":"/alpha/_doc/app_bulk","body":"{\"errors\": true, \"items\": [{\"update\": {\"error\": {\"reason\": \"logged application error\"}}}]}\n"}
 < raw
-| {"status":201,"contentType":"application/json","body":"{\"_id\":\"app-errors\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":4,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
+| {"status":201,"contentType":"application/json","body":"{\"errors\":false,\"items\":[]}"}
 > raw
 | {"method":"POST","route":"/alpha/_refresh"}
 < raw
@@ -62,6 +62,6 @@
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"acknowledged\":true,\"index\":\"hidden-one\",\"shards_acknowledged\":true}"}
 > raw
-| {"method":"GET","route":"/alpha/_source/app-errors"}
+| {"method":"GET","route":"/alpha/_source/app_bulk"}
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"errors\":true,\"items\":[{\"update\":{\"error\":{\"reason\":\"logged application error\"}}}]}"}

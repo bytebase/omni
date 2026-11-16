@@ -375,7 +375,7 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 			}
 			// Only a bulk request's own answer states its items' verdicts; a
 			// document a caller reads may hold fields with the same names.
-			if strings.Contains(request.URL, "_bulk") {
+			if isBulkRoute(request.URL) {
 				if failed, total, reason := bulkFailures(value); failed > 0 {
 					return nil, fmt.Errorf("%d of %d bulk items failed: %s", failed, total, reason)
 				}
@@ -420,6 +420,15 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 	result.Rows = [][]driver.Value{row}
 	result.Latency = time.Since(startTime)
 	return result, nil
+}
+
+// isBulkRoute reports whether a route names Elasticsearch's bulk endpoint, at
+// "/_bulk" or under an index. A document read may carry the word anywhere in its
+// path, such as /alpha/_source/app_bulk.
+func isBulkRoute(route string) bool {
+	path, _, _ := strings.Cut(route, "?")
+	path = strings.TrimRight(path, "/")
+	return path == "_bulk" || strings.HasSuffix(path, "/_bulk")
 }
 
 // bulkFailures reads a bulk answer's verdict: how many of its items failed, how

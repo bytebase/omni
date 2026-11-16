@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
-	"strconv"
 	"strings"
 	"time"
 
@@ -160,19 +159,8 @@ func valueGroups(columns []gocql.ColumnInfo, rows []gocql.RowData) []int {
 			break
 		}
 		size := 1
-		if column.TypeInfo != nil && column.TypeInfo.Type() == gocql.TypeTuple {
-			base, index, ok := tupleElementName(names[at])
-			if ok && index == 0 {
-				count := 1
-				for at+count < len(names) {
-					nextBase, nextIndex, ok := tupleElementName(names[at+count])
-					if !ok || nextBase != base || nextIndex != count {
-						break
-					}
-					count++
-				}
-				size = count
-			}
+		if arity := tupleArity(column.TypeInfo); arity > 0 && names[at] == column.Name+"[0]" {
+			size = min(arity, len(names)-at)
 		}
 		groups[i] = size
 		at += size
@@ -185,18 +173,20 @@ func valueGroups(columns []gocql.ColumnInfo, rows []gocql.RowData) []int {
 	return groups
 }
 
-// tupleElementName splits a row column name gocql gives a tuple's element,
-// "name[2]", into its base name and its index.
-func tupleElementName(name string) (string, int, bool) {
-	open := strings.LastIndex(name, "[")
-	if open < 0 || !strings.HasSuffix(name, "]") {
-		return "", 0, false
+// tupleArity is how many values a tuple column expands into, and 0 for a column
+// that is not a tuple. A live column's type is gocql's own tuple type; a tape's
+// carries the element count it recorded.
+func tupleArity(info gocql.TypeInfo) int {
+	if info == nil || info.Type() != gocql.TypeTuple {
+		return 0
 	}
-	index, err := strconv.Atoi(name[open+1 : len(name)-1])
-	if err != nil {
-		return "", 0, false
+	if tuple, ok := info.(gocql.TupleTypeInfo); ok {
+		return len(tuple.Elems)
 	}
-	return name[:open], index, true
+	if counted, ok := info.(interface{ Elements() int }); ok {
+		return counted.Elements()
+	}
+	return 0
 }
 
 // convertTuple reads a tuple column's elements as the JSON spelling the column
