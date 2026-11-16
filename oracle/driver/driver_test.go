@@ -166,6 +166,35 @@ func TestOpenDialsThroughConfig(t *testing.T) {
 	}
 }
 
+// TestOpenWithoutAnEndpoint pins that a caller whose dialer names the server
+// needs no host or port.
+func TestOpenWithoutAnEndpoint(t *testing.T) {
+	dialed := false
+	driver, err := Open(context.Background(), omnidriver.Config{
+		User:     "scott",
+		Password: "tiger",
+		Database: "APP",
+		Params:   map[string]string{"SERVICE_NAME": "ORCLPDB1"},
+		Dial: func(context.Context, string, string) (net.Conn, error) {
+			dialed = true
+			return nil, errors.New("the test's dialer refuses")
+		},
+	})
+	if !dialed {
+		t.Fatalf("the driver did not dial through the caller's dialer: %v", err)
+	}
+	if err == nil || !strings.Contains(err.Error(), "the test's dialer refuses") {
+		t.Errorf("error = %v, want the dialer's", err)
+	}
+	if driver != nil {
+		_ = driver.Close()
+	}
+
+	if _, err := Open(context.Background(), omnidriver.Config{User: "scott", Password: "tiger", Params: map[string]string{"SERVICE_NAME": "ORCLPDB1"}}); err == nil {
+		t.Error("a driver with no endpoint and no dialer opened")
+	}
+}
+
 func TestServiceName(t *testing.T) {
 	for _, test := range []struct {
 		name   string

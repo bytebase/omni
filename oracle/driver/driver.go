@@ -69,17 +69,26 @@ const (
 	// connection, DNS lookup included, so an unreachable address fails over in
 	// seconds. It does not limit how long a statement runs.
 	defaultDialTimeoutSeconds = "10"
+	// defaultPort is the port the client reads from the URL when the caller
+	// names none, which its own dialer makes irrelevant.
+	defaultPort = 1521
 )
 
 // Open returns a driver for the server, service and schema cfg names. It reaches
 // the server when Config.Database names a schema, so a schema the account cannot
 // switch to fails here rather than at the first statement.
 func Open(ctx context.Context, cfg omnidriver.Config) (*Driver, error) {
-	port, err := strconv.Atoi(strings.TrimSpace(cfg.Port))
-	if err != nil {
-		return nil, fmt.Errorf("invalid port %q", cfg.Port)
+	// A caller-supplied dialer names the server itself, so the endpoint may be
+	// empty; the client still parses a URL, and an unused port satisfies it.
+	port := defaultPort
+	if cfg.Port != "" {
+		parsed, err := strconv.Atoi(strings.TrimSpace(cfg.Port))
+		if err != nil {
+			return nil, fmt.Errorf("invalid port %q", cfg.Port)
+		}
+		port = parsed
 	}
-	if strings.TrimSpace(cfg.Host) == "" {
+	if strings.TrimSpace(cfg.Host) == "" && cfg.Dial == nil {
 		return nil, errors.New("host must be set")
 	}
 	if cfg.User == "" {
@@ -100,8 +109,15 @@ func Open(ctx context.Context, cfg omnidriver.Config) (*Driver, error) {
 			return nil, errors.New("TLS configuration must not be nil")
 		}
 	}
+	// The client refuses an empty host in its URL, and a caller whose dialer
+	// names the server may leave it empty: the placeholder only fills the URL,
+	// since the dialer replaces the transport that would read it.
+	urlHost := strings.TrimSpace(cfg.Host)
+	if urlHost == "" {
+		urlHost = "localhost"
+	}
 	dsn := goora.BuildUrl(
-		strings.TrimSpace(cfg.Host), port, service, cfg.User, cfg.Password,
+		urlHost, port, service, cfg.User, cfg.Password,
 		connectionOptions(cfg.Params, tlsConfig != nil),
 	)
 	d := &Driver{
@@ -288,9 +304,21 @@ func (d *Driver) Session(ctx context.Context) (omnidriver.Session, error) {
 type session struct {
 	driver *Driver
 	conn   *sql.Conn
+	// schemaApplied reports that QueryOptions.Schema switched the session, so
+	// Close has a schema of the driver's to switch back to.
+	schemaApplied bool
 }
 
-func (s *session) Close() error { return s.conn.Close() }
+// Close returns the session to the pool with the driver's schema, so a schema a
+// query chose does not become the next session's.
+func (s *session) Close() error {
+	if s.schemaApplied && s.driver.databaseName != "" {
+		// The connection goes back to the pool either way, so a failure here is
+		// the next session's to report.
+		_, _ = s.conn.ExecContext(context.Background(), fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(s.driver.databaseName)))
+	}
+	return s.conn.Close()
+}
 
 // quoteIdent writes a name as a quoted identifier.
 func quoteIdent(name string) string {
