@@ -234,7 +234,7 @@ func delimiterCommands(script string) []driver.Command {
 			} else {
 				i = len(script)
 			}
-		case strings.HasPrefix(script[i:], "--"), script[i] == '#',
+		case dashComment(script, i), script[i] == '#',
 			strings.HasPrefix(script[i:], "//") && delimiter != "//":
 			if nl := strings.IndexByte(script[i:], '\n'); nl >= 0 {
 				i += nl + 1
@@ -255,6 +255,23 @@ func delimiterCommands(script string) []driver.Command {
 	}
 	emit(len(script))
 	return commands
+}
+
+// dashComment reports whether script[i:] opens a line comment: "--" followed by
+// a space, a tab, a line break or the end of the input, as both engines' lexers
+// require, so "1--2" is a subtraction.
+func dashComment(script string, i int) bool {
+	if !strings.HasPrefix(script[i:], "--") {
+		return false
+	}
+	if i+2 >= len(script) {
+		return true
+	}
+	switch script[i+2] {
+	case ' ', '\t', '\n', '\r':
+		return true
+	}
+	return false
 }
 
 // delimiterDirective returns the terminator a DELIMITER directive names at j and

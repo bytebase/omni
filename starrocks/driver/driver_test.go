@@ -109,6 +109,12 @@ func TestSplitExecuteCommandsDelimiter(t *testing.T) {
 			want:   []string{"SELECT 'a;b';", "SELECT 2;"},
 		},
 		{
+			// "1--2" is a subtraction, not a comment: the engines' lexers require
+			// a space after "--".
+			script: "DELIMITER $$\nSELECT 1--2$$\nSELECT 3$$",
+			want:   []string{"SELECT 1--2", "SELECT 3"},
+		},
+		{
 			// A comment before a directive belongs to no statement, so it does
 			// not hide the directive that follows it.
 			script: "-- migration header\nDELIMITER $$\nSELECT 1$$ -- first query\nDELIMITER ;\nSELECT 2;",
