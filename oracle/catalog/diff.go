@@ -511,7 +511,7 @@ func indexEqual(a, b *metadatapb.IndexMetadata) bool {
 			return false
 		}
 		for i, expression := range a.GetExpressions() {
-			if normalizeExpression(expression) != normalizeExpression(b.GetExpressions()[i]) {
+			if strings.Trim(expression, `"`) != strings.Trim(b.GetExpressions()[i], `"`) {
 				return false
 			}
 		}

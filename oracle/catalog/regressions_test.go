@@ -1649,3 +1649,70 @@ func TestViewFunctionOrdersBeforeView(t *testing.T) {
 		t.Fatalf("migration view precedes its function:\n%s", sql)
 	}
 }
+
+func TestRenameTableQuotesTriggerTarget(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE TRIGGER TR BEFORE INSERT ON T BEGIN NULL; END; ALTER TABLE T RENAME TO "u"`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := tableByName(c.Metadata().Schemas[0])["u"].Triggers[0].Body
+	if !strings.Contains(body, ` ON "u" `) {
+		t.Fatalf("trigger target = %q", body)
+	}
+}
+
+func TestDropColumnKeepsExternalSameNameForeignKey(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "D", Type: "NUMBER", Position: 2}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "FK", Columns: []string{"D"}, ReferencedSchema: "OTHER", ReferencedTable: "T", ReferencedColumns: []string{"C"}}}}}})
+	if _, err := c.Exec(`ALTER TABLE T DROP COLUMN C`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["T"].ForeignKeys) != 1 {
+		t.Fatal("external same-name foreign key removed")
+	}
+}
+
+func TestRenameColumnSkipsAlternativeQuotedLiteral(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER CHECK (C <> 0)); ALTER TABLE T RENAME COLUMN C TO D`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = c
+	expr := renameIdentifier(`C <> q'[don't C]'`, "C", "D")
+	if expr != `D <> q'[don't C]'` {
+		t.Fatalf("renamed expression = %q", expr)
+	}
+}
+
+func TestDeferrableUniqueIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT U UNIQUE(C) DEFERRABLE INITIALLY DEFERRED)`); err == nil {
+		t.Fatal("deferrable unique constraint accepted")
+	}
+}
+
+func TestDropDefaultOnNullBeforeRelaxingNotNull(t *testing.T) {
+	oldColumn := &metadatapb.ColumnMetadata{Name: "C", Type: "NUMBER", Position: 1, Default: "1", DefaultOnNull: true, Nullable: false}
+	newColumn := &metadatapb.ColumnMetadata{Name: "C", Type: "NUMBER", Position: 1, Default: "1", Nullable: true}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{oldColumn}}}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{newColumn}}}}))
+	defaultDrop := strings.Index(sql, "DEFAULT NULL")
+	null := strings.Index(sql, `MODIFY "C" NULL`)
+	if defaultDrop < 0 || null < 0 || defaultDrop > null {
+		t.Fatalf("DEFAULT ON NULL not removed first:\n%s", sql)
+	}
+}
+
+func TestOrdinaryToIdentityIsReportedUnsupported(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if !strings.Contains(sql, "not supported") || strings.Contains(sql, `MODIFY "ID" GENERATED`) {
+		t.Fatalf("ordinary-to-identity conversion looks executable:\n%s", sql)
+	}
+}
+
+func TestConstraintColumnWhitespaceIsSignificant(t *testing.T) {
+	a := &metadatapb.IndexMetadata{Name: "U", Unique: true, IsConstraint: true, Expressions: []string{"A B"}}
+	b := &metadatapb.IndexMetadata{Name: "U", Unique: true, IsConstraint: true, Expressions: []string{"A  B"}}
+	if indexEqual(a, b) {
+		t.Fatal("constraint column whitespace normalized away")
+	}
+}

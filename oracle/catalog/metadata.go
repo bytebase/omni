@@ -407,6 +407,12 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			column.Default = e.nodeText(n.Expr)
 		}
 	case ast.CONSTRAINT_PRIMARY:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
 		pkMadeNotNull := column.Nullable
 		column.Nullable = false
 		if pkMadeNotNull {
@@ -424,6 +430,12 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			})
 		}
 	case ast.CONSTRAINT_UNIQUE:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
 		name := fallbackName(n.Name, fmt.Sprintf("UK_%s_%s", table.Name, column.Name))
 		if !hasUniqueIndex(table, []string{column.Name}) {
 			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
@@ -453,6 +465,12 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 	columns := stringList(n.Columns)
 	switch n.Type {
 	case ast.CONSTRAINT_PRIMARY:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
 		if len(columns) == 0 {
 			return
 		}
@@ -474,6 +492,12 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 		})
 		markColumnsNotNull(table, columns)
 	case ast.CONSTRAINT_UNIQUE:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
 		if len(columns) == 0 {
 			return
 		}
@@ -676,7 +700,8 @@ func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, na
 	var foreignKeys []*metadatapb.ForeignKeyMetadata
 	for _, fk := range table.ForeignKeys {
 		onColumn := slices.Contains(fk.Columns, name)
-		referencesColumn := fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name)
+		referencesColumn := fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name) &&
+			(fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema)
 		if !onColumn && !referencesColumn {
 			foreignKeys = append(foreignKeys, fk)
 		}
@@ -756,6 +781,11 @@ func renameColumnNames(columns []string, oldName, newName string) []string {
 func renameIdentifier(expression, oldName, newName string) string {
 	var out strings.Builder
 	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			out.WriteString(expression[i:end])
+			i = end
+			continue
+		}
 		switch c := expression[i]; {
 		case c == '\'':
 			end := i + 1
@@ -805,6 +835,13 @@ func renameIdentifier(expression, oldName, newName string) string {
 		}
 	}
 	return out.String()
+}
+
+func renderRenamedIdentifier(name string) string {
+	if needsConstraintQuotes(name) {
+		return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+	}
+	return name
 }
 
 func writeRenamedIdentifier(out *strings.Builder, name string, forceQuote bool) {
@@ -957,7 +994,7 @@ func renameTriggerTarget(body, oldName, newName string) string {
 			relation, relationStart, relationEnd = scanTriggerIdentifier(body, end+1)
 		}
 		if strings.EqualFold(relation, oldName) {
-			return body[:relationStart] + newName + body[relationEnd:]
+			return body[:relationStart] + renderRenamedIdentifier(newName) + body[relationEnd:]
 		}
 		offset = end
 	}

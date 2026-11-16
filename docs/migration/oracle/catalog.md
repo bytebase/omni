@@ -182,6 +182,14 @@ replay tests exercise.
 - Comment owners are validated, `ALTER INDEX` rename/visibility is applied, and
   constraint enable/disable is rejected.
 - A view's called functions are ordered before the view.
+- A renamed trigger target is quoted for a case-sensitive table name.
+- Dropping a local column leaves a foreign key to an external same-named
+  table alone.
+- Identifier renames skip Oracle alternative-quoted literals.
+- Deferrable primary and unique constraints are rejected.
+- `DEFAULT ON NULL` is removed before relaxing NOT NULL, and ordinary-to-identity
+  conversions are reported unsupported rather than emitted as invalid DDL.
+- Constraint column names compare exactly, whitespace included.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

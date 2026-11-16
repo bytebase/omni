@@ -1170,6 +1170,14 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 		writeAlterColumnType(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
 	}
 
+	oldDefaultDropped := false
+	// Oracle refuses to relax NOT NULL while DEFAULT ON NULL remains, so remove
+	// that default first.
+	if colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable && colDiff.NewColumn.Nullable &&
+		colDiff.OldColumn.GetDefaultOnNull() && !colDiff.NewColumn.GetDefaultOnNull() && hasDefaultValue(colDiff.OldColumn) {
+		writeAlterColumnDropDefault(&buf, schemaName, tableName, colDiff.OldColumn.Name)
+		oldDefaultDropped = true
+	}
 	// If nullability changed
 	if !virtualChanged && colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable {
 		if colDiff.NewColumn.Nullable {
@@ -1188,9 +1196,12 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull()
 	}
 	if identityChanged {
-		if colDiff.NewColumn.GetIsIdentity() {
+		switch {
+		case colDiff.NewColumn.GetIsIdentity() && !colDiff.OldColumn.GetIsIdentity():
+			_, _ = buf.WriteString("-- oracle/catalog: converting an ordinary column to identity is not supported\n")
+		case colDiff.NewColumn.GetIsIdentity():
 			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, strings.TrimSpace(columnIdentityClause(colDiff.NewColumn)))
-		} else {
+		default:
 			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "DROP IDENTITY")
 		}
 	}
@@ -1202,7 +1213,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 	newHasDefault := hasDefaultValue(colDiff.NewColumn) && !colDiff.NewColumn.GetIsIdentity()
 	if oldHasDefault || newHasDefault {
 		if !defaultValuesEqual(colDiff.OldColumn, colDiff.NewColumn) {
-			if oldHasDefault {
+			if oldHasDefault && !oldDefaultDropped {
 				writeAlterColumnDropDefault(&buf, schemaName, tableName, colDiff.OldColumn.Name)
 			}
 			if newHasDefault {
