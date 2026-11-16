@@ -725,6 +725,7 @@ func (ac *analyzeCtx) transformRangeVar(rv *nodes.RangeVar) (JoinNode, error) {
 		RelOID:        rel.OID,
 		RelName:       rv.Relname,
 		SchemaName:    rv.Schemaname,
+		CatalogName:   rv.Catalogname,
 		Alias:         alias,
 		ERef:          eref,
 		ColNames:      colNames,

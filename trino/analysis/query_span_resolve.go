@@ -35,17 +35,28 @@ import (
 // Scope: derived-relation projection (subqueries in FROM, CTE references),
 // UNNEST output columns, scalar subqueries in the select list, set-operation
 // arm merging (each output column's lineage is the union of that column across
-// all arms), and star expansion — a `*` / `<rel>.*` covering only derived
-// relations with fully-resolved projections is replaced by its exact output
-// columns (width and order), so `SELECT *` over a derived table or CTE masks
-// positionally; a star that needs catalog metadata (base table, coalescing
-// join, unresolved relation) stays a single opaque "*" result, as before.
+// all arms), and star expansion — a `*` / `<rel>.*` covering only relations with
+// fully-resolved projections is replaced by its exact output columns (width and
+// order), so `SELECT *` over a derived table or CTE masks positionally and a
+// USING/NATURAL join lists its coalesced columns once; a star that needs catalog
+// metadata (a base table, an unresolved relation) stays a single opaque "*"
+// result, as before.
 func resolveDerivedLineage(stmt ast.Node, span *QuerySpan, vs *viewState) {
 	if span == nil {
 		return
 	}
 	qs, ok := stmt.(*parser.QueryStmt)
 	if !ok || qs.Query == nil {
+		return
+	}
+	resolveDerivedLineageQuery(qs.Query, span, vs)
+}
+
+// resolveDerivedLineageQuery is resolveDerivedLineage for a query already
+// unwrapped from its statement, so EXPLAIN / CREATE … AS SELECT can analyze the
+// AST they parsed instead of parsing its text again.
+func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState) {
+	if span == nil || q == nil {
 		return
 	}
 	// The root CTE scope carries the catalog-aware resolution state (nil
@@ -67,7 +78,7 @@ func resolveDerivedLineage(stmt ast.Node, span *QuerySpan, vs *viewState) {
 	//   - an opaque star (not expandable without metadata) is left byte-for-byte
 	//     untouched, preserving the exact result shape consumers key on to apply
 	//     their own metadata-based expansion.
-	cols := resolveQueryCols(qs.Query, root)
+	cols := resolveQueryCols(q, root)
 
 	// A top-level VALUES produces no Results in the primary walk (it has no
 	// select items), leaving the consumer with zero positional maskers — a
@@ -141,9 +152,9 @@ func groupByItem(cols []outCol) [][]outCol {
 //     exact — this is what lets `SELECT *` over a derived table or CTE be
 //     masked positionally;
 //   - opaque: the star cannot be expanded without catalog metadata (it covers a
-//     base table, an unresolved relation, or a coalescing join), so a single
-//     placeholder entry (opaque=true) holds its position and the projection's
-//     true width is unknown.
+//     base table or an unresolved relation), so a single placeholder entry
+//     (opaque=true) holds its position and the projection's true width is
+//     unknown.
 type outCol struct {
 	name    string
 	sources []ColumnRef
@@ -542,18 +553,23 @@ func stampStar(cols []outCol, item int, aliases []*ast.Identifier) []outCol {
 type rscope struct {
 	rels []rbind
 	cte  *cteDefs
-	// coalesced is set when the FROM tree contains a USING or NATURAL join,
-	// which coalesces the join columns into single output columns — `SELECT *`
-	// then has a different width/order than the relations' concatenation, so
-	// star expansion is blocked in this scope.
+	// itemCols holds each top-level FROM item's exact output projection, in
+	// FROM order. A USING/NATURAL join's entry is its coalesced projection,
+	// which is what an unqualified `*` lists.
+	itemCols [][]outCol
+	// coalesced is set when the FROM tree contains a USING or NATURAL join.
+	// A qualified star `<rel>.*` excludes the using columns from its relation's
+	// projection (verified against Trino 481), so qualified-star expansion is
+	// blocked in this scope; unqualified `*` uses itemCols' coalesced form.
 	coalesced bool
 
 	// idx indexes rels once the scope is large (see index); starAll holds
-	// starExpansion("") for the first starRels relations, once starDone.
-	idx      *relIndex
-	starAll  []outCol
-	starRels int
-	starDone bool
+	// starExpansion("") for the first starItems top-level FROM items, once
+	// starDone.
+	idx       *relIndex
+	starAll   []outCol
+	starItems int
+	starDone  bool
 
 	// recovering is set once a relation of rels[:recoverChecked] has a
 	// column with sources (see recovers).
@@ -664,18 +680,19 @@ type rbind struct {
 func newRScope(from []parser.Relation, cte *cteDefs) *rscope {
 	s := &rscope{cte: cte}
 	for _, rel := range from {
-		s.add(rel, "", nil)
+		s.itemCols = append(s.itemCols, s.add(rel, "", nil))
 	}
 	return s
 }
 
-// add binds one FROM relation (recursing through joins/parentheses). alias and
-// colAliases carry an enclosing AliasedRelation's `AS name (c1, …)` down to the
-// primary relation it names.
-func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identifier) {
+// add binds one FROM relation (recursing through joins/parentheses) and
+// returns the relation's exact output projection, or nil when it cannot be
+// resolved. alias and colAliases carry an enclosing AliasedRelation's
+// `AS name (c1, …)` down to the primary relation it names.
+func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identifier) []outCol {
 	switch n := rel.(type) {
 	case *parser.AliasedRelation:
-		s.add(n.Inner, identName(n.Alias), n.ColumnAliases)
+		return s.add(n.Inner, identName(n.Alias), n.ColumnAliases)
 	case *parser.Join:
 		if alias != "" {
 			// An aliased (parenthesized) join — ((…) a JOIN (…) b ON …) AS j —
@@ -683,32 +700,26 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 			// concatenation; Trino hides the inner aliases behind it (verified
 			// against Trino 481: `a.phone` does not resolve through `… AS j`).
 			// Bind a single synthetic relation: derived when the join subtree
-			// is fully resolvable (all derived, no coalescing), opaque-blocking
-			// otherwise.
+			// is fully resolvable, opaque-blocking otherwise.
 			sub := &rscope{cte: s.cte}
-			if len(n.Using) > 0 || n.Natural {
-				sub.coalesced = true
-			}
-			sub.add(n.Left, "", nil)
-			sub.add(n.Right, "", nil)
-			cols := sub.starExpansion("")
+			left := sub.add(n.Left, "", nil)
+			right := sub.add(n.Right, "", nil)
+			cols := joinProjection(left, right, n)
 			s.rels = append(s.rels, rbind{name: alias, derived: cols != nil, cols: applyColumnAliases(cols, colAliases)})
-			return
+			return s.rels[len(s.rels)-1].cols
 		}
+		left := s.add(n.Left, "", nil)
+		right := s.add(n.Right, "", nil)
 		if len(n.Using) > 0 || n.Natural {
-			// USING/NATURAL coalesces the join columns, changing the output
-			// width and order: an unqualified `*` lists the coalesced columns
-			// once, first; and a QUALIFIED star EXCLUDES the using columns from
-			// its relation's projection (verified against Trino 481: with
-			// a(k, p), `SELECT a.* FROM a JOIN b USING (k)` returns only [p]).
-			// Star expansion in this scope would therefore be width-wrong in
-			// both forms; block it. Named-column resolution is unaffected.
+			// USING/NATURAL coalesces the join columns: an unqualified `*`
+			// lists each join column once, first, then the left and right
+			// non-join columns. A qualified star is handled by blocking it in
+			// starExpansion, since Trino excludes the using columns there.
 			s.coalesced = true
 		}
-		s.add(n.Left, "", nil)
-		s.add(n.Right, "", nil)
+		return joinProjection(left, right, n)
 	case *parser.ParenRelation:
-		s.add(n.Inner, alias, colAliases)
+		return s.add(n.Inner, alias, colAliases)
 	case *parser.TableRelation:
 		parts := normalizedParts(n.Name)
 		// A single-part name that matches an in-scope CTE is a derived relation
@@ -720,8 +731,9 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 				if name == "" {
 					name = parts[0]
 				}
-				s.rels = append(s.rels, rbind{name: name, derived: true, cols: applyColumnAliases(cols, colAliases)})
-				return
+				cols = applyColumnAliases(cols, colAliases)
+				s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols})
+				return cols
 			}
 		}
 		name := alias
@@ -739,30 +751,117 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 				if view != nil {
 					if proj := vs.projectionFor(key, view); proj != nil {
 						vs.collectTables(proj.tables)
-						s.rels = append(s.rels, rbind{name: name, derived: true, cols: applyColumnAliases(proj.cols, colAliases)})
-						return
+						cols := applyColumnAliases(proj.cols, colAliases)
+						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols})
+						return cols
 					}
 					// Unresolvable view (no/unanalyzable definition, cycle):
 					// bind opaquely so stars through it stay unexpanded.
 					s.rels = append(s.rels, rbind{name: name, derived: false})
-					return
+					return nil
 				}
-				s.rels = append(s.rels, rbind{name: name, derived: false, cols: applyColumnAliases(tableCols(key, table), colAliases)})
-				return
+				cols := applyColumnAliases(tableCols(key, table), colAliases)
+				s.rels = append(s.rels, rbind{name: name, derived: false, cols: cols})
+				return cols
 			}
 		}
 		s.rels = append(s.rels, rbind{name: name, derived: false})
+		return nil
 	case *parser.SubqueryRelation:
-		cols := resolveQueryCols(n.Query, s.cte)
-		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: applyColumnAliases(cols, colAliases)})
+		cols := applyColumnAliases(resolveQueryCols(n.Query, s.cte), colAliases)
+		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
+		return cols
 	case *parser.UnnestRelation:
-		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: s.unnestColumns(n, colAliases)})
+		cols := s.unnestColumns(n, colAliases)
+		if len(cols) == 0 {
+			// Without column aliases the output width is unknown, not zero.
+			cols = nil
+		}
+		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
+		return cols
 	default:
 		// Lateral and table-function relations are not resolved here (tracked
 		// separately). Bind the alias as a non-derived (opaque) relation so
 		// references through it pass through unchanged.
 		s.rels = append(s.rels, rbind{name: alias, derived: false})
+		return nil
 	}
+}
+
+// joinProjection returns a join's output projection: the left and right
+// projections in order, with a USING/NATURAL join's common columns coalesced
+// once at the front. nil when either side is unresolved or a using column is
+// missing from a side, since the true width/order is then unknown.
+func joinProjection(left, right []outCol, n *parser.Join) []outCol {
+	if n == nil || (len(n.Using) == 0 && !n.Natural) {
+		if left == nil || right == nil {
+			return nil
+		}
+		return append(append([]outCol(nil), left...), right...)
+	}
+	if left == nil || right == nil || hasOpaque(left) || hasOpaque(right) {
+		return nil
+	}
+	var names []string
+	if n.Natural {
+		seen := make(map[string]bool, len(left))
+		for _, col := range left {
+			key := foldKey(col.name)
+			if seen[key] {
+				continue
+			}
+			if _, ok := findOutCol(right, col.name); !ok {
+				continue
+			}
+			seen[key] = true
+			names = append(names, col.name)
+		}
+	} else {
+		for _, id := range n.Using {
+			if name := identName(id); name != "" {
+				names = append(names, name)
+			}
+		}
+	}
+	usedLeft := make([]bool, len(left))
+	usedRight := make([]bool, len(right))
+	out := make([]outCol, 0, len(left)+len(right))
+	for _, name := range names {
+		li, ok := findOutCol(left, name)
+		if !ok {
+			return nil
+		}
+		ri, ok := findOutCol(right, name)
+		if !ok {
+			return nil
+		}
+		out = append(out, outCol{name: left[li].name, sources: unionRefs(left[li].sources, right[ri].sources)})
+		usedLeft[li] = true
+		usedRight[ri] = true
+	}
+	for i, col := range left {
+		if !usedLeft[i] {
+			out = append(out, col)
+		}
+	}
+	for i, col := range right {
+		if !usedRight[i] {
+			out = append(out, col)
+		}
+	}
+	return out
+}
+
+// findOutCol returns the index of the first output column named name, comparing
+// as foldKey does (strings.EqualFold).
+func findOutCol(cols []outCol, name string) (int, bool) {
+	key := foldKey(name)
+	for i := range cols {
+		if foldKey(cols[i].name) == key {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 // unnestColumns computes the output columns of an UNNEST relation. Each named
@@ -808,21 +907,30 @@ func (s *rscope) unnestColumns(n *parser.UnnestRelation, colAliases []*ast.Ident
 // Expansion requires certainty — a wrong width or order would misalign the
 // positional masker downstream, which is precisely the bug this resolves — so
 // it bails (nil) unless:
-//   - no USING/NATURAL join coalesces columns in this scope, and
+//   - for a QUALIFIED star, no USING/NATURAL join coalesces columns in this
+//     scope (the using columns must be stripped from that relation's
+//     projection), and
 //   - every covered relation has a fully-resolved projection: non-empty and
 //     free of opaque star placeholders. That is a derived relation (subquery,
-//     CTE reference, aliased UNNEST, catalog-resolved view) or a base table
-//     whose columns the supplied catalog knows. A base table without catalog
-//     metadata, a lateral/table-function relation, an UNNEST without column
-//     aliases, or a qualifier matching zero or several relations all bail.
+//     CTE reference, aliased UNNEST, catalog-resolved view), a base table whose
+//     columns the supplied catalog knows, or a USING/NATURAL join over those.
+//     A base table without catalog metadata, a lateral/table-function relation,
+//     an UNNEST without column aliases, or a qualifier matching zero or several
+//     relations all bail.
 //
 // A nil return leaves the star opaque — the consumer's metadata-based expansion
 // applies, exactly as before this resolver existed.
 func (s *rscope) starExpansion(qualifier string) []outCol {
-	if s.coalesced || len(s.rels) == 0 {
+	if len(s.rels) == 0 {
 		return nil
 	}
 	if qualifier != "" {
+		// A qualified star beside a USING/NATURAL join must exclude the using
+		// columns from the relation's projection; that projection is not
+		// modeled, so leave it opaque.
+		if s.coalesced {
+			return nil
+		}
 		var match *rbind
 		count := 0
 		if x := s.index(); x != nil {
@@ -845,18 +953,18 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 	}
 	// Computed once per scope: every `*` item of a select list expands to the
 	// same columns, and expanding them per item cost the product of the two.
-	if s.starDone && s.starRels == len(s.rels) {
+	if s.starDone && s.starItems == len(s.itemCols) {
 		return s.starAll
 	}
 	var out []outCol
-	for _, rb := range s.rels {
-		if len(rb.cols) == 0 || hasOpaque(rb.cols) {
+	for _, cols := range s.itemCols {
+		if len(cols) == 0 || hasOpaque(cols) {
 			out = nil
 			break
 		}
-		out = append(out, rb.cols...)
+		out = append(out, cols...)
 	}
-	s.starAll, s.starRels, s.starDone = out, len(s.rels), true
+	s.starAll, s.starItems, s.starDone = out, len(s.itemCols), true
 	return out
 }
 
