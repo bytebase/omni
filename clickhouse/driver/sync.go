@@ -55,7 +55,8 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 		SELECT
 			schema_name
 		FROM information_schema.schemata
-		WHERE ` + where
+		WHERE ` + where + `
+		ORDER BY schema_name`
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, formatErrorWithQuery(err, query)
@@ -373,6 +374,7 @@ func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
 		SELECT
 			name
 		FROM system.users
+		ORDER BY name
 	`
 	roleRows, err := d.db.QueryContext(ctx, query)
 	if err != nil {

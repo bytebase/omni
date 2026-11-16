@@ -492,10 +492,12 @@ var madeUpRe = regexp.MustCompile(`\b\d{10}\b|\b(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun) 
 // MadeUp matches what a new container makes up again.
 func (Codec) MadeUp() *regexp.Regexp { return madeUpRe }
 
-// StandIn returns what stands for the nth distinct made-up value of a test.
-func (Codec) StandIn(name string, n int) string {
+// StandIn returns what stands for a made-up value. Every value of one kind gets
+// the same stand-in, so a tape does not depend on how many distinct moments a
+// recording's tables happened to be made in.
+func (Codec) StandIn(name string, _ int) string {
 	if _, err := strconv.Atoi(name); err == nil {
-		return fmt.Sprintf("%010d", 1000000000+n)
+		return "1000000000"
 	}
-	return time.Date(2026, 1, 1, 0, 0, n%60, 0, time.UTC).Format("Mon Jan _2 15:04:05 MST 2006")
+	return time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC).Format("Mon Jan _2 15:04:05 MST 2006")
 }
