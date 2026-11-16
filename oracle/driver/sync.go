@@ -446,7 +446,7 @@ func getTriggers(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.Tri
 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 		FROM sys.all_triggers
 		WHERE OWNER = '%s' AND TABLE_OWNER = '%s' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
-		ORDER BY TRIGGER_NAME`, schemaName, schemaName)
+		ORDER BY TRIGGER_NAME`, sqlLiteral(schemaName), sqlLiteral(schemaName))
 
 	slog.Debug("running get triggers query")
 	rows, err := txn.Query(query)
@@ -577,7 +577,7 @@ func getTables(
 		AND TABLE_NAME NOT IN (
 			SELECT MVIEW_NAME FROM all_mviews WHERE OWNER = '%s'
 		)
-		ORDER BY TABLE_NAME`, schemaName, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName), sqlLiteral(schemaName))
 	slog.Debug("running get tables query")
 	if err := appendTables(query, false); err != nil {
 		return nil, err
@@ -595,7 +595,7 @@ func getTables(
 		AND TABLE_NAME NOT IN (
 			SELECT MVIEW_NAME FROM all_mviews WHERE OWNER = '%s'
 		)
-		ORDER BY TABLE_NAME`, schemaName, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName), sqlLiteral(schemaName))
 	slog.Debug("running get object tables query")
 	if err := appendTables(objectTableQuery, true); err != nil {
 		return nil, err
@@ -619,7 +619,7 @@ func getTableComments(txn *sql.Tx, schemaName string) (map[tableKey]string, erro
 		SELECT OWNER, TABLE_NAME, COMMENTS
 		FROM all_tab_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
-		ORDER BY TABLE_NAME`, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
 	}
 	slog.Debug("running get table comments query")
 	rows, err := txn.Query(query)
@@ -661,7 +661,7 @@ func getTableColumnComments(txn *sql.Tx, schemaName string) (map[columnKey]strin
 		SELECT OWNER, TABLE_NAME, COLUMN_NAME, COMMENTS
 		FROM all_col_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
-		ORDER BY TABLE_NAME, COLUMN_NAME`, schemaName)
+		ORDER BY TABLE_NAME, COLUMN_NAME`, sqlLiteral(schemaName))
 	}
 	slog.Debug("running get table column comments query")
 	rows, err := txn.Query(query)
@@ -687,6 +687,12 @@ func getTableColumnComments(txn *sql.Tx, schemaName string) (map[columnKey]strin
 	return columnCommentsMap, nil
 }
 
+// sqlLiteral writes s as the body of an SQL string literal, doubling its
+// apostrophes: an Oracle schema is a user, and a quoted user name may hold one.
+func sqlLiteral(s string) string {
+	return strings.ReplaceAll(s, "'", "''")
+}
+
 // getTableColumns gets the columns of a table.
 func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Version) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
 	columnsMap := make(map[tableKey][]*metadatapb.ColumnMetadata)
@@ -709,6 +715,8 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			DATA_LENGTH,
 			DATA_PRECISION,
 			DATA_SCALE,
+			CHAR_USED,
+			CHAR_LENGTH,
 			COLUMN_ID,
 			DATA_DEFAULT,
 			NULLABLE,
@@ -717,7 +725,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			VIRTUAL_COLUMN
 		FROM sys.all_tab_cols
 		WHERE OWNER = '%s' AND USER_GENERATED = 'YES'
-		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME`, schemaName)
+		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME`, sqlLiteral(schemaName))
 	} else {
 		// Failing to tell virtual columns apart only keeps their expressions
 		// in Default, as before, so it must not fail the sync.
@@ -735,6 +743,8 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			DATA_LENGTH,
 			DATA_PRECISION,
 			DATA_SCALE,
+			CHAR_USED,
+			CHAR_LENGTH,
 			COLUMN_ID,
 			DATA_DEFAULT,
 			NULLABLE,
@@ -743,7 +753,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			NULL
 		FROM sys.all_tab_columns
 		WHERE OWNER = '%s'
-		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME`, schemaName)
+		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME`, sqlLiteral(schemaName))
 	}
 
 	slog.Debug("running get columns query")
@@ -756,7 +766,8 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable string
 		var defaultStr, collation, defaultOnNull, virtualColumn sql.NullString
-		var dataLength, dataPrecision, dataScale sql.NullInt64
+		var dataLength, dataPrecision, dataScale, charLength sql.NullInt64
+		var charUsed sql.NullString
 		var columnID sql.NullInt32
 		if err := rows.Scan(
 			&schemaName,
@@ -766,6 +777,8 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 			&dataLength,
 			&dataPrecision,
 			&dataScale,
+			&charUsed,
+			&charLength,
 			&columnID,
 			&defaultStr,
 			&nullable,
@@ -775,7 +788,7 @@ func getTableColumns(txn *sql.Tx, schemaName string, version *oracleanalysis.Ver
 		); err != nil {
 			return nil, err
 		}
-		column.Type = getTypeString(column.Type, dataLength, dataPrecision, dataScale)
+		column.Type = getTypeString(column.Type, dataLength, dataPrecision, dataScale, charLength, charUsed)
 		if defaultStr.Valid {
 			// Clean up the default expression to remove current schema name and fix NEXTVAL syntax
 			cleanedDefault := cleanDefaultExpression(defaultStr.String, schemaName)
@@ -829,7 +842,7 @@ func getVirtualColumns(txn *sql.Tx, schemaName string) (map[columnKey]bool, erro
 	query := fmt.Sprintf(`
 		SELECT TABLE_NAME, COLUMN_NAME
 		FROM sys.all_tab_cols
-		WHERE OWNER = '%s' AND VIRTUAL_COLUMN = 'YES'`, schemaName)
+		WHERE OWNER = '%s' AND VIRTUAL_COLUMN = 'YES'`, sqlLiteral(schemaName))
 	slog.Debug("running get virtual columns query")
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -850,20 +863,37 @@ func getVirtualColumns(txn *sql.Tx, schemaName string) (map[columnKey]bool, erro
 	return virtualColumns, nil
 }
 
-func getTypeString(dataType string, dataLength, dataPrecision, dataScale sql.NullInt64) string {
+func getTypeString(dataType string, dataLength, dataPrecision, dataScale, charLength sql.NullInt64, charUsed sql.NullString) string {
 	switch dataType {
 	case "VARCHAR2", "CHAR":
+		// A CHAR declaration writes its length in characters or in bytes, and
+		// the dictionary states which: reading DATA_LENGTH as bytes would turn
+		// VARCHAR2(50 CHAR) into VARCHAR2(200 BYTE) on a 4-byte character set.
+		if charUsed.String == "C" && charLength.Valid {
+			return fmt.Sprintf("%s(%d CHAR)", dataType, charLength.Int64)
+		}
 		return fmt.Sprintf("%s(%d BYTE)", dataType, dataLength.Int64)
-	case "NVARCHAR2", "RAW", "UROWID", "NCHAR":
+	case "NVARCHAR2", "NCHAR":
+		// The national character types declare their length in characters.
+		if charLength.Valid {
+			return fmt.Sprintf("%s(%d)", dataType, charLength.Int64)
+		}
+		return fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
+	case "RAW", "UROWID":
 		return fmt.Sprintf("%s(%d)", dataType, dataLength.Int64)
 	case "NUMBER":
+		// A wildcard precision, NUMBER(*, s), keeps its scale and has none.
+		// A scale may be negative, which rounds to the left of the point.
 		switch {
-		case !dataPrecision.Valid || dataPrecision.Int64 == 0:
-		// do nothing
-		case dataPrecision.Valid && dataPrecision.Int64 > 0 && (!dataScale.Valid || dataScale.Int64 == 0):
+		case !dataPrecision.Valid:
+			if dataScale.Valid {
+				return fmt.Sprintf("%s(*,%d)", dataType, dataScale.Int64)
+			}
+		case dataPrecision.Int64 > 0:
+			if dataScale.Valid && dataScale.Int64 != 0 {
+				return fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)
+			}
 			return fmt.Sprintf("%s(%d)", dataType, dataPrecision.Int64)
-		case dataPrecision.Valid && dataPrecision.Int64 > 0 && dataScale.Valid && dataScale.Int64 > 0:
-			return fmt.Sprintf("%s(%d,%d)", dataType, dataPrecision.Int64, dataScale.Int64)
 		default:
 			// do nothing
 		}
@@ -892,7 +922,7 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 			SYS.ALL_CONS_COLUMNS
 		WHERE
 			OWNER = '%s'
-		ORDER BY TABLE_NAME, CONSTRAINT_NAME, POSITION`, schemaName)
+		ORDER BY TABLE_NAME, CONSTRAINT_NAME, POSITION`, sqlLiteral(schemaName))
 
 	slog.Debug("running get outer schema reference columns query")
 	rows, err := txn.Query(queryColumns)
@@ -936,7 +966,7 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 			COLUMN_NAME
 		FROM SYS.ALL_CONS_COLUMNS
 		WHERE OWNER = '%s'
-		ORDER BY TABLE_NAME, CONSTRAINT_NAME, POSITION`, schemaName)
+		ORDER BY TABLE_NAME, CONSTRAINT_NAME, POSITION`, sqlLiteral(schemaName))
 
 	slog.Debug("running get constraint columns query")
 	constraintColumnRows, err := txn.Query(queryConstraintColumns)
@@ -973,7 +1003,7 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 			DELETE_RULE
 		FROM SYS.ALL_CONSTRAINTS
 		WHERE OWNER = '%s'
-		ORDER BY TABLE_NAME, CONSTRAINT_NAME`, schemaName)
+		ORDER BY TABLE_NAME, CONSTRAINT_NAME`, sqlLiteral(schemaName))
 
 	slog.Debug("running get constraints query")
 	constraintRows, err := txn.Query(queryConstraints)
@@ -1083,7 +1113,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
 		FROM sys.all_ind_columns
 		WHERE TABLE_OWNER = '%s'
-		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION`, schemaName)
+		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION`, sqlLiteral(schemaName))
 
 	slog.Debug("running get index column query")
 	indexExpressionMap := make(map[indexKey][]string)
@@ -1122,7 +1152,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
 		FROM sys.all_ind_expressions
 		WHERE TABLE_OWNER = '%s'
-		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION`, schemaName)
+		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION`, sqlLiteral(schemaName))
 
 	slog.Debug("running get index expression query")
 	expRows, err := txn.Query(queryExpression)
@@ -1149,7 +1179,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
 		FROM sys.all_indexes
 		WHERE OWNER = '%s'
-		ORDER BY TABLE_NAME, INDEX_NAME`, schemaName)
+		ORDER BY TABLE_NAME, INDEX_NAME`, sqlLiteral(schemaName))
 
 	slog.Debug("running get index query")
 	rows, err := txn.Query(query)
@@ -1268,7 +1298,7 @@ func getViews(txn *sql.Tx, schemaName string, columnMap map[tableKey][]*metadata
 		FROM sys.all_views
 		WHERE OWNER = '%s'
 		ORDER BY view_name
-	`, schemaName)
+	`, sqlLiteral(schemaName))
 
 	slog.Debug("running get view query")
 	rows, err := txn.Query(query)
@@ -1333,7 +1363,7 @@ func getAllViewDependencies(txn *sql.Tx, schemaName string) (map[tableKey][]*met
 			AND TYPE = 'VIEW'
 			AND REFERENCED_TYPE IN ('TABLE', 'VIEW')
 		ORDER BY NAME, REFERENCED_OWNER, REFERENCED_NAME
-	`, schemaName)
+	`, sqlLiteral(schemaName))
 
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -1373,7 +1403,7 @@ func getAllMaterializedViewDependencies(txn *sql.Tx, schemaName string) (map[tab
 			AND TYPE = 'MATERIALIZED VIEW'
 			AND REFERENCED_TYPE IN ('TABLE', 'VIEW')
 		ORDER BY NAME, REFERENCED_OWNER, REFERENCED_NAME
-	`, schemaName)
+	`, sqlLiteral(schemaName))
 
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -1413,7 +1443,7 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 		FROM sys.all_mviews
 		WHERE OWNER = '%s'
 		ORDER BY MVIEW_NAME
-	`, schemaName)
+	`, sqlLiteral(schemaName))
 
 	slog.Debug("running get materialized views query")
 	rows, err := txn.Query(query)
@@ -1488,7 +1518,7 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 	query := fmt.Sprintf(`
 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
 		WHERE SEQUENCE_OWNER = '%s'
-		ORDER BY SEQUENCE_NAME`, schemaName)
+		ORDER BY SEQUENCE_NAME`, sqlLiteral(schemaName))
 
 	slog.Debug("running get sequences query")
 	rows, err := txn.Query(query)
@@ -1543,7 +1573,7 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 			TYPE IN ('FUNCTION', 'PROCEDURE', 'PACKAGE')
 			AND
 			OWNER = '%s'
-		ORDER BY NAME, TYPE, LINE`, schemaName)
+		ORDER BY NAME, TYPE, LINE`, sqlLiteral(schemaName))
 
 	slog.Debug("running get routines query")
 	rows, err := txn.Query(query)
@@ -1706,7 +1736,7 @@ func getViewComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error
 		FROM all_tab_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
 		AND TABLE_TYPE = 'VIEW'
-		ORDER BY TABLE_NAME`, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
 	}
 
 	slog.Debug("running get view comments query")
@@ -1756,7 +1786,7 @@ func getSequenceComments(txn *sql.Tx, schemaName string) (map[tableKey]string, e
 		FROM all_tab_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
 		AND TABLE_TYPE = 'SEQUENCE'
-		ORDER BY TABLE_NAME`, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
 	}
 
 	slog.Debug("running get sequence comments query")
@@ -1807,7 +1837,7 @@ func getFunctionComments(txn *sql.Tx, schemaName string) (map[tableKey]string, e
 		FROM all_tab_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-		ORDER BY TABLE_NAME`, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
 	}
 
 	slog.Debug("running get function comments query")
@@ -1865,7 +1895,7 @@ func getMaterializedViewComments(txn *sql.Tx, schemaName string) (map[tableKey]s
 		SELECT OWNER, MVIEW_NAME, COMMENTS
 		FROM all_mview_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
-		ORDER BY MVIEW_NAME`, schemaName)
+		ORDER BY MVIEW_NAME`, sqlLiteral(schemaName))
 	}
 
 	slog.Debug("running get materialized view comments query")
@@ -1916,7 +1946,7 @@ func getTriggerComments(txn *sql.Tx, schemaName string) (map[tableKey]string, er
 		FROM all_tab_comments
 		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
 		AND TABLE_TYPE = 'TRIGGER'
-		ORDER BY TABLE_NAME`, schemaName)
+		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
 	}
 
 	slog.Debug("running get trigger comments query")

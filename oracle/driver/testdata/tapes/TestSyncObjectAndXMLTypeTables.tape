@@ -48,6 +48,8 @@
 | 			DATA_LENGTH,
 | 			DATA_PRECISION,
 | 			DATA_SCALE,
+| 			CHAR_USED,
+| 			CHAR_LENGTH,
 | 			COLUMN_ID,
 | 			DATA_DEFAULT,
 | 			NULLABLE,
@@ -65,6 +67,8 @@
 < column "DATA_LENGTH" "NUMBER"
 < column "DATA_PRECISION" "NUMBER"
 < column "DATA_SCALE" "NUMBER"
+< column "CHAR_USED" "NCHAR"
+< column "CHAR_LENGTH" "NUMBER"
 < column "COLUMN_ID" "NUMBER"
 < column "DATA_DEFAULT" "LONG"
 < column "NULLABLE" "NCHAR"
@@ -84,6 +88,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -108,6 +115,10 @@
 : null
 : null
 : string
+| B
+: string
+| 10
+: string
 | 2
 : null
 : string
@@ -131,6 +142,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -154,6 +168,9 @@
 | 2000
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null

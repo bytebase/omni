@@ -207,6 +207,58 @@ func TestVersionFromServer(t *testing.T) {
 	}
 }
 
+// TestQuerySelectDeclaringPLSQL pins that a SELECT whose WITH clause declares
+// PL/SQL runs as a query and returns its rows, though the read-only validator
+// refuses that form.
+func TestQuerySelectDeclaringPLSQL(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	results, err := s.Query(ctx, "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f FROM dual", omnidriver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Err != nil {
+		t.Fatalf("the query failed: %v", results[0].Err)
+	}
+	if len(results[0].Rows) != 1 || len(results[0].Rows[0]) != 1 || results[0].Rows[0][0].String != "1" {
+		t.Errorf("rows = %+v, want the one row the function returns", results[0].Rows)
+	}
+}
+
+// TestQueryExplainStopsAtTheFailingStatement pins that a failing EXPLAIN keeps
+// the plans of the statements before it, and reports its error on its own
+// result.
+func TestQueryExplainStopsAtTheFailingStatement(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, querySetup)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	results, err := s.Query(ctx, "SELECT ID FROM OMNI_APP.Q; SELECT NOSUCH FROM OMNI_APP.Q; SELECT ID FROM OMNI_APP.Q", omnidriver.QueryOptions{Explain: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want 2: the statement after the failure does not run", len(results))
+	}
+	if results[0].Err != nil || results[0].Plan == nil {
+		t.Errorf("first statement = %+v, want its plan", results[0])
+	}
+	if results[1].Err == nil || !strings.Contains(results[1].Err.Error(), "NOSUCH") {
+		t.Errorf("second statement error = %v, want the plan failure", results[1].Err)
+	}
+}
+
 // TestQueryReportsAffectedRows pins that a write in a script reports the rows it
 // changed rather than returning data.
 func TestQueryReportsAffectedRows(t *testing.T) {

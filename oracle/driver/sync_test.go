@@ -278,6 +278,32 @@ CREATE VIEW OMNI_APP.V (A, B INVISIBLE) AS SELECT A, B FROM OMNI_APP.T;
 	}
 }
 
+// TestSyncSchemaWithApostrophe pins that a schema whose quoted name holds an
+// apostrophe reaches the dictionary queries as one literal.
+func TestSyncSchemaWithApostrophe(t *testing.T) {
+	const schema = "omni'owner"
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER "omni'owner" NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO "omni'owner";
+CREATE TABLE "omni'owner".T (ID NUMBER NOT NULL, NOTE VARCHAR2(10));
+`)
+	d.databaseName = schema
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatalf("a schema named with an apostrophe failed the sync: %v", err)
+	}
+	if metadata.Name != schema {
+		t.Fatalf("database = %q, want %q", metadata.Name, schema)
+	}
+	if len(metadata.Schemas) != 1 || len(metadata.Schemas[0].Tables) != 1 {
+		t.Fatalf("tables = %+v, want the one table", metadata.Schemas)
+	}
+	if table := metadata.Schemas[0].Tables[0]; table.Name != "T" || len(table.Columns) != 2 {
+		t.Errorf("table = %+v, want T with its two columns", table)
+	}
+}
+
 // onlySchema returns the one schema a database has in Oracle, whose name is the
 // database's: a schema is a user, and the metadata type names it twice.
 func onlySchema(t *testing.T, metadata *metadatapb.DatabaseSchemaMetadata) *metadatapb.SchemaMetadata {

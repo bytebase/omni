@@ -17,8 +17,12 @@
 | CREATE TABLE OMNI_APP.TYPES (
 | 	ID NUMBER(10) NOT NULL,
 | 	AMOUNT NUMBER(12, 2) DEFAULT 0 NOT NULL,
+| 	ROUNDED NUMBER(5, -2),
+| 	SCALED NUMBER(*, 2),
 | 	RATIO FLOAT,
 | 	LABEL VARCHAR2(50 CHAR),
+| 	BYTES VARCHAR2(50 BYTE),
+| 	NATIONAL NVARCHAR2(20),
 | 	CODE CHAR(3),
 | 	NOTE CLOB,
 | 	BLOB_DATA BLOB,
@@ -167,6 +171,8 @@
 | 			DATA_LENGTH,
 | 			DATA_PRECISION,
 | 			DATA_SCALE,
+| 			CHAR_USED,
+| 			CHAR_LENGTH,
 | 			COLUMN_ID,
 | 			DATA_DEFAULT,
 | 			NULLABLE,
@@ -184,6 +190,8 @@
 < column "DATA_LENGTH" "NUMBER"
 < column "DATA_PRECISION" "NUMBER"
 < column "DATA_SCALE" "NUMBER"
+< column "CHAR_USED" "NCHAR"
+< column "CHAR_LENGTH" "NUMBER"
 < column "COLUMN_ID" "NUMBER"
 < column "DATA_DEFAULT" "LONG"
 < column "NULLABLE" "NCHAR"
@@ -203,6 +211,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -226,6 +237,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 2
 : null
@@ -249,6 +263,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 3
 : string
@@ -273,6 +290,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -297,6 +317,10 @@
 : null
 : null
 : string
+| B
+: string
+| 10
+: string
 | 2
 : null
 : string
@@ -320,6 +344,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 3
 : null
@@ -343,6 +370,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : string
@@ -367,6 +397,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 2
 : string
@@ -391,6 +424,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 3
 : string
@@ -417,6 +453,9 @@
 : null
 : null
 : string
+| 0
+: null
+: string
 | 7
 : string
 | Y
@@ -438,6 +477,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : string
@@ -463,6 +505,10 @@
 : null
 : null
 : string
+| B
+: string
+| 20
+: string
 | 2
 : null
 : string
@@ -486,6 +532,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -510,6 +559,10 @@
 : null
 : null
 : string
+| B
+: string
+| 10
+: string
 | 2
 : null
 : string
@@ -533,6 +586,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -557,6 +613,10 @@
 : null
 : null
 : string
+| B
+: string
+| 40
+: string
 | 2
 : null
 : string
@@ -580,6 +640,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -604,6 +667,10 @@
 : null
 : null
 : string
+| B
+: string
+| 40
+: string
 | 2
 : null
 : string
@@ -627,6 +694,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
@@ -650,6 +720,10 @@
 | 40
 : null
 : null
+: string
+| B
+: string
+| 40
 : string
 | 2
 : null
@@ -674,6 +748,9 @@
 | 22
 : string
 | 10
+: string
+| 0
+: null
 : string
 | 0
 : string
@@ -701,12 +778,70 @@
 | 12
 : string
 | 2
+: null
+: string
+| 0
 : string
 | 2
 : string
 | 0 
 : string
 | N
+: null
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| ROUNDED
+: string
+| NUMBER
+: string
+| 22
+: string
+| 5
+: string
+| -2
+: null
+: string
+| 0
+: string
+| 3
+: null
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| SCALED
+: string
+| NUMBER
+: string
+| 22
+: null
+: string
+| 2
+: null
+: string
+| 0
+: string
+| 4
+: null
+: string
+| Y
 : null
 : string
 | NO
@@ -726,8 +861,11 @@
 : string
 | 126
 : null
+: null
 : string
-| 3
+| 0
+: string
+| 5
 : null
 : string
 | Y
@@ -750,7 +888,67 @@
 : null
 : null
 : string
-| 4
+| C
+: string
+| 50
+: string
+| 6
+: null
+: string
+| Y
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| BYTES
+: string
+| VARCHAR2
+: string
+| 50
+: null
+: null
+: string
+| B
+: string
+| 50
+: string
+| 7
+: null
+: string
+| Y
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| NATIONAL
+: string
+| NVARCHAR2
+: string
+| 40
+: null
+: null
+: string
+| C
+: string
+| 20
+: string
+| 8
 : null
 : string
 | Y
@@ -774,7 +972,11 @@
 : null
 : null
 : string
-| 5
+| B
+: string
+| 3
+: string
+| 9
 : null
 : string
 | Y
@@ -797,8 +999,11 @@
 | 4000
 : null
 : null
+: null
 : string
-| 6
+| 0
+: string
+| 10
 : null
 : string
 | Y
@@ -821,8 +1026,11 @@
 | 4000
 : null
 : null
+: null
 : string
-| 7
+| 0
+: string
+| 11
 : null
 : string
 | Y
@@ -844,8 +1052,11 @@
 | 16
 : null
 : null
+: null
 : string
-| 8
+| 0
+: string
+| 12
 : null
 : string
 | Y
@@ -869,8 +1080,11 @@
 | 1
 : string
 | 0
+: null
 : string
-| 9
+| 0
+: string
+| 13
 : string
 | 0
 : string
@@ -893,8 +1107,11 @@
 | 7
 : null
 : null
+: null
 : string
-| 10
+| 0
+: string
+| 14
 : string
 | SYSDATE
 : string
@@ -918,8 +1135,11 @@
 : null
 : string
 | 3
+: null
 : string
-| 11
+| 0
+: string
+| 15
 : null
 : string
 | Y
@@ -942,8 +1162,11 @@
 : null
 : string
 | 6
+: null
 : string
-| 12
+| 0
+: string
+| 16
 : null
 : string
 | Y
@@ -965,8 +1188,11 @@
 | 22
 : null
 : null
+: null
 : string
-| 13
+| 0
+: string
+| 17
 : null
 : string
 | Y

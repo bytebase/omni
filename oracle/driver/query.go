@@ -12,6 +12,7 @@ import (
 	omnidriver "github.com/bytebase/omni/driver"
 	omnioracle "github.com/bytebase/omni/oracle"
 	oracleanalysis "github.com/bytebase/omni/oracle/analysis"
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 // Query runs each non-empty statement of script in order on the session's
@@ -23,58 +24,37 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 	if err != nil {
 		return nil, err
 	}
-	var statements []string
-	for _, statement := range parsed {
-		if !statement.Empty() {
-			statements = append(statements, statement.Text)
-		}
-	}
-	if len(statements) == 0 {
-		return nil, nil
-	}
-
 	type preparedStmt struct {
 		text        string
 		returnsData bool
-		planFormat  string
-		planAsJSON  bool
 	}
-	prepared := make([]preparedStmt, 0, len(statements))
-	for _, statement := range statements {
-		stmt := preparedStmt{text: statement}
-		if opts.Explain {
-			statementID := s.driver.nextStatementID()
-			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("EXPLAIN PLAN SET STATEMENT_ID = '%s' FOR %s", statementID, statement)); err != nil {
-				return nil, err
-			}
-			if isJSONExplainFormat(opts.ExplainFormat) {
-				stmt.text = fmt.Sprintf(planStepsQuery, statementID)
-				stmt.planFormat = "JSON"
-				stmt.planAsJSON = true
-			} else {
-				stmt.text = fmt.Sprintf(textPlanQuery, statementID, statementID)
-				stmt.planFormat = "TEXT"
-			}
-			stmt.returnsData = true
-			prepared = append(prepared, stmt)
+	var prepared []preparedStmt
+	for _, statement := range parsed {
+		if statement.Empty() {
 			continue
 		}
-		if opts.Limit > 0 {
+		text := statement.Text
+		if !opts.Explain && opts.Limit > 0 {
 			// A statement the rewrite cannot bound falls back to the ROWNUM
 			// wrapper.
-			if rewritten, err := oracleanalysis.RewriteResultLimit(statement, opts.Limit, s.driver.engineVersion); err == nil {
-				statement = rewritten
+			if rewritten, err := oracleanalysis.RewriteResultLimit(text, opts.Limit, s.driver.engineVersion); err == nil {
+				text = rewritten
 			} else {
-				statement = oracleanalysis.RowNumResultLimit(statement, opts.Limit)
+				text = oracleanalysis.RowNumResultLimit(text, opts.Limit)
 			}
-			stmt.text = statement
 		}
-		_, returnsData, err := oracleanalysis.ValidateQuery(statement)
-		if err != nil {
-			return nil, err
+		// The statement's shape decides how it runs, not the read-only
+		// validator: a SELECT that declares PL/SQL inline is refused read-only,
+		// and still returns its rows.
+		returnsData := false
+		switch statement.AST.(type) {
+		case *ast.SelectStmt, *ast.ExplainPlanStmt:
+			returnsData = true
 		}
-		stmt.returnsData = returnsData
-		prepared = append(prepared, stmt)
+		prepared = append(prepared, preparedStmt{text: text, returnsData: returnsData})
+	}
+	if len(prepared) == 0 {
+		return nil, nil
 	}
 
 	var results []*omnidriver.Result
@@ -87,18 +67,21 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 			}
 		}
 		startTime := time.Now()
-		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, stmt.planAsJSON, opts.MaxResultBytes)
+		var res *omnidriver.Result
+		var err error
+		statement := stmt.text
+		if opts.Explain {
+			res, statement, err = s.explain(ctx, stmt.text, opts)
+		} else {
+			res, err = s.runStatement(ctx, stmt.text, stmt.returnsData, false, opts.MaxResultBytes)
+		}
 		stop := false
 		if err != nil {
 			res = &omnidriver.Result{Err: err}
 			stop = true
 		}
-		res.Statement = stmt.text
+		res.Statement = statement
 		res.Latency = time.Since(startTime)
-		if stmt.planFormat != "" {
-			// Oracle plans a statement without running it.
-			res.Plan = &omnidriver.Plan{Format: stmt.planFormat}
-		}
 		results = append(results, res)
 		if stop {
 			break
@@ -107,8 +90,33 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 	return results, nil
 }
 
+// explain plans statement and returns the plan, in the requested format, with
+// the text that read it.
+func (s *session) explain(ctx context.Context, statement string, opts omnidriver.QueryOptions) (*omnidriver.Result, string, error) {
+	statementID := s.driver.nextStatementID()
+	if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("EXPLAIN PLAN SET STATEMENT_ID = '%s' FOR %s", statementID, statement)); err != nil {
+		return nil, statement, err
+	}
+	asJSON := isJSONExplainFormat(opts.ExplainFormat)
+	planQuery := fmt.Sprintf(textPlanQuery, statementID, statementID)
+	if asJSON {
+		planQuery = fmt.Sprintf(planStepsQuery, statementID)
+	}
+	res, err := s.runStatement(ctx, planQuery, true, asJSON, opts.MaxResultBytes)
+	if err != nil {
+		return nil, planQuery, err
+	}
+	// Oracle plans a statement without running it.
+	format := "TEXT"
+	if asJSON {
+		format = "JSON"
+	}
+	res.Plan = &omnidriver.Plan{Format: format}
+	return res, planQuery, nil
+}
+
 // runStatement runs one statement and reads its rows, or its affected count.
-func (s *session) runStatement(ctx context.Context, statement string, returnsData, planAsJSON bool, maxResultBytes int64) (*omnidriver.Result, error) {
+func (s *session) runStatement(ctx context.Context, statement string, returnsData, planDocument bool, maxResultBytes int64) (*omnidriver.Result, error) {
 	if !returnsData {
 		sqlResult, err := s.conn.ExecContext(ctx, statement)
 		if err != nil {
@@ -126,7 +134,7 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	if planAsJSON {
+	if planDocument {
 		res, err := readPlanSteps(rows)
 		if err != nil {
 			return nil, err
