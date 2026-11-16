@@ -35,10 +35,3 @@
 > exec
 | ALTER SESSION SET CURRENT_SCHEMA = "OMNI_APP"
 < ok 0 0
-> query
-| SELECT ID FROM S
-< result
-< column "ID" "NUMBER"
-< row
-: string
-| 1

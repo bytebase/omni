@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	omnidriver "github.com/bytebase/omni/driver"
 	omnioracle "github.com/bytebase/omni/oracle"
 	oracleanalysis "github.com/bytebase/omni/oracle/analysis"
+	"github.com/bytebase/omni/oracle/ast"
 )
 
 // Query runs each non-empty statement of script in order on the session's
@@ -22,85 +24,59 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 	if err != nil {
 		return nil, err
 	}
-	var statements []string
-	for _, statement := range parsed {
-		if !statement.Empty() {
-			statements = append(statements, statement.Text)
-		}
-	}
-	if len(statements) == 0 {
-		return nil, nil
-	}
-
 	type preparedStmt struct {
 		text        string
 		returnsData bool
-		planFormat  string
-		planAsJSON  bool
 	}
-	prepared := make([]preparedStmt, 0, len(statements))
-	for _, statement := range statements {
-		stmt := preparedStmt{text: statement}
-		if opts.Explain {
-			// The plan is made here, so the schema has to be the caller's now
-			// rather than when the plan's rows are read.
-			if err := s.applySchema(ctx, opts.Schema); err != nil {
-				return nil, err
-			}
-			statementID := s.driver.nextStatementID()
-			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("EXPLAIN PLAN SET STATEMENT_ID = '%s' FOR %s", statementID, statement)); err != nil {
-				return nil, err
-			}
-			if isJSONExplainFormat(opts.ExplainFormat) {
-				stmt.text = fmt.Sprintf(planStepsQuery, statementID)
-				stmt.planFormat = "JSON"
-				stmt.planAsJSON = true
-			} else {
-				stmt.text = fmt.Sprintf(textPlanQuery, statementID, statementID)
-				stmt.planFormat = "TEXT"
-			}
-			stmt.returnsData = true
-			prepared = append(prepared, stmt)
+	var prepared []preparedStmt
+	for _, statement := range parsed {
+		if statement.Empty() {
 			continue
 		}
-		if opts.Limit > 0 {
-			// A statement the rewrite cannot bound falls back to the ROWNUM
-			// wrapper.
-			if rewritten, err := oracleanalysis.RewriteResultLimit(statement, opts.Limit, s.driver.engineVersion); err == nil {
-				statement = rewritten
-			} else {
-				statement = oracleanalysis.RowNumResultLimit(statement, opts.Limit)
-			}
-			stmt.text = statement
+		text := statement.Text
+		if !opts.Explain && opts.Limit > 0 {
+			text = limitStatement(text, opts.Limit, s.driver.engineVersion)
 		}
-		_, returnsData, err := oracleanalysis.ValidateQuery(statement)
-		if err != nil {
-			return nil, err
+		// The statement's shape decides how it runs, not the read-only
+		// validator: a SELECT that declares PL/SQL inline is refused read-only,
+		// and still returns its rows.
+		returnsData := false
+		switch statement.AST.(type) {
+		case *ast.SelectStmt, *ast.ExplainPlanStmt:
+			returnsData = true
 		}
-		stmt.returnsData = returnsData
-		prepared = append(prepared, stmt)
+		prepared = append(prepared, preparedStmt{text: text, returnsData: returnsData})
+	}
+	if len(prepared) == 0 {
+		return nil, nil
 	}
 
 	var results []*omnidriver.Result
 	for _, stmt := range prepared {
 		// The session is the caller's, so the schema is set on every statement
 		// rather than once: a script that switches it switches for the next.
-		if err := s.applySchema(ctx, opts.Schema); err != nil {
-			return nil, err
+		if opts.Schema != "" {
+			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(opts.Schema))); err != nil {
+				return nil, err
+			}
+			s.schemaApplied = true
 		}
 		startTime := time.Now()
-		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, stmt.planAsJSON, opts.MaxResultBytes)
+		var res *omnidriver.Result
+		var err error
+		statement := stmt.text
+		if opts.Explain {
+			res, statement, err = s.explain(ctx, stmt.text, opts)
+		} else {
+			res, err = s.runStatement(ctx, stmt.text, stmt.returnsData, false, opts.MaxResultBytes)
+		}
 		stop := false
 		if err != nil {
 			res = &omnidriver.Result{Err: err}
 			stop = true
 		}
-		res.Statement = stmt.text
+		res.Statement = statement
 		res.Latency = time.Since(startTime)
-		if stmt.planFormat != "" {
-			// Oracle plans a statement without running it.
-			res.Plan = &omnidriver.Plan{Format: stmt.planFormat}
-		}
 		results = append(results, res)
 		if stop {
 			break
@@ -109,21 +85,48 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 	return results, nil
 }
 
-// applySchema makes schema the one the session's unqualified names resolve in,
-// and remembers that the session has its own schema to return to.
-func (s *session) applySchema(ctx context.Context, schema string) error {
-	if schema == "" {
-		return nil
+// limitStatement bounds the rows statement returns. The rewrite reads the
+// statement's first keyword, so a leading comment is set aside and put back
+// around the bounded statement; a statement the rewrite refuses falls back to
+// the ROWNUM wrapper, as it does in Bytebase.
+func limitStatement(statement string, limit int, engineVersion string) string {
+	start := skipSpaceAndComments(statement)
+	prefix, body := statement[:start], statement[start:]
+	// An unchanged result is the rewrite's own answer for a statement it leaves
+	// alone, such as a sequence read from DUAL; only an error falls back.
+	if rewritten, err := oracleanalysis.RewriteResultLimit(body, limit, engineVersion); err == nil {
+		return prefix + rewritten
 	}
-	if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(schema))); err != nil {
-		return err
+	return prefix + oracleanalysis.RowNumResultLimit(body, limit)
+}
+
+// explain plans statement and returns the plan, in the requested format, with
+// the text that read it.
+func (s *session) explain(ctx context.Context, statement string, opts omnidriver.QueryOptions) (*omnidriver.Result, string, error) {
+	statementID := s.driver.nextStatementID()
+	if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("EXPLAIN PLAN SET STATEMENT_ID = '%s' FOR %s", statementID, statement)); err != nil {
+		return nil, statement, err
 	}
-	s.schemaApplied = true
-	return nil
+	asJSON := isJSONExplainFormat(opts.ExplainFormat)
+	planQuery := fmt.Sprintf(textPlanQuery, statementID, statementID)
+	if asJSON {
+		planQuery = fmt.Sprintf(planStepsQuery, statementID)
+	}
+	res, err := s.runStatement(ctx, planQuery, true, asJSON, opts.MaxResultBytes)
+	if err != nil {
+		return nil, planQuery, err
+	}
+	// Oracle plans a statement without running it.
+	format := "TEXT"
+	if asJSON {
+		format = "JSON"
+	}
+	res.Plan = &omnidriver.Plan{Format: format}
+	return res, planQuery, nil
 }
 
 // runStatement runs one statement and reads its rows, or its affected count.
-func (s *session) runStatement(ctx context.Context, statement string, returnsData, planAsJSON bool, maxResultBytes int64) (*omnidriver.Result, error) {
+func (s *session) runStatement(ctx context.Context, statement string, returnsData, planDocument bool, maxResultBytes int64) (*omnidriver.Result, error) {
 	if !returnsData {
 		sqlResult, err := s.conn.ExecContext(ctx, statement)
 		if err != nil {
@@ -141,7 +144,7 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	if planAsJSON {
+	if planDocument {
 		res, err := readPlanSteps(rows)
 		if err != nil {
 			return nil, err
@@ -151,14 +154,89 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		}
 		return res, nil
 	}
-	res, err := readRows(rows, maxResultBytes)
+	res, localZones, err := readRows(rows, maxResultBytes)
 	if err != nil {
 		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	// A TIMESTAMP WITH LOCAL TIME ZONE comes back as the instant it names, and
+	// SQL*Plus prints that instant in the session's zone. Reading the zone needs
+	// the statement's rows closed, so the conversion happens here.
+	if len(localZones) > 0 {
+		// The connection holds one result set at a time.
+		if err := rows.Close(); err != nil {
+			return nil, err
+		}
+		location, err := s.localTimeZone(ctx)
+		if err != nil {
+			return nil, err
+		}
+		for _, cell := range localZones {
+			inZone := res.Rows[cell.row][cell.column].Time.In(location)
+			res.Rows[cell.row][cell.column].Time = time.Date(
+				inZone.Year(), inZone.Month(), inZone.Day(),
+				inZone.Hour(), inZone.Minute(), inZone.Second(), inZone.Nanosecond(),
+				time.UTC,
+			)
+		}
+	}
 	return res, nil
+}
+
+// localTimeZone returns the zone the session prints a TIMESTAMP WITH LOCAL TIME
+// ZONE in, as SESSIONTIMEZONE states it: an offset such as +02:00, or a region
+// name such as Europe/Berlin.
+func (s *session) localTimeZone(ctx context.Context) (*time.Location, error) {
+	var zone string
+	if err := s.conn.QueryRowContext(ctx, "SELECT SESSIONTIMEZONE FROM DUAL").Scan(&zone); err != nil {
+		return nil, fmt.Errorf("failed to read the session time zone: %w", err)
+	}
+	return oracleLocation(zone), nil
+}
+
+var oracleLocations sync.Map
+
+// oracleLocation reads SESSIONTIMEZONE, which names a zone as an offset or as a
+// region such as Europe/Berlin, and leaves a name the system cannot resolve in
+// UTC.
+func oracleLocation(zone string) *time.Location {
+	if zone == "" || zone == "UTC" {
+		return time.UTC
+	}
+	if cached, ok := oracleLocations.Load(zone); ok {
+		if location, ok := cached.(*time.Location); ok {
+			return location
+		}
+	}
+	var location *time.Location
+	if offset, ok := zoneOffset(zone); ok {
+		location = time.FixedZone(zone, offset)
+	} else if loaded, err := time.LoadLocation(zone); err == nil {
+		location = loaded
+	} else {
+		location = time.UTC
+	}
+	oracleLocations.Store(zone, location)
+	return location
+}
+
+// zoneOffset reads SESSIONTIMEZONE's offset spelling, hours and minutes east of
+// UTC, with an optional fractional part on the minutes.
+func zoneOffset(zone string) (int, bool) {
+	if len(zone) < 3 || (zone[0] != '+' && zone[0] != '-') {
+		return 0, false
+	}
+	var hours, minutes int
+	if _, err := fmt.Sscanf(zone[1:], "%d:%d", &hours, &minutes); err != nil {
+		return 0, false
+	}
+	offset := hours*3600 + minutes*60
+	if zone[0] == '-' {
+		offset = -offset
+	}
+	return offset, true
 }
 
 // isJSONExplainFormat reports whether format asks for the plan as a document.
@@ -213,15 +291,23 @@ func readPlanSteps(rows *sql.Rows) (*omnidriver.Result, error) {
 	}, nil
 }
 
-// readRows reads one result set, stopping at maxResultBytes.
-func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, error) {
+// localZoneCell names one value a TIMESTAMP WITH LOCAL TIME ZONE column
+// returned, which the session's zone renders.
+type localZoneCell struct {
+	row    int
+	column int
+}
+
+// readRows reads one result set, stopping at maxResultBytes, and reports the
+// values the session's time zone renders.
+func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, []localZoneCell, error) {
 	columnNames, err := rows.Columns()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	columnTypes, err := rows.ColumnTypes()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	columns := make([]omnidriver.Column, len(columnNames))
 	for i, columnType := range columnTypes {
@@ -232,20 +318,24 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, error) 
 	}
 	res := &omnidriver.Result{Columns: columns}
 	if len(columns) == 0 {
-		return res, nil
+		return res, nil, nil
 	}
 	totalBytes := omnidriver.HeaderByteSize(columns)
+	var localZones []localZoneCell
 	for rows.Next() {
 		dest := make([]any, len(columns))
 		for i := range columns {
 			dest[i] = makeValueByTypeName(columns[i].TypeName)
 		}
 		if err := rows.Scan(dest...); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		row := make([]omnidriver.Value, len(columns))
 		for i := range columns {
 			row[i] = convertValue(columns[i].TypeName, columnTypes[i], dest[i])
+			if columns[i].TypeName == "TIMESTAMPLTZ_DTY" && row[i].Kind == omnidriver.Timestamp {
+				localZones = append(localZones, localZoneCell{row: len(res.Rows), column: i})
+			}
 		}
 		res.Rows = append(res.Rows, row)
 		if maxResultBytes > 0 {
@@ -256,7 +346,7 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*omnidriver.Result, error) 
 			}
 		}
 	}
-	return res, nil
+	return res, localZones, nil
 }
 
 // makeValueByTypeName creates appropriate Go types for Oracle column types.
@@ -325,13 +415,9 @@ func convertTimestamp(typeName string, columnType *sql.ColumnType, t time.Time) 
 		stripped := time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 		return omnidriver.Value{Kind: omnidriver.Timestamp, Time: stripped, Precision: int32(scale)}
 	case "TIMESTAMPLTZ_DTY":
-		// A local-time-zone timestamp is not consistent with sqlplus, which
-		// depends on the database's and the session's zone.
-		parsed, err := time.Parse(time.DateTime, t.Format("2006-01-02 15:04:05.000000000"))
-		if err != nil {
-			return omnidriver.Value{Kind: omnidriver.Null}
-		}
-		return omnidriver.Value{Kind: omnidriver.Timestamp, Time: parsed, Precision: int32(scale)}
+		// The client states the value as the instant it names; the session's zone
+		// renders it, in the pass that runs once the statement's rows are closed.
+		return omnidriver.Value{Kind: omnidriver.Timestamp, Time: t.UTC(), Precision: int32(scale)}
 	default:
 		// The client returns the value in the database's zone, which is the
 		// zone the session renders it in.

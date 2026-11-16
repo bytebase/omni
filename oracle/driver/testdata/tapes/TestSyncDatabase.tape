@@ -17,13 +17,18 @@
 | CREATE TABLE OMNI_APP.TYPES (
 | 	ID NUMBER(10) NOT NULL,
 | 	AMOUNT NUMBER(12, 2) DEFAULT 0 NOT NULL,
+| 	ROUNDED NUMBER(5, -2),
+| 	SCALED NUMBER(*, 2),
 | 	RATIO FLOAT,
 | 	LABEL VARCHAR2(50 CHAR),
+| 	BYTES VARCHAR2(50 BYTE),
+| 	NATIONAL NVARCHAR2(20),
 | 	CODE CHAR(3),
 | 	NOTE CLOB,
 | 	BLOB_DATA BLOB,
 | 	RAW_DATA RAW(16),
 | 	FLAG NUMBER(1) DEFAULT 0,
+| 	SEQ_TEXT VARCHAR2(40) DEFAULT '"OMNI_APP"."S".NEXTVAL',
 | 	CREATED DATE DEFAULT SYSDATE,
 | 	AT TIMESTAMP(3),
 | 	AT_ZONE TIMESTAMP WITH TIME ZONE,
@@ -159,6 +164,34 @@
 < ok
 > query
 |
+| 		SELECT TABLE_NAME, COLUMN_NAME, GENERATION_TYPE, IDENTITY_OPTIONS
+| 		FROM all_tab_identity_cols
+| 		WHERE OWNER = 'OMNI_APP'
+< result
+< column "TABLE_NAME" "NCHAR"
+< column "COLUMN_NAME" "NCHAR"
+< column "GENERATION_TYPE" "NCHAR"
+< column "IDENTITY_OPTIONS" "NCHAR"
+< row
+: string
+| IDENT
+: string
+| ID
+: string
+| ALWAYS
+: string
+| START WITH: 1, INCREMENT BY: 1, MAX_VALUE: 9999999999999999999999999999, MIN_VALUE: 1, CYCLE_FLAG: N, CACHE_SIZE: 20, ORDER_FLAG: N, SCALE_FLAG: N, EXTEND_FLAG: N, SESSION_FLAG: N, KEEP_VALUE: N
+< row
+: string
+| IDENT_DEFAULT
+: string
+| ID
+: string
+| BY DEFAULT
+: string
+| START WITH: 100, INCREMENT BY: 5, MAX_VALUE: 9999999999999999999999999999, MIN_VALUE: 1, CYCLE_FLAG: N, CACHE_SIZE: 20, ORDER_FLAG: N, SCALE_FLAG: N, EXTEND_FLAG: N, SESSION_FLAG: N, KEEP_VALUE: N
+> query
+|
 | 		SELECT
 | 			OWNER,
 | 			TABLE_NAME,
@@ -167,12 +200,15 @@
 | 			DATA_LENGTH,
 | 			DATA_PRECISION,
 | 			DATA_SCALE,
+| 			CHAR_USED,
+| 			CHAR_LENGTH,
 | 			COLUMN_ID,
 | 			DATA_DEFAULT,
 | 			NULLABLE,
 | 			COLLATION,
 | 			DEFAULT_ON_NULL,
-| 			VIRTUAL_COLUMN
+| 			VIRTUAL_COLUMN,
+| 			IDENTITY_COLUMN
 | 		FROM sys.all_tab_cols
 | 		WHERE OWNER = 'OMNI_APP' AND USER_GENERATED = 'YES'
 | 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME
@@ -184,12 +220,15 @@
 < column "DATA_LENGTH" "NUMBER"
 < column "DATA_PRECISION" "NUMBER"
 < column "DATA_SCALE" "NUMBER"
+< column "CHAR_USED" "NCHAR"
+< column "CHAR_LENGTH" "NUMBER"
 < column "COLUMN_ID" "NUMBER"
 < column "DATA_DEFAULT" "LONG"
 < column "NULLABLE" "NCHAR"
 < column "COLLATION" "NCHAR"
 < column "DEFAULT_ON_NULL" "NCHAR"
 < column "VIRTUAL_COLUMN" "NCHAR"
+< column "IDENTITY_COLUMN" "NCHAR"
 < row
 : string
 | OMNI_APP
@@ -203,12 +242,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -226,12 +270,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 2
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -249,6 +298,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 3
 : string
@@ -256,6 +308,8 @@
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -273,12 +327,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -297,12 +356,18 @@
 : null
 : null
 : string
+| B
+: string
+| 10
+: string
 | 2
 : null
 : string
 | N
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -320,12 +385,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 3
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -343,6 +413,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : string
@@ -354,6 +427,8 @@
 | NO
 : string
 | NO
+: string
+| YES
 < row
 : string
 | OMNI_APP
@@ -367,6 +442,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 2
 : string
@@ -378,6 +456,8 @@
 | NO
 : string
 | YES
+: string
+| NO
 < row
 : string
 | OMNI_APP
@@ -391,6 +471,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 3
 : string
@@ -402,6 +485,8 @@
 | NO
 : string
 | YES
+: string
+| NO
 < row
 : string
 | OMNI_APP
@@ -417,10 +502,15 @@
 : null
 : null
 : string
+| 0
+: null
+: string
 | 7
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -438,6 +528,9 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : string
@@ -449,6 +542,8 @@
 | YES
 : string
 | NO
+: string
+| YES
 < row
 : string
 | OMNI_APP
@@ -463,12 +558,18 @@
 : null
 : null
 : string
+| B
+: string
+| 20
+: string
 | 2
 : null
 : string
 | Y
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -486,12 +587,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -510,6 +616,10 @@
 : null
 : null
 : string
+| B
+: string
+| 10
+: string
 | 2
 : null
 : string
@@ -520,6 +630,8 @@
 | NO
 : string
 | NO
+: string
+| NO
 < row
 : string
 | OMNI_APP
@@ -533,12 +645,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -557,12 +674,18 @@
 : null
 : null
 : string
+| B
+: string
+| 40
+: string
 | 2
 : null
 : string
 | N
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -580,12 +703,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -604,12 +732,18 @@
 : null
 : null
 : string
+| B
+: string
+| 40
+: string
 | 2
 : null
 : string
 | N
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -627,12 +761,17 @@
 | 22
 : null
 : null
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -651,12 +790,18 @@
 : null
 : null
 : string
+| B
+: string
+| 40
+: string
 | 2
 : null
 : string
 | N
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -676,12 +821,17 @@
 | 10
 : string
 | 0
+: null
+: string
+| 0
 : string
 | 1
 : null
 : string
 | N
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -701,6 +851,9 @@
 | 12
 : string
 | 2
+: null
+: string
+| 0
 : string
 | 2
 : string
@@ -708,6 +861,67 @@
 : string
 | N
 : null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| ROUNDED
+: string
+| NUMBER
+: string
+| 22
+: string
+| 5
+: string
+| -2
+: null
+: string
+| 0
+: string
+| 3
+: null
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| SCALED
+: string
+| NUMBER
+: string
+| 22
+: null
+: string
+| 2
+: null
+: string
+| 0
+: string
+| 4
+: null
+: string
+| Y
+: null
+: string
+| NO
 : string
 | NO
 : string
@@ -726,12 +940,17 @@
 : string
 | 126
 : null
+: null
 : string
-| 3
+| 0
+: string
+| 5
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -750,12 +969,78 @@
 : null
 : null
 : string
-| 4
+| C
+: string
+| 50
+: string
+| 6
 : null
 : string
 | Y
 : string
 | USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| BYTES
+: string
+| VARCHAR2
+: string
+| 50
+: null
+: null
+: string
+| B
+: string
+| 50
+: string
+| 7
+: null
+: string
+| Y
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| NATIONAL
+: string
+| NVARCHAR2
+: string
+| 40
+: null
+: null
+: string
+| C
+: string
+| 20
+: string
+| 8
+: null
+: string
+| Y
+: string
+| USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -774,12 +1059,18 @@
 : null
 : null
 : string
-| 5
+| B
+: string
+| 3
+: string
+| 9
 : null
 : string
 | Y
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -797,13 +1088,18 @@
 | 4000
 : null
 : null
+: null
 : string
-| 6
+| 0
+: string
+| 10
 : null
 : string
 | Y
 : string
 | USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -821,12 +1117,17 @@
 | 4000
 : null
 : null
+: null
 : string
-| 7
+| 0
+: string
+| 11
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -844,12 +1145,17 @@
 | 16
 : null
 : null
+: null
 : string
-| 8
+| 0
+: string
+| 12
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -869,13 +1175,49 @@
 | 1
 : string
 | 0
+: null
 : string
-| 9
+| 0
+: string
+| 13
 : string
 | 0
 : string
 | Y
 : null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| TYPES
+: string
+| SEQ_TEXT
+: string
+| VARCHAR2
+: string
+| 40
+: null
+: null
+: string
+| B
+: string
+| 40
+: string
+| 14
+: string
+| '"OMNI_APP"."S".NEXTVAL'
+: string
+| Y
+: string
+| USING_NLS_COMP
+: string
+| NO
 : string
 | NO
 : string
@@ -893,13 +1235,18 @@
 | 7
 : null
 : null
+: null
 : string
-| 10
+| 0
+: string
+| 15
 : string
 | SYSDATE
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -918,12 +1265,17 @@
 : null
 : string
 | 3
+: null
 : string
-| 11
+| 0
+: string
+| 16
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -942,12 +1294,17 @@
 : null
 : string
 | 6
+: null
 : string
-| 12
+| 0
+: string
+| 17
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string
@@ -965,12 +1322,17 @@
 | 22
 : null
 : null
+: null
 : string
-| 13
+| 0
+: string
+| 18
 : null
 : string
 | Y
 : null
+: string
+| NO
 : string
 | NO
 : string

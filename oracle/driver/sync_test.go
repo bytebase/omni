@@ -7,6 +7,7 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -269,12 +270,127 @@ CREATE VIEW OMNI_APP.V (A, B INVISIBLE) AS SELECT A, B FROM OMNI_APP.T;
 		t.Fatal(err)
 	}
 	defer func() { _ = txn.Rollback() }()
-	columnMap, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1})
+	identityColumns, err := getIdentityColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	columnMap, err := getTableColumns(txn, testSchema, &oracleanalysis.Version{First: 12, Second: 1}, identityColumns)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if diff := cmp.Diff(want, read(columnMap[tableKey{Schema: testSchema, Table: "T"}])); diff != "" {
 		t.Errorf("columns before 12.2 (-want +got):\n%s", diff)
+	}
+}
+
+// TestSyncCrossSchemaForeignKeys pins that two foreign keys naming the same
+// remote constraint each report its columns once.
+func TestSyncCrossSchemaForeignKeys(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+CREATE USER OMNI_OTHER NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_OTHER;
+CREATE TABLE OMNI_OTHER.R (ID NUMBER NOT NULL, PART NUMBER NOT NULL, CONSTRAINT R_PK PRIMARY KEY (ID, PART));
+GRANT REFERENCES ON OMNI_OTHER.R TO OMNI_APP;
+CREATE TABLE OMNI_APP.A (ID NUMBER NOT NULL, R_ID NUMBER NOT NULL, R_PART NUMBER NOT NULL, CONSTRAINT A_PK PRIMARY KEY (ID), CONSTRAINT A_R_FK FOREIGN KEY (R_ID, R_PART) REFERENCES OMNI_OTHER.R (ID, PART));
+CREATE TABLE OMNI_APP.B (ID NUMBER NOT NULL, R_ID NUMBER NOT NULL, R_PART NUMBER NOT NULL, CONSTRAINT B_PK PRIMARY KEY (ID), CONSTRAINT B_R_FK FOREIGN KEY (R_ID, R_PART) REFERENCES OMNI_OTHER.R (ID, PART));
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	if len(schema.Tables) != 2 {
+		t.Fatalf("tables = %v, want A and B", namesOfTables(schema.Tables))
+	}
+	for _, table := range schema.Tables {
+		if len(table.ForeignKeys) != 1 {
+			t.Fatalf("%s foreign keys = %d, want 1", table.Name, len(table.ForeignKeys))
+		}
+		foreignKey := table.ForeignKeys[0]
+		if foreignKey.ReferencedSchema != "OMNI_OTHER" || foreignKey.ReferencedTable != "R" {
+			t.Errorf("%s references %s.%s, want OMNI_OTHER.R", table.Name, foreignKey.ReferencedSchema, foreignKey.ReferencedTable)
+		}
+		if diff := cmp.Diff([]string{"ID", "PART"}, foreignKey.ReferencedColumns); diff != "" {
+			t.Errorf("%s referenced columns (-want +got):\n%s", table.Name, diff)
+		}
+	}
+}
+
+// TestSyncUnnamedCheckConstraint pins that a CHECK the user wrote without a name
+// is kept, though Oracle named it SYS_C<n> the way it names a NOT NULL.
+func TestSyncUnnamedCheckConstraint(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+CREATE TABLE OMNI_APP.C (A NUMBER CHECK (A > 0), B NUMBER NOT NULL);
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	if len(schema.Tables) != 1 {
+		t.Fatalf("tables = %v", namesOfTables(schema.Tables))
+	}
+	checks := schema.Tables[0].CheckConstraints
+	if len(checks) != 1 {
+		t.Fatalf("check constraints = %+v, want the user's one", checks)
+	}
+	if !strings.Contains(checks[0].Expression, "A") {
+		t.Errorf("check constraint = %+v, want the user's condition", checks[0])
+	}
+}
+
+// TestSyncDatabaseWithoutAConfiguredDatabase pins that a driver opened without
+// Config.Database reads the schema the session's names resolve in.
+func TestSyncDatabaseWithoutAConfiguredDatabase(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+CREATE TABLE OMNI_APP.T (ID NUMBER);
+ALTER SESSION SET CURRENT_SCHEMA = OMNI_APP;
+`)
+	d.databaseName = ""
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if metadata.Name != testSchema {
+		t.Errorf("database = %q, want the session's %q", metadata.Name, testSchema)
+	}
+	if len(metadata.Schemas) != 1 || len(metadata.Schemas[0].Tables) != 1 || metadata.Schemas[0].Tables[0].Name != "T" {
+		t.Errorf("tables = %+v, want the one table", metadata.Schemas)
+	}
+}
+
+// TestSyncSchemaWithApostrophe pins that a schema whose quoted name holds an
+// apostrophe reaches the dictionary queries as one literal.
+func TestSyncSchemaWithApostrophe(t *testing.T) {
+	const schema = "omni'owner"
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER "omni'owner" NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO "omni'owner";
+CREATE TABLE "omni'owner".T (ID NUMBER NOT NULL, NOTE VARCHAR2(10));
+`)
+	d.databaseName = schema
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatalf("a schema named with an apostrophe failed the sync: %v", err)
+	}
+	if metadata.Name != schema {
+		t.Fatalf("database = %q, want %q", metadata.Name, schema)
+	}
+	if len(metadata.Schemas) != 1 || len(metadata.Schemas[0].Tables) != 1 {
+		t.Fatalf("tables = %+v, want the one table", metadata.Schemas)
+	}
+	if table := metadata.Schemas[0].Tables[0]; table.Name != "T" || len(table.Columns) != 2 {
+		t.Errorf("table = %+v, want T with its two columns", table)
 	}
 }
 

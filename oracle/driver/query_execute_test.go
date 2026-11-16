@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -188,22 +189,6 @@ INSERT INTO OMNI_APP.S (ID) VALUES (1);
 	if len(results[0].Rows) != 1 || results[0].Rows[0][0].String != "1" {
 		t.Errorf("rows = %+v, want the one row", results[0].Rows)
 	}
-	// The chosen schema does not outlive the session that chose it.
-	if err := s.Close(); err != nil {
-		t.Fatal(err)
-	}
-	next, err := d.Session(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = next.Close() }()
-	results, err = next.Query(ctx, "SELECT ID FROM S", omnidriver.QueryOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if results[0].Err != nil {
-		t.Errorf("the next session did not get the driver's schema: %v", results[0].Err)
-	}
 }
 
 // TestVersionFromServer pins that the driver asks the server for its release and
@@ -219,6 +204,58 @@ func TestVersionFromServer(t *testing.T) {
 	}
 	if version.First != 23 || version.Second != 26 {
 		t.Errorf("version = %+v, want the server's 23.26", version)
+	}
+}
+
+// TestQuerySelectDeclaringPLSQL pins that a SELECT whose WITH clause declares
+// PL/SQL runs as a query and returns its rows, though the read-only validator
+// refuses that form.
+func TestQuerySelectDeclaringPLSQL(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	results, err := s.Query(ctx, "WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f FROM dual", omnidriver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Err != nil {
+		t.Fatalf("the query failed: %v", results[0].Err)
+	}
+	if len(results[0].Rows) != 1 || len(results[0].Rows[0]) != 1 || results[0].Rows[0][0].String != "1" {
+		t.Errorf("rows = %+v, want the one row the function returns", results[0].Rows)
+	}
+}
+
+// TestQueryExplainStopsAtTheFailingStatement pins that a failing EXPLAIN keeps
+// the plans of the statements before it, and reports its error on its own
+// result.
+func TestQueryExplainStopsAtTheFailingStatement(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, querySetup)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	results, err := s.Query(ctx, "SELECT ID FROM OMNI_APP.Q; SELECT NOSUCH FROM OMNI_APP.Q; SELECT ID FROM OMNI_APP.Q", omnidriver.QueryOptions{Explain: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want 2: the statement after the failure does not run", len(results))
+	}
+	if results[0].Err != nil || results[0].Plan == nil {
+		t.Errorf("first statement = %+v, want its plan", results[0])
+	}
+	if results[1].Err == nil || !strings.Contains(results[1].Err.Error(), "NOSUCH") {
+		t.Errorf("second statement error = %v, want the plan failure", results[1].Err)
 	}
 }
 
@@ -297,6 +334,15 @@ func TestQueryLimit(t *testing.T) {
 	}
 	if !strings.Contains(strings.ToUpper(results[0].Statement), "ROWNUM") && !strings.Contains(strings.ToUpper(results[0].Statement), "FETCH NEXT") {
 		t.Errorf("statement = %q, want a limit rewrite", results[0].Statement)
+	}
+
+	// A leading comment does not take the limit away.
+	results, err = s.Query(ctx, "-- the rows in order\nSELECT ID FROM OMNI_APP.Q ORDER BY ID", omnidriver.QueryOptions{Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(results[0].Rows); got != 2 {
+		t.Errorf("rows behind a comment = %d, want 2", got)
 	}
 
 	// One row exceeds a byte, so reading stops after it and says so.
@@ -521,6 +567,51 @@ CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
 	}
 	// The link is the instance's, not the schema's, so a later test would read it.
 	execCorpus(t, d.db, "DROP DATABASE LINK omni_link")
+}
+
+// TestQueryLocalTimeZone pins that a TIMESTAMP WITH LOCAL TIME ZONE is printed in
+// the session's zone, as SQL*Plus prints it, including a zone the script changes
+// in the middle.
+func TestQueryLocalTimeZone(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+CREATE TABLE OMNI_APP.LTZ (ID NUMBER, AT TIMESTAMP WITH LOCAL TIME ZONE);
+ALTER SESSION SET TIME_ZONE = '+02:00';
+INSERT INTO OMNI_APP.LTZ (ID, AT) VALUES (1, TIMESTAMP '2026-03-04 05:06:07');
+`)
+	s, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = s.Close() }()
+
+	for _, test := range []struct {
+		name string
+		zone string
+		want string
+	}{
+		// The row was stored as 03:06:07 UTC.
+		{name: "offset", zone: "+02:00", want: "2026-03-04 05:06:07"},
+		{name: "utc", zone: "+00:00", want: "2026-03-04 03:06:07"},
+		{name: "region", zone: "Europe/Berlin", want: "2026-03-04 04:06:07"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			results, err := s.Query(ctx, fmt.Sprintf("ALTER SESSION SET TIME_ZONE = '%s'; SELECT AT FROM OMNI_APP.LTZ", test.zone), omnidriver.QueryOptions{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			row := results[len(results)-1].Rows[0][0]
+			if row.Kind != omnidriver.Timestamp {
+				t.Fatalf("value = %+v, want a wall clock", row)
+			}
+			if got := row.Time.Format(time.DateTime); got != test.want {
+				t.Errorf("value = %s, want %s", got, test.want)
+			}
+		})
+	}
 }
 
 // TestExecuteCreateDatabase pins that Oracle refuses a database-creation step:

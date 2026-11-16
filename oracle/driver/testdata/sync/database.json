@@ -115,7 +115,11 @@
               "name": "ID",
               "position": 1,
               "default": "\"OMNI_APP\".\"ISEQ$$_9000001\".nextval",
-              "type": "NUMBER"
+              "type": "NUMBER",
+              "isIdentity": true,
+              "identityGeneration": "ALWAYS",
+              "identitySeed": "1",
+              "identityIncrement": "1"
             },
             {
               "name": "COMPUTED",
@@ -166,7 +170,11 @@
               "position": 1,
               "default": "\"OMNI_APP\".\"ISEQ$$_9000002\".nextval",
               "defaultOnNull": true,
-              "type": "NUMBER"
+              "type": "NUMBER",
+              "isIdentity": true,
+              "identityGeneration": "BY_DEFAULT",
+              "identitySeed": "100",
+              "identityIncrement": "5"
             },
             {
               "name": "NOTE",
@@ -265,29 +273,55 @@
               "type": "NUMBER(12,2)"
             },
             {
-              "name": "RATIO",
+              "name": "ROUNDED",
               "position": 3,
+              "nullable": true,
+              "type": "NUMBER(5,-2)"
+            },
+            {
+              "name": "SCALED",
+              "position": 4,
+              "nullable": true,
+              "type": "NUMBER(*,2)"
+            },
+            {
+              "name": "RATIO",
+              "position": 5,
               "nullable": true,
               "type": "FLOAT(126)"
             },
             {
               "name": "LABEL",
-              "position": 4,
+              "position": 6,
               "nullable": true,
-              "type": "VARCHAR2(200 BYTE)",
+              "type": "VARCHAR2(50 CHAR)",
               "collation": "USING_NLS_COMP",
               "comment": "a label"
             },
             {
+              "name": "BYTES",
+              "position": 7,
+              "nullable": true,
+              "type": "VARCHAR2(50 BYTE)",
+              "collation": "USING_NLS_COMP"
+            },
+            {
+              "name": "NATIONAL",
+              "position": 8,
+              "nullable": true,
+              "type": "NVARCHAR2(20)",
+              "collation": "USING_NLS_COMP"
+            },
+            {
               "name": "CODE",
-              "position": 5,
+              "position": 9,
               "nullable": true,
               "type": "CHAR(3 BYTE)",
               "collation": "USING_NLS_COMP"
             },
             {
               "name": "NOTE",
-              "position": 6,
+              "position": 10,
               "nullable": true,
               "type": "CLOB",
               "collation": "USING_NLS_COMP",
@@ -295,45 +329,53 @@
             },
             {
               "name": "BLOB_DATA",
-              "position": 7,
+              "position": 11,
               "nullable": true,
               "type": "BLOB"
             },
             {
               "name": "RAW_DATA",
-              "position": 8,
+              "position": 12,
               "nullable": true,
               "type": "RAW(16)"
             },
             {
               "name": "FLAG",
-              "position": 9,
+              "position": 13,
               "default": "0",
               "nullable": true,
               "type": "NUMBER(1)"
             },
             {
+              "name": "SEQ_TEXT",
+              "position": 14,
+              "default": "'\"OMNI_APP\".\"S\".NEXTVAL'",
+              "nullable": true,
+              "type": "VARCHAR2(40 BYTE)",
+              "collation": "USING_NLS_COMP"
+            },
+            {
               "name": "CREATED",
-              "position": 10,
+              "position": 15,
               "default": "SYSDATE",
               "nullable": true,
               "type": "DATE"
             },
             {
               "name": "AT",
-              "position": 11,
+              "position": 16,
               "nullable": true,
               "type": "TIMESTAMP(3)"
             },
             {
               "name": "AT_ZONE",
-              "position": 12,
+              "position": 17,
               "nullable": true,
               "type": "TIMESTAMP(6) WITH TIME ZONE"
             },
             {
               "name": "Mixed Case",
-              "position": 13,
+              "position": 18,
               "nullable": true,
               "type": "NUMBER",
               "comment": "a quoted name"

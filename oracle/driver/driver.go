@@ -24,6 +24,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	goora "github.com/sijms/go-ora/v2"
 
@@ -49,15 +51,18 @@ type Driver struct {
 	engineVersion string
 	// statementSeq numbers the EXPLAIN PLAN statement IDs a session records
 	// plans under, which Oracle keeps per session.
-	statementSeq int64
+	statementSeq atomic.Int64
+	// schemaMu guards schemaName, which resolves the schema the driver reads when
+	// Config.Database names none: the account's own.
+	schemaMu   sync.Mutex
+	schemaName string
 }
 
 // nextStatementID returns the next EXPLAIN PLAN statement ID. Bytebase picks a
 // random one; a counter keeps the plan's statements the same from run to run,
 // which a recording needs.
 func (d *Driver) nextStatementID() string {
-	d.statementSeq++
-	return fmt.Sprintf("omni_%d", d.statementSeq)
+	return fmt.Sprintf("omni_%d", d.statementSeq.Add(1))
 }
 
 const (

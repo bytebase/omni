@@ -48,6 +48,17 @@
 : string
 | 2
 > query
+| -- the rows in order
+| SELECT ID FROM OMNI_APP.Q ORDER BY ID FETCH NEXT 2 ROWS ONLY
+< result
+< column "ID" "NUMBER"
+< row
+: string
+| 1
+< row
+: string
+| 2
+> query
 | SELECT ID, LABEL FROM OMNI_APP.Q ORDER BY ID
 < result
 < column "ID" "NUMBER"
