@@ -90,9 +90,11 @@ func (s *session) reproduces() {
 		if s.got[i].req.render() != s.want[i].req.render() {
 			return
 		}
-		if was, now := s.spelledNow(s.want[i].ans).render(), s.got[i].ans.render(); was != now {
+		was, now := s.spelledNow(s.want[i].ans), s.got[i].ans
+		normalizeScans(&was, &now)
+		if was.render() != now.render() {
 			s.t.Errorf("stream %q: the engine answered request %d (%s) differently than the committed tape. Make the test's requests deterministic, or pin what varies.\nwas:\n%snow:\n%s",
-				s.name, i+1, s.got[i].req.describe(), was, now)
+				s.name, i+1, s.got[i].req.describe(), was.render(), now.render())
 			return
 		}
 	}
@@ -109,6 +111,21 @@ func (s *session) spelledNow(a answer) answer {
 		a.err = text
 	}
 	return a
+}
+
+// normalizeScans clears a scan type one answer names and the other does not, so
+// a recording that adds the optional metadata to an older tape is not a
+// different answer.
+func normalizeScans(was, now *answer) {
+	for i := 0; i < len(was.sets) && i < len(now.sets); i++ {
+		n := min(len(was.sets[i].cols), len(now.sets[i].cols))
+		for j := 0; j < n; j++ {
+			if was.sets[i].cols[j].scan == "" || now.sets[i].cols[j].scan == "" {
+				was.sets[i].cols[j].scan = ""
+				now.sets[i].cols[j].scan = ""
+			}
+		}
+	}
 }
 
 // names is the stand-ins one test's recording has given out. The streams of

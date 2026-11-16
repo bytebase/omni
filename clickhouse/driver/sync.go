@@ -82,6 +82,10 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 // SyncDatabase syncs the database's schema: one schema holding its tables and
 // views, each with its columns, data-skipping indexes and sorting keys.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	databaseName, err := d.syncDatabaseName(ctx)
+	if err != nil {
+		return nil, err
+	}
 	schemaMetadata := &metadatapb.SchemaMetadata{
 		Name: "",
 	}
@@ -102,7 +106,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		FROM information_schema.columns
 		WHERE table_schema = $1
 		ORDER BY table_name, ordinal_position`
-	columnRows, err := d.db.QueryContext(ctx, columnQuery, d.databaseName)
+	columnRows, err := d.db.QueryContext(ctx, columnQuery, databaseName)
 	if err != nil {
 		return nil, formatErrorWithQuery(err, columnQuery)
 	}
@@ -166,7 +170,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		name, engine, definition, comment, sortingKey, primaryKey string
 		rowCount, totalBytes                                      int64
 	}
-	tableRows, err := d.db.QueryContext(ctx, tableQuery, d.databaseName)
+	tableRows, err := d.db.QueryContext(ctx, tableQuery, databaseName)
 	if err != nil {
 		return nil, formatErrorWithQuery(err, tableQuery)
 	}
@@ -214,7 +218,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			DataSize: row.totalBytes,
 			Comment:  row.comment,
 		}
-		indexes, err := d.getDataSkippingIndices(ctx, d.databaseName, row.name)
+		indexes, err := d.getDataSkippingIndices(ctx, databaseName, row.name)
 		if err != nil {
 			return nil, err
 		}
@@ -235,9 +239,26 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 
 	return &metadatapb.DatabaseSchemaMetadata{
-		Name:    d.databaseName,
+		Name:    databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
 	}, nil
+}
+
+// syncDatabaseName is Config.Database, or the connection's own database when
+// the caller left it empty, which is the engine's default.
+func (d *Driver) syncDatabaseName(ctx context.Context) (string, error) {
+	if d.databaseName != "" {
+		return d.databaseName, nil
+	}
+	const query = "SELECT currentDatabase()"
+	var name string
+	if err := d.db.QueryRowContext(ctx, query).Scan(&name); err != nil {
+		if err == sql.ErrNoRows {
+			return "", fmt.Errorf("query %q returned empty row", query)
+		}
+		return "", formatErrorWithQuery(err, query)
+	}
+	return name, nil
 }
 
 func (d *Driver) getDataSkippingIndices(ctx context.Context, database, table string) ([]*metadatapb.IndexMetadata, error) {

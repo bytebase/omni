@@ -156,7 +156,58 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 // ClickHouse is read as text only here, so there is no AST to place a LIMIT
 // in, and every statement takes the wrapper.
 func statementWithResultLimit(statement string, limit int) string {
-	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result LIMIT %d;", trimStatement(statement), limit)
+	wrapped := trimStatement(statement)
+	// A trailing line comment would swallow the wrapper's closing parenthesis.
+	if endsInLineComment(wrapped) {
+		wrapped += "\n"
+	}
+	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result LIMIT %d;", wrapped, limit)
+}
+
+// endsInLineComment reports whether statement ends inside a `--` comment,
+// reading strings, quoted identifiers and block comments so a `--` inside one
+// does not count.
+func endsInLineComment(statement string) bool {
+	runes := []rune(statement)
+	line, block, str, ident := false, false, false, false
+	for i := 0; i < len(runes); i++ {
+		c := runes[i]
+		switch {
+		case line:
+			if c == '\n' {
+				line = false
+			}
+		case block:
+			if c == '*' && i+1 < len(runes) && runes[i+1] == '/' {
+				block = false
+				i++
+			}
+		case str:
+			if c == '\\' {
+				i++
+			} else if c == '\'' {
+				str = false
+			}
+		case ident:
+			if c == '"' {
+				ident = false
+			}
+		default:
+			switch {
+			case c == '-' && i+1 < len(runes) && runes[i+1] == '-':
+				line = true
+				i++
+			case c == '/' && i+1 < len(runes) && runes[i+1] == '*':
+				block = true
+				i++
+			case c == '\'':
+				str = true
+			case c == '"':
+				ident = true
+			}
+		}
+	}
+	return line
 }
 
 // trimStatement trims the whitespace and trailing semicolons a limit rewrite
@@ -167,6 +218,18 @@ func trimStatement(statement string) string {
 
 func isSpaceOrSemicolon(r rune) bool {
 	return unicode.IsSpace(r) || r == ';'
+}
+
+// startsWithKeyword reports whether s begins with keyword as a whole word.
+func startsWithKeyword(s, keyword string) bool {
+	if len(s) < len(keyword) || !strings.EqualFold(s[:len(keyword)], keyword) {
+		return false
+	}
+	if len(s) == len(keyword) {
+		return true
+	}
+	c := s[len(keyword)]
+	return c != '_' && c != '$' && (c < '0' || c > '9') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c < 0x80
 }
 
 // explainStatement asks ClickHouse for the structured plan the query-plan
@@ -266,6 +329,12 @@ func checkStatementWithoutQuotedTextAndComment(statement string) bool {
 	// SELECT.
 	if strings.Contains(strings.TrimSuffix(formatted, ";"), ";") {
 		return false
+	}
+	// Statements that answer with rows but do not start with SELECT or EXPLAIN.
+	for _, keyword := range []string{"SHOW", "DESCRIBE", "DESC", "EXISTS", "CHECK"} {
+		if startsWithKeyword(formatted, keyword) {
+			return true
+		}
 	}
 	if selectRe.MatchString(formatted) || selectStarRe.MatchString(formatted) {
 		return true

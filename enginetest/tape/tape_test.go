@@ -751,6 +751,20 @@ func TestNarrowerNumericValuesReplay(t *testing.T) {
 	}
 }
 
+// A recording that adds the optional scan type to a tape that predates it
+// still records: the metadata is not an engine answer that changed.
+func TestReproducesAllowsANewScanType(t *testing.T) {
+	f := &fakeT{TB: t, name: "TestFake"}
+	req := request{kind: "query", text: "SELECT a"}
+	old := answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a", typ: "INT"}}, rows: [][]value{{{kind: "int64", text: "1"}}}}}}
+	now := answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a", typ: "INT", scan: "int64"}}, rows: [][]value{{{kind: "int64", text: "1"}}}}}}
+	s := &session{t: f, name: "TestFake", want: []exchange{{req, old}}, got: []exchange{{req, now}}}
+	s.reproduces()
+	if len(f.errs) != 0 {
+		t.Fatalf("reproduces reported %q", f.errs)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},

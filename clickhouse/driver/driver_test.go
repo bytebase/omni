@@ -165,6 +165,15 @@ func TestStatementWithResultLimit(t *testing.T) {
 	if got, want := statementWithResultLimit("SELECT 1;  ", 5), "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"; got != want {
 		t.Errorf("limit = %q, want %q", got, want)
 	}
+	// A trailing line comment must not swallow the closing parenthesis.
+	if got, want := statementWithResultLimit("SELECT 1 -- note", 5), "WITH result AS (SELECT 1 -- note\n) SELECT * FROM result LIMIT 5;"; got != want {
+		t.Errorf("limit with a comment = %q, want %q", got, want)
+	}
+	for _, statement := range []string{"SELECT '--'", "SELECT \"--\"", "SELECT 1 /* -- */", "SELECT 1 -- note\n"} {
+		if got := statementWithResultLimit(statement, 5); strings.Contains(got, "-- note\n\n") || !strings.HasSuffix(got, "LIMIT 5;") {
+			t.Errorf("limit(%q) = %q", statement, got)
+		}
+	}
 }
 
 func TestExplainStatement(t *testing.T) {
@@ -198,6 +207,12 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"-- SELECT\nDROP TABLE t", false},
 		{"SELECT 1; DROP TABLE t", false},
 		{"/* /* */ SELECT 1", true},
+		{"SHOW TABLES", true},
+		{"DESCRIBE TABLE q", true},
+		{"DESC q", true},
+		{"EXISTS TABLE q", true},
+		{"CHECK TABLE q", true},
+		{"SHOW TABLES; DROP TABLE q", false},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {

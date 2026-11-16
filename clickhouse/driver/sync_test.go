@@ -93,6 +93,30 @@ func TestSyncDatabase(t *testing.T) {
 	}
 }
 
+func TestSyncDatabaseDefaultDatabase(t *testing.T) {
+	corpus, err := os.ReadFile(filepath.Join("testdata", "corpus.sql"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	db := testcontainer.Open(t)
+	t.Cleanup(func() { _ = db.Close() })
+	execCorpus(t, db, string(corpus))
+
+	// The driver was opened without a database, so the connection's own
+	// database is the one the sync reads.
+	d := &Driver{db: db}
+	got, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := testcontainer.Database(t); got.Name != want {
+		t.Errorf("Name = %q, want the connection's %q", got.Name, want)
+	}
+	if len(got.Schemas) != 1 || len(got.Schemas[0].Tables) != 2 || len(got.Schemas[0].Views) != 1 {
+		t.Errorf("schema = %+v", got.Schemas)
+	}
+}
+
 func TestSyncInstance(t *testing.T) {
 	corpus, err := os.ReadFile(filepath.Join("testdata", "corpus.sql"))
 	if err != nil {

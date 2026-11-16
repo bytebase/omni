@@ -145,6 +145,46 @@ func TestQueryLimit(t *testing.T) {
 	}
 }
 
+func TestQueryMetadataStatements(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "SHOW TABLES;\nDESCRIBE TABLE q;\nEXISTS TABLE q", driver.QueryOptions{})
+	if len(results) != 3 {
+		t.Fatalf("results = %d, want 3", len(results))
+	}
+	for i, result := range results {
+		if result.Err != nil {
+			t.Errorf("result %d: %v", i, result.Err)
+			continue
+		}
+		if result.AffectedRows != nil {
+			t.Errorf("result %d reported affected rows instead of a result set", i)
+		}
+		if len(result.Rows) == 0 {
+			t.Errorf("result %d returned no rows", i)
+		}
+	}
+	if len(results[1].Rows) != 18 {
+		t.Errorf("DESCRIBE returned %d rows, want the table's 18 columns", len(results[1].Rows))
+	}
+	if got := results[2].Rows[0][0]; got.Kind != driver.Uint32 || got.Uint64 != 1 {
+		t.Errorf("EXISTS = %+v, want 1", got)
+	}
+}
+
+func TestQueryLimitWithTrailingComment(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "SELECT id FROM q -- note", driver.QueryOptions{Limit: 1})
+	if len(results) != 1 || results[0].Err != nil {
+		t.Fatalf("results = %+v", results)
+	}
+	if got, want := results[0].Statement, "WITH result AS (SELECT id FROM q -- note\n) SELECT * FROM result LIMIT 1;"; got != want {
+		t.Errorf("Statement = %q, want %q", got, want)
+	}
+	if len(results[0].Rows) != 1 || results[0].Rows[0][0].Int64 != 1 {
+		t.Errorf("rows = %+v", results[0].Rows)
+	}
+}
+
 func TestQueryExplain(t *testing.T) {
 	d := setupQuery(t)
 	results := query(t, d, "SELECT id FROM q", driver.QueryOptions{Explain: true})
