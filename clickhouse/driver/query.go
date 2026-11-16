@@ -65,12 +65,13 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		} else if opts.Limit > 0 {
 			statement = statementWithResultLimit(statement, opts.Limit)
 		}
+		startTime := time.Now()
 		allQuery, err := validateSQLForEditor(statement)
 		if err != nil {
-			return nil, err
+			results = append(results, &driver.Result{Statement: statement, Err: err, Latency: time.Since(startTime)})
+			break
 		}
 
-		startTime := time.Now()
 		var result *driver.Result
 		var queryErr error
 		if allQuery {

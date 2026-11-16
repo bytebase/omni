@@ -177,9 +177,11 @@ func TestStatementWithResultLimit(t *testing.T) {
 	if got, want := statementWithResultLimit("SELECT 1;  ", 5), "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"; got != want {
 		t.Errorf("limit = %q, want %q", got, want)
 	}
-	// A trailing line comment must not swallow the closing parenthesis.
-	if got, want := statementWithResultLimit("SELECT 1 -- note", 5), "WITH result AS (SELECT 1 -- note\n) SELECT * FROM result LIMIT 5;"; got != want {
-		t.Errorf("limit with a comment = %q, want %q", got, want)
+	// A trailing comment and the terminator before it are not part of the CTE.
+	for _, statement := range []string{"SELECT 1 -- note", "SELECT 1; -- note", "SELECT 1; /* note */"} {
+		if got, want := statementWithResultLimit(statement, 5), "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"; got != want {
+			t.Errorf("limit(%q) = %q, want %q", statement, got, want)
+		}
 	}
 	if got, want := statementWithResultLimit("INSERT INTO t VALUES (1)", 5), "INSERT INTO t VALUES (1)"; got != want {
 		t.Errorf("limit on an insert = %q, want it unchanged", got)
@@ -190,8 +192,8 @@ func TestStatementWithResultLimit(t *testing.T) {
 	if got, want := statementWithResultLimit("SELECT `a--b`", 5), "WITH result AS (SELECT `a--b`) SELECT * FROM result LIMIT 5;"; got != want {
 		t.Errorf("limit with a backtick = %q, want %q", got, want)
 	}
-	for _, statement := range []string{"SELECT '--'", "SELECT \"--\"", "SELECT 1 /* -- */", "SELECT 1 -- note\n"} {
-		if got := statementWithResultLimit(statement, 5); strings.Contains(got, "-- note\n\n") || !strings.HasSuffix(got, "LIMIT 5;") {
+	for _, statement := range []string{"SELECT '--'", "SELECT \"--\"", "SELECT `a--b`", "SELECT 1 /* -- */", "SELECT 1 -- note\n"} {
+		if got := statementWithResultLimit(statement, 5); !strings.HasSuffix(got, "LIMIT 5;") {
 			t.Errorf("limit(%q) = %q", statement, got)
 		}
 	}

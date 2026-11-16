@@ -177,7 +177,7 @@ func TestQueryLimitWithTrailingComment(t *testing.T) {
 	if len(results) != 1 || results[0].Err != nil {
 		t.Fatalf("results = %+v", results)
 	}
-	if got, want := results[0].Statement, "WITH result AS (SELECT id FROM q -- note\n) SELECT * FROM result LIMIT 1;"; got != want {
+	if got, want := results[0].Statement, "WITH result AS (SELECT id FROM q) SELECT * FROM result LIMIT 1;"; got != want {
 		t.Errorf("Statement = %q, want %q", got, want)
 	}
 	if len(results[0].Rows) != 1 || results[0].Rows[0][0].Int64 != 1 {
@@ -252,6 +252,23 @@ func TestQueryLimitInsert(t *testing.T) {
 	}
 	if results[0].AffectedRows == nil {
 		t.Errorf("Statement = %q, want the insert run as written", results[0].Statement)
+	}
+}
+
+func TestQueryValidationErrorKeepsEarlierResults(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "INSERT INTO q (id) VALUES (5);\nSELECT 'unterminated", driver.QueryOptions{})
+	if len(results) != 2 {
+		t.Fatalf("results = %d, want the insert and the refused statement", len(results))
+	}
+	if results[0].Err != nil || results[0].AffectedRows == nil {
+		t.Errorf("first result = %+v, want the insert's affected row", results[0])
+	}
+	if results[1].Err == nil || !strings.Contains(results[1].Err.Error(), "invalid string") {
+		t.Errorf("second error = %v, want the unterminated string", results[1].Err)
+	}
+	if got := countRows(t, d, "q"); got != 3 {
+		t.Errorf("rows = %d, want the insert to have taken effect", got)
 	}
 }
 

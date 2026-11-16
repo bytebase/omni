@@ -34,8 +34,7 @@
 |    '1970-01-01', '1970-01-01 00:00:00', '1970-01-01 00:00:00', NULL, 'wxyz');
 < ok 0 -
 > query
-| WITH result AS (SELECT id FROM q -- note
-| ) SELECT * FROM result LIMIT 1;
+| WITH result AS (SELECT id FROM q) SELECT * FROM result LIMIT 1;
 < result
 < column "id" "Int32" "int32"
 < row

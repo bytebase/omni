@@ -156,17 +156,26 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 // ClickHouse is read as text only here, so there is no AST to place a LIMIT
 // in, and every statement takes the wrapper.
 func statementWithResultLimit(statement string, limit int) string {
-	wrapped := trimStatement(statement)
+	wrapped := trimStatementForWrapper(statement)
 	// Only a statement that can stand as a subquery takes the wrapper. A
 	// SHOW, DESCRIBE, INSERT or EXPLAIN is run as written.
 	if !isSubqueryable(wrapped) {
 		return statement
 	}
-	// A trailing line comment would swallow the wrapper's closing parenthesis.
-	if endsInLineComment(wrapped) {
-		wrapped += "\n"
-	}
 	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result LIMIT %d;", wrapped, limit)
+}
+
+// trimStatementForWrapper removes trailing comments and the terminators before
+// them, which a CTE cannot hold.
+func trimStatementForWrapper(statement string) string {
+	trimmed := trimStatement(statement)
+	for {
+		start := trailingCommentStart(trimmed)
+		if start < 0 {
+			return trimmed
+		}
+		trimmed = trimStatement(strings.TrimSpace(trimmed[:start]))
+	}
 }
 
 // isSubqueryable reports whether statement can stand inside a CTE.
@@ -184,11 +193,12 @@ func isSubqueryable(statement string) bool {
 	return false
 }
 
-// endsInLineComment reports whether statement ends inside a `--` comment,
-// reading strings, quoted identifiers and block comments so a `--` inside one
-// does not count.
-func endsInLineComment(statement string) bool {
+// trailingCommentStart is the index where a comment that reaches the end of
+// statement starts, or -1. It reads strings, quoted identifiers and comments
+// so a `--` inside one does not count.
+func trailingCommentStart(statement string) int {
 	runes := []rune(statement)
+	last := -1
 	line, block, str := false, false, false
 	var ident rune
 	for i := 0; i < len(runes); i++ {
@@ -218,17 +228,24 @@ func endsInLineComment(statement string) bool {
 			case c == '-' && i+1 < len(runes) && runes[i+1] == '-':
 				line = true
 				i++
+				last = i - 1
 			case c == '/' && i+1 < len(runes) && runes[i+1] == '*':
 				block = true
 				i++
+				last = i - 1
+			case unicode.IsSpace(c):
 			case c == '\'':
 				str = true
+				last = -1
 			case c == '"' || c == '`':
 				ident = c
+				last = -1
+			default:
+				last = -1
 			}
 		}
 	}
-	return line
+	return last
 }
 
 // trimStatement trims the whitespace and trailing semicolons a limit rewrite
