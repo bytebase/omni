@@ -1021,35 +1021,43 @@ func (w *spanWalker) buildJoinPart(b *joinBuilder, top *ast.JoinExpr) joinPart {
 	acc := w.buildJoinOperand(b, leftmost)
 	for i := len(spine) - 1; i >= 0; i-- {
 		join := spine[i]
+		left := b.cols[acc.start:]
 		right := w.buildJoinOperand(b, join.Right)
+		rightCols := b.cols[right.start:]
 		w.walkFilter(join.On)
 		for _, col := range join.Using {
 			if col != "" {
 				w.addPredicateColumn(ColumnRef{Column: col})
 			}
 		}
+		// A coalesced key reads both operands, but the left operand's keys were
+		// recorded by the join that introduced them (the first join records the
+		// leftmost one here): recording the accumulated left set at every join is
+		// quadratic in a chain. Both are read BEFORE the join rewrites the builder's
+		// columns in place, which would otherwise hand back the coalesced key with the
+		// star exclusions the coalesce adds.
+		if i == len(spine)-1 {
+			w.addUsingFilterLineage(left, join.Using)
+		}
+		w.addUsingFilterLineage(rightCols, join.Using)
 		acc = w.joinParts(b, acc, right, join)
-		w.addUsingFilterColumns(b, acc, join.Using)
 	}
 	return acc
 }
 
-// addUsingFilterColumns records each USING key's coalesced lineage (both operands
-// contribute, see usingKeyColumns) as a row-condition read, so a key a side
-// projects under another name keeps the column it stands for. acc.using is nil
-// when the join did not coalesce (a side is absent, or the join failed closed),
-// where the keys were recorded as written refs above instead.
-func (w *spanWalker) addUsingFilterColumns(b *joinBuilder, acc joinPart, keys []string) {
-	if acc.using == nil {
+// addUsingFilterLineage records one join operand's lineage for each USING key as a
+// row-condition read, so a key a side projects under another name keeps the column
+// it stands for. It reads the operand's OWN columns (before the join coalesces
+// them) with the builder”'s own key derivation, so a chain records each table once
+// instead of the accumulated coalesced set at every join. A recursive CTE”'s
+// placeholder names no column yet; substituteFilterPlaceholders replaces it with the
+// arm column”'s converged lineage.
+func (w *spanWalker) addUsingFilterLineage(cols []projColumn, keys []string) {
+	if w.tablesOnly || len(keys) == 0 || len(cols) == 0 {
 		return
 	}
-	for i := range keys {
-		if acc.start+i >= len(b.cols) {
-			return
-		}
-		for _, ref := range b.cols[acc.start+i].sources {
-			// A recursive CTE's placeholder names no column yet; substituteFilterPlaceholders
-			// replaces it with the arm column's converged lineage.
+	for _, lineage := range usingKeyLineages(cols, keys) {
+		for _, ref := range lineage.refs {
 			w.addFilterColumn(ref)
 		}
 	}
@@ -1785,10 +1793,16 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 			// values it projects, so its projected columns are row-condition reads
 			// too (an EXISTS body only decides whether a row exists). Its own
 			// WHERE/ON/HAVING are recorded by its body visit either way.
-			// INTERSECT and EXCEPT decide a row by the values it projects, so a body
-			// built from them reads its output even where the condition only asks
-			// whether a row exists.
-			projects = projects || bodyComparesProjectedValues(query)
+			if !projects && bodyComparesProjectedValues(query) {
+				// INTERSECT and EXCEPT decide a row by the values it projects, so an
+				// EXISTS body built from them does read some output — but which branch's
+				// columns depends on the tree, and the merged projection cannot say. The
+				// statement reports no predicate columns rather than a set that reads a
+				// UNION arm's non-comparing columns.
+				w.markFilterUnresolved("an EXISTS body compares projected values")
+				w.visitBody(query)
+				return
+			}
 			prev := w.captureFilterProjections
 			// Only a consumed projection reads its expression subqueries; an EXISTS
 			// body's output is not read, nested projections included.
@@ -1825,6 +1839,7 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 			return refs
 		}
 		if refs, ok := w.leaves.derivedColumn(parts[0]); ok {
+			w.markIncompleteDerivedColumns(parts[0])
 			// The body's own derived relation projects the name; it shadows any
 			// enclosing column even when it reads nothing (a constant).
 			return w.appendWrittenColumn(refs, "", parts[0])
@@ -1926,14 +1941,20 @@ func (w *spanWalker) resolveOuterUnqualified(column string) []ColumnRef {
 // or derived relation there included, whose projection is the lineage the
 // reference stands for).
 func (w *spanWalker) resolveFilterQualifier(qualifier, column string) ([]ColumnRef, bool) {
-	if w.leaves.find(qualifier) != nil {
+	if rel := w.leaves.find(qualifier); rel != nil {
+		w.markIncompleteDerivedColumn(rel, column)
 		return w.resolveColumn(qualifier, column), true
 	}
 	for i := len(w.outerLeaves) - 1; i >= 0; i-- {
 		outer := w.outerLeaves[i]
-		if outer == nil || outer.find(qualifier) == nil {
+		if outer == nil {
 			continue
 		}
+		rel := outer.find(qualifier)
+		if rel == nil {
+			continue
+		}
+		w.markIncompleteDerivedColumn(rel, column)
 		prev := w.leaves
 		w.leaves = outer
 		refs := w.resolveColumn(qualifier, column)
@@ -1958,6 +1979,29 @@ func bodyComparesProjectedValues(body ast.Node) bool {
 		return bodyComparesProjectedValues(n.Left) || bodyComparesProjectedValues(n.Right)
 	}
 	return false
+}
+
+// markIncompleteDerivedColumn records a row condition that reads a derived column
+// whose expression holds a subquery: the projection carries the expression's direct
+// columns only, so the read cannot be reported as complete.
+func (w *spanWalker) markIncompleteDerivedColumn(rel *relation, column string) {
+	if rel == nil {
+		return
+	}
+	for _, candidate := range rel.columns {
+		if foldKey(candidate.name) == foldKey(column) && candidate.lineageIncomplete {
+			w.markFilterUnresolved(fmt.Sprintf("projected column %q reads a subquery the walk does not carry", column))
+			return
+		}
+	}
+}
+
+// markIncompleteDerivedColumns applies markIncompleteDerivedColumn to the in-scope
+// derived projection the name resolves to.
+func (w *spanWalker) markIncompleteDerivedColumns(column string) {
+	if c := w.leaves.columnProjection(column); c != nil && c.lineageIncomplete {
+		w.markFilterUnresolved(fmt.Sprintf("projected column %q reads a subquery the walk does not carry", column))
+	}
 }
 
 // markFilterUnresolved records the first row-condition reference the walk could not

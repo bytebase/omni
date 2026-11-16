@@ -44,6 +44,12 @@ type projColumn struct {
 	// consumer expands it. name is "*". sources is empty.
 	baseStar *ColumnRef
 
+	// lineageIncomplete marks a projection whose expression contains a subquery:
+	// the walker collects only direct column paths, so such a column's sources hold
+	// what the expression reads directly and miss whatever the subquery projects. A
+	// row condition that reads this column is unresolved rather than partial.
+	lineageIncomplete bool
+
 	// baseStarExcept lists base-table column names the consumer must SKIP when
 	// expanding baseStar (case-insensitive). Set by a JOIN ... USING coalesce
 	// (fix F1): each side's star excludes the key columns, which are projected
@@ -233,7 +239,33 @@ func (w *spanWalker) resolveExprColumn(item *ast.SelectItem) projColumn {
 	if item.Alias != "" {
 		name = item.Alias
 	}
-	return projColumn{name: name, sources: sources, plain: false}
+	return projColumn{name: name, sources: sources, plain: false, lineageIncomplete: exprHasSubquery(item.Expr)}
+}
+
+// exprHasSubquery reports whether an expression contains a subquery, whose projected
+// columns the walk's projection lineage does not carry.
+func exprHasSubquery(expr ast.Node) bool {
+	if expr == nil {
+		return false
+	}
+	found := false
+	ast.Walk(subqueryScan{found: &found}, expr)
+	return found
+}
+
+// subqueryScan records whether a node holds a subquery expression.
+type subqueryScan struct{ found *bool }
+
+func (v subqueryScan) Visit(node ast.Node) ast.Visitor {
+	if *v.found || node == nil {
+		return nil
+	}
+	switch node.(type) {
+	case *ast.SubqueryExpr, *ast.ExistsExpr, *ast.ArraySubqueryExpr:
+		*v.found = true
+		return nil
+	}
+	return v
 }
 
 // resolveExprSources resolves an expression's directly-referenced columns to

@@ -310,7 +310,14 @@ func TestPredicateColumnsFailClosed(t *testing.T) {
 			// projection layer does not carry lineage for.
 			name:   "a derived relation projecting a scalar subquery",
 			sql:    "SELECT 1 FROM (SELECT (SELECT secret FROM t) AS k) c WHERE c.k > 5",
-			reason: "resolves to no lineage",
+			reason: "reads a subquery",
+		},
+		{
+			// The expression reads `t.id` directly and `u.secret` through a subquery, so
+			// the projection's lineage is non-empty but incomplete.
+			name:   "a derived relation whose expression mixes a column and a subquery",
+			sql:    "SELECT 1 FROM (SELECT id + (SELECT secret FROM u) AS k FROM t) c WHERE c.k > 5",
+			reason: "reads a subquery",
 		},
 		{
 			// A BY NAME merge materializes its star arm, so the position arrives with no
@@ -318,6 +325,13 @@ func TestPredicateColumnsFailClosed(t *testing.T) {
 			name:   "a BY NAME merge over a star arm",
 			sql:    "SELECT 1 FROM t WHERE 5 IN (SELECT * FROM t UNION ALL BY NAME ON (id) (SELECT * FROM u UNION ALL SELECT 0 AS id, secret FROM v))",
 			reason: "",
+		},
+		{
+			// Which branch's columns an INTERSECT decides on depends on the tree, and an
+			// EXISTS body's merged projection cannot say: empty, with that reason.
+			name:   "an EXISTS body comparing projected values",
+			sql:    "SELECT 1 FROM t WHERE EXISTS (SELECT secret FROM t UNION ALL (SELECT id FROM u INTERSECT DISTINCT SELECT id FROM v))",
+			reason: "compares projected values",
 		},
 		{
 			name:   "a condition on a column the metadata does not hold",

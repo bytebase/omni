@@ -5701,17 +5701,7 @@
         schema: ""
         table: audit_u
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: secret
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_u
-        column: secret
+    predicatecolumns: []
 - description: "predicate columns: a value-comparing branch on a set operation's right side"
   statement: SELECT 1 FROM audit_t WHERE EXISTS (SELECT 0 WHERE FALSE UNION ALL (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u))
   defaultDatabase: ds1
@@ -5761,17 +5751,7 @@
         schema: ""
         table: audit_u
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: secret
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_u
-        column: secret
+    predicatecolumns: []
 
 - description: "predicate columns: a value-comparing body inside a filter subquery's projection"
   statement: SELECT 1 FROM audit_t WHERE (SELECT EXISTS (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u))
