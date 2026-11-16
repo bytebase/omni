@@ -58,7 +58,9 @@ func DescribeExplain(statement string) (format string, executed bool, ok bool) {
 func singleStatement(text string) (ast.Node, error) {
 	file, err := parser.Parse(text)
 	if err != nil {
-		return nil, err
+		// The engine's entry points report the first parse error, not the
+		// list's summary.
+		return nil, parser.FirstError(err)
 	}
 	if file == nil || len(file.Stmts) == 0 || file.Stmts[0] == nil {
 		return nil, errors.New("EXPLAIN needs a statement to plan")

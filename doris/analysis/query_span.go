@@ -73,9 +73,13 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	if err != nil {
 		return nil, parser.FirstError(err)
 	}
-	span := &QuerySpan{
-		Type: Classify(statement),
-	}
+	return getQuerySpan(Classify(statement), file)
+}
+
+// getQuerySpan analyzes an already parsed file under the given
+// classification, so a caller that has the tree does not parse again.
+func getQuerySpan(queryType QueryType, file *ast.File) (*QuerySpan, error) {
+	span := &QuerySpan{Type: queryType}
 	if file == nil || len(file.Stmts) == 0 {
 		return span, nil
 	}
