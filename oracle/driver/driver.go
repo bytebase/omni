@@ -52,11 +52,10 @@ type Driver struct {
 	// statementSeq numbers the EXPLAIN PLAN statement IDs a session records
 	// plans under, which Oracle keeps per session.
 	statementSeq atomic.Int64
-	// schemaOnce, schemaName and schemaErr resolve the schema the driver reads
-	// when Config.Database names none: the account's own.
-	schemaOnce sync.Once
+	// schemaMu guards schemaName, which resolves the schema the driver reads when
+	// Config.Database names none: the account's own.
+	schemaMu   sync.Mutex
 	schemaName string
-	schemaErr  error
 }
 
 // nextStatementID returns the next EXPLAIN PLAN statement ID. Bytebase picks a

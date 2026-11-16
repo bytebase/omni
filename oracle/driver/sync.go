@@ -238,17 +238,21 @@ func (d *Driver) SyncInstance(ctx context.Context) (*omnidriver.Instance, error)
 // own when the caller named none — resolving the latter once, since a driver is
 // shared and its sessions start in that schema.
 func (d *Driver) schema(ctx context.Context) (string, error) {
-	d.schemaOnce.Do(func() {
-		d.schemaName = d.databaseName
-		if d.schemaName != "" {
-			return
-		}
-		d.schemaErr = d.db.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&d.schemaName)
-	})
-	if d.schemaErr != nil {
-		return "", fmt.Errorf("failed to read the current schema: %w", d.schemaErr)
+	d.schemaMu.Lock()
+	defer d.schemaMu.Unlock()
+	if d.schemaName != "" {
+		return d.schemaName, nil
 	}
-	return d.schemaName, nil
+	name := d.databaseName
+	if name == "" {
+		// A failed lookup is not remembered: the caller may reach the server on
+		// the next call.
+		if err := d.db.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&name); err != nil {
+			return "", fmt.Errorf("failed to read the current schema: %w", err)
+		}
+	}
+	d.schemaName = name
+	return name, nil
 }
 
 // SyncDatabase reads the full schema metadata of Config.Database, or of the
