@@ -378,7 +378,7 @@ func checkStatementWithoutQuotedTextAndComment(statement string) bool {
 			return true
 		}
 	}
-	if startsWithKeyword(formatted, "SELECT") {
+	if startsWithKeyword(formatted, "SELECT") || strings.HasPrefix(formatted, "(") {
 		return true
 	}
 	if explainRe.MatchString(formatted) {

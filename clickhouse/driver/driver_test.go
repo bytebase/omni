@@ -383,6 +383,8 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"SELECT(1)", true},
 		{"SELECT*FROM q", true},
 		{"SELECT 'x'", true},
+		{"(SELECT 1)", true},
+		{"(SELECT 1) UNION ALL (SELECT 2)", true},
 		{"# note\nSELECT 1", true},
 		{"SELECT 1 # note", true},
 		{"SELECT $doc$it's text$doc$", true},
