@@ -553,10 +553,12 @@ func stampStar(cols []outCol, item int, aliases []*ast.Identifier) []outCol {
 type rscope struct {
 	rels []rbind
 	cte  *cteDefs
-	// itemCols holds each top-level FROM item's exact output projection, in
-	// FROM order. A USING/NATURAL join's entry is its coalesced projection,
-	// which is what an unqualified `*` lists.
-	itemCols [][]outCol
+	// itemCols holds each top-level FROM item's output projection, in FROM
+	// order. A USING/NATURAL join's entry is its coalesced projection, which is
+	// what an unqualified `*` lists. Ordinary joins stay as a concatenation tree
+	// so a long left-deep join does not copy its accumulated left side at every
+	// node; the tree is flattened once when a star or a coalescing join needs it.
+	itemCols []*starProjection
 	// coalesced is set when the FROM tree contains a USING or NATURAL join.
 	// A qualified star `<rel>.*` excludes the using columns from its relation's
 	// projection (verified against Trino 481), so qualified-star expansion is
@@ -676,6 +678,55 @@ type rbind struct {
 	cols    []outCol
 }
 
+// starProjection is a relation's output columns, kept as a concatenation tree
+// while joins only accumulate it and flattened once when a star or coalescing
+// join needs the actual list.
+type starProjection struct {
+	cols  []outCol
+	left  *starProjection
+	right *starProjection
+}
+
+func columnProjection(cols []outCol) *starProjection {
+	if cols == nil {
+		return nil
+	}
+	return &starProjection{cols: cols}
+}
+
+// flatten materializes a concatenation tree in FROM order. It walks the tree
+// once into a single slice: materializing each subtree and copying it into its
+// parent would copy the left prefix at every node again.
+func (p *starProjection) flatten() []outCol {
+	if p == nil {
+		return nil
+	}
+	if p.left == nil && p.right == nil {
+		return p.cols
+	}
+	var out []outCol
+	var walk func(*starProjection) bool
+	walk = func(n *starProjection) bool {
+		if n == nil {
+			return false
+		}
+		if n.left == nil && n.right == nil {
+			if n.cols == nil {
+				return false
+			}
+			out = append(out, n.cols...)
+			return true
+		}
+		return walk(n.left) && walk(n.right)
+	}
+	if !walk(p) {
+		return nil
+	}
+	p.cols = out
+	p.left, p.right = nil, nil
+	return out
+}
+
 // newRScope builds a relation scope from a FROM list.
 func newRScope(from []parser.Relation, cte *cteDefs) *rscope {
 	s := &rscope{cte: cte}
@@ -686,10 +737,10 @@ func newRScope(from []parser.Relation, cte *cteDefs) *rscope {
 }
 
 // add binds one FROM relation (recursing through joins/parentheses) and
-// returns the relation's exact output projection, or nil when it cannot be
-// resolved. alias and colAliases carry an enclosing AliasedRelation's
-// `AS name (c1, …)` down to the primary relation it names.
-func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identifier) []outCol {
+// returns the relation's output projection, or nil when it cannot be resolved.
+// alias and colAliases carry an enclosing AliasedRelation's `AS name (c1, …)`
+// down to the primary relation it names.
+func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identifier) *starProjection {
 	switch n := rel.(type) {
 	case *parser.AliasedRelation:
 		return s.add(n.Inner, identName(n.Alias), n.ColumnAliases)
@@ -704,9 +755,12 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 			sub := &rscope{cte: s.cte}
 			left := sub.add(n.Left, "", nil)
 			right := sub.add(n.Right, "", nil)
-			cols := joinProjection(left, right, n)
-			s.rels = append(s.rels, rbind{name: alias, derived: cols != nil, cols: applyColumnAliases(cols, colAliases)})
-			return s.rels[len(s.rels)-1].cols
+			cols := joinProjection(left, right, n).flatten()
+			if cols != nil {
+				cols = applyColumnAliases(cols, colAliases)
+			}
+			s.rels = append(s.rels, rbind{name: alias, derived: cols != nil, cols: cols})
+			return columnProjection(cols)
 		}
 		left := s.add(n.Left, "", nil)
 		right := s.add(n.Right, "", nil)
@@ -733,7 +787,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 				}
 				cols = applyColumnAliases(cols, colAliases)
 				s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols})
-				return cols
+				return columnProjection(cols)
 			}
 		}
 		name := alias
@@ -753,7 +807,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 						vs.collectTables(proj.tables)
 						cols := applyColumnAliases(proj.cols, colAliases)
 						s.rels = append(s.rels, rbind{name: name, derived: true, cols: cols})
-						return cols
+						return columnProjection(cols)
 					}
 					// Unresolvable view (no/unanalyzable definition, cycle):
 					// bind opaquely so stars through it stay unexpanded.
@@ -762,7 +816,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 				}
 				cols := applyColumnAliases(tableCols(key, table), colAliases)
 				s.rels = append(s.rels, rbind{name: name, derived: false, cols: cols})
-				return cols
+				return columnProjection(cols)
 			}
 		}
 		s.rels = append(s.rels, rbind{name: name, derived: false})
@@ -770,7 +824,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 	case *parser.SubqueryRelation:
 		cols := applyColumnAliases(resolveQueryCols(n.Query, s.cte), colAliases)
 		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
-		return cols
+		return columnProjection(cols)
 	case *parser.UnnestRelation:
 		cols := s.unnestColumns(n, colAliases)
 		if len(cols) == 0 {
@@ -778,7 +832,7 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 			cols = nil
 		}
 		s.rels = append(s.rels, rbind{name: alias, derived: true, cols: cols})
-		return cols
+		return columnProjection(cols)
 	default:
 		// Lateral and table-function relations are not resolved here (tracked
 		// separately). Bind the alias as a non-derived (opaque) relation so
@@ -792,25 +846,29 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 // projections in order, with a USING/NATURAL join's common columns coalesced
 // once at the front. nil when either side is unresolved or a using column is
 // missing from a side, since the true width/order is then unknown.
-func joinProjection(left, right []outCol, n *parser.Join) []outCol {
+func joinProjection(left, right *starProjection, n *parser.Join) *starProjection {
 	if n == nil || (len(n.Using) == 0 && !n.Natural) {
 		if left == nil || right == nil {
 			return nil
 		}
-		return append(append([]outCol(nil), left...), right...)
+		// Keep ordinary joins as a tree. Building a flat prefix here made a
+		// left-deep chain copy the whole accumulated left side at every node.
+		return &starProjection{left: left, right: right}
 	}
-	if left == nil || right == nil || hasOpaque(left) || hasOpaque(right) {
+	l := left.flatten()
+	r := right.flatten()
+	if l == nil || r == nil || hasOpaque(l) || hasOpaque(r) {
 		return nil
 	}
 	var names []string
 	if n.Natural {
-		seen := make(map[string]bool, len(left))
-		for _, col := range left {
+		seen := make(map[string]bool, len(l))
+		for _, col := range l {
 			key := foldKey(col.name)
 			if seen[key] {
 				continue
 			}
-			if _, ok := findOutCol(right, col.name); !ok {
+			if _, ok := findOutCol(r, col.name); !ok {
 				continue
 			}
 			seen[key] = true
@@ -823,33 +881,33 @@ func joinProjection(left, right []outCol, n *parser.Join) []outCol {
 			}
 		}
 	}
-	usedLeft := make([]bool, len(left))
-	usedRight := make([]bool, len(right))
-	out := make([]outCol, 0, len(left)+len(right))
+	usedLeft := make([]bool, len(l))
+	usedRight := make([]bool, len(r))
+	out := make([]outCol, 0, len(l)+len(r))
 	for _, name := range names {
-		li, ok := findOutCol(left, name)
+		li, ok := findOutCol(l, name)
 		if !ok {
 			return nil
 		}
-		ri, ok := findOutCol(right, name)
+		ri, ok := findOutCol(r, name)
 		if !ok {
 			return nil
 		}
-		out = append(out, outCol{name: left[li].name, sources: unionRefs(left[li].sources, right[ri].sources)})
+		out = append(out, outCol{name: l[li].name, sources: unionRefs(l[li].sources, r[ri].sources)})
 		usedLeft[li] = true
 		usedRight[ri] = true
 	}
-	for i, col := range left {
+	for i, col := range l {
 		if !usedLeft[i] {
 			out = append(out, col)
 		}
 	}
-	for i, col := range right {
+	for i, col := range r {
 		if !usedRight[i] {
 			out = append(out, col)
 		}
 	}
-	return out
+	return &starProjection{cols: out}
 }
 
 // findOutCol returns the index of the first output column named name, comparing
@@ -957,7 +1015,8 @@ func (s *rscope) starExpansion(qualifier string) []outCol {
 		return s.starAll
 	}
 	var out []outCol
-	for _, cols := range s.itemCols {
+	for _, item := range s.itemCols {
+		cols := item.flatten()
 		if len(cols) == 0 || hasOpaque(cols) {
 			out = nil
 			break
