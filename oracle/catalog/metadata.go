@@ -208,15 +208,15 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 	case *ast.CreateSequenceStmt:
 		e.extractCreateSequence(n)
 	case *ast.CreateProcedureStmt:
-		if name := objectName(n.Name); name != "" {
+		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
 			e.procedures[name] = &metadatapb.ProcedureMetadata{Name: name, Definition: e.definitionText(n)}
 		}
 	case *ast.CreateFunctionStmt:
-		if name := objectName(n.Name); name != "" {
+		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
 			e.functions[name] = &metadatapb.FunctionMetadata{Name: name, Definition: e.functionDefinitionText(n)}
 		}
 	case *ast.CreatePackageStmt:
-		if name := objectName(n.Name); name != "" {
+		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
 			e.extractCreatePackage(name, n)
 		}
 	case *ast.CreateTriggerStmt:
@@ -428,6 +428,12 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 	case ast.CONSTRAINT_CHECK:
 		e.appendCheckConstraint(table, e.checkConstraintName(table, n.Name, fmt.Sprintf("CHK_%s_%s", table.Name, column.Name)), n.Expr)
 	case ast.CONSTRAINT_FOREIGN:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable foreign keys are not supported by oracle/catalog")
+			}
+			return
+		}
 		e.appendForeignKey(table, fallbackName(n.Name, fmt.Sprintf("FK_%s_%s", table.Name, column.Name)), []string{column.Name}, n.RefTable, n.RefColumns, n.OnDelete)
 	default:
 	}
@@ -465,6 +471,12 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 	case ast.CONSTRAINT_CHECK:
 		e.appendCheckConstraint(table, e.checkConstraintName(table, n.Name, fmt.Sprintf("CHK_%s_%d", table.Name, len(table.CheckConstraints)+1)), n.Expr)
 	case ast.CONSTRAINT_FOREIGN:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable foreign keys are not supported by oracle/catalog")
+			}
+			return
+		}
 		e.appendForeignKey(table, fallbackName(n.Name, fmt.Sprintf("FK_%s_%d", table.Name, len(table.ForeignKeys)+1)), columns, n.RefTable, n.RefColumns, n.OnDelete)
 	default:
 	}
@@ -1406,14 +1418,15 @@ func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
 	}
 	switch strings.ToUpper(n.Action) {
 	case "DISABLE":
-		if !strings.Contains(strings.ToUpper(trigger.Body), "DISABLE") {
-			trigger.Body = strings.TrimSpace(trigger.Body) + "\nALTER TRIGGER \"" + name + "\" DISABLE;"
+		marker := "ALTER TRIGGER \"" + name + "\" DISABLE;"
+		if !strings.Contains(strings.ToUpper(trigger.Body), strings.ToUpper(marker)) {
+			trigger.Body = strings.TrimSpace(trigger.Body) + "\n" + marker
 		}
 	case "ENABLE":
+		marker := strings.ToUpper("ALTER TRIGGER \"" + name + "\" DISABLE;")
 		var lines []string
 		for _, line := range strings.Split(trigger.Body, "\n") {
-			upper := strings.ToUpper(line)
-			if strings.Contains(upper, "ALTER TRIGGER") && strings.Contains(upper, "DISABLE") {
+			if strings.TrimSpace(strings.ToUpper(line)) == marker {
 				continue
 			}
 			lines = append(lines, line)

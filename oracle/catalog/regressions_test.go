@@ -1411,3 +1411,40 @@ func TestVirtualColumnFunctionOrdersBeforeTable(t *testing.T) {
 		t.Fatalf("migration table precedes its virtual-column function:\n%s", sql)
 	}
 }
+
+func TestTriggerDisableIgnoresBodyText(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TRG BEFORE INSERT ON T FOR EACH ROW BEGIN :NEW.ID := 1; END; ALTER TRIGGER TRG DISABLE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := tableByName(c.Metadata().Schemas[0])["T"].Triggers[0].Body
+	if !strings.Contains(strings.ToUpper(body), `ALTER TRIGGER "TRG" DISABLE;`) {
+		t.Fatalf("disable not recorded: %q", body)
+	}
+}
+
+func TestRoutineRejectsAnotherOwner(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP"})
+	results, err := c.Exec(`CREATE FUNCTION OTHER.F RETURN NUMBER IS BEGIN RETURN 1; END;`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("routine from another owner was installed")
+	}
+}
+
+func TestConstraintNameSwapFallsBackToDropCreate(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "A", Type: "NUMBER", Position: 1}, {Name: "B", Type: "NUMBER", Position: 2}}, Indexes: []*metadatapb.IndexMetadata{{Name: "U_A", Unique: true, IsConstraint: true, Expressions: []string{"A"}}, {Name: "U_B", Unique: true, IsConstraint: true, Expressions: []string{"B"}}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: oldTable.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "U_A", Unique: true, IsConstraint: true, Expressions: []string{"B"}}, {Name: "U_B", Unique: true, IsConstraint: true, Expressions: []string{"A"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if strings.Contains(sql, "RENAME CONSTRAINT") {
+		t.Fatalf("colliding rename emitted:\n%s", sql)
+	}
+}
+
+func TestDeferrableForeignKeyIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE P (ID NUMBER PRIMARY KEY); CREATE TABLE C (P_ID NUMBER, CONSTRAINT C_FK FOREIGN KEY (P_ID) REFERENCES P(ID) DEFERRABLE INITIALLY DEFERRED)`); err == nil {
+		t.Fatal("deferrable foreign key was accepted")
+	}
+}

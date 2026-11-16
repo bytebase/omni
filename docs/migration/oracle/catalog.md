@@ -166,6 +166,9 @@ replay tests exercise.
 - Diff matches an unnamed synced schema to the same owner-named schema.
 - A virtual column's function is ordered before its table in both definitions
   and initial migrations.
+- Trigger disable state is tracked by an explicit statement, not body text.
+- Routine owners are validated, colliding constraint renames fall back to
+  drop/create, and deferrable foreign keys are rejected.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

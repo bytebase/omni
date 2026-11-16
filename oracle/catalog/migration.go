@@ -2609,6 +2609,12 @@ func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
 		if tableDiff.Action != DiffActionAlter {
 			continue
 		}
+		oldConstraintNames := map[string]bool{}
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action == DiffActionDrop && indexDiff.OldIndex.GetIsConstraint() {
+				oldConstraintNames[indexDiff.OldIndex.GetName()] = true
+			}
+		}
 		for _, drop := range tableDiff.IndexChanges {
 			if drop.Action != DiffActionDrop || !drop.OldIndex.GetIsConstraint() {
 				continue
@@ -2618,6 +2624,9 @@ func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
 					continue
 				}
 				if !indexEqual(drop.OldIndex, create.NewIndex) {
+					continue
+				}
+				if oldConstraintNames[create.NewIndex.GetName()] && create.NewIndex.GetName() != drop.OldIndex.GetName() {
 					continue
 				}
 				if set.oldToNew[tableDiff] == nil {
