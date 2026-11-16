@@ -32,9 +32,11 @@ func (d *Driver) SyncInstance(context.Context) (*driver.Instance, error) {
 }
 
 // SyncDatabase syncs the database schema: one schema holding one table per
-// table of the region, with the table's key schema as its columns and indexes.
-// DynamoDB has no databases, so Config.Database names nothing the sync reads
-// and a sync never reports driver.ErrNotFound.
+// table of the region, with every key attribute of the table and of its
+// secondary indexes as a column, and an index for the table's key schema and
+// for each secondary index it reports. DynamoDB has no databases, so
+// Config.Database names nothing the sync reads and a sync never reports
+// driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	schemaMetadata := &metadatapb.SchemaMetadata{}
 
@@ -77,6 +79,13 @@ func (d *Driver) syncTable(ctx context.Context, tableName string) (*metadatapb.T
 	if table.Status != tableStatusActive {
 		return nil, nil
 	}
+	// A key attribute is a column whoever uses it as a key: an index over an
+	// attribute the metadata did not list would name a column the table does
+	// not have.
+	columnsMap := make(map[string]bool)
+	for _, key := range table.KeySchema {
+		columnsMap[key.AttributeName] = true
+	}
 	if len(table.KeySchema) > 0 {
 		var hashKeyAttributes, rangeKeyAttributes []string
 		for _, keySchema := range table.KeySchema {
@@ -94,29 +103,42 @@ func (d *Driver) syncTable(ctx context.Context, tableName string) (*metadatapb.T
 			Expressions: append([]string{}, hashKeyAttributes...),
 			Type:        keyTypeHash,
 		})
-		tableMetadata.Indexes = append(tableMetadata.Indexes, &metadatapb.IndexMetadata{
-			Name:        strings.Join(rangeKeyAttributes, ","),
-			Expressions: append([]string{}, rangeKeyAttributes...),
-			Type:        keyTypeRange,
-		})
-		columnsMap := make(map[string]bool)
-		for _, key := range hashKeyAttributes {
-			columnsMap[key] = true
-		}
-		for _, key := range rangeKeyAttributes {
-			columnsMap[key] = true
-		}
-		sortedColumns := make([]string, 0, len(columnsMap))
-		for key := range columnsMap {
-			sortedColumns = append(sortedColumns, key)
-		}
-		slices.Sort(sortedColumns)
-		tableMetadata.Columns = make([]*metadatapb.ColumnMetadata, 0, len(sortedColumns))
-		for _, key := range sortedColumns {
-			tableMetadata.Columns = append(tableMetadata.Columns, &metadatapb.ColumnMetadata{
-				Name: key,
+		// A table whose key has no sort key reports no RANGE index: an index
+		// named by nothing and over nothing describes no index the engine has.
+		if len(rangeKeyAttributes) > 0 {
+			tableMetadata.Indexes = append(tableMetadata.Indexes, &metadatapb.IndexMetadata{
+				Name:        strings.Join(rangeKeyAttributes, ","),
+				Expressions: append([]string{}, rangeKeyAttributes...),
+				Type:        keyTypeRange,
 			})
 		}
+	}
+	for _, index := range table.SecondaryIndexes {
+		indexType := keyTypeLocalSecondary
+		if index.Global {
+			indexType = keyTypeGlobalSecondary
+		}
+		expressions := make([]string, 0, len(index.KeySchema))
+		for _, key := range index.KeySchema {
+			expressions = append(expressions, key.AttributeName)
+			columnsMap[key.AttributeName] = true
+		}
+		tableMetadata.Indexes = append(tableMetadata.Indexes, &metadatapb.IndexMetadata{
+			Name:        index.Name,
+			Expressions: expressions,
+			Type:        indexType,
+		})
+	}
+	sortedColumns := make([]string, 0, len(columnsMap))
+	for key := range columnsMap {
+		sortedColumns = append(sortedColumns, key)
+	}
+	slices.Sort(sortedColumns)
+	tableMetadata.Columns = make([]*metadatapb.ColumnMetadata, 0, len(sortedColumns))
+	for _, key := range sortedColumns {
+		tableMetadata.Columns = append(tableMetadata.Columns, &metadatapb.ColumnMetadata{
+			Name: key,
+		})
 	}
 	tableMetadata.Name = table.Name
 	// DynamoDB reports the item count as an estimate it refreshes periodically,

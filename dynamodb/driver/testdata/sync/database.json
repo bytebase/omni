@@ -1,102 +1,114 @@
 {
-  "name": "123456789012-us-east-1",
-  "schemas": [
+  "name":  "123456789012-us-east-1",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "orders",
-          "columns": [
+          "name":  "orders",
+          "columns":  [
             {
-              "name": "pk"
+              "name":  "pk"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "pk",
-              "expressions": [
+              "name":  "pk",
+              "expressions":  [
                 "pk"
               ],
-              "type": "HASH"
-            },
-            {
-              "type": "RANGE"
+              "type":  "HASH"
             }
           ],
-          "rowCount": "2"
+          "rowCount":  "2"
         },
         {
-          "name": "paged",
-          "columns": [
+          "name":  "paged",
+          "columns":  [
             {
-              "name": "owner"
+              "name":  "label"
             },
             {
-              "name": "seq"
+              "name":  "owner"
+            },
+            {
+              "name":  "seq"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "owner",
-              "expressions": [
+              "name":  "owner",
+              "expressions":  [
                 "owner"
               ],
-              "type": "HASH"
+              "type":  "HASH"
             },
             {
-              "name": "seq",
-              "expressions": [
+              "name":  "seq",
+              "expressions":  [
                 "seq"
               ],
-              "type": "RANGE"
+              "type":  "RANGE"
+            },
+            {
+              "name":  "by-label",
+              "expressions":  [
+                "label"
+              ],
+              "type":  "GLOBAL SECONDARY"
+            },
+            {
+              "name":  "by-owner-label",
+              "expressions":  [
+                "owner",
+                "label"
+              ],
+              "type":  "LOCAL SECONDARY"
             }
           ],
-          "rowCount": "5"
+          "rowCount":  "5"
         },
         {
-          "name": "people",
-          "columns": [
+          "name":  "people",
+          "columns":  [
             {
-              "name": "email"
+              "name":  "email"
             },
             {
-              "name": "id"
+              "name":  "id"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "id",
-              "expressions": [
+              "name":  "id",
+              "expressions":  [
                 "id"
               ],
-              "type": "HASH"
+              "type":  "HASH"
             },
             {
-              "name": "email",
-              "expressions": [
+              "name":  "email",
+              "expressions":  [
                 "email"
               ],
-              "type": "RANGE"
+              "type":  "RANGE"
             }
           ],
-          "rowCount": "3"
+          "rowCount":  "3"
         },
         {
-          "name": "writes",
-          "columns": [
+          "name":  "writes",
+          "columns":  [
             {
-              "name": "id"
+              "name":  "id"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "id",
-              "expressions": [
+              "name":  "id",
+              "expressions":  [
                 "id"
               ],
-              "type": "HASH"
-            },
-            {
-              "type": "RANGE"
+              "type":  "HASH"
             }
           ]
         }
