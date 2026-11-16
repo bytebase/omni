@@ -120,7 +120,7 @@
 : string
 | CreateTime:         
 : string
-| Thu Jan  1 00:00:01 UTC 2026
+| Thu Jan  1 00:00:00 UTC 2026
 : null
 < row
 : string
@@ -199,7 +199,7 @@
 : string
 | last_modified_time  
 : string
-| 1000000002          
+| 1000000000          
 < row
 : string
 |
@@ -241,7 +241,7 @@
 : string
 | transient_lastDdlTime
 : string
-| 1000000002          
+| 1000000000          
 < row
 : string
 |
@@ -365,7 +365,7 @@
 : string
 | CreateTime:         
 : string
-| Thu Jan  1 00:00:03 UTC 2026
+| Thu Jan  1 00:00:00 UTC 2026
 : null
 < row
 : string
@@ -451,7 +451,7 @@
 : string
 | transient_lastDdlTime
 : string
-| 1000000004          
+| 1000000000          
 < row
 : string
 |
@@ -582,7 +582,7 @@
 : string
 | CreateTime:         
 : string
-| Thu Jan  1 00:00:05 UTC 2026
+| Thu Jan  1 00:00:00 UTC 2026
 : null
 < row
 : string
@@ -661,7 +661,7 @@
 : string
 | last_modified_time  
 : string
-| 1000000006          
+| 1000000000          
 < row
 : string
 |
@@ -696,7 +696,7 @@
 : string
 | transient_lastDdlTime
 : string
-| 1000000002          
+| 1000000000          
 < row
 : string
 |
@@ -818,7 +818,7 @@
 : string
 | CreateTime:         
 : string
-| Thu Jan  1 00:00:07 UTC 2026
+| Thu Jan  1 00:00:00 UTC 2026
 : null
 < row
 : string
@@ -856,7 +856,7 @@
 : string
 | transient_lastDdlTime
 : string
-| 1000000008          
+| 1000000000          
 < row
 : string
 |
