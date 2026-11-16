@@ -1214,7 +1214,8 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		return result, issues, nil
 	}
 	// Target stars expand from the recovered projections; the expression walk
-	// alone sees `*` as an opaque target.
+	// below covers only the remaining clauses, so a nested query's target is
+	// not traversed a second time at every level.
 	projection, projIssues, projErr := q.collectSelectFunctionProjection(selectStmt, functionStack, cache, outerScope)
 	if projErr != nil {
 		return nil, functionBodyIssues{}, projErr
@@ -1223,12 +1224,90 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 	for _, sources := range projection.sources {
 		mergeSourceColumnSet(result, sources)
 	}
-	sources, subIssues, sourceErr := q.collectFunctionBodyResultSources(selectStmt, functionStack, cache, scope)
-	if sourceErr != nil {
-		return nil, functionBodyIssues{}, sourceErr
+	for _, clause := range []ast.Node{
+		selectStmt.WhereClause,
+		selectStmt.GroupClause,
+		selectStmt.HavingClause,
+		selectStmt.QualifyClause,
+		selectStmt.SortClause,
+	} {
+		if clause == nil {
+			continue
+		}
+		sources, clauseIssues, err := q.collectFunctionBodyResultSources(clause, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(clauseIssues)
+		mergeSourceColumnSet(result, sources)
 	}
-	issues.merge(subIssues)
+	sources, fromIssues, fromErr := q.collectFunctionFromClauseSources(selectStmt.FromClause, functionStack, cache, scope)
+	if fromErr != nil {
+		return nil, functionBodyIssues{}, fromErr
+	}
+	issues.merge(fromIssues)
 	mergeSourceColumnSet(result, sources)
+	return result, issues, nil
+}
+
+// collectFunctionFromClauseSources collects the function dependencies in FROM
+// joins and derived tables without walking their target expressions again.
+func (q *querySpanResolver) collectFunctionFromClauseSources(list *ast.List, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	issues := functionBodyIssues{}
+	if list == nil {
+		return result, issues, nil
+	}
+	for _, item := range list.Items {
+		sources, itemIssues, err := q.collectFunctionFromNodeSources(item, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(itemIssues)
+		mergeSourceColumnSet(result, sources)
+	}
+	return result, issues, nil
+}
+
+func (q *querySpanResolver) collectFunctionFromNodeSources(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	issues := functionBodyIssues{}
+	switch n := node.(type) {
+	case *ast.JoinExpr:
+		if n == nil {
+			return result, issues, nil
+		}
+		for _, child := range []ast.Node{n.Larg, n.Rarg} {
+			sources, childIssues, err := q.collectFunctionFromNodeSources(child, functionStack, cache, scope)
+			if err != nil {
+				return nil, functionBodyIssues{}, err
+			}
+			issues.merge(childIssues)
+			mergeSourceColumnSet(result, sources)
+		}
+		if n.Quals != nil {
+			sources, qualIssues, err := q.collectFunctionBodyResultSources(n.Quals, functionStack, cache, scope)
+			if err != nil {
+				return nil, functionBodyIssues{}, err
+			}
+			issues.merge(qualIssues)
+			mergeSourceColumnSet(result, sources)
+		}
+	case *ast.RangeSubselect:
+		if n == nil {
+			return result, issues, nil
+		}
+		selectStmt, ok := n.Subquery.(*ast.SelectStmt)
+		if !ok {
+			return result, issues, nil
+		}
+		sources, subIssues, err := q.collectSubqueryFunctionSources(selectStmt, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(subIssues)
+		mergeSourceColumnSet(result, sources)
+	}
 	return result, issues, nil
 }
 

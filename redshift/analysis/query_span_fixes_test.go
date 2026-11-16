@@ -396,6 +396,22 @@ func TestRedshiftFunctionSourceManyResolvedJoinsStayLinear(t *testing.T) {
 	})
 }
 
+// TestRedshiftFunctionSourceNestedScalarSubqueriesStayLinear: each nested
+// scalar subquery is analyzed once, not once through its target and again
+// through the whole SELECT, which made depth exponential.
+func TestRedshiftFunctionSourceNestedScalarSubqueriesStayLinear(t *testing.T) {
+	const depth = 1000
+	sql := "SELECT " + strings.Repeat("(", depth) + "1" + strings.Repeat(")", depth)
+	stmts, err := parseRedshiftSpan(sql)
+	require.NoError(t, err)
+	require.Len(t, stmts, 1)
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	cputime.Within(t, 2*time.Second, fmt.Sprintf("function sources through %d nested scalar subqueries", depth), func() {
+		_, _, _, err := q.collectFunctionBodySources(stmts[0].AST, map[string]bool{}, make(map[string]functionBodySources))
+		require.NoError(t, err)
+	})
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
