@@ -1225,11 +1225,16 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		mergeSourceColumnSet(result, sources)
 	}
 	for _, clause := range []ast.Node{
+		selectStmt.DistinctClause,
+		selectStmt.ValuesLists,
 		selectStmt.WhereClause,
 		selectStmt.GroupClause,
 		selectStmt.HavingClause,
+		selectStmt.WindowClause,
 		selectStmt.QualifyClause,
 		selectStmt.SortClause,
+		selectStmt.LimitOffset,
+		selectStmt.LimitCount,
 	} {
 		if clause == nil {
 			continue

@@ -303,6 +303,20 @@ func TestRedshiftQuerySpanScalarSubqueryStarThroughDerived(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanSubqueryOffsetFunction covers a function in a
+// subquery's OFFSET clause, which still determines the scalar result.
+func TestRedshiftQuerySpanSubqueryOffsetFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT (SELECT 1 OFFSET reporting_fn()) AS x")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "x",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.
