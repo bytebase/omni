@@ -158,6 +158,9 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 			Password: cfg.Password,
 			DB:       database,
 			Dialer:   dialer,
+			// The caller's context deadline is the query's timeout, so a
+			// command stops waiting for the server when it passes.
+			ContextTimeoutEnabled: true,
 			// Pipelines run on the main pool. A driver is opened per request
 			// and runs a single pipeline, so go-redis's dedicated pipeline pool
 			// would only add a connection and its handshake to every request.
@@ -166,24 +169,26 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 		d.client = &liveClient{client: redis.NewClient(options)}
 	case Sentinel:
 		options := &redis.FailoverOptions{
-			MasterName:       opt.MasterName,
-			Username:         cfg.User,
-			Password:         cfg.Password,
-			SentinelUsername: opt.SentinelUser,
-			SentinelPassword: opt.SentinelPassword,
-			SentinelAddrs:    addresses,
-			DB:               database,
-			Dialer:           dialer,
-			PipelinePoolSize: -1,
+			MasterName:            opt.MasterName,
+			Username:              cfg.User,
+			Password:              cfg.Password,
+			SentinelUsername:      opt.SentinelUser,
+			SentinelPassword:      opt.SentinelPassword,
+			SentinelAddrs:         addresses,
+			DB:                    database,
+			Dialer:                dialer,
+			ContextTimeoutEnabled: true,
+			PipelinePoolSize:      -1,
 		}
 		d.client = &liveClient{client: redis.NewFailoverClient(options)}
 	case Cluster:
 		options := &redis.ClusterOptions{
-			Addrs:            addresses,
-			Username:         cfg.User,
-			Password:         cfg.Password,
-			Dialer:           dialer,
-			PipelinePoolSize: -1,
+			Addrs:                 addresses,
+			Username:              cfg.User,
+			Password:              cfg.Password,
+			Dialer:                dialer,
+			ContextTimeoutEnabled: true,
+			PipelinePoolSize:      -1,
 			// go-redis 9.22.0 raised its own default to a minute. A node that
 			// refuses connections does not trigger a reload, so a failover is
 			// only noticed by this periodic one, and a driver that outlives it

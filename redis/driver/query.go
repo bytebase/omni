@@ -63,7 +63,9 @@ func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		startTime := time.Now()
 		cmds, err := s.driver.client.Do(ctx, s.session, [][]any{inputs[i]})
 		if err != nil {
-			return nil, err
+			// The commands before this one ran, so their results stand beside the
+			// error that kept the rest from being sent.
+			return results, err
 		}
 		result := newResult(command)
 		result.Latency = time.Since(startTime)
@@ -102,13 +104,15 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 		startTime := time.Now()
 		shards, err := s.driver.client.DoEachShard(ctx, [][]any{inputs[i]})
 		if err != nil {
-			// A client of one server says so itself, without the wrap a failure
-			// of the cluster's own state takes.
+			// The commands before this one ran, so their results stand beside the
+			// error that kept the rest from being sent. A client of one server
+			// says so itself, without the wrap a failure of the cluster's own
+			// state takes.
 			var notCluster *notClusterError
 			if errors.As(err, &notCluster) {
-				return nil, err
+				return results, err
 			}
-			return nil, fmt.Errorf("failed to query for each shard: %w", err)
+			return results, fmt.Errorf("failed to query for each shard: %w", err)
 		}
 		// One command's rows are every node's answers, in node order, before the
 		// next command is sent, so a command that fails on one node leaves the

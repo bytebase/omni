@@ -277,3 +277,57 @@ func TestQueryAllNodesCountsEveryShardsRows(t *testing.T) {
 	require.True(t, results[0].Truncated)
 	require.Len(t, results[0].Rows, 5, "the cap was counted again for the second node")
 }
+
+// scriptClient answers a script's commands from a list and fails to send the
+// command numbered failAt, which is a call error rather than an answer.
+type scriptClient struct {
+	answers []any
+	errs    []error
+	sent    int
+	failAt  int
+}
+
+func (*scriptClient) Ping(context.Context) error { return errors.New("not asked") }
+
+func (*scriptClient) Info(context.Context, string) (string, error) {
+	return "", errors.New("not asked")
+}
+
+func (*scriptClient) ConfigGet(context.Context, string) (map[string]string, error) {
+	return nil, errors.New("not asked")
+}
+
+func (*scriptClient) Session(context.Context) (int, error) { return 1, nil }
+
+func (c *scriptClient) Do(ctx context.Context, _ int, commands [][]any) ([]*redis.Cmd, error) {
+	if c.sent == c.failAt {
+		return nil, errors.New("connection reset by peer")
+	}
+	cmd := redis.NewCmd(ctx, commands[0]...)
+	cmd.SetVal(c.answers[c.sent])
+	cmd.SetErr(c.errs[c.sent])
+	c.sent++
+	return []*redis.Cmd{cmd}, nil
+}
+
+func (*scriptClient) CloseSession(context.Context, int) error { return nil }
+
+func (*scriptClient) DoEachShard(context.Context, [][]any) ([][]*redis.Cmd, error) {
+	return nil, errors.New("not asked")
+}
+
+func (*scriptClient) Close() error { return nil }
+
+// TestQueryKeepsCompletedResultsWhenALaterCommandCannotBeSent holds a script whose
+// connection broke midway: the results of the commands that ran come back beside
+// the error that kept the rest from being sent.
+func TestQueryKeepsCompletedResultsWhenALaterCommandCannotBeSent(t *testing.T) {
+	d := &Driver{client: &scriptClient{answers: []any{"a"}, errs: []error{nil}, failAt: 1}}
+	session, err := d.Session(context.Background())
+	require.NoError(t, err)
+	results, err := session.Query(context.Background(), "PING\nPING", driver.QueryOptions{})
+	require.ErrorContains(t, err, "connection reset by peer")
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 1)
+}
