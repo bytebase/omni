@@ -76,6 +76,17 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.Action != DiffAlter {
+			continue
+		}
+		for _, triggerDiff := range tableDiff.Triggers {
+			if triggerDiff.Action == DiffDrop || triggerDiff.Action == DiffAlter {
+				fmt.Fprintf(&buf, "DROP TRIGGER %s.%s;\nGO\n", quote(tableDiff.SchemaName), quote(triggerDiff.OldTrigger.Name))
+			}
+		}
+	}
+
 	for _, procDiff := range diff.Procedures {
 		if procDiff.Action == DiffDrop {
 			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
@@ -86,12 +97,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			fmt.Fprintf(&buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 		}
 	}
-	for _, sequenceDiff := range diff.Sequences {
-		if sequenceDiff.Action == DiffDrop {
-			fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(sequenceDiff.SchemaName), quote(sequenceDiff.SequenceName))
-		}
-	}
-
 	dropViewsInOrder(diff, &buf)
 
 	for _, tableDiff := range diff.Tables {
@@ -178,6 +183,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	for _, sequenceDiff := range diff.Sequences {
+		if sequenceDiff.Action == DiffDrop {
+			fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(sequenceDiff.SchemaName), quote(sequenceDiff.SequenceName))
+		}
+	}
+
 	for _, schemaDiff := range diff.Schemas {
 		if schemaDiff.Action != DiffDrop || strings.ToLower(schemaDiff.SchemaName) == defaultSchema {
 			continue
@@ -241,6 +252,18 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		for _, fk := range tableDiff.NewTable.ForeignKeys {
 			buf.WriteString(generateAddForeignKey(tableDiff.SchemaName, tableDiff.TableName, fk))
 			buf.WriteString(";\n")
+		}
+	}
+
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.Action != DiffAlter {
+			continue
+		}
+		for _, fkDiff := range tableDiff.ForeignKeys {
+			if fkDiff.Action == DiffCreate {
+				buf.WriteString(generateAddForeignKey(tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey))
+				buf.WriteString(";\n")
+			}
 		}
 	}
 
@@ -331,10 +354,39 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		buf.WriteString("\nGO\n")
 	}
 
+	for _, tableDiff := range diff.Tables {
+		switch tableDiff.Action {
+		case DiffCreate:
+			if tableDiff.NewTable == nil {
+				continue
+			}
+			for _, trigger := range tableDiff.NewTable.Triggers {
+				writeTriggerMigration(&buf, trigger)
+			}
+		case DiffAlter:
+			for _, triggerDiff := range tableDiff.Triggers {
+				if triggerDiff.Action == DiffCreate || triggerDiff.Action == DiffAlter {
+					writeTriggerMigration(&buf, triggerDiff.NewTrigger)
+				}
+			}
+		}
+	}
+
+	earlyFunctions := migrationEarlyFunctions(diff)
+	for _, funcDiff := range diff.Functions {
+		if !earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+			continue
+		}
+		writeFunctionMigration(&buf, funcDiff)
+	}
+
 	createViewsInOrder(diff, &buf)
 
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action != DiffCreate {
+			continue
+		}
+		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
 			continue
 		}
 		buf.WriteString(funcDiff.NewFunction.Definition)
@@ -472,6 +524,11 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 					droppedKey = true
 				}
 			}
+			for _, colDiff := range tableDiff.Columns {
+				if colDiff.Action == DiffAlter && colDiff.OldColumn.Type != colDiff.NewColumn.Type {
+					droppedKey = true
+				}
+			}
 			if droppedKey {
 				replaced[tableID] = true
 			}
@@ -562,7 +619,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 		buf.WriteString("\n")
 	}
 	for i, check := range table.CheckConstraints {
-		fmt.Fprintf(&buf, "  CONSTRAINT %s CHECK (%s)", quote(check.Name), check.Expression)
+		fmt.Fprintf(&buf, "  CONSTRAINT %s CHECK %s", quote(check.Name), checkExpression(check.Expression))
 		if i < len(table.CheckConstraints)-1 {
 			buf.WriteString(",")
 		}
@@ -603,6 +660,22 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
 	}
 	for _, colDiff := range tableDiff.Columns {
+		if colDiff.Action != DiffAlter || computedColumnChanged(colDiff) || colDiff.OldColumn.Type == colDiff.NewColumn.Type {
+			continue
+		}
+		for _, index := range tableDiff.OldTable.Indexes {
+			if !indexUsesColumn(index, colDiff.OldColumn.Name) || indexChangeScheduled(tableDiff, index.Name) {
+				continue
+			}
+			if index.IsConstraint {
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(index.Name))
+			} else {
+				fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(index.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
+			}
+			rebuiltIndexes = append(rebuiltIndexes, index.Name)
+		}
+	}
+	for _, colDiff := range tableDiff.Columns {
 		if colDiff.Action == DiffCreate || (colDiff.Action == DiffAlter && computedColumnChanged(colDiff)) {
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), generateColumnDefinition(colDiff.NewColumn))
 		}
@@ -614,7 +687,33 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	}
 	for _, name := range rebuiltIndexes {
 		for _, index := range tableDiff.NewTable.Indexes {
-			if index.Name == name && !index.IsConstraint && !indexChangeScheduled(tableDiff, name) {
+			if index.Name != name || indexChangeScheduled(tableDiff, name) {
+				continue
+			}
+			if index.IsConstraint {
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(index.Name))
+				switch {
+				case index.Primary:
+					buf.WriteString(" PRIMARY KEY")
+				case index.Unique:
+					buf.WriteString(" UNIQUE")
+				}
+				switch index.Type {
+				case "CLUSTERED":
+					buf.WriteString(" CLUSTERED")
+				case "NONCLUSTERED":
+					buf.WriteString(" NONCLUSTERED")
+				}
+				buf.WriteString(" (")
+				for j, expr := range index.Expressions {
+					if j > 0 {
+						buf.WriteString(", ")
+					}
+					buf.WriteString(quote(expr))
+					appendMigrationDirection(&buf, index.Descending, j)
+				}
+				buf.WriteString(");\n")
+			} else {
 				buf.WriteString(generateCreateIndex(tableDiff.SchemaName, tableDiff.TableName, index))
 				buf.WriteString(";\n")
 			}
@@ -654,17 +753,60 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	}
 	for _, checkDiff := range tableDiff.Checks {
 		if checkDiff.Action == DiffCreate {
-			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK (%s);\n",
-				quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.NewCheckConstraint.Name), checkDiff.NewCheckConstraint.Expression)
-		}
-	}
-	for _, fkDiff := range tableDiff.ForeignKeys {
-		if fkDiff.Action == DiffCreate {
-			buf.WriteString(generateAddForeignKey(tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey))
-			buf.WriteString(";\n")
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n",
+				quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.NewCheckConstraint.Name), checkExpression(checkDiff.NewCheckConstraint.Expression))
 		}
 	}
 	return buf.String()
+}
+
+func migrationEarlyFunctions(diff *SchemaDiff) map[string]bool {
+	var definitions []string
+	for _, viewDiff := range diff.Views {
+		if viewDiff.NewView != nil {
+			definitions = append(definitions, viewDiff.NewView.Definition)
+		}
+	}
+	referenced := make(map[string]bool)
+	for _, funcDiff := range diff.Functions {
+		if funcDiff.Action != DiffCreate && funcDiff.Action != DiffAlter {
+			continue
+		}
+		name := funcDiff.FunctionName
+		if funcDiff.NewFunction != nil && funcDiff.NewFunction.Name != "" {
+			name = funcDiff.NewFunction.Name
+		}
+		for _, definition := range definitions {
+			if strings.Contains(strings.ToLower(definition), strings.ToLower(name)) {
+				referenced[funcDiff.SchemaName+"."+funcDiff.FunctionName] = true
+				break
+			}
+		}
+	}
+	return referenced
+}
+
+func writeFunctionMigration(buf *strings.Builder, funcDiff *FunctionDiffEntry) {
+	if funcDiff.NewFunction == nil {
+		return
+	}
+	buf.WriteString(funcDiff.NewFunction.Definition)
+	if !strings.HasSuffix(strings.TrimSpace(funcDiff.NewFunction.Definition), ";") {
+		buf.WriteString(";")
+	}
+	buf.WriteString("\nGO\n")
+	if funcDiff.NewFunction.Comment != "" {
+		buf.WriteString(generateFunctionCommentSQL("ADD", funcDiff.SchemaName, funcDiff.FunctionName, funcDiff.NewFunction.Comment))
+		buf.WriteString(";\nGO\n")
+	}
+}
+
+func writeTriggerMigration(buf *strings.Builder, trigger *metadata.TriggerMetadata) {
+	if trigger == nil || trigger.Body == "" {
+		return
+	}
+	buf.WriteString(strings.TrimRight(strings.TrimSpace(trigger.Body), ";"))
+	buf.WriteString("\nGO\n")
 }
 
 func computedColumnChanged(diff *ColumnDiffEntry) bool {

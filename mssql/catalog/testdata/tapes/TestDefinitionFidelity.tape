@@ -4315,20 +4315,20 @@
 | );
 < ok 0 -
 > exec
-| CREATE VIEW [fid_routines].[v_items] AS
-| SELECT [id], [name] FROM [fid_routines].[items];
-< ok 0 -
-> exec
-| CREATE VIEW [fid_routines].[v_item_names] AS
-| SELECT [name] FROM [fid_routines].[v_items];
-< ok 0 -
-> exec
 | CREATE FUNCTION [fid_routines].[item_name] (@id INT)
 | RETURNS NVARCHAR(100)
 | AS
 | BEGIN
 |     RETURN (SELECT [name] FROM [fid_routines].[items] WHERE [id] = @id)
 | END
+< ok 0 -
+> exec
+| CREATE VIEW [fid_routines].[v_items] AS
+| SELECT [id], [name] FROM [fid_routines].[items];
+< ok 0 -
+> exec
+| CREATE VIEW [fid_routines].[v_item_names] AS
+| SELECT [name] FROM [fid_routines].[v_items];
 < ok 0 -
 > exec
 | CREATE PROCEDURE [fid_routines].[get_items]
@@ -4732,7 +4732,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1541580530
+: int64 1557580587
 : int64 1
 : string
 | id
@@ -4755,7 +4755,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1541580530
+: int64 1557580587
 : int64 2
 : string
 | name
@@ -4779,7 +4779,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1557580587
+: int64 1573580644
 : int64 1
 : string
 | name
@@ -5661,7 +5661,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1557580587
+: int64 1573580644
 : string
 | CREATE VIEW [fid_routines].[v_item_names] AS
 | SELECT [name] FROM [fid_routines].[v_items];
@@ -5670,7 +5670,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1541580530
+: int64 1557580587
 : string
 | CREATE VIEW [fid_routines].[v_items] AS
 | SELECT [id], [name] FROM [fid_routines].[items];
@@ -6345,7 +6345,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1541580530
+: int64 1557580587
 : int64 1
 : string
 | id
@@ -6368,7 +6368,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1541580530
+: int64 1557580587
 : int64 2
 : string
 | name
@@ -6392,7 +6392,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1557580587
+: int64 1573580644
 : int64 1
 : string
 | name
@@ -7364,7 +7364,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1557580587
+: int64 1573580644
 : string
 | CREATE VIEW [fid_routines].[v_item_names] AS
 | SELECT [name] FROM [fid_routines].[v_items];
@@ -7373,7 +7373,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1541580530
+: int64 1557580587
 : string
 | CREATE VIEW [fid_routines].[v_items] AS
 | SELECT [id], [name] FROM [fid_routines].[items];
@@ -7644,20 +7644,20 @@
 | );
 < ok 0 -
 > exec
-| CREATE VIEW [fid_routines].[v_items] AS
-| SELECT [id], [name] FROM [fid_routines].[items];
-< ok 0 -
-> exec
-| CREATE VIEW [fid_routines].[v_item_names] AS
-| SELECT [name] FROM [fid_routines].[v_items];
-< ok 0 -
-> exec
 | CREATE FUNCTION [fid_routines].[item_name] (@id INT)
 | RETURNS NVARCHAR(100)
 | AS
 | BEGIN
 |     RETURN (SELECT [name] FROM [fid_routines].[items] WHERE [id] = @id)
 | END
+< ok 0 -
+> exec
+| CREATE VIEW [fid_routines].[v_items] AS
+| SELECT [id], [name] FROM [fid_routines].[items];
+< ok 0 -
+> exec
+| CREATE VIEW [fid_routines].[v_item_names] AS
+| SELECT [name] FROM [fid_routines].[v_items];
 < ok 0 -
 > exec
 | CREATE PROCEDURE [fid_routines].[get_items]
@@ -8136,7 +8136,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1973582069
+: int64 1989582126
 : int64 1
 : string
 | id
@@ -8159,7 +8159,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1973582069
+: int64 1989582126
 : int64 2
 : string
 | name
@@ -8183,7 +8183,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1989582126
+: int64 2005582183
 : int64 1
 : string
 | name
@@ -9155,7 +9155,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1989582126
+: int64 2005582183
 : string
 | CREATE VIEW [fid_routines].[v_item_names] AS
 | SELECT [name] FROM [fid_routines].[v_items];
@@ -9164,7 +9164,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1973582069
+: int64 1989582126
 : string
 | CREATE VIEW [fid_routines].[v_items] AS
 | SELECT [id], [name] FROM [fid_routines].[items];

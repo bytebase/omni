@@ -44,24 +44,77 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 		writeAllTablesInOrder(&buf, to.Schemas)
 	}
 
-	if hasViews(to.Schemas) {
+	earlyFunctions := functionsReferencedByViews(to.Schemas)
+	if len(earlyFunctions) > 0 {
 		if hasTables(to.Schemas) {
+			buf.WriteString("GO\n\n")
+		}
+		for _, schema := range to.Schemas {
+			for _, function := range schema.Functions {
+				if earlyFunctions[objectID(schema.Name, function.Name)] {
+					writeFunction(&buf, function)
+				}
+			}
+		}
+	}
+
+	if hasViews(to.Schemas) {
+		if hasTables(to.Schemas) && len(earlyFunctions) == 0 {
 			buf.WriteString("GO\n\n")
 		}
 		writeAllViewsInOrder(&buf, to.Schemas)
 	}
 
-	if !hasViews(to.Schemas) && hasTables(to.Schemas) && hasRoutines(to.Schemas) {
+	if !hasViews(to.Schemas) && hasTables(to.Schemas) && (hasRoutines(to.Schemas) || hasTriggers(to.Schemas)) {
 		buf.WriteString("GO\n\n")
 	}
 
 	writeTriggers(&buf, to.Schemas)
 
 	for _, schema := range to.Schemas {
-		writeFunctionsAndProcedures(&buf, schema)
+		writeFunctionsAndProcedures(&buf, schema, earlyFunctions)
 	}
 
 	return buf.String(), nil
+}
+
+// functionsReferencedByViews names the functions a view body mentions, so they
+// are created before the view that resolves them.
+func functionsReferencedByViews(schemas []*metadata.SchemaMetadata) map[string]bool {
+	var definitions []string
+	for _, schema := range schemas {
+		for _, view := range schema.Views {
+			definitions = append(definitions, view.Definition)
+		}
+	}
+	referenced := make(map[string]bool)
+	for _, schema := range schemas {
+		for _, function := range schema.Functions {
+			for _, definition := range definitions {
+				if strings.Contains(strings.ToLower(definition), strings.ToLower(function.Name)) {
+					referenced[objectID(schema.Name, function.Name)] = true
+					break
+				}
+			}
+		}
+	}
+	return referenced
+}
+
+func hasTriggers(schemas []*metadata.SchemaMetadata) bool {
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			if len(table.Triggers) > 0 {
+				return true
+			}
+		}
+		for _, view := range schema.Views {
+			if len(view.Triggers) > 0 {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func hasRoutines(schemas []*metadata.SchemaMetadata) bool {
@@ -136,8 +189,11 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 	}
 }
 
-func writeFunctionsAndProcedures(out *strings.Builder, schema *metadata.SchemaMetadata) {
+func writeFunctionsAndProcedures(out *strings.Builder, schema *metadata.SchemaMetadata, early map[string]bool) {
 	for _, function := range schema.Functions {
+		if early[objectID(schema.Name, function.Name)] {
+			continue
+		}
 		writeFunction(out, function)
 	}
 	for _, procedure := range schema.Procedures {
@@ -428,7 +484,36 @@ func writeIndex(out *strings.Builder, schemaName, tableName string, index *metad
 }
 
 func writeCheck(out *strings.Builder, check *metadata.CheckConstraintMetadata) {
-	fmt.Fprintf(out, "    CONSTRAINT %s CHECK %s", quote(check.Name), check.Expression)
+	fmt.Fprintf(out, "    CONSTRAINT %s CHECK %s", quote(check.Name), checkExpression(check.Expression))
+}
+
+// checkExpression keeps exactly the parentheses T-SQL requires around a CHECK
+// expression, whether the stored text already has them or not.
+func checkExpression(expression string) string {
+	expression = strings.TrimSpace(expression)
+	for strings.HasPrefix(expression, "(") && strings.HasSuffix(expression, ")") && balancedOuterParens(expression) {
+		expression = strings.TrimSpace(expression[1 : len(expression)-1])
+	}
+	if expression == "" {
+		return ""
+	}
+	return "(" + expression + ")"
+}
+
+func balancedOuterParens(expression string) bool {
+	depth := 0
+	for i, ch := range expression {
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 && i != len(expression)-1 {
+				return false
+			}
+		}
+	}
+	return depth == 0
 }
 
 func writeForeignKey(out *strings.Builder, fk *metadata.ForeignKeyMetadata) {

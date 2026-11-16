@@ -243,3 +243,71 @@ func TestUnnamedTableConstraintsGetNames(t *testing.T) {
 	require.Contains(t, def, "CONSTRAINT [PK_t_1]")
 	require.Contains(t, def, "CONSTRAINT [UQ_t_2]")
 }
+
+func TestTableConstraintKeepsDescendingDirections(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [code] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id] DESC), CONSTRAINT [UQ_t] UNIQUE ([code] ASC));`)
+	require.NoError(t, err)
+	indexes := c.GetTable("dbo", "t").Indexes
+	require.True(t, indexes[0].Descending[0])
+	require.False(t, indexes[1].Descending[0])
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "PRIMARY KEY ([id] DESC)")
+}
+
+func TestDefinitionAndMigrationEncloseCheckExpression(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [CK_t] CHECK ([id] > 0));`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CONSTRAINT [CK_t] CHECK ([id] > 0)")
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [CK_t] CHECK ([id] > 0), CONSTRAINT [CK_t2] CHECK ([id] < 100));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(c, to, Diff(c, to)).SQL()
+	require.Contains(t, sql, "CHECK ([id] < 100)")
+	require.NotContains(t, sql, "CHECK (([id] < 100))")
+}
+
+func TestMigrationEmitsTriggerChanges(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to := fromWithTrigger(t, "CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS SELECT 1")
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS SELECT 1")
+	back := GenerateMigration(to, from, Diff(to, from)).SQL()
+	require.Contains(t, back, "DROP TRIGGER [dbo].[trg]")
+}
+
+func fromWithTrigger(t *testing.T, body string) *Catalog {
+	t.Helper()
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	table := c.GetTable("dbo", "t")
+	table.Triggers = []*metadata.TriggerMetadata{{Name: "trg", Event: "INSERT", Timing: "AFTER", Body: body}}
+	return c
+}
+
+func TestDefinitionCreatesViewReferencedFunctionFirst(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+CREATE VIEW [dbo].[v] AS SELECT [dbo].[f]([id]) AS value FROM [dbo].[t];
+CREATE FUNCTION [dbo].[f] (@id int) RETURNS int AS BEGIN RETURN @id END;
+`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(def, "CREATE FUNCTION [dbo].[f]"), strings.Index(def, "CREATE VIEW [dbo].[v]"))
+}
+
+func TestMigrationRebuildsKeyAroundColumnTypeChange(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] bigint NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP CONSTRAINT [PK_t]")
+	require.Contains(t, sql, "ALTER COLUMN [id] bigint NOT NULL")
+	require.Contains(t, sql, "ADD CONSTRAINT [PK_t] PRIMARY KEY")
+	require.Less(t, strings.Index(sql, "DROP CONSTRAINT [PK_t]"), strings.Index(sql, "ALTER COLUMN [id] bigint"))
+	require.Less(t, strings.Index(sql, "ALTER COLUMN [id] bigint"), strings.Index(sql, "ADD CONSTRAINT [PK_t]"))
+}

@@ -356,15 +356,15 @@ func constraintName(prefix string, counter int) string {
 func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.TableMetadata, schemaName, source string) {
 	switch n.Type {
 	case ast.ConstraintPrimaryKey:
-		names := indexColumnNames(n.Columns)
-		for _, name := range names {
+		index := c.constraintIndexMetadata(n, constraintPrefix("PK", table.Name), nil, true)
+		for _, name := range index.Expressions {
 			if column := columnByName(table, name); column != nil {
 				column.Nullable = false
 			}
 		}
-		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, constraintPrefix("PK", table.Name), names, true))
+		table.Indexes = append(table.Indexes, index)
 	case ast.ConstraintUnique:
-		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, constraintPrefix("UQ", table.Name), indexColumnNames(n.Columns), false))
+		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, constraintPrefix("UQ", table.Name), nil, false))
 	case ast.ConstraintCheck:
 		c.appendCheckConstraint(table, n, source)
 	case ast.ConstraintForeignKey:

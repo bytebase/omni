@@ -1352,7 +1352,7 @@
 |   [id] int NOT NULL,
 |   [note] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 |   CONSTRAINT [PK_added] PRIMARY KEY CLUSTERED ([id]),
-|   CONSTRAINT [CK_added_note] CHECK (([note] IS NULL OR [note]<>''))
+|   CONSTRAINT [CK_added_note] CHECK ([note] IS NULL OR [note]<>'')
 | );
 | CREATE NONCLUSTERED INDEX [IX_added_note] ON [fid_added_columns_keys_constraints].[added] ([note]);
 < ok 0 -
@@ -4445,7 +4445,7 @@
 |   [id] int NOT NULL,
 |   [note] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 |   CONSTRAINT [PK_added] PRIMARY KEY CLUSTERED ([id]),
-|   CONSTRAINT [CK_added_note] CHECK (([note] IS NULL OR [note]<>''))
+|   CONSTRAINT [CK_added_note] CHECK ([note] IS NULL OR [note]<>'')
 | );
 | CREATE NONCLUSTERED INDEX [IX_added_note] ON [fid_added_views_functions_procedures_sequences].[added] ([note]);
 < ok 0 -
@@ -8110,7 +8110,7 @@
 |   [id] int NOT NULL,
 |   [note] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 |   CONSTRAINT [PK_added] PRIMARY KEY CLUSTERED ([id]),
-|   CONSTRAINT [CK_added_note] CHECK (([note] IS NULL OR [note]<>''))
+|   CONSTRAINT [CK_added_note] CHECK ([note] IS NULL OR [note]<>'')
 | );
 | CREATE NONCLUSTERED INDEX [IX_added_note] ON [fid_added_cross_schema].[added] ([note]);
 < ok 0 -
