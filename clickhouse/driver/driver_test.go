@@ -178,9 +178,14 @@ func TestStatementWithResultLimit(t *testing.T) {
 		t.Errorf("limit = %q, want %q", got, want)
 	}
 	// A trailing comment and the terminator before it are not part of the CTE.
-	for _, statement := range []string{"SELECT 1 -- note", "SELECT 1; -- note", "SELECT 1; /* note */"} {
-		if got, want := statementWithResultLimit(statement, 5), "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"; got != want {
-			t.Errorf("limit(%q) = %q, want %q", statement, got, want)
+	for _, tc := range []struct{ statement, want string }{
+		{"SELECT 1 -- note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
+		{"SELECT 1; -- note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
+		{"SELECT 1; /* note */", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
+		{"SELECT '你好' -- note", "WITH result AS (SELECT '你好') SELECT * FROM result LIMIT 5;"},
+	} {
+		if got := statementWithResultLimit(tc.statement, 5); got != tc.want {
+			t.Errorf("limit(%q) = %q, want %q", tc.statement, got, tc.want)
 		}
 	}
 	if got, want := statementWithResultLimit("INSERT INTO t VALUES (1)", 5), "INSERT INTO t VALUES (1)"; got != want {

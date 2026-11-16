@@ -174,7 +174,7 @@ func trimStatementForWrapper(statement string) string {
 		if start < 0 {
 			return trimmed
 		}
-		trimmed = trimStatement(strings.TrimSpace(trimmed[:start]))
+		trimmed = trimStatement(strings.TrimSpace(string([]rune(trimmed)[:start])))
 	}
 }
 
