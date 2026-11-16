@@ -161,13 +161,25 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 			count: 10,
 			want:  "SELECT * FROM t LIMIT 10 /* block comment */;",
 		},
-		// '#' is no comment in either engine — Doris refuses the character and
-		// StarRocks skips it — so the text after a statement's end is not a
-		// comment to append before: the rewrite falls back to the wrap.
+		// StarRocks skips a '#' — its lexer has no token for it — so what
+		// follows is more of the statement, not a comment to append before, and
+		// only what the parser did not read is a tail.
+		{
+			stmt:  "SELECT * FROM t # x",
+			count: 10,
+			want:  "SELECT * FROM t # x LIMIT 10",
+		},
 		{
 			stmt:  "SELECT * FROM t # hash comment",
 			count: 10,
 			want:  "SELECT * FROM (\nSELECT * FROM t # hash comment\n) result LIMIT 10;",
+		},
+		{
+			// A '#' after the terminator is a blank, so the statement has no
+			// tail and the LIMIT goes inline.
+			stmt:  "SELECT 1; #",
+			count: 10,
+			want:  "SELECT 1 LIMIT 10; #",
 		},
 		{
 			stmt:  "SELECT * FROM t;\n",
