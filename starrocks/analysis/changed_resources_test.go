@@ -234,6 +234,43 @@ func TestExtractChangedResourcesLoadLabel(t *testing.T) {
 	}
 }
 
+func TestExtractChangedResourcesLoadLabelQuotedParts(t *testing.T) {
+	// Both pinned engines take a LOAD LABEL as [db.]label and reject a dot in
+	// either part (their label check is ^[\-_A-Za-z0-9:]{1,128}$, and a
+	// database name cannot hold one). omni still parses the quoted
+	// identifiers, so the analysis must read the parser's parts rather than
+	// turn a dot inside one part into a qualifier.
+	for _, tc := range []struct {
+		name      string
+		statement string
+		want      []string
+	}{
+		{
+			name:      "a quoted label part keeps its dot out of the database",
+			statement: "LOAD LABEL other.`job.with.dot` (DATA INFILE('s3://b/f.csv') INTO TABLE t)",
+			want:      []string{"other.t"},
+		},
+		{
+			name:      "a quoted unqualified label is not qualified",
+			statement: "LOAD LABEL `job.with.dot` (DATA INFILE('s3://b/f.csv') INTO TABLE t)",
+			want:      []string{"db.t"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := resourceNames(changesFor(t, tc.statement, "db"))
+			if len(got) != len(tc.want) {
+				t.Fatalf("resources = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("resources = %v, want %v", got, tc.want)
+					break
+				}
+			}
+		})
+	}
+}
+
 func TestExtractChangedResourcesSwapWith(t *testing.T) {
 	// SWAP WITH exchanges the two tables' data, so the partner is a changed
 	// table too, and it resolves in the altered table's database

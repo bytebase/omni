@@ -216,7 +216,7 @@ func (p *Parser) parseDMLTargetAlias() string {
 func isDMLClauseKeyword(t int) bool {
 	switch t {
 	case kwPARTITION, kwPARTITIONS, kwUSING, kwWHERE, kwSET, kwFROM,
-		kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwJOIN, kwNATURAL:
+		kwINNER, kwLEFT, kwRIGHT, kwFULL, kwCROSS, kwJOIN:
 		return true
 	}
 	return isSelectClauseKeyword(t)

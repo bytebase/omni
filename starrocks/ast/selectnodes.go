@@ -8,12 +8,15 @@ package ast
 
 // WithClause represents a WITH clause preceding a SELECT statement.
 //
-//	WITH [RECURSIVE] cte_name [(col1, col2, ...)] AS (query)
+//	WITH cte_name [(col1, col2, ...)] AS (query)
 //	  [, cte_name2 AS (query2)]
+//
+// StarRocks has no WITH RECURSIVE: StarRocksLex.g4 has no RECURSIVE token, and
+// the 3.4.10 server reads RECURSIVE as the first CTE's name and then refuses
+// the definition that follows.
 type WithClause struct {
-	Recursive bool   // RECURSIVE keyword present
-	CTEs      []*CTE // one or more CTE definitions
-	Loc       Loc
+	CTEs []*CTE // one or more CTE definitions
+	Loc  Loc
 }
 
 // Tag implements Node.
@@ -224,6 +227,10 @@ type TableFunctionRef struct {
 	// name there, beside Call.Args, "" for one passed by position.
 	Normalized bool
 	ArgNames   []string
+	// Properties holds the propertyList of FILES(propertyList)
+	// (StarRocks.g4:2197), the one table function whose arguments are named
+	// properties rather than expressions.
+	Properties []*Property
 	Loc        Loc
 }
 
@@ -254,14 +261,13 @@ const (
 
 // JoinClause represents a JOIN expression in the FROM clause.
 type JoinClause struct {
-	Type    JoinType
-	Left    Node     // left side of the join
-	Right   Node     // right side of the join
-	Natural bool     // NATURAL join modifier
-	On      Node     // ON condition (nil if absent)
-	Using   []string // USING (col1, col2, ...) column names
-	Hints   []string // execution hints, e.g. [shuffle], [broadcast]
-	Loc     Loc
+	Type  JoinType
+	Left  Node     // left side of the join
+	Right Node     // right side of the join
+	On    Node     // ON condition (nil if absent)
+	Using []string // USING (col1, col2, ...) column names
+	Hints []string // execution hints, e.g. [shuffle], [broadcast]
+	Loc   Loc
 }
 
 // Tag implements Node.

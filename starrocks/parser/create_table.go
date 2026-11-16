@@ -375,8 +375,11 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 }
 
 // parseDefaultValue parses the value after DEFAULT keyword.
-// Supports: NULL, integers, decimals, PI, E, BITMAP_EMPTY, string literals,
-// CURRENT_DATE, CURRENT_TIMESTAMP with optional precision.
+// Supports: NULL, integers, decimals, string literals, CURRENT_DATE,
+// CURRENT_TIMESTAMP with optional precision, and a parenthesized expression.
+// Doris also takes PI, E and BITMAP_EMPTY() here; StarRocksLex.g4 has no token
+// for any of the three and the 3.4.10 server answers DEFAULT PI with a syntax
+// error at PI, so they are not read.
 func (p *Parser) parseDefaultValue() (ast.Node, error) {
 	switch p.cur.Kind {
 	case kwNULL:
@@ -412,21 +415,6 @@ func (p *Parser) parseDefaultValue() (ast.Node, error) {
 			fc.Loc.End = closeTok.Loc.End
 		}
 		return fc, nil
-
-	case kwPI:
-		tok := p.advance()
-		return &ast.Literal{Kind: ast.LitFloat, Value: "PI", Loc: tok.Loc}, nil
-
-	case kwE:
-		tok := p.advance()
-		return &ast.Literal{Kind: ast.LitFloat, Value: "E", Loc: tok.Loc}, nil
-
-	case kwBITMAP_EMPTY:
-		tok := p.advance()
-		return &ast.FuncCallExpr{
-			Name: &ast.ObjectName{Parts: []string{"BITMAP_EMPTY"}, Loc: tok.Loc},
-			Loc:  tok.Loc,
-		}, nil
 
 	case int('-'):
 		// Negative number: -INTEGER_VALUE or -DECIMAL_VALUE
@@ -529,7 +517,7 @@ func (p *Parser) parseInlineIndexDef() (*ast.IndexDef, error) {
 	// Optional USING index_type
 	if p.cur.Kind == kwUSING {
 		p.advance()
-		if !isIdentifierToken(p.cur.Kind) {
+		if !isIndexTypeToken(p.cur.Kind) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		idx.IndexType = strings.ToLower(p.cur.Str)

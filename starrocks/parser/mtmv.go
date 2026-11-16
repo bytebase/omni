@@ -151,9 +151,7 @@ func (p *Parser) parseMTMVColumns(stmt *ast.CreateMTMVStmt) error {
 			}
 			if p.cur.Kind == kwUSING {
 				p.advance() // consume USING
-				word := strings.ToUpper(p.cur.Str)
-				if p.cur.Kind != kwBITMAP && (p.cur.Kind != tokIdent ||
-					(word != "GIN" && word != "NGRAMBF" && word != "VECTOR")) {
+				if !isIndexTypeToken(p.cur.Kind) {
 					return p.syntaxErrorAtCur()
 				}
 				p.advance()
@@ -258,7 +256,7 @@ func (p *Parser) parseMVRefreshScheme(stmt *ast.CreateMTMVStmt) error {
 	switch {
 	case p.cur.Kind == kwINCREMENTAL, p.cur.Kind == kwMANUAL:
 		stmt.RefreshMethod = strings.ToUpper(p.advance().Str)
-	case p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "ASYNC"):
+	case p.atWord("ASYNC"):
 		p.advance()
 		stmt.RefreshMethod = "ASYNC"
 		if p.cur.Kind == kwSTART || p.cur.Kind == kwEVERY {
@@ -679,10 +677,10 @@ func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
 	}
 	if p.cur.Kind == kwWITH && p.peekNext().Kind != tokEOF {
 		next := p.peekNext()
-		if next.Kind == kwSYNC || (next.Kind == tokIdent && strings.EqualFold(next.Str, "ASYNC")) {
+		if next.Kind == kwSYNC || isWordToken(next, "ASYNC") {
 			p.advance() // consume WITH
 			stmt.Mode = strings.ToUpper(p.advance().Str)
-			if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "MODE") {
+			if !p.atWord("MODE") {
 				return nil, p.syntaxErrorAtCur()
 			}
 			p.advance()
@@ -690,7 +688,7 @@ func (p *Parser) parseRefreshMTMV(startLoc ast.Loc) (ast.Node, error) {
 	}
 	if p.cur.Kind == kwWITH {
 		p.advance() // consume WITH
-		if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "PRIORITY") {
+		if !p.atWord("PRIORITY") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()

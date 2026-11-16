@@ -342,6 +342,59 @@ func TestLoadSimpleLabel(t *testing.T) {
 	}
 }
 
+func TestLoadLabelParts(t *testing.T) {
+	// The parser keeps the label's parts as written. A quoted part may contain
+	// a dot; the pinned engines reject such a label when they validate it, but
+	// the parse still has to distinguish the part from a qualifier.
+	for _, tc := range []struct {
+		name      string
+		sql       string
+		wantLabel string
+		wantParts []string
+	}{
+		{
+			name:      "qualified",
+			sql:       "LOAD LABEL db.job (DATA INFILE('file1') INTO TABLE t)",
+			wantLabel: "db.job",
+			wantParts: []string{"db", "job"},
+		},
+		{
+			name:      "unqualified",
+			sql:       "LOAD LABEL job (DATA INFILE('file1') INTO TABLE t)",
+			wantLabel: "job",
+			wantParts: []string{"job"},
+		},
+		{
+			name:      "a quoted label part keeps its dot",
+			sql:       "LOAD LABEL db.`job.with.dot` (DATA INFILE('file1') INTO TABLE t)",
+			wantLabel: "db.job.with.dot",
+			wantParts: []string{"db", "job.with.dot"},
+		},
+		{
+			name:      "a quoted unqualified label keeps its dot",
+			sql:       "LOAD LABEL `job.with.dot` (DATA INFILE('file1') INTO TABLE t)",
+			wantLabel: "job.with.dot",
+			wantParts: []string{"job.with.dot"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			stmt := mustParseLoadData(t, tc.sql)
+			if stmt.Label != tc.wantLabel {
+				t.Errorf("label = %q, want %q", stmt.Label, tc.wantLabel)
+			}
+			if len(stmt.LabelParts) != len(tc.wantParts) {
+				t.Fatalf("label parts = %v, want %v", stmt.LabelParts, tc.wantParts)
+			}
+			for i := range tc.wantParts {
+				if stmt.LabelParts[i] != tc.wantParts[i] {
+					t.Errorf("label parts = %v, want %v", stmt.LabelParts, tc.wantParts)
+					break
+				}
+			}
+		})
+	}
+}
+
 // ---------------------------------------------------------------------------
 // EXPORT tests
 // ---------------------------------------------------------------------------

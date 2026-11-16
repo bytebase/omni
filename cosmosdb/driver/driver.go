@@ -44,12 +44,27 @@
 // and Cosmos DB has no statement form that opens another one, so the container
 // is the query's scope rather than a name inside its text.
 //
-// QueryOptions.Explain and QueryOptions.MaskingEnabled do nothing: the
-// container API has no plan to ask for, and a row is one TEXT column of JSON
-// with nothing to mask. QueryOptions.Limit caps the rows the driver reads and
-// is also the query's page size below 1000 rows; QueryOptions.MaxResultBytes
-// caps the bytes it hands back, over the rows a page already delivered, since
-// the client's pager reads a page at a time.
+// QueryOptions.Explain returns the plan the gateway states for each statement
+// instead of running it, as one TEXT column of JSON with Result.Plan set: it is
+// the plan the client's query engine runs a cross-partition query from. The
+// gateway states one plan format, so ExplainFormat does nothing.
+// QueryOptions.MaskingEnabled does nothing: a row is one TEXT column of JSON
+// with nothing to mask.
+//
+// QueryOptions.Limit caps the rows the driver reads and is the page size it
+// asks the gateway for, up to the 1000-item page the gateway serves a query
+// that names no size: a limit under that page reads exactly one page, and a
+// limit past it asks for the page rather than for nothing. A query the client's
+// query engine serves ignores the page size, since the client asks each
+// partition for its rows without naming one, so such a query pages as the
+// partitions deliver it.
+// QueryOptions.MaxResultBytes caps the bytes the driver hands back, over the
+// rows a page already delivered, since the client's pager reads a page at a
+// time; a plan is one row and is returned whole.
+//
+// Session.Query splits a script at its top-level semicolons (cosmosdb.Split),
+// runs each statement of it in order and returns one Result per statement run;
+// a statement that fails ends the script.
 //
 // A query can fail at the gateway with the gateway's own error, which is an
 // *azcore.ResponseError: a cross-partition query the gateway refuses is

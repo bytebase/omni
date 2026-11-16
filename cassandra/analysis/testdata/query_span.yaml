@@ -680,3 +680,35 @@
     - database: test_keyspace
       table: users
       column: id
+- statement: SELECT * FROM user_summary
+  defaultKeyspace: test_keyspace
+  withMetadata: true
+  type: 1
+  results:
+    - name: id
+      sourcecolumns:
+        - database: test_keyspace
+          table: user_summary
+          column: id
+      isplainfield: true
+    - name: name
+      sourcecolumns:
+        - database: test_keyspace
+          table: user_summary
+          column: name
+      isplainfield: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: user_summary
+  predicatecolumns: []
+- statement: SELECT * FROM user_summary
+  defaultKeyspace: test_keyspace
+  type: 1
+  results:
+    - sourcecolumns: []
+      isplainfield: false
+      selectasterisk: true
+  sourcecolumns:
+    - database: test_keyspace
+      table: user_summary
+  predicatecolumns: []

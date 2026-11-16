@@ -3,15 +3,30 @@ package parser
 import (
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
-// Lexer is a Doris SQL tokenizer. Construct via NewLexer (or
+// Lexer is a StarRocks SQL tokenizer. Construct via NewLexer (or
 // NewLexerWithOffset when tokenizing a substring) and call NextToken
 // until it returns Token{Kind: tokEOF}. Lex errors are collected in
 // Errors; each error is accompanied by a tokInvalid token so consumers
 // can halt or proceed with best-effort parsing.
+//
+// A character no rule of StarRocksLex.g4 matches is dropped rather than
+// reported: the front end's ANTLR lexer reports one and skips it, so '#', a
+// backslash and a NUL separate tokens without ending a line and without a lex
+// error. The pinned 3.4.10 server reads `SELECT 1 # x` as `SELECT 1 x` (one
+// column named x), `SELECT 1+#2` as `SELECT 1+2`, `SELECT 1 # 2` as a syntax
+// error at the 2, and `# x` as a syntax error at the x. Only characters
+// outside the Basic Multilingual Plane (an emoji) and the ASCII bytes no
+// grammar literal names are unmatched; every other non-ASCII character is a
+// LETTER, and so is a byte that is not valid UTF-8, which decodes as U+FFFD.
+//
+// Dropping is faithful, not lenient: the engine drops the same characters, so
+// omni accepts and rejects the same statements it does. The `suite:characters`
+// rows of starrocks/parser/testdata/compat.tsv are the probes.
 type Lexer struct {
 	input      string
 	pos        int // current byte offset
@@ -72,9 +87,17 @@ func (l *Lexer) NextToken() Token {
 }
 
 func (l *Lexer) nextTokenInner() Token {
-	l.skipWhitespaceAndComments()
-	if l.pos >= len(l.input) {
-		return Token{Kind: tokEOF, Loc: ast.Loc{Start: l.pos, End: l.pos}}
+	for {
+		l.skipWhitespaceAndComments()
+		if l.pos >= len(l.input) {
+			return Token{Kind: tokEOF, Loc: ast.Loc{Start: l.pos, End: l.pos}}
+		}
+		r, size := utf8.DecodeRuneInString(l.input[l.pos:])
+		if IsUnmatched(r) {
+			l.pos += size
+			continue
+		}
+		break
 	}
 	l.start = l.pos
 	ch := l.input[l.pos]
@@ -115,6 +138,10 @@ func (l *Lexer) peekDigit() bool {
 	return c >= '0' && c <= '9'
 }
 
+// isIdentStart reports whether byte ch can start an identifier, which is what
+// the dispatch in nextTokenInner asks of the byte at the current position.
+// Every byte of a multi-byte character is above 127, so a character that
+// reaches the dispatch starts an identifier whatever its later bytes are.
 func isIdentStart(ch byte) bool {
 	return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || ch == '_' || ch == '$' || ch > 127
 }
@@ -123,19 +150,65 @@ func isIdentCont(ch byte) bool {
 	return isIdentStart(ch) || (ch >= '0' && ch <= '9')
 }
 
+// isIdentRune reports whether r can appear in an identifier: LETTER in
+// StarRocksLex.g4 is [a-zA-Z_$\u0080-\uffff], and its DIGIT is [0-9]. A
+// character outside the Basic Multilingual Plane is not a LETTER, so it ends
+// an identifier where the engine does not have one either.
+func isIdentRune(r rune) bool {
+	return r < 0x80 && isIdentCont(byte(r)) || r >= 0x80 && r <= 0xFFFF
+}
+
+// IsUnmatched reports whether r matches no rule of StarRocksLex.g4 and no
+// literal of StarRocks.g4, which the lexer drops instead of rejecting.
+//
+// LETTER covers \u0080-\uffff: every character in the Basic Multilingual
+// Plane is a letter, including U+FFFD, which is what a byte that is not valid
+// UTF-8 decodes to in the front end and here. A character above the plane, and
+// an ASCII byte no literal names -- '#', a backslash, a control character --
+// has no token. Scans that decide whether text holds only blanks ask this
+// too, so a dropped character there reads as blank.
+func IsUnmatched(r rune) bool {
+	if r >= 0x80 {
+		return r > 0xFFFF
+	}
+	switch r {
+	case ' ', '\t', '\n', '\r':
+		// WS.
+		return false
+	}
+	return !asciiStartsToken[byte(r)]
+}
+
+// asciiStartsToken marks the ASCII bytes a rule begins with: the letters, the
+// digits and '_'/'$' of LETTER and DIGIT, the quotes and the backtick of the
+// literals and identifiers, '.' (DECIMAL_VALUE, DOT, DOTDOTDOT, DOT_IDENTIFIER)
+// and every operator and punctuation literal StarRocksLex.g4 and StarRocks.g4
+// name. '#' and a backslash are absent, as neither grammar has a rule for
+// them.
+var asciiStartsToken = func() [128]bool {
+	var t [128]bool
+	for c := 'a'; c <= 'z'; c++ {
+		t[c] = true
+	}
+	for c := 'A'; c <= 'Z'; c++ {
+		t[c] = true
+	}
+	for c := '0'; c <= '9'; c++ {
+		t[c] = true
+	}
+	for _, c := range "_$'\"`.()[]{},;:+-*/%^~&|<>=!@?" {
+		t[c] = true
+	}
+	return t
+}()
+
 // --- Whitespace & Comments -------------------------------------------------
 
 // skipWhitespaceAndComments skips what StarRocksLex.g4 puts on a hidden
 // channel: WS, SIMPLE_COMMENT (a `--` to the end of the line) and
-// BRACKETED_COMMENT. The grammar has no `//` and no `#` token, and the pinned
-// 3.4.10 server treats them as two different things.
-//
-// `//` is two SLASH_SYMBOLs, so `SELECT 1 // x` is a syntax error at the
-// second '/'. `#` is a character the front end's ANTLR lexer has no token for,
-// which it reports and skips: the server reads `SELECT 1 # x` as `SELECT 1 x`
-// (one column named x), `SELECT 1+#2` as `SELECT 1+2`, `SELECT 1 # 2` as a
-// syntax error at the 2, and `# x` as a syntax error at the x. So a '#'
-// separates tokens without ending the line.
+// BRACKETED_COMMENT. The grammar has no `//` and no `#` token, so `//` is two
+// SLASH_SYMBOLs and `SELECT 1 // x` is a syntax error at the second '/'. `#`
+// is dropped one character at a time by NextToken, not ended at.
 func (l *Lexer) skipWhitespaceAndComments() {
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
@@ -148,8 +221,6 @@ func (l *Lexer) skipWhitespaceAndComments() {
 			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 				l.pos++
 			}
-		case ch == '#':
-			l.pos++
 		case ch == '/' && l.peek(1) == '*' && l.peek(2) != '+':
 			// Block comment (but NOT hint /*+)
 			l.scanBlockComment()
@@ -186,7 +257,7 @@ func (l *Lexer) scanBlockComment() {
 
 // scanString reads a single-quoted or double-quoted string literal.
 // Supports backslash escapes and doubled-quote escapes.
-// Unlike Snowflake, Doris allows newlines inside string literals.
+// Unlike Snowflake, StarRocks allows newlines inside string literals.
 func (l *Lexer) scanString(quote byte) Token {
 	start := l.start
 	l.pos++ // consume opening quote
@@ -242,7 +313,7 @@ func (l *Lexer) scanString(quote byte) Token {
 }
 
 // scanBacktickIdent reads a backtick-quoted identifier. Only doubled-backtick
-// escape is supported (`` → `). No backslash escapes.
+// escape is supported (“ → `). No backslash escapes.
 func (l *Lexer) scanBacktickIdent() Token {
 	start := l.start
 	l.pos++ // consume opening backtick
@@ -390,8 +461,12 @@ func isHexDigit(ch byte) bool {
 
 func (l *Lexer) scanIdentOrKeyword() Token {
 	start := l.start
-	for l.pos < len(l.input) && isIdentCont(l.input[l.pos]) {
-		l.pos++
+	for l.pos < len(l.input) {
+		r, size := utf8.DecodeRuneInString(l.input[l.pos:])
+		if !isIdentRune(r) {
+			break
+		}
+		l.pos += size
 	}
 	word := l.input[start:l.pos]
 	loc := ast.Loc{Start: start, End: l.pos}
@@ -513,7 +588,8 @@ func (l *Lexer) scanOperator(ch byte) Token {
 		return Token{Kind: int(ch), Loc: ast.Loc{Start: start, End: l.pos}}
 	}
 
-	// Unknown character
+	// asciiStartsToken and the switch above hold the same set of ASCII bytes,
+	// so nothing reaches here; TestTokenizeEveryByte pins that they agree.
 	l.errors = append(l.errors, LexError{
 		Loc: ast.Loc{Start: start, End: l.pos},
 		Msg: errUnknownChar,

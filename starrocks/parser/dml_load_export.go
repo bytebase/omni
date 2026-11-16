@@ -59,14 +59,9 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 	return stmt, nil
 }
 
-// isIdentText checks whether cur is an identifier with the given lowercase text.
-// Used for pseudo-keywords like FILES and PATTERN that may appear as bare idents.
-func isIdentText(p *Parser, lower string) bool {
-	if p.cur.Kind == tokIdent || (p.cur.Kind >= 700 && !IsReserved(p.cur.Kind)) {
-		return strings.ToLower(p.cur.Str) == lower
-	}
-	return false
-}
+// isIdentText checks whether cur is the word, spelled in any case, for a word
+// the parser reads before it knows which clause it is in.
+func isIdentText(p *Parser, lower string) bool { return p.atWord(lower) }
 
 // parseStringList parses stringList (StarRocks.g4:2633):
 // '(' string (',' string)* ')'.
@@ -111,11 +106,12 @@ func (p *Parser) parseLoad() (ast.Node, error) {
 	if _, err := p.expect(kwLABEL); err != nil {
 		return nil, err
 	}
-	label, err := p.parseLoadLabel()
+	label, labelParts, err := p.parseLoadLabel()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Label = label
+	stmt.LabelParts = labelParts
 
 	if p.cur.Kind == int('(') {
 		// dataDescList (:1442): '(' dataDesc (',' dataDesc)* ')'
@@ -180,20 +176,22 @@ func (p *Parser) parseLoad() (ast.Node, error) {
 }
 
 // parseLoadLabel parses labelName (StarRocks.g4:1438): (identifier '.')? identifier.
-func (p *Parser) parseLoadLabel() (string, error) {
+// It returns the joined label and its parts, so a caller can tell the database
+// qualifier from a dot inside a quoted part.
+func (p *Parser) parseLoadLabel() (string, []string, error) {
 	first, _, err := p.parseIdentifier()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if p.cur.Kind == int('.') {
 		p.advance() // consume '.'
 		second, _, err := p.parseIdentifier()
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
-		return first + "." + second, nil
+		return first + "." + second, []string{first, second}, nil
 	}
-	return first, nil
+	return first, []string{first}, nil
 }
 
 // parseLoadDataDesc parses one dataDesc (StarRocks.g4:1447):
@@ -345,8 +343,15 @@ func (p *Parser) isLoadFormatPropsStart() bool {
 
 // loadFormatPropWord returns the formatProps word tok spells, or "".
 func loadFormatPropWord(tok Token) string {
-	if tok.Kind == kwESCAPE {
+	switch tok.Kind {
+	case kwESCAPE:
 		return "ESCAPE"
+	case kwSKIP_HEADER:
+		return "SKIP_HEADER"
+	case kwTRIM_SPACE:
+		return "TRIM_SPACE"
+	case kwENCLOSE:
+		return "ENCLOSE"
 	}
 	if tok.Kind == tokIdent {
 		switch w := strings.ToUpper(tok.Str); w {

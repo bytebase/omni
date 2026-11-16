@@ -205,14 +205,8 @@ func (m *showMatcher) matchSeq(items []*showShape, k func() bool) bool {
 	return m.match(items[0], func() bool { return m.matchSeq(items[1:], k) })
 }
 
-// atShowWord reports whether the current token is the keyword word, or an
-// unquoted identifier spelled so where word is not one of omni's keywords.
-func (p *Parser) atShowWord(word string) bool {
-	if kind, ok := KeywordToken(word); ok {
-		return p.cur.Kind == kind
-	}
-	return p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, word)
-}
+// atShowWord reports whether the current token is the word.
+func (p *Parser) atShowWord(word string) bool { return p.atWord(word) }
 
 // showShapeNonterminal reads one nonterminal of a SHOW pattern and reports
 // whether it matched.
@@ -313,48 +307,12 @@ func (p *Parser) showShapeNonterminal(name string) bool {
 	panic("show pattern names an unknown nonterminal: " + name)
 }
 
-// showShapeIdent reads an identifier: one omni's lexer allows, or a word
-// StarRocks.g4 lists in nonReserved that omni reserves elsewhere.
+// showShapeIdent reads an identifier: a quoted one, or any word
+// StarRocks.g4's nonReserved rule allows as one.
 func (p *Parser) showShapeIdent() bool {
-	if starRocksNonReservedWords[p.cur.Kind] {
-		p.advance()
-		return true
-	}
 	_, _, err := p.parseIdentifier()
 	return err == nil
 }
-
-// starRocksNonReservedWords are the words of StarRocks.g4's nonReserved that
-// IsReserved reports reserved.
-var starRocksNonReservedWords = map[TokenKind]bool{
-	kwADMIN: true, kwANTI: true, kwBACKEND: true, kwBINARY: true, kwCANCEL: true,
-	kwCAST: true, kwCLEAN: true, kwCURRENT: true, kwDECOMMISSION: true, kwDISK: true,
-	kwDISTRIBUTED: true, kwDISTRIBUTION: true, kwDUPLICATE: true, kwEXECUTE: true,
-	kwEXPORT: true, kwEXTRACT: true, kwFOLLOWER: true, kwFOLLOWING: true,
-	kwFRONTEND: true, kwFUNCTIONS: true, kwGRANTS: true, kwINSTALL: true,
-	kwINTERMEDIATE: true, kwINTERVAL: true, kwLIST: true, kwLOW_PRIORITY: true,
-	kwMATCH: true, kwMINUS: true, kwOBSERVER: true, kwOVERWRITE: true,
-	kwPRECEDING: true, kwREPAIR: true, kwREPLICA: true, kwROLE: true, kwROLES: true,
-	kwROW: true, kwSEMI: true, kwSETS: true, kwSIGNED: true, kwSYNC: true,
-	kwTABLET: true, kwTABLETS: true, kwUNBOUNDED: true, kwUNINSTALL: true,
-	kwWHITELIST: true, kwWRITE: true,
-}
-
-// starRocksNonReservedColumnWords are the starRocksNonReservedWords that do
-// not open another expression form (CAST, EXTRACT, INTERVAL, MATCH, ...), so
-// that in an expression they can only name a column.
-var starRocksNonReservedColumnWords = func() map[TokenKind]bool {
-	m := map[TokenKind]bool{}
-	for k := range starRocksNonReservedWords {
-		switch k {
-		case kwBINARY, kwCAST, kwCURRENT, kwEXTRACT, kwINTERVAL, kwMATCH, kwROW,
-			kwMINUS, kwANTI, kwSEMI, kwFOLLOWING, kwPRECEDING, kwUNBOUNDED:
-			continue
-		}
-		m[k] = true
-	}
-	return m
-}()
 
 // showShapeLimitValue reads INTEGER_VALUE or PARAMETER.
 func (p *Parser) showShapeLimitValue() bool {

@@ -31,6 +31,8 @@ func (*scriptedClient) ListContainers(context.Context, string) ([]string, error)
 	return nil, nil
 }
 
+func (*scriptedClient) Plan(context.Context, PageRequest) ([]byte, error) { return nil, nil }
+
 func (c *scriptedClient) Page(_ context.Context, req PageRequest) (PageAnswer, error) {
 	c.requests = append(c.requests, req)
 	i := len(c.requests) - 1

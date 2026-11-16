@@ -279,11 +279,8 @@ func (p *Parser) adminVerb(stmt *ast.AdminStmt, object string) {
 	stmt.Object = object
 }
 
-// adminIsWord reports whether cur is the unquoted word w, for the words of
-// the ADMIN grammar this lexer has no keyword for.
-func (p *Parser) adminIsWord(w string) bool {
-	return p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, w)
-}
+// adminIsWord reports whether cur is the unquoted word w.
+func (p *Parser) adminIsWord(w string) bool { return p.atWord(w) }
 
 // expectAdminWords consumes kinds in order.
 func (p *Parser) expectAdminWords(kinds ...TokenKind) error {

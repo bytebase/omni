@@ -264,11 +264,12 @@ func (p *Parser) parseLoad() (ast.Node, error) {
 	if _, err := p.expect(kwLABEL); err != nil {
 		return nil, err
 	}
-	label, err := p.parseLoadLabel()
+	label, labelParts, err := p.parseLoadLabel()
 	if err != nil {
 		return nil, err
 	}
 	stmt.Label = label
+	stmt.LabelParts = labelParts
 
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
@@ -362,21 +363,22 @@ func (p *Parser) parseLoadStorage(stmt *ast.LoadDataStmt) error {
 }
 
 // parseLoadLabel parses the load label, which may be db_name.label_name or
-// just label_name.
-func (p *Parser) parseLoadLabel() (string, error) {
+// just label_name. It returns the joined label and its parts, so a caller can
+// tell the database qualifier from a dot inside a quoted part.
+func (p *Parser) parseLoadLabel() (string, []string, error) {
 	first, _, err := p.parseIdentifier()
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	if p.cur.Kind == int('.') {
 		p.advance() // consume '.'
 		second, _, err := p.parseIdentifier()
 		if err != nil {
-			return "", err
+			return "", nil, err
 		}
-		return first + "." + second, nil
+		return first + "." + second, []string{first, second}, nil
 	}
-	return first, nil
+	return first, []string{first}, nil
 }
 
 // parseLoadMergeType reads ((WITH)? mergeType)? before DATA (DorisParser.g4:984).

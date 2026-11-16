@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -159,9 +160,16 @@ type answer struct {
 // reads, and none of the endpoint's creation time, size or throughput, which
 // only the endpoint that answered can name.
 type table struct {
+	Name             string             `json:"name"`
+	Status           string             `json:"status"`
+	ItemCount        int64              `json:"itemCount,omitempty"`
+	KeySchema        []keySchemaElement `json:"keySchema,omitempty"`
+	SecondaryIndexes []secondaryIndex   `json:"secondaryIndexes,omitempty"`
+}
+
+type secondaryIndex struct {
 	Name      string             `json:"name"`
-	Status    string             `json:"status"`
-	ItemCount int64              `json:"itemCount,omitempty"`
+	Global    bool               `json:"global,omitempty"`
 	KeySchema []keySchemaElement `json:"keySchema,omitempty"`
 }
 
@@ -170,12 +178,52 @@ type keySchemaElement struct {
 	KeyType       string `json:"keyType"`
 }
 
-func (t *table) table() *Table {
-	table := &Table{Name: t.Name, Status: t.Status, ItemCount: t.ItemCount}
-	for _, key := range t.KeySchema {
-		table.KeySchema = append(table.KeySchema, KeySchemaElement{AttributeName: key.AttributeName, KeyType: key.KeyType})
+// tableAnswer is one DescribeTable answer as the tape holds it.
+func tableAnswer(described *Table) *table {
+	answered := &table{
+		Name:      described.Name,
+		Status:    described.Status,
+		ItemCount: described.ItemCount,
+		KeySchema: keySchemaElements(described.KeySchema),
 	}
-	return table
+	for _, index := range described.SecondaryIndexes {
+		answered.SecondaryIndexes = append(answered.SecondaryIndexes, secondaryIndex{
+			Name:      index.Name,
+			Global:    index.Global,
+			KeySchema: keySchemaElements(index.KeySchema),
+		})
+	}
+	return answered
+}
+
+// table is the driver's view of the table a tape holds.
+func (t *table) table() *Table {
+	described := &Table{Name: t.Name, Status: t.Status, ItemCount: t.ItemCount}
+	described.KeySchema = keySchemaOf(t.KeySchema)
+	for _, index := range t.SecondaryIndexes {
+		described.SecondaryIndexes = append(described.SecondaryIndexes, SecondaryIndex{
+			Name:      index.Name,
+			Global:    index.Global,
+			KeySchema: keySchemaOf(index.KeySchema),
+		})
+	}
+	return described
+}
+
+func keySchemaElements(schema []KeySchemaElement) []keySchemaElement {
+	keys := make([]keySchemaElement, 0, len(schema))
+	for _, key := range schema {
+		keys = append(keys, keySchemaElement{AttributeName: key.AttributeName, KeyType: key.KeyType})
+	}
+	return keys
+}
+
+func keySchemaOf(keys []keySchemaElement) []KeySchemaElement {
+	schema := make([]KeySchemaElement, 0, len(keys))
+	for _, key := range keys {
+		schema = append(schema, KeySchemaElement{AttributeName: key.AttributeName, KeyType: key.KeyType})
+	}
+	return schema
 }
 
 // failure is an error the client returned, as a tape holds it: its text. The
@@ -412,10 +460,7 @@ func live(t testing.TB, endpoint func(testing.TB) (string, error), text string) 
 		var described *Table
 		described, err = d.client.DescribeTable(ctx, req.Table)
 		if described != nil {
-			a.Table = &table{Name: described.Name, Status: described.Status, ItemCount: described.ItemCount}
-			for _, key := range described.KeySchema {
-				a.Table.KeySchema = append(a.Table.KeySchema, keySchemaElement{AttributeName: key.AttributeName, KeyType: key.KeyType})
-			}
+			a.Table = tableAnswer(described)
 		}
 	case opExecuteStatement:
 		var answered StatementAnswer
@@ -425,7 +470,7 @@ func live(t testing.TB, endpoint func(testing.TB) (string, error), text string) 
 			NextToken: req.NextToken,
 		})
 		for _, read := range answered.Items {
-			a.Items = append(a.Items, read)
+			a.Items = append(a.Items, canonicalItem(read))
 		}
 		a.NextToken = answered.NextToken
 		if !ordersResult.MatchString(req.Statement) {
@@ -450,6 +495,37 @@ func live(t testing.TB, endpoint func(testing.TB) (string, error), text string) 
 		return "", err
 	}
 	return string(b), nil
+}
+
+// canonicalItem holds a set's elements in one order. A DynamoDB set is
+// unordered: the endpoint may answer {a, b} as {b, a}, so a recorded answer is
+// held in one canonical order and a test that draws a conclusion from a set
+// reads it as a set, not as a sequence.
+func canonicalItem(read map[string]types.AttributeValue) item {
+	for name, value := range read {
+		read[name] = canonicalAttributeValue(value)
+	}
+	return read
+}
+
+func canonicalAttributeValue(value types.AttributeValue) types.AttributeValue {
+	switch value := value.(type) {
+	case *types.AttributeValueMemberSS:
+		slices.Sort(value.Value)
+	case *types.AttributeValueMemberNS:
+		slices.Sort(value.Value)
+	case *types.AttributeValueMemberBS:
+		slices.SortFunc(value.Value, func(x, y []byte) int { return bytes.Compare(x, y) })
+	case *types.AttributeValueMemberL:
+		for i, element := range value.Value {
+			value.Value[i] = canonicalAttributeValue(element)
+		}
+	case *types.AttributeValueMemberM:
+		for name, element := range value.Value {
+			value.Value[name] = canonicalAttributeValue(element)
+		}
+	}
+	return value
 }
 
 func mustJSON(i item) string {

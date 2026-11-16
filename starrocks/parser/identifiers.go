@@ -6,6 +6,21 @@ import (
 	"github.com/bytebase/omni/starrocks/ast"
 )
 
+// isWordToken reports whether tok is the bare word w, lexed as the keyword w
+// is or, where StarRocksLex.g4 has no rule for it, as an identifier. A reader
+// that names a word of the grammar takes both: whether the word is a keyword
+// token is the lexer's business, and StarRocks.g4's nonReserved makes a word
+// an identifier in one position and a keyword in another.
+func isWordToken(tok Token, w string) bool {
+	if tok.Kind != tokIdent && tok.Kind < 700 {
+		return false
+	}
+	return strings.EqualFold(tok.Str, w)
+}
+
+// atWord reports whether the current token is the bare word w.
+func (p *Parser) atWord(w string) bool { return isWordToken(p.cur, w) }
+
 // isIdentifierToken reports whether kind can form a standalone identifier in
 // the first position of a qualified name (i.e., without dot context):
 //   - tokIdent: unquoted identifier (e.g. myTable)

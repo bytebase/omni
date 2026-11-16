@@ -54,13 +54,18 @@
 // read-only session, and DynamoDB reports no version.
 //
 // A session is the driver: DynamoDB has no session state. QueryOptions.Limit
-// is the most items one execute-statement call evaluates, and the driver keeps
-// reading with the answer's token until the read ends, so it bounds what one
-// call reads rather than the rows of the whole result. QueryOptions.Explain is
-// an error, as Bytebase answered it, since PartiQL has no plan to ask for.
-// QueryOptions.Schema, QueryOptions.MaskingEnabled and QueryOptions.MaxResultBytes
-// do nothing: there is no schema per session, a row is a map of attributes the
-// driver does not trace columns through, and the caller caps the result size.
+// caps the rows a statement's result holds: the driver reads no further page
+// once it has them, and each call asks only for the rows still missing.
+// QueryOptions.MaxResultBytes stops a result once its rows' encoded size passes
+// the cap and sets Result.Truncated. QueryOptions.Explain is an error, as
+// Bytebase answered it, since PartiQL has no plan to ask for.
+// QueryOptions.Schema and QueryOptions.MaskingEnabled do nothing: there is no
+// schema per session, and a row is a map of attributes the driver does not
+// trace columns through.
+//
+// A row's cells are the item's attributes: a string or a number as its text, a
+// binary as bytes, a boolean as a boolean, a NULL as a null, and a set, a list
+// or a map as its JSON text, where a binary is base64.
 //
 // A PartiQL script is split by partiql.Split, so statement boundaries are
 // omni's partiql judgment and not this package's, and a segment holding no

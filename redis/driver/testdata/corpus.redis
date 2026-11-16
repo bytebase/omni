@@ -1,0 +1,4 @@
+SET greeting "hello world"
+HSET user:1 name Alice
+RPUSH queue first second
+INCR counter

@@ -76,29 +76,43 @@ func TestCreateIndexUsingBitmap(t *testing.T) {
 	}
 }
 
-func TestCreateIndexUsingInverted(t *testing.T) {
-	sql := "CREATE INDEX idx ON t (col1) USING INVERTED"
+// TestCreateIndexUsingVector covers the fourth indexType of StarRocks.g4:526.
+func TestCreateIndexUsingVector(t *testing.T) {
+	sql := "CREATE INDEX idx ON t (col1) USING VECTOR"
 	node := parseIndexStmt(t, sql)
 
 	stmt, ok := node.(*ast.CreateIndexStmt)
 	if !ok {
 		t.Fatalf("expected *ast.CreateIndexStmt, got %T", node)
 	}
-	if stmt.IndexType != "inverted" {
-		t.Errorf("IndexType = %q, want %q", stmt.IndexType, "inverted")
+	if stmt.IndexType != "vector" {
+		t.Errorf("IndexType = %q, want %q", stmt.IndexType, "vector")
+	}
+}
+
+// TestCreateIndexRejectsDorisIndexType: indexType (StarRocks.g4:526) is
+// USING (BITMAP | GIN | NGRAMBF | VECTOR). INVERTED, NGRAM_BF and ANN are
+// Doris's spellings, and the 3.4.10 server answers each with a syntax error at
+// the word.
+func TestCreateIndexRejectsDorisIndexType(t *testing.T) {
+	for _, typ := range []string{"INVERTED", "NGRAM_BF", "ANN"} {
+		sql := "CREATE INDEX idx ON t (col1) USING " + typ
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded; %s is not an indexType", sql, typ)
+		}
 	}
 }
 
 func TestCreateIndexNgramBfWithProperties(t *testing.T) {
-	sql := `CREATE INDEX idx ON t (col1) USING NGRAM_BF PROPERTIES("gram_size"="3")`
+	sql := `CREATE INDEX idx ON t (col1) USING NGRAMBF PROPERTIES("gram_size"="3")`
 	node := parseIndexStmt(t, sql)
 
 	stmt, ok := node.(*ast.CreateIndexStmt)
 	if !ok {
 		t.Fatalf("expected *ast.CreateIndexStmt, got %T", node)
 	}
-	if stmt.IndexType != "ngram_bf" {
-		t.Errorf("IndexType = %q, want %q", stmt.IndexType, "ngram_bf")
+	if stmt.IndexType != "ngrambf" {
+		t.Errorf("IndexType = %q, want %q", stmt.IndexType, "ngrambf")
 	}
 	if len(stmt.Properties) != 1 {
 		t.Fatalf("Properties = %v, want 1 property", stmt.Properties)
@@ -138,7 +152,7 @@ func TestCreateIndexQualifiedTable(t *testing.T) {
 }
 
 func TestCreateIndexMultipleProperties(t *testing.T) {
-	sql := `CREATE INDEX idx ON t (col1) USING NGRAM_BF PROPERTIES("gram_size"="3", "bf_size"="64")`
+	sql := `CREATE INDEX idx ON t (col1) USING NGRAMBF PROPERTIES("gram_size"="3", "bf_size"="64")`
 	node := parseIndexStmt(t, sql)
 
 	stmt, ok := node.(*ast.CreateIndexStmt)
@@ -230,16 +244,16 @@ func TestDropIndexLocIsSet(t *testing.T) {
 	}
 }
 
-func TestCreateIndexANN(t *testing.T) {
-	sql := "CREATE INDEX idx ON t (embedding_col) USING ANN"
+func TestCreateIndexUsingGin(t *testing.T) {
+	sql := `CREATE INDEX idx ON t (col1) USING GIN`
 	node := parseIndexStmt(t, sql)
 
 	stmt, ok := node.(*ast.CreateIndexStmt)
 	if !ok {
 		t.Fatalf("expected *ast.CreateIndexStmt, got %T", node)
 	}
-	if stmt.IndexType != "ann" {
-		t.Errorf("IndexType = %q, want %q", stmt.IndexType, "ann")
+	if stmt.IndexType != "gin" {
+		t.Errorf("IndexType = %q, want %q", stmt.IndexType, "gin")
 	}
 }
 
