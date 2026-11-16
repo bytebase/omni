@@ -36,6 +36,7 @@ func TestQuery(t *testing.T) {
 			TIMESTAMP '2026-01-02 12:34:56' AS c_timestamp,
 			CAST('2026-01-02 12:34:56.123 +02:00' AS TIMESTAMP(3) WITH TIME ZONE) AS c_timestamp_tz,
 			X'0102' AS c_varbinary,
+			X'' AS c_varbinary_empty,
 			UUID '12151fd2-7586-11e9-8f9e-2a86e4085a59' AS c_uuid,
 			CAST('10.0.0.1' AS IPADDRESS) AS c_ipaddress,
 			INTERVAL '1' DAY AS c_interval,
@@ -63,6 +64,7 @@ func TestQuery(t *testing.T) {
 			{Name: "c_timestamp", TypeName: "TIMESTAMP"},
 			{Name: "c_timestamp_tz", TypeName: "TIMESTAMP WITH TIME ZONE"},
 			{Name: "c_varbinary", TypeName: "VARBINARY"},
+			{Name: "c_varbinary_empty", TypeName: "VARBINARY"},
 			{Name: "c_uuid", TypeName: "UUID"},
 			{Name: "c_ipaddress", TypeName: "IPADDRESS"},
 			{Name: "c_interval", TypeName: "INTERVAL DAY TO SECOND"},
@@ -81,7 +83,7 @@ func TestQuery(t *testing.T) {
 			{Kind: driver.Bool, Bool: true},
 			{Kind: driver.String, String: "hi"},
 			{Kind: driver.String, String: "ab   "},
-			{Kind: driver.Float64, Float64: 1.25},
+			{Kind: driver.String, String: "1.25"},
 			{Kind: driver.Float64, Float64: 1.5},
 			{Kind: driver.Float64, Float64: 2.5},
 			{Kind: driver.String, String: "2026-01-02"},
@@ -90,6 +92,7 @@ func TestQuery(t *testing.T) {
 			{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 12, 34, 56, 0, time.UTC), Precision: 6},
 			{Kind: driver.TimestampTZ, Time: time.Date(2026, 1, 2, 12, 34, 56, 123000000, time.FixedZone("", 2*60*60)), Precision: 6},
 			{Kind: driver.Bytes, Bytes: []byte{1, 2}},
+			{Kind: driver.Bytes, Bytes: []byte{}},
 			{Kind: driver.String, String: "12151fd2-7586-11e9-8f9e-2a86e4085a59"},
 			{Kind: driver.String, String: "10.0.0.1"},
 			{Kind: driver.String, String: "1 00:00:00.000"},
@@ -302,41 +305,145 @@ func TestQuery(t *testing.T) {
 		}
 	})
 
-	// TestQuerysWithAqueryThatStartsWithWith pins a defect carried verbatim:
-	// Bytebase decides a statement returns rows by its leading keyword, so a
-	// WITH query runs on the exec path and its rows are discarded.
-	t.Run("a WITH query loses its rows", func(t *testing.T) {
+	t.Run("the SELECT family returns rows", func(t *testing.T) {
 		d := openDriver(t)
+		mustExec(t, d, "CREATE SCHEMA memory.omni_query_family;\nCREATE TABLE memory.omni_query_family.items (id integer, note varchar);\nINSERT INTO memory.omni_query_family.items VALUES (1, 'a'), (2, 'b');")
 		session := openSession(t, d)
-		results, err := session.Query(ctx, "WITH t AS (SELECT 1 AS x) SELECT * FROM t", driver.QueryOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		if len(results) != 1 || results[0].Err != nil {
-			t.Fatalf("results = %+v", results)
-		}
-		if results[0].AffectedRows == nil || *results[0].AffectedRows != 0 {
-			t.Fatalf("result = %+v, want the exec path's affected-rows result", results[0])
-		}
-		if len(results[0].Rows) != 0 {
-			t.Fatalf("a WITH query returned rows; if it now does, fix(trino) landed: %+v", results[0])
+		for _, tc := range []struct {
+			name, script string
+			wantRows     int
+		}{
+			{"WITH", "WITH t AS (SELECT 1 AS x) SELECT * FROM t", 1},
+			{"TABLE", "TABLE memory.omni_query_family.items", 2},
+			{"VALUES", "VALUES 1, 2", 2},
+			{"parenthesized", "(SELECT 1)", 1},
+			{"DESC", "DESC memory.omni_query_family.items", 2},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				results, err := session.Query(ctx, tc.script, driver.QueryOptions{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(results) != 1 || results[0].Err != nil {
+					t.Fatalf("results = %+v", results)
+				}
+				if results[0].AffectedRows != nil {
+					t.Fatalf("the statement ran as a change script: %+v", results[0])
+				}
+				if len(results[0].Rows) != tc.wantRows {
+					t.Errorf("rows = %d, want %d", len(results[0].Rows), tc.wantRows)
+				}
+			})
 		}
 	})
 
-	// TestQueryShowWithALimitFails pins a defect carried verbatim: the limit
-	// rewrite appends LIMIT to a statement that does not take one.
-	t.Run("SHOW does not take a limit", func(t *testing.T) {
+	t.Run("SHOW takes no limit rewrite", func(t *testing.T) {
 		d := openDriver(t)
 		session := openSession(t, d)
 		results, err := session.Query(ctx, "SHOW SCHEMAS", driver.QueryOptions{Limit: 10})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(results) != 1 || results[0].Err == nil {
-			t.Fatalf("results = %+v, want one failed result", results)
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
 		}
-		if !strings.Contains(results[0].Err.Error(), "mismatched input 'LIMIT'") {
-			t.Fatalf("error = %v; if SHOW now takes the limit, fix(trino) landed", results[0].Err)
+		if results[0].Statement != "SHOW SCHEMAS" {
+			t.Errorf("Statement = %q, want it untouched", results[0].Statement)
+		}
+		if len(results[0].Rows) == 0 {
+			t.Error("SHOW SCHEMAS returned no rows")
+		}
+	})
+
+	t.Run("a user EXPLAIN plans the same statement", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, "EXPLAIN SELECT 1", driver.QueryOptions{Limit: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		if strings.Contains(results[0].Statement, "LIMIT") {
+			t.Errorf("Statement = %q, want the plan of the statement as written", results[0].Statement)
+		}
+	})
+
+	t.Run("the limit is measured by tokens", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		for _, tc := range []struct {
+			name, script string
+			wantRows     int
+			wantContains string
+			wantAbsent   string
+		}{
+			{"a literal LIMIT does not suppress the cap", "SELECT ' LIMIT ' AS v FROM UNNEST(SEQUENCE(1, 5)) AS t(x)", 2, " LIMIT 2", ""},
+			{"a LIMIT on its own line is respected", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT\n3", 3, "LIMIT\n3", " LIMIT 2"},
+			{"a nested LIMIT does not suppress the cap", "SELECT (SELECT 1 LIMIT 1) AS v", 1, " LIMIT 2", ""},
+			{"a column named limit does not suppress the cap", "SELECT t.limit FROM (VALUES 1, 2, 3) AS t(limit)", 2, " LIMIT 2", ""},
+			{"LIMIT ALL is the caller's own cap", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT ALL", 5, "LIMIT ALL", " LIMIT 2"},
+			{"FETCH FIRST is the caller's own cap", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) FETCH FIRST 2 ROWS ONLY", 2, "FETCH FIRST 2 ROWS ONLY", " LIMIT 2"},
+			// UNION CORRESPONDING is valid Trino the local parser does not read,
+			// so its own clause must survive.
+			{"a statement the parser cannot read keeps its own cap", "SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x LIMIT 1", 1, "LIMIT 1", " LIMIT 2"},
+			{"a statement the parser cannot read gets no rewrite", "SELECT 1 AS x UNION CORRESPONDING SELECT 1 AS x", 1, "", " LIMIT 2"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				results, err := session.Query(ctx, tc.script, driver.QueryOptions{Limit: 2})
+				if err != nil {
+					t.Fatal(err)
+				}
+				if len(results) != 1 || results[0].Err != nil {
+					t.Fatalf("results = %+v", results)
+				}
+				if tc.wantContains != "" && !strings.Contains(results[0].Statement, tc.wantContains) {
+					t.Errorf("Statement = %q, want %q", results[0].Statement, tc.wantContains)
+				}
+				if tc.wantAbsent != "" && strings.Contains(results[0].Statement, tc.wantAbsent) {
+					t.Errorf("Statement = %q, want no %q", results[0].Statement, tc.wantAbsent)
+				}
+				if len(results[0].Rows) != tc.wantRows {
+					t.Errorf("rows = %d, want %d", len(results[0].Rows), tc.wantRows)
+				}
+			})
+		}
+	})
+
+	t.Run("the limit follows a top-level OFFSET", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) OFFSET 1", driver.QueryOptions{Limit: 2})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		// Trino's grammar puts OFFSET before LIMIT.
+		if !strings.Contains(results[0].Statement, " OFFSET 1 LIMIT 2") {
+			t.Errorf("Statement = %q, want the limit after OFFSET", results[0].Statement)
+		}
+		want := [][]driver.Value{{{Kind: driver.Int64, Int64: 2}}, {{Kind: driver.Int64, Int64: 3}}}
+		if diff := cmp.Diff(want, results[0].Rows); diff != "" {
+			t.Errorf("rows (-want +got):\n%s", diff)
+		}
+	})
+
+	t.Run("an exact DECIMAL keeps its value", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, "SELECT CAST('9007199254740993' AS DECIMAL(16,0)) AS v", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		want := [][]driver.Value{{{Kind: driver.String, String: "9007199254740993"}}}
+		if diff := cmp.Diff(want, results[0].Rows); diff != "" {
+			t.Errorf("rows (-want +got):\n%s", diff)
 		}
 	})
 
