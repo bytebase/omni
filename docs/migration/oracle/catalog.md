@@ -73,6 +73,14 @@ replay tests exercise.
   and renaming a table updates incoming foreign keys.
 - A sequence definition renders `MINVALUE` and `CACHE`, and a quoted
   user-defined type keeps its spelling.
+- A changed sequence start uses `RESTART START WITH`, and returning to the
+  default increment emits `INCREMENT BY 1`.
+- Dropping tables resolves a same-schema foreign key against the owning
+  schema's table node.
+- An implicit foreign key to an owner outside the snapshot is kept and rendered
+  without a column list.
+- A virtual column declared without a datatype stays untyped, so Oracle infers
+  it from the expression.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

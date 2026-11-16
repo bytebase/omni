@@ -178,7 +178,11 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 	for tableID, tableDiff := range tableMap {
 		if tableDiff.OldTable != nil {
 			for _, fk := range tableDiff.OldTable.ForeignKeys {
-				depID := getMigrationObjectID(fk.ReferencedSchema, fk.ReferencedTable)
+				referencedSchema := fk.ReferencedSchema
+				if referencedSchema == "" {
+					referencedSchema = tableDiff.SchemaName
+				}
+				depID := getMigrationObjectID(referencedSchema, fk.ReferencedTable)
 				if allObjects[depID] && depID != tableID {
 					// Edge from table with FK to referenced table
 					graph.AddEdge(tableID, depID)
@@ -515,7 +519,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	for tableID, tableDiff := range tableMap {
 		if tableDiff.Action == DiffActionCreate && tableDiff.NewTable != nil {
 			for _, fk := range tableDiff.NewTable.ForeignKeys {
-				depID := getMigrationObjectID(fk.ReferencedSchema, fk.ReferencedTable)
+				referencedSchema := fk.ReferencedSchema
+				if referencedSchema == "" {
+					referencedSchema = tableDiff.SchemaName
+				}
+				depID := getMigrationObjectID(referencedSchema, fk.ReferencedTable)
 				if depID != tableID {
 					// Edge from dependency to dependent (referenced table to table with FK)
 					graph.AddEdge(depID, tableID)
@@ -1856,18 +1864,19 @@ func writeMigrationForeignKey(out *strings.Builder, schema, table string, fk *me
 	}
 	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(fk.ReferencedTable)
-	_, _ = out.WriteString(`" (`)
-
-	for i, col := range fk.ReferencedColumns {
-		if i > 0 {
-			_, _ = out.WriteString(`, `)
+	_, _ = out.WriteString(`"`)
+	if len(fk.ReferencedColumns) > 0 {
+		_, _ = out.WriteString(` (`)
+		for i, col := range fk.ReferencedColumns {
+			if i > 0 {
+				_, _ = out.WriteString(`, `)
+			}
+			_, _ = out.WriteString(`"`)
+			_, _ = out.WriteString(col)
+			_, _ = out.WriteString(`"`)
 		}
-		_, _ = out.WriteString(`"`)
-		_, _ = out.WriteString(col)
-		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(`)`)
 	}
-
-	_, _ = out.WriteString(`)`)
 
 	if fk.OnUpdate != "" {
 		_, _ = out.WriteString(` ON UPDATE `)
@@ -2475,10 +2484,17 @@ func writeRenameConstraint(out *strings.Builder, schema, table, oldName, newName
 func writeMigrationAlterSequence(out *strings.Builder, schema string, oldSeq, newSeq *metadatapb.SequenceMetadata) {
 	var clauses []string
 	if oldSeq.GetStart() != newSeq.GetStart() && newSeq.GetStart() != "" {
-		clauses = append(clauses, "START WITH "+newSeq.GetStart())
+		clauses = append(clauses, "RESTART START WITH "+newSeq.GetStart())
 	}
-	if oldSeq.GetIncrement() != newSeq.GetIncrement() && newSeq.GetIncrement() != "" {
-		clauses = append(clauses, "INCREMENT BY "+newSeq.GetIncrement())
+	oldIncrement, newIncrement := oldSeq.GetIncrement(), newSeq.GetIncrement()
+	if oldIncrement == "" {
+		oldIncrement = "1"
+	}
+	if newIncrement == "" {
+		newIncrement = "1"
+	}
+	if oldIncrement != newIncrement {
+		clauses = append(clauses, "INCREMENT BY "+newIncrement)
 	}
 	if oldSeq.GetMinValue() != newSeq.GetMinValue() {
 		if newSeq.GetMinValue() == "" {

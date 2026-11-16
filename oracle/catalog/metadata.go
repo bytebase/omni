@@ -272,7 +272,6 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadatapb.TableMetadata) {
 	column := &metadatapb.ColumnMetadata{
 		Name:     n.Name,
-		Type:     "VARCHAR2(100)",
 		Nullable: true,
 		Position: int32(len(table.Columns) + 1),
 	}
@@ -285,9 +284,6 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 		column.Default = e.nodeText(n.Default)
 	}
 	if n.Virtual != nil {
-		if n.TypeName == nil && n.Domain == nil {
-			column.Type = "NUMBER"
-		}
 		column.Generation = &metadatapb.GenerationMetadata{
 			Type:       metadatapb.GenerationMetadata_TYPE_VIRTUAL,
 			Expression: e.exprText(n.Virtual),
@@ -506,9 +502,6 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 			column.Collation = def.Collation
 		}
 		if def.Virtual != nil {
-			if def.TypeName == nil && def.Domain == nil {
-				column.Type = "NUMBER"
-			}
 			column.Generation = &metadatapb.GenerationMetadata{
 				Type:       metadatapb.GenerationMetadata_TYPE_VIRTUAL,
 				Expression: e.exprText(def.Virtual),
@@ -930,18 +923,18 @@ func (e *oracleMetadataExtractor) appendForeignKey(table *metadatapb.TableMetada
 
 func (e *oracleMetadataExtractor) resolveForeignKeyReferencedColumns() {
 	for _, table := range e.tables {
-		var foreignKeys []*metadatapb.ForeignKeyMetadata
 		for _, foreignKey := range table.ForeignKeys {
-			if len(foreignKey.ReferencedColumns) == 0 {
-				referencedTable := e.tables[foreignKey.ReferencedTable]
-				foreignKey.ReferencedColumns = primaryKeyColumns(referencedTable)
-			}
-			if len(foreignKey.ReferencedColumns) == 0 {
+			if len(foreignKey.ReferencedColumns) != 0 {
 				continue
 			}
-			foreignKeys = append(foreignKeys, foreignKey)
+			// An owner outside this snapshot keeps its implicit reference: the
+			// definition and migration render it without a column list.
+			if foreignKey.ReferencedSchema != "" && foreignKey.ReferencedSchema != e.currentSchema && foreignKey.ReferencedSchema != e.currentDatabase {
+				continue
+			}
+			referencedTable := e.tables[foreignKey.ReferencedTable]
+			foreignKey.ReferencedColumns = primaryKeyColumns(referencedTable)
 		}
-		table.ForeignKeys = foreignKeys
 	}
 }
 

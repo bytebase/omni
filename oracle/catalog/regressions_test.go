@@ -436,3 +436,70 @@ func TestQuotedUserDefinedTypeKeepsSpelling(t *testing.T) {
 		t.Fatalf("type = %q", got)
 	}
 }
+
+func TestMigrationRestartsSequenceStart(t *testing.T) {
+	oldSeq := &metadatapb.SequenceMetadata{Name: "S", Start: "1"}
+	newSeq := &metadatapb.SequenceMetadata{Name: "S", Start: "10"}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{oldSeq}}), catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{newSeq}}))
+	if !strings.Contains(sql, `RESTART START WITH 10`) {
+		t.Fatalf("sequence restart missing:\n%s", sql)
+	}
+}
+
+func TestMigrationResetsSequenceIncrementToDefault(t *testing.T) {
+	oldSeq := &metadatapb.SequenceMetadata{Name: "S", Increment: "7"}
+	newSeq := &metadatapb.SequenceMetadata{Name: "S"}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{oldSeq}}), catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{newSeq}}))
+	if !strings.Contains(sql, `INCREMENT BY 1`) {
+		t.Fatalf("default increment not restored:\n%s", sql)
+	}
+}
+
+func TestDropOrderResolvesSameSchemaForeignKeys(t *testing.T) {
+	parent := &metadatapb.TableMetadata{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}
+	child := &metadatapb.TableMetadata{Name: "Z", Columns: []*metadatapb.ColumnMetadata{{Name: "A_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "Z_FK", Columns: []string{"A_ID"}, ReferencedTable: "A", ReferencedColumns: []string{"ID"}}}}
+	from := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{parent, child}})
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP"})
+	sql := migrationFor(t, from, to)
+	childDrop := strings.Index(sql, `DROP TABLE "APP"."Z"`)
+	parentDrop := strings.Index(sql, `DROP TABLE "APP"."A"`)
+	if childDrop < 0 || parentDrop < 0 || childDrop > parentDrop {
+		t.Fatalf("parent dropped before child:\n%s", sql)
+	}
+}
+
+func TestUnresolvedExternalForeignKeyIsKept(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE C (P_ID NUMBER REFERENCES OTHER.P)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fk := meta.Schemas[0].Tables[0].ForeignKeys[0]
+	if fk.ReferencedSchema != "OTHER" || fk.ReferencedTable != "P" || len(fk.ReferencedColumns) != 0 {
+		t.Fatalf("foreign key = %+v", fk)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `REFERENCES "OTHER"."P"`) || strings.Contains(definition, `"OTHER"."P" ()`) {
+		t.Fatalf("implicit external reference not rendered:\n%s", definition)
+	}
+}
+
+func TestVirtualColumnWithoutTypeStaysUntyped(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C VARCHAR2(10), V AS (UPPER(C)))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	column := meta.Schemas[0].Tables[0].Columns[1]
+	if column.Type != "" {
+		t.Fatalf("virtual column type = %q, want empty", column.Type)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(definition, `"V" NUMBER`) {
+		t.Fatalf("virtual column gained a NUMBER type:\n%s", definition)
+	}
+}

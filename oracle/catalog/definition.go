@@ -474,8 +474,13 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 	if _, err := buf.WriteString(fk.ReferencedTable); err != nil {
 		return err
 	}
-	if _, err := buf.WriteString(`" (`); err != nil {
+	if _, err := buf.WriteString(`"`); err != nil {
 		return err
+	}
+	if len(fk.ReferencedColumns) > 0 {
+		if _, err := buf.WriteString(` (`); err != nil {
+			return err
+		}
 	}
 	for i, column := range fk.ReferencedColumns {
 		if i != 0 {
@@ -493,8 +498,10 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 			return err
 		}
 	}
-	if _, err := buf.WriteString(`)`); err != nil {
-		return err
+	if len(fk.ReferencedColumns) > 0 {
+		if _, err := buf.WriteString(`)`); err != nil {
+			return err
+		}
 	}
 	if fk.OnDelete != "" {
 		if _, err := buf.WriteString(` ON DELETE `); err != nil {
