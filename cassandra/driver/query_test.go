@@ -185,6 +185,22 @@ func TestQueryEmpty(t *testing.T) {
 	require.Empty(t, results)
 }
 
+// TestQuerySkipsACommentOnlySegment holds a script that ends in a comment to
+// its statements: a comment is no statement, and sending one would fail a
+// script whose queries already ran.
+func TestQuerySkipsACommentOnlySegment(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.cql")))
+	sess := openSession(t, d)
+
+	results, err := sess.Query(context.Background(),
+		"SELECT id FROM omni_rows WHERE id = 1;\n-- done\n/* and a block */", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 1)
+}
+
 func openSession(t *testing.T, d *Driver) driver.Session {
 	t.Helper()
 	session, err := d.Session(context.Background())

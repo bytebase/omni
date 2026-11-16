@@ -29,7 +29,7 @@ func (d *Driver) Execute(ctx context.Context, script string, _ driver.ExecuteOpt
 			continue
 		}
 		statement := trimStatement(segment.Text)
-		if statement == "" {
+		if statement == "" || holdsNoStatement(statement) {
 			continue
 		}
 		if err := c.Exec(ctx, statement); err != nil {

@@ -59,10 +59,17 @@ func TestTheTapeHoldsWhatTheDriverReads(t *testing.T) {
 	})
 
 	t.Run("a document keeps its numbers", func(t *testing.T) {
-		body := `{"_index":"alpha","_id":"1","found":true,"_source":{"id":7,"n":9223372036854775807}}`
+		body := `{"_index":"alpha","_id":"1","found":true,"_source":{"id":7,"n":9223372036854775807,"took":12,"profile":{"id":"customer","time_in_nanos":42}}}`
 		narrowed, ok := narrow("/alpha/_doc/1", "application/json", []byte(body))
 		require.True(t, ok)
-		require.Equal(t, `{"_id":"1","_index":"alpha","_source":{"id":7,"n":9223372036854775807},"found":true}`, string(narrowed))
+		require.Equal(t, `{"_id":"1","_index":"alpha","_source":{"id":7,"n":9223372036854775807,"profile":{"id":"customer","time_in_nanos":42},"took":12},"found":true}`, string(narrowed))
+	})
+
+	t.Run("a hit's document keeps its fields", func(t *testing.T) {
+		body := `{"took":7,"hits":{"hits":[{"_id":"1","_source":{"took":"original","profile":{"id":"customer-id","time_in_nanos":42}}}]}}`
+		narrowed, ok := narrow("/alpha/_search", "application/json", []byte(body))
+		require.True(t, ok)
+		require.Equal(t, `{"hits":{"hits":[{"_id":"1","_source":{"profile":{"id":"customer-id","time_in_nanos":42},"took":"original"}}]},"took":0}`, string(narrowed))
 	})
 
 	t.Run("plain text", func(t *testing.T) {

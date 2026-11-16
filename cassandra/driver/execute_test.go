@@ -55,6 +55,24 @@ func TestExecuteStopsAtAFailingStatement(t *testing.T) {
 	require.Len(t, results[0].Rows, 1)
 }
 
+// TestExecuteSkipsACommentOnlyStatement holds a script that ends in a comment to
+// its statements: the comment is not sent as a query, so the script succeeds.
+func TestExecuteSkipsACommentOnlyStatement(t *testing.T) {
+	d := openDriver(t)
+	affected, err := d.Execute(context.Background(), `
+		CREATE TABLE commented (id int PRIMARY KEY);
+		INSERT INTO commented (id) VALUES (1);
+		-- done
+		/* and a block */`, driver.ExecuteOptions{})
+	require.NoError(t, err)
+	require.Zero(t, affected)
+
+	sess := openSession(t, d)
+	results, err := sess.Query(context.Background(), "SELECT id FROM commented", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results[0].Rows, 1)
+}
+
 // TestExecuteCorpusRecordsOnce is the corpus every other test records, run
 // through Execute: a script of one statement per line is one request per
 // statement on the tape.

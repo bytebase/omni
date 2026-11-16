@@ -41,7 +41,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			continue
 		}
 		statement := trimStatement(segment.Text)
-		if statement == "" {
+		if statement == "" || holdsNoStatement(statement) {
 			continue
 		}
 		startTime := time.Now()
@@ -119,6 +119,16 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 		pageState = nextPageState
 	}
 	return result, nil
+}
+
+// holdsNoStatement reports whether a segment is only whitespace and comments.
+// cassandra.Split marks a segment empty for whitespace alone, so a trailing
+// "-- done" would otherwise be sent as a query and fail a script whose earlier
+// statements already ran. A segment the parser rejects is kept: the server's
+// verdict on it is what the caller should read.
+func holdsNoStatement(text string) bool {
+	statements, err := cassandra.Parse(text)
+	return err == nil && len(statements) == 0
 }
 
 // pageSizeForACappedRead is the page size a read with only a byte cap is

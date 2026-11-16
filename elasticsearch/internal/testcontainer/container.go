@@ -442,30 +442,22 @@ var timedFields = map[string]bool{
 	"time_in_nanos": true,
 }
 
-// withoutTimings returns v with every measurement zeroed. A search's profile
-// carries more of them than its top level states, so it is walked separately: a
-// document a query returns keeps every number it holds.
+// withoutTimings returns an answer with the measurements it reports taken out:
+// the top-level `took`, and the tree under a top-level `profile`. Nothing else
+// is walked, so a document a hit carries keeps every field it holds, even one
+// named `took`, `profile` or `time_in_nanos`.
 func withoutTimings(v any) any {
-	switch value := v.(type) {
-	case map[string]any:
-		for key, item := range value {
-			switch {
-			case timedFields[key]:
-				value[key] = json.Number("0")
-			case key == "profile":
-				value[key] = withoutProfileTimings(item)
-			default:
-				value[key] = withoutTimings(item)
-			}
-		}
-		return value
-	case []any:
-		for i := range value {
-			value[i] = withoutTimings(value[i])
-		}
-		return value
+	document, ok := v.(map[string]any)
+	if !ok {
+		return v
 	}
-	return v
+	if _, ok := document["took"]; ok {
+		document["took"] = json.Number("0")
+	}
+	if profile, ok := document["profile"]; ok {
+		document["profile"] = withoutProfileTimings(profile)
+	}
+	return document
 }
 
 // withoutProfileTimings returns a profile with its measurements zeroed, the
