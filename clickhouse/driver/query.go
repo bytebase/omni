@@ -251,6 +251,9 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 	if v, ok := value.(*time.Time); ok && v != nil {
 		return driver.Value{Kind: driver.String, String: v.Format(time.RFC3339Nano)}
 	}
+	if v, ok := value.(*time.Duration); ok && v != nil {
+		return driver.Value{Kind: driver.String, String: formatDuration(*v)}
+	}
 	if v, ok := value.(*net.IP); ok && v != nil {
 		return driver.Value{Kind: driver.String, String: v.String()}
 	}
@@ -322,6 +325,9 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 	if v, ok := value.(**time.Time); ok && *v != nil {
 		return driver.Value{Kind: driver.String, String: (*v).Format(time.RFC3339Nano)}
 	}
+	if v, ok := value.(**time.Duration); ok && *v != nil {
+		return driver.Value{Kind: driver.String, String: formatDuration(**v)}
+	}
 	if v, ok := value.(**net.IP); ok && *v != nil {
 		return driver.Value{Kind: driver.String, String: (*v).String()}
 	}
@@ -335,6 +341,24 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 		return driver.Value{Kind: driver.String, String: (*v).String()}
 	}
 	return driver.Value{Kind: driver.Null}
+}
+
+// formatDuration renders a ClickHouse Time or Time64 as a clock, which is what
+// the value is: a duration since midnight.
+func formatDuration(d time.Duration) string {
+	sign := ""
+	if d < 0 {
+		sign = "-"
+		d = -d
+	}
+	hours := d / time.Hour
+	minutes := (d % time.Hour) / time.Minute
+	seconds := (d % time.Minute) / time.Second
+	out := fmt.Sprintf("%s%02d:%02d:%02d", sign, hours, minutes, seconds)
+	if nanos := d % time.Second; nanos != 0 {
+		out += "." + strings.TrimRight(fmt.Sprintf("%09d", nanos), "0")
+	}
+	return out
 }
 
 // normalizeJSONValue turns typed maps into string-keyed maps, which is what a

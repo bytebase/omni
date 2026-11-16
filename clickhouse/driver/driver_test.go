@@ -266,6 +266,21 @@ func TestConvertMapWithFloatKeys(t *testing.T) {
 	}
 }
 
+func TestConvertTimeDuration(t *testing.T) {
+	duration := time.Hour + 2*time.Minute + 3*time.Second + 456*time.Millisecond
+	if got := convertValue("TIME64", nil, &duration); got.Kind != driver.String || got.String != "01:02:03.456" {
+		t.Errorf("Time64 = %+v", got)
+	}
+	pointer := &duration
+	if got := convertValue("NULLABLE(TIME64)", nil, &pointer); got.Kind != driver.String || got.String != "01:02:03.456" {
+		t.Errorf("nullable Time64 = %+v", got)
+	}
+	var nilDuration *time.Duration
+	if got := convertValue("NULLABLE(TIME64)", nil, &nilDuration); got.Kind != driver.Null {
+		t.Errorf("NULL Time64 = %+v", got)
+	}
+}
+
 func TestConvertNonFiniteFloatInArray(t *testing.T) {
 	value := any([]any{math.NaN(), math.Inf(1), math.Inf(-1)})
 	got := convertValue("ARRAY(FLOAT64)", nil, &value)
