@@ -1,151 +1,151 @@
 {
-  "name": "sync",
-  "schemas": [
+  "name":  "sync",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "Albums",
-          "columns": [
+          "name":  "Albums",
+          "columns":  [
             {
-              "name": "Id",
-              "position": 1,
-              "type": "INT64"
+              "name":  "Id",
+              "position":  1,
+              "type":  "INT64"
             },
             {
-              "name": "SingerId",
-              "position": 2,
-              "type": "INT64"
+              "name":  "SingerId",
+              "position":  2,
+              "type":  "INT64"
             },
             {
-              "name": "Title",
-              "position": 3,
-              "default": "'untitled'",
-              "type": "STRING(1024)"
+              "name":  "Title",
+              "position":  3,
+              "default":  "'untitled'",
+              "type":  "STRING(1024)"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY_KEY",
-              "expressions": [
+              "name":  "PRIMARY_KEY",
+              "expressions":  [
                 "Id"
               ],
-              "unique": true,
-              "primary": true
+              "unique":  true,
+              "primary":  true
             }
           ],
-          "foreignKeys": [
+          "foreignKeys":  [
             {
-              "name": "FK_Singer",
-              "referencedTable": "Singers",
-              "onDelete": "NO ACTION",
-              "onUpdate": "NO ACTION",
-              "matchType": "SIMPLE"
+              "name":  "FK_Singer",
+              "referencedTable":  "Singers",
+              "onDelete":  "NO ACTION",
+              "onUpdate":  "NO ACTION",
+              "matchType":  "SIMPLE"
             }
           ]
         },
         {
-          "name": "Singers",
-          "columns": [
+          "name":  "Singers",
+          "columns":  [
             {
-              "name": "Id",
-              "position": 1,
-              "type": "INT64"
+              "name":  "Id",
+              "position":  1,
+              "type":  "INT64"
             },
             {
-              "name": "FirstName",
-              "position": 2,
-              "nullable": true,
-              "type": "STRING(1024)"
+              "name":  "FirstName",
+              "position":  2,
+              "nullable":  true,
+              "type":  "STRING(1024)"
             },
             {
-              "name": "LastName",
-              "position": 3,
-              "type": "STRING(1024)"
+              "name":  "LastName",
+              "position":  3,
+              "type":  "STRING(1024)"
             },
             {
-              "name": "Active",
-              "position": 4,
-              "nullable": true,
-              "type": "BOOL"
+              "name":  "Active",
+              "position":  4,
+              "nullable":  true,
+              "type":  "BOOL"
             },
             {
-              "name": "Rating",
-              "position": 5,
-              "nullable": true,
-              "type": "FLOAT64"
+              "name":  "Rating",
+              "position":  5,
+              "nullable":  true,
+              "type":  "FLOAT64"
             },
             {
-              "name": "Photo",
-              "position": 6,
-              "nullable": true,
-              "type": "BYTES(MAX)"
+              "name":  "Photo",
+              "position":  6,
+              "nullable":  true,
+              "type":  "BYTES(MAX)"
             },
             {
-              "name": "Born",
-              "position": 7,
-              "nullable": true,
-              "type": "DATE"
+              "name":  "Born",
+              "position":  7,
+              "nullable":  true,
+              "type":  "DATE"
             },
             {
-              "name": "UpdatedAt",
-              "position": 8,
-              "nullable": true,
-              "type": "TIMESTAMP"
+              "name":  "UpdatedAt",
+              "position":  8,
+              "nullable":  true,
+              "type":  "TIMESTAMP"
             },
             {
-              "name": "Meta",
-              "position": 9,
-              "nullable": true,
-              "type": "JSON"
+              "name":  "Meta",
+              "position":  9,
+              "nullable":  true,
+              "type":  "JSON"
             },
             {
-              "name": "Scores",
-              "position": 10,
-              "nullable": true,
-              "type": "ARRAY<INT64>"
+              "name":  "Scores",
+              "position":  10,
+              "nullable":  true,
+              "type":  "ARRAY<INT64>"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY_KEY",
-              "expressions": [
+              "name":  "PRIMARY_KEY",
+              "expressions":  [
                 "Id"
               ],
-              "unique": true,
-              "primary": true
+              "unique":  true,
+              "primary":  true
             },
             {
-              "name": "SingersByFirstName",
-              "expressions": [
+              "name":  "SingersByFirstName",
+              "expressions":  [
                 "FirstName"
               ],
-              "unique": true
+              "unique":  true
             },
             {
-              "name": "SingersByLastName",
-              "expressions": [
+              "name":  "SingersByLastName",
+              "expressions":  [
                 "LastName"
               ]
             }
           ]
         }
       ],
-      "views": [
+      "views":  [
         {
-          "name": "SingerNames",
-          "definition": "SELECT s.Id AS Id, s.LastName AS LastName FROM Singers s",
-          "columns": [
+          "name":  "SingerNames",
+          "definition":  "SELECT s.Id AS Id, s.LastName AS LastName FROM Singers s",
+          "columns":  [
             {
-              "name": "Id",
-              "position": 1,
-              "nullable": true,
-              "type": "INT64"
+              "name":  "Id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "INT64"
             },
             {
-              "name": "LastName",
-              "position": 2,
-              "nullable": true,
-              "type": "STRING(0)"
+              "name":  "LastName",
+              "position":  2,
+              "nullable":  true,
+              "type":  "STRING(0)"
             }
           ]
         }
