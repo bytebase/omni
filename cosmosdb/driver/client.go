@@ -22,6 +22,8 @@ import (
 // asks the pinned emulator through the same path; nothing else calls it.
 type Client interface {
 	Ping(ctx context.Context) error
+	// Close releases the connections the client opened.
+	Close() error
 	// ListDatabases returns the account's database names.
 	ListDatabases(ctx context.Context) ([]string, error)
 	// ListContainers returns database's container names.
@@ -132,6 +134,15 @@ func (e *containerOpenError) Error() string { return "failed to create container
 
 func (e *containerOpenError) Unwrap() error { return e.err }
 
+// Close releases the client's connections.
+func (c *liveClient) Close() error {
+	c.client.Close()
+	if c.emulator != nil {
+		c.emulator.close()
+	}
+	return nil
+}
+
 // Page reads one container query, page by page, until the pager is done or
 // limit items are in hand.
 func (c *liveClient) Page(ctx context.Context, req PageRequest) (PageAnswer, error) {
@@ -174,6 +185,16 @@ func drainQuery(ctx context.Context, container *azcosmos.ContainerClient, statem
 		}
 	}
 	return items, pages, nil
+}
+
+// isNotFound reports whether err is the account saying an object is not there.
+func isNotFound(err error) bool {
+	var responseErr *azcore.ResponseError
+	if errors.As(err, &responseErr) {
+		return responseErr.StatusCode == http.StatusNotFound
+	}
+	var restErr *emulatorHTTPError
+	return errors.As(err, &restErr) && restErr.StatusCode == http.StatusNotFound
 }
 
 // isCrossPartitionUnsupported reports whether err is the gateway saying it

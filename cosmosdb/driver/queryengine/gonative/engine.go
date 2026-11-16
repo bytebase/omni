@@ -88,7 +88,7 @@ func (*Engine) CreateQueryPipeline(query string, plan string, pkranges string) (
 		return newDistinctPipeline(p, rangeIDs, query)
 	case len(qi.Aggregates) > 0:
 		if err := requireHandled(qi, fieldRewrittenQuery, fieldHasSelectValue,
-			fieldAggregates, fieldOffset, fieldLimit); err != nil {
+			fieldAggregates, fieldTop, fieldOffset, fieldLimit); err != nil {
 			return nil, err
 		}
 		return newValuePipeline(p, rangeIDs)
@@ -103,7 +103,7 @@ func (*Engine) CreateQueryPipeline(query string, plan string, pkranges string) (
 		return newGroupPipeline(p, rangeIDs)
 	case len(qi.GroupByAliasToAggregateType) > 0:
 		if err := requireHandled(qi, fieldRewrittenQuery, fieldHasSelectValue,
-			fieldGroupByAliases, fieldGroupByAliasToAggregateType, fieldOffset, fieldLimit); err != nil {
+			fieldGroupByAliases, fieldGroupByAliasToAggregateType, fieldTop, fieldOffset, fieldLimit); err != nil {
 			return nil, err
 		}
 		return newAliasedPipeline(p, rangeIDs)

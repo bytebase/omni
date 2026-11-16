@@ -1,8 +1,10 @@
 package gonative
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos/queryengine"
 )
@@ -32,12 +34,53 @@ func parseDistinctPartitionResponse(raw []byte) (*distinctPartitionResponse, err
 // The approach: unmarshal into `any`, which turns objects into map[string]any,
 // then re-marshal — Go's encoding/json sorts map keys alphabetically in that
 // path, which gives us the canonical ordering for free.
+//
+// Numbers are decoded as their own text and canonicalized by value, because a
+// float64 cannot hold every integer Cosmos stores: 9007199254740992 and
+// 9007199254740993 both round to the same double, which would collapse two
+// DISTINCT values and two GROUP BY groups into one.
 func canonicalJSON(raw json.RawMessage) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
 	var v any
-	if err := json.Unmarshal(raw, &v); err != nil {
+	if err := dec.Decode(&v); err != nil {
 		return nil, fmt.Errorf("gonative: canonicalize: %w", err)
 	}
-	return json.Marshal(v)
+	return json.Marshal(canonicalValue(v))
+}
+
+// canonicalValue replaces every number in v with its canonical text, so that
+// the map keys and array entries around it marshal unchanged.
+func canonicalValue(v any) any {
+	switch x := v.(type) {
+	case json.Number:
+		return canonicalNumber(x)
+	case []any:
+		for i := range x {
+			x[i] = canonicalValue(x[i])
+		}
+		return x
+	case map[string]any:
+		for k := range x {
+			x[k] = canonicalValue(x[k])
+		}
+		return x
+	}
+	return v
+}
+
+// canonicalNumber renders a number by value: an integer in its own digits,
+// which int64 holds for every integer Cosmos stores, and anything else in the
+// shortest form that reads back as the same double, so 1 and 1.0 still meet.
+func canonicalNumber(n json.Number) json.Number {
+	if i, err := n.Int64(); err == nil {
+		return json.Number(strconv.FormatInt(i, 10))
+	}
+	f, err := strconv.ParseFloat(n.String(), 64)
+	if err != nil {
+		return n
+	}
+	return json.Number(strconv.FormatFloat(f, 'g', -1, 64))
 }
 
 // distinctPipeline implements queryengine.QueryPipeline for unordered DISTINCT

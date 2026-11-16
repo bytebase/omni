@@ -77,12 +77,23 @@ func aggregatePartial(kind string, it aggItem) json.RawMessage {
 	}
 }
 
-// feedAggregatePartial folds one partition document's partial into a. A
-// partial the gateway left out is not an error: the partition had no row to
-// contribute.
+// undefinedPartial is an aggregator whose answer is undefined when one
+// partition's partial is. SUM over a field that a partition holds no number for
+// is undefined over the whole container, not the subtotal of the partitions
+// that do hold one, which is what the service's own SumAggregator reports.
+type undefinedPartial interface {
+	partialUndefined()
+}
+
+// feedAggregatePartial folds one partition document's partial into a. A partial
+// the gateway left out is not an error: for most aggregates the partition had
+// no row to contribute, and for SUM it made the total undefined.
 func feedAggregatePartial(a aggregator, kind string, it aggItem) error {
 	partial := aggregatePartial(kind, it)
 	if len(partial) == 0 {
+		if u, ok := a.(undefinedPartial); ok {
+			u.partialUndefined()
+		}
 		return nil
 	}
 	return a.feedPartial(partial)
@@ -114,7 +125,12 @@ func (a *countAgg) finalize() (json.RawMessage, error) {
 type sumAgg struct {
 	total float64
 	seen  bool
+	// undefined reports that one partition's partial was absent because its
+	// value is not a number, which no sum of the others can stand in for.
+	undefined bool
 }
+
+func (a *sumAgg) partialUndefined() { a.undefined = true }
 
 func (a *sumAgg) feedPartial(raw json.RawMessage) error {
 	var n float64
@@ -127,7 +143,7 @@ func (a *sumAgg) feedPartial(raw json.RawMessage) error {
 }
 
 func (a *sumAgg) finalize() (json.RawMessage, error) {
-	if !a.seen {
+	if a.undefined || !a.seen {
 		return nil, nil
 	}
 	return numberRawMessage(a.total), nil
