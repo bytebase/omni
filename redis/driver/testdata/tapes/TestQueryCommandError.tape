@@ -25,3 +25,15 @@
 | {"login":{},"op":"CloseSession","session":2}
 < raw
 | {}
+> raw
+| {"login":{},"op":"Session","session":3}
+< raw
+| {}
+> raw
+| {"login":{},"op":"Do","session":3,"commands":[["GET","after"]]}
+< raw
+| {"commands":[{"error":"redis: nil"}]}
+> raw
+| {"login":{},"op":"CloseSession","session":3}
+< raw
+| {}

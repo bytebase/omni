@@ -36,12 +36,17 @@ func TestExecuteMissingKeyIsNotAnError(t *testing.T) {
 }
 
 // TestExecuteRefusedCommand covers a command the server refuses: it ends the
-// script with its error.
+// script with its error, so the command after it does not run.
 func TestExecuteRefusedCommand(t *testing.T) {
 	ctx := context.Background()
 	d := openDriver(t, testcontainer.Login{}, "0")
-	_, err := d.Execute(ctx, "SET key text\nLPUSH key x", driver.ExecuteOptions{})
+	_, err := d.Execute(ctx, "SET key text\nLPUSH key x\nSET after value", driver.ExecuteOptions{})
 	require.ErrorContains(t, err, "WRONGTYPE")
+
+	results := query(t, d, "GET after", driver.QueryOptions{})
+	require.Len(t, results, 1)
+	require.Len(t, results[0].Rows, 1)
+	require.Equal(t, driver.Null, results[0].Rows[0][1].Kind, "the command after the refused one ran")
 }
 
 // TestExecuteCreateDatabase holds the error a database-creation step answers:

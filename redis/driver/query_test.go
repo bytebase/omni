@@ -95,19 +95,24 @@ func TestQuery(t *testing.T) {
 }
 
 // TestQueryCommandError covers a command the server refuses: its answer is the
-// Result's error, and the commands after it are not reported.
+// Result's error, the commands after it are not reported, and they do not run.
 func TestQueryCommandError(t *testing.T) {
 	ctx := context.Background()
 	d := openDriver(t, testcontainer.Login{}, "0")
 	_, err := d.Execute(ctx, "SET counter text", driver.ExecuteOptions{})
 	require.NoError(t, err)
 
-	results := query(t, d, "INCR counter\nDBSIZE", driver.QueryOptions{})
+	results := query(t, d, "INCR counter\nSET after value", driver.QueryOptions{})
 	require.Len(t, results, 1)
 	require.Equal(t, "INCR counter", results[0].Statement)
 	require.Equal(t, columns, results[0].Columns)
 	require.ErrorContains(t, results[0].Err, "ERR value is not an integer or out of range")
 	require.Empty(t, results[0].Rows)
+
+	after := query(t, d, "GET after", driver.QueryOptions{})
+	require.Len(t, after, 1)
+	require.Len(t, after[0].Rows, 1)
+	require.Equal(t, driver.Null, after[0].Rows[0][1].Kind, "the command after the refused one ran")
 }
 
 // TestQueryExplainRefused holds an explain to the error Redis's driver answers
