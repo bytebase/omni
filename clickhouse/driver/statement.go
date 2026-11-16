@@ -232,6 +232,14 @@ func trailingCommentStart(statement string) int {
 			case c == '#':
 				line = true
 				last = i
+			case c == '$' && isHeredocStart(runes, i):
+				if err := scanHeredoc(runes, &i); err != nil {
+					last = -1
+					i = len(runes)
+				} else {
+					i--
+					last = -1
+				}
 			case c == '/' && i+1 < len(runes) && runes[i+1] == '*':
 				block = true
 				i++
@@ -348,14 +356,9 @@ func validateSQLForEditor(statement string) (bool, error) {
 }
 
 var (
-	explainRe       = regexp.MustCompile(`^EXPLAIN\s+?`)
-	explainAnalyze  = regexp.MustCompile(`^EXPLAIN\s+ANALYZE\s+?`)
-	cteRe           = regexp.MustCompile(`^WITH\s+?`)
-	withDMLPatterns = []*regexp.Regexp{
-		regexp.MustCompile(`\bINSERT\b`),
-		regexp.MustCompile(`\bUPDATE\b`),
-		regexp.MustCompile(`\bDELETE\b`),
-	}
+	explainRe      = regexp.MustCompile(`^EXPLAIN\s+?`)
+	explainAnalyze = regexp.MustCompile(`^EXPLAIN\s+ANALYZE\s+?`)
+	cteRe          = regexp.MustCompile(`^WITH\s+?`)
 )
 
 func checkStatementWithoutQuotedTextAndComment(statement string) bool {
@@ -380,14 +383,100 @@ func checkStatementWithoutQuotedTextAndComment(statement string) bool {
 		return !explainAnalyze.MatchString(formatted)
 	}
 	if cteRe.MatchString(formatted) {
-		for _, pattern := range withDMLPatterns {
-			if pattern.MatchString(formatted) {
+		return withStatementIsQuery(formatted)
+	}
+	return false
+}
+
+// withStatementIsQuery reads the statement a WITH clause runs, ignoring words
+// inside its CTE bodies and the aliases they define.
+func withStatementIsQuery(statement string) bool {
+	tokens := keywordTokens(statement)
+	depth := 0
+	for i, token := range tokens {
+		switch token.text {
+		case "(":
+			depth++
+			continue
+		case ")":
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 || !token.word {
+			continue
+		}
+		switch token.text {
+		case "SELECT":
+			if previousWord(tokens, i) != "AS" && nextWord(tokens, i) != "AS" {
+				return true
+			}
+		case "INSERT":
+			if nextWord(tokens, i) == "INTO" {
+				return false
+			}
+		case "UPDATE":
+			next := nextWord(tokens, i)
+			if next != "" && next != "SELECT" && next != "SET" && next != "AS" {
+				return false
+			}
+		case "DELETE":
+			if nextWord(tokens, i) == "FROM" {
 				return false
 			}
 		}
-		return true
 	}
 	return false
+}
+
+type keywordToken struct {
+	text string
+	word bool
+}
+
+func keywordTokens(s string) []keywordToken {
+	runes := []rune(s)
+	var tokens []keywordToken
+	for i := 0; i < len(runes); {
+		c := runes[i]
+		switch {
+		case isWordRune(c):
+			start := i
+			for i < len(runes) && isWordRune(runes[i]) {
+				i++
+			}
+			tokens = append(tokens, keywordToken{text: strings.ToUpper(string(runes[start:i])), word: true})
+		case unicode.IsSpace(c):
+			i++
+		default:
+			tokens = append(tokens, keywordToken{text: string(c)})
+			i++
+		}
+	}
+	return tokens
+}
+
+func isWordRune(c rune) bool {
+	return unicode.IsLetter(c) || unicode.IsDigit(c) || c == '_'
+}
+
+func previousWord(tokens []keywordToken, i int) string {
+	for j := i - 1; j >= 0; j-- {
+		if tokens[j].word {
+			return tokens[j].text
+		}
+	}
+	return ""
+}
+
+func nextWord(tokens []keywordToken, i int) string {
+	for j := i + 1; j < len(tokens); j++ {
+		if tokens[j].word {
+			return tokens[j].text
+		}
+	}
+	return ""
 }
 
 // removeQuotedTextAndComment is Bytebase's
@@ -447,6 +536,13 @@ func removeQuotedTextAndComment(statement string) (string, error) {
 			}
 			buf.WriteByte(' ')
 			start = i
+		case i < len(runes) && runes[i] == '$' && isHeredocStart(runes, i):
+			buf.WriteString(string(runes[start:i]))
+			if err := scanHeredoc(runes, &i); err != nil {
+				return "", err
+			}
+			buf.WriteByte(' ')
+			start = i
 		case i >= len(runes):
 			buf.WriteString(string(runes[start:]))
 			return buf.String(), nil
@@ -454,6 +550,45 @@ func removeQuotedTextAndComment(statement string) (string, error) {
 			i++
 		}
 	}
+}
+
+// isHeredocStart reports whether i opens a $tag$ literal.
+func isHeredocStart(runes []rune, i int) bool {
+	_, ok := heredocTag(runes, i)
+	return ok
+}
+
+// heredocTag returns the opening $tag$ delimiter at i, if there is one.
+func heredocTag(runes []rune, i int) (string, bool) {
+	if i >= len(runes) || runes[i] != '$' {
+		return "", false
+	}
+	j := i + 1
+	for j < len(runes) && isWordRune(runes[j]) {
+		j++
+	}
+	if j >= len(runes) || runes[j] != '$' {
+		return "", false
+	}
+	return string(runes[i : j+1]), true
+}
+
+// scanHeredoc consumes a $tag$ literal, whose contents are opaque.
+func scanHeredoc(runes []rune, i *int) error {
+	tag, ok := heredocTag(runes, *i)
+	if !ok {
+		return nil
+	}
+	tagRunes := []rune(tag)
+	*i += len(tagRunes)
+	for *i < len(runes) {
+		if *i+len(tagRunes) <= len(runes) && string(runes[*i:*i+len(tagRunes)]) == tag {
+			*i += len(tagRunes)
+			return nil
+		}
+		*i++
+	}
+	return fmt.Errorf("invalid heredoc: not found delimiter: %s, but found EOF", tag)
 }
 
 func scanComment(runes []rune, i *int) error {

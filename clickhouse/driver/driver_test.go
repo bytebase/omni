@@ -235,6 +235,7 @@ func TestStatementWithResultLimit(t *testing.T) {
 		{"SELECT '你好' -- note", "WITH result AS (SELECT '你好') SELECT * FROM result LIMIT 5;"},
 		{"SELECT 1 # note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
 		{"SELECT 1; # note", "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"},
+		{"SELECT $doc$--$doc$ -- note", "WITH result AS (SELECT $doc$--$doc$) SELECT * FROM result LIMIT 5;"},
 	} {
 		if got := statementWithResultLimit(tc.statement, 5); got != tc.want {
 			t.Errorf("limit(%q) = %q, want %q", tc.statement, got, tc.want)
@@ -348,6 +349,15 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"SELECT 'x'", true},
 		{"# note\nSELECT 1", true},
 		{"SELECT 1 # note", true},
+		{"SELECT $doc$it's text$doc$", true},
+		{"WITH 1 AS update SELECT update", true},
+		{"WITH 1 AS insert SELECT insert", true},
+		{"WITH 1 AS delete SELECT delete", true},
+		{"WITH 1 AS select SELECT select", true},
+		{"WITH x AS (SELECT 1) INSERT INTO t SELECT * FROM x", false},
+		{"WITH x AS (SELECT 1) UPDATE t SET a = 1", false},
+		{"WITH x AS (SELECT 1) DELETE FROM t", false},
+		{"WITH x AS (SELECT 1) SELECT * FROM x", true},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {
