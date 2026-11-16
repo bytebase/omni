@@ -220,7 +220,9 @@ func trailingCommentStart(statement string) int {
 				str = false
 			}
 		case ident != 0:
-			if c == ident {
+			if c == '\\' {
+				i++
+			} else if c == ident {
 				ident = 0
 			}
 		default:
@@ -652,6 +654,8 @@ func scanIdentifier(runes []rune, i *int, delimiter rune) error {
 		switch {
 		case *i >= len(runes):
 			return fmt.Errorf("invalid indentifier: not found delimiter: %c, but found EOF", delimiter)
+		case runes[*i] == '\\':
+			*i += 2
 		case runes[*i] == delimiter:
 			*i++
 			return nil

@@ -343,6 +343,7 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"CHECK TABLE q", true},
 		{"SHOW TABLES; DROP TABLE q", false},
 		{"SELECT `a--b` FROM t", true},
+		{"SELECT \"a\\\"b\" FROM q", true},
 		{"SELECT `a;b` FROM t", true},
 		{"SELECT(1)", true},
 		{"SELECT*FROM q", true},
