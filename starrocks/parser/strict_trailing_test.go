@@ -348,18 +348,26 @@ func TestStrictParseSetRoleForms(t *testing.T) {
 	}
 }
 
-// TestStrictParseManyLexErrorsStayLinear: strict mode lexes the whole input
-// again and promotes each lex error the per-segment parses missed. Checking
-// each one against every error reported so far made 80,000 stray bytes take
-// seconds; this input takes minutes that way and milliseconds now.
-func TestStrictParseManyLexErrorsStayLinear(t *testing.T) {
+// TestStrictParseManyDroppedCharsStayLinear: the lexer drops every character
+// StarRocksLex.g4 has no rule for, so 200,000 of them are no error and no
+// token. The strict parse lexes the whole input again after the per-segment
+// parses, so a drop that rescanned the rest of the input would take minutes
+// here; it takes milliseconds.
+func TestStrictParseManyDroppedCharsStayLinear(t *testing.T) {
 	const n = 200000
 	sql := "SELECT 1 " + strings.Repeat("\x01", n)
-	var got int
-	cputime.Within(t, 2*time.Second, fmt.Sprintf("strict parse of %d stray bytes", n), func() {
-		got = func() int { _, err := Parse(sql); return len(AllErrors(err)) }()
+	cputime.Within(t, 2*time.Second, fmt.Sprintf("strict parse of %d dropped bytes", n), func() {
+		if _, err := Parse(sql); err != nil {
+			t.Fatalf("Parse of dropped bytes: %v", err)
+		}
 	})
-	if got < n {
-		t.Fatalf("strict parse reported %d errors, want one per stray byte (%d)", got, n)
+	// The numbers around them survive: one column, value 1.
+	stmt, errs := parseForTest("SELECT\x011\x01")
+	if len(errs) != 0 {
+		t.Fatalf("parseForTest(SELECT\x011): %v", errs)
+	}
+	sel := stmt.Stmts[0].(*ast.SelectStmt)
+	if len(sel.Items) != 1 {
+		t.Fatalf("items = %d, want 1", len(sel.Items))
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/starrocks/ast"
 	"github.com/bytebase/omni/starrocks/parser"
@@ -83,15 +84,11 @@ func rewriteResultLimitInline(statement string, limitCount int) (string, error) 
 func hasUnparsedTail(sql string, locEnd int) bool {
 	pos := locEnd
 	for pos < len(sql) {
-		for pos < len(sql) && isStarRocksBlank(sql[pos]) {
-			pos++
-		}
+		pos = skipStarRocksBlanks(sql, pos)
 		for pos < len(sql) && sql[pos] == ';' {
 			pos++
 		}
-		for pos < len(sql) && isStarRocksBlank(sql[pos]) {
-			pos++
-		}
+		pos = skipStarRocksBlanks(sql, pos)
 		if pos >= len(sql) {
 			return false
 		}
@@ -230,9 +227,7 @@ func findCommaLimitCount(sql string, limitLoc ast.Loc) (countStart, countEnd int
 
 func skipWhitespaceAndComments(sql string, pos int) int {
 	for pos < len(sql) {
-		for pos < len(sql) && isStarRocksBlank(sql[pos]) {
-			pos++
-		}
+		pos = skipStarRocksBlanks(sql, pos)
 		if strings.HasPrefix(sql[pos:], "--") {
 			nl := strings.IndexByte(sql[pos:], '\n')
 			if nl < 0 {
@@ -254,10 +249,22 @@ func skipWhitespaceAndComments(sql string, pos int) int {
 	return pos
 }
 
-// isStarRocksBlank reports whether c separates tokens without ending the line:
-// whitespace, and '#', which the lexer skips because StarRocksLex.g4 has no
-// token for it. It is not a comment — `SELECT 1 # x` is `SELECT 1 x` — so the
-// scan past a statement must not stop at one.
-func isStarRocksBlank(c byte) bool {
-	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '#'
+// skipStarRocksBlanks advances past the blanks at pos.
+func skipStarRocksBlanks(sql string, pos int) int {
+	for pos < len(sql) {
+		r, size := utf8.DecodeRuneInString(sql[pos:])
+		if !isStarRocksBlank(r) {
+			return pos
+		}
+		pos += size
+	}
+	return pos
+}
+
+// isStarRocksBlank reports whether r separates tokens without ending the line:
+// whitespace, and every character the lexer drops because StarRocksLex.g4 has
+// no rule for it (parser.IsUnmatched). None of them is a comment — `SELECT 1 #
+// x` is `SELECT 1 x` — so the scan past a statement must not stop at one.
+func isStarRocksBlank(r rune) bool {
+	return r == ' ' || r == '\t' || r == '\n' || r == '\r' || parser.IsUnmatched(r)
 }

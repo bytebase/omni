@@ -65,9 +65,9 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 			count: 10,
 			want:  "SELECT firstName, lastName FROM employees UNION SELECT contactFirstName, contactLastName FROM customers LIMIT 10;",
 		}, {
-			stmt:  "WITH RECURSIVE cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count;",
+			stmt:  "WITH cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count;",
 			count: 10,
-			want:  "WITH RECURSIVE cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count LIMIT 10;",
+			want:  "WITH cte_count (n) AS ( SELECT 1 UNION ALL SELECT n + 1 FROM cte_count WHERE n < 3 ) SELECT n FROM cte_count LIMIT 10;",
 		},
 		{
 			stmt:  "SELECT firstName FROM employees EXCEPT SELECT contactFirstName FROM customers;",
@@ -176,10 +176,16 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 		},
 		{
 			// A '#' after the terminator is a blank, so the statement has no
-			// tail and the LIMIT goes inline.
+			// tail and the LIMIT goes inline. So is '\', the other character
+			// no rule of StarRocksLex.g4 matches.
 			stmt:  "SELECT 1; #",
 			count: 10,
 			want:  "SELECT 1 LIMIT 10; #",
+		},
+		{
+			stmt:  "SELECT 1; \\",
+			count: 10,
+			want:  "SELECT 1 LIMIT 10; \\",
 		},
 		{
 			stmt:  "SELECT * FROM t;\n",

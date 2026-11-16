@@ -61,9 +61,8 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	// rejects it at `a` (container-verified). The list used to be parsed
 	// speculatively, falling back to a table named FILES with a column list
 	// when it failed, so a malformed list such as FILES("path"="p",) was
-	// reported at the '(' instead of at the token that broke it. This lexer
-	// does not reserve FILES, so the bare word still names a table elsewhere.
-	if isIdentText(p, "files") && p.peekNext().Kind == int('(') {
+	// reported at the '(' instead of at the token that broke it.
+	if p.cur.Kind == kwFILES && p.peekNext().Kind == int('(') {
 		p.advance() // consume FILES
 		props, err := p.parsePropertyList()
 		if err != nil {

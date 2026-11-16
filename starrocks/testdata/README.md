@@ -15,6 +15,10 @@ The design is `docs/specs/2026-11-11-engine-compatibility-without-servers-design
   `sqlStatements` is the start rule; `expressionSingleton`, another entry
   point, and `hintMap`, which the parser reads apart from a hint comment, get
   no row. A pin bump replaces them with the new tag's.
+  `starrocks/parser`'s keyword table is theirs too: which words are keywords
+  and which of them `nonReserved` allows as identifiers, rather than the
+  Doris fork's, and a test in that package reads both files again and fails a
+  table that stops matching them.
 - **`tokens.tsv`** gives the text each token class of `StarRocksLex.g4` is
   written as, citing its lexer rule, and the statement written for
   `translateSQL`'s wildcard.

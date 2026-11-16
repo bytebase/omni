@@ -535,7 +535,7 @@ func TestCreateTable_EmptyColumnComment(t *testing.T) {
 
 func TestCreateTable_InlineIndex(t *testing.T) {
 	stmt := parseCreateTableStmt(t,
-		`CREATE TABLE t (k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5", v1 CHAR(10) REPLACE, v2 INT SUM, INDEX k1_idx (k1) USING INVERTED COMMENT 'my first index') AGGREGATE KEY(k1, k2)`)
+		`CREATE TABLE t (k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5", v1 CHAR(10) REPLACE, v2 INT SUM, INDEX k1_idx (k1) USING BITMAP COMMENT 'my first index') AGGREGATE KEY(k1, k2)`)
 	if len(stmt.Indexes) != 1 {
 		t.Fatalf("expected 1 index, got %d", len(stmt.Indexes))
 	}
@@ -546,8 +546,8 @@ func TestCreateTable_InlineIndex(t *testing.T) {
 	if len(idx.Columns) != 1 || idx.Columns[0] != "k1" {
 		t.Errorf("Index.Columns = %v, want [k1]", idx.Columns)
 	}
-	if idx.IndexType != "inverted" {
-		t.Errorf("Index.IndexType = %q, want %q", idx.IndexType, "inverted")
+	if idx.IndexType != "bitmap" {
+		t.Errorf("Index.IndexType = %q, want %q", idx.IndexType, "bitmap")
 	}
 	if idx.Comment != "my first index" {
 		t.Errorf("Index.Comment = %q, want %q", idx.Comment, "my first index")
@@ -730,7 +730,7 @@ func TestCreateTable_Legacy_ColocateGroup(t *testing.T) {
 }
 
 func TestCreateTable_Legacy_InlineIndexWithAggTypes(t *testing.T) {
-	sql := `CREATE TABLE example_db.table_hash(k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5", v1 CHAR(10) REPLACE, v2 INT SUM, INDEX k1_idx (k1) USING INVERTED COMMENT 'my first index') AGGREGATE KEY(k1, k2) DISTRIBUTED BY HASH(k1) BUCKETS 32 PROPERTIES ("bloom_filter_columns" = "k2")`
+	sql := `CREATE TABLE example_db.table_hash(k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5", v1 CHAR(10) REPLACE, v2 INT SUM, INDEX k1_idx (k1) USING BITMAP COMMENT 'my first index') AGGREGATE KEY(k1, k2) DISTRIBUTED BY HASH(k1) BUCKETS 32 PROPERTIES ("bloom_filter_columns" = "k2")`
 	stmt := parseCreateTableStmt(t, sql)
 	if len(stmt.Columns) != 4 {
 		t.Fatalf("expected 4 columns, got %d", len(stmt.Columns))
@@ -946,7 +946,7 @@ func TestCreateTable_LegacyCorpus(t *testing.T) {
 		`CREATE TABLE IF NOT EXISTS create_table_use_created_policy (k1 BIGINT, k2 LARGEINT, v1 VARCHAR(2048)) UNIQUE KEY(k1) DISTRIBUTED BY HASH(k1) BUCKETS 3 PROPERTIES("storage_policy" = "test_create_table_use_policy", "replication_num" = "1")`,
 		`CREATE TABLE t1 (id INT COMMENT "", value VARCHAR(8) COMMENT "") DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 10 PROPERTIES ("colocate_with" = "group1")`,
 		`CREATE TABLE t2 (id INT COMMENT "", value1 VARCHAR(8) COMMENT "", value2 VARCHAR(8) COMMENT "") DUPLICATE KEY(id) DISTRIBUTED BY HASH(id) BUCKETS 10 PROPERTIES ("colocate_with" = "group1")`,
-		`CREATE TABLE example_db.table_hash(k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5", v1 CHAR(10) REPLACE, v2 INT SUM, INDEX k1_idx (k1) USING INVERTED COMMENT 'my first index') AGGREGATE KEY(k1, k2) DISTRIBUTED BY HASH(k1) BUCKETS 32 PROPERTIES ("bloom_filter_columns" = "k2")`,
+		`CREATE TABLE example_db.table_hash(k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5", v1 CHAR(10) REPLACE, v2 INT SUM, INDEX k1_idx (k1) USING BITMAP COMMENT 'my first index') AGGREGATE KEY(k1, k2) DISTRIBUTED BY HASH(k1) BUCKETS 32 PROPERTIES ("bloom_filter_columns" = "k2")`,
 		`CREATE TABLE example_db.table_hash(k1 TINYINT, k2 DECIMAL(10, 2) DEFAULT "10.5") DISTRIBUTED BY HASH(k1) BUCKETS 32 PROPERTIES ("replication_allocation" = "tag.location.group_a:1, tag.location.group_b:2")`,
 		`CREATE TABLE example_db.dynamic_partition(k1 DATE, k2 INT, k3 SMALLINT, v1 VARCHAR(2048), v2 DATETIME DEFAULT "2014-02-04 15:36:00") DUPLICATE KEY(k1, k2, k3) PARTITION BY RANGE(k1) () DISTRIBUTED BY HASH(k2) BUCKETS 32 PROPERTIES("dynamic_partition.time_unit" = "DAY", "dynamic_partition.start" = "-3", "dynamic_partition.end" = "3", "dynamic_partition.prefix" = "p", "dynamic_partition.buckets" = "32")`,
 		"CREATE TABLE t10 PROPERTIES ('replication_num' = '1') AS SELECT * FROM t1",

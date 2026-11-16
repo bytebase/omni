@@ -409,9 +409,10 @@ func (p *Parser) parseLockItem() (*ast.LockItem, error) {
 	item := &ast.LockItem{Table: tbl}
 
 	// Optional [AS] alias. A lock-mode keyword is the alias only when a lock
-	// mode still follows it.
+	// mode still follows it, and LOW_PRIORITY starts the two-word mode, so it
+	// never is one: LOCK TABLES t LOW_PRIORITY WRITE locks t.
 	lockStart := func(kind int) bool {
-		return kind == kwREAD || kind == kwWRITE || kind == kwLOW_PRIORITY
+		return kind == kwREAD || kind == kwWRITE
 	}
 	if p.cur.Kind == kwAS {
 		p.advance()
@@ -420,7 +421,8 @@ func (p *Parser) parseLockItem() (*ast.LockItem, error) {
 			return nil, err
 		}
 		item.Alias = alias
-	} else if isIdentifierToken(p.cur.Kind) && (!lockStart(p.cur.Kind) || lockStart(p.peekNext().Kind)) {
+	} else if isIdentifierToken(p.cur.Kind) && p.cur.Kind != kwLOW_PRIORITY &&
+		(!lockStart(p.cur.Kind) || lockStart(p.peekNext().Kind)) {
 		alias, _, err := p.parseIdentifier()
 		if err != nil {
 			return nil, err
@@ -741,11 +743,7 @@ func (p *Parser) parseCancelGeneric(cancelLoc ast.Loc) (ast.Node, error) {
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
-	case tokIdent:
-		// COMPACTION is a plain identifier to this lexer.
-		if !strings.EqualFold(p.cur.Str, "compaction") {
-			return nil, p.syntaxErrorAtCur()
-		}
+	case kwCOMPACTION:
 		p.advance() // consume COMPACTION
 		stmt.Verb = "COMPACTION"
 		targetStart = p.cur.Loc.Start

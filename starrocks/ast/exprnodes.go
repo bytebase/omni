@@ -13,7 +13,6 @@ const (
 	// Logical operators.
 	BinOr  BinaryOp = iota // OR, ||
 	BinAnd                 // AND, &&
-	BinXor                 // XOR
 
 	// Comparison operators.
 	BinEq         // =
@@ -53,8 +52,6 @@ func (op BinaryOp) String() string {
 		return "OR"
 	case BinAnd:
 		return "AND"
-	case BinXor:
-		return "XOR"
 	case BinEq:
 		return "="
 	case BinNe:
@@ -337,11 +334,10 @@ type WindowFrame struct {
 	Loc       Loc
 }
 
-// CastExpr represents CAST(expr AS type) or TRY_CAST(expr AS type).
+// CastExpr represents CAST(expr AS type).
 type CastExpr struct {
 	Expr     Node
 	TypeName *TypeName
-	TryCast  bool // true for TRY_CAST
 	Loc      Loc
 }
 

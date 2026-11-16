@@ -16,7 +16,9 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	case kwTINYINT, kwSMALLINT, kwINT, kwINTEGER, kwBIGINT, kwLARGEINT:
 		return true
 	// Float/decimal types
-	case kwFLOAT, kwDOUBLE, kwDECIMAL, kwDECIMALV2, kwDECIMALV3:
+	case kwFLOAT, kwDOUBLE, kwDECIMAL, kwDECIMALV2, kwDECIMALV3,
+		// decimalType's other names (StarRocks.g4:2845).
+		kwDECIMAL32, kwDECIMAL64, kwDECIMAL128, kwNUMERIC, kwNUMBER:
 		return true
 	// Boolean
 	case kwBOOLEAN:
@@ -38,20 +40,6 @@ func isPrimitiveTypeKeyword(kind TokenKind) bool {
 	default:
 		return false
 	}
-}
-
-// isDecimalAliasWord reports whether tok is one of decimalType's names
-// (StarRocks.g4:2845) that omni lexes as an identifier: DECIMAL32,
-// DECIMAL64, DECIMAL128, NUMERIC and NUMBER.
-func isDecimalAliasWord(tok Token) bool {
-	if tok.Kind != tokIdent {
-		return false
-	}
-	switch strings.ToUpper(tok.Str) {
-	case "DECIMAL32", "DECIMAL64", "DECIMAL128", "NUMERIC", "NUMBER":
-		return true
-	}
-	return false
 }
 
 // typeKeywordName returns the canonical uppercase name for a type keyword.
@@ -81,6 +69,16 @@ func typeKeywordName(tok Token) string {
 		return "DECIMALV2"
 	case kwDECIMALV3:
 		return "DECIMALV3"
+	case kwDECIMAL32:
+		return "DECIMAL32"
+	case kwDECIMAL64:
+		return "DECIMAL64"
+	case kwDECIMAL128:
+		return "DECIMAL128"
+	case kwNUMERIC:
+		return "NUMERIC"
+	case kwNUMBER:
+		return "NUMBER"
 	case kwBOOLEAN:
 		return "BOOLEAN"
 	case kwSTRING:
@@ -194,7 +192,7 @@ func (p *Parser) parseDataTypeUnrecorded() (*ast.TypeName, error) {
 	case kwSTRUCT:
 		return p.parseStructType()
 	default:
-		if isPrimitiveTypeKeyword(tok.Kind) || tok.Kind == kwBINARY || isDecimalAliasWord(tok) {
+		if isPrimitiveTypeKeyword(tok.Kind) || tok.Kind == kwBINARY {
 			return p.parsePrimitiveType()
 		}
 		return nil, &ParseError{
