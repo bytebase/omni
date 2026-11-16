@@ -44,7 +44,10 @@ func (p *MigrationPlan) IsEmpty() bool { return p.SQL() == "" }
 // GenerateMigration produces the script that transforms from into to, using the
 // precomputed diff. It is Bytebase's schema/mssql generator ported verbatim.
 func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
-	_ = to
+	if view := blockingSchemaBoundView(from, to, diff); view != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: column change under schema-bound view %s; drop and recreate the view manually.\n", view)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
 	var buf strings.Builder
 	inbound := inboundForeignKeys(from, diff)
 	for _, ref := range inbound {
@@ -191,7 +194,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
-	dropSequenceDefaults(from, diff, &buf)
+	droppedDefaults := dropSequenceDefaults(from, diff, &buf)
 	for _, sequenceDiff := range diff.Sequences {
 		if sequenceDiff.Action == DiffDrop {
 			fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(sequenceDiff.SchemaName), quote(sequenceDiff.SequenceName))
@@ -260,7 +263,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	for _, tableDiff := range diff.Tables {
 		if tableDiff.Action == DiffAlter {
-			alterTableSQL := generateAlterTable(tableDiff)
+			alterTableSQL := generateAlterTable(tableDiff, droppedDefaults)
 			buf.WriteString(alterTableSQL)
 			if alterTableSQL != "" {
 				buf.WriteString("\n")
@@ -690,7 +693,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 	return buf.String()
 }
 
-func generateAlterTable(tableDiff *TableDiffEntry) string {
+func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bool) string {
 	var buf strings.Builder
 	// A computed column cannot be changed with ALTER COLUMN. Drop the indexes
 	// that use it, drop the column, add the new expression, and rebuild them.
@@ -753,7 +756,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	}
 	for _, colDiff := range tableDiff.Columns {
 		if colDiff.Action == DiffAlter && !columnRequiresRebuild(colDiff) {
-			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, colDiff))
+			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, colDiff, droppedDefaults))
 		}
 	}
 	for _, name := range rebuiltChecks {
@@ -839,35 +842,87 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	return buf.String()
 }
 
-func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder) {
-	if from == nil {
-		return
+func blockingSchemaBoundView(from, to *Catalog, diff *SchemaDiff) string {
+	for _, tableDiff := range diff.Tables {
+		changed := false
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffAlter && colDiff.OldColumn.Type != colDiff.NewColumn.Type {
+				changed = true
+			}
+		}
+		if !changed {
+			continue
+		}
+		for _, catalog := range []*Catalog{from, to} {
+			if catalog == nil {
+				continue
+			}
+			for _, schema := range catalog.Metadata().Schemas {
+				for _, view := range schema.Views {
+					if strings.Contains(strings.ToUpper(view.Definition), "SCHEMABINDING") &&
+						strings.Contains(strings.ToLower(view.Definition), strings.ToLower(tableDiff.TableName)) {
+						return quote(schema.Name) + "." + quote(view.Name)
+					}
+				}
+			}
+		}
 	}
-	dropped := make(map[string]bool)
+	return ""
+}
+
+func dropSequenceDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder) map[string]bool {
+	removed := make(map[string]bool)
+	if from == nil {
+		return removed
+	}
+	droppedSequences := make(map[string]bool)
 	for _, sequenceDiff := range diff.Sequences {
 		if sequenceDiff.Action == DiffDrop {
-			dropped[strings.ToLower(sequenceDiff.SchemaName+"."+sequenceDiff.SequenceName)] = true
+			droppedSequences[strings.ToLower(sequenceDiff.SchemaName+"."+sequenceDiff.SequenceName)] = true
+		}
+	}
+	droppedTables := make(map[string]bool)
+	droppedColumns := make(map[string]bool)
+	for _, tableDiff := range diff.Tables {
+		tableID := tableDiff.SchemaName + "." + tableDiff.TableName
+		if tableDiff.Action == DiffDrop {
+			droppedTables[tableID] = true
+		}
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffDrop && colDiff.OldColumn != nil {
+				droppedColumns[tableID+"."+colDiff.OldColumn.Name] = true
+			}
 		}
 	}
 	for _, schema := range from.Metadata().Schemas {
 		for _, table := range schema.Tables {
+			tableID := schema.Name + "." + table.Name
+			if droppedTables[tableID] {
+				continue
+			}
 			for _, column := range table.Columns {
-				if column.Default == "" || column.DefaultConstraintName == "" {
+				if column.Default == "" || column.DefaultConstraintName == "" || droppedColumns[tableID+"."+column.Name] {
 					continue
 				}
-				for name := range dropped {
+				if !strings.Contains(strings.ToLower(column.Default), "next value for") {
+					continue
+				}
+				for name := range droppedSequences {
 					parts := strings.SplitN(name, ".", 2)
 					if len(parts) != 2 {
 						continue
 					}
-					if strings.Contains(strings.ToLower(column.Default), strings.ToLower(parts[1])) {
+					if strings.Contains(strings.ToLower(column.Default), strings.ToLower(parts[0]+"."+parts[1])) ||
+						strings.Contains(strings.ToLower(column.Default), strings.ToLower(parts[1])) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
+						removed[schema.Name+"."+column.DefaultConstraintName] = true
 						break
 					}
 				}
 			}
 		}
 	}
+	return removed
 }
 
 func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
@@ -1045,6 +1100,9 @@ func computedColumnChanged(diff *ColumnDiffEntry) bool {
 	if diff.OldColumn == nil || diff.NewColumn == nil {
 		return false
 	}
+	if diff.OldColumn.Type == diff.NewColumn.Type {
+		return false
+	}
 	return isComputedColumnType(diff.OldColumn.Type) || isComputedColumnType(diff.NewColumn.Type)
 }
 
@@ -1115,7 +1173,7 @@ func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 	return buf.String()
 }
 
-func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry) string {
+func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry, droppedDefaults map[string]bool) string {
 	var buf strings.Builder
 	if colDiff.OldColumn.Type != colDiff.NewColumn.Type {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ALTER COLUMN %s %s", quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name), colDiff.NewColumn.Type)
@@ -1149,7 +1207,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 	oldDefault := getColumnDefaultValue(colDiff.OldColumn)
 	newDefault := getColumnDefaultValue(colDiff.NewColumn)
 	if oldDefault != newDefault {
-		if oldDefault != "" && colDiff.OldColumn.DefaultConstraintName != "" {
+		if oldDefault != "" && colDiff.OldColumn.DefaultConstraintName != "" && !droppedDefaults[schemaName+"."+colDiff.OldColumn.DefaultConstraintName] {
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schemaName), quote(tableName), quote(colDiff.OldColumn.DefaultConstraintName))
 		}
 		if newDefault != "" {
