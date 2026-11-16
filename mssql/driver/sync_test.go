@@ -141,3 +141,31 @@ func TestSyncInstance(t *testing.T) {
 		t.Errorf("SyncInstance differs from %s (-want +got):\n%s", golden, diff)
 	}
 }
+
+// TestSyncSchemaWithApostrophe pins that a schema name carrying an apostrophe
+// reaches the catalog queries as one literal.
+func TestSyncSchemaWithApostrophe(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE SCHEMA [owner's];
+GO
+CREATE TABLE [owner's].items (id INT NOT NULL PRIMARY KEY, note NVARCHAR(20));
+`)
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatalf("a schema named with an apostrophe failed the sync: %v", err)
+	}
+	var found bool
+	for _, schema := range metadata.Schemas {
+		if schema.Name != "owner's" {
+			continue
+		}
+		found = true
+		if len(schema.Tables) != 1 || schema.Tables[0].Name != "items" || len(schema.Tables[0].Columns) != 2 {
+			t.Errorf("schema %q synced %+v", schema.Name, schema.Tables)
+		}
+	}
+	if !found {
+		t.Fatalf("the schema is missing from %+v", metadata.Schemas)
+	}
+}

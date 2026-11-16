@@ -75,12 +75,19 @@ func (d *Driver) executeInTransactionMode(ctx context.Context, script string, lo
 }
 
 // executeInAutoCommitMode runs each batch on its own, stopping at the first
-// failure.
+// failure. The script keeps one connection, so what a batch sets up for the next
+// (USE, a temporary table) is still there.
 func (d *Driver) executeInAutoCommitMode(ctx context.Context, script string, log driver.ExecuteLogger) (int64, error) {
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
 	var totalAffected int64
 	if err := forEachBatch(script, func(command driver.Command) error {
 		logCommandExecute(log, command)
-		affected, err := executeStatement(ctx, d.db.ExecContext, command.Text)
+		affected, err := executeStatement(ctx, conn.ExecContext, command.Text)
 		if err != nil {
 			logCommandResponse(log, 0, nil, err)
 			return err

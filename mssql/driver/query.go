@@ -199,7 +199,10 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 	if err != nil {
 		return nil, err
 	}
-	text := withResultLimit(statement.Text, opts.Limit)
+	text := statement.Text
+	if t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0 {
+		text = withResultLimit(text, opts.Limit)
+	}
 	start := time.Now()
 	var results []*driver.Result
 	if t&stmtTypeResultSetGenerating != 0 || t&stmtTypeProcedure != 0 {
@@ -233,7 +236,10 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 			return nil, true, err
 		}
 		types = append(types, t)
-		text := withResultLimit(statement.Text, opts.Limit)
+		text := statement.Text
+		if t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0 {
+			text = withResultLimit(text, opts.Limit)
+		}
 		texts = append(texts, text)
 		batchText.WriteString(text)
 		batchText.WriteString("\n")
@@ -475,9 +481,19 @@ func classifyStmtType(node ast.Node) (stmtType, error) {
 	case *ast.MergeStmt:
 		return dmlStmtType(n.OutputClause), nil
 
+	case *ast.ReceiveStmt:
+		if n.IntoVar == "" {
+			// RECEIVE without INTO returns the messages it consumed.
+			return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating, nil
+		}
+		return stmtTypeRowCountGenerating, nil
+
+	case *ast.ReadtextStmt:
+		// READTEXT returns the text it read.
+		return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating, nil
+
 	case *ast.BulkInsertStmt, *ast.InsertBulkStmt, *ast.CopyIntoStmt,
-		*ast.ReadtextStmt, *ast.WritetextStmt, *ast.UpdatetextStmt,
-		*ast.ReceiveStmt:
+		*ast.WritetextStmt, *ast.UpdatetextStmt:
 		return stmtTypeRowCountGenerating, nil
 
 	case *ast.ExecStmt:

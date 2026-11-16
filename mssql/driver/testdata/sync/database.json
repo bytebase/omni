@@ -1,285 +1,301 @@
 {
-  "name": "omni_TestSyncDatabase",
-  "schemas": [
+  "name":  "omni_TestSyncDatabase",
+  "schemas":  [
     {
-      "name": "app",
-      "tables": [
+      "name":  "app",
+      "tables":  [
         {
-          "name": "accounts",
-          "columns": [
+          "name":  "accounts",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "type": "bigint",
-              "isIdentity": true,
-              "identitySeed": "1",
-              "identityIncrement": "2"
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint",
+              "isIdentity":  true,
+              "identitySeed":  "1",
+              "identityIncrement":  "2"
             },
             {
-              "name": "email",
-              "position": 2,
-              "type": "nvarchar(190)",
-              "collation": "SQL_Latin1_General_CP1_CI_AS"
+              "name":  "email",
+              "position":  2,
+              "type":  "nvarchar(190)",
+              "collation":  "SQL_Latin1_General_CP1_CI_AS"
             },
             {
-              "name": "bio",
-              "position": 3,
-              "nullable": true,
-              "type": "nvarchar(max)",
-              "collation": "SQL_Latin1_General_CP1_CI_AS",
-              "comment": "owner's note"
+              "name":  "bio",
+              "position":  3,
+              "nullable":  true,
+              "type":  "nvarchar(max)",
+              "collation":  "SQL_Latin1_General_CP1_CI_AS",
+              "comment":  "owner's note"
             },
             {
-              "name": "status",
-              "position": 4,
-              "default": "('open')",
-              "type": "varchar(10)",
-              "collation": "SQL_Latin1_General_CP1_CI_AS",
-              "defaultConstraintName": "df_accounts_status"
+              "name":  "status",
+              "position":  4,
+              "default":  "('open')",
+              "type":  "varchar(10)",
+              "collation":  "SQL_Latin1_General_CP1_CI_AS",
+              "defaultConstraintName":  "df_accounts_status"
             },
             {
-              "name": "balance",
-              "position": 5,
-              "default": "((0.0000))",
-              "type": "decimal(12, 4)",
-              "defaultConstraintName": "df_accounts_balance"
+              "name":  "balance",
+              "position":  5,
+              "default":  "((0.0000))",
+              "type":  "decimal(12, 4)",
+              "defaultConstraintName":  "df_accounts_balance"
             },
             {
-              "name": "flags",
-              "position": 6,
-              "nullable": true,
-              "type": "varbinary(16)"
+              "name":  "flags",
+              "position":  6,
+              "nullable":  true,
+              "type":  "varbinary(16)"
             },
             {
-              "name": "token",
-              "position": 7,
-              "nullable": true,
-              "type": "uniqueidentifier"
+              "name":  "token",
+              "position":  7,
+              "nullable":  true,
+              "type":  "uniqueidentifier"
             },
             {
-              "name": "created_at",
-              "position": 8,
-              "default": "(sysutcdatetime())",
-              "type": "datetime2(3)",
-              "defaultConstraintName": "df_accounts_created"
+              "name":  "created_at",
+              "position":  8,
+              "default":  "(sysutcdatetime())",
+              "type":  "datetime2(3)",
+              "defaultConstraintName":  "df_accounts_created"
             },
             {
-              "name": "updated_at",
-              "position": 9,
-              "nullable": true,
-              "type": "datetime2(3)"
+              "name":  "offset_at",
+              "position":  9,
+              "nullable":  true,
+              "type":  "datetimeoffset(0)"
             },
             {
-              "name": "email_lower",
-              "position": 10,
-              "nullable": true,
-              "type": "AS (lower([email])) PERSISTED",
-              "collation": "SQL_Latin1_General_CP1_CI_AS"
+              "name":  "updated_at",
+              "position":  10,
+              "nullable":  true,
+              "type":  "datetime2(3)"
+            },
+            {
+              "name":  "email_lower",
+              "position":  11,
+              "nullable":  true,
+              "type":  "AS (lower([email])) PERSISTED",
+              "collation":  "SQL_Latin1_General_CP1_CI_AS"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PK__accounts__standin1",
-              "expressions": [
+              "name":  "PK__accounts__standin1",
+              "expressions":  [
                 "id"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "CLUSTERED",
-              "unique": true,
-              "primary": true,
-              "isConstraint": true
+              "type":  "CLUSTERED",
+              "unique":  true,
+              "primary":  true,
+              "isConstraint":  true
             },
             {
-              "name": "uk_accounts_email",
-              "expressions": [
+              "name":  "uk_accounts_email",
+              "expressions":  [
                 "email"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "NONCLUSTERED",
-              "unique": true,
-              "isConstraint": true
+              "type":  "NONCLUSTERED",
+              "unique":  true,
+              "isConstraint":  true
             },
             {
-              "name": "idx_accounts_status",
-              "expressions": [
-                "email",
+              "name":  "idx_accounts_status",
+              "expressions":  [
                 "status"
               ],
-              "descending": [
-                false,
+              "descending":  [
                 false
               ],
-              "type": "NONCLUSTERED"
+              "type":  "NONCLUSTERED"
             }
           ],
-          "comment": "customer accounts",
-          "checkConstraints": [
+          "comment":  "customer accounts",
+          "checkConstraints":  [
             {
-              "name": "chk_accounts_balance",
-              "expression": "([balance]>=(0))"
+              "name":  "chk_accounts_balance",
+              "expression":  "([balance]>=(0))"
             }
           ]
         },
         {
-          "name": "metrics",
-          "columns": [
+          "name":  "metrics",
+          "columns":  [
             {
-              "name": "ts",
-              "position": 1,
-              "type": "int"
+              "name":  "ts",
+              "position":  1,
+              "type":  "int"
             },
             {
-              "name": "val",
-              "position": 2,
-              "type": "bigint"
+              "name":  "val",
+              "position":  2,
+              "type":  "bigint"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "pk_metrics",
-              "expressions": [
+              "name":  "pk_metrics",
+              "expressions":  [
                 "ts"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "CLUSTERED",
-              "unique": true,
-              "primary": true,
-              "isConstraint": true
+              "type":  "CLUSTERED",
+              "unique":  true,
+              "primary":  true,
+              "isConstraint":  true
             }
           ]
         },
         {
-          "name": "orders",
-          "columns": [
+          "name":  "orders",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "type": "bigint",
-              "isIdentity": true,
-              "identitySeed": "1",
-              "identityIncrement": "1"
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint",
+              "isIdentity":  true,
+              "identitySeed":  "1",
+              "identityIncrement":  "1"
             },
             {
-              "name": "account_id",
-              "position": 2,
-              "type": "bigint"
+              "name":  "account_id",
+              "position":  2,
+              "type":  "bigint"
             },
             {
-              "name": "total",
-              "position": 3,
-              "type": "int"
+              "name":  "total",
+              "position":  3,
+              "type":  "int"
             },
             {
-              "name": "note",
-              "position": 4,
-              "nullable": true,
-              "type": "nvarchar(100)",
-              "collation": "SQL_Latin1_General_CP1_CI_AS"
+              "name":  "note",
+              "position":  4,
+              "nullable":  true,
+              "type":  "nvarchar(100)",
+              "collation":  "SQL_Latin1_General_CP1_CI_AS"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PK__orders__standin2",
-              "expressions": [
+              "name":  "PK__orders__standin2",
+              "expressions":  [
                 "id"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "CLUSTERED",
-              "unique": true,
-              "primary": true,
-              "isConstraint": true
+              "type":  "CLUSTERED",
+              "unique":  true,
+              "primary":  true,
+              "isConstraint":  true
             }
           ],
-          "foreignKeys": [
+          "foreignKeys":  [
             {
-              "name": "fk_orders_account",
-              "columns": [
+              "name":  "fk_orders_account",
+              "columns":  [
                 "account_id"
               ],
-              "referencedSchema": "app",
-              "referencedTable": "accounts",
-              "referencedColumns": [
+              "referencedSchema":  "app",
+              "referencedTable":  "accounts",
+              "referencedColumns":  [
                 "id"
               ],
-              "onDelete": "CASCADE",
-              "onUpdate": "NO ACTION"
+              "onDelete":  "CASCADE",
+              "onUpdate":  "NO ACTION"
             }
           ],
-          "triggers": [
+          "triggers":  [
             {
-              "name": "trg_orders_bi",
-              "event": "INSERT",
-              "timing": "AFTER",
-              "body": "CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS\nBEGIN\n\tUPDATE app.orders SET total = 0 WHERE total < 0 AND id IN (SELECT id FROM inserted);\nEND;"
+              "name":  "trg_orders_bi",
+              "event":  "INSERT",
+              "timing":  "AFTER",
+              "body":  "CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS\nBEGIN\n\tUPDATE app.orders SET total = 0 WHERE total < 0 AND id IN (SELECT id FROM inserted);\nEND;"
             }
           ]
         }
       ],
-      "views": [
+      "views":  [
         {
-          "name": "v_open_accounts",
-          "definition": "CREATE VIEW app.v_open_accounts AS\n\tSELECT id AS acct_id, email AS acct_email FROM app.accounts WHERE status = 'open';",
-          "columns": [
+          "name":  "v_open_accounts",
+          "definition":  "CREATE VIEW app.v_open_accounts AS\n\tSELECT id AS acct_id, email AS acct_email FROM app.accounts WHERE status = 'open';",
+          "columns":  [
             {
-              "name": "acct_id",
-              "position": 1,
-              "type": "bigint"
+              "name":  "acct_id",
+              "position":  1,
+              "type":  "bigint"
             },
             {
-              "name": "acct_email",
-              "position": 2,
-              "type": "nvarchar(190)",
-              "collation": "SQL_Latin1_General_CP1_CI_AS"
+              "name":  "acct_email",
+              "position":  2,
+              "type":  "nvarchar(190)",
+              "collation":  "SQL_Latin1_General_CP1_CI_AS"
+            }
+          ],
+          "triggers":  [
+            {
+              "name":  "trg_open_accounts_io",
+              "event":  "INSERT",
+              "timing":  "INSTEAD OF",
+              "body":  "CREATE TRIGGER app.trg_open_accounts_io ON app.v_open_accounts INSTEAD OF INSERT AS\nBEGIN\n\tSET NOCOUNT ON;\nEND;"
             }
           ]
         }
       ],
-      "functions": [
+      "functions":  [
         {
-          "name": "fn_format_tag",
-          "definition": "CREATE FUNCTION app.fn_format_tag (@prefix NVARCHAR(16), @id BIGINT) RETURNS NVARCHAR(64) AS\nBEGIN\n\tRETURN @prefix + N'-' + CAST(@id AS NVARCHAR(20));\nEND;"
+          "name":  "fn_format_tag",
+          "definition":  "CREATE FUNCTION app.fn_format_tag (@prefix NVARCHAR(16), @id BIGINT) RETURNS NVARCHAR(64) AS\nBEGIN\n\tRETURN @prefix + N'-' + CAST(@id AS NVARCHAR(20));\nEND;"
         },
         {
-          "name": "fn_orders_of",
-          "definition": "CREATE FUNCTION app.fn_orders_of (@account BIGINT) RETURNS TABLE AS\n\tRETURN (SELECT id, total FROM app.orders WHERE account_id = @account);"
+          "name":  "fn_orders_of",
+          "definition":  "CREATE FUNCTION app.fn_orders_of (@account BIGINT) RETURNS TABLE AS\n\tRETURN (SELECT id, total FROM app.orders WHERE account_id = @account);"
         }
       ],
-      "procedures": [
+      "procedures":  [
         {
-          "name": "sp_account_orders",
-          "definition": "CREATE PROCEDURE app.sp_account_orders @account BIGINT AS\nBEGIN\n\tSELECT id, total FROM app.orders WHERE account_id = @account;\n\tSELECT COUNT(*) AS n FROM app.orders WHERE account_id = @account;\nEND;"
+          "name":  "sp_account_orders",
+          "definition":  "CREATE PROCEDURE app.sp_account_orders @account BIGINT AS\nBEGIN\n\tSELECT id, total FROM app.orders WHERE account_id = @account;\n\tSELECT COUNT(*) AS n FROM app.orders WHERE account_id = @account;\nEND;"
         },
         {
-          "name": "sp_order_total",
-          "definition": "CREATE PROCEDURE app.sp_order_total @id BIGINT, @total INT OUTPUT AS\nBEGIN\n\tSELECT @total = total FROM app.orders WHERE id = @id;\nEND;"
+          "name":  "sp_order_total",
+          "definition":  "CREATE PROCEDURE app.sp_order_total @id BIGINT, @total INT OUTPUT AS\nBEGIN\n\tSELECT @total = total FROM app.orders WHERE id = @id;\nEND;"
         }
       ],
-      "sequences": [
+      "sequences":  [
         {
-          "name": "seq_orders",
-          "dataType": "bigint",
-          "comment": "order sequence"
+          "name":  "seq_alias",
+          "dataType":  "big_id"
+        },
+        {
+          "name":  "seq_orders",
+          "dataType":  "bigint",
+          "comment":  "order sequence"
         }
       ],
-      "synonyms": [
+      "synonyms":  [
         {
-          "name": "syn_accounts",
-          "targetSchema": "app",
-          "targetName": "accounts"
+          "name":  "syn_accounts",
+          "targetSchema":  "app",
+          "targetName":  "accounts"
         }
       ]
     },
     {
-      "name": "dbo"
+      "name":  "dbo"
     }
   ],
-  "defaultSchema": "dbo"
+  "defaultSchema":  "dbo"
 }

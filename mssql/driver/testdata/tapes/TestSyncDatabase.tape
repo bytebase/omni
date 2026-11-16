@@ -14,6 +14,7 @@
 | 	flags VARBINARY(16) NULL,
 | 	token UNIQUEIDENTIFIER NULL,
 | 	created_at DATETIME2(3) NOT NULL CONSTRAINT df_accounts_created DEFAULT SYSUTCDATETIME(),
+| 	offset_at DATETIMEOFFSET(0) NULL,
 | 	updated_at DATETIME2(3) NULL,
 | 	email_lower AS LOWER(email) PERSISTED,
 | 	PRIMARY KEY (id),
@@ -77,6 +78,18 @@
 | 	SELECT id, total FROM app.orders WHERE account_id = @account;
 | 	SELECT COUNT(*) AS n FROM app.orders WHERE account_id = @account;
 | END;
+< ok 0 -
+> exec
+| CREATE TRIGGER app.trg_open_accounts_io ON app.v_open_accounts INSTEAD OF INSERT AS
+| BEGIN
+| 	SET NOCOUNT ON;
+| END;
+< ok 0 -
+> exec
+| CREATE TYPE app.big_id FROM BIGINT NOT NULL;
+< ok 0 -
+> exec
+| CREATE SEQUENCE app.seq_alias AS app.big_id START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
 | CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS
@@ -393,6 +406,29 @@
 : int64 901578250
 : int64 9
 : string
+| offset_at
+: string
+| datetimeoffset
+: bool false
+: null
+: null
+: int64 8
+: int64 26
+: int64 0
+: null
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| app
+: string
+| accounts
+: int64 901578250
+: int64 10
+: string
 | updated_at
 : string
 | datetime2
@@ -414,7 +450,7 @@
 : string
 | accounts
 : int64 901578250
-: int64 10
+: int64 11
 : string
 | email_lower
 : string
@@ -786,8 +822,8 @@
 | 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
 | 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
-| 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0 
-| 		AND s.name in (N'app',N'dbo') AND o.type IN ('U', 'S', 'V')
+| 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
+| 		AND s.name in (N'app',N'dbo') AND o.type IN ('U', 'S', 'V') AND ic.key_ordinal > 0
 | 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal
 | 	
 < result
@@ -800,21 +836,6 @@
 < column "is_unique" "BIT"
 < column "column_name" "NVARCHAR"
 < column "is_descending_key" "BIT"
-< row
-: string
-| app
-: string
-| accounts
-: int64 901578250
-: int64 3
-: string
-| idx_accounts_status
-: string
-| NONCLUSTERED
-: bool false
-: string
-| email
-: bool false
 < row
 : string
 | app
@@ -1105,7 +1126,7 @@
 < column "total_rows" "BIGINT"
 < row
 : int64 3
-: int64 1508
+: int64 1509
 < row
 : int64 5
 : int64 191
@@ -1159,7 +1180,7 @@
 : int64 229
 < row
 : int64 34
-: int64 2797
+: int64 2799
 < row
 : int64 35
 : int64 0
@@ -1177,7 +1198,7 @@
 : int64 0
 < row
 : int64 41
-: int64 1250
+: int64 1251
 < row
 : int64 42
 : int64 0
@@ -1204,16 +1225,16 @@
 : int64 3
 < row
 : int64 50
-: int64 34
+: int64 35
 < row
 : int64 51
 : int64 0
 < row
 : int64 54
-: int64 224
+: int64 225
 < row
 : int64 55
-: int64 451
+: int64 452
 < row
 : int64 56
 : int64 0
@@ -1228,7 +1249,7 @@
 : int64 0
 < row
 : int64 60
-: int64 279
+: int64 283
 < row
 : int64 62
 : int64 0
@@ -1261,7 +1282,7 @@
 : int64 0
 < row
 : int64 74
-: int64 207
+: int64 208
 < row
 : int64 75
 : int64 123
@@ -1504,7 +1525,7 @@
 | 	INNER JOIN
 | 		sys.schemas s ON s.schema_id = seq.schema_id
 | 	INNER JOIN
-| 		sys.types tp ON tp.system_type_id = seq.system_type_id
+| 		sys.types tp ON tp.user_type_id = seq.user_type_id
 | 	LEFT JOIN sys.extended_properties ep ON ep.major_id = seq.object_id 
 | 		AND ep.minor_id = 0 
 | 		AND ep.class = 1 
@@ -1515,6 +1536,14 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "comment" "NVARCHAR"
+< row
+: string
+| app
+: string
+| seq_alias
+: string
+| big_id
+: null
 < row
 : string
 | app
@@ -1640,10 +1669,9 @@
 |         FOR XML PATH('')
 |     ), 1, 1, '') AS events,
 | CASE
-|         WHEN st.type = 'TR' THEN 'AFTER' -- DML triggers created with FOR or AFTER
-|         WHEN st.type = 'TA' THEN 'AFTER' -- DDL triggers
-|         WHEN st.type = 'TI' THEN 'INSTEAD OF' -- INSTEAD OF triggers
-|         ELSE 'UNKNOWN' -- Handle other potential types
+|         WHEN st.is_instead_of_trigger = 1 THEN 'INSTEAD OF'
+|         WHEN st.type IN ('TR', 'TA') THEN 'AFTER' -- DML triggers created with FOR or AFTER, and DDL triggers
+|         ELSE 'UNKNOWN'
 | END AS timing,
 | ssm.definition AS body,
 | so.name AS parentName,
@@ -1667,6 +1695,25 @@
 < column "objectType" "CHAR"
 < row
 : int64 1189579276
+: string
+| trg_open_accounts_io
+: string
+| INSERT
+: string
+| INSTEAD OF
+: string
+| CREATE TRIGGER app.trg_open_accounts_io ON app.v_open_accounts INSTEAD OF INSERT AS
+| BEGIN
+| 	SET NOCOUNT ON;
+| END;
+: string
+| v_open_accounts
+: string
+| app
+: string
+| V 
+< row
+: int64 1221579390
 : string
 | trg_orders_bi
 : string

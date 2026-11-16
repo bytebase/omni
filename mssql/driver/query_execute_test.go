@@ -222,6 +222,20 @@ END;
 		t.Fatalf("columnless batch = %+v, %v", batchy, err)
 	}
 
+	// A limit bounds a result set, so it leaves a SELECT ... INTO materialising
+	// every row as it would.
+	if _, err := sess.Query(ctx, "CREATE TABLE q_archive (id INT, note NVARCHAR(100));", driver.QueryOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	into, err := sess.Query(ctx, "SELECT id, note INTO q_archive2 FROM q_items;", driver.QueryOptions{Limit: 1})
+	if err != nil || len(into) != 1 || into[0].Err != nil {
+		t.Fatalf("SELECT INTO = %+v, %v", into, err)
+	}
+	counted2, err := sess.Query(ctx, "SELECT COUNT(*) FROM q_archive2;", driver.QueryOptions{})
+	if err != nil || counted2[0].Rows[0][0].Int64 < 2 {
+		t.Fatalf("SELECT INTO materialised %+v, %v; want every row", counted2, err)
+	}
+
 	// The size cap truncates the statement and the next one still runs.
 	truncated, err := sess.Query(ctx, "SELECT id, REPLICATE(N'x', 200) AS payload FROM q_items ORDER BY id;\nSELECT 7 AS after_cap;", driver.QueryOptions{MaxResultBytes: 200})
 	if err != nil || len(truncated) != 2 || !truncated[0].Truncated || truncated[1].Rows[0][0].Int64 != 7 {
