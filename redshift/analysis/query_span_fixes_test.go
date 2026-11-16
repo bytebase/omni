@@ -260,6 +260,49 @@ func TestRedshiftQuerySpanCorrelatedReferenceUsesNearestScope(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanSchemaQualifiedTableShadowsCTE covers a schema-qualified
+// relation whose name matches a CTE: the physical table, not the CTE, supplies
+// the star width.
+func TestRedshiftQuerySpanSchemaQualifiedTableShadowsCTE(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH orders AS (SELECT 0 AS n) SELECT o.*, reporting_fn() + 1 FROM public.orders o")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 6)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
+// TestRedshiftQuerySpanMaterializedViewStarKeepsFunction covers a materialized
+// view star whose width comes from its definition, since the metadata has no
+// column list.
+func TestRedshiftQuerySpanMaterializedViewStarKeepsFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT m.*, reporting_fn() + 1 FROM order_totals_mv m")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 3)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
+// TestRedshiftQuerySpanScalarSubqueryStarThroughDerived covers a scalar
+// subquery selecting a star over a derived relation that renames a function
+// column.
+func TestRedshiftQuerySpanScalarSubqueryStarThroughDerived(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH c AS (SELECT reporting_fn() AS x) SELECT (SELECT * FROM (SELECT x AS y FROM c) d) AS z")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "z",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.

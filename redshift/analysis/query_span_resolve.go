@@ -713,7 +713,11 @@ func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope funct
 		if n.Alias != nil && n.Alias.Aliasname != "" {
 			name = n.Alias.Aliasname
 		}
-		projection, ok := scope.bindings[strings.ToLower(name)]
+		var projection functionSourceProjection
+		ok := false
+		if n.Schemaname == "" && n.Catalogname == "" {
+			projection, ok = scope.bindings[strings.ToLower(name)]
+		}
 		if !ok {
 			// A base table has no function lineage of its own, but its column
 			// count is still needed to expand a star to the right width.
@@ -802,6 +806,12 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 		for _, column := range findFunctionExternalTable(schema, n.Relname).GetColumns() {
 			names = append(names, column.GetName())
 		}
+	case findFunctionMaterializedView(schema, n.Relname) != nil:
+		var ok bool
+		names, ok = functionDefinitionOutputNames(findFunctionMaterializedView(schema, n.Relname).GetDefinition())
+		if !ok {
+			return functionSourceProjection{}, false
+		}
 	default:
 		return functionSourceProjection{}, false
 	}
@@ -809,6 +819,48 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 		names = applyFunctionColumnAliases(names, redshiftStringList(n.Alias.Colnames))
 	}
 	return functionSourceProjection{names: names, sources: make([]ColumnSet, len(names))}, true
+}
+
+func findFunctionMaterializedView(schema *metadata.SchemaMetadata, name string) *metadata.MaterializedViewMetadata {
+	for _, view := range schema.GetMaterializedViews() {
+		if view.GetName() == name {
+			return view
+		}
+	}
+	return nil
+}
+
+// functionDefinitionOutputNames reads a view definition's output names. It is
+// the width fallback for a materialized view whose metadata has no column list.
+func functionDefinitionOutputNames(definition string) ([]string, bool) {
+	stmts, err := parseRedshiftSpan(definition)
+	if err != nil || len(stmts) != 1 {
+		return nil, false
+	}
+	var selectStmt *ast.SelectStmt
+	switch n := stmts[0].AST.(type) {
+	case *ast.SelectStmt:
+		selectStmt = n
+	case *ast.ViewStmt:
+		selectStmt, _ = n.Query.(*ast.SelectStmt)
+	case *ast.CreateTableAsStmt:
+		selectStmt, _ = n.Query.(*ast.SelectStmt)
+	}
+	if selectStmt == nil || selectStmt.TargetList == nil {
+		return nil, false
+	}
+	names := make([]string, 0, selectStmt.TargetList.Len())
+	for _, item := range selectStmt.TargetList.Items {
+		target, ok := item.(*ast.ResTarget)
+		if !ok {
+			return nil, false
+		}
+		if _, isStar := redshiftStarTarget(target); isStar {
+			return nil, false
+		}
+		names = append(names, redshiftTargetOutputName(target))
+	}
+	return names, true
 }
 
 func findFunctionTable(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {
@@ -1028,7 +1080,7 @@ func (q *querySpanResolver) collectFunctionSourceScopeFromList(list *ast.List, f
 func (q *querySpanResolver) collectFunctionSourceScopeFromNode(node ast.Node, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (functionBodyIssues, error) {
 	switch n := node.(type) {
 	case *ast.RangeVar:
-		if n == nil {
+		if n == nil || n.Schemaname != "" || n.Catalogname != "" {
 			return functionBodyIssues{}, nil
 		}
 		projection, ok := scope.defs[strings.ToLower(n.Relname)]
@@ -1160,6 +1212,16 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		issues.merge(rightIssues)
 		mergeSourceColumnSet(result, right)
 		return result, issues, nil
+	}
+	// Target stars expand from the recovered projections; the expression walk
+	// alone sees `*` as an opaque target.
+	projection, projIssues, projErr := q.collectSelectFunctionProjection(selectStmt, functionStack, cache, outerScope)
+	if projErr != nil {
+		return nil, functionBodyIssues{}, projErr
+	}
+	issues.merge(projIssues)
+	for _, sources := range projection.sources {
+		mergeSourceColumnSet(result, sources)
 	}
 	sources, subIssues, sourceErr := q.collectFunctionBodyResultSources(selectStmt, functionStack, cache, scope)
 	if sourceErr != nil {
