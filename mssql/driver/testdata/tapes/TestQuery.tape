@@ -218,6 +218,18 @@
 | INSERT INTO q_scratch VALUES (1);
 |
 < result
+> exec
+| CREATE TABLE q_archive (id INT, note NVARCHAR(100));
+< ok 0 -
+> exec
+| SELECT id, note INTO q_archive2 FROM q_items;
+< ok 4 -
+> query
+| SELECT COUNT(*) FROM q_archive2;
+< result
+< column "" "INT"
+< row
+: int64 4
 > query
 | SELECT id, REPLICATE(N'x', 200) AS payload FROM q_items ORDER BY id;
 |

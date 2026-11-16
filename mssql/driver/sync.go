@@ -551,7 +551,7 @@ func getForeignKeys(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.F
 }
 
 func quote(s string) string {
-	return fmt.Sprintf("N'%s'", s)
+	return fmt.Sprintf("N'%s'", strings.ReplaceAll(s, "'", "''"))
 }
 
 func quoteList(schemas []string) string {
@@ -779,7 +779,7 @@ func getColumnType(definition, typeName sql.NullString, isComputed, isPersisted 
 				return "", err
 			}
 		}
-	case "dateoffset", "datetime2", "time":
+	case "datetimeoffset", "datetime2", "time":
 		if scale.Valid {
 			if _, err := fmt.Fprintf(&buf, "(%d)", scale.Int64); err != nil {
 				return "", err
@@ -858,9 +858,12 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
-	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0 
+	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 		AND s.name in (%s) AND o.type IN ('U', 'S', 'V')
-	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal
+		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
+		-- key; a columnstore or XML index states every one of its columns that way.
+		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
+	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 	`, quoteList(schemas))
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -1574,10 +1577,9 @@ SELECT
         FOR XML PATH('')
     ), 1, 1, '') AS events,
 CASE
-        WHEN st.type = 'TR' THEN 'AFTER' -- DML triggers created with FOR or AFTER
-        WHEN st.type = 'TA' THEN 'AFTER' -- DDL triggers
-        WHEN st.type = 'TI' THEN 'INSTEAD OF' -- INSTEAD OF triggers
-        ELSE 'UNKNOWN' -- Handle other potential types
+        WHEN st.is_instead_of_trigger = 1 THEN 'INSTEAD OF'
+        WHEN st.type IN ('TR', 'TA') THEN 'AFTER' -- DML triggers created with FOR or AFTER, and DDL triggers
+        ELSE 'UNKNOWN'
 END AS timing,
 ssm.definition AS body,
 so.name AS parentName,
@@ -1609,7 +1611,8 @@ ORDER BY st.name;
 			bodyString = body.String
 		}
 		m := tableTriggers
-		if parentType == "V" {
+		// sys.objects.type is char(2), so a view's 'V' arrives padded.
+		if strings.TrimSpace(parentType) == "V" {
 			m = viewTriggers
 		}
 		trigger := &metadatapb.TriggerMetadata{
@@ -1646,7 +1649,7 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	INNER JOIN
 		sys.schemas s ON s.schema_id = seq.schema_id
 	INNER JOIN
-		sys.types tp ON tp.system_type_id = seq.system_type_id
+		sys.types tp ON tp.user_type_id = seq.user_type_id
 	LEFT JOIN sys.extended_properties ep ON ep.major_id = seq.object_id 
 		AND ep.minor_id = 0 
 		AND ep.class = 1 

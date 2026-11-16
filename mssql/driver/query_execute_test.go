@@ -12,6 +12,7 @@ import (
 	gomssqldb "github.com/microsoft/go-mssqldb"
 
 	"github.com/bytebase/omni/driver"
+	omnimssql "github.com/bytebase/omni/mssql"
 )
 
 func quoteIdent(name string) string {
@@ -222,6 +223,20 @@ END;
 		t.Fatalf("columnless batch = %+v, %v", batchy, err)
 	}
 
+	// A limit bounds a result set, so it leaves a SELECT ... INTO materialising
+	// every row as it would.
+	if _, err := sess.Query(ctx, "CREATE TABLE q_archive (id INT, note NVARCHAR(100));", driver.QueryOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	into, err := sess.Query(ctx, "SELECT id, note INTO q_archive2 FROM q_items;", driver.QueryOptions{Limit: 1})
+	if err != nil || len(into) != 1 || into[0].Err != nil {
+		t.Fatalf("SELECT INTO = %+v, %v", into, err)
+	}
+	counted2, err := sess.Query(ctx, "SELECT COUNT(*) FROM q_archive2;", driver.QueryOptions{})
+	if err != nil || counted2[0].Rows[0][0].Int64 < 2 {
+		t.Fatalf("SELECT INTO materialised %+v, %v; want every row", counted2, err)
+	}
+
 	// The size cap truncates the statement and the next one still runs.
 	truncated, err := sess.Query(ctx, "SELECT id, REPLICATE(N'x', 200) AS payload FROM q_items ORDER BY id;\nSELECT 7 AS after_cap;", driver.QueryOptions{MaxResultBytes: 200})
 	if err != nil || len(truncated) != 2 || !truncated[0].Truncated || truncated[1].Rows[0][0].Int64 != 7 {
@@ -337,5 +352,30 @@ UPDATE STATISTICS c_big;
 	}
 	if _, err := d.CountAffectedRows(ctx, "SELECT * FROM app.missing_table;"); err == nil {
 		t.Fatal("a missing table should fail its plan")
+	}
+}
+
+// TestClassifyReceiveAndReadText pins that the statements whose rows masking
+// cannot trace are marked, so masking withholds them.
+func TestClassifyReceiveAndReadText(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		want stmtType
+	}{
+		{"RECEIVE conversation_handle FROM dbo.q;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeUntraced},
+		{"RECEIVE @h = conversation_handle FROM dbo.q;", stmtTypeRowCountGenerating},
+		{"READTEXT t.c @ptr 0 100;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeUntraced},
+	} {
+		stmts, err := omnimssql.Parse(tc.sql)
+		if err != nil || len(stmts) != 1 {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		got, err := getStmtType(stmts[0].AST)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got != tc.want {
+			t.Errorf("%q: type = %d, want %d", tc.sql, got, tc.want)
+		}
 	}
 }

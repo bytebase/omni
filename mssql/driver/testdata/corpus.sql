@@ -10,6 +10,8 @@ CREATE TABLE app.accounts (
 	flags VARBINARY(16) NULL,
 	token UNIQUEIDENTIFIER NULL,
 	created_at DATETIME2(3) NOT NULL CONSTRAINT df_accounts_created DEFAULT SYSUTCDATETIME(),
+	offset_at DATETIMEOFFSET(0) NULL,
+	xml_doc XML NULL,
 	updated_at DATETIME2(3) NULL,
 	email_lower AS LOWER(email) PERSISTED,
 	PRIMARY KEY (id),
@@ -27,6 +29,10 @@ GO
 CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 GO
 
+CREATE PRIMARY XML INDEX pxml_accounts_doc ON app.accounts (xml_doc);
+GO
+
+
 CREATE TABLE app.orders (
 	id BIGINT IDENTITY NOT NULL PRIMARY KEY,
 	account_id BIGINT NOT NULL CONSTRAINT fk_orders_account REFERENCES app.accounts (id) ON DELETE CASCADE,
@@ -40,6 +46,9 @@ CREATE TABLE app.metrics (
 	val BIGINT NOT NULL,
 	CONSTRAINT pk_metrics PRIMARY KEY (ts)
 );
+GO
+
+CREATE NONCLUSTERED COLUMNSTORE INDEX ncc_metrics ON app.metrics (ts, val);
 GO
 
 CREATE SEQUENCE app.seq_orders AS BIGINT START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CYCLE CACHE 50;
@@ -73,6 +82,18 @@ BEGIN
 	SELECT id, total FROM app.orders WHERE account_id = @account;
 	SELECT COUNT(*) AS n FROM app.orders WHERE account_id = @account;
 END;
+GO
+
+CREATE TRIGGER app.trg_open_accounts_io ON app.v_open_accounts INSTEAD OF INSERT AS
+BEGIN
+	SET NOCOUNT ON;
+END;
+GO
+
+CREATE TYPE app.big_id FROM BIGINT NOT NULL;
+GO
+
+CREATE SEQUENCE app.seq_alias AS app.big_id START WITH 1 INCREMENT BY 1;
 GO
 
 CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS

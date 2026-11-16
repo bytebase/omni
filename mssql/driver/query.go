@@ -29,6 +29,9 @@ const (
 	stmtTypeProcedure
 	// stmtTypeOutput is a data modification whose OUTPUT clause returns rows.
 	stmtTypeOutput
+	// stmtTypeUntraced is a statement whose rows masking cannot trace to columns:
+	// a procedure call, a RECEIVE or a READTEXT.
+	stmtTypeUntraced
 )
 
 // Session opens one server connection held until Close, so what a statement
@@ -199,7 +202,10 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 	if err != nil {
 		return nil, err
 	}
-	text := withResultLimit(statement.Text, opts.Limit)
+	text := statement.Text
+	if t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0 {
+		text = withResultLimit(text, opts.Limit)
+	}
 	start := time.Now()
 	var results []*driver.Result
 	if t&stmtTypeResultSetGenerating != 0 || t&stmtTypeProcedure != 0 {
@@ -213,7 +219,7 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 	for _, result := range results {
 		result.Statement = text
 		result.Latency = time.Since(start)
-		if opts.MaskingEnabled && t&(stmtTypeProcedure|stmtTypeOutput) != 0 && len(result.Columns) > 0 {
+		if opts.MaskingEnabled && t&(stmtTypeProcedure|stmtTypeOutput|stmtTypeUntraced) != 0 && len(result.Columns) > 0 {
 			withholdRows(result)
 		}
 	}
@@ -233,7 +239,10 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 			return nil, true, err
 		}
 		types = append(types, t)
-		text := withResultLimit(statement.Text, opts.Limit)
+		text := statement.Text
+		if t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0 {
+			text = withResultLimit(text, opts.Limit)
+		}
 		texts = append(texts, text)
 		batchText.WriteString(text)
 		batchText.WriteString("\n")
@@ -319,7 +328,7 @@ func matchResults(statements []string, types []stmtType, resultSets []*driver.Re
 		switch {
 		case t&stmtTypeResultSetGenerating != 0 && len(resultSets) > 0:
 			matched.result, resultSets = resultSets[0], resultSets[1:]
-			matched.withheld = t&stmtTypeOutput != 0
+			matched.withheld = t&(stmtTypeOutput|stmtTypeUntraced) != 0
 		case t&stmtTypeProcedure != 0 && procedureReturnedSets && len(resultSets) > 0:
 			matched.result, resultSets = resultSets[0], resultSets[1:]
 			matched.withheld = true
@@ -475,9 +484,21 @@ func classifyStmtType(node ast.Node) (stmtType, error) {
 	case *ast.MergeStmt:
 		return dmlStmtType(n.OutputClause), nil
 
+	case *ast.ReceiveStmt:
+		if n.IntoVar == "" && !receiveAssignsVariables(n) {
+			// RECEIVE without INTO returns the messages it consumed, unless every
+			// column it names is assigned to a variable.
+			return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeUntraced, nil
+		}
+		return stmtTypeRowCountGenerating, nil
+
+	case *ast.ReadtextStmt:
+		// READTEXT returns the text it read, which no column of the statement
+		// traces.
+		return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeUntraced, nil
+
 	case *ast.BulkInsertStmt, *ast.InsertBulkStmt, *ast.CopyIntoStmt,
-		*ast.ReadtextStmt, *ast.WritetextStmt, *ast.UpdatetextStmt,
-		*ast.ReceiveStmt:
+		*ast.WritetextStmt, *ast.UpdatetextStmt:
 		return stmtTypeRowCountGenerating, nil
 
 	case *ast.ExecStmt:
@@ -511,6 +532,24 @@ func dmlStmtType(output *ast.OutputClause) stmtType {
 		return stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeOutput
 	}
 	return stmtTypeRowCountGenerating
+}
+
+// receiveAssignsVariables reports whether every column a RECEIVE names is
+// assigned to a local variable, which returns no rows.
+func receiveAssignsVariables(receive *ast.ReceiveStmt) bool {
+	if receive.Columns == nil || receive.AllColumns || len(receive.Columns.Items) == 0 {
+		return false
+	}
+	for _, item := range receive.Columns.Items {
+		column, ok := item.(*ast.ReceiveColumn)
+		if !ok {
+			return false
+		}
+		if _, ok := column.Expr.(*ast.SelectAssign); !ok {
+			return false
+		}
+	}
+	return true
 }
 
 func assignsVariables(sel *ast.SelectStmt) bool {
