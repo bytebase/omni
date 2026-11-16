@@ -120,6 +120,16 @@ func TestConnectionURI(t *testing.T) {
 			opts: Options{SRV: true},
 			want: "mongodb+srv://cluster0.sample.mongodb.net/?appName=bytebase&authSource=admin&tls=false",
 		},
+		{
+			name: "TLS takes the ssl alias over too",
+			cfg: driver.Config{
+				Host:   "localhost",
+				Port:   "27017",
+				Params: map[string]string{"SSL": "true"},
+				TLS:    func(string) (*tls.Config, error) { return &tls.Config{}, nil },
+			},
+			want: "mongodb://localhost:27017/?appName=bytebase&authSource=admin&tls=false",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

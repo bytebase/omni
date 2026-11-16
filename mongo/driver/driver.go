@@ -110,9 +110,15 @@ func connectionURI(cfg driver.Config, opts Options) (string, error) {
 		values.Set(key, value)
 	}
 	if cfg.TLS != nil {
-		// The driver dials TLS itself, one host at a time. The scheme's own
-		// implicit TLS for mongodb+srv, and a caller's tls or ssl value, would
-		// wrap that connection twice, so this wins over Params.
+		// The driver dials TLS itself, one host at a time, so a tls or ssl
+		// value in Params goes: either would wrap the connection twice, and
+		// the two aliases disagreeing is a parse error in the client. One
+		// tls=false says the client leaves the TLS to the driver.
+		for key := range values {
+			if strings.EqualFold(key, "tls") || strings.EqualFold(key, "ssl") {
+				values.Del(key)
+			}
+		}
 		values.Set("tls", "false")
 	}
 	u.RawQuery = values.Encode()
