@@ -29,6 +29,9 @@
 | CREATE VIEW v_users AS SELECT id, name FROM ext_users
 < ok - -
 > exec
+| USE `omni_execute_comment`
+< ok - -
+> exec
 | -- a comment
 | CREATE TABLE exec_c (id INT) STORED AS PARQUET
 < ok - -

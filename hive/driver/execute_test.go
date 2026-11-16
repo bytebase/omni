@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strconv"
 	"testing"
@@ -82,6 +83,50 @@ func TestExecuteStopsAtAFailingStatement(t *testing.T) {
 		tables = append(tables, row[0].String)
 	}
 	require.Equal(t, []string{"events", "exec_e", "ext_users", "orders", "v_users"}, tables)
+}
+
+// TestExecuteStartsFromTheConfiguredDatabase: a session that selected another
+// database leaves that choice on the pooled connection, and the script after it
+// still runs in the database the driver was opened on.
+func TestExecuteStartsFromTheConfiguredDatabase(t *testing.T) {
+	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+		for _, stmt := range []string{
+			"DROP DATABASE IF EXISTS omni_execute_home CASCADE",
+			"DROP DATABASE IF EXISTS omni_execute_other CASCADE",
+			"CREATE DATABASE omni_execute_home",
+			"CREATE DATABASE omni_execute_other",
+		} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	db := testcontainer.Open(t, "omni_execute_home")
+	d := &Driver{db: db, databaseName: "omni_execute_home"}
+
+	// A session moves the one pooled connection to another database.
+	sess := openSession(t, d)
+	results, err := sess.Query(context.Background(), "USE omni_execute_other", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Err)
+	require.NoError(t, sess.Close())
+
+	_, err = d.Execute(context.Background(), "CREATE TABLE exec_home (id INT) STORED AS PARQUET", driver.ExecuteOptions{})
+	require.NoError(t, err)
+
+	// The table is in the configured database, not the session's.
+	other := openSession(t, d)
+	results, err = other.Query(context.Background(), "SHOW TABLES", driver.QueryOptions{Schema: "omni_execute_other"})
+	require.NoError(t, err)
+	require.NoError(t, results[0].Err)
+	require.Empty(t, results[0].Rows)
+	results, err = other.Query(context.Background(), "SHOW TABLES", driver.QueryOptions{Schema: "omni_execute_home"})
+	require.NoError(t, err)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 1)
+	require.Equal(t, "exec_home", results[0].Rows[0][0].String)
 }
 
 // TestExecuteLogsItsSteps reports every statement and its answer to the

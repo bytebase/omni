@@ -31,6 +31,16 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	}
 	defer func() { _ = conn.Close() }()
 
+	// A pooled connection may have been left on another database by a session
+	// whose statements selected one, and the pool has no reset hook to undo it:
+	// start the script from the database this driver was opened on, so an
+	// unqualified statement reaches the caller's schema.
+	if d.databaseName != "" {
+		if _, err := conn.ExecContext(ctx, "USE "+quoteBacktick(d.databaseName)); err != nil {
+			return 0, fmt.Errorf("failed to select database %s: %w", d.databaseName, err)
+		}
+	}
+
 	var totalAffected int64
 	for _, command := range commands {
 		// Hive may not report a row count for a statement that changes rows.

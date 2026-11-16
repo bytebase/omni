@@ -29,6 +29,9 @@
 | CREATE VIEW v_users AS SELECT id, name FROM ext_users
 < ok - -
 > exec
+| USE `omni_execute_error`
+< ok - -
+> exec
 |
 | 		CREATE TABLE exec_e (id INT) STORED AS PARQUET
 < ok - -

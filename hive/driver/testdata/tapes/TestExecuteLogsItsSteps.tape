@@ -29,6 +29,9 @@
 | CREATE VIEW v_users AS SELECT id, name FROM ext_users
 < ok - -
 > exec
+| USE `omni_execute_log`
+< ok - -
+> exec
 | CREATE TABLE exec_l (id INT) STORED AS PARQUET
 < ok - -
 > exec
