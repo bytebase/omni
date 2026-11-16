@@ -136,10 +136,20 @@ func TestSyncInstance(t *testing.T) {
 			t.Errorf("database %q carries %d schemas; an instance sync reports none", database.Name, len(database.Schemas))
 		}
 	}
+	for i := 1; i < len(databases); i++ {
+		if databases[i-1] > databases[i] {
+			t.Errorf("databases are not ordered: %q before %q", databases[i-1], databases[i])
+		}
+	}
 	sort.Strings(databases)
 	roles := make([]string, 0, len(instance.Roles))
 	for _, role := range instance.Roles {
 		roles = append(roles, role.Name)
+	}
+	for i := 1; i < len(roles); i++ {
+		if roles[i-1] > roles[i] {
+			t.Errorf("roles are not ordered: %q before %q", roles[i-1], roles[i])
+		}
 	}
 	sort.Strings(roles)
 	out, err := json.MarshalIndent(map[string]any{

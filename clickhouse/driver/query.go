@@ -10,6 +10,7 @@ import (
 	"math/big"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -63,7 +64,11 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	var results []*driver.Result
 	for _, single := range statements {
 		statement := single.Text
+		explainFormat := opts.ExplainFormat
 		if opts.Explain {
+			if startsWithExplain(statement) {
+				explainFormat = explainFormatOf(statement)
+			}
 			statement = explainStatement(statement, opts.ExplainFormat)
 		} else if opts.Limit > 0 {
 			statement = statementWithResultLimit(statement, opts.Limit)
@@ -90,6 +95,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		}
 		result.Statement = statement
 		result.Latency = time.Since(startTime)
+		if opts.Explain && queryErr == nil {
+			result.Plan = &driver.Plan{Format: explainPlanFormat(explainFormat)}
+		}
 		results = append(results, result)
 		if stop {
 			break
@@ -192,7 +200,7 @@ func makeValueByTypeName(typeName string, columnType *sql.ColumnType) any {
 // convertValue turns one scanned cell into a contract Value. The branches are
 // Bytebase's, split between the non-nullable and nullable forms the client
 // hands back.
-func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
+func convertValue(typeName string, _ *sql.ColumnType, value any) driver.Value {
 	// TUPLE, ARRAY, MAP, JSON
 	if v, ok := value.(*any); ok && v != nil {
 		if *v == nil {
@@ -249,7 +257,7 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 		return driver.Value{Kind: driver.Bool, Bool: *v}
 	}
 	if v, ok := value.(*time.Time); ok && v != nil {
-		return driver.Value{Kind: driver.String, String: v.Format(time.RFC3339Nano)}
+		return timestampValue(typeName, *v)
 	}
 	if v, ok := value.(*time.Duration); ok && v != nil {
 		return driver.Value{Kind: driver.String, String: formatDuration(*v)}
@@ -323,7 +331,7 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 		return driver.Value{Kind: driver.Bool, Bool: **v}
 	}
 	if v, ok := value.(**time.Time); ok && *v != nil {
-		return driver.Value{Kind: driver.String, String: (*v).Format(time.RFC3339Nano)}
+		return timestampValue(typeName, **v)
 	}
 	if v, ok := value.(**time.Duration); ok && *v != nil {
 		return driver.Value{Kind: driver.String, String: formatDuration(**v)}
@@ -341,6 +349,57 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 		return driver.Value{Kind: driver.String, String: (*v).String()}
 	}
 	return driver.Value{Kind: driver.Null}
+}
+
+// timestampValue is a Date, DateTime or DateTime64 in the contract's temporal
+// kinds: a wall clock for a type without a zone, an instant in its zone for one
+// with a zone, and the fractional digits the type names.
+func timestampValue(typeName string, t time.Time) driver.Value {
+	precision := temporalPrecision(typeName)
+	if isZonedTemporal(typeName) {
+		return driver.Value{Kind: driver.TimestampTZ, Time: t, Precision: precision}
+	}
+	return driver.Value{
+		Kind:      driver.Timestamp,
+		Time:      time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC),
+		Precision: precision,
+	}
+}
+
+func baseTemporalType(typeName string) string {
+	for {
+		upper := strings.ToUpper(typeName)
+		switch {
+		case strings.HasPrefix(upper, "NULLABLE(") && strings.HasSuffix(typeName, ")"):
+			typeName = typeName[len("Nullable(") : len(typeName)-1]
+		case strings.HasPrefix(upper, "LOWCARDINALITY(") && strings.HasSuffix(typeName, ")"):
+			typeName = typeName[len("LowCardinality(") : len(typeName)-1]
+		default:
+			return typeName
+		}
+	}
+}
+
+func isZonedTemporal(typeName string) bool {
+	base := strings.ToUpper(baseTemporalType(typeName))
+	return strings.HasPrefix(base, "DATETIME") && strings.Contains(base, "'")
+}
+
+func temporalPrecision(typeName string) int32 {
+	base := baseTemporalType(typeName)
+	if !strings.HasPrefix(strings.ToUpper(base), "DATETIME64(") {
+		return 0
+	}
+	rest := base[len("DateTime64("):]
+	end := strings.IndexAny(rest, ",)")
+	if end < 0 {
+		return 0
+	}
+	digits, err := strconv.Atoi(strings.TrimSpace(rest[:end]))
+	if err != nil {
+		return 0
+	}
+	return int32(digits)
 }
 
 // formatDuration renders a ClickHouse Time or Time64 as a clock, which is what
@@ -402,6 +461,64 @@ func normalizeJSONValue(value any) any {
 	default:
 		return value
 	}
+}
+
+func explainPlanFormat(format string) string {
+	if strings.EqualFold(format, "JSON") {
+		return "JSON"
+	}
+	return "TEXT"
+}
+
+// explainFormatOf reads the format from an EXPLAIN the caller wrote, which the
+// driver runs as written. Only the statement's second word states one; every
+// other EXPLAIN kind is text.
+func explainFormatOf(statement string) string {
+	body, err := removeQuotedTextAndComment(statement)
+	if err != nil {
+		return "TEXT"
+	}
+	tokens := keywordTokens(body)
+	// Skip EXPLAIN and its optional kind, unless the first word is already a
+	// setting (json = 1).
+	i := 1
+	if i < len(tokens) && tokens[i].word && !(i+1 < len(tokens) && tokens[i+1].text == "=") {
+		kind := tokens[i].text
+		i++
+		if strings.EqualFold(kind, "QUERY") || strings.EqualFold(kind, "TABLE") {
+			i++
+		}
+		if strings.EqualFold(kind, "JSON") {
+			return "JSON"
+		}
+	}
+	// The settings are name = value pairs; the query body starts at the first
+	// word that is not one.
+	for i < len(tokens) {
+		if !tokens[i].word || i+1 >= len(tokens) || tokens[i+1].text != "=" || i+2 >= len(tokens) {
+			break
+		}
+		if strings.EqualFold(tokens[i].text, "JSON") {
+			if settingIsOff(tokens[i+2].text) {
+				return "TEXT"
+			}
+			return "JSON"
+		}
+		i += 3
+		if i >= len(tokens) || tokens[i].text != "," {
+			break
+		}
+		i++
+	}
+	return "TEXT"
+}
+
+func settingIsOff(value string) bool {
+	switch strings.ToUpper(value) {
+	case "0", "FALSE", "OFF", "NO":
+		return true
+	}
+	return false
 }
 
 // translateAggregateFunctionError rewrites the client's opaque "unsupported
