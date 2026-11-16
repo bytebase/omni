@@ -268,6 +268,7 @@ var _ Node = (*LoadDataDesc)(nil)
 // A LOAD DATA statement has no Label and one data description.
 type LoadDataStmt struct {
 	Label            string          // load label (db_name.label_name or label_name)
+	LabelParts       []string        // label parts as written: [db_name, label_name] or [label_name]
 	DataDescs        []*LoadDataDesc // one or more data descriptions
 	StorageType      string          // BROKER, S3, HDFS, LOCAL or RESOURCE, or ""
 	BrokerName       string          // WITH BROKER or WITH RESOURCE name
