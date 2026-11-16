@@ -156,6 +156,34 @@ func TestRedshiftQuerySpanOpaqueStarKeepsFollowingFunction(t *testing.T) {
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanSubquerySetOpFunction covers a set operation inside a
+// scalar subquery: each arm resolves a function-producing CTE in its own scope.
+func TestRedshiftQuerySpanSubquerySetOpFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH c AS (SELECT reporting_fn() AS x) SELECT (SELECT x FROM c UNION ALL SELECT 0 LIMIT 1) AS y")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
+// TestRedshiftQuerySpanSetOpOpaqueStarKeepsFollowingFunction covers a UNION CTE
+// with an unresolved star: its width stays unknown, so a later function keeps
+// its own source instead of taking the first arm's.
+func TestRedshiftQuerySpanSetOpOpaqueStarKeepsFollowingFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH b AS (SELECT reporting_fn() AS x, o.* FROM orders o UNION ALL SELECT reporting_fn(), o.* FROM orders o) SELECT b.*, analytics.reporting_fn() AS y FROM b")
+	require.NoError(t, err)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, "y", last.Name)
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.

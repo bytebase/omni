@@ -472,6 +472,14 @@ func (q *querySpanResolver) collectSelectFunctionProjection(selectStmt *ast.Sele
 			return functionSourceProjection{}, functionBodyIssues{}, err
 		}
 		issues.merge(rightIssues)
+		if left.opaque || right.opaque {
+			// An unresolved star makes an arm's width unknown; positional
+			// merging would pair the wrong columns. Keep the left arm's shape as
+			// the output shape and leave the projection opaque.
+			result := left
+			result.opaque = true
+			return result, issues, nil
+		}
 		return functionSourceProjection{
 			names:   left.names,
 			sources: mergeFunctionArmResultSources(left.sources, right.sources),
@@ -860,16 +868,7 @@ func (q *querySpanResolver) collectFunctionBodyResultSources(node ast.Node, func
 			if !ok {
 				return false
 			}
-			// Resolve everything the subquery reads in its own scope, not just
-			// its projection: a function in WHERE/HAVING still determines the
-			// result value.
-			innerScope, sourceIssues, sourceErr := q.functionSourceScopeForSelect(selectStmt, functionStack, cache, scope)
-			if sourceErr != nil {
-				err = sourceErr
-				return false
-			}
-			issues.merge(sourceIssues)
-			sources, sourceIssues, sourceErr := q.collectFunctionBodyResultSources(selectStmt, functionStack, cache, innerScope)
+			sources, sourceIssues, sourceErr := q.collectSubqueryFunctionSources(selectStmt, functionStack, cache, scope)
 			if sourceErr != nil {
 				err = sourceErr
 				return false
@@ -900,6 +899,41 @@ func (q *querySpanResolver) collectFunctionBodyResultSources(node ast.Node, func
 		return true
 	})
 	return result, issues, err
+}
+
+// collectSubqueryFunctionSources resolves everything a subquery reads in its
+// own scopes: each set-operation arm gets its own FROM bindings, and a simple
+// arm collects its target and predicate functions together.
+func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	issues := functionBodyIssues{}
+	scope, sourceIssues, err := q.functionSourceScopeForSelect(selectStmt, functionStack, cache, outerScope)
+	if err != nil {
+		return nil, functionBodyIssues{}, err
+	}
+	issues.merge(sourceIssues)
+	if selectStmt.Op != ast.SETOP_NONE {
+		left, leftIssues, err := q.collectSubqueryFunctionSources(selectStmt.Larg, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(leftIssues)
+		mergeSourceColumnSet(result, left)
+		right, rightIssues, err := q.collectSubqueryFunctionSources(selectStmt.Rarg, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(rightIssues)
+		mergeSourceColumnSet(result, right)
+		return result, issues, nil
+	}
+	sources, subIssues, sourceErr := q.collectFunctionBodyResultSources(selectStmt, functionStack, cache, scope)
+	if sourceErr != nil {
+		return nil, functionBodyIssues{}, sourceErr
+	}
+	issues.merge(subIssues)
+	mergeSourceColumnSet(result, sources)
+	return result, issues, nil
 }
 
 func (q *querySpanResolver) functionBodySourcesForCall(call *ast.FuncCall, functionStack map[string]bool, cache map[string]functionBodySources) (functionBodySources, error) {
