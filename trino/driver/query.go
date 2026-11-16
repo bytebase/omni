@@ -260,7 +260,7 @@ func codeEnd(statement string) int {
 // keywordKinds resolves the keywords the row-returning and limit rules read.
 var keywordKinds = func() map[string]parser.TokenKind {
 	kinds := map[string]parser.TokenKind{}
-	for _, name := range []string{"SELECT", "WITH", "TABLE", "VALUES", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "LIMIT"} {
+	for _, name := range []string{"SELECT", "WITH", "TABLE", "VALUES", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"} {
 		kind, ok := parser.KeywordToken(name)
 		if !ok {
 			panic("trino/driver: unknown keyword: " + name)
@@ -308,41 +308,33 @@ func limitable(statement string) bool {
 }
 
 // applyLimit caps statement's rows by appending a LIMIT, unless the statement
-// holds one of its own at the top level. Trino's OFFSET precedes its LIMIT, so
-// the clause still goes last; it lands just past the last token so a trailing
-// comment does not swallow it.
+// holds one of its own. Trino's OFFSET precedes its LIMIT, so the clause goes
+// last; it lands just past the last token so a trailing comment does not
+// swallow it.
 func applyLimit(statement string, limit int) string {
-	if _, ok := topLevelKeyword(statement, keywordKinds["LIMIT"]); ok {
+	if hasRowLimit(statement) {
 		return statement
 	}
 	at := codeEnd(statement)
 	return fmt.Sprintf("%s LIMIT %d%s", statement[:at], limit, statement[at:])
 }
 
-// topLevelKeyword returns the offset of the first keyword at parenthesis depth
-// zero, outside any literal or comment, and whether the statement holds one.
-func topLevelKeyword(statement string, keyword parser.TokenKind) (int, bool) {
-	lexer := parser.NewLexer(statement)
-	depth := 0
-	for {
-		token := lexer.NextToken()
-		if token.Kind == 0 {
-			// The end-of-input token.
-			return 0, false
-		}
-		switch token.Kind {
-		case int('('):
-			depth++
-		case int(')'):
-			if depth > 0 {
-				depth--
-			}
-		default:
-			if depth == 0 && token.Kind == keyword {
-				return token.Loc.Start, true
-			}
-		}
+// hasRowLimit reports whether the parsed statement already caps its rows with a
+// LIMIT or FETCH clause. It asks the parser because LIMIT and FETCH are
+// non-reserved in Trino: `SELECT t.limit FROM t(limit)` names a column, and only
+// the tree tells the clause from the name. A statement the parser cannot read is
+// treated as having none, which keeps the caller's cap and lets the server
+// report the syntax error it would report anyway.
+func hasRowLimit(statement string) bool {
+	file, err := parser.Parse(statement)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return false
 	}
+	query, ok := file.Stmts[0].(*parser.QueryStmt)
+	if !ok || query.Query == nil {
+		return false
+	}
+	return query.Query.Limit != nil || query.Query.Fetch != nil
 }
 
 // trimStatement trims a segment the way Bytebase's splitter trimmed the

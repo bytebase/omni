@@ -548,6 +548,36 @@
 < column "v" "INTEGER"
 < row
 : int64 1
+> query
+| SELECT t.limit FROM (VALUES 1, 2, 3) AS t(limit) LIMIT 2
+< result
+< column "limit" "INTEGER"
+< row
+: int64 1
+< row
+: int64 2
+> query
+| SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT ALL
+< result
+< column "x" "BIGINT"
+< row
+: int64 1
+< row
+: int64 2
+< row
+: int64 3
+< row
+: int64 4
+< row
+: int64 5
+> query
+| SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) FETCH FIRST 2 ROWS ONLY
+< result
+< column "x" "BIGINT"
+< row
+: int64 1
+< row
+: int64 2
 
 == TestQuery/types default#1
 > query

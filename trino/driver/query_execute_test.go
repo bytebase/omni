@@ -382,6 +382,9 @@ func TestQuery(t *testing.T) {
 			{"a literal LIMIT does not suppress the cap", "SELECT ' LIMIT ' AS v FROM UNNEST(SEQUENCE(1, 5)) AS t(x)", 2, " LIMIT 2", ""},
 			{"a LIMIT on its own line is respected", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT\n3", 3, "LIMIT\n3", " LIMIT 2"},
 			{"a nested LIMIT does not suppress the cap", "SELECT (SELECT 1 LIMIT 1) AS v", 1, " LIMIT 2", ""},
+			{"a column named limit does not suppress the cap", "SELECT t.limit FROM (VALUES 1, 2, 3) AS t(limit)", 2, " LIMIT 2", ""},
+			{"LIMIT ALL is the caller's own cap", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT ALL", 5, "LIMIT ALL", " LIMIT 2"},
+			{"FETCH FIRST is the caller's own cap", "SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) FETCH FIRST 2 ROWS ONLY", 2, "FETCH FIRST 2 ROWS ONLY", " LIMIT 2"},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				results, err := session.Query(ctx, tc.script, driver.QueryOptions{Limit: 2})
