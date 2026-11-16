@@ -85,12 +85,21 @@ type resultSet struct {
 	rows [][]value
 }
 
-type column struct{ name, typ string }
+// A column carries the database type name and, when the live driver states
+// one, the Go type its rows scan into. The scan type is optional so tapes
+// recorded before it existed still replay with the default any.
+type column struct {
+	name, typ, scan string
+}
 
-// A value is a driver.Value as text: null, int64, uint64, float64, bool,
-// time, bytes or string. A uint64 is what go-sql-driver answers for a BIGINT
-// UNSIGNED column, as information_schema's counts are. A request's argument
-// over digestOver holds sum, its digest, in place of text.
+// A value is a driver.Value as text: null, int, int8, int16, int32, int64,
+// uint, uint8, uint16, uint32, uint64, float32, float64, bool, time, bytes or
+// string. A uint64 is what go-sql-driver answers for a BIGINT UNSIGNED column,
+// as information_schema's counts are. The narrower integers and float32 are
+// what a client whose own rows are typed (ClickHouse's) answers before
+// database/sql converts them; the tape keeps the type so a replay hands the
+// driver the same one. A request's argument over digestOver holds sum, its
+// digest, in place of text.
 type value struct {
 	kind, text string
 	sum        string
@@ -138,10 +147,28 @@ func fromDriver(v driver.Value) (value, error) {
 	switch v := v.(type) {
 	case nil:
 		return value{kind: "null"}, nil
+	case int:
+		return value{kind: "int", text: strconv.FormatInt(int64(v), 10)}, nil
+	case int8:
+		return value{kind: "int8", text: strconv.FormatInt(int64(v), 10)}, nil
+	case int16:
+		return value{kind: "int16", text: strconv.FormatInt(int64(v), 10)}, nil
+	case int32:
+		return value{kind: "int32", text: strconv.FormatInt(int64(v), 10)}, nil
 	case int64:
 		return value{kind: "int64", text: strconv.FormatInt(v, 10)}, nil
+	case uint:
+		return value{kind: "uint", text: strconv.FormatUint(uint64(v), 10)}, nil
+	case uint8:
+		return value{kind: "uint8", text: strconv.FormatUint(uint64(v), 10)}, nil
+	case uint16:
+		return value{kind: "uint16", text: strconv.FormatUint(uint64(v), 10)}, nil
+	case uint32:
+		return value{kind: "uint32", text: strconv.FormatUint(uint64(v), 10)}, nil
 	case uint64:
 		return value{kind: "uint64", text: strconv.FormatUint(v, 10)}, nil
+	case float32:
+		return value{kind: "float32", text: strconv.FormatFloat(float64(v), 'g', -1, 32)}, nil
 	case float64:
 		return value{kind: "float64", text: strconv.FormatFloat(v, 'g', -1, 64)}, nil
 	case bool:
@@ -163,10 +190,37 @@ func (v value) driver() (driver.Value, error) {
 	switch v.kind {
 	case "null":
 		return nil, nil
+	case "int":
+		n, err := strconv.ParseInt(v.text, 10, 0)
+		return int(n), err
+	case "int8":
+		n, err := strconv.ParseInt(v.text, 10, 8)
+		return int8(n), err
+	case "int16":
+		n, err := strconv.ParseInt(v.text, 10, 16)
+		return int16(n), err
+	case "int32":
+		n, err := strconv.ParseInt(v.text, 10, 32)
+		return int32(n), err
 	case "int64":
 		return strconv.ParseInt(v.text, 10, 64)
+	case "uint":
+		n, err := strconv.ParseUint(v.text, 10, 0)
+		return uint(n), err
+	case "uint8":
+		n, err := strconv.ParseUint(v.text, 10, 8)
+		return uint8(n), err
+	case "uint16":
+		n, err := strconv.ParseUint(v.text, 10, 16)
+		return uint16(n), err
+	case "uint32":
+		n, err := strconv.ParseUint(v.text, 10, 32)
+		return uint32(n), err
 	case "uint64":
 		return strconv.ParseUint(v.text, 10, 64)
+	case "float32":
+		f, err := strconv.ParseFloat(v.text, 32)
+		return float32(f), err
 	case "float64":
 		return strconv.ParseFloat(v.text, 64)
 	case "bool":
@@ -260,7 +314,11 @@ func writeAnswer(b *strings.Builder, a answer) {
 		for _, s := range a.sets {
 			b.WriteString("< result\n")
 			for _, c := range s.cols {
-				b.WriteString("< column " + strconv.Quote(c.name) + " " + strconv.Quote(c.typ) + "\n")
+				b.WriteString("< column " + strconv.Quote(c.name) + " " + strconv.Quote(c.typ))
+				if c.scan != "" {
+					b.WriteString(" " + strconv.Quote(c.scan))
+				}
+				b.WriteString("\n")
 			}
 			for _, row := range s.rows {
 				b.WriteString("< row\n")
@@ -536,14 +594,24 @@ func (p *parser) column() (column, error) {
 	if err != nil {
 		return column{}, p.errorf("a column's name: %v", err)
 	}
-	typ := strings.TrimPrefix(rest[len(name):], " ")
-	n, _ := strconv.Unquote(name)
-	t, err := strconv.Unquote(typ)
+	rest = strings.TrimPrefix(rest[len(name):], " ")
+	typ, err := strconv.QuotedPrefix(rest)
 	if err != nil {
 		return column{}, p.errorf("a column's type: %v", err)
 	}
+	rest = strings.TrimPrefix(rest[len(typ):], " ")
+	n, _ := strconv.Unquote(name)
+	t, _ := strconv.Unquote(typ)
+	c := column{name: n, typ: t}
+	if rest != "" {
+		scan, err := strconv.QuotedPrefix(rest)
+		if err != nil {
+			return column{}, p.errorf("a column's scan type: %v", err)
+		}
+		c.scan, _ = strconv.Unquote(scan)
+	}
 	p.i++
-	return column{n, t}, nil
+	return c, nil
 }
 
 // value reads one value. Only a request's argument may be a digest.
@@ -565,7 +633,7 @@ func (p *parser) value(argument bool) (value, error) {
 		return v, err
 	case "null":
 		return v, nil
-	case "int64", "uint64", "float64", "bool", "time":
+	case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool", "time":
 		if _, err := v.driver(); err != nil {
 			return v, p.errorf("a %s value: %v", kind, err)
 		}
