@@ -244,6 +244,21 @@ func TestPriorBackupCheckUpdateTargets(t *testing.T) {
 			want: nil,
 		},
 		{
+			name: "a reference to a CTE is not a target",
+			sql:  "WITH c AS (SELECT 1 AS id) UPDATE tech_book JOIN c ON tech_book.id = c.id SET c.id = 1",
+			want: nil,
+		},
+		{
+			name: "a reference to a CTE alongside a table",
+			sql:  "WITH c AS (SELECT 1 AS id) UPDATE tech_book JOIN c ON tech_book.id = c.id SET tech_book.id = 1, c.id = 2",
+			want: []priorBackupTable{table("test", "tech_book")},
+		},
+		{
+			name: "a CTE shadows a table of its name",
+			sql:  "WITH orders AS (SELECT 1 AS id) UPDATE tech_book JOIN orders ON tech_book.id = orders.id SET orders.id = 1",
+			want: nil,
+		},
+		{
 			name: "a target named twice is one target",
 			sql:  "UPDATE tech_book SET id = 1, name = 'x'",
 			want: []priorBackupTable{table("test", "tech_book")},
@@ -267,7 +282,7 @@ func TestPriorBackupCheckUpdateTargets(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected an UPDATE, got %T", nodes[0])
 			}
-			got := updateTargets(update.SetList, newUpdateTableAliases(update.Tables, database), snapshot.Metadata)
+			got := updateTargets(update.SetList, newUpdateTableAliases(update.Tables, database, cteNames(update.CTEs)), snapshot.Metadata)
 			if diff := cmp.Diff(tt.want, got, cmp.AllowUnexported(priorBackupTable{})); diff != "" {
 				t.Fatalf("target mismatch (-want +got):\n%s", diff)
 			}
@@ -320,7 +335,7 @@ func TestPriorBackupCheckDeleteTargets(t *testing.T) {
 			if !ok {
 				t.Fatalf("expected a DELETE, got %T", nodes[0])
 			}
-			got := deleteTables(del.Tables, "test")
+			got := deleteTables(del.Tables, "test", cteNames(del.CTEs))
 			if diff := cmp.Diff(tt.want, got, cmp.AllowUnexported(priorBackupTable{})); diff != "" {
 				t.Fatalf("target mismatch (-want +got):\n%s", diff)
 			}
@@ -388,17 +403,44 @@ func TestPriorBackupCheckMixedDML(t *testing.T) {
 			want: nil,
 		},
 		{
-			name: "a multi-table DELETE target names its alias",
-			// V1 grouped the names the DELETE targets as written: b is the alias
-			// of tech_book in the USING clause, not a table of that name.
+			name: "a multi-table DELETE target resolves through its USING clause",
 			sql:  "UPDATE b SET id = 1; DELETE b FROM tech_book AS b WHERE b.id = 1",
-			want: []priorBackupFinding{mixed("test.b")},
+			want: nil,
 		},
 		{
-			name: "a WITH reference is grouped as a table",
-			// The V1 rule did not tell a WITH-clause reference from a table.
+			name: "a multi-table DELETE target resolves to the table it changes",
+			sql:  "UPDATE tech_book SET id = 1; DELETE b FROM tech_book AS b WHERE b.id = 1",
+			want: []priorBackupFinding{mixed("test.tech_book")},
+		},
+		{
+			name: "a multi-table DELETE target resolves by the table's name",
+			sql:  "UPDATE tech_book SET id = 1; DELETE tech_book FROM tech_book AS b WHERE b.id = 1",
+			want: []priorBackupFinding{mixed("test.tech_book")},
+		},
+		{
+			name: "a multi-table DELETE target the USING clause does not declare is kept",
+			sql:  "UPDATE z SET id = 1; DELETE z FROM tech_book AS b WHERE b.id = 1",
+			want: []priorBackupFinding{mixed("test.z")},
+		},
+		{
+			name: "an alias of a physical table is a target beside a CTE of its name",
+			sql:  "UPDATE test.c SET id = 2; WITH c AS (SELECT 1 AS id) DELETE c FROM test.c AS c WHERE c.id = 1",
+			want: []priorBackupFinding{mixed("test.c")},
+		},
+		{
+			name: "a qualified target finds its table among same-named ones",
+			sql:  "UPDATE db2.t SET id = 1; DELETE db2.t FROM db1.t JOIN db2.t ON db1.t.id = db2.t.id",
+			want: []priorBackupFinding{mixed("db2.t")},
+		},
+		{
+			name: "a WITH reference is not a table",
 			sql:  "WITH t AS (SELECT 1 AS id) UPDATE t SET id = 2; DELETE FROM t",
-			want: []priorBackupFinding{mixed("test.t")},
+			want: nil,
+		},
+		{
+			name: "a schema-qualified name is a table even when a CTE matches it",
+			sql:  "WITH tech_book AS (SELECT 1 AS id) UPDATE test.tech_book SET id = 1; DELETE FROM test.tech_book",
+			want: []priorBackupFinding{mixed("test.tech_book")},
 		},
 	}
 	for _, tt := range tests {
@@ -490,11 +532,9 @@ func TestPriorBackupCheckCount(t *testing.T) {
 			want: []priorBackupFinding{mixed("test.a"), mixed("test.b"), mixed("test.c"), tooMany},
 		},
 		{
-			name: "a WITH reference counts as a change",
-			// The V1 rule did not tell a WITH-clause reference from a table, so
-			// one table change and a reference to a CTE counted as six.
+			name: "a WITH reference does not count as a change",
 			sql:  "WITH c AS (SELECT 1 AS id) UPDATE tech_book JOIN c ON tech_book.id = c.id SET tech_book.id = 1, c.id = 2; UPDATE a SET x = 1; UPDATE a SET x = 2; UPDATE a SET x = 3; UPDATE a SET x = 4",
-			want: []priorBackupFinding{tooMany},
+			want: nil,
 		},
 	}
 	for _, tt := range tests {

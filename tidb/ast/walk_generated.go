@@ -505,6 +505,11 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Default)
 	case *DeleteStmt:
+		for _, item := range n.CTEs {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Tables {
 			Walk(v, item)
 		}
@@ -718,6 +723,11 @@ func walkChildren(v Visitor, node Node) {
 	case *IndexOption:
 		Walk(v, n.Value)
 	case *InsertStmt:
+		for _, item := range n.CTEs {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		if n.Table != nil {
 			Walk(v, n.Table)
 		}
@@ -1132,6 +1142,11 @@ func walkChildren(v Visitor, node Node) {
 			}
 		}
 	case *UpdateStmt:
+		for _, item := range n.CTEs {
+			if item != nil {
+				Walk(v, item)
+			}
+		}
 		for _, item := range n.Tables {
 			Walk(v, item)
 		}

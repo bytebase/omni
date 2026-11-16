@@ -117,7 +117,8 @@ const (
 // InsertStmt represents an INSERT or REPLACE statement.
 type InsertStmt struct {
 	Loc            Loc
-	IsReplace      bool // REPLACE instead of INSERT
+	CTEs           []*CommonTableExpr // WITH clause (CTEs)
+	IsReplace      bool               // REPLACE instead of INSERT
 	Priority       Priority
 	Ignore         bool          // INSERT IGNORE
 	Table          *TableRef     // target table
@@ -150,6 +151,7 @@ const (
 // UpdateStmt represents an UPDATE statement.
 type UpdateStmt struct {
 	Loc      Loc
+	CTEs     []*CommonTableExpr // WITH clause (CTEs)
 	Priority Priority
 	Ignore   bool
 	Tables   []TableExpr    // table references (multi-table update)
@@ -165,6 +167,7 @@ func (s *UpdateStmt) stmtNode() {}
 // DeleteStmt represents a DELETE statement.
 type DeleteStmt struct {
 	Loc      Loc
+	CTEs     []*CommonTableExpr // WITH clause (CTEs)
 	Priority Priority
 	Quick    bool
 	Ignore   bool
