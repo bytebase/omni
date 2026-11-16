@@ -4,12 +4,9 @@
 //
 // The walk is parser-driven over the cassandra/ast tree. A `SELECT *` is the
 // only shape that needs catalog metadata: the caller's GetDatabaseMetadata
-// supplies the keyspace's synced relations, and a star over one it does not hold
-// stays a SelectAsterisk marker with no columns — Bytebase's masker then fails
-// closed on that result rather than guessing a projection. A metadata lookup
-// that FAILS is returned as an error: a star resolved from nothing would read as
-// a statement that touches no column, which the masking and access checks cannot
-// tell from a statement that genuinely reads nothing.
+// supplies the keyspace's synced tables, and a star over a table the caller
+// cannot resolve stays a SelectAsterisk marker with no columns — Bytebase's
+// masker then fails closed on that result rather than guessing a projection.
 package analysis
 
 import (
@@ -113,7 +110,7 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 			PredicateColumns: ColumnSet{},
 		},
 	}
-	return e.extract(stmts[0].AST)
+	return e.extract(stmts[0].AST), nil
 }
 
 type querySpanExtractor struct {
@@ -121,12 +118,10 @@ type querySpanExtractor struct {
 	querySpan *ResolvedQuerySpan
 }
 
-func (e *querySpanExtractor) extract(node ast.Node) (*ResolvedQuerySpan, error) {
+func (e *querySpanExtractor) extract(node ast.Node) *ResolvedQuerySpan {
 	switch stmt := node.(type) {
 	case *ast.SelectStmt:
-		if err := e.extractSelect(stmt); err != nil {
-			return nil, err
-		}
+		e.extractSelect(stmt)
 	case *ast.InsertStmt:
 		e.extractInsert(stmt)
 	case *ast.UpdateStmt:
@@ -151,10 +146,10 @@ func (e *querySpanExtractor) extract(node ast.Node) (*ResolvedQuerySpan, error) 
 		e.querySpan.Type = DDL
 	default:
 	}
-	return e.querySpan, nil
+	return e.querySpan
 }
 
-func (e *querySpanExtractor) extractSelect(stmt *ast.SelectStmt) error {
+func (e *querySpanExtractor) extractSelect(stmt *ast.SelectStmt) {
 	e.querySpan.Type = Select
 
 	keyspace, table := e.qualifiedNameParts(stmt.From)
@@ -166,14 +161,9 @@ func (e *querySpanExtractor) extractSelect(stmt *ast.SelectStmt) error {
 		}] = true
 	}
 
-	results, err := e.selectElements(stmt.Elements, keyspace, table)
-	if err != nil {
-		return err
-	}
-	e.querySpan.Results = results
+	e.querySpan.Results = e.selectElements(stmt.Elements, keyspace, table)
 
 	e.extractWhereColumns(stmt.Where, keyspace, table)
-	return nil
 }
 
 func (e *querySpanExtractor) extractInsert(stmt *ast.InsertStmt) {
@@ -225,9 +215,9 @@ func (e *querySpanExtractor) qualifiedNameParts(qn *ast.QualifiedName) (keyspace
 	}
 }
 
-func (e *querySpanExtractor) selectElements(elems []*ast.SelectElement, keyspace, table string) ([]ResolvedQuerySpanResult, error) {
+func (e *querySpanExtractor) selectElements(elems []*ast.SelectElement, keyspace, table string) []ResolvedQuerySpanResult {
 	if len(elems) == 0 {
-		return nil, nil
+		return nil
 	}
 
 	var results []ResolvedQuerySpanResult
@@ -262,7 +252,7 @@ func (e *querySpanExtractor) selectElements(elems []*ast.SelectElement, keyspace
 			IsPlainField:  true,
 		})
 	}
-	return results, nil
+	return results
 }
 
 func exprColumnName(expr ast.ExprNode) string {
@@ -278,37 +268,31 @@ func exprColumnName(expr ast.ExprNode) string {
 	return ""
 }
 
-// expandSelectAsterisk expands `SELECT *` against the keyspace's synced
-// relations. Without metadata — or when no schema of the keyspace holds the
-// relation — it answers one SelectAsterisk result with no columns, which the
-// masking consumer rejects rather than masks by guess. A table and a view (a
-// materialized view is one: Cassandra keeps its definition in
-// system_schema.views) are expanded the same way, from the relation's own ordered
-// column list.
-func (e *querySpanExtractor) expandSelectAsterisk(keyspace, table string) ([]ResolvedQuerySpanResult, error) {
+// expandSelectAsterisk expands `SELECT *` against the keyspace's synced tables.
+// Without metadata — or when no schema of the keyspace holds the table — it
+// answers one SelectAsterisk result with no columns, which the masking consumer
+// rejects rather than masks by guess.
+func (e *querySpanExtractor) expandSelectAsterisk(keyspace, table string) []ResolvedQuerySpanResult {
 	unexpanded := []ResolvedQuerySpanResult{{
 		SourceColumns:  ColumnSet{},
 		SelectAsterisk: true,
 	}}
 	if e.opts.GetDatabaseMetadata == nil || table == "" {
-		return unexpanded, nil
+		return unexpanded
 	}
 
 	dbMetadata, err := e.opts.GetDatabaseMetadata(keyspace)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get database metadata for keyspace %q: %w", keyspace, err)
-	}
-	if dbMetadata == nil {
-		return unexpanded, nil
+	if err != nil || dbMetadata == nil {
+		return unexpanded
 	}
 
 	for _, schema := range dbMetadata.GetSchemas() {
-		columns, found := relationColumns(schema, table)
-		if !found {
+		tbl := findTable(schema, table)
+		if tbl == nil {
 			continue
 		}
 		var results []ResolvedQuerySpanResult
-		for _, col := range columns {
+		for _, col := range tbl.GetColumns() {
 			sc := ColumnSet{}
 			sc[ColumnResource{
 				Database: keyspace,
@@ -321,10 +305,10 @@ func (e *querySpanExtractor) expandSelectAsterisk(keyspace, table string) ([]Res
 				IsPlainField:  true,
 			})
 		}
-		return results, nil
+		return results
 	}
 
-	return unexpanded, nil
+	return unexpanded
 }
 
 func (e *querySpanExtractor) extractWhereColumns(where []ast.ExprNode, keyspace, table string) {
@@ -385,23 +369,15 @@ func collectColumnNames(expr ast.ExprNode) []string {
 	}
 }
 
-// relationColumns returns the ordered column list of the relation with exactly
-// this name — a table first, then a view (which is how a materialized view
-// reaches a schema snapshot: Cassandra lists it in system_schema.views, and its
-// columns in system_schema.columns under the view's own name, never in
-// system_schema.tables). CQL identifiers arrive already normalized by the parser
-// (quoted ones keep their case), so an additional case-folded match would resolve
-// a differently-cased relation the engine itself treats as distinct.
-func relationColumns(schema *metadata.SchemaMetadata, name string) ([]*metadata.ColumnMetadata, bool) {
+// findTable returns the table with exactly this name — CQL identifiers arrive
+// already normalized by the parser (quoted ones keep their case), so an
+// additional case-folded match would resolve a differently-cased table the
+// engine itself treats as distinct.
+func findTable(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {
 	for _, table := range schema.GetTables() {
 		if table.GetName() == name {
-			return table.GetColumns(), true
+			return table
 		}
 	}
-	for _, view := range schema.GetViews() {
-		if view.GetName() == name {
-			return view.GetColumns(), true
-		}
-	}
-	return nil, false
+	return nil
 }
