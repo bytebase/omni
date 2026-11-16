@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -26,10 +27,14 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 }
 
 // SyncDatabase syncs the database schema: one schema holding one table per
-// container, with no columns, because a container's items are schemaless.
+// container, with no columns, because a container's items are schemaless. A
+// database that does not exist is driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	names, err := d.client.ListContainers(ctx, d.databaseName)
 	if err != nil {
+		if isNotFound(err) {
+			return nil, fmt.Errorf("%w: database %s does not exist: %w", driver.ErrNotFound, d.databaseName, err)
+		}
 		return nil, err
 	}
 	var containers []*metadatapb.TableMetadata

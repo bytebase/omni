@@ -23,6 +23,8 @@ type scriptedClient struct {
 
 func (*scriptedClient) Ping(context.Context) error { return nil }
 
+func (*scriptedClient) Close() error { return nil }
+
 func (*scriptedClient) ListDatabases(context.Context) ([]string, error) { return nil, nil }
 
 func (*scriptedClient) ListContainers(context.Context, string) ([]string, error) {

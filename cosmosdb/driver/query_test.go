@@ -24,6 +24,10 @@ func TestPing(t *testing.T) {
 	require.NoError(t, newDriver(t).Ping(context.Background()))
 }
 
+func TestClose(t *testing.T) {
+	require.NoError(t, newDriver(t).Close())
+}
+
 // TestSyncInstance reads the account's databases through the client's query
 // API, which is how a server answers.
 func TestSyncInstance(t *testing.T) {
@@ -82,15 +86,50 @@ func TestSyncDatabaseEmulatorListing(t *testing.T) {
 }
 
 // TestSyncDatabaseNotExist pins what a sync of a database the account does not
-// have answers: the gateway's own error, as Bytebase's driver surfaced it.
+// have answers: driver.ErrNotFound with the account's own error behind it.
 func TestSyncDatabaseNotExist(t *testing.T) {
 	d := &Driver{client: OpenTape(t), databaseName: "no-such-database"}
 	_, err := d.SyncDatabase(context.Background())
 	require.Error(t, err)
 
+	require.ErrorIs(t, err, driver.ErrNotFound)
 	var responseErr *azcore.ResponseError
 	require.ErrorAs(t, err, &responseErr)
 	assert.Equal(t, 404, responseErr.StatusCode)
+}
+
+// TestSyncDatabaseNotExistEmulatorListing is the same failure over the
+// emulator's REST listing, which reports the status as text rather than as a
+// client error type.
+func TestSyncDatabaseNotExistEmulatorListing(t *testing.T) {
+	d := &Driver{client: OpenTapeEmulator(t), databaseName: "no-such-database"}
+	_, err := d.SyncDatabase(context.Background())
+	require.Error(t, err)
+	require.ErrorIs(t, err, driver.ErrNotFound)
+	assert.Contains(t, err.Error(), "HTTP 404")
+}
+
+// TestQueryMaxResultBytes covers the cap on a result's size: the rows up to it
+// come back, and the result says it stopped.
+func TestQueryMaxResultBytes(t *testing.T) {
+	d := newDriver(t)
+	session, err := d.Session(context.Background())
+	require.NoError(t, err)
+
+	results, err := session.Query(context.Background(), `SELECT c.name FROM c ORDER BY c.name`, driver.QueryOptions{
+		Schema:         testcontainer.CitiesContainer,
+		MaxResultBytes: 120,
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.True(t, results[0].Truncated)
+	require.NotEmpty(t, results[0].Rows)
+	require.Less(t, len(results[0].Rows), testcontainer.CitiesItems(), "the cap stops before the last row")
+
+	// Without a cap the same query returns every row.
+	all := query(t, d, testcontainer.CitiesContainer, `SELECT c.name FROM c ORDER BY c.name`)
+	require.Len(t, all, testcontainer.CitiesItems())
 }
 
 func TestQueryWithoutContainer(t *testing.T) {
