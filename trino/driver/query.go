@@ -85,13 +85,10 @@ func (s *session) runStatement(ctx context.Context, statement string, opts drive
 		}
 		statement = explained
 		returnsData = true
-	} else if returnsData && opts.Limit > 0 && !strings.Contains(strings.ToUpper(stripComments(statement)), " LIMIT ") {
+	} else if limitable(statement) && opts.Limit > 0 {
 		// A plan of a statement the caller did not write answers the wrong
-		// question, so the limit applies only when the statement runs. The
-		// clause goes before any trailing comment, which would otherwise
-		// comment it out.
-		at := codeEnd(statement)
-		statement = fmt.Sprintf("%s LIMIT %d%s", statement[:at], opts.Limit, statement[at:])
+		// question, so the limit applies only when the statement runs.
+		statement = applyLimit(statement, opts.Limit)
 	}
 
 	if returnsData {
@@ -260,67 +257,92 @@ func codeEnd(statement string) int {
 	return end
 }
 
-// returnsRows reports whether statement returns rows: Bytebase's rule, the
-// leading keyword of the statement after any comment.
-func returnsRows(statement string) bool {
-	upper := strings.ToUpper(strings.TrimSpace(stripComments(statement)))
-	return strings.HasPrefix(upper, "SELECT") ||
-		strings.HasPrefix(upper, "SHOW") ||
-		strings.HasPrefix(upper, "DESCRIBE") ||
-		strings.HasPrefix(upper, "EXPLAIN")
+// keywordKinds resolves the keywords the row-returning and limit rules read.
+var keywordKinds = func() map[string]parser.TokenKind {
+	kinds := map[string]parser.TokenKind{}
+	for _, name := range []string{"SELECT", "WITH", "TABLE", "VALUES", "SHOW", "DESCRIBE", "DESC", "EXPLAIN", "LIMIT"} {
+		kind, ok := parser.KeywordToken(name)
+		if !ok {
+			panic("trino/driver: unknown keyword: " + name)
+		}
+		kinds[name] = kind
+	}
+	return kinds
+}()
+
+// firstToken returns statement's first token, skipping comments and whitespace.
+func firstToken(statement string) parser.Token {
+	return parser.NewLexer(statement).NextToken()
 }
 
-// stripComments removes -- and /* */ comments from statement, respecting
-// quoted text, so the leading-keyword and LIMIT checks see what the server
-// would parse. It is the rule Bytebase's splitter applied to every statement
-// before the driver saw it.
-func stripComments(statement string) string {
-	var out strings.Builder
-	out.Grow(len(statement))
-	const (
-		singleQuote = '\''
-		doubleQuote = '"'
-		backtick    = '`'
-	)
-	var quote rune
-	escaped := false
-	for i := 0; i < len(statement); i++ {
-		c := rune(statement[i])
-		if quote != 0 {
-			out.WriteByte(statement[i])
-			switch {
-			case escaped:
-				escaped = false
-			case c == '\\':
-				escaped = true
-			case c == quote:
-				quote = 0
-			}
-			continue
-		}
-		switch {
-		case c == '-' && i+1 < len(statement) && statement[i+1] == '-':
-			// The engine's lexer ends a line comment at either line break.
-			for i < len(statement) && statement[i] != '\n' && statement[i] != '\r' {
-				i++
-			}
-			if i < len(statement) {
-				out.WriteByte('\n')
-			}
-		case c == '/' && i+1 < len(statement) && statement[i+1] == '*':
-			i += 2
-			for i+1 < len(statement) && !(statement[i] == '*' && statement[i+1] == '/') {
-				i++
-			}
-			i++
-		case c == singleQuote || c == doubleQuote || c == backtick:
-			quote = c
-			out.WriteByte(statement[i])
-		default:
-			out.WriteByte(statement[i])
+// returnsRows reports whether statement returns a result set. The SELECT family
+// leads with a keyword or a parenthesized query; SHOW, DESCRIBE/DESC and EXPLAIN
+// return rows too. SET and RESET SESSION are the SELECT family's exceptions:
+// they report no rows, so they run on the exec path.
+func returnsRows(statement string) bool {
+	token := firstToken(statement)
+	if token.Kind == int('(') {
+		return true
+	}
+	for _, name := range []string{"SELECT", "WITH", "TABLE", "VALUES", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"} {
+		if token.Kind == keywordKinds[name] {
+			return true
 		}
 	}
-	return out.String()
+	return false
+}
+
+// limitable reports whether statement accepts a LIMIT clause: the SELECT family,
+// which Trino's SHOW, DESCRIBE and EXPLAIN do not.
+func limitable(statement string) bool {
+	token := firstToken(statement)
+	if token.Kind == int('(') {
+		return true
+	}
+	for _, name := range []string{"SELECT", "WITH", "TABLE", "VALUES"} {
+		if token.Kind == keywordKinds[name] {
+			return true
+		}
+	}
+	return false
+}
+
+// applyLimit caps statement's rows by appending a LIMIT, unless the statement
+// holds one of its own at the top level. Trino's OFFSET precedes its LIMIT, so
+// the clause still goes last; it lands just past the last token so a trailing
+// comment does not swallow it.
+func applyLimit(statement string, limit int) string {
+	if _, ok := topLevelKeyword(statement, keywordKinds["LIMIT"]); ok {
+		return statement
+	}
+	at := codeEnd(statement)
+	return fmt.Sprintf("%s LIMIT %d%s", statement[:at], limit, statement[at:])
+}
+
+// topLevelKeyword returns the offset of the first keyword at parenthesis depth
+// zero, outside any literal or comment, and whether the statement holds one.
+func topLevelKeyword(statement string, keyword parser.TokenKind) (int, bool) {
+	lexer := parser.NewLexer(statement)
+	depth := 0
+	for {
+		token := lexer.NextToken()
+		if token.Kind == 0 {
+			// The end-of-input token.
+			return 0, false
+		}
+		switch token.Kind {
+		case int('('):
+			depth++
+		case int(')'):
+			if depth > 0 {
+				depth--
+			}
+		default:
+			if depth == 0 && token.Kind == keyword {
+				return token.Loc.Start, true
+			}
+		}
+	}
 }
 
 // trimStatement trims a segment the way Bytebase's splitter trimmed the
@@ -349,8 +371,12 @@ func makeValueByTypeName(typeName string) any {
 		return new(sql.NullBool)
 	case "TINYINT", "SMALLINT", "INTEGER", "BIGINT":
 		return new(sql.NullInt64)
-	case "DECIMAL", "REAL", "DOUBLE":
+	case "REAL", "DOUBLE":
 		return new(sql.NullFloat64)
+	// DECIMAL keeps its exact value as text: a float64 cannot hold every
+	// decimal Trino returns.
+	case "DECIMAL":
+		return new(sql.NullString)
 	case "VARBINARY", "BINARY":
 		return new([]byte)
 	// The driver hands a VARIANT column a trino.Variant, which the default
@@ -387,7 +413,7 @@ func convertValue(typeName string, value any) driver.Value {
 			return driver.Value{Kind: driver.Int64, Int64: raw.Int64}
 		}
 	case *[]byte:
-		if len(*raw) > 0 {
+		if *raw != nil {
 			return driver.Value{Kind: driver.Bytes, Bytes: *raw}
 		}
 	case *sql.NullBool:

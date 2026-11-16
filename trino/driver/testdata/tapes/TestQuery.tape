@@ -1,15 +1,25 @@
 -- pin: default trinodb/trino:482 sha256:90b35b7c603eaa1f889bf03981a62b75f998ee6c0f851d9f4e341b49a57022b6 482
 
-== TestQuery/SHOW_does_not_take_a_limit default#1
+== TestQuery/SHOW_takes_no_limit_rewrite default#1
 > query
-| SHOW SCHEMAS LIMIT 10
-< error
-| {"Status":200,"Type":"USER_ERROR","Message":"line 1:14: mismatched input 'LIMIT'. Expecting: 'FROM', 'IN', 'LIKE', \u003cEOF\u003e","SqlState":"","Name":"SYNTAX_ERROR","Code":1,"Line":1,"Column":14}
-
-== TestQuery/a_WITH_query_loses_its_rows default#1
-> exec
-| WITH t AS (SELECT 1 AS x) SELECT * FROM t
-< ok 0 -
+| SHOW SCHEMAS
+< result
+< column "Schema" "VARCHAR"
+< row
+: string
+| default
+< row
+: string
+| information_schema
+< row
+: string
+| omni_query
+< row
+: string
+| omni_query_family
+< row
+: string
+| omni_query_scoped
 
 == TestQuery/a_comment_ending_at_a_carriage_return default#1
 > query
@@ -27,6 +37,37 @@
 < column "_col0" "INTEGER"
 < row
 : int64 1
+
+== TestQuery/a_user_EXPLAIN_plans_the_same_statement default#1
+> query
+| EXPLAIN SELECT 1
+< result
+< column "Query Plan" "VARCHAR"
+< row
+: string
+| Trino version: 482
+| Fragment 0 [SINGLE]
+|     Output layout: [expr]
+|     Output partitioning: SINGLE []
+|     Output[columnNames = [_col0]]
+|     │   Layout: [expr:integer]
+|     │   Estimates: {rows: 1 (5B), cpu: 0, memory: 0B, network: 0B}
+|     │   _col0 := expr
+|     └─ Values[]
+|            Layout: [expr:integer]
+|            Estimates: {rows: 1 (5B), cpu: 0, memory: 0B, network: 0B}
+|            (integer '1')
+|
+|
+
+== TestQuery/an_exact_DECIMAL_keeps_its_value default#1
+> query
+| SELECT CAST('9007199254740993' AS DECIMAL(16,0)) AS v
+< result
+< column "v" "DECIMAL"
+< row
+: string
+| 9007199254740993
 
 == TestQuery/change_and_query_statements default#1
 > exec
@@ -400,6 +441,114 @@
 < row
 : int64 7
 
+== TestQuery/the_SELECT_family_returns_rows default#1
+> exec
+| CREATE SCHEMA memory.omni_query_family
+< ok 0 -
+> exec
+| CREATE TABLE memory.omni_query_family.items (id integer, note varchar)
+< ok 0 -
+> exec
+| INSERT INTO memory.omni_query_family.items VALUES (1, 'a'), (2, 'b')
+< ok 2 -
+> query
+| WITH t AS (SELECT 1 AS x) SELECT * FROM t
+< result
+< column "x" "INTEGER"
+< row
+: int64 1
+> query
+| TABLE memory.omni_query_family.items
+< result
+< column "id" "INTEGER"
+< column "note" "VARCHAR"
+< row
+: int64 1
+: string
+| a
+< row
+: int64 2
+: string
+| b
+> query
+| VALUES 1, 2
+< result
+< column "_col0" "INTEGER"
+< row
+: int64 1
+< row
+: int64 2
+> query
+| (SELECT 1)
+< result
+< column "_col0" "INTEGER"
+< row
+: int64 1
+> query
+| DESC memory.omni_query_family.items
+< result
+< column "Column" "VARCHAR"
+< column "Type" "VARCHAR"
+< column "Extra" "VARCHAR"
+< column "Comment" "VARCHAR"
+< row
+: string
+| id
+: string
+| integer
+: string
+|
+: string
+|
+< row
+: string
+| note
+: string
+| varchar
+: string
+|
+: string
+|
+
+== TestQuery/the_limit_follows_a_top-level_OFFSET default#1
+> query
+| SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) OFFSET 1 LIMIT 2
+< result
+< column "x" "BIGINT"
+< row
+: int64 2
+< row
+: int64 3
+
+== TestQuery/the_limit_is_measured_by_tokens default#1
+> query
+| SELECT ' LIMIT ' AS v FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT 2
+< result
+< column "v" "VARCHAR"
+< row
+: string
+|  LIMIT 
+< row
+: string
+|  LIMIT 
+> query
+| SELECT x FROM UNNEST(SEQUENCE(1, 5)) AS t(x) LIMIT
+| 3
+< result
+< column "x" "BIGINT"
+< row
+: int64 1
+< row
+: int64 2
+< row
+: int64 3
+> query
+| SELECT (SELECT 1 LIMIT 1) AS v LIMIT 2
+< result
+< column "v" "INTEGER"
+< row
+: int64 1
+
 == TestQuery/types default#1
 > query
 | SELECT
@@ -417,6 +566,7 @@
 | 			TIMESTAMP '2026-01-02 12:34:56' AS c_timestamp,
 | 			CAST('2026-01-02 12:34:56.123 +02:00' AS TIMESTAMP(3) WITH TIME ZONE) AS c_timestamp_tz,
 | 			X'0102' AS c_varbinary,
+| 			X'' AS c_varbinary_empty,
 | 			UUID '12151fd2-7586-11e9-8f9e-2a86e4085a59' AS c_uuid,
 | 			CAST('10.0.0.1' AS IPADDRESS) AS c_ipaddress,
 | 			INTERVAL '1' DAY AS c_interval,
@@ -437,6 +587,7 @@
 < column "c_timestamp" "TIMESTAMP"
 < column "c_timestamp_tz" "TIMESTAMP WITH TIME ZONE"
 < column "c_varbinary" "VARBINARY"
+< column "c_varbinary_empty" "VARBINARY"
 < column "c_uuid" "UUID"
 < column "c_ipaddress" "IPADDRESS"
 < column "c_interval" "INTERVAL DAY TO SECOND"
@@ -461,6 +612,8 @@
 : time 2026-01-02T12:34:56.123+02:00
 : bytes
 |q "\x01\x02"
+: bytes
+|
 : string
 | 12151fd2-7586-11e9-8f9e-2a86e4085a59
 : string
