@@ -46,10 +46,9 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata) (string, error) {
 // indexOptions renders the options createIndex takes for index: its name, and
 // its uniqueness when it is unique.
 func indexOptions(index *metadata.IndexMetadata) string {
-	var fields []string
-	fields = append(fields, fmt.Sprintf("%q: %s", "name", strconv.Quote(index.GetName())))
+	options := `{"name": ` + strconv.Quote(index.GetName())
 	if index.GetUnique() {
-		fields = append(fields, fmt.Sprintf("%q: true", "unique"))
+		options += `, "unique": true`
 	}
-	return "{" + strings.Join(fields, ", ") + "}"
+	return options + "}"
 }

@@ -48,7 +48,8 @@ func (c liveClient) ListDatabaseNames(ctx context.Context) ([]string, error) {
 }
 
 func (c liveClient) ListCollections(ctx context.Context, database string) ([]bson.M, error) {
-	return readCursor(c.client.Database(database).ListCollections(ctx, bson.M{}))
+	cursor, err := c.client.Database(database).ListCollections(ctx, bson.M{})
+	return readCursor(ctx, cursor, err)
 }
 
 func (c liveClient) EstimatedDocumentCount(ctx context.Context, database, collection string) (int64, error) {
@@ -78,7 +79,8 @@ func collStatsFields(doc bson.M) bson.M {
 }
 
 func (c liveClient) ListIndexes(ctx context.Context, database, collection string) ([]bson.M, error) {
-	return readCursor(c.client.Database(database).Collection(collection).Indexes().List(ctx))
+	cursor, err := c.client.Database(database).Collection(collection).Indexes().List(ctx)
+	return readCursor(ctx, cursor, err)
 }
 
 func (c liveClient) RunCommand(ctx context.Context, database string, command bson.D) (bson.M, error) {
@@ -98,13 +100,13 @@ func (c liveClient) Execute(ctx context.Context, database, statement string, max
 }
 
 // readCursor decodes every document a cursor holds, ordered by name.
-func readCursor(cursor *mongo.Cursor, err error) ([]bson.M, error) {
+func readCursor(ctx context.Context, cursor *mongo.Cursor, err error) ([]bson.M, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { _ = cursor.Close(context.Background()) }()
+	defer func() { _ = cursor.Close(ctx) }()
 	var docs []bson.M
-	for cursor.Next(context.Background()) {
+	for cursor.Next(ctx) {
 		var doc bson.M
 		if err := cursor.Decode(&doc); err != nil {
 			return nil, err

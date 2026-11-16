@@ -114,21 +114,15 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		if !ok {
 			return nil, errors.New("cannot get size from collStats command result")
 		}
-		dataSize64, err := convertEmptyInterfaceToInt64(dataSize)
-		if err != nil {
-			// Bytebase logged this and read it as zero; the port keeps the
-			// reading, since the tape is what decides the value.
-			dataSize64 = 0
-		}
+		// Bytebase logged a value it could not convert and read the size as
+		// zero; the driver contract has no logger, so the reading stays.
+		dataSize64, _ := convertEmptyInterfaceToInt64(dataSize)
 
 		totalIndexSize, ok := commandResult["totalIndexSize"]
 		if !ok {
 			return nil, errors.New("cannot get totalIndexSize from collStats command result")
 		}
-		totalIndexSize64, err := convertEmptyInterfaceToInt64(totalIndexSize)
-		if err != nil {
-			totalIndexSize64 = 0
-		}
+		totalIndexSize64, _ := convertEmptyInterfaceToInt64(totalIndexSize)
 
 		indexes, err := getIndexes(ctx, d.client, d.databaseName, collectionName)
 		if err != nil {
