@@ -19,7 +19,7 @@ CREATE TABLE accounts (
 	note VARCHAR(100) COMMENT 'owner''s note \\ path',
 	UNIQUE KEY uk_email (email),
 	KEY idx_bio_prefix (bio(32)),
-	KEY idx_created_desc (created_at DESC) COMMENT 'newest first', -- not restorable: TestDumpGaps
+	KEY idx_created_desc (created_at DESC) COMMENT 'newest first',
 	KEY idx_invisible (status) INVISIBLE,
 	KEY idx_expr ((LOWER(status))),
 	FULLTEXT KEY ft_bio (bio),

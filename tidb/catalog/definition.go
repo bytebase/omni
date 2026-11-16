@@ -1026,6 +1026,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 		return err
 	}
 
+	if index.Comment != "" {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
