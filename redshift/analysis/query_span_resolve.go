@@ -894,13 +894,18 @@ func (q *querySpanResolver) functionDefinitionCatalogNames(definition string) ([
 		return nil, false
 	}
 	var selectStmt *ast.SelectStmt
+	var aliases []string
 	switch n := stmts[0].AST.(type) {
 	case *ast.SelectStmt:
 		selectStmt = n
 	case *ast.ViewStmt:
 		selectStmt, _ = n.Query.(*ast.SelectStmt)
+		aliases = redshiftStringList(n.Aliases)
 	case *ast.CreateTableAsStmt:
 		selectStmt, _ = n.Query.(*ast.SelectStmt)
+		if n.Into != nil {
+			aliases = redshiftStringList(n.Into.ColNames)
+		}
 	}
 	if selectStmt == nil {
 		return nil, false
@@ -917,7 +922,7 @@ func (q *querySpanResolver) functionDefinitionCatalogNames(definition string) ([
 	for _, result := range span.Results {
 		names = append(names, result.Name)
 	}
-	return names, true
+	return applyFunctionColumnAliases(names, aliases), true
 }
 
 func findFunctionMaterializedView(schema *metadata.SchemaMetadata, name string) *metadata.MaterializedViewMetadata {

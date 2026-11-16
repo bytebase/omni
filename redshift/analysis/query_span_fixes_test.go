@@ -605,6 +605,29 @@ func TestRedshiftQuerySpanStarDefinedMaterializedViewKeepsFunction(t *testing.T)
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanAliasedStarDefinedViewKeepsFunction covers a star-defined
+// materialized view with an explicit column list, whose alias must be applied
+// after catalog-based width recovery.
+func TestRedshiftQuerySpanAliasedStarDefinedViewKeepsFunction(t *testing.T) {
+	snapshot := redshiftQuerySpanMetadata()
+	snapshot.Schemas[0].MaterializedViews = append(snapshot.Schemas[0].MaterializedViews, &metadata.MaterializedViewMetadata{
+		Name:       "aliased_star_mv",
+		Definition: "CREATE MATERIALIZED VIEW public.aliased_star_mv(order_id) AS SELECT d.* FROM (SELECT id FROM public.orders) d;",
+	})
+	getter, _ := redshiftMockDatabaseMetadataGetter([]*metadata.DatabaseSchemaMetadata{snapshot})
+	q := newQuerySpanResolver("db", []string{"public"}, ResolveOptions{
+		DefaultDatabase:     "db",
+		SearchPath:          []string{"public"},
+		GetDatabaseMetadata: getter,
+	})
+	span, err := q.getQuerySpan("SELECT m.*, reporting_fn() + 1 EXCLUDE (order_id) FROM aliased_star_mv m")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 1)
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), span.Results[0].SourceColumns)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
