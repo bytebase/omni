@@ -127,6 +127,11 @@ replay tests exercise.
 - A parenthesized `DROP (A, B)` drops every listed column.
 - `CREATE TABLE AS SELECT` is rejected instead of installing an empty table.
 - Renaming a table rewrites the target relation of its triggers.
+- SQL identity clauses keep `ON NULL`.
+- Dropping a column removes only local foreign-key references.
+- CTE exclusion is scoped to its query block.
+- Trigger comparison keeps line-comment boundaries.
+- Synced and extracted constraint indexes compare by their logical attributes.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

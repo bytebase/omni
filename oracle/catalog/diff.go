@@ -482,7 +482,24 @@ func compareIndexes(oldIndexes, newIndexes []*metadatapb.IndexMetadata) []*Index
 }
 
 func indexEqual(a, b *metadatapb.IndexMetadata) bool {
-	if a.GetType() != b.GetType() || a.GetUnique() != b.GetUnique() || a.GetPrimary() != b.GetPrimary() || a.GetVisible() != b.GetVisible() || a.GetIsConstraint() != b.GetIsConstraint() {
+	if a.GetIsConstraint() != b.GetIsConstraint() {
+		return false
+	}
+	if a.GetIsConstraint() && b.GetIsConstraint() {
+		if a.GetUnique() != b.GetUnique() || a.GetPrimary() != b.GetPrimary() {
+			return false
+		}
+		if len(a.GetExpressions()) != len(b.GetExpressions()) {
+			return false
+		}
+		for i, expression := range a.GetExpressions() {
+			if normalizeExpression(expression) != normalizeExpression(b.GetExpressions()[i]) {
+				return false
+			}
+		}
+		return descendingEqual(a.GetDescending(), b.GetDescending())
+	}
+	if a.GetType() != b.GetType() || a.GetUnique() != b.GetUnique() || a.GetPrimary() != b.GetPrimary() || a.GetVisible() != b.GetVisible() {
 		return false
 	}
 	if len(a.GetExpressions()) != len(b.GetExpressions()) {
@@ -652,6 +669,9 @@ func sequenceEqual(a, b *metadatapb.SequenceMetadata) bool {
 // irrelevant. Whitespace inside a string literal or a quoted identifier is part
 // of the value and stays.
 func normalizeExpression(expression string) string {
+	if strings.Contains(expression, "--") {
+		return expression
+	}
 	var out strings.Builder
 	var quote byte
 	pendingSpace := false

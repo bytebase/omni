@@ -626,7 +626,8 @@ func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, na
 		}
 		var remaining []*metadatapb.ForeignKeyMetadata
 		for _, fk := range other.ForeignKeys {
-			if fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name) {
+			if fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name) &&
+				(fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
 				continue
 			}
 			remaining = append(remaining, fk)
@@ -1592,6 +1593,7 @@ func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClau
 	column.IsIdentity = true
 	if identity != nil && !identity.Always {
 		column.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
+		column.DefaultOnNull = strings.Contains(strings.ToUpper(text), "ON NULL")
 	} else {
 		column.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
 	}
@@ -1608,15 +1610,46 @@ func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClau
 }
 
 type viewDependencyVisitor struct {
-	schema   string
-	seen     map[string]bool
-	cteNames map[string]bool
-	result   *[]*metadatapb.DependencyColumn
+	schema  string
+	seen    map[string]bool
+	scopes  []map[string]bool
+	markers []bool
+	result  *[]*metadatapb.DependencyColumn
 }
 
 func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
+	if node == nil {
+		if len(v.markers) > 0 {
+			marker := v.markers[len(v.markers)-1]
+			v.markers = v.markers[:len(v.markers)-1]
+			if marker && len(v.scopes) > 0 {
+				v.scopes = v.scopes[:len(v.scopes)-1]
+			}
+		}
+		return v
+	}
+	marker := false
+	if selectStmt, ok := node.(*ast.SelectStmt); ok {
+		scope := map[string]bool{}
+		if len(v.scopes) > 0 {
+			for name := range v.scopes[len(v.scopes)-1] {
+				scope[name] = true
+			}
+		}
+		if selectStmt.WithClause != nil {
+			for _, item := range listItems(selectStmt.WithClause.CTEs) {
+				if cte, ok := item.(*ast.CTE); ok && cte.Name != "" {
+					scope[cte.Name] = true
+				}
+			}
+		}
+		v.scopes = append(v.scopes, scope)
+		marker = true
+	}
+	v.markers = append(v.markers, marker)
 	if ref, ok := node.(*ast.TableRef); ok && ref.Name != nil && ref.Name.Name != "" {
-		if ref.Name.Schema == "" && v.cteNames[ref.Name.Name] {
+		inScope := len(v.scopes) > 0 && v.scopes[len(v.scopes)-1][ref.Name.Name]
+		if ref.Name.Schema == "" && inScope {
 			return v
 		}
 		schema := ref.Name.Schema
@@ -1632,26 +1665,11 @@ func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
 	return v
 }
 
-type cteNameVisitor struct{ names map[string]bool }
-
-func (v *cteNameVisitor) Visit(node ast.Node) ast.Visitor {
-	if selectStmt, ok := node.(*ast.SelectStmt); ok && selectStmt.WithClause != nil {
-		for _, item := range listItems(selectStmt.WithClause.CTEs) {
-			if cte, ok := item.(*ast.CTE); ok && cte.Name != "" {
-				v.names[cte.Name] = true
-			}
-		}
-	}
-	return v
-}
-
 func viewDependencyColumns(query ast.StmtNode, schema string) []*metadatapb.DependencyColumn {
 	if query == nil {
 		return nil
 	}
-	cteNames := map[string]bool{}
-	ast.Walk(&cteNameVisitor{names: cteNames}, query)
 	var result []*metadatapb.DependencyColumn
-	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, cteNames: cteNames, result: &result}, query)
+	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result}, query)
 	return result
 }
