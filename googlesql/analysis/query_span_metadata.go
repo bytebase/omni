@@ -119,11 +119,26 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 
 	results := q.expandColumnInfos(rawSpan.Results, fullSourceColumns, aliasMap)
 
+	unresolved := rawSpan.filterUnresolved
+	predicateColumns := ColumnSet{}
+	if unresolved == "" {
+		var reason string
+		predicateColumns, reason = q.mapPredicateColumns(rawSpan, fullSourceColumns)
+		unresolved = reason
+	}
+	if unresolved != "" {
+		// Fail closed: a predicate set that misses one of the statement's row
+		// conditions is worse than none, because the masking consumer acts on what it
+		// contains.
+		predicateColumns = ColumnSet{}
+	}
+
 	span := &ResolvedQuerySpan{
-		Type:             queryType,
-		SourceColumns:    accessTables,
-		PredicateColumns: q.mapPredicateColumns(rawSpan, fullSourceColumns),
-		Results:          results,
+		Type:                       queryType,
+		SourceColumns:              accessTables,
+		PredicateColumns:           predicateColumns,
+		Results:                    results,
+		predicateColumnsUnresolved: unresolved,
 	}
 	if notFound != nil {
 		span.NotFoundError = notFound
@@ -655,10 +670,10 @@ func resultName(r ColumnInfo) string {
 // check stricter. A map-independent ref that matches no expanded column (a
 // referenced column the metadata does not hold, a pseudo-column) is dropped: a
 // resource the metadata does not have cannot carry a policy.
-func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSet) ColumnSet {
+func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSet) (ColumnSet, string) {
 	out := ColumnSet{}
 	if span == nil {
-		return out
+		return out, ""
 	}
 	for _, ref := range span.filterColumns {
 		if ref.Column == "" {
@@ -673,15 +688,11 @@ func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColum
 		if q.addMatchingPredicateColumns(out, fullSourceColumns, ref, true, excluded) {
 			continue
 		}
-		// A qualified ref the expansion cannot attribute (a recursive CTE's
-		// self-reference, a relation only an outer body knows) falls back to the
-		// column name alone. A star ref keeps its relation: a name-only read of "*"
-		// would fan out to every accessed table.
-		if ref.Table != "" && ref.Column != filterStarColumn {
-			q.addMatchingPredicateColumns(out, fullSourceColumns, ColumnRef{Column: ref.Column}, false, excluded)
-		}
+		// A qualified ref the expansion cannot attribute is unknown lineage, not a
+		// column to guess at: the statement then reports no predicate columns.
+		return out, fmt.Sprintf("column %q of relation %q is not in the synced metadata", ref.Column, ref.Table)
 	}
-	return out
+	return out, ""
 }
 
 // addMatchingPredicateColumns adds every expanded column a filter ref names and

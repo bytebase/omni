@@ -67,6 +67,11 @@ type QuerySpan struct {
 	// retires the written name it stood in for.
 	filterPlaceholderFallback map[ColumnRef]ColumnRef
 
+	// filterUnresolved is the first row-condition reference this walk could not
+	// resolve to the column it reads. A statement carrying one reports no predicate
+	// columns at all: an empty set is honest, a set missing a read is not.
+	filterUnresolved string
+
 	// CTEs lists the names defined by WITH clauses at any scope, in declaration
 	// order.
 	CTEs []string
@@ -1767,7 +1772,11 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 		followSub: true,
 		onColumn:  w.addPredicateColumn,
 		onParts: func(parts []string) {
-			for _, ref := range w.filterRefs(parts) {
+			refs := w.filterRefs(parts)
+			if len(refs) == 0 {
+				w.markFilterUnresolved(fmt.Sprintf("column %q resolves to no lineage", strings.Join(parts, ".")))
+			}
+			for _, ref := range refs {
 				w.addFilterColumn(ref)
 			}
 		},
@@ -1951,6 +1960,14 @@ func bodyComparesProjectedValues(body ast.Node) bool {
 	return false
 }
 
+// markFilterUnresolved records the first row-condition reference the walk could not
+// resolve. Once set, the resolved span reports no predicate columns.
+func (w *spanWalker) markFilterUnresolved(reason string) {
+	if w.span.filterUnresolved == "" {
+		w.span.filterUnresolved = reason
+	}
+}
+
 // filterStarColumn marks a filter reference to a relation whose every column a
 // star projection stands for; the metadata-aware resolver reads it as "any
 // column of the named relation".
@@ -2002,6 +2019,14 @@ func (w *spanWalker) addProjectionFilterColumnsOnly(cols []projColumn, only []st
 				}
 			}
 		default:
+			if len(col.sources) == 0 && col.baseStar == nil && col.starMerge == nil && col.starGroup == nil && col.setOpMerge == nil {
+				// A projection element that reads nothing is either a constant or lineage
+				// the walker lost (a select-list scalar subquery, a materialized BY NAME
+				// arm); the two are indistinguishable here, so the statement reports no
+				// predicate columns rather than a set missing this condition's reads.
+				w.markFilterUnresolved(fmt.Sprintf("projected column %q reads no column", col.name))
+				continue
+			}
 			for _, ref := range col.sources {
 				w.addFilterColumn(ref)
 			}
@@ -2048,6 +2073,10 @@ func (w *spanWalker) addColumnInfoFilterColumns(infos []ColumnInfo, only []strin
 		star := info.StarSegments != nil || info.SetOpMerge != nil
 		if len(only) > 0 && !star && !containsFold(only, info.Name) {
 			// The arm projects an output name the BY NAME merge does not keep.
+			continue
+		}
+		if !star && info.StarMerge == nil && len(info.SourceColumns) == 0 {
+			w.markFilterUnresolved(fmt.Sprintf("projected column %q reads no column", info.Name))
 			continue
 		}
 		for _, ref := range info.SourceColumns {

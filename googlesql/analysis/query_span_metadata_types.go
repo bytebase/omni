@@ -95,6 +95,11 @@ type ResolvedQuerySpan struct {
 	PredicateColumns ColumnSet
 	Results          []ResolvedQuerySpanResult
 	NotFoundError    error
+
+	// predicateColumnsUnresolved is why PredicateColumns is empty when one of the
+	// statement's row conditions could not be resolved: an empty set is honest, a set
+	// missing a read is not, so such a statement reports none at all.
+	predicateColumnsUnresolved string
 }
 
 // ResourceNotFoundError reports a resource missing from the synced metadata.

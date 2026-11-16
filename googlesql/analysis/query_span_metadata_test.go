@@ -277,3 +277,78 @@ func predicateSourcesOf(span *ResolvedQuerySpan) []string {
 	slices.Sort(out)
 	return out
 }
+
+// TestPredicateColumnsFailClosed pins the contract the predicate columns are
+// reported under: a statement whose row conditions are ALL resolved reports the
+// columns they read, and a statement with any row condition the walk cannot
+// resolve reports NO predicate columns, with the reason kept for the caller's
+// tests. An empty set is honest; a set that silently misses a read is not,
+// because the masking consumer acts on what it contains.
+func TestPredicateColumnsFailClosed(t *testing.T) {
+	column := func(name string) *metadata.ColumnMetadata { return &metadata.ColumnMetadata{Name: name} }
+	table := func(name string, columns ...string) *metadata.TableMetadata {
+		out := &metadata.TableMetadata{Name: name}
+		for _, c := range columns {
+			out.Columns = append(out.Columns, column(c))
+		}
+		return out
+	}
+	schemas := []*metadata.SchemaMetadata{{Tables: []*metadata.TableMetadata{
+		table("t", "id", "secret"),
+		table("u", "id", "secret"),
+		table("v", "secret"),
+	}}}
+	opts := bigqueryResolveOptions()
+
+	for _, tc := range []struct {
+		name   string
+		sql    string
+		reason string
+	}{
+		{
+			// The derived relation's `k` is a select-list scalar subquery, which the
+			// projection layer does not carry lineage for.
+			name:   "a derived relation projecting a scalar subquery",
+			sql:    "SELECT 1 FROM (SELECT (SELECT secret FROM t) AS k) c WHERE c.k > 5",
+			reason: "resolves to no lineage",
+		},
+		{
+			// A BY NAME merge materializes its star arm, so the position arrives with no
+			// lineage.
+			name:   "a BY NAME merge over a star arm",
+			sql:    "SELECT 1 FROM t WHERE 5 IN (SELECT * FROM t UNION ALL BY NAME ON (id) (SELECT * FROM u UNION ALL SELECT 0 AS id, secret FROM v))",
+			reason: "",
+		},
+		{
+			name:   "a condition on a column the metadata does not hold",
+			sql:    "SELECT 1 FROM t WHERE missing = 1",
+			reason: "is not in the synced metadata",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			span := resolvePin(t, opts, tc.sql, "ds1", schemas)
+			if tc.reason == "" {
+				// This shape resolves conservatively today; what matters is that a set is
+				// only reported together with no unresolved reason.
+				if span.predicateColumnsUnresolved != "" && len(span.PredicateColumns) > 0 {
+					t.Errorf("reported %d predicate columns while unresolved: %s", len(span.PredicateColumns), span.predicateColumnsUnresolved)
+				}
+				return
+			}
+			require.Empty(t, span.PredicateColumns, "a statement with an unresolved row condition reports no predicate columns")
+			require.Contains(t, span.predicateColumnsUnresolved, tc.reason)
+		})
+	}
+
+	t.Run("resolved", func(t *testing.T) {
+		span := resolvePin(t, opts, "WITH c AS (SELECT secret AS k FROM t) SELECT 1 FROM c WHERE c.k = 1", "ds1", schemas)
+		require.Equal(t, []string{"ds1.t.secret"}, predicateSourcesOf(span))
+		require.Empty(t, span.predicateColumnsUnresolved)
+	})
+
+	t.Run("no row condition", func(t *testing.T) {
+		span := resolvePin(t, opts, "SELECT id FROM t", "ds1", schemas)
+		require.Empty(t, span.PredicateColumns)
+		require.Empty(t, span.predicateColumnsUnresolved, "a statement without a row condition is not unresolved")
+	})
+}

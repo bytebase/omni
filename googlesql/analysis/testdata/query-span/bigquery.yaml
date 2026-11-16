@@ -4228,12 +4228,7 @@
         schema: ""
         table: c
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_vault
-        column: secret
+    predicatecolumns: []
 
 - description: "predicate columns: a HAVING over a constant select alias reads no column"
   statement: SELECT COUNT(*) AS n, 1 AS secret FROM audit_vault HAVING secret = 1
@@ -4508,12 +4503,7 @@
         schema: ""
         table: audit_t
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: secret
+    predicatecolumns: []
 
 - description: "predicate columns: a path head outside the SQL scope is a struct field"
   statement: SELECT 1 FROM payload UNION ALL SELECT 1 FROM audit_t WHERE payload.secret = 1
@@ -4782,12 +4772,7 @@
         schema: ""
         table: audit_t
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: secret
+    predicatecolumns: []
 
 - description: "predicate columns: an EXISTS body's nested projection is not a row condition"
   statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT (SELECT secret FROM audit_t))
@@ -5057,12 +5042,7 @@
         schema: ""
         table: c
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: secret
+    predicatecolumns: []
 
 - description: "predicate columns: the nearest enclosing projection shadows an outer one"
   statement: WITH c AS (SELECT secret AS k FROM audit_t) SELECT 1 FROM c WHERE EXISTS (SELECT 1 FROM (SELECT public AS k FROM audit_p) u WHERE EXISTS (SELECT 1 FROM audit_v WHERE k = 1))
@@ -5131,12 +5111,7 @@
         schema: ""
         table: c
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_p
-        column: public
+    predicatecolumns: []
 
 - description: "predicate columns: a BY NAME arm of a filter subquery projects only its ON columns"
   statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * FROM audit_t UNION ALL BY NAME ON (id) SELECT 0 AS id)
@@ -5190,12 +5165,7 @@
         schema: ""
         table: audit_t
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: id
+    predicatecolumns: []
 
 - description: "predicate columns: a HAVING alias used as a struct root"
   statement: SELECT ANY_VALUE(secret) AS payload FROM audit_t HAVING payload.field = 1
@@ -5348,12 +5318,7 @@
         schema: ""
         table: audit_u
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: id
+    predicatecolumns: []
 
 - description: "predicate columns: an EXISTS inside a filter subquery's projection reads no value"
   statement: SELECT 1 FROM audit_guards WHERE (SELECT EXISTS (SELECT (SELECT secret FROM audit_t)))
@@ -5857,17 +5822,7 @@
         schema: ""
         table: audit_u
         column: ""
-    predicatecolumns:
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_t
-        column: secret
-      - server: ""
-        database: ds1
-        schema: ""
-        table: audit_u
-        column: secret
+    predicatecolumns: []
 
 - description: "predicate columns: a value-comparing derived relation inside an EXISTS body"
   statement: SELECT 1 FROM audit_t WHERE EXISTS (SELECT 1 FROM (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u) d)
