@@ -27,6 +27,13 @@
 // Both are written through the client, not through a taped request: a replay
 // answers as if they were there, and the seeding is not part of what the driver
 // asked.
+//
+// Three things an answer carries cannot be held as answered, and the driver's
+// tests narrow them, each with the reason beside it: the emulator's own document
+// properties (physical ids, etags, write timestamps), which only the store that
+// answered can name; the ActivityId an error body repeats; and the order of a
+// result whose query names no ORDER BY, which is the order the client's merged
+// partition streams arrived in.
 package testcontainer
 
 import (
