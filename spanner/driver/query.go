@@ -68,13 +68,14 @@ func statements(script string) []statement {
 	return statements
 }
 
-// classifyStatement routes one statement by its first keyword, as Bytebase
-// routed it, and reports false for a segment that holds no statement. Comments
-// before the keyword are the lexer's to skip.
+// classifyStatement routes one statement by its first keyword and reports false
+// for a segment that holds no statement. Comments before the keyword are the
+// lexer's to skip.
 //
-// Spanner's GRANT and REVOKE are DDL statements the admin API takes, and this
-// routing calls them DML, which Spanner refuses. Bytebase's prefix test did the
-// same, and the move keeps it; it is fixed in a change of its own.
+// The keywords are Bytebase's, with one addition: Spanner's GRANT and REVOKE are
+// DDL statements the admin API takes, and Bytebase's prefix test sent them down
+// the DML path, where Spanner refuses them as "not valid DML". A statement that
+// changes privileges changes the schema's access, so it is a schema change.
 func classifyStatement(text string) (statementKind, bool) {
 	tok := parser.NewLexer(text).NextToken()
 	if tok.Loc.End <= tok.Loc.Start {
@@ -83,7 +84,7 @@ func classifyStatement(text string) (statementKind, bool) {
 	switch strings.ToUpper(text[tok.Loc.Start:tok.Loc.End]) {
 	case "SELECT", "WITH":
 		return query, true
-	case "CREATE", "DROP", "ALTER":
+	case "CREATE", "DROP", "ALTER", "GRANT", "REVOKE":
 		return ddl, true
 	default:
 		return dml, true

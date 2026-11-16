@@ -197,6 +197,36 @@ func TestQueryStructRefused(t *testing.T) {
 	a.EqualError(results[0].Err, "spanner STRUCT type is not supported")
 }
 
+// TestQueryGrant runs Spanner's privilege statements, which the admin API takes
+// and the DML path refuses: GRANT and REVOKE are DDL. The move routed them as
+// DML, as Bytebase's prefix test did, and every one of them failed; this holds
+// them where the admin API runs them.
+func TestQueryGrant(t *testing.T) {
+	a := require.New(t)
+	testcontainer.Create(t, "querygrant", "querygrant", fixtureDDL, fixtureRows)
+	d := openDriver(t, "querygrant", "querygrant")
+	defer d.Close()
+
+	results, err := sessionOf(t, d).Query(context.Background(),
+		`CREATE ROLE reviewer;
+		 GRANT SELECT ON TABLE Singers TO ROLE reviewer;
+		 REVOKE SELECT ON TABLE Singers FROM ROLE reviewer`,
+		driver.QueryOptions{MaxResultBytes: maxResultBytes})
+	a.NoError(err)
+	a.Len(results, 3)
+	for _, result := range results {
+		a.NoError(result.Err, result.Statement)
+		a.Empty(result.Columns, result.Statement)
+		a.Nil(result.AffectedRows, result.Statement)
+	}
+
+	// Execute takes the same path, where it used to be sent as DML.
+	count, err := d.Execute(context.Background(),
+		`GRANT SELECT ON TABLE Singers TO ROLE reviewer`, driver.ExecuteOptions{})
+	a.NoError(err)
+	a.Equal(int64(0), count)
+}
+
 // TestQueryDMLAndDDLInAScript runs a script of its own so the fixture above stays
 // as it was recorded: DML reports the rows it affected, DDL applies through the
 // admin API and reports no rows, and a query reads what the script wrote.
