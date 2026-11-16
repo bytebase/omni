@@ -234,8 +234,16 @@ func (d *Driver) SyncInstance(ctx context.Context) (*omnidriver.Instance, error)
 	}, nil
 }
 
-// SyncDatabase reads the full schema metadata of Config.Database.
+// SyncDatabase reads the full schema metadata of Config.Database, or of the
+// account's own schema when Config names none.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	if d.databaseName == "" {
+		// An Oracle session's names resolve in the account's schema unless the
+		// session switched; SYS_CONTEXT states which that is.
+		if err := d.db.QueryRowContext(ctx, "SELECT SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA') FROM DUAL").Scan(&d.databaseName); err != nil {
+			return nil, fmt.Errorf("failed to read the current schema: %w", err)
+		}
+	}
 	// The version comes from the server on a connection of its own: the
 	// dictionary reads below hold the transaction's.
 	version, err := d.version(ctx)
@@ -687,6 +695,12 @@ func getTableColumnComments(txn *sql.Tx, schemaName string) (map[columnKey]strin
 	return columnCommentsMap, nil
 }
 
+// isGeneratedNotNull reports whether a check constraint's condition is the
+// NOT NULL Oracle records for a column, which it names itself.
+func isGeneratedNotNull(searchCondition string) bool {
+	return strings.HasSuffix(strings.TrimSpace(searchCondition), "IS NOT NULL") && !strings.Contains(searchCondition, " AND ")
+}
+
 // sqlLiteral writes s as the body of an SQL string literal, doubling its
 // apostrophes: an Oracle schema is a user, and a quoted user name may hold one.
 func sqlLiteral(s string) string {
@@ -942,7 +956,10 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 		}
 		key := constraintRef{Schema: schemaName, Constraint: constraintName}
 		outerRTableMap[key] = tableName
-		outerRColumnMap[key] = append(outerRColumnMap[key], columnName.String)
+		// The query reads every constraint of the owner, and a constraint two
+		// foreign keys name is read once per call, so the columns are set rather
+		// than appended.
+		outerRColumnMap[key] = append(outerRColumnMap[key][:0], columnName.String)
 	}
 	if err := rows.Err(); err != nil {
 		return "", nil, fmt.Errorf("failed to execute query %q: %w", queryColumns, err)
@@ -1050,8 +1067,10 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 			indexMap[key] = append(indexMap[key], index)
 			isConstraint[indexKey{Schema: schemaName, Table: tableName, Index: constraintName}] = true
 		case "C":
-			// Skip system-generated check constraints (e.g., SYS_C*)
-			if strings.HasPrefix(constraintName, "SYS_C") {
+			// Oracle records NOT NULL as a check constraint it named SYS_C<n>
+			// itself. A user's unnamed CHECK gets a SYS_C name as well, so the
+			// condition says which one this is.
+			if strings.HasPrefix(constraintName, "SYS_C") && isGeneratedNotNull(searchCondition.String) {
 				continue
 			}
 			constraint := &metadatapb.CheckConstraintMetadata{

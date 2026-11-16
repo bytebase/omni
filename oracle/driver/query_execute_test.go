@@ -336,6 +336,15 @@ func TestQueryLimit(t *testing.T) {
 		t.Errorf("statement = %q, want a limit rewrite", results[0].Statement)
 	}
 
+	// A leading comment does not take the limit away.
+	results, err = s.Query(ctx, "-- the rows in order\nSELECT ID FROM OMNI_APP.Q ORDER BY ID", omnidriver.QueryOptions{Limit: 2})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(results[0].Rows); got != 2 {
+		t.Errorf("rows behind a comment = %d, want 2", got)
+	}
+
 	// One row exceeds a byte, so reading stops after it and says so.
 	results, err = s.Query(ctx, "SELECT ID, LABEL FROM OMNI_APP.Q ORDER BY ID", omnidriver.QueryOptions{MaxResultBytes: 1})
 	if err != nil {

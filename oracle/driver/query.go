@@ -35,13 +35,7 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 		}
 		text := statement.Text
 		if !opts.Explain && opts.Limit > 0 {
-			// A statement the rewrite cannot bound falls back to the ROWNUM
-			// wrapper.
-			if rewritten, err := oracleanalysis.RewriteResultLimit(text, opts.Limit, s.driver.engineVersion); err == nil {
-				text = rewritten
-			} else {
-				text = oracleanalysis.RowNumResultLimit(text, opts.Limit)
-			}
+			text = limitStatement(text, opts.Limit, s.driver.engineVersion)
 		}
 		// The statement's shape decides how it runs, not the read-only
 		// validator: a SELECT that declares PL/SQL inline is refused read-only,
@@ -88,6 +82,19 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 		}
 	}
 	return results, nil
+}
+
+// limitStatement bounds the rows statement returns. The rewrite reads the
+// statement's first keyword, so a leading comment is set aside and put back
+// around the bounded statement; a statement neither form can bound keeps its
+// text, as it does in Bytebase.
+func limitStatement(statement string, limit int, engineVersion string) string {
+	start := skipSpaceAndComments(statement)
+	prefix, body := statement[:start], statement[start:]
+	if rewritten, err := oracleanalysis.RewriteResultLimit(body, limit, engineVersion); err == nil && rewritten != body {
+		return prefix + rewritten
+	}
+	return prefix + oracleanalysis.RowNumResultLimit(body, limit)
 }
 
 // explain plans statement and returns the plan, in the requested format, with
