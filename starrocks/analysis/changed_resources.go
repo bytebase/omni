@@ -108,13 +108,6 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			}
 		}
 
-	case *ast.CopyIntoStmt:
-		// COPY INTO writes its target table; the stage is a source. StarRocks's
-		// grammar has no COPY statement and the pinned 3.4.10 server rejects
-		// it, but this parser still builds the node it inherited from Doris, so
-		// the case keeps the two engines' analysis consistent.
-		addTable(n.Target, false)
-
 	case *ast.InsertStmt:
 		// INSERT INTO FILES(...) writes to external storage and leaves Target
 		// nil, so it records no table while still counting as a DML statement.

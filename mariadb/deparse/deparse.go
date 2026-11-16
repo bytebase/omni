@@ -690,15 +690,11 @@ func writeExprAlias(b *strings.Builder, node ast.ExprNode) {
 		b.WriteString(n.Value)
 		b.WriteString("'")
 	case *ast.BinaryExpr:
-		// Special operator aliases for REGEXP, ->, ->>
+		// Special operator aliases for REGEXP, SOUNDS LIKE
 		var op string
 		switch n.Op {
 		case ast.BinOpRegexp:
 			op = " REGEXP "
-		case ast.BinOpJsonExtract:
-			op = "->"
-		case ast.BinOpJsonUnquote:
-			op = "->>"
 		case ast.BinOpSoundsLike:
 			op = " SOUNDS LIKE "
 		default:
@@ -1695,8 +1691,6 @@ func exprPrec(node ast.ExprNode) int {
 			// `2 = 1 REGEXP '0'` is 0, and the server stores the first as
 			// `(`a` = 1) regexp '0'`. Measured on mariadb:11.8.8.
 			return precIn
-		case ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
-			return precAtom
 		}
 		return binOpPrec(n.Op)
 	case *ast.UnaryExpr:
@@ -1829,26 +1823,6 @@ func writeBinaryExpr(b *strings.Builder, n *ast.BinaryExpr) {
 		writeOperand(b, n.Left, precIn)
 		b.WriteString(" regexp ")
 		writeOperand(b, n.Right, precIn+1)
-		return
-	}
-
-	// Operator-to-function rewrites:
-	// -> → json_extract(left, right)
-	// ->> → json_unquote(json_extract(left, right))
-	switch n.Op {
-	case ast.BinOpJsonExtract, ast.BinOpJsonUnquote:
-		closing := ")"
-		switch n.Op {
-		case ast.BinOpJsonExtract:
-			b.WriteString("json_extract(")
-		default:
-			b.WriteString("json_unquote(json_extract(")
-			closing = "))"
-		}
-		writeExpr(b, n.Left)
-		b.WriteString(",")
-		writeExpr(b, n.Right)
-		b.WriteString(closing)
 		return
 	}
 

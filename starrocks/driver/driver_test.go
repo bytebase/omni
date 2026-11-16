@@ -120,6 +120,12 @@ func TestSplitExecuteCommandsDelimiter(t *testing.T) {
 			script: "-- migration header\nDELIMITER $$\nSELECT 1$$ -- first query\nDELIMITER ;\nSELECT 2;",
 			want:   []string{"SELECT 1", "SELECT 2;"},
 		},
+		{
+			// '#' and '//' open no line comment, so a directive's terminator on
+			// that line still ends the statement: the text keeps both markers.
+			script: "DELIMITER $$\nSELECT 1 # x$$\nSELECT 2 // y$$",
+			want:   []string{"SELECT 1 # x", "SELECT 2 // y"},
+		},
 	}
 	for _, tc := range tests {
 		commands := splitExecuteCommands(tc.script)

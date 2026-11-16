@@ -429,11 +429,19 @@ func TestComments_DashDashEOF(t *testing.T) {
 }
 
 func TestComments_DoubleSlash(t *testing.T) {
-	assertKinds(t, "1 // comment\n2", []TokenKind{tokInt, tokInt})
+	// StarRocksLex.g4 has no '//' rule, and the pinned 3.4.10 server answers
+	// "SELECT 1 // x" with a syntax error at the second '/': the two slashes
+	// are SLASH_SYMBOLs, so the lexer emits both.
+	assertKinds(t, "1 // comment\n2", []TokenKind{tokInt, int('/'), int('/'), kwCOMMENT, tokInt})
 }
 
 func TestComments_Hash(t *testing.T) {
-	assertKinds(t, "1 # comment\n2", []TokenKind{tokInt, tokInt})
+	// StarRocksLex.g4 has no '#' rule, and the front end's ANTLR lexer skips a
+	// character it has no rule for: the pinned 3.4.10 server reads "SELECT 1 #
+	// x" as "SELECT 1 x" and "SELECT 1+#2" as "SELECT 1+2". So '#' separates
+	// tokens without ending the line, as a blank does.
+	assertKinds(t, "1 # comment\n2", []TokenKind{tokInt, kwCOMMENT, tokInt})
+	assertKinds(t, "1 +#2", []TokenKind{tokInt, int('+'), tokInt})
 }
 
 func TestComments_BlockComment(t *testing.T) {

@@ -139,10 +139,6 @@ func inferFunctionalIndexExprType(tbl *Table, expr nodes.ExprNode) *ResolvedType
 			return &ResolvedType{BaseType: BaseTypeBigInt}
 		case nodes.BinOpDiv:
 			return &ResolvedType{BaseType: BaseTypeDecimal}
-		case nodes.BinOpJsonExtract:
-			return &ResolvedType{BaseType: BaseTypeJSON}
-		case nodes.BinOpJsonUnquote:
-			return &ResolvedType{BaseType: BaseTypeText}
 		}
 	case *nodes.FuncCallExpr:
 		name := strings.ToLower(e.Name)

@@ -2881,10 +2881,6 @@ func binaryOpToString(op nodes.BinaryOp) string {
 		return "LIKE"
 	case nodes.BinOpNullSafeEq:
 		return "<=>"
-	case nodes.BinOpJsonExtract:
-		return "->"
-	case nodes.BinOpJsonUnquote:
-		return "->>"
 	case nodes.BinOpSoundsLike:
 		return "SOUNDS LIKE"
 	default:

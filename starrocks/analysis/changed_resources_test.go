@@ -234,38 +234,6 @@ func TestExtractChangedResourcesLoadLabel(t *testing.T) {
 	}
 }
 
-func TestExtractChangedResourcesCopyInto(t *testing.T) {
-	// COPY INTO writes its target table; the stage is a source and names no
-	// table.
-	for _, tc := range []struct {
-		name      string
-		statement string
-		want      []string
-	}{
-		{"unqualified target", "COPY INTO t FROM @stage1", []string{"db.t"}},
-		{"qualified target", "COPY INTO other.t FROM @stage1", []string{"other.t"}},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got := resourceNames(changesFor(t, tc.statement, "db"))
-			if len(got) != len(tc.want) {
-				t.Fatalf("resources = %v, want %v", got, tc.want)
-			}
-			for i := range got {
-				if got[i] != tc.want[i] {
-					t.Errorf("resources = %v, want %v", got, tc.want)
-					break
-				}
-			}
-		})
-	}
-
-	// A copy is a load job, not a row-counted DML statement.
-	changes := changesFor(t, "COPY INTO t FROM @stage1;", "db")
-	if changes.DMLCount != 0 || len(changes.DMLStatements) != 0 || changes.InsertCount != 0 {
-		t.Errorf("DML accounting = %+v, want none", changes)
-	}
-}
-
 func TestExtractChangedResourcesSwapWith(t *testing.T) {
 	// SWAP WITH exchanges the two tables' data, so the partner is a changed
 	// table too, and it resolves in the altered table's database

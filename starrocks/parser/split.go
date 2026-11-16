@@ -45,7 +45,7 @@ const (
 //   - Double-quoted strings with "" escapes
 //   - Backtick-quoted identifiers
 //   - X'...' hex literals and B'...' bit literals
-//   - Line comments (-- and // and #) and block comments (/* */)
+//   - Line comments (--) and block comments (/* */)
 //   - Doris BEGIN..END compound blocks (for stored procedures)
 //
 // Split does NOT handle:

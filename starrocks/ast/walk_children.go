@@ -480,17 +480,10 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, n.Where)
 		}
 
-	// DML — TRUNCATE TABLE / COPY INTO / LOAD / EXPORT nodes (T6.1).
+	// DML — TRUNCATE TABLE / LOAD / EXPORT nodes (T6.1).
 	case *TruncateTableStmt:
 		if n.Target != nil {
 			Walk(v, n.Target)
-		}
-	case *CopyIntoStmt:
-		if n.Target != nil {
-			Walk(v, n.Target)
-		}
-		for _, prop := range n.Properties {
-			Walk(v, prop)
 		}
 	case *LoadDataDesc:
 		if n.SourceTable != nil {

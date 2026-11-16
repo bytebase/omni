@@ -12960,3 +12960,10 @@ reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_pac
 reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_body_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_package_implementation_declare_section_package_implementation_executable_section_remember_end_opt_opt_trailing_sp_name!drop-3	CREATE PACKAGE a DECLARE a INT; END;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_body_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_package_implementation_declare_section_package_implementation_executable_section_remember_end_opt_opt_trailing_sp_name!drop-4	CREATE PACKAGE BODY DECLARE a INT; END;
 reject	reject	engine	create_routine/create_or_replace_definer_opt_sp_handler_package_body_opt_if_not_exists_sp_name_opt_create_package_chistics_init_sp_tail_is_package_implementation_declare_section_package_implementation_executable_section_remember_end_opt_opt_trailing_sp_name!swap	CROSS PACKAGE BODY a DECLARE a INT; END;
+reject	reject	engine	suite:json-operators	SELECT c->'$.k' FROM t
+reject	reject	engine	suite:json-operators	SELECT c->>'$.k' FROM t
+reject	reject	engine	suite:json-operators	SELECT CAST(c AS JSON)->'$.k'
+reject	reject	engine	suite:json-operators	SELECT CAST(c AS JSON)->>'$.k'
+reject	reject	engine	suite:json-operators	SELECT name -> '$.b' FROM t
+reject	reject	engine	suite:json-operators	SELECT name ->> '$.b' FROM t
+accept	accept	engine	suite:json-operators	DO JSON_EXTRACT(c, '$.k')

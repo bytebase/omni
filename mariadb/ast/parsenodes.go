@@ -784,11 +784,9 @@ const (
 	BinOpDivInt // DIV
 	BinOpRegexp
 	BinOpLikeEscape
-	BinOpNullSafeEq  // <=>
-	BinOpAssign      // :=
-	BinOpJsonExtract // ->
-	BinOpJsonUnquote // ->>
-	BinOpSoundsLike  // SOUNDS LIKE
+	BinOpNullSafeEq // <=>
+	BinOpAssign     // :=
+	BinOpSoundsLike // SOUNDS LIKE
 )
 
 // BinaryExpr represents a binary expression (a op b).

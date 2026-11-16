@@ -252,13 +252,10 @@ const (
 	// T_MergeClause is the tag for *MergeClause (one WHEN clause inside MERGE).
 	T_MergeClause
 
-	// DML — TRUNCATE TABLE / COPY INTO / LOAD / EXPORT nodes (T6.1).
+	// DML — TRUNCATE TABLE / LOAD / EXPORT nodes (T6.1).
 
 	// T_TruncateTableStmt is the tag for *TruncateTableStmt.
 	T_TruncateTableStmt
-
-	// T_CopyIntoStmt is the tag for *CopyIntoStmt.
-	T_CopyIntoStmt
 
 	// T_LoadDataDesc is the tag for *LoadDataDesc.
 	T_LoadDataDesc
@@ -808,8 +805,6 @@ func (t NodeTag) String() string {
 		return "MergeClause"
 	case T_TruncateTableStmt:
 		return "TruncateTableStmt"
-	case T_CopyIntoStmt:
-		return "CopyIntoStmt"
 	case T_LoadDataDesc:
 		return "LoadDataDesc"
 	case T_LoadDataStmt:

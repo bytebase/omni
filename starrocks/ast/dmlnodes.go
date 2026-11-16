@@ -188,31 +188,6 @@ func (n *TruncateTableStmt) Tag() NodeTag { return T_TruncateTableStmt }
 var _ Node = (*TruncateTableStmt)(nil)
 
 // ---------------------------------------------------------------------------
-// COPY INTO statement (T6.1)
-// ---------------------------------------------------------------------------
-
-// CopyIntoStmt represents a COPY INTO statement:
-//
-//	COPY INTO target FROM @stage_or_path
-//	    [FILES = ('f1', 'f2')]
-//	    [PATTERN = 'glob']
-//	    [PROPERTIES(...)]
-type CopyIntoStmt struct {
-	Target     *ObjectName // destination table
-	Source     string      // FROM stage/path string value
-	Files      []string    // optional FILES = ('f1', 'f2', ...)
-	Pattern    string      // optional PATTERN = '...'
-	Properties []*Property
-	Loc        Loc
-}
-
-// Tag implements Node.
-func (n *CopyIntoStmt) Tag() NodeTag { return T_CopyIntoStmt }
-
-// Compile-time assertion that *CopyIntoStmt satisfies Node.
-var _ Node = (*CopyIntoStmt)(nil)
-
-// ---------------------------------------------------------------------------
 // LOAD DATA statement (T6.1)
 // ---------------------------------------------------------------------------
 

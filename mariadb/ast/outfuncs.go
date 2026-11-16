@@ -2283,10 +2283,6 @@ func binaryOpStr(op BinaryOp) string {
 		return "<=>"
 	case BinOpAssign:
 		return ":="
-	case BinOpJsonExtract:
-		return "->"
-	case BinOpJsonUnquote:
-		return "->>"
 	case BinOpSoundsLike:
 		return "SOUNDS LIKE"
 	default:

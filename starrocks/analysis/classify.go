@@ -74,7 +74,6 @@ func init() {
 		"LOAD",
 		"EXPORT",
 		"TRUNCATE",
-		"COPY",
 	)
 
 	// Data definition language and session / administrative control.

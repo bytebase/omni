@@ -41,7 +41,11 @@ const (
 	precBitXor     = 13 // ^
 	precUnary      = 14 // -, ~, !
 	precCollate    = 15 // COLLATE (the bottom of a simple_expr)
-	precJsonAccess = 16 // ->, ->>
+
+	// precTop is above every infix operator: a primary starts here, so any
+	// operator may take it as its left operand. MySQL's -> and ->> held this
+	// level (16) until MariaDB's parser stopped reading them.
+	precTop = 16
 )
 
 // parseExpr parses an expression using Pratt parsing / precedence climbing.
@@ -89,7 +93,7 @@ func (p *Parser) parseExprPrec(minPrec int) (nodes.ExprNode, error) {
 	if err != nil {
 		return nil, err
 	}
-	return p.parseInfixExprPrec(left, start, minPrec, precJsonAccess)
+	return p.parseInfixExprPrec(left, start, minPrec, precTop)
 }
 
 // parseInfixExprPrec continues Pratt parsing with an already-parsed left
@@ -255,6 +259,11 @@ func (p *Parser) parseInfixExprPrec(left nodes.ExprNode, start int, minPrec int,
 
 // infixPrecedence returns the precedence and operator for the current token
 // if it is an infix operator.
+//
+// MySQL's -> and ->> are not among them. MariaDB's sql_yacc.yy has no such
+// token, and the pinned 10.7.8, 10.11.19, 11.4.13 and 11.8.8 servers all answer
+// SELECT CAST('{"k":1}' AS JSON)->'$.k' with 1064; a column path is
+// JSON_EXTRACT() or JSON_UNQUOTE() there.
 func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	switch p.cur.Type {
 	case kwOR, tokOrOr:
@@ -324,17 +333,6 @@ func (p *Parser) infixPrecedence() (int, nodes.BinaryOp, bool) {
 	case kwCOLLATE:
 		return precCollate, 0, true
 
-	// JSON column-path operators.
-	// FIDELITY NOTE (BYT-9135): MariaDB has no -> / ->> operators (MySQL-only; it
-	// uses JSON_EXTRACT()/JSON_UNQUOTE()), so omni over-accepts them here. The
-	// grammar fix is one line (drop these two cases), but it ripples into the
-	// inherited mysql accept-tests (compare_test.go TestParseJsonExtract /
-	// TestParseJsonUnquoteExtract) and the routine_body_audit "-> / ->>" entries —
-	// a multi-file cleanup deferred from the FOR-UPDATE-OF prune. Tracked over-accept.
-	case tokJsonExtract:
-		return precJsonAccess, nodes.BinOpJsonExtract, true
-	case tokJsonUnquote:
-		return precJsonAccess, nodes.BinOpJsonUnquote, true
 	}
 
 	return 0, 0, false

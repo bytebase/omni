@@ -6212,27 +6212,23 @@ func TestParseXARecover(t *testing.T) {
 // Batch 24: JSON Operators
 // -----------------------------------------------------------------------
 
-func TestParseJsonExtract(t *testing.T) {
+// MariaDB has no -> and ->>: sql_yacc.yy has no such token, and the pinned
+// 10.7.8, 10.11.19, 11.4.13 and 11.8.8 servers all answer
+// SELECT CAST('{"k":1}' AS JSON)->'$.k' with 1064. MySQL's arrows came with the
+// fork; JSON_EXTRACT() and JSON_UNQUOTE() are the spellings MariaDB reads.
+func TestParseJsonArrowRejected(t *testing.T) {
 	tests := []string{
 		"SELECT c->'$.name' FROM t",
 		"SELECT t.c->'$.id' FROM t",
-		"SELECT c->'$.a.b' FROM t WHERE c->'$.id' > 1",
-	}
-	for _, sql := range tests {
-		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
-		})
-	}
-}
-
-func TestParseJsonUnquoteExtract(t *testing.T) {
-	tests := []string{
 		"SELECT c->>'$.name' FROM t",
-		"SELECT t.c->>'$.id' FROM t",
+		"SELECT CAST('{\"k\":1}' AS JSON)->>'$.k'",
+		"SELECT 1 WHERE c -> '$.a'",
+		// A routine body: the arrow is no expression there either.
+		`CREATE PROCEDURE p() BEGIN SET @j = '{"a":1}'; SET @x = @j->>'$.a'; END`,
 	}
 	for _, sql := range tests {
 		t.Run(sql, func(t *testing.T) {
-			ParseAndCheck(t, sql)
+			ParseExpectError(t, sql)
 		})
 	}
 }

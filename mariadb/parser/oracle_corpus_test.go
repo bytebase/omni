@@ -188,7 +188,8 @@ var categoryCaseSQLs = []string{
 	// statements without requiring a separator; they now assert agreement.
 	"SELECT 1 MINUS SELECT 2",
 	"SELECT 1 MINUS SELECT 2 MINUS SELECT 3",
-	// MariaDB subtractive divergences — Phase-0 mdbcheck OVER findings (omni accepts, MariaDB rejects)
+	// MariaDB has no -> or ->> (no such token in sql_yacc.yy): both sides
+	// refuse these, so they pin the agreement the parser now keeps.
 	"SELECT name -> '$.b' FROM t",
 	"SELECT name ->> '$.b' FROM t",
 	// FOR SHARE was a pinned divergence until the parser stopped reading it:
@@ -278,16 +279,6 @@ var subtractiveDivergences = []divergence{
 		sql:      "SELECT LAG(val, 2, 0) OVER (ORDER BY id) FROM t",
 		omniSide: true, // MySQL 8.0 accepts, MariaDB 11.8.8 rejects (1064); omni mirrors MySQL.
 		reason:   "LAG()/LEAD() 3rd 'default value' argument: VALID in MySQL 8.0, REJECTED by MariaDB 11.8.8 at parse (1064) — confirmed on both real engines. omni mirrors MySQL. (LEAD shares this divergence; it isn't a separate corpus statement.) P1 candidate: gate the window-function default-value arg behind a MariaDB flag.",
-	},
-	{
-		sql:      "SELECT name -> '$.b' FROM t",
-		omniSide: true, // omni mirrors MySQL's -> JSON operator; MariaDB rejects it (1064).
-		reason:   "JSON -> column-path operator: MySQL-only; omni mirrors MySQL and over-accepts. MariaDB has no -> / ->> operators (uses JSON_EXTRACT()/JSON_UNQUOTE()) and rejects at parse (1064). Deferred prune: the one-line grammar fix (drop the tokJsonExtract/tokJsonUnquote arms in expr.go) ripples into inherited mysql accept-tests (TestParseJsonExtract/UnquoteExtract) and the routine_body_audit, beyond the surgical FOR-UPDATE-OF arm.",
-	},
-	{
-		sql:      "SELECT name ->> '$.b' FROM t",
-		omniSide: true, // ->> shares the -> divergence.
-		reason:   "JSON ->> column-path unquote operator: MySQL-only; same divergence as -> (omni over-accepts, MariaDB rejects 1064). Deferred with the -> prune.",
 	},
 }
 
