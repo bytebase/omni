@@ -316,11 +316,15 @@ type functionSourceScope struct {
 	// join's coalesced columns, built lazily when an unqualified column needs
 	// it.
 	projection *functionProjectionSource
-	// outerBindings are the enclosing queries' FROM bindings, kept separate so
-	// an inner relation shadows a same-named outer one and an unqualified
-	// column prefers the inner scope instead of looking ambiguous.
-	outerBindings   map[string]functionSourceProjection
-	outerProjection *functionProjectionSource
+	// outerLevels are the enclosing queries' scopes, nearest last. Each level is
+	// searched in turn so a correlated reference uses the nearest relation that
+	// exposes the column, and ambiguity is decided within one level only.
+	outerLevels []functionScopeLevel
+}
+
+type functionScopeLevel struct {
+	bindings   map[string]functionSourceProjection
+	projection *functionProjectionSource
 }
 
 func (q *querySpanResolver) collectAccessTables(node ast.Node) (ColumnSet, error) {
@@ -802,15 +806,7 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 		return functionSourceProjection{}, false
 	}
 	if n.Alias != nil {
-		aliases := redshiftStringList(n.Alias.Colnames)
-		for i, alias := range aliases {
-			if i >= len(names) {
-				break
-			}
-			if alias != "" {
-				names[i] = alias
-			}
-		}
+		names = applyFunctionColumnAliases(names, redshiftStringList(n.Alias.Colnames))
 	}
 	return functionSourceProjection{names: names, sources: make([]ColumnSet, len(names))}, true
 }
@@ -990,9 +986,7 @@ func (q *querySpanResolver) functionSourceScopeForSelect(selectStmt *ast.SelectS
 				return functionSourceScope{}, functionBodyIssues{}, err
 			}
 			issues.merge(sourceIssues)
-			if aliasNames := redshiftStringList(cte.Aliascolnames); len(aliasNames) > 0 {
-				projection.names = aliasNames
-			}
+			projection.names = applyFunctionColumnAliases(projection.names, redshiftStringList(cte.Aliascolnames))
 			name := strings.ToLower(cte.Ctename)
 			scope.defs[name] = projection
 			cteScope.defs[name] = projection
@@ -1042,9 +1036,7 @@ func (q *querySpanResolver) collectFunctionSourceScopeFromNode(node ast.Node, fu
 			return functionBodyIssues{}, nil
 		}
 		if n.Alias != nil && n.Alias.Aliasname != "" {
-			if aliasNames := redshiftStringList(n.Alias.Colnames); len(aliasNames) > 0 {
-				projection.names = aliasNames
-			}
+			projection.names = applyFunctionColumnAliases(projection.names, redshiftStringList(n.Alias.Colnames))
 			scope.bindings[strings.ToLower(n.Alias.Aliasname)] = projection
 			return functionBodyIssues{}, nil
 		}
@@ -1062,9 +1054,7 @@ func (q *querySpanResolver) collectFunctionSourceScopeFromNode(node ast.Node, fu
 		if err != nil {
 			return functionBodyIssues{}, err
 		}
-		if aliasNames := redshiftStringList(n.Alias.Colnames); len(aliasNames) > 0 {
-			projection.names = aliasNames
-		}
+		projection.names = applyFunctionColumnAliases(projection.names, redshiftStringList(n.Alias.Colnames))
 		scope.bindings[strings.ToLower(n.Alias.Aliasname)] = projection
 		return issues, nil
 	case *ast.JoinExpr:
@@ -1397,20 +1387,16 @@ func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResul
 
 func cloneFunctionSourceScope(scope functionSourceScope) functionSourceScope {
 	result := functionSourceScope{
-		defs:            make(map[string]functionSourceProjection, len(scope.defs)),
-		bindings:        make(map[string]functionSourceProjection, len(scope.bindings)),
-		projection:      scope.projection,
-		outerBindings:   make(map[string]functionSourceProjection, len(scope.outerBindings)),
-		outerProjection: scope.outerProjection,
+		defs:        make(map[string]functionSourceProjection, len(scope.defs)),
+		bindings:    make(map[string]functionSourceProjection, len(scope.bindings)),
+		projection:  scope.projection,
+		outerLevels: append([]functionScopeLevel(nil), scope.outerLevels...),
 	}
 	for name, projection := range scope.defs {
 		result.defs[name] = projection
 	}
 	for name, projection := range scope.bindings {
 		result.bindings[name] = projection
-	}
-	for name, projection := range scope.outerBindings {
-		result.outerBindings[name] = projection
 	}
 	return result
 }
@@ -1420,23 +1406,18 @@ func cloneFunctionSourceScope(scope functionSourceScope) functionSourceScope {
 // the nested FROM bindings.
 func enterFunctionSourceScope(outer functionSourceScope) functionSourceScope {
 	result := functionSourceScope{
-		defs:          make(map[string]functionSourceProjection, len(outer.defs)),
-		bindings:      make(map[string]functionSourceProjection),
-		outerBindings: make(map[string]functionSourceProjection, len(outer.bindings)+len(outer.outerBindings)),
+		defs:        make(map[string]functionSourceProjection, len(outer.defs)),
+		bindings:    make(map[string]functionSourceProjection),
+		outerLevels: append([]functionScopeLevel(nil), outer.outerLevels...),
 	}
 	for name, projection := range outer.defs {
 		result.defs[name] = projection
 	}
-	if outer.projection != nil {
-		result.outerProjection = outer.projection
-	} else {
-		result.outerProjection = outer.outerProjection
-	}
-	for name, projection := range outer.outerBindings {
-		result.outerBindings[name] = projection
-	}
-	for name, projection := range outer.bindings {
-		result.outerBindings[name] = projection
+	if len(outer.bindings) > 0 || outer.projection != nil {
+		result.outerLevels = append(result.outerLevels, functionScopeLevel{
+			bindings:   outer.bindings,
+			projection: outer.projection,
+		})
 	}
 	return result
 }
@@ -1457,8 +1438,10 @@ func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRe
 		if projection, ok := scope.bindings[key]; ok {
 			return projection.functionSourcesForColumn(parts[1])
 		}
-		if projection, ok := scope.outerBindings[key]; ok {
-			return projection.functionSourcesForColumn(parts[1])
+		for i := len(scope.outerLevels) - 1; i >= 0; i-- {
+			if projection, ok := scope.outerLevels[i].bindings[key]; ok {
+				return projection.functionSourcesForColumn(parts[1])
+			}
 		}
 		return ColumnSet{}
 	default:
@@ -1467,24 +1450,32 @@ func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRe
 }
 
 func resolveUnqualifiedFunctionColumn(scope functionSourceScope, columnName string) ColumnSet {
-	if projection, ok := scope.projection.get(); ok {
-		if index, ok := functionColumnIndex(projection, columnName); ok {
-			return projection.sources[index]
-		}
-	} else {
-		if sources, found, ambiguous := lookupUnqualifiedFunctionColumn(scope.bindings, columnName); ambiguous {
-			return ColumnSet{}
-		} else if found {
+	if sources, handled := resolveUnqualifiedScopeLevel(scope.bindings, scope.projection, columnName); handled {
+		return sources
+	}
+	for i := len(scope.outerLevels) - 1; i >= 0; i-- {
+		level := scope.outerLevels[i]
+		if sources, handled := resolveUnqualifiedScopeLevel(level.bindings, level.projection, columnName); handled {
 			return sources
 		}
 	}
-	if projection, ok := scope.outerProjection.get(); ok {
-		if index, ok := functionColumnIndex(projection, columnName); ok {
-			return projection.sources[index]
+	return ColumnSet{}
+}
+
+// resolveUnqualifiedScopeLevel searches one query scope. handled is true when
+// the level has the column (sources may be empty) or reports it ambiguous.
+func resolveUnqualifiedScopeLevel(bindings map[string]functionSourceProjection, projection *functionProjectionSource, columnName string) (ColumnSet, bool) {
+	if p, ok := projection.get(); ok {
+		if index, ok := functionColumnIndex(p, columnName); ok {
+			return p.sources[index], true
 		}
+		return nil, false
 	}
-	sources, _, _ := lookupUnqualifiedFunctionColumn(scope.outerBindings, columnName)
-	return sources
+	sources, found, ambiguous := lookupUnqualifiedFunctionColumn(bindings, columnName)
+	if ambiguous {
+		return ColumnSet{}, true
+	}
+	return sources, found
 }
 
 // lookupUnqualifiedFunctionColumn searches one scope level. found reports a
@@ -1503,6 +1494,24 @@ func lookupUnqualifiedFunctionColumn(bindings map[string]functionSourceProjectio
 		sources = projection.sources[index]
 	}
 	return sources, found, false
+}
+
+// applyFunctionColumnAliases renames the prefix an alias list names and keeps
+// the remaining output columns, matching the catalog's applyColumnAliases.
+func applyFunctionColumnAliases(names, aliases []string) []string {
+	if len(aliases) == 0 {
+		return names
+	}
+	out := append([]string(nil), names...)
+	for i, alias := range aliases {
+		if i >= len(out) {
+			break
+		}
+		if alias != "" {
+			out[i] = alias
+		}
+	}
+	return out
 }
 
 func (p functionSourceProjection) functionSourcesForColumn(columnName string) ColumnSet {

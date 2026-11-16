@@ -229,6 +229,37 @@ func TestRedshiftQuerySpanPartialColumnAliasKeepsWidth(t *testing.T) {
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanPartialCTEAliasKeepsWidth covers a partial alias on a
+// CTE reference: the remaining projection names must survive so a later
+// function stays aligned.
+func TestRedshiftQuerySpanPartialCTEAliasKeepsWidth(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH c AS (SELECT 0 AS n, reporting_fn() AS x), b AS (SELECT c.*, analytics.reporting_fn() AS y FROM c AS c(nn)) SELECT y FROM b")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+		}),
+		IsPlainField: true,
+	}}, span.Results)
+}
+
+// TestRedshiftQuerySpanCorrelatedReferenceUsesNearestScope covers a correlated
+// reference that skips an enclosing query with no matching column: the nearest
+// scope that has the column wins over older same-named bindings.
+func TestRedshiftQuerySpanCorrelatedReferenceUsesNearestScope(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH a AS (SELECT 0 AS x), b AS (SELECT reporting_fn() AS x) SELECT (SELECT (SELECT (SELECT x) FROM orders) FROM b) AS y FROM a")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.
