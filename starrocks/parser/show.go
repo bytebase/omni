@@ -827,7 +827,7 @@ func (p *Parser) parseGenericSet(startLoc ast.Loc) (ast.Node, error) {
 // or '=', or SESSION WAREHOUSE.
 func (p *Parser) isSetWarehouseStart() bool {
 	isWarehouse := func(tok Token) bool {
-		return tok.Kind == tokIdent && strings.EqualFold(tok.Str, "WAREHOUSE")
+		return isWordToken(tok, "WAREHOUSE")
 	}
 	if p.cur.Kind == kwSESSION {
 		return isWarehouse(p.peekNext())
@@ -864,8 +864,7 @@ func (p *Parser) parseSetOption() (*ast.SetItem, string, error) {
 		return k == kwGLOBAL || k == kwSESSION || k == kwLOCAL || k == kwVERBOSE
 	}
 	switch {
-	case p.cur.Kind == kwCHARSET || (p.cur.Kind == kwCHAR && p.peekNext().Kind == kwSET):
-		// omni lexes CHARACTER as CHAR.
+	case p.cur.Kind == kwCHARSET || ((p.cur.Kind == kwCHAR || p.cur.Kind == kwCHARACTER) && p.peekNext().Kind == kwSET):
 		if p.advance().Kind != kwCHARSET {
 			p.advance() // consume SET
 		}
@@ -968,7 +967,7 @@ func (p *Parser) parseSetDefaultStorageVolume(startLoc ast.Loc) (ast.Node, error
 			return nil, err
 		}
 	}
-	if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "VOLUME") {
+	if !p.atWord("VOLUME") {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance()

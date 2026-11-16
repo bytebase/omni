@@ -128,11 +128,17 @@ func TestMapColumnLessThan(t *testing.T) {
 	}
 }
 
-// TestArrayColumnLessThan is the same guard for `array` (also non-reserved in
-// omni), where `array < 5` must parse as a comparison, not array<...>.
-func TestArrayColumnLessThan(t *testing.T) {
-	stmt := mustParseSelect(t, "SELECT cnt FROM t WHERE array < 5")
-	if _, ok := stmt.Where.(*ast.BinaryExpr); !ok {
-		t.Fatalf("where = %T, want *ast.BinaryExpr (array < 5)", stmt.Where)
+// TestArrayIsReservedWord: ARRAY is a reserved keyword of StarRocksLex.g4, so
+// it names no column and `array < 5` is the array type's angle bracket. The
+// 3.4.10 server answers both with a syntax error.
+func TestArrayIsReservedWord(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT cnt FROM t WHERE array < 5",
+		"SELECT array FROM t",
+		"SELECT 1 AS array",
+	} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded; ARRAY is reserved", sql)
+		}
 	}
 }

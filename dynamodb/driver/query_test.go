@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 
@@ -44,20 +45,21 @@ func TestQuery(t *testing.T) {
 	rows := rowsByID(t, result)
 	require.Len(t, rows, testcontainer.PeopleCount)
 
-	// Every type crosses as Bytebase's driver answered it: a set, a list and a
-	// map as their JSON text, a number as its text, a binary as its bytes.
+	// Every type crosses once: a set, a list and a map as their JSON text, a
+	// number as its text, a binary as bytes, and a binary inside a document as
+	// base64, so bytes that are not valid UTF-8 survive the text form.
 	require.Equal(t, map[string]string{
 		"active":  "true",
 		"age":     "33",
 		"email":   "u1@example.com",
-		"flags":   `["\u0003","\u0004"]`,
+		"flags":   `["/g==","/w=="]`,
 		"id":      testcontainer.PersonWithEveryType,
 		"late":    null,
-		"list":    `["7","s"]`,
-		"meta":    `{"k":"v"}`,
+		"list":    `["7","s","/g=="]`,
+		"meta":    `{"k":"v","raw":"/w=="}`,
 		"missing": null,
 		"name":    "Ann",
-		"payload": "\x00\x01\x02",
+		"payload": "b64:/wD+",
 		"scores":  `["1","2"]`,
 		"tags":    `["a","b"]`,
 	}, rows[testcontainer.PersonWithEveryType])
@@ -88,23 +90,86 @@ func TestQueryProjection(t *testing.T) {
 	require.Equal(t, [][]string{{"44", "Bob"}}, rowTexts(results[0]))
 }
 
-// TestQueryPages reads a result the endpoint answers over several calls, which
-// QueryOptions.Limit decides the size of.
+// TestQueryPages reads a result the endpoint answers over several calls: a
+// filter makes each call answer fewer rows than it evaluated, so the token is
+// what carries the read, and QueryOptions.Limit is the cap on the rows rather
+// than the size of a page.
 func TestQueryPages(t *testing.T) {
 	session := openSession(t)
-	statement := `SELECT * FROM "paged" WHERE owner = 'o1' ORDER BY seq`
-	results, err := session.Query(context.Background(), statement, driver.QueryOptions{Limit: 2})
+	statement := `SELECT * FROM "paged" WHERE owner = 'o1' AND label <> 'row-0' ORDER BY seq`
+	results, err := session.Query(context.Background(), statement, driver.QueryOptions{Limit: 3})
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	result := results[0]
 	require.NoError(t, result.Err)
-	require.Len(t, result.Rows, testcontainer.PagedCount, "the driver reads every answer's token, so the rows are the whole result")
+	require.False(t, result.Truncated)
+	require.Equal(t, []string{"s1", "s2", "s3"}, sequence(t, result), "the cap stops the read at three rows, in the order the sort key decides")
+}
 
+// TestQueryLimitCapsRows holds that QueryOptions.Limit is the rows a result
+// holds, not the items one call evaluates: a read that would answer more rows
+// stops at the cap.
+func TestQueryLimitCapsRows(t *testing.T) {
+	session := openSession(t)
+	results, err := session.Query(context.Background(),
+		`SELECT * FROM "paged" WHERE owner = 'o1' ORDER BY seq`, driver.QueryOptions{Limit: 2})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	result := results[0]
+	require.NoError(t, result.Err)
+	require.False(t, result.Truncated)
+	require.Equal(t, []string{"s0", "s1"}, sequence(t, result))
+}
+
+// TestQueryMaxResultBytes holds that a result stops at the byte cap and says so.
+func TestQueryMaxResultBytes(t *testing.T) {
+	session := openSession(t)
+	results, err := session.Query(context.Background(), `SELECT * FROM "people"`, driver.QueryOptions{MaxResultBytes: 400})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	result := results[0]
+	require.NoError(t, result.Err)
+	require.True(t, result.Truncated)
+	require.NotEmpty(t, result.Rows)
+	require.Less(t, len(result.Rows), testcontainer.PeopleCount, "the cap stopped the rows before the answer's last one")
+}
+
+// TestQueryMaxResultBytesStopsTheRead holds that the byte cap stops the read and
+// not only the rows: the tape holds one call, so a driver that asked for the
+// next page would fail its replay.
+func TestQueryMaxResultBytesStopsTheRead(t *testing.T) {
+	session := openSession(t)
+	results, err := session.Query(context.Background(),
+		`SELECT * FROM "paged" WHERE owner = 'o1' AND label <> 'row-0' ORDER BY seq`,
+		driver.QueryOptions{Limit: 3, MaxResultBytes: 30})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	result := results[0]
+	require.NoError(t, result.Err)
+	require.True(t, result.Truncated, "the first page passed the cap, so the read stopped there")
+	require.NotEmpty(t, result.Rows)
+	require.Less(t, len(result.Rows), 3, "fewer rows than the row cap would have taken")
+}
+
+// TestQueryMaxResultBytesWithoutACap holds that a result without a cap is whole.
+func TestQueryMaxResultBytesWithoutACap(t *testing.T) {
+	session := openSession(t)
+	results, err := session.Query(context.Background(), `SELECT * FROM "paged" WHERE owner = 'o1' ORDER BY seq`, driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.False(t, results[0].Truncated)
+	require.Len(t, results[0].Rows, testcontainer.PagedCount, "the driver reads every answer's token, so the rows are the whole result")
+}
+
+// sequence is the sort key of each row of a read of Paged, in order.
+func sequence(t *testing.T, result *driver.Result) []string {
+	t.Helper()
+	seq := columnIndex(t, result, "seq")
 	seqs := make([]string, 0, len(result.Rows))
 	for _, row := range result.Rows {
-		seqs = append(seqs, row[columnIndex(t, result, "seq")].String)
+		seqs = append(seqs, row[seq].String)
 	}
-	require.Equal(t, []string{"s0", "s1", "s2", "s3", "s4"}, seqs, "a read ordered by the sort key answers in that order")
+	return seqs
 }
 
 // TestQueryEndsAtTheFirstFailure holds that a statement's failure is its own
@@ -247,6 +312,8 @@ func render(value driver.Value) string {
 		return "false"
 	case driver.String:
 		return value.String
+	case driver.Bytes:
+		return "b64:" + base64.StdEncoding.EncodeToString(value.Bytes)
 	}
 	b, err := json.Marshal(value)
 	if err != nil {

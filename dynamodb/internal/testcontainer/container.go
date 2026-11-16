@@ -47,6 +47,13 @@
 // names the moment the table was created, and the request ID an error's text
 // carries, which names one request. A stand-in is what a recording compares and
 // what a replay answers, so two recordings write the same bytes.
+//
+// Two orders the endpoint chooses are held in one canonical order instead: the
+// items of a read that names no ORDER BY, whose table iteration differs between
+// boots, and the elements of a set, which DynamoDB does not order at all. The
+// driver hands both on as the endpoint answered them; only the tape is
+// canonical, so a test that draws a conclusion from a position names the clause
+// that decides it or reads a set as a set.
 package testcontainer
 
 import (
@@ -290,6 +297,10 @@ const (
 	// PagedTables is the table count of the second container: one more than the
 	// 100 names one ListTables answer holds.
 	PagedTables = 101
+	// GlobalIndex is Paged's global secondary index, over the label attribute.
+	GlobalIndex = "by-label"
+	// LocalIndex is Paged's local secondary index, over the label attribute.
+	LocalIndex = "by-owner-label"
 )
 
 // The fixture's items, as the tests read them.
@@ -333,14 +344,41 @@ func seed(c *awssdk.Client) error {
 	}); err != nil {
 		return err
 	}
-	if err := createTable(ctx, c, Paged, []types.KeySchemaElement{
-		{AttributeName: aws.String("owner"), KeyType: types.KeyTypeHash},
-		{AttributeName: aws.String("seq"), KeyType: types.KeyTypeRange},
-	}, []types.AttributeDefinition{
-		{AttributeName: aws.String("owner"), AttributeType: types.ScalarAttributeTypeS},
-		{AttributeName: aws.String("seq"), AttributeType: types.ScalarAttributeTypeS},
+	if _, err := c.CreateTable(ctx, &awssdk.CreateTableInput{
+		TableName: aws.String(Paged),
+		KeySchema: []types.KeySchemaElement{
+			{AttributeName: aws.String("owner"), KeyType: types.KeyTypeHash},
+			{AttributeName: aws.String("seq"), KeyType: types.KeyTypeRange},
+		},
+		AttributeDefinitions: []types.AttributeDefinition{
+			{AttributeName: aws.String("owner"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("seq"), AttributeType: types.ScalarAttributeTypeS},
+			{AttributeName: aws.String("label"), AttributeType: types.ScalarAttributeTypeS},
+		},
+		BillingMode: types.BillingModePayPerRequest,
+		// One index of each kind, over an attribute that is neither key, so that
+		// a sync reports both and the column set grows past the table's keys.
+		GlobalSecondaryIndexes: []types.GlobalSecondaryIndex{
+			{
+				IndexName: aws.String(GlobalIndex),
+				KeySchema: []types.KeySchemaElement{
+					{AttributeName: aws.String("label"), KeyType: types.KeyTypeHash},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+			},
+		},
+		LocalSecondaryIndexes: []types.LocalSecondaryIndex{
+			{
+				IndexName: aws.String(LocalIndex),
+				KeySchema: []types.KeySchemaElement{
+					{AttributeName: aws.String("owner"), KeyType: types.KeyTypeHash},
+					{AttributeName: aws.String("label"), KeyType: types.KeyTypeRange},
+				},
+				Projection: &types.Projection{ProjectionType: types.ProjectionTypeAll},
+			},
+		},
 	}); err != nil {
-		return err
+		return fmt.Errorf("create table %s: %w", Paged, err)
 	}
 	if err := createTable(ctx, c, Writes, []types.KeySchemaElement{
 		{AttributeName: aws.String("id"), KeyType: types.KeyTypeHash},
@@ -359,10 +397,10 @@ func seed(c *awssdk.Client) error {
 			"active":  &types.AttributeValueMemberBOOL{Value: true},
 			"tags":    &types.AttributeValueMemberSS{Value: []string{"a", "b"}},
 			"scores":  &types.AttributeValueMemberNS{Value: []string{"1", "2"}},
-			"payload": &types.AttributeValueMemberB{Value: []byte{0, 1, 2}},
-			"flags":   &types.AttributeValueMemberBS{Value: [][]byte{{3}, {4}}},
-			"meta":    &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{"k": &types.AttributeValueMemberS{Value: "v"}}},
-			"list":    &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberN{Value: "7"}, &types.AttributeValueMemberS{Value: "s"}}},
+			"payload": &types.AttributeValueMemberB{Value: []byte{0xff, 0x00, 0xfe}},
+			"flags":   &types.AttributeValueMemberBS{Value: [][]byte{{0xff}, {0xfe}}},
+			"meta":    &types.AttributeValueMemberM{Value: map[string]types.AttributeValue{"k": &types.AttributeValueMemberS{Value: "v"}, "raw": &types.AttributeValueMemberB{Value: []byte{0xff}}}},
+			"list":    &types.AttributeValueMemberL{Value: []types.AttributeValue{&types.AttributeValueMemberN{Value: "7"}, &types.AttributeValueMemberS{Value: "s"}, &types.AttributeValueMemberB{Value: []byte{0xfe}}}},
 			"missing": &types.AttributeValueMemberNULL{Value: true},
 		},
 		{

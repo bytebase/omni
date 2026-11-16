@@ -418,19 +418,15 @@ func (p *Parser) parseGrantUser() (string, ast.Loc, error) {
 	return name, ast.Loc{Start: start.Start, End: p.prev.Loc.End}, nil
 }
 
-// isGrantNameToken reports whether tok is an identifierOrString: a string,
-// an identifier, or a word of StarRocks.g4's nonReserved.
+// isGrantNameToken reports whether tok is an identifierOrString: a string or
+// an identifier, which for the unquoted case is any word StarRocks.g4's
+// nonReserved rule allows.
 func isGrantNameToken(tok Token) bool {
-	return tok.Kind == tokString || isIdentifierToken(tok.Kind) || starRocksNonReservedWords[tok.Kind]
+	return tok.Kind == tokString || isIdentifierToken(tok.Kind)
 }
 
-// parseGrantName reads identifierOrString, taking the nonReserved words
-// omni reserves elsewhere (starRocksNonReservedWords).
+// parseGrantName reads identifierOrString.
 func (p *Parser) parseGrantName() (string, ast.Loc, error) {
-	if starRocksNonReservedWords[p.cur.Kind] {
-		tok := p.advance()
-		return tok.Str, tok.Loc, nil
-	}
 	return p.parseIdentifierOrString()
 }
 

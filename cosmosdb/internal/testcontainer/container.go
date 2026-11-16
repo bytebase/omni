@@ -12,8 +12,9 @@
 // server their recordings are written to. The tape itself sits in the driver's
 // tests, at the driver's client seam (cosmosdb/driver.Client): a request is
 // one call the driver makes of the client, and an answer is the names it
-// listed, the items a query returned, or the client's error. Those tests own
-// the exchange's spelling because they own the seam's types.
+// listed, the items a query returned, the plan the gateway stated for a
+// statement, or the client's error. Those tests own the exchange's spelling
+// because they own the seam's types.
 //
 // Two fixtures are seeded, once per emulator, before the first request of a
 // recording:

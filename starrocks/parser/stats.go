@@ -144,13 +144,13 @@ func (p *Parser) parseAnalyzeMode(stmt *ast.AnalyzeStmt) error {
 	switch {
 	case p.cur.Kind == kwSYNC:
 		stmt.Mode = "SYNC"
-	case p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "ASYNC"):
+	case p.atWord("ASYNC"):
 		stmt.Mode = "ASYNC"
 	default:
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()
-	if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "MODE") {
+	if !p.atWord("MODE") {
 		return p.syntaxErrorAtCur()
 	}
 	p.advance()

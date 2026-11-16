@@ -16,7 +16,6 @@ import (
 const (
 	bpNone    = 0
 	bpOr      = 10 // OR, ||
-	bpXor     = 15 // XOR
 	bpAnd     = 20 // AND, &&
 	bpNot     = 25 // NOT (prefix)
 	bpPred    = 30 // IS, BETWEEN, IN, LIKE, REGEXP/RLIKE
@@ -132,8 +131,6 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 	// Logical
 	case kwOR, tokDoublePipes:
 		return bpOr, ast.BinOr, "", true
-	case kwXOR:
-		return bpXor, ast.BinXor, "", true
 	case kwAND, tokLogicalAnd:
 		return bpAnd, ast.BinAnd, "", true
 
@@ -209,22 +206,17 @@ func (p *Parser) infixBindingPower() (int, ast.BinaryOp, string, bool) {
 		return bpMul, ast.BinMod, "", true
 	case kwDIV:
 		return bpMul, ast.BinIntDiv, "", true
-	case tokIdent:
-		// MOD is a reserved word of the engine's grammar (StarRocks.g4:2386), which
-		// omni lexes as a name; outside a call it is the modulo operator.
-		if strings.EqualFold(p.cur.Str, "MOD") {
-			return bpMul, ast.BinMod, "", true
-		}
-		// The shift words of StarRocks.g4:2392-2394, reserved there too. They
-		// bind looser than | (:2391), each looser than the one before.
-		switch strings.ToUpper(p.cur.Str) {
-		case "BITSHIFTLEFT":
-			return bpBitOr - 1, ast.BinShiftLeft, "", true
-		case "BITSHIFTRIGHT":
-			return bpBitOr - 2, ast.BinShiftRight, "", true
-		case "BITSHIFTRIGHTLOGICAL":
-			return bpBitOr - 3, ast.BinShiftRightLogical, "", true
-		}
+	case kwMOD:
+		return bpMul, ast.BinMod, "", true
+	// The shift words of StarRocks.g4:2392-2394, which the lexer spells
+	// BITSHIFTLEFT and so on. They bind looser than | (:2391), each looser
+	// than the one before.
+	case kwBITSHIFTLEFT:
+		return bpBitOr - 1, ast.BinShiftLeft, "", true
+	case kwBITSHIFTRIGHT:
+		return bpBitOr - 2, ast.BinShiftRight, "", true
+	case kwBITSHIFTRIGHTLOGICAL:
+		return bpBitOr - 3, ast.BinShiftRightLogical, "", true
 
 	// Bitwise XOR
 	case int('^'):
@@ -601,10 +593,7 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 		return p.parseCaseExpr()
 
 	case kwCAST:
-		return p.parseCastExpr(false)
-
-	case kwTRY_CAST:
-		return p.parseCastExpr(true)
+		return p.parseCastExpr()
 
 	case kwCONVERT:
 		// CONVERT is non-reserved, so only treat it specially when applied.
@@ -616,10 +605,19 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 	case kwEXTRACT:
 		return p.parseExtractExpr()
 
+	case kwTIMESTAMPADD, kwTIMESTAMPDIFF:
+		// Their first argument is a unitIdentifier, not an expression, which an
+		// argument list cannot read now that MICROSECOND and MILLISECOND are
+		// reserved; as bare words they are non-reserved identifiers.
+		if p.peekNext().Kind == int('(') {
+			return p.parseTimestampUnitCall()
+		}
+		return p.parseIdentExpr()
+
 	// Nilary functions: CURRENT_DATE, CURRENT_TIME, CURRENT_TIMESTAMP,
-	// CURRENT_USER, SESSION_USER, LOCALTIME, LOCALTIMESTAMP.
+	// CURRENT_USER, CURRENT_ROLE, LOCALTIME, LOCALTIMESTAMP.
 	case kwCURRENT_DATE, kwCURRENT_TIME, kwCURRENT_TIMESTAMP,
-		kwCURRENT_USER, kwSESSION_USER, kwLOCALTIME, kwLOCALTIMESTAMP:
+		kwCURRENT_USER, kwCURRENT_ROLE, kwLOCALTIME, kwLOCALTIMESTAMP:
 		return p.parseNilaryFunction()
 
 	case tokDoubleAt:
@@ -651,36 +649,29 @@ func (p *Parser) parsePrimaryExpr() (ast.Node, error) {
 			return p.parseIdentExpr()
 		}
 
-		// A word of StarRocks.g4's nonReserved that omni's keyword table
-		// reserves names a column too (SELECT role).
-		if starRocksNonReservedColumnWords[p.cur.Kind] {
-			tok := p.advance()
-			name := &ast.ObjectName{Parts: []string{tok.Str}, Loc: tok.Loc}
-			for p.cur.Kind == int('.') && isIdentifierTokenQualified(p.peekNext().Kind) {
-				p.advance() // consume '.'
-				part := p.advance()
-				name.Parts = append(name.Parts, part.Str)
-				name.Loc.End = part.Loc.End
-			}
-			if p.cur.Kind == int('(') {
-				return p.parseFuncCall(name)
-			}
-			return &ast.ColumnRef{Name: name, Loc: name.Loc}, nil
-		}
-
 		return nil, p.syntaxErrorAtCur()
 	}
 }
 
 // isFunctionNameKeyword reports whether kind is a reserved keyword that is
-// nonetheless usable as a function name. It mirrors the grammar's
-// functionNameIdentifier rule; without it `IF(a,1,2)`, `LEFT(s,2)`, `TRIM(s)`
-// and `DATABASE()` all fail to parse even though the engine accepts them.
+// nonetheless usable as a function name, because StarRocks.g4 gives it a
+// production of its own (informationFunctionExpression,
+// specialFunctionExpression). Without it `IF(a,1,2)`, `LEFT(s,2)` and
+// `DATABASE()` all fail to parse even though the engine accepts them. TRIM,
+// CONNECTION_ID, CURRENT_CATALOG and SESSION_USER are not keywords in
+// StarRocksLex.g4 at all, so StarRocks reads them as plain function names.
 func isFunctionNameKeyword(kind TokenKind) bool {
 	switch kind {
-	case kwADD, kwCONNECTION_ID, kwCURRENT_CATALOG, kwCURRENT_USER, kwDATABASE,
-		kwIF, kwLEFT, kwLIKE, kwPASSWORD, kwREGEXP, kwRIGHT, kwSCHEMA,
-		kwSESSION_USER, kwTRIM, kwUSER:
+	// informationFunctionExpression (StarRocks.g4:2477),
+	// specialFunctionExpression (:2493), the GROUPING forms (:2442) and
+	// windowFunction (:2521), restricted to the words StarRocks.g4's
+	// nonReserved does not already make identifiers: CATALOG, DAY, HOUR,
+	// MINUTE, MONTH, QUARTER, SECOND, YEAR, FLOOR, CEIL, RANK, CUME_DIST,
+	// PERCENT_RANK and TIMESTAMPADD reach them as identifiers.
+	case kwCHAR, kwCURRENT_ROLE, kwCURRENT_USER, kwDATABASE, kwDENSE_RANK,
+		kwFIRST_VALUE, kwGROUPING, kwGROUPING_ID, kwIF, kwLAG, kwLAST_VALUE,
+		kwLEAD, kwLEFT, kwLIKE, kwMOD, kwNTILE, kwPASSWORD, kwREGEXP,
+		kwREPLACE, kwRIGHT, kwRLIKE, kwROW_NUMBER, kwSCHEMA, kwUSER:
 		return true
 	}
 	return false
@@ -1526,9 +1517,12 @@ func (p *Parser) parseCaseExpr() (*ast.CaseExpr, error) {
 	return ce, nil
 }
 
-// parseCastExpr parses CAST(expr AS type) or TRY_CAST(expr AS type).
-func (p *Parser) parseCastExpr(tryCast bool) (*ast.CastExpr, error) {
-	castTok := p.advance() // consume CAST or TRY_CAST
+// parseCastExpr parses CAST(expr AS type). StarRocksLex.g4 has no TRY_CAST
+// token, and the 3.4.10 server refuses TRY_CAST(x AS t) at the form's AS: the
+// name is an ordinary function there, so `TRY_CAST(x)` parses and this does
+// not.
+func (p *Parser) parseCastExpr() (*ast.CastExpr, error) {
+	castTok := p.advance() // consume CAST
 	if _, err := p.expect(int('(')); err != nil {
 		return nil, err
 	}
@@ -1550,7 +1544,6 @@ func (p *Parser) parseCastExpr(tryCast bool) (*ast.CastExpr, error) {
 	return &ast.CastExpr{
 		Expr:     expr,
 		TypeName: typeName,
-		TryCast:  tryCast,
 		Loc:      ast.Loc{Start: castTok.Loc.Start, End: closeTok.Loc.End},
 	}, nil
 }
@@ -1589,23 +1582,18 @@ func (p *Parser) parseExtractExpr() (ast.Node, error) {
 // parseExtractUnit parses the unit of EXTRACT(unit FROM expr).
 //
 // The grammar takes an identifier, which covers plain identifiers (DAYOFWEEK,
-// DOY, ...) and the non-reserved unit keywords (YEAR, MONTH, WEEK, ...). The
-// compound units DAY_HOUR, DAY_SECOND and MINUTE_SECOND lex as reserved
-// keywords, so they are accepted explicitly.
+// DOY, ...) and the non-reserved unit keywords (YEAR, MONTH, WEEK, ...).
+// Doris's compound units DAY_HOUR, DAY_SECOND and MINUTE_SECOND are keywords
+// here only in Doris: StarRocks.g4::2776 names no such unit, and the engine
+// reads each as an identifier, which this default takes.
 func (p *Parser) parseExtractUnit() (string, error) {
-	switch p.cur.Kind {
-	case kwDAY_HOUR, kwDAY_SECOND, kwMINUTE_SECOND:
+	if p.isExprIdentToken() {
 		tok := p.advance()
 		return strings.ToUpper(tok.Str), nil
-	default:
-		if p.isExprIdentToken() {
-			tok := p.advance()
-			return strings.ToUpper(tok.Str), nil
-		}
-		return "", &ParseError{
-			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
-			Message: fmt.Sprintf("expected EXTRACT unit, got %q", p.cur.Str),
-		}
+	}
+	return "", &ParseError{
+		Position: p.cur.Loc.Start, End: p.cur.Loc.End,
+		Message: fmt.Sprintf("expected EXTRACT unit, got %q", p.cur.Str),
 	}
 }
 
@@ -1844,18 +1832,58 @@ func (p *Parser) parseIntervalExpr() (ast.Node, error) {
 	}, nil
 }
 
-// parseIntervalUnit parses and returns the interval unit keyword as a string.
+// parseTimestampUnitCall parses TIMESTAMPADD(unit, expr, expr) and
+// TIMESTAMPDIFF(unit, expr, expr) (StarRocks.g4:2510-2511). The first argument
+// is a unitIdentifier and not an expression, which matters now that
+// MICROSECOND and MILLISECOND are the reserved keywords the grammar makes
+// them: an argument list cannot read one.
+func (p *Parser) parseTimestampUnitCall() (ast.Node, error) {
+	tok := p.advance() // consume TIMESTAMPADD or TIMESTAMPDIFF
+	fc := &ast.FuncCallExpr{
+		Name: &ast.ObjectName{Parts: []string{strings.ToUpper(tok.Str)}, Loc: tok.Loc},
+		Loc:  tok.Loc,
+	}
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	unitTok := p.cur
+	unit, err := p.parseIntervalUnit()
+	if err != nil {
+		return nil, err
+	}
+	fc.Args = append(fc.Args, &ast.ColumnRef{
+		Name: &ast.ObjectName{Parts: []string{unit}, Loc: unitTok.Loc},
+		Loc:  unitTok.Loc,
+	})
+	for range 2 {
+		if _, err := p.expect(int(',')); err != nil {
+			return nil, err
+		}
+		arg, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		fc.Args = append(fc.Args, arg)
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	fc.Loc.End = closeTok.Loc.End
+	return fc, nil
+}
+
+// parseIntervalUnit parses and returns the interval unit as a string: exactly
+// the tokens of unitIdentifier (StarRocks.g4:2776). An identifier is not a
+// unit, and the engine refuses one: INTERVAL 1 DAY_HOUR is a syntax error at
+// DAY_HOUR.
 func (p *Parser) parseIntervalUnit() (string, error) {
 	switch p.cur.Kind {
-	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND, kwQUARTER: // unitIdentifier, StarRocks.g4:2776
+	case kwYEAR, kwMONTH, kwWEEK, kwDAY, kwHOUR, kwMINUTE, kwSECOND, kwQUARTER,
+		kwMILLISECOND, kwMICROSECOND:
 		tok := p.advance()
 		return strings.ToUpper(tok.Str), nil
 	default:
-		// Allow any identifier-like token as a unit for forward compatibility
-		if p.cur.Kind == tokIdent {
-			tok := p.advance()
-			return strings.ToUpper(tok.Str), nil
-		}
 		return "", &ParseError{
 			Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 			Message: fmt.Sprintf("expected interval unit, got %q", p.cur.Str),

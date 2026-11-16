@@ -350,3 +350,57 @@ func TestCrossPartitionQueryLimit(t *testing.T) {
 	require.NoError(t, results[0].Err)
 	assert.Len(t, results[0].Rows, 7)
 }
+
+// pageRequestClient answers every query with one row and holds the requests it
+// was asked, so a test can read what the driver asked of the gateway.
+type pageRequestClient struct {
+	requests []PageRequest
+}
+
+func (*pageRequestClient) Ping(context.Context) error                      { return nil }
+func (*pageRequestClient) Close() error                                    { return nil }
+func (*pageRequestClient) ListDatabases(context.Context) ([]string, error) { return nil, nil }
+
+func (*pageRequestClient) ListContainers(context.Context, string) ([]string, error) {
+	return nil, nil
+}
+
+func (*pageRequestClient) Plan(context.Context, PageRequest) ([]byte, error) { return nil, nil }
+
+func (c *pageRequestClient) Page(_ context.Context, req PageRequest) (PageAnswer, error) {
+	c.requests = append(c.requests, req)
+	return PageAnswer{Items: [][]byte{[]byte(`{"seq":0}`)}, Pages: 1}, nil
+}
+
+// TestQueryPageSize pins the page size the driver asks the gateway for: the
+// caller's limit up to the page the gateway serves of its own accord. A limit
+// at or past that page asks for it, because no page past it is guaranteed;
+// asking for nothing would leave the gateway's size and the caller's limit
+// unrelated.
+func TestQueryPageSize(t *testing.T) {
+	for _, tc := range []struct {
+		limit int
+		want  int32
+	}{
+		{limit: 0, want: 0},
+		{limit: 1, want: 1},
+		{limit: 7, want: 7},
+		{limit: 999, want: 999},
+		{limit: gatewayPageSize, want: gatewayPageSize},
+		{limit: gatewayPageSize + 1, want: gatewayPageSize},
+		{limit: 5000, want: gatewayPageSize},
+	} {
+		client := &pageRequestClient{}
+		s := &session{driver: &Driver{client: client, databaseName: testcontainer.Database}}
+		results, err := s.Query(context.Background(), `SELECT c.seq FROM c`, driver.QueryOptions{
+			Schema: testcontainer.CitiesContainer,
+			Limit:  tc.limit,
+		})
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NoError(t, results[0].Err)
+		require.Len(t, client.requests, 1)
+		assert.Equal(t, tc.want, client.requests[0].PageSize, "limit %d", tc.limit)
+		assert.Equal(t, tc.limit, client.requests[0].Limit, "limit %d", tc.limit)
+	}
+}

@@ -2,14 +2,10 @@
 
 == TestQueryPages default#1
 > raw
-| {"op":"executeStatement","limit":2,"statement":"SELECT * FROM \"paged\" WHERE owner = 'o1' ORDER BY seq"}
+| {"op":"executeStatement","limit":3,"statement":"SELECT * FROM \"paged\" WHERE owner = 'o1' AND label \u003c\u003e 'row-0' ORDER BY seq"}
 < raw
-| {"items":[{"label":{"S":"row-0"},"owner":{"S":"o1"},"seq":{"S":"s0"}},{"label":{"S":"row-1"},"owner":{"S":"o1"},"seq":{"S":"s1"}}],"nextToken":"b21uaS10b2tlbi0x"}
+| {"items":[{"label":{"S":"row-1"},"owner":{"S":"o1"},"seq":{"S":"s1"}},{"label":{"S":"row-2"},"owner":{"S":"o1"},"seq":{"S":"s2"}}],"nextToken":"b21uaS10b2tlbi0x"}
 > raw
-| {"op":"executeStatement","limit":2,"statement":"SELECT * FROM \"paged\" WHERE owner = 'o1' ORDER BY seq","nextToken":"b21uaS10b2tlbi0x"}
+| {"op":"executeStatement","limit":1,"statement":"SELECT * FROM \"paged\" WHERE owner = 'o1' AND label \u003c\u003e 'row-0' ORDER BY seq","nextToken":"b21uaS10b2tlbi0x"}
 < raw
-| {"items":[{"label":{"S":"row-2"},"owner":{"S":"o1"},"seq":{"S":"s2"}},{"label":{"S":"row-3"},"owner":{"S":"o1"},"seq":{"S":"s3"}}],"nextToken":"b21uaS10b2tlbi0y"}
-> raw
-| {"op":"executeStatement","limit":2,"statement":"SELECT * FROM \"paged\" WHERE owner = 'o1' ORDER BY seq","nextToken":"b21uaS10b2tlbi0y"}
-< raw
-| {"items":[{"label":{"S":"row-4"},"owner":{"S":"o1"},"seq":{"S":"s4"}}]}
+| {"items":[{"label":{"S":"row-3"},"owner":{"S":"o1"},"seq":{"S":"s3"}}],"nextToken":"b21uaS10b2tlbi0y"}
