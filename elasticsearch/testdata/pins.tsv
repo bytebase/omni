@@ -1,0 +1,7 @@
+# The server this engine's committed answers come from. driver records the
+# tapes through elasticsearch/internal/testcontainer: Elasticsearch 8.19.25,
+# the last release of the 8.19 line, which every test reads (GET / answers
+# version.number), pinned by digest. No server judges the REST console grammar
+# elasticsearch/parser reads, so there is no compat.tsv pin and no second row.
+# columns: role, image, digest, source tag
+driver	docker.elastic.co/elasticsearch/elasticsearch:8.19.25	sha256:5bfdf4313b9bc05c0d46fe219d6e67710eb0c7654ed6c275167bdf9beefc56f0	8.19.25

@@ -1,0 +1,36 @@
+{
+  "databases": [
+    "node"
+  ],
+  "roles": [
+    {
+      "attribute": "[apm_system]",
+      "name": "apm_system"
+    },
+    {
+      "attribute": "[beats_system]",
+      "name": "beats_system"
+    },
+    {
+      "attribute": "[superuser]",
+      "name": "elastic"
+    },
+    {
+      "attribute": "[kibana_system]",
+      "name": "kibana"
+    },
+    {
+      "attribute": "[kibana_system]",
+      "name": "kibana_system"
+    },
+    {
+      "attribute": "[logstash_system]",
+      "name": "logstash_system"
+    },
+    {
+      "attribute": "[remote_monitoring_collector, remote_monitoring_agent]",
+      "name": "remote_monitoring_user"
+    }
+  ],
+  "version": "8.19.25"
+}

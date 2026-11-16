@@ -1,0 +1,8 @@
+{
+  "databases": [
+    "omni_instance_b",
+    "omni_instance_a"
+  ],
+  "roles": null,
+  "version": "5.0.9"
+}

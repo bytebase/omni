@@ -107,3 +107,88 @@ func TestRewriteResultLimitNestedLock(t *testing.T) {
 		require.ErrorIs(t, err, errNestedLock, stmt)
 	}
 }
+
+func TestStatementWithResultLimit(t *testing.T) {
+	testCases := []struct {
+		stmt  string
+		count int
+		want  string
+	}{
+		// Rewrite path: no LIMIT, and an existing LIMIT smaller, larger and 0.
+		{
+			stmt:  "SELECT * FROM t;",
+			count: 10,
+			want:  "SELECT * FROM `t` LIMIT 10",
+		},
+		{
+			stmt:  "SELECT * FROM t LIMIT 5;",
+			count: 10,
+			want:  "SELECT * FROM `t` LIMIT 5",
+		},
+		{
+			stmt:  "SELECT * FROM t LIMIT 123;",
+			count: 10,
+			want:  "SELECT * FROM `t` LIMIT 10",
+		},
+		{
+			stmt:  "SELECT * FROM t LIMIT 0;",
+			count: 10,
+			want:  "SELECT * FROM `t` LIMIT 0",
+		},
+		{
+			stmt:  "SELECT * FROM t1 UNION SELECT * FROM t2;",
+			count: 10,
+			want:  "SELECT * FROM `t1` UNION SELECT * FROM `t2` LIMIT 10",
+		},
+		{
+			stmt:  "WITH a AS (SELECT * FROM t) SELECT * FROM a;",
+			count: 10,
+			want:  "WITH `a` AS (SELECT * FROM `t`) SELECT * FROM `a` LIMIT 10",
+		},
+		{
+			stmt:  "SELECT * FROM t FOR UPDATE;",
+			count: 10,
+			want:  "SELECT * FROM `t` LIMIT 10 FOR UPDATE",
+		},
+		// A statement the rewrite leaves alone is not wrapped.
+		{
+			stmt:  "UPDATE t SET a = 1",
+			count: 10,
+			want:  "UPDATE t SET a = 1",
+		},
+		{
+			stmt:  "EXPLAIN SELECT * FROM t",
+			count: 10,
+			want:  "EXPLAIN SELECT * FROM t",
+		},
+		// A rewrite failure is wrapped in the CTE, trimming the statement.
+		{
+			stmt:  "SELECT * FROM t1 UNION SELECT * FROM t2 FOR UPDATE",
+			count: 10,
+			want:  "WITH result AS (SELECT * FROM t1 UNION SELECT * FROM t2 FOR UPDATE) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			stmt:  "  SELECT * FROM t LIMIT 1 + 2 ;;;  ",
+			count: 10,
+			want:  "WITH result AS (SELECT * FROM t LIMIT 1 + 2) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			stmt:  "SELECT * FROM a; SELECT * FROM b;",
+			count: 10,
+			want:  "WITH result AS (SELECT * FROM a; SELECT * FROM b) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			stmt:  "SELEC 1",
+			count: 10,
+			want:  "WITH result AS (SELEC 1) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			stmt:  "",
+			count: 10,
+			want:  "WITH result AS () SELECT * FROM result LIMIT 10;",
+		},
+	}
+	for _, tc := range testCases {
+		require.Equal(t, tc.want, StatementWithResultLimit(tc.stmt, tc.count), tc.stmt)
+	}
+}

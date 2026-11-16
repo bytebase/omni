@@ -1,0 +1,52 @@
+PUT /alpha
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  }
+}
+
+POST /alpha/_doc/1
+{"name": "row 1", "n": 1}
+
+POST /alpha/_doc/2
+{"name": "row 2", "n": 2}
+
+POST /alpha/_doc/3
+{"name": "row 3", "n": 3}
+
+POST /alpha/_refresh
+
+PUT /beta
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0
+  }
+}
+
+POST /beta/_doc/1
+{"name": "row 1", "n": 1}
+
+POST /beta/_doc/2
+{"name": "row 2", "n": 2}
+
+POST /beta/_doc/3
+{"name": "row 3", "n": 3}
+
+POST /beta/_doc/4
+{"name": "row 4", "n": 4}
+
+POST /beta/_doc/5
+{"name": "row 5", "n": 5}
+
+POST /beta/_refresh
+
+PUT /hidden-one
+{
+  "settings": {
+    "number_of_shards": 1,
+    "number_of_replicas": 0,
+    "index.hidden": true
+  }
+}

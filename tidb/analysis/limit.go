@@ -10,6 +10,28 @@ import (
 	"github.com/bytebase/omni/tidb/parser"
 )
 
+// StatementWithResultLimit returns the text to send so the server returns at
+// most limit rows. It is RewriteResultLimit's rewrite when that succeeds, and
+// otherwise statement wrapped as
+//
+//	WITH result AS (<statement>) SELECT * FROM result LIMIT <limit>;
+//
+// It never reports an error, so a caller has no fallback to choose.
+//
+// A statement RewriteResultLimit leaves alone — DML, EXPLAIN, and other
+// non-SELECT text — is returned unchanged: wrapping it would change what it
+// does. A statement that already carries an integer LIMIT at or below limit is
+// returned unchanged; a larger LIMIT becomes limit. TiDB has no version without
+// LIMIT, so the wrapper covers only text the rewrite cannot handle, such as a
+// nested locking clause or a parse error; a LIMIT 0 statement is kept, and an
+// empty statement is wrapped.
+func StatementWithResultLimit(statement string, limitCount int) string {
+	if stmt, err := RewriteResultLimit(statement, limitCount); err == nil {
+		return stmt
+	}
+	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result LIMIT %d;", trimStatement(statement), limitCount)
+}
+
 // RewriteResultLimit rewrites one SELECT, including a set operation, so it
 // returns at most limit rows, and restores it from the AST. An integer LIMIT
 // larger than limit becomes limit, a non-constant one is kept, and a SELECT

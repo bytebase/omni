@@ -3,10 +3,8 @@ package driver
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/bytebase/omni/driver"
 	tidbanalysis "github.com/bytebase/omni/tidb/analysis"
@@ -60,11 +58,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			}
 			statement = explained
 		} else if opts.Limit > 0 {
-			if rewritten, err := tidbanalysis.RewriteResultLimit(statement, opts.Limit); err == nil {
-				statement = rewritten
-			} else {
-				statement = fmt.Sprintf("WITH result AS (%s) SELECT * FROM result LIMIT %d;", trimStatement(statement), opts.Limit)
-			}
+			statement = tidbanalysis.StatementWithResultLimit(statement, opts.Limit)
 		}
 
 		parsed, err := tidbparser.Parse(statement)
@@ -237,10 +231,4 @@ func parseTimestampOrStringValue(raw string, scale int32) driver.Value {
 		return driver.Value{Kind: driver.String, String: raw}
 	}
 	return driver.Value{Kind: driver.Timestamp, Time: t, Precision: scale}
-}
-
-func trimStatement(statement string) string {
-	return strings.TrimLeftFunc(strings.TrimRightFunc(statement, func(r rune) bool {
-		return unicode.IsSpace(r) || r == ';'
-	}), unicode.IsSpace)
 }
