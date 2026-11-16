@@ -60,9 +60,10 @@ func TestClassifyStatement(t *testing.T) {
 		// stripped them before its prefix test.
 		{text: "-- a note\nSELECT 1", kind: query, ok: true},
 		{text: "/* a note */ CREATE TABLE t (Id INT64 NOT NULL) PRIMARY KEY (Id)", kind: ddl, ok: true},
-		// Spanner's GRANT is DDL and this routing calls it DML, which Bytebase's
-		// prefix test did too; the fix is a change of its own.
-		{text: "GRANT SELECT ON TABLE t TO ROLE r", kind: dml, ok: true},
+		// Spanner's GRANT and REVOKE are DDL, which the admin API takes and the
+		// DML path refuses.
+		{text: "GRANT SELECT ON TABLE t TO ROLE r", kind: ddl, ok: true},
+		{text: "revoke select on table t from role r", kind: ddl, ok: true},
 		// A segment that holds only a comment holds no statement.
 		{text: "-- only a note", ok: false},
 		{text: "/* only a note */", ok: false},
