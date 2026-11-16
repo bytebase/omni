@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -80,7 +81,7 @@ func (d *Driver) getDatabaseNames(ctx context.Context) ([]string, error) {
 	var databaseNames []string
 	result, err := d.queryStatement(ctx, "SHOW DATABASES", 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get version from instance: %w", err)
+		return nil, fmt.Errorf("failed to get database names from instance: %w", err)
 	}
 	for _, row := range result.Rows {
 		if len(row) == 0 {
@@ -92,9 +93,9 @@ func (d *Driver) getDatabaseNames(ctx context.Context) ([]string, error) {
 }
 
 func (d *Driver) listTablesNames(ctx context.Context, databaseName string) ([]string, error) {
-	result, err := d.queryStatement(ctx, fmt.Sprintf("SHOW TABLES FROM %s", databaseName), 0)
+	result, err := d.queryStatement(ctx, fmt.Sprintf("SHOW TABLES FROM %s", quoteBacktick(databaseName)), 0)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get version from instance: %w", err)
+		return nil, fmt.Errorf("failed to get tables from database %s: %w", databaseName, err)
 	}
 
 	var tableNames []string
@@ -160,12 +161,9 @@ func (d *Driver) getTables(ctx context.Context, databaseName string) (
 				Columns: tableInfo.colMetadatas,
 			})
 		case "MANAGED_TABLE":
-			partitions, err := d.getPartitions(ctx, databaseName, tableName)
-			if err != nil {
-				// Ignore partitions error as some tables aren't partitioned.
-				slog.Debug("failed to get partitions", "error", err)
-				continue
-			}
+			// A table without partitions answers SHOW PARTITIONS with an error,
+			// which is why a table carries no partitions rather than no rows.
+			partitions := d.getPartitions(ctx, databaseName, tableName)
 			tableMetadatas = append(tableMetadatas, &metadatapb.TableMetadata{
 				Engine:     "HDFS",
 				Comment:    tableInfo.comment,
@@ -183,26 +181,24 @@ func (d *Driver) getTables(ctx context.Context, databaseName string) (
 	return tableMetadatas, extTableMetadatas, viewMetadatas, mtViewMetadatas, nil
 }
 
-func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName string) ([]*metadatapb.TablePartitionMetadata, error) {
-	// partitions.
-	partitionResult, err := d.queryStatement(ctx, fmt.Sprintf("SHOW PARTITIONS `%s`.`%s`", databaseName, tableName), 0)
+// getPartitions reads a managed table's partitions. Hive answers a table that
+// is not partitioned with an error, which is the same as having none.
+func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName string) []*metadatapb.TablePartitionMetadata {
+	result, err := d.queryStatement(ctx, fmt.Sprintf("SHOW PARTITIONS `%s`.`%s`", databaseName, tableName), 0)
 	if err != nil {
 		slog.Debug("failed to get partitions", "error", err)
-		return nil, nil
+		return nil
 	}
-	if partitionResult == nil {
-		return nil, nil
-	}
-	var partitions []*metadatapb.TablePartitionMetadata
-	for _, row := range partitionResult.Rows {
+	partitions := make([]*metadatapb.TablePartitionMetadata, 0, len(result.Rows))
+	for _, row := range result.Rows {
 		if len(row) == 0 {
-			return nil, errors.New("partitions result row has zero length")
+			continue
 		}
 		partitions = append(partitions, &metadatapb.TablePartitionMetadata{
 			Name: row[0].String,
 		})
 	}
-	return partitions, nil
+	return partitions
 }
 
 // This function gets certain database info by name.
@@ -254,63 +250,69 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 
 	section := columnSection
 	for rows.Next() {
-		var colName, dataType, comment string
+		// DESCRIBE FORMATTED answers NULL for the cells a section's headings and
+		// blank separator rows do not fill, so each cell is read as a value that
+		// may be absent.
+		var (
+			colName, dataType, comment sql.NullString
+		)
 		if err := rows.Scan(&colName, &dataType, &comment); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
+		colNameValue, dataTypeValue, commentValue := colName.String, dataType.String, comment.String
 
 		// The first rows are column metadata, followed by "# Detailed Table Information" and "# Storage Information"
 		switch {
-		case strings.HasPrefix(colName, "# col_name"):
+		case strings.HasPrefix(colNameValue, "# col_name"):
 			continue
-		case strings.HasPrefix(colName, "# Detailed Table Information"):
+		case strings.HasPrefix(colNameValue, "# Detailed Table Information"):
 			section = tableInfoSection
-		case strings.HasPrefix(colName, "# Storage Information"):
+		case strings.HasPrefix(colNameValue, "# Storage Information"):
 			section = storageSection
-		case strings.HasPrefix(colName, "# View Information"):
+		case strings.HasPrefix(colNameValue, "# View Information"):
 			section = viewSection
 		default:
 			// No action needed for other cases
 		}
 		switch section {
 		case columnSection:
-			if colName != "" && dataType != "" {
+			if colNameValue != "" && dataTypeValue != "" {
 				// Column metadata.
 				position := len(tableInfo.colMetadatas) + 1
 				tableInfo.colMetadatas = append(tableInfo.colMetadatas, &metadatapb.ColumnMetadata{
-					Name:     colName,
-					Type:     dataType,
-					Comment:  comment,
+					Name:     colNameValue,
+					Type:     dataTypeValue,
+					Comment:  commentValue,
 					Position: int32(position),
 				})
 			}
 		case tableInfoSection:
 			switch {
-			case trimField(colName) == "Table Type:":
-				tableInfo.tableType = trimField(dataType)
-			case trimField(dataType) == "numRows":
-				n, err := strconv.Atoi(trimField(comment))
+			case trimField(colNameValue) == "Table Type:":
+				tableInfo.tableType = trimField(dataTypeValue)
+			case trimField(dataTypeValue) == "numRows":
+				n, err := strconv.Atoi(trimField(commentValue))
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse row count: %w", err)
 				}
 				tableInfo.numRows = n
-			case trimField(dataType) == "totalSize":
-				n, err := strconv.Atoi(trimField(comment))
+			case trimField(dataTypeValue) == "totalSize":
+				n, err := strconv.Atoi(trimField(commentValue))
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse row count: %w", err)
 				}
 				tableInfo.totalSize = n
-			case trimField(dataType) == "comment":
-				tableInfo.comment = trimField(comment)
+			case trimField(dataTypeValue) == "comment":
+				tableInfo.comment = trimField(commentValue)
 			default:
 				// No action needed for other table info fields
 			}
 		case viewSection:
 			switch {
-			case strings.HasPrefix(colName, "View Original Text:"):
-				tableInfo.viewDef = trimField(dataType)
-			case strings.HasPrefix(colName, "Original Query:"):
-				tableInfo.viewDef = trimField(dataType)
+			case strings.HasPrefix(colNameValue, "View Original Text:"):
+				tableInfo.viewDef = trimField(dataTypeValue)
+			case strings.HasPrefix(colNameValue, "Original Query:"):
+				tableInfo.viewDef = trimField(dataTypeValue)
 			default:
 				// No action needed for other view fields
 			}

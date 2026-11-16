@@ -3,13 +3,22 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"flag"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/testing/protocmp"
+
 	"github.com/bytebase/omni/hive/internal/testcontainer"
+	metadatapb "github.com/bytebase/omni/metadata"
 )
+
+var update = flag.Bool("update", false, "rewrite the golden files under testdata/sync from this run")
 
 // openTestCorpus returns a driver on dbName, dropped and created empty first so
 // the tape holds one run's requests whatever the test binary ran before, with
@@ -79,27 +88,43 @@ func TestSyncInstance(t *testing.T) {
 	}
 }
 
-// TestSyncDatabaseReadsDescribeFormatted pins what the moved sync does on the
-// pinned server today: DESCRIBE FORMATTED answers NULL for the cells of a
-// section's blank separator row, and the scan of three strings stops there, so
-// the sync reports the failure instead of a schema. The fix(hive) PR that
-// follows the move reads those cells and records the schema as a golden.
-func TestSyncDatabaseReadsDescribeFormatted(t *testing.T) {
+// TestSyncDatabase reads the corpus's tables: an external table, a managed
+// table Hive translated to an external one and then back, a partitioned
+// managed table with one partition and two rows, and a view.
+func TestSyncDatabase(t *testing.T) {
 	d := openTestCorpus(t, "omni_sync")
 
-	_, err := d.SyncDatabase(context.Background())
-	if err == nil {
-		t.Fatal("SyncDatabase succeeded; the moved sync scans DESCRIBE FORMATTED's NULL cells into strings")
-	}
-	for _, want := range []string{
-		"failed to get info from database omni_sync",
-		"failed to get table metadata from database omni_sync",
-		"failed to describe table events's type",
-		"failed to scan row",
-		"converting NULL to string is unsupported",
-	} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("SyncDatabase error %q does not hold %q", err, want)
+	got, err := d.SyncDatabase(context.Background())
+	require.NoError(t, err)
+	golden := filepath.Join("testdata", "sync", "database.json")
+	if *update {
+		if err := os.MkdirAll(filepath.Dir(golden), 0o755); err != nil {
+			t.Fatal(err)
 		}
+		b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(got)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(golden, append(b, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return
 	}
+	want := readGolden(t, golden)
+	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+		t.Errorf("SyncDatabase differs from %s (-want +got):\n%s", golden, diff)
+	}
+}
+
+func readGolden(t *testing.T, path string) *metadatapb.DatabaseSchemaMetadata {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := &metadatapb.DatabaseSchemaMetadata{}
+	if err := protojson.Unmarshal(b, m); err != nil {
+		t.Fatalf("%s: %v", path, err)
+	}
+	return m
 }

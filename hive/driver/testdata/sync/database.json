@@ -1,0 +1,86 @@
+{
+  "name":  "omni_sync",
+  "schemas":  [
+    {
+      "name":  "omni_sync",
+      "tables":  [
+        {
+          "name":  "events",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "int"
+            },
+            {
+              "name":  "body",
+              "position":  2,
+              "type":  "string"
+            },
+            {
+              "name":  "dt",
+              "position":  3,
+              "type":  "string"
+            }
+          ],
+          "engine":  "HDFS",
+          "rowCount":  "2",
+          "dataSize":  "557",
+          "partitions":  [
+            {
+              "name":  "dt=2024-01-01"
+            }
+          ]
+        },
+        {
+          "name":  "orders",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint"
+            },
+            {
+              "name":  "amount",
+              "position":  2,
+              "type":  "decimal(10,2)"
+            },
+            {
+              "name":  "note",
+              "position":  3,
+              "type":  "string",
+              "comment":  "a note"
+            }
+          ],
+          "engine":  "HDFS",
+          "rowCount":  "1",
+          "dataSize":  "774"
+        }
+      ],
+      "externalTables":  [
+        {
+          "name":  "ext_users",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "int",
+              "comment":  "the id"
+            },
+            {
+              "name":  "name",
+              "position":  2,
+              "type":  "string"
+            }
+          ]
+        }
+      ],
+      "views":  [
+        {
+          "name":  "v_users",
+          "definition":  "SELECT id, name FROM ext_users"
+        }
+      ]
+    }
+  ]
+}
