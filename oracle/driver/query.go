@@ -84,6 +84,7 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(opts.Schema))); err != nil {
 				return nil, err
 			}
+			s.schemaApplied = true
 		}
 		startTime := time.Now()
 		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, stmt.planAsJSON, opts.MaxResultBytes)

@@ -288,9 +288,21 @@ func (d *Driver) Session(ctx context.Context) (omnidriver.Session, error) {
 type session struct {
 	driver *Driver
 	conn   *sql.Conn
+	// schemaApplied reports that QueryOptions.Schema switched the session, so
+	// Close has a schema of the driver's to switch back to.
+	schemaApplied bool
 }
 
-func (s *session) Close() error { return s.conn.Close() }
+// Close returns the session to the pool with the driver's schema, so a schema a
+// query chose does not become the next session's.
+func (s *session) Close() error {
+	if s.schemaApplied && s.driver.databaseName != "" {
+		// The connection goes back to the pool either way, so a failure here is
+		// the next session's to report.
+		_, _ = s.conn.ExecContext(context.Background(), fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(s.driver.databaseName)))
+	}
+	return s.conn.Close()
+}
 
 // quoteIdent writes a name as a quoted identifier.
 func quoteIdent(name string) string {

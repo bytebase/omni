@@ -188,6 +188,22 @@ INSERT INTO OMNI_APP.S (ID) VALUES (1);
 	if len(results[0].Rows) != 1 || results[0].Rows[0][0].String != "1" {
 		t.Errorf("rows = %+v, want the one row", results[0].Rows)
 	}
+	// The chosen schema does not outlive the session that chose it.
+	if err := s.Close(); err != nil {
+		t.Fatal(err)
+	}
+	next, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = next.Close() }()
+	results, err = next.Query(ctx, "SELECT ID FROM S", omnidriver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if results[0].Err != nil {
+		t.Errorf("the next session did not get the driver's schema: %v", results[0].Err)
+	}
 }
 
 // TestVersionFromServer pins that the driver asks the server for its release and
