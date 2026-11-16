@@ -274,6 +274,28 @@ func TestConvertUInt8Array(t *testing.T) {
 	}
 }
 
+func TestConvertTemporal(t *testing.T) {
+	at := time.Date(2026, 3, 4, 5, 6, 7, 891000000, time.UTC)
+	for _, tc := range []struct {
+		name      string
+		typeName  string
+		kind      driver.Kind
+		precision int32
+	}{
+		{"date", "Date", driver.Timestamp, 0},
+		{"datetime", "DateTime", driver.Timestamp, 0},
+		{"datetime64", "DateTime64(3)", driver.Timestamp, 3},
+		{"zoned datetime", "DateTime('UTC')", driver.TimestampTZ, 0},
+		{"zoned datetime64", "DateTime64(3, 'UTC')", driver.TimestampTZ, 3},
+		{"nullable zoned datetime64", "Nullable(DateTime64(6, 'Asia/Shanghai'))", driver.TimestampTZ, 6},
+	} {
+		got := convertValue(tc.typeName, nil, &at)
+		if got.Kind != tc.kind || got.Precision != tc.precision {
+			t.Errorf("%s: %+v, want %s precision %d", tc.name, got, tc.kind, tc.precision)
+		}
+	}
+}
+
 func TestConvertTimeDuration(t *testing.T) {
 	duration := time.Hour + 2*time.Minute + 3*time.Second + 456*time.Millisecond
 	if got := convertValue("TIME64", nil, &duration); got.Kind != driver.String || got.String != "01:02:03.456" {

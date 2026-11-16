@@ -50,6 +50,7 @@
 | 		SELECT
 | 			name
 | 		FROM system.users
+| 		ORDER BY name
 | 	
 < result
 < column "name" "String" "string"
@@ -62,6 +63,7 @@
 | 			schema_name
 | 		FROM information_schema.schemata
 | 		WHERE schema_name NOT IN ('INFORMATION_SCHEMA', 'information_schema', 'system')
+| 		ORDER BY schema_name
 < result
 < column "schema_name" "String" "string"
 < row
