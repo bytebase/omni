@@ -1,0 +1,220 @@
+{
+  "name": "omni_driver",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "omni_events",
+          "columns": [
+            {
+              "name": "group_id",
+              "nullable": true,
+              "type": "int"
+            },
+            {
+              "name": "bucket",
+              "nullable": true,
+              "type": "int"
+            },
+            {
+              "name": "event_id",
+              "nullable": true,
+              "type": "int"
+            },
+            {
+              "name": "payload",
+              "nullable": true,
+              "type": "text"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY KEY",
+              "expressions": [
+                "group_id",
+                "bucket",
+                "event_id"
+              ],
+              "descending": [
+                false,
+                true,
+                false
+              ],
+              "primary": true,
+              "definition": "(group_id,bucket,event_id)"
+            },
+            {
+              "name": "omni_events_payload_idx",
+              "expressions": [
+                "{\"target\": \"payload\"}"
+              ],
+              "type": "COMPOSITES",
+              "definition": "{\"target\": \"payload\"}"
+            }
+          ]
+        },
+        {
+          "name": "omni_rows",
+          "columns": [
+            {
+              "name": "id",
+              "nullable": true,
+              "type": "int"
+            },
+            {
+              "name": "label",
+              "nullable": true,
+              "type": "text"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY KEY",
+              "expressions": [
+                "id"
+              ],
+              "descending": [
+                false
+              ],
+              "primary": true,
+              "definition": "(id)"
+            }
+          ]
+        },
+        {
+          "name": "omni_types",
+          "columns": [
+            {
+              "name": "id",
+              "nullable": true,
+              "type": "int"
+            },
+            {
+              "name": "addr",
+              "nullable": true,
+              "type": "inet"
+            },
+            {
+              "name": "ascii_col",
+              "nullable": true,
+              "type": "ascii"
+            },
+            {
+              "name": "bi",
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "bl",
+              "nullable": true,
+              "type": "blob"
+            },
+            {
+              "name": "dbl",
+              "nullable": true,
+              "type": "double"
+            },
+            {
+              "name": "dec",
+              "nullable": true,
+              "type": "decimal"
+            },
+            {
+              "name": "dt",
+              "nullable": true,
+              "type": "date"
+            },
+            {
+              "name": "dur",
+              "nullable": true,
+              "type": "duration"
+            },
+            {
+              "name": "flag",
+              "nullable": true,
+              "type": "boolean"
+            },
+            {
+              "name": "flt",
+              "nullable": true,
+              "type": "float"
+            },
+            {
+              "name": "lst",
+              "nullable": true,
+              "type": "list<int>"
+            },
+            {
+              "name": "mp",
+              "nullable": true,
+              "type": "map<text, int>"
+            },
+            {
+              "name": "si",
+              "nullable": true,
+              "type": "smallint"
+            },
+            {
+              "name": "st",
+              "nullable": true,
+              "type": "set<text>"
+            },
+            {
+              "name": "ti",
+              "nullable": true,
+              "type": "tinyint"
+            },
+            {
+              "name": "tm",
+              "nullable": true,
+              "type": "time"
+            },
+            {
+              "name": "ts",
+              "nullable": true,
+              "type": "timestamp"
+            },
+            {
+              "name": "tuid",
+              "nullable": true,
+              "type": "timeuuid"
+            },
+            {
+              "name": "txt",
+              "nullable": true,
+              "type": "text"
+            },
+            {
+              "name": "uid",
+              "nullable": true,
+              "type": "uuid"
+            },
+            {
+              "name": "vc",
+              "nullable": true,
+              "type": "text"
+            },
+            {
+              "name": "vi",
+              "nullable": true,
+              "type": "varint"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY KEY",
+              "expressions": [
+                "id"
+              ],
+              "descending": [
+                false
+              ],
+              "primary": true,
+              "definition": "(id)"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
