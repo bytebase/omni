@@ -479,16 +479,36 @@ func explainFormatOf(statement string) string {
 		return "TEXT"
 	}
 	tokens := keywordTokens(body)
-	for i, token := range tokens {
-		if !token.word || !strings.EqualFold(token.text, "JSON") {
-			continue
+	// Skip EXPLAIN and its optional kind, unless the first word is already a
+	// setting (json = 1).
+	i := 1
+	if i < len(tokens) && tokens[i].word && !(i+1 < len(tokens) && tokens[i+1].text == "=") {
+		kind := tokens[i].text
+		i++
+		if strings.EqualFold(kind, "QUERY") || strings.EqualFold(kind, "TABLE") {
+			i++
 		}
-		if i+1 < len(tokens) && tokens[i+1].text == "=" {
-			if i+2 < len(tokens) && settingIsOff(tokens[i+2].text) {
+		if strings.EqualFold(kind, "JSON") {
+			return "JSON"
+		}
+	}
+	// The settings are name = value pairs; the query body starts at the first
+	// word that is not one.
+	for i < len(tokens) {
+		if !tokens[i].word || i+1 >= len(tokens) || tokens[i+1].text != "=" || i+2 >= len(tokens) {
+			break
+		}
+		if strings.EqualFold(tokens[i].text, "JSON") {
+			if settingIsOff(tokens[i+2].text) {
 				return "TEXT"
 			}
+			return "JSON"
 		}
-		return "JSON"
+		i += 3
+		if i >= len(tokens) || tokens[i].text != "," {
+			break
+		}
+		i++
 	}
 	return "TEXT"
 }

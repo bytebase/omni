@@ -274,6 +274,24 @@ func TestConvertUInt8Array(t *testing.T) {
 	}
 }
 
+func TestExplainFormatOf(t *testing.T) {
+	for _, tc := range []struct {
+		statement, want string
+	}{
+		{"EXPLAIN SELECT 1", "TEXT"},
+		{"EXPLAIN SELECT 1 AS json", "TEXT"},
+		{"EXPLAIN PLAN json = 1 SELECT 1", "JSON"},
+		{"EXPLAIN json = 0 SELECT 1", "TEXT"},
+		{"EXPLAIN json = 1, indexes = 1 SELECT 1", "JSON"},
+		{"EXPLAIN QUERY TREE SELECT 1", "TEXT"},
+		{"EXPLAIN JSON SELECT 1", "JSON"},
+	} {
+		if got := explainFormatOf(tc.statement); got != tc.want {
+			t.Errorf("explainFormatOf(%q) = %q, want %q", tc.statement, got, tc.want)
+		}
+	}
+}
+
 func TestConvertTemporal(t *testing.T) {
 	at := time.Date(2026, 3, 4, 5, 6, 7, 891000000, time.UTC)
 	for _, tc := range []struct {
