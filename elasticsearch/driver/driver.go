@@ -198,15 +198,21 @@ type liveClient struct {
 	auth string
 }
 
-// Do sends one request. The route's query string is kept as written, since a
-// '?' in it is the endpoint's, not an escape.
+// Do sends one request. The route is the caller's text, appended to the
+// endpoint as written: JoinPath would run path.Join over it, and a route such as
+// /alpha/_doc/.. would leave here as /alpha — a document request becoming an
+// index deletion. Its query string is kept as written too, since a '?' in it is
+// the endpoint's, not an escape.
 func (c *liveClient) Do(ctx context.Context, method, route string, body []byte) (*http.Response, error) {
 	path, query, hasQuery := strings.Cut(route, "?")
-	full := c.base.JoinPath(path)
-	if hasQuery {
-		full.RawQuery = query
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
 	}
-	req, err := http.NewRequestWithContext(ctx, method, full.String(), bytes.NewReader(body))
+	target := strings.TrimSuffix(c.base.String(), "/") + path
+	if hasQuery {
+		target += "?" + query
+	}
+	req, err := http.NewRequestWithContext(ctx, method, target, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to init a HTTP request: %w", err)
 	}

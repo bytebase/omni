@@ -215,6 +215,28 @@ func TestOpenUsesTheTransport(t *testing.T) {
 	require.Equal(t, "/_plugins/_security/api/internalusers", d.securityRoute())
 }
 
+// TestTheRouteIsSentAsWritten holds a route to the endpoint: a path that names a
+// document is not cleaned into the index it sits in.
+func TestTheRouteIsSentAsWritten(t *testing.T) {
+	var got []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.URL.RequestURI())
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	d, err := Open(context.Background(), driver.Config{Host: srv.URL})
+	require.NoError(t, err)
+	defer func() { _ = d.Close() }()
+	for _, route := range []string{"/alpha/_doc/..", "/alpha/_doc/1", "/_cat/indices?format=json&pretty"} {
+		res, err := d.client.Do(context.Background(), http.MethodGet, route, nil)
+		require.NoError(t, err)
+		require.NoError(t, res.Body.Close())
+	}
+	require.Equal(t, []string{"/alpha/_doc/..", "/alpha/_doc/1", "/_cat/indices?format=json&pretty"}, got)
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
