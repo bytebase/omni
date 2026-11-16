@@ -191,3 +191,123 @@ func TestExtractChangedResourcesInsertIntoFiles(t *testing.T) {
 		t.Errorf("DMLCount = %d, want 1", changes.DMLCount)
 	}
 }
+
+func TestExtractChangedResourcesLoadLabel(t *testing.T) {
+	// A LOAD LABEL's database qualifier is the database its job runs in, and
+	// the data descriptions' target is a bare identifier (both grammars write
+	// `INTO TABLE identifier`), so it loads into that database, not the
+	// session's (engine-verified: with the session in another database, LOAD
+	// LABEL db_b.job (... INTO TABLE t ...) loads db_b.t).
+	for _, tc := range []struct {
+		name      string
+		statement string
+		want      []string
+	}{
+		{
+			name:      "a qualified label is the target's database",
+			statement: "LOAD LABEL other.job (DATA INFILE('s3://b/f.csv') INTO TABLE t COLUMNS TERMINATED BY ',')",
+			want:      []string{"other.t"},
+		},
+		{
+			name:      "an unqualified label keeps the request database",
+			statement: "LOAD LABEL job (DATA INFILE('s3://b/f.csv') INTO TABLE t COLUMNS TERMINATED BY ',')",
+			want:      []string{"db.t"},
+		},
+		{
+			name:      "each data description is a target",
+			statement: "LOAD LABEL other.job (DATA INFILE('s3://b/f.csv') INTO TABLE t, DATA INFILE('s3://b/g.csv') INTO TABLE u)",
+			want:      []string{"other.t", "other.u"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := resourceNames(changesFor(t, tc.statement, "db"))
+			if len(got) != len(tc.want) {
+				t.Fatalf("resources = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("resources = %v, want %v", got, tc.want)
+					break
+				}
+			}
+		})
+	}
+}
+
+func TestExtractChangedResourcesCopyInto(t *testing.T) {
+	// COPY INTO writes its target table; the stage is a source and names no
+	// table.
+	for _, tc := range []struct {
+		name      string
+		statement string
+		want      []string
+	}{
+		{"unqualified target", "COPY INTO t FROM @stage1", []string{"db.t"}},
+		{"qualified target", "COPY INTO other.t FROM @stage1", []string{"other.t"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := resourceNames(changesFor(t, tc.statement, "db"))
+			if len(got) != len(tc.want) {
+				t.Fatalf("resources = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("resources = %v, want %v", got, tc.want)
+					break
+				}
+			}
+		})
+	}
+
+	// A copy is a load job, not a row-counted DML statement.
+	changes := changesFor(t, "COPY INTO t FROM @stage1;", "db")
+	if changes.DMLCount != 0 || len(changes.DMLStatements) != 0 || changes.InsertCount != 0 {
+		t.Errorf("DML accounting = %+v, want none", changes)
+	}
+}
+
+func TestExtractChangedResourcesSwapWith(t *testing.T) {
+	// SWAP WITH exchanges the two tables' data, so the partner is a changed
+	// table too, and it resolves in the altered table's database
+	// (engine-verified: a session in another database still finds it there).
+	for _, tc := range []struct {
+		name      string
+		statement string
+		want      []string
+	}{
+		{
+			name:      "swap",
+			statement: "ALTER TABLE t SWAP WITH other",
+			want:      []string{"db.t", "db.other"},
+		},
+		{
+			name:      "the partner follows the altered table's database",
+			statement: "ALTER TABLE other.t SWAP WITH partner",
+			want:      []string{"other.t", "other.partner"},
+		},
+		{
+			name:      "an action with no partner adds none",
+			statement: "ALTER TABLE t ADD COLUMN b INT",
+			want:      []string{"db.t"},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			changes := changesFor(t, tc.statement, "db")
+			got := resourceNames(changes)
+			if len(got) != len(tc.want) {
+				t.Fatalf("resources = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("resources = %v, want %v", got, tc.want)
+					break
+				}
+			}
+			for _, resource := range changes.Resources {
+				if !resource.AffectsData {
+					t.Errorf("resource %+v = 0 AffectsData, want a data change", resource)
+				}
+			}
+		})
+	}
+}

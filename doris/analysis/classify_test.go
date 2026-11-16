@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -121,5 +122,35 @@ func TestQueryTypeString(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("QueryType(%d).String() = %q, want %q", int(tc.qt), got, tc.want)
 		}
+	}
+}
+
+func TestClassifyStatementCTEPrefixedDML(t *testing.T) {
+	// Doris prefixes INSERT, UPDATE and DELETE with a WITH clause
+	// (DorisParser.g4:138,145,149). The leading keyword says SELECT, so only
+	// the tree's real operation keeps a write from being permitted as a read.
+	for _, tc := range []struct {
+		statement string
+		want      QueryType
+	}{
+		{"WITH c AS (SELECT 1 AS a) INSERT INTO t (a) SELECT a FROM c", QueryTypeDML},
+		{"WITH c AS (SELECT 1 AS a) UPDATE t SET a = 2 WHERE a IN (SELECT a FROM c)", QueryTypeDML},
+		{"WITH c AS (SELECT 1 AS a) DELETE FROM t WHERE a IN (SELECT a FROM c)", QueryTypeDML},
+		{"EXPLAIN WITH c AS (SELECT 1 AS a) DELETE FROM t", QueryTypeDML},
+		{"WITH c AS (SELECT 1 AS a) SELECT * FROM c", QueryTypeSelect},
+	} {
+		t.Run(tc.statement, func(t *testing.T) {
+			if got := ClassifyStatement(tc.statement); got != tc.want {
+				t.Errorf("ClassifyStatement(%q) = %s, want %s", tc.statement, got, tc.want)
+			}
+			// The keyword classifier alone cannot tell: WITH is its first
+			// token, so it answers SELECT for the forms that begin with one.
+			// That fallback answer is what the AST path replaces.
+			if strings.HasPrefix(tc.statement, "WITH") {
+				if got := Classify(tc.statement); got != QueryTypeSelect {
+					t.Errorf("Classify(%q) = %s, want the keyword fallback %s", tc.statement, got, QueryTypeSelect)
+				}
+			}
+		})
 	}
 }

@@ -83,12 +83,30 @@ func TestSplitStatementsEdges(t *testing.T) {
 		want   []Statement
 	}{
 		{"", nil},
-		{";", nil},
-		{";;;", nil},
-		{"-- just a comment", nil},
+		// A delimiter with no statement keeps its entry, marked Empty, so a
+		// caller that accounts for every ';' sees each one.
+		{";", []Statement{{Text: ";", Empty: true, Start: 0, End: 1}}},
+		{";;;", []Statement{
+			{Text: ";", Empty: true, Start: 0, End: 1},
+			{Text: ";", Empty: true, Start: 1, End: 2},
+			{Text: ";", Empty: true, Start: 2, End: 3},
+		}},
+		{"-- just a comment", []Statement{{Text: "-- just a comment", Empty: true, Start: 0, End: 17}}},
 		{"SELECT 1", []Statement{{Text: "SELECT 1", Start: 0, End: 8}}},
 		{"SELECT 1;", []Statement{{Text: "SELECT 1;", Start: 0, End: 9}}},
-		{" SELECT 1 ; ", []Statement{{Text: " SELECT 1 ;", Start: 0, End: 11}}},
+		{"SELECT 1; SELECT 2;", []Statement{
+			{Text: "SELECT 1;", Start: 0, End: 9},
+			{Text: " SELECT 2;", Start: 9, End: 19},
+		}},
+		// The run of delimiters after a statement is one empty chunk per ';'.
+		{"SELECT 1;;", []Statement{
+			{Text: "SELECT 1;", Start: 0, End: 9},
+			{Text: ";", Empty: true, Start: 9, End: 10},
+		}},
+		{" SELECT 1 ; ", []Statement{
+			{Text: " SELECT 1 ;", Start: 0, End: 11},
+			{Text: " ", Empty: true, Start: 11, End: 12},
+		}},
 		{"BEGIN SELECT 1; END; SELECT 2;", []Statement{
 			{Text: "BEGIN SELECT 1; END;", Start: 0, End: 20},
 			{Text: " SELECT 2;", Start: 20, End: 30},

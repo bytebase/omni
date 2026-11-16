@@ -67,3 +67,59 @@ func firstLine(s string) string {
 	}
 	return s
 }
+
+func TestStatementRangesCommentOnlyBuffers(t *testing.T) {
+	// A buffer of comments only still gets a range: an editor that counts
+	// statement positions must not lose ground to it. That includes '//', a
+	// form parser.Split's lexer skips and so the splitter drops as empty.
+	for _, tc := range []struct {
+		script string
+		want   []Range
+	}{
+		{"-- note", []Range{{Start: 0, End: 7}}},
+		{"// note", []Range{{Start: 0, End: 7}}},
+		{"# note", []Range{{Start: 0, End: 6}}},
+		{"/* note */", []Range{{Start: 0, End: 10}}},
+		{"  -- note\n", []Range{{Start: 2, End: 9}}},
+		{"", nil},
+		{";;", nil},
+		{"  ", nil},
+	} {
+		got := StatementRanges(tc.script)
+		if len(got) != len(tc.want) {
+			t.Errorf("StatementRanges(%q) = %+v, want %+v", tc.script, got, tc.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Errorf("StatementRanges(%q) = %+v, want %+v", tc.script, got, tc.want)
+				break
+			}
+		}
+	}
+}
+
+func TestStatementRangesRedundantDelimiters(t *testing.T) {
+	// A run of delimiters after a statement separates nothing, so it invents
+	// no range of its own; a comment after them still gets one.
+	for _, tc := range []struct {
+		script string
+		want   []Range
+	}{
+		{"SELECT 1;;", []Range{{Start: 0, End: 9}}},
+		{"SELECT 1; ; ;", []Range{{Start: 0, End: 9}}},
+		{"SELECT 1;; ;\n-- note", []Range{{Start: 0, End: 9}, {Start: 13, End: 20}}},
+	} {
+		got := StatementRanges(tc.script)
+		if len(got) != len(tc.want) {
+			t.Errorf("StatementRanges(%q) = %+v, want %+v", tc.script, got, tc.want)
+			continue
+		}
+		for i := range got {
+			if got[i] != tc.want[i] {
+				t.Errorf("StatementRanges(%q) = %+v, want %+v", tc.script, got, tc.want)
+				break
+			}
+		}
+	}
+}
