@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
 	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos/queryengine"
@@ -69,9 +70,11 @@ func canonicalValue(v any) any {
 	return v
 }
 
-// canonicalNumber renders a number by value: an integer in its own digits,
-// which int64 holds for every integer Cosmos stores, and anything else in the
-// shortest form that reads back as the same double, so 1 and 1.0 still meet.
+// canonicalNumber renders a number by value, so that the forms a store may hold
+// one value in meet: an integer is spelled in its digits, a double that holds a
+// whole number is spelled the same way, and any other double in the shortest
+// form that reads back as itself. Two integers the double format cannot tell
+// apart stay apart, since each is read from its own digits.
 func canonicalNumber(n json.Number) json.Number {
 	if i, err := n.Int64(); err == nil {
 		return json.Number(strconv.FormatInt(i, 10))
@@ -80,8 +83,14 @@ func canonicalNumber(n json.Number) json.Number {
 	if err != nil {
 		return n
 	}
+	if f == math.Trunc(f) && f >= -twoPow63 && f < twoPow63 {
+		return json.Number(strconv.FormatInt(int64(f), 10))
+	}
 	return json.Number(strconv.FormatFloat(f, 'g', -1, 64))
 }
+
+// twoPow63 is 2^63, the first whole number an int64 cannot hold.
+const twoPow63 = 9223372036854775808.0
 
 // distinctPipeline implements queryengine.QueryPipeline for unordered DISTINCT
 // queries. It streams raw documents in the order partitions deliver them and
