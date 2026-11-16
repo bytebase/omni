@@ -1580,3 +1580,72 @@ func TestCreateSchemaEmitsValidAuthentication(t *testing.T) {
 		t.Fatalf("schema creation lacks authentication:\n%s", sql)
 	}
 }
+
+func TestDropInlinePrimaryKeyKeepsExplicitNotNull(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER NOT NULL PRIMARY KEY); ALTER TABLE T DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tableByName(c.Metadata().Schemas[0])["T"].Columns[0].Nullable {
+		t.Fatal("explicit NOT NULL cleared")
+	}
+}
+
+func TestCommentRejectsAnotherOwner(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}}})
+	results, err := c.Exec(`COMMENT ON TABLE OTHER.T IS 'other'`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("comment from another owner was applied")
+	}
+}
+
+func TestAlterIndexRenameAndVisibility(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE INDEX I ON T(C); ALTER INDEX I RENAME TO J; ALTER INDEX J INVISIBLE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	found := false
+	for _, index := range table.Indexes {
+		if index.Name == "J" {
+			found = true
+			if index.Visible {
+				t.Fatalf("index still visible: %+v", index)
+			}
+		}
+	}
+	if !found {
+		t.Fatalf("renamed index missing: %+v", table.Indexes)
+	}
+}
+
+func TestConstraintDisableIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT CK CHECK (C > 0)); ALTER TABLE T DISABLE CONSTRAINT CK`); err == nil {
+		t.Fatal("constraint disable was silently accepted")
+	}
+}
+
+func TestViewFunctionOrdersBeforeView(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Views:     []*metadatapb.ViewMetadata{{Name: "A", Definition: "SELECT Z() AS C FROM DUAL"}},
+		Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z RETURN NUMBER IS BEGIN RETURN 1; END;"}},
+	}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, "CREATE OR REPLACE FUNCTION Z")
+	view := strings.Index(definition, `CREATE VIEW "A"`)
+	if function < 0 || view < 0 || function > view {
+		t.Fatalf("view precedes its function:\n%s", definition)
+	}
+	sql := migrationFor(t, New(), &Catalog{meta: meta})
+	function = strings.Index(sql, "CREATE OR REPLACE FUNCTION Z")
+	view = strings.Index(sql, `CREATE VIEW "A"`)
+	if function < 0 || view < 0 || function > view {
+		t.Fatalf("migration view precedes its function:\n%s", sql)
+	}
+}

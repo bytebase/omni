@@ -100,7 +100,22 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// Procedures will be created after tables by default order
 	}
 
-	// A virtual column can call a function, so the function must exist first.
+	// Views and virtual columns can call functions, so the function must exist
+	// first.
+	for viewID, view := range viewMap {
+		for functionID, function := range functionMap {
+			if expressionReferencesFunction(view.Definition, function.Name) {
+				graph.AddEdge(functionID, viewID)
+			}
+		}
+	}
+	for viewID, view := range materializedViewMap {
+		for functionID, function := range functionMap {
+			if expressionReferencesFunction(view.Definition, function.Name) {
+				graph.AddEdge(functionID, viewID)
+			}
+		}
+	}
 	for _, table := range tables {
 		tableID := getObjectID(databaseName, table.Name)
 		for _, column := range table.Columns {

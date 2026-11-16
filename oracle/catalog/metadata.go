@@ -233,6 +233,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		e.extractAlterTrigger(n)
 	case *ast.RenameStmt:
 		e.extractRename(n)
+	case *ast.AlterIndexStmt:
+		e.extractAlterIndex(n)
 	case *ast.DropStmt:
 		e.extractDrop(n)
 	default:
@@ -420,7 +422,6 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 				Visible:      true,
 				IsConstraint: true,
 			})
-			e.primaryKeyNotNull[table.Name+"\x00"+column.Name] = true
 		}
 	case ast.CONSTRAINT_UNIQUE:
 		name := fallbackName(n.Name, fmt.Sprintf("UK_%s_%s", table.Name, column.Name))
@@ -568,6 +569,11 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				}
 				e.dropConstraintSubtype(table, action.Subtype, columns)
 			}
+		case ast.AT_ENABLE_DISABLE:
+			if e.err == nil {
+				e.err = fmt.Errorf("constraint enable/disable is not supported by oracle/catalog")
+			}
+			return
 		case ast.AT_RENAME_CONSTRAINT:
 			e.renameConstraint(table, action.ColumnName, action.NewName)
 		case ast.AT_RENAME:
@@ -1212,6 +1218,45 @@ func (e *oracleMetadataExtractor) resolveForeignKeyReferencedColumns() {
 	}
 }
 
+func (e *oracleMetadataExtractor) extractAlterIndex(n *ast.AlterIndexStmt) {
+	name := objectName(n.Name)
+	if name == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	var index *metadatapb.IndexMetadata
+	for _, table := range e.tables {
+		for _, candidate := range table.Indexes {
+			if candidate.Name == name {
+				index = candidate
+			}
+		}
+	}
+	for _, view := range e.materializedViews {
+		for _, candidate := range view.Indexes {
+			if candidate.Name == name {
+				index = candidate
+			}
+		}
+	}
+	if index == nil {
+		return
+	}
+	switch strings.ToUpper(n.Action) {
+	case "RENAME":
+		if n.NewName != "" {
+			index.Name = n.NewName
+		}
+	case "VISIBLE":
+		index.Visible = true
+	case "INVISIBLE":
+		index.Visible = false
+	default:
+		if e.err == nil {
+			e.err = fmt.Errorf("ALTER INDEX action %q is not supported by oracle/catalog", n.Action)
+		}
+	}
+}
+
 func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 	tableName := objectName(n.Table)
 	indexName := objectName(n.Name)
@@ -1541,6 +1586,9 @@ func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt)
 }
 
 func (e *oracleMetadataExtractor) extractComment(n *ast.CommentStmt) {
+	if !e.useSchema(n.Object.Schema) {
+		return
+	}
 	if n.Column != "" {
 		table := e.tables[objectName(n.Object)]
 		if table == nil {

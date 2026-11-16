@@ -518,7 +518,44 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
-	// A virtual column can call a function, so the function must exist first.
+	// Views and virtual columns can call functions, so the function must exist
+	// first.
+	for viewID, viewDiff := range viewMap {
+		view := viewDiff.NewView
+		if view == nil {
+			view = viewDiff.OldView
+		}
+		if view == nil {
+			continue
+		}
+		for functionID, functionDiff := range functionMap {
+			function := functionDiff.NewFunction
+			if function == nil {
+				function = functionDiff.OldFunction
+			}
+			if function != nil && expressionReferencesFunction(view.Definition, function.Name) {
+				graph.AddEdge(functionID, viewID)
+			}
+		}
+	}
+	for viewID, viewDiff := range materializedViewMap {
+		view := viewDiff.NewMaterializedView
+		if view == nil {
+			view = viewDiff.OldMaterializedView
+		}
+		if view == nil {
+			continue
+		}
+		for functionID, functionDiff := range functionMap {
+			function := functionDiff.NewFunction
+			if function == nil {
+				function = functionDiff.OldFunction
+			}
+			if function != nil && expressionReferencesFunction(view.Definition, function.Name) {
+				graph.AddEdge(functionID, viewID)
+			}
+		}
+	}
 	for tableID, tableDiff := range tableMap {
 		if tableDiff.NewTable == nil {
 			continue
