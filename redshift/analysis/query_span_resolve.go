@@ -802,8 +802,14 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 		return functionSourceProjection{}, false
 	}
 	if n.Alias != nil {
-		if aliases := redshiftStringList(n.Alias.Colnames); len(aliases) > 0 {
-			names = aliases
+		aliases := redshiftStringList(n.Alias.Colnames)
+		for i, alias := range aliases {
+			if i >= len(names) {
+				break
+			}
+			if alias != "" {
+				names[i] = alias
+			}
 		}
 	}
 	return functionSourceProjection{names: names, sources: make([]ColumnSet, len(names))}, true

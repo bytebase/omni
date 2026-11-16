@@ -215,6 +215,20 @@ func TestRedshiftQuerySpanBaseStarKeepsUnnamedFunction(t *testing.T) {
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanPartialColumnAliasKeepsWidth covers a table alias that
+// renames only a prefix: the remaining metadata columns still count toward the
+// star's width, so the trailing function stays aligned.
+func TestRedshiftQuerySpanPartialColumnAliasKeepsWidth(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT o.*, reporting_fn() + 1 FROM orders o(first_id)")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 6)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.
