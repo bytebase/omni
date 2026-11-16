@@ -636,7 +636,33 @@ func (q *querySpanResolver) collectSelectFunctionProjectionUncached(selectStmt *
 		result.names = append(result.names, redshiftTargetOutputName(target))
 		result.sources = append(result.sources, sources)
 	}
+	applyFunctionExclude(&result, redshiftStringList(selectStmt.ExcludeList))
 	return result, issues, nil
+}
+
+// applyFunctionExclude removes EXCLUDE output columns, keeping names and
+// sources paired.
+func applyFunctionExclude(projection *functionSourceProjection, exclude []string) {
+	if len(exclude) == 0 {
+		return
+	}
+	excluded := make(map[string]bool, len(exclude))
+	for _, name := range exclude {
+		excluded[strings.ToLower(name)] = true
+	}
+	names := make([]string, 0, len(projection.names))
+	sources := make([]ColumnSet, 0, len(projection.sources))
+	for i, name := range projection.names {
+		if excluded[strings.ToLower(name)] {
+			continue
+		}
+		names = append(names, name)
+		if i < len(projection.sources) {
+			sources = append(sources, projection.sources[i])
+		}
+	}
+	projection.names = names
+	projection.sources = sources
 }
 
 // functionStarProjection expands a star select item into the output names and
@@ -1250,6 +1276,12 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		}
 		issues.merge(clauseIssues)
 		mergeSourceColumnSet(result, clauses)
+		withSources, withIssues, err := q.collectWithClauseSubquerySources(selectStmt, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(withIssues)
+		mergeSourceColumnSet(result, withSources)
 		return result, issues, nil
 	}
 	// Target stars expand from the recovered projections; the expression walk
@@ -1275,6 +1307,40 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 	}
 	issues.merge(fromIssues)
 	mergeSourceColumnSet(result, sources)
+	withSources, withIssues, withErr := q.collectWithClauseSubquerySources(selectStmt, functionStack, cache, scope)
+	if withErr != nil {
+		return nil, functionBodyIssues{}, withErr
+	}
+	issues.merge(withIssues)
+	mergeSourceColumnSet(result, withSources)
+	return result, issues, nil
+}
+
+// collectWithClauseSubquerySources collects the predicate and FROM
+// dependencies of a subquery's CTE bodies. Their projections are already part
+// of the scope; their clause functions still determine the result values.
+func (q *querySpanResolver) collectWithClauseSubquerySources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	issues := functionBodyIssues{}
+	if selectStmt.WithClause == nil || selectStmt.WithClause.Ctes == nil {
+		return result, issues, nil
+	}
+	for _, item := range selectStmt.WithClause.Ctes.Items {
+		cte, ok := item.(*ast.CommonTableExpr)
+		if !ok {
+			continue
+		}
+		cteSelect, ok := cte.Ctequery.(*ast.SelectStmt)
+		if !ok {
+			continue
+		}
+		sources, sourceIssues, err := q.collectSubqueryFunctionSources(cteSelect, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(sourceIssues)
+		mergeSourceColumnSet(result, sources)
+	}
 	return result, issues, nil
 }
 

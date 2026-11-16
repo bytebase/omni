@@ -478,6 +478,33 @@ func TestRedshiftQuerySpanSetOpClauseWithNilSources(t *testing.T) {
 	require.NotEmpty(t, span.Results)
 }
 
+// TestRedshiftQuerySpanExcludeKeepsFollowingFunction covers EXCLUDE: names and
+// sources are filtered together, so the trailing expression stays aligned.
+func TestRedshiftQuerySpanExcludeKeepsFollowingFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT o.*, reporting_fn() + 1 EXCLUDE (amount) FROM orders o")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 5)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
+// TestRedshiftQuerySpanSubqueryCTEPredicateFunction covers a function in a CTE
+// predicate inside a scalar subquery.
+func TestRedshiftQuerySpanSubqueryCTEPredicateFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT (WITH c AS (SELECT 1 AS x WHERE reporting_fn() > 0) SELECT x FROM c) AS y")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
