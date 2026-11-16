@@ -1,0 +1,62 @@
+# Oracle catalog
+
+`oracle/catalog` holds the schema-conversion layer `oracle/driver` needs for a
+`Dump`: metadata loading, deparse, diff and migration. It was ported from
+Bytebase's `backend/plugin/schema/oracle` package, whose fixtures are now
+`oracle/catalog/testdata`.
+
+## API
+
+- `New`, `LoadSQL`, `LoadSDL`, `Exec` and `LoadMetadata` build catalog state.
+- `DatabaseDefinition` renders a synced snapshot as Oracle DDL.
+- `Diff` compares two catalogs; `GenerateMigration` turns the diff into a
+  `MigrationPlan` whose `SQL()` is the script.
+- `Catalog.Metadata()` returns the snapshot the catalog holds.
+
+Oracle has one schema per user, so a snapshot normally carries one schema. The
+catalog stores the snapshot rather than re-executing every object definition;
+`Exec` applies the DDL statements it understands, which is what the migration
+replay tests exercise.
+
+## Deliberate differences from `schema/oracle`
+
+- Expressions taken from statement text keep it: a CHECK or virtual-column
+  expression reads as written, with its spacing and quotes. The Bytebase
+  extractor rebuilt these from the AST and lost both
+  (`STATUSIN('A','B')` instead of `STATUS IN ('A', 'B')`), which broke a
+  definition's round trip.
+- `CREATE SEQUENCE` records `MINVALUE`, `MAXVALUE`, `CACHE` and `CYCLE` as well
+  as `START WITH` and `INCREMENT BY`. The Bytebase extractor dropped the rest,
+  so a deparse could not restore them.
+- A named `NOT NULL` constraint is recorded as sync reports it, a check
+  constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
+  NULL)` does not carry the name through the parser, so a migration replay keeps
+  the nullability but not that name.
+- The deparse is byte-for-byte the Bytebase renderer. The fixtures that pin it
+  are the Bytebase fixtures.
+
+## What the deparse cannot restore
+
+- Routine and package bodies are written as the server stored them. They are
+  text, not re-rendered, so a body that depends on editioning or on a session
+  setting is restored only as text.
+- Storage clauses, tablespace placement, compression, parallelism and other
+  physical attributes are not in the metadata and are not emitted.
+- Editioning views are not a distinct metadata kind; they render as ordinary
+  views, without the editioning property.
+- Object tables and XMLType tables are skipped: their DDL is their type.
+- View column aliases are not emitted deliberately. `ALL_VIEWS.TEXT` does not
+  carry the alias list, and writing the synced column names can produce fewer
+  names than output columns for a view with an invisible column (ORA-01730).
+- Collation is not emitted. Oracle's `USING_NLS_COMP` is the column default and
+  writing it back fails on sessions with a different string-size setting.
+- Packages, synonyms, database links and public synonyms are not rendered.
+
+## Tests
+
+- `catalog_test.go` replays the Bytebase definition, metadata and migration
+  fixtures, checks definition round trips, and replays every generated migration
+  through the catalog.
+- `oracle_test.go` executes every definition and a quoted, case-sensitive
+  fixture on the pinned Oracle in `oracle/internal/testcontainer` and reads the
+  objects back. It is a tape test; record it with `OMNI_RECORD=1`.
