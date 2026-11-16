@@ -202,6 +202,19 @@ func TestRedshiftQuerySpanMixedStarKeepsFollowingFunction(t *testing.T) {
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanBaseStarKeepsUnnamedFunction covers a base-table star
+// followed by an unaliased function expression: the star now expands to its
+// metadata width, so the expression's sources stay on the last result.
+func TestRedshiftQuerySpanBaseStarKeepsUnnamedFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT o.*, reporting_fn() + 1 FROM orders o")
+	require.NoError(t, err)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.

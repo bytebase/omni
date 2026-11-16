@@ -613,12 +613,60 @@ func (q *querySpanResolver) functionStarProjection(target *ast.ResTarget, from *
 	}
 	if qualifier != "" {
 		projection, ok := scope.bindings[strings.ToLower(qualifier)]
-		if !ok || projection.opaque {
-			return functionSourceProjection{}, false
+		if ok && !projection.opaque {
+			return projection, true
 		}
-		return projection, true
+		if from != nil {
+			for _, item := range from.Items {
+				if projection, ok := q.functionProjectionForQualifier(item, scope, qualifier); ok {
+					return projection, true
+				}
+			}
+		}
+		return functionSourceProjection{}, false
 	}
 	return q.functionProjectionForList(from, scope)
+}
+
+// functionProjectionForQualifier finds the FROM item a qualified star names.
+func (q *querySpanResolver) functionProjectionForQualifier(node ast.Node, scope functionSourceScope, qualifier string) (functionSourceProjection, bool) {
+	switch n := node.(type) {
+	case *ast.RangeVar:
+		if n == nil {
+			return functionSourceProjection{}, false
+		}
+		name := n.Relname
+		if n.Alias != nil && n.Alias.Aliasname != "" {
+			name = n.Alias.Aliasname
+		}
+		if !strings.EqualFold(name, qualifier) {
+			return functionSourceProjection{}, false
+		}
+		projection, ok := q.functionProjectionForNode(n, scope)
+		if !ok {
+			return functionSourceProjection{}, false
+		}
+		return projection.flatten()
+	case *ast.RangeSubselect:
+		if n == nil || n.Alias == nil || !strings.EqualFold(n.Alias.Aliasname, qualifier) {
+			return functionSourceProjection{}, false
+		}
+		projection, ok := q.functionProjectionForNode(n, scope)
+		if !ok {
+			return functionSourceProjection{}, false
+		}
+		return projection.flatten()
+	case *ast.JoinExpr:
+		if n == nil {
+			return functionSourceProjection{}, false
+		}
+		if projection, ok := q.functionProjectionForQualifier(n.Larg, scope, qualifier); ok {
+			return projection, true
+		}
+		return q.functionProjectionForQualifier(n.Rarg, scope, qualifier)
+	default:
+		return functionSourceProjection{}, false
+	}
 }
 
 // functionProjectionForList returns the output of a whole FROM list, or false
@@ -662,6 +710,11 @@ func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope funct
 			name = n.Alias.Aliasname
 		}
 		projection, ok := scope.bindings[strings.ToLower(name)]
+		if !ok {
+			// A base table has no function lineage of its own, but its column
+			// count is still needed to expand a star to the right width.
+			projection, ok = q.functionBaseTableProjection(n)
+		}
 		if !ok {
 			return nil, false
 		}
@@ -707,6 +760,80 @@ func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope funct
 	default:
 		return nil, false
 	}
+}
+
+// functionBaseTableProjection builds a base relation's output names from
+// metadata, with no lineage: it exists so a star over it has the right width.
+func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functionSourceProjection, bool) {
+	if n == nil || q.opts.GetDatabaseMetadata == nil {
+		return functionSourceProjection{}, false
+	}
+	database := q.defaultDatabase
+	if n.Catalogname != "" {
+		database = n.Catalogname
+	}
+	meta, err := q.getDatabaseMetadata(database)
+	if err != nil || meta == nil {
+		return functionSourceProjection{}, false
+	}
+	schemaName := n.Schemaname
+	if schemaName == "" {
+		schemaName, _ = searchRelation(meta, q.searchPath, n.Relname)
+	}
+	schema := schemaMetadata(meta, schemaName)
+	if schema == nil {
+		return functionSourceProjection{}, false
+	}
+	var names []string
+	switch {
+	case findFunctionTable(schema, n.Relname) != nil:
+		for _, column := range findFunctionTable(schema, n.Relname).GetColumns() {
+			names = append(names, column.GetName())
+		}
+	case findFunctionView(schema, n.Relname) != nil:
+		for _, column := range findFunctionView(schema, n.Relname).GetColumns() {
+			names = append(names, column.GetName())
+		}
+	case findFunctionExternalTable(schema, n.Relname) != nil:
+		for _, column := range findFunctionExternalTable(schema, n.Relname).GetColumns() {
+			names = append(names, column.GetName())
+		}
+	default:
+		return functionSourceProjection{}, false
+	}
+	if n.Alias != nil {
+		if aliases := redshiftStringList(n.Alias.Colnames); len(aliases) > 0 {
+			names = aliases
+		}
+	}
+	return functionSourceProjection{names: names, sources: make([]ColumnSet, len(names))}, true
+}
+
+func findFunctionTable(schema *metadata.SchemaMetadata, name string) *metadata.TableMetadata {
+	for _, table := range schema.GetTables() {
+		if table.GetName() == name {
+			return table
+		}
+	}
+	return nil
+}
+
+func findFunctionView(schema *metadata.SchemaMetadata, name string) *metadata.ViewMetadata {
+	for _, view := range schema.GetViews() {
+		if view.GetName() == name {
+			return view
+		}
+	}
+	return nil
+}
+
+func findFunctionExternalTable(schema *metadata.SchemaMetadata, name string) *metadata.ExternalTableMetadata {
+	for _, table := range schema.GetExternalTables() {
+		if table.GetName() == name {
+			return table
+		}
+	}
+	return nil
 }
 
 // appendFunctionProjection concatenates one projection onto another.
