@@ -113,3 +113,8 @@ SELECT
 FROM
   memory.omni_driver.types;
 
+CREATE OR REPLACE VIEW "omni_driver"."v_derived" AS
+SELECT c_integer
+FROM
+  memory.omni_driver.v_types;
+

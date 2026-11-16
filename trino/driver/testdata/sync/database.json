@@ -402,6 +402,17 @@
       ],
       "views": [
         {
+          "name": "v_derived",
+          "definition": "SELECT c_integer\nFROM\n  memory.omni_driver.v_types\n",
+          "columns": [
+            {
+              "name": "c_integer",
+              "nullable": true,
+              "type": "integer"
+            }
+          ]
+        },
+        {
           "name": "v_types",
           "definition": "SELECT\n  c_integer\n, c_varchar\nFROM\n  memory.omni_driver.types\n",
           "columns": [

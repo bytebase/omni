@@ -60,6 +60,11 @@
 | CREATE VIEW memory.omni_driver.v_types AS
 |     SELECT c_integer, c_varchar FROM memory.omni_driver.types
 < ok 0 -
+> exec
+| -- Sorts before v_types, so a dump must order it after its dependency.
+| CREATE VIEW memory.omni_driver.v_derived AS
+|     SELECT c_integer FROM memory.omni_driver.v_types
+< ok 0 -
 > query
 | SELECT table_schem FROM system.jdbc.schemas WHERE table_catalog = ? ORDER BY table_schem
 : string
@@ -148,6 +153,16 @@
 < column "table_schema" "VARCHAR"
 < column "table_name" "VARCHAR"
 < column "view_definition" "VARCHAR"
+< row
+: string
+| omni_driver
+: string
+| v_derived
+: string
+| SELECT c_integer
+| FROM
+|   memory.omni_driver.v_types
+|
 < row
 : string
 | omni_driver
@@ -894,6 +909,17 @@
 | c_row
 : string
 | row("x" integer, "y" varchar)
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
+| v_derived
+: string
+| c_integer
+: string
+| integer
 : string
 | YES
 < row
@@ -1052,6 +1078,12 @@
 | FROM
 |   memory.omni_driver.types
 < ok 0 -
+> exec
+| CREATE OR REPLACE VIEW "omni_driver"."v_derived" AS
+| SELECT c_integer
+| FROM
+|   memory.omni_driver.v_types
+< ok 0 -
 > query
 | SELECT table_schem FROM system.jdbc.schemas WHERE table_catalog = ? ORDER BY table_schem
 : string
@@ -1140,6 +1172,16 @@
 < column "table_schema" "VARCHAR"
 < column "table_name" "VARCHAR"
 < column "view_definition" "VARCHAR"
+< row
+: string
+| omni_driver
+: string
+| v_derived
+: string
+| SELECT c_integer
+| FROM
+|   memory.omni_driver.v_types
+|
 < row
 : string
 | omni_driver
@@ -1886,6 +1928,17 @@
 | c_row
 : string
 | row("x" integer, "y" varchar)
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
+| v_derived
+: string
+| c_integer
+: string
+| integer
 : string
 | YES
 < row

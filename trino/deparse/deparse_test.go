@@ -182,6 +182,37 @@ FROM
 `,
 		},
 		{
+			// A view that reads another view follows it, even when its name
+			// sorts first.
+			name: "views follow their dependencies",
+			metadata: &DatabaseSchemaMetadata{
+				Name: "cat",
+				Schemas: []*SchemaMetadata{
+					{
+						Name:   "s",
+						Tables: []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "id", Type: "integer", Nullable: true}}}},
+						Views: []*ViewMetadata{
+							{Name: "a_summary", Definition: `SELECT id FROM "s"."z_base"`},
+							{Name: "z_base", Definition: `SELECT id FROM "s"."t"`},
+						},
+					},
+				},
+			},
+			expected: `CREATE SCHEMA IF NOT EXISTS "s";
+
+CREATE TABLE IF NOT EXISTS "s"."t" (
+    "id" integer
+);
+
+CREATE OR REPLACE VIEW "s"."z_base" AS
+SELECT id FROM "s"."t";
+
+CREATE OR REPLACE VIEW "s"."a_summary" AS
+SELECT id FROM "s"."z_base";
+
+`,
+		},
+		{
 			// No schemas at all yields the empty string.
 			name:     "no schemas",
 			metadata: &DatabaseSchemaMetadata{Name: "cat"},

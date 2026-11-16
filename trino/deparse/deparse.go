@@ -3,6 +3,8 @@ package deparse
 import (
 	"fmt"
 	"strings"
+
+	"github.com/bytebase/omni/trino/analysis"
 )
 
 // GetDatabaseDefinition renders the schema metadata as the DDL that recreates
@@ -18,8 +20,10 @@ import (
 //
 // Schemas come first because a restore starts in a catalog that may not have
 // them; tables come before views because a view may read a table in another
-// schema. A nil metadata yields the empty string. A view with no definition is
-// an error: writing it would silently lose the view.
+// schema. Views are ordered by their definition's references to other views, so
+// a view that reads another is written second. A nil metadata yields the empty
+// string. A view with no definition is an error: writing it would silently lose
+// the view.
 func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 	if metadata == nil {
 		return "", nil
@@ -45,19 +49,11 @@ func GetDatabaseDefinition(metadata *DatabaseSchemaMetadata) (string, error) {
 			buf.WriteString("\n\n")
 		}
 	}
-	for _, schema := range metadata.Schemas {
-		if schema == nil {
-			continue
+	for _, view := range orderedViews(metadata) {
+		if err := writeCreateView(&buf, view.schema, view.view); err != nil {
+			return "", err
 		}
-		for _, view := range schema.Views {
-			if view == nil {
-				continue
-			}
-			if err := writeCreateView(&buf, schema.Name, view); err != nil {
-				return "", err
-			}
-			buf.WriteString("\n\n")
-		}
+		buf.WriteString("\n\n")
 	}
 
 	return buf.String(), nil
@@ -117,4 +113,105 @@ func writeCreateView(buf *strings.Builder, schemaName string, view *ViewMetadata
 	}
 	fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s.%s AS\n%s;", quoteIdentifier(schemaName), quoteIdentifier(view.Name), definition)
 	return nil
+}
+
+// orderedView is one view and the schema that owns it, in snapshot order.
+type orderedView struct {
+	schema string
+	view   *ViewMetadata
+}
+
+// orderedViews returns metadata's views in dependency order: every view comes
+// after the views its definition reads. Independent views keep snapshot order.
+// A definition the local parser cannot read contributes no edges rather than
+// failing the dump; Trino accepted it, and a dependency the local parser cannot
+// see is no reason to lose the statement.
+func orderedViews(metadata *DatabaseSchemaMetadata) []orderedView {
+	var views []orderedView
+	for _, schema := range metadata.Schemas {
+		if schema == nil {
+			continue
+		}
+		for _, view := range schema.Views {
+			if view == nil {
+				continue
+			}
+			views = append(views, orderedView{schema: schema.Name, view: view})
+		}
+	}
+	if len(views) < 2 {
+		return views
+	}
+
+	index := make(map[string]int, len(views))
+	for i, view := range views {
+		index[viewKey(view.schema, view.view.Name)] = i
+	}
+	dependencies := make([]map[int]struct{}, len(views))
+	for i, view := range views {
+		span, err := analysis.GetQuerySpan(view.view.Definition)
+		if err != nil {
+			continue
+		}
+		for _, access := range span.AccessTables {
+			if access.Catalog != "" && metadata.Name != "" && access.Catalog != metadata.Name {
+				continue
+			}
+			schema := access.Schema
+			if schema == "" {
+				schema = view.schema
+			}
+			dependency, ok := index[viewKey(schema, access.Table)]
+			if !ok || dependency == i {
+				continue
+			}
+			if dependencies[i] == nil {
+				dependencies[i] = map[int]struct{}{}
+			}
+			dependencies[i][dependency] = struct{}{}
+		}
+	}
+	return sortViews(views, dependencies)
+}
+
+// viewKey identifies a view by its owning schema and its name.
+func viewKey(schema, name string) string {
+	return schema + "\x00" + name
+}
+
+// sortViews orders views so each follows its dependencies, keeping the input
+// order among views that do not depend on each other. A cycle, which Trino does
+// not let a CREATE VIEW make, leaves the remaining views in input order.
+func sortViews(views []orderedView, dependencies []map[int]struct{}) []orderedView {
+	remaining := make([]int, len(views))
+	for i, deps := range dependencies {
+		remaining[i] = len(deps)
+	}
+	ordered := make([]orderedView, 0, len(views))
+	done := make([]bool, len(views))
+	for len(ordered) < len(views) {
+		progressed := false
+		for i, view := range views {
+			if done[i] || remaining[i] != 0 {
+				continue
+			}
+			done[i] = true
+			ordered = append(ordered, view)
+			progressed = true
+			for j, deps := range dependencies {
+				if _, ok := deps[i]; ok && !done[j] {
+					remaining[j]--
+				}
+			}
+		}
+		if !progressed {
+			for i, view := range views {
+				if !done[i] {
+					done[i] = true
+					ordered = append(ordered, view)
+				}
+			}
+		}
+	}
+	return ordered
 }
