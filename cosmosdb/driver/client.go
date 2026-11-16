@@ -14,9 +14,10 @@ import (
 )
 
 // Client is what the driver asks of Cosmos DB: the account's and a database's
-// listings, one container's query pages, and a connection check. It is the seam a
-// test replaces with a tape, so a recording exercises the driver's own live path
-// and a replay answers it from the tape instead.
+// listings, one container's query pages and a statement's plan, and a
+// connection check. It is the seam a test replaces with a tape, so a recording
+// exercises the driver's own live path and a replay answers it from the tape
+// instead.
 //
 // It is exported because the recording harness in cosmosdb/internal/testcontainer
 // asks the pinned emulator through the same path; nothing else calls it.
@@ -30,7 +31,17 @@ type Client interface {
 	ListContainers(ctx context.Context, database string) ([]string, error)
 	// Page reads one container query, page by page.
 	Page(ctx context.Context, req PageRequest) (PageAnswer, error)
+	// Plan returns the plan the gateway states for req.Statement, as the JSON
+	// the client's query engine runs a cross-partition query from.
+	Plan(ctx context.Context, req PageRequest) ([]byte, error)
 }
+
+// gatewayPageSize is the page the gateway serves a query that names no size,
+// and the largest page this driver asks for: a query may ask for more, but no
+// page past it is guaranteed. It is what the client's query engine sees each
+// range deliver, and the number internal/testcontainer measured on the
+// emulator and on a real Cosmos account.
+const gatewayPageSize = 1000
 
 // PageRequest is one query of one container, as the driver asks for it.
 type PageRequest struct {
@@ -185,6 +196,29 @@ func drainQuery(ctx context.Context, container *azcosmos.ContainerClient, statem
 		}
 	}
 	return items, pages, nil
+}
+
+// Plan asks the gateway for the plan of a statement. The client fetches that
+// plan for every query it runs through its query engine and hands it to the
+// engine before it reads a partition, so the plan is asked for the way a query
+// the engine serves asks for it: an engine that keeps the plan and reads
+// nothing plans the statement without running it.
+func (c *liveClient) Plan(ctx context.Context, req PageRequest) ([]byte, error) {
+	container, err := c.client.NewContainer(req.Database, req.Container)
+	if err != nil {
+		return nil, &containerOpenError{err: err}
+	}
+	capture := &planCapture{query: req.Statement}
+	pager := container.NewQueryItemsPager(req.Statement, azcosmos.NewPartitionKey(), &azcosmos.QueryOptions{
+		QueryEngine: capture,
+	})
+	if _, err := pager.NextPage(ctx); err != nil {
+		return nil, err
+	}
+	if capture.plan == "" {
+		return nil, errors.New("the gateway stated no query plan")
+	}
+	return []byte(capture.plan), nil
 }
 
 // isNotFound reports whether err is the account saying an object is not there.

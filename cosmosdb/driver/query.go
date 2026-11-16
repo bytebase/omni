@@ -22,9 +22,14 @@ type session struct {
 
 func (*session) Close() error { return nil }
 
-// Query runs script in the container QueryOptions.Schema names. The query
-// language is per container, so a script is one statement: its text goes to
-// the container as written and comes back as one Result.
+// Query runs each statement of script in order in the container QueryOptions.Schema
+// names and returns one Result per statement run. A statement that fails ends
+// the script: its Result carries the error and nothing after it runs.
+//
+// The script is split at its top-level semicolons by cosmosdb.Split, so a
+// statement's boundaries are the query language's punctuation. Each statement
+// goes to the container on its own: the query language has no statement
+// terminator, and the gateway rejects text holding two.
 //
 // A statement the query language does not parse is that statement's error, as
 // Bytebase's driver answered it; a call without a container is the call's
@@ -34,30 +39,62 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		return nil, errors.New("container argument is required for CosmosDB")
 	}
 
-	// Allow `SELECT * FROM {container} [alias]` only.
-	if _, err := cosmosdb.Parse(script); err != nil {
-		return []*driver.Result{{
-			Statement: script,
-			Err:       fmt.Errorf("support simple SELECT statement for Cosmos DB engine only, err: %s", err.Error()),
-		}}, nil
+	var statements []cosmosdb.Segment
+	for _, segment := range cosmosdb.Split(script) {
+		if segment.Empty() {
+			continue
+		}
+		statements = append(statements, segment)
+	}
+	if len(statements) == 0 {
+		return nil, nil
 	}
 
+	var results []*driver.Result
+	for _, statement := range statements {
+		result := s.queryStatement(ctx, statement.Text, opts)
+		results = append(results, result)
+		if result.Err != nil {
+			break
+		}
+	}
+	return results, nil
+}
+
+// queryStatement runs one statement of a script, or reads its plan when the
+// caller asked for that.
+func (s *session) queryStatement(ctx context.Context, statement string, opts driver.QueryOptions) *driver.Result {
 	startTime := time.Now()
 	result := &driver.Result{
-		Statement: script,
+		Statement: statement,
 		Columns:   []driver.Column{{Name: "result", TypeName: "TEXT"}},
+	}
+	defer func() { result.Latency = time.Since(startTime) }()
+
+	// Allow `SELECT * FROM {container} [alias]` only.
+	if _, err := cosmosdb.Parse(statement); err != nil {
+		result.Err = fmt.Errorf("support simple SELECT statement for Cosmos DB engine only, err: %s", err.Error())
+		return result
 	}
 
 	req := PageRequest{
 		Database:  s.driver.databaseName,
 		Container: opts.Schema,
-		Statement: script,
-		Limit:     opts.Limit,
+		Statement: statement,
 	}
+	if opts.Explain {
+		s.explain(ctx, result, req)
+		return result
+	}
+
+	req.Limit = opts.Limit
 	// TODO(zp): Rewrite limit while parser supported.
-	if opts.Limit > 0 && opts.Limit < 1000 {
-		// Set the page size to limit to avoid large page size.
-		req.PageSize = int32(opts.Limit)
+	// The page size is the caller's limit, up to the page the gateway serves
+	// of its own accord: a smaller limit reads one page of its rows, and a
+	// larger one asks for that page rather than leaving the size to the
+	// gateway.
+	if opts.Limit > 0 {
+		req.PageSize = int32(min(opts.Limit, gatewayPageSize))
 	}
 
 	answer, err := queryEveryPartition(ctx, s.driver.client, req)
@@ -84,9 +121,23 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	default:
 		result.Err = fmt.Errorf("failed to read more items: %w", err)
 	}
+	return result
+}
 
-	result.Latency = time.Since(startTime)
-	return []*driver.Result{result}, nil
+// explain fills result with the plan the gateway states for req.Statement,
+// which is the plan the client's query engine runs a cross-partition query
+// from. The statement does not run: the plan is one row of the gateway's JSON.
+func (s *session) explain(ctx context.Context, result *driver.Result, req PageRequest) {
+	plan, err := s.driver.client.Plan(ctx, req)
+	switch {
+	case err != nil && isContainerOpenError(err):
+		result.Err = err
+	case err != nil:
+		result.Err = fmt.Errorf("failed to read the query plan: %w", err)
+	default:
+		result.Rows = [][]driver.Value{{{Kind: driver.String, String: string(plan)}}}
+		result.Plan = &driver.Plan{Format: "JSON"}
+	}
 }
 
 // queryEveryPartition reads every page of the query, and, when the gateway
