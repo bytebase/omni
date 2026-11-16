@@ -35,9 +35,6 @@ func TestCTEBasic(t *testing.T) {
 	stmt := mustParseWithSelect(t, "WITH c AS (SELECT 1) SELECT * FROM c")
 	with := stmt.With
 
-	if with.Recursive {
-		t.Error("Recursive = true, want false")
-	}
 	if len(with.CTEs) != 1 {
 		t.Fatalf("CTEs = %d, want 1", len(with.CTEs))
 	}
@@ -135,20 +132,17 @@ func TestCTEMultiple(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// RECURSIVE keyword
-// ---------------------------------------------------------------------------
-
-func TestCTERecursive(t *testing.T) {
-	stmt := mustParseWithSelect(t, "WITH RECURSIVE c AS (SELECT 1) SELECT * FROM c")
-	if !stmt.With.Recursive {
-		t.Error("Recursive = false, want true")
+// TestCTERecursiveRejected: StarRocksLex.g4 has no RECURSIVE token, and the
+// 3.4.10 server reads RECURSIVE as the first CTE's name and then refuses the
+// definition after it.
+func TestCTERecursiveRejected(t *testing.T) {
+	if _, err := Parse("WITH RECURSIVE c AS (SELECT 1) SELECT * FROM c"); err == nil {
+		t.Error("WITH RECURSIVE parsed, want a syntax error")
 	}
-	if len(stmt.With.CTEs) != 1 {
-		t.Fatalf("CTEs = %d, want 1", len(stmt.With.CTEs))
-	}
-	if stmt.With.CTEs[0].Name != "c" {
-		t.Errorf("CTE.Name = %q, want %q", stmt.With.CTEs[0].Name, "c")
+	// The word is an identifier, so it names a CTE: the engine reads this one
+	// as a query of its own.
+	if _, err := Parse("WITH RECURSIVE AS (SELECT 1) SELECT * FROM RECURSIVE"); err != nil {
+		t.Errorf("WITH RECURSIVE AS (SELECT 1): unexpected error: %v", err)
 	}
 }
 

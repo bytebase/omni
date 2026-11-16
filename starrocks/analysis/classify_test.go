@@ -79,7 +79,10 @@ func TestClassify(t *testing.T) {
 		{"SYNC", QueryTypeDDL},
 		{"PAUSE ROUTINE LOAD FOR job", QueryTypeDDL},
 		{"RESUME ROUTINE LOAD FOR job", QueryTypeDDL},
-		{"WARM UP CLUSTER c WITH TABLE t", QueryTypeDDL},
+		// WARM is no keyword of StarRocksLex.g4, and the server refuses the
+		// statement, so the leading word classifies as Unknown and a
+		// permission check denies it.
+		{"WARM UP CLUSTER c WITH TABLE t", QueryTypeUnknown},
 
 		// Comment skipping
 		{"-- comment\nSELECT 1", QueryTypeSelect},

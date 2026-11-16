@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"slices"
 	"testing"
 )
 
@@ -478,7 +479,7 @@ func TestComments_HintNotConsumedAsComment(t *testing.T) {
 func TestHints_StartAndEnd(t *testing.T) {
 	assertKinds(t, "/*+ USE_HASH(t) */", []TokenKind{
 		tokHintStart,
-		tokIdent,  // USE_HASH (or keyword if recognized)
+		tokIdent, // USE_HASH (or keyword if recognized)
 		int('('),
 		tokIdent, // t
 		int(')'),
@@ -579,22 +580,57 @@ func TestErrors_UnterminatedBlockComment(t *testing.T) {
 	}
 }
 
-func TestErrors_UnknownCharacter(t *testing.T) {
-	tokens, errs := Tokenize("\x01")
-	if len(errs) == 0 {
-		t.Fatal("unknown char: expected error")
-	}
-	if errs[0].Msg != errUnknownChar {
-		t.Errorf("error msg: got %q", errs[0].Msg)
-	}
-	found := false
-	for _, tok := range tokens {
-		if tok.Kind == tokInvalid {
-			found = true
+// TestUnmatchedCharsAreDropped: a character no rule of StarRocksLex.g4 matches
+// is reported and skipped by the front end's lexer, not refused. The pinned
+// 3.4.10 server runs every statement in TestDroppedCharacters with the same
+// verdict omni gives it.
+func TestUnmatchedCharsAreDropped(t *testing.T) {
+	for _, drop := range []string{"\x01", "\x00", "\x0b", "\x0c", "\x1f", "\x7f", "#", "\\", "\U0001F600"} {
+		tokens, errs := Tokenize("SELECT" + drop + "1")
+		if len(errs) != 0 {
+			t.Errorf("Tokenize(SELECT%+q1) errors: %v", drop, errs)
+			continue
+		}
+		kinds := make([]TokenKind, 0, len(tokens))
+		for _, tok := range tokens {
+			kinds = append(kinds, tok.Kind)
+		}
+		want := []TokenKind{kwSELECT, tokInt, tokEOF}
+		if !slices.Equal(kinds, want) {
+			t.Errorf("Tokenize(SELECT%+q1) = %v, want %v", drop, kinds, want)
 		}
 	}
-	if !found {
-		t.Error("expected tokInvalid token for unknown char")
+}
+
+// TestInvalidUTF8JoinsIdentifier: a byte that is not valid UTF-8 decodes as
+// U+FFFD, which is a LETTER, so it joins an identifier rather than being
+// dropped. The front end's decoder replaces it too, and the server reads
+// SELECT 1 AS a<0xed 0xa0 0x80>b as one column whose name holds U+FFFD. omni
+// keeps the input's bytes in the name, so its Locs stay offsets into the text.
+func TestInvalidUTF8JoinsIdentifier(t *testing.T) {
+	tokens, errs := Tokenize("a\xed\xa0\x80b")
+	if len(errs) != 0 {
+		t.Fatalf("errors: %v", errs)
+	}
+	if len(tokens) != 2 || tokens[0].Kind != tokIdent {
+		t.Fatalf("tokens = %v, want one identifier", tokens)
+	}
+	if tokens[0].Str != "a\xed\xa0\x80b" {
+		t.Errorf("identifier = %q, want the input's bytes", tokens[0].Str)
+	}
+}
+
+// TestTokenizeEveryByte: asciiStartsToken and the operator scanner must agree,
+// so no ASCII byte is dropped and then reported as an unknown character, and
+// none reaches the parser as an operator byte the grammar does not name.
+func TestTokenizeEveryByte(t *testing.T) {
+	for b := 0; b < 0x80; b++ {
+		_, errs := Tokenize(string([]byte{byte(b)}))
+		for _, err := range errs {
+			if err.Msg == errUnknownChar {
+				t.Errorf("byte %#x: reported %q; the drop list and the operator list disagree", b, err.Msg)
+			}
+		}
 	}
 }
 

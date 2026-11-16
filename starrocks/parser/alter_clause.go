@@ -13,13 +13,8 @@ import (
 // derives, the comment says so and the compat rows
 // (testdata/compat.tsv) are the evidence.
 
-// alterWordTok reports whether t is the bare word w: a keyword or an
-// unquoted identifier spelled w. Many of StarRocks's keywords are plain
-// identifiers to omni's lexer (SWAP, IMAGE, NODE, ...), so the readers here
-// match words by their text.
-func alterWordTok(t Token, w string) bool {
-	return (t.Kind == tokIdent || t.Kind >= 700) && strings.EqualFold(t.Str, w)
-}
+// alterWordTok reports whether t is the bare word w.
+func alterWordTok(t Token, w string) bool { return isWordToken(t, w) }
 
 // alterAt reports whether cur is the word w.
 func (p *Parser) alterAt(w string) bool { return alterWordTok(p.cur, w) }

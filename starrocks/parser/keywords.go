@@ -2,197 +2,169 @@ package parser
 
 import "strings"
 
-// Keyword token constants. Values start at 700 and grow with iota.
-// Extracted from /Users/h3n4l/OpenSource/parser/doris/DorisLexer.g4 (531 keywords).
-// Numeric values are NOT stable across edits — do not persist them.
+// Keyword token constants, one per keyword of StarRocksLex.g4, named for the
+// word it matches, and one per word of the Doris residue below. Values start
+// at 700 and grow with iota. Numeric values are NOT stable across edits — do
+// not persist them.
 const (
-	kwACCOUNT_LOCK   TokenKind = 700 + iota
-	kwACCOUNT_UNLOCK            // ACCOUNT_UNLOCK
-	kwACTIONS
+	kwACCESS TokenKind = 700 + iota
+	kwACTIVE
 	kwADD
 	kwADMIN
+	kwADVISOR
 	kwAFTER
-	kwAGG_STATE
 	kwAGGREGATE
-	kwALIAS
 	kwALL
 	kwALTER
-	kwALWAYS
 	kwANALYZE
-	kwANALYZED
-	kwANALYZER
 	kwAND
-	kwANN
 	kwANTI
-	kwAPPEND
+	kwAPPLY
 	kwARRAY
+	kwARRAY_AGG
+	kwARRAY_AGG_DISTINCT
 	kwAS
 	kwASC
-	kwAT
+	kwASYNC
+	kwAUTHENTICATION
 	kwAUTHORS
-	kwAUTO
+	kwAUTOMATED
 	kwAUTO_INCREMENT
+	kwAVG
 	kwBACKEND
 	kwBACKENDS
 	kwBACKUP
+	kwBASE
+	kwBEFORE
 	kwBEGIN
-	kwBELONG
 	kwBETWEEN
 	kwBIGINT
-	kwBIN
 	kwBINARY
-	kwBINLOG
-	kwBITAND
 	kwBITMAP
-	kwBITMAP_EMPTY
 	kwBITMAP_UNION
-	kwBITOR
-	kwBITXOR
-	kwBLOB
+	kwBITSHIFTLEFT
+	kwBITSHIFTRIGHT
+	kwBITSHIFTRIGHTLOGICAL
+	kwBLACKHOLE
+	kwBLACKLIST
+	kwBODY
 	kwBOOLEAN
 	kwBOTH
 	kwBRANCH
-	kwBRIEF
 	kwBROKER
 	kwBUCKETS
-	kwBUILD
 	kwBUILTIN
-	kwBULK
 	kwBY
 	kwCACHE
-	kwCACHED
-	kwCALL
 	kwCANCEL
 	kwCASE
 	kwCAST
 	kwCATALOG
 	kwCATALOGS
+	kwCEIL
 	kwCHAIN
-	kwCHAR // also matches 'CHARACTER'
-	kwCHAR_FILTER
+	kwCHAR
+	kwCHARACTER
 	kwCHARSET
 	kwCHECK
 	kwCLEAN
+	kwCLEAR
 	kwCLUSTER
 	kwCLUSTERS
 	kwCOLLATE
 	kwCOLLATION
-	kwCOLLECT
-	kwCOLOCATE
 	kwCOLUMN
 	kwCOLUMNS
 	kwCOMMENT
 	kwCOMMIT
 	kwCOMMITTED
 	kwCOMPACT
-	kwCOMPLETE
-	kwCOMPRESS_TYPE
+	kwCOMPACTION
 	kwCOMPUTE
-	kwCONDITIONS
 	kwCONFIG
 	kwCONNECTION
-	kwCONNECTION_ID
 	kwCONSISTENT
-	kwCONSTRAINT
-	kwCONSTRAINTS
 	kwCONVERT
-	kwCONVERT_LSC // matches 'CONVERT_LIGHT_SCHEMA_CHANGE_PROCESS'
-	kwCOPY
 	kwCOSTS
 	kwCOUNT
 	kwCREATE
-	kwCREATION
-	kwCRON
 	kwCROSS
 	kwCUBE
+	kwCUME_DIST
+	kwCUMULATIVE
 	kwCURRENT
-	kwCURRENT_CATALOG
 	kwCURRENT_DATE
+	kwCURRENT_ROLE
 	kwCURRENT_TIME
 	kwCURRENT_TIMESTAMP
 	kwCURRENT_USER
 	kwDATA
 	kwDATABASE
 	kwDATABASES
+	kwDATACACHE
 	kwDATE
 	kwDATETIME
-	kwDATETIMEV1
-	kwDATETIMEV2
-	kwDATEV1
-	kwDATEV2
 	kwDAY
-	kwDAY_HOUR
-	kwDAY_SECOND
 	kwDAYS
+	kwDEALLOCATE
 	kwDECIMAL
+	kwDECIMAL128
+	kwDECIMAL32
+	kwDECIMAL64
 	kwDECIMALV2
-	kwDECIMALV3
 	kwDECOMMISSION
 	kwDEFAULT
 	kwDEFERRED
 	kwDELETE
-	kwDEMAND
+	kwDENSE_RANK
 	kwDESC
 	kwDESCRIBE
-	kwDIAGNOSE
-	kwDIAGNOSIS
-	kwDICTIONARIES
 	kwDICTIONARY
+	kwDICTIONARY_GET
+	kwDISABLE
 	kwDISK
 	kwDISTINCT
-	kwDISTINCTPC
-	kwDISTINCTPCSA
 	kwDISTRIBUTED
 	kwDISTRIBUTION
 	kwDIV
-	kwDO
-	kwDORIS_INTERNAL_TABLE_ID
 	kwDOUBLE
 	kwDROP
-	kwDROPP
 	kwDUAL
-	kwDUMP
 	kwDUPLICATE
 	kwDYNAMIC
-	kwE
 	kwELSE
 	kwENABLE
-	kwENCRYPTION
-	kwENCRYPTKEY
-	kwENCRYPTKEYS
+	kwENCLOSE
 	kwEND
-	kwENDS
 	kwENGINE
 	kwENGINES
-	kwENTER
 	kwERRORS
 	kwESCAPE
 	kwEVENTS
 	kwEVERY
 	kwEXCEPT
-	kwEXCLUDE
 	kwEXECUTE
 	kwEXISTS
-	kwEXPIRED
 	kwEXPLAIN
 	kwEXPORT
-	kwEXTENDED
 	kwEXTERNAL
 	kwEXTRACT
-	kwFAILED_LOGIN_ATTEMPTS
+	kwFAILPOINT
+	kwFAILPOINTS
 	kwFALSE
-	kwFAST
-	kwFEATURE
 	kwFIELD
 	kwFIELDS
 	kwFILE
+	kwFILES
 	kwFILTER
 	kwFIRST
+	kwFIRST_VALUE
 	kwFLOAT
+	kwFLOOR
+	kwFN
 	kwFOLLOWER
 	kwFOLLOWING
 	kwFOR
-	kwFOREIGN
 	kwFORCE
 	kwFORMAT
 	kwFREE
@@ -202,34 +174,33 @@ const (
 	kwFULL
 	kwFUNCTION
 	kwFUNCTIONS
-	kwGENERATED
-	kwGENERIC
+	kwGIN
 	kwGLOBAL
 	kwGRANT
 	kwGRANTS
-	kwGRAPH
 	kwGROUP
-	kwGROUP_CONCAT
 	kwGROUPING
+	kwGROUPING_ID
 	kwGROUPS
+	kwGROUP_CONCAT
 	kwHASH
-	kwHASH_MAP
 	kwHAVING
-	kwHDFS
 	kwHELP
 	kwHISTOGRAM
 	kwHLL
 	kwHLL_UNION
-	kwHOSTNAME
-	kwHOTSPOT
+	kwHOST
 	kwHOUR
 	kwHOURS
 	kwHUB
 	kwIDENTIFIED
 	kwIF
 	kwIGNORE
+	kwIMAGE
 	kwIMMEDIATE
+	kwIMPERSONATE
 	kwIN
+	kwINACTIVE
 	kwINCREMENTAL
 	kwINDEX
 	kwINDEXES
@@ -239,92 +210,79 @@ const (
 	kwINSTALL
 	kwINT
 	kwINTEGER
+	kwINTEGRATION
+	kwINTEGRATIONS
 	kwINTERMEDIATE
 	kwINTERSECT
 	kwINTERVAL
 	kwINTO
-	kwINVERTED
-	kwIP_TRIE
-	kwIPV4
-	kwIPV6
+	kwINVOKER
 	kwIS
-	kwIS_NOT_NULL_PRED
-	kwIS_NULL_PRED
-	kwISNULL
 	kwISOLATION
 	kwJOB
-	kwJOBS
 	kwJOIN
 	kwJSON
-	kwJSONB
 	kwKEY
 	kwKEYS
 	kwKILL
 	kwLABEL
+	kwLAG
 	kwLARGEINT
 	kwLAST
+	kwLAST_VALUE
 	kwLATERAL
-	kwLAYOUT
-	kwLDAP
-	kwLDAP_ADMIN_PASSWORD
-	kwLEADING
+	kwLEAD
 	kwLEFT
 	kwLESS
 	kwLEVEL
 	kwLIKE
 	kwLIMIT
-	kwLINES
-	kwLINK
 	kwLIST
 	kwLOAD
 	kwLOCAL
 	kwLOCALTIME
 	kwLOCALTIMESTAMP
 	kwLOCATION
+	kwLOCATIONS
 	kwLOCK
 	kwLOGICAL
+	kwLOGS
 	kwLOW_PRIORITY
 	kwMANUAL
 	kwMAP
+	kwMAPPING
+	kwMAPPINGS
+	kwMASKING
 	kwMATCH
-	kwMATCH_ALL
-	kwMATCH_ANY
-	kwMATCH_NAME
-	kwMATCH_NAME_GLOB
-	kwMATCH_PHRASE
-	kwMATCH_PHRASE_EDGE
-	kwMATCH_PHRASE_PREFIX
-	kwMATCH_REGEXP
-	kwMATCHED
 	kwMATERIALIZED
 	kwMAX
 	kwMAXVALUE
-	kwMEMO
 	kwMERGE
-	kwMID
-	kwMIGRATE
-	kwMIGRATIONS
+	kwMETA
+	kwMICROSECOND
+	kwMILLISECOND
 	kwMIN
 	kwMINUS
 	kwMINUTE
-	kwMINUTE_SECOND
 	kwMINUTES
+	kwMOD
+	kwMODE
 	kwMODIFY
 	kwMONTH
-	kwMTMV
 	kwNAME
 	kwNAMES
-	kwNATURAL
 	kwNEGATIVE
-	kwNEVER
-	kwNEXT
-	kwNGRAM_BF
+	kwNGRAMBF
 	kwNO
-	kwNO_USE_MV
-	kwNON_NULLABLE
+	kwNODE
+	kwNODES
+	kwNONE
 	kwNOT
+	kwNTILE
 	kwNULL
 	kwNULLS
+	kwNUMBER
+	kwNUMERIC
 	kwOBSERVER
 	kwOF
 	kwOFF
@@ -332,176 +290,158 @@ const (
 	kwON
 	kwONLY
 	kwOPEN
+	kwOPERATE
 	kwOPTIMIZE
-	kwOPTIMIZED
+	kwOPTIMIZER
+	kwOPTION
 	kwOR
 	kwORDER
 	kwOUTER
 	kwOUTFILE
 	kwOVER
 	kwOVERWRITE
-	kwPARAMETER
-	kwPARSED
 	kwPARTITION
 	kwPARTITIONS
 	kwPASSWORD
-	kwPASSWORD_EXPIRE
-	kwPASSWORD_HISTORY
-	kwPASSWORD_LOCK_TIME
-	kwPASSWORD_REUSE
 	kwPATH
 	kwPAUSE
-	kwPERCENT
+	kwPENDING
 	kwPERCENTILE
 	kwPERCENTILE_UNION
-	kwPERIOD
-	kwPERMISSIVE
-	kwPHYSICAL
-	kwPI
+	kwPERCENT_RANK
+	kwPERSISTENT
+	kwPIPE
+	kwPIPES
+	kwPIVOT
 	kwPLAN
-	kwPLAY
 	kwPLUGIN
 	kwPLUGINS
+	kwPOLICIES
 	kwPOLICY
-	kwPOSITION
 	kwPRECEDING
 	kwPREPARE
 	kwPRIMARY
+	kwPRIORITY
 	kwPRIVILEGES
+	kwPROBABILITY
 	kwPROC
 	kwPROCEDURE
-	kwPROCESS
 	kwPROCESSLIST
 	kwPROFILE
+	kwPROFILELIST
 	kwPROPERTIES
 	kwPROPERTY
 	kwQUALIFY
-	kwQUANTILE_STATE
-	kwQUANTILE_UNION
 	kwQUARTER
+	kwQUERIES
 	kwQUERY
-	kwQUEUED
+	kwQUEUE
 	kwQUOTA
 	kwRANDOM
 	kwRANGE
+	kwRANK
 	kwREAD
-	kwREAL
-	kwREBALANCE
-	kwRECENT
+	kwREASON
 	kwRECOVER
-	kwRECURSIVE
-	kwRECYCLE
-	kwREFERENCES
 	kwREFRESH
 	kwREGEXP
 	kwRELEASE
+	kwREMOVE
 	kwRENAME
 	kwREPAIR
 	kwREPEATABLE
 	kwREPLACE
 	kwREPLACE_IF_NOT_NULL
-	kwREPLAYER
 	kwREPLICA
 	kwREPOSITORIES
 	kwREPOSITORY
 	kwRESOURCE
 	kwRESOURCES
 	kwRESTORE
-	kwRESTRICTIVE
 	kwRESUME
 	kwRETAIN
 	kwRETENTION
+	kwRETRY
 	kwRETURNS
+	kwREVERT
 	kwREVOKE
-	kwREWRITTEN
+	kwREWRITE
 	kwRIGHT
 	kwRLIKE
 	kwROLE
 	kwROLES
 	kwROLLBACK
 	kwROLLUP
-	kwROOT
-	kwROTATE
 	kwROUTINE
 	kwROW
 	kwROWS
-	kwS3
+	kwROW_NUMBER
+	kwRULE
+	kwRULES
+	kwRUNNING
 	kwSAMPLE
 	kwSCHEDULE
 	kwSCHEDULER
 	kwSCHEMA
 	kwSCHEMAS
 	kwSECOND
+	kwSECURITY
 	kwSELECT
 	kwSEMI
 	kwSEPARATOR
 	kwSERIALIZABLE
 	kwSESSION
-	kwSESSION_USER
 	kwSET
-	kwSET_SESSION_VARIABLE
 	kwSETS
-	kwSHAPE
+	kwSET_VAR
 	kwSHOW
 	kwSIGNED
-	kwSKEW
+	kwSKIP_HEADER
 	kwSMALLINT
 	kwSNAPSHOT
 	kwSNAPSHOTS
-	kwSONAME
-	kwSPLIT
-	kwSQL
-	kwSQL_BLOCK_RULE
-	kwSTAGE
-	kwSTAGES
+	kwSQLBLACKLIST
 	kwSTART
-	kwSTARTS
 	kwSTATS
 	kwSTATUS
 	kwSTOP
 	kwSTORAGE
 	kwSTREAM
-	kwSTREAMING
 	kwSTRING
 	kwSTRUCT
-	kwSUBSTR
-	kwSUBSTRING
+	kwSUBMIT
 	kwSUM
-	kwSUPERUSER
-	kwSWITCH
+	kwSUSPEND
+	kwSWAP
 	kwSYNC
 	kwSYSTEM
+	kwSYSTEM_TIME
 	kwTABLE
 	kwTABLES
-	kwTABLESAMPLE
 	kwTABLET
 	kwTABLETS
 	kwTAG
 	kwTASK
-	kwTASKS
-	kwTDE
 	kwTEMPORARY
 	kwTERMINATED
 	kwTEXT
 	kwTHAN
 	kwTHEN
 	kwTIME
+	kwTIMES
 	kwTIMESTAMP
+	kwTIMESTAMPADD
+	kwTIMESTAMPDIFF
 	kwTINYINT
 	kwTO
-	kwTOKEN_FILTER
-	kwTOKENIZER
-	kwTRAILING
+	kwTRACE
 	kwTRANSACTION
-	kwTRASH
-	kwTREE
+	kwTRANSLATE
 	kwTRIGGERS
-	kwTRIM
+	kwTRIM_SPACE
 	kwTRUE
 	kwTRUNCATE
-	kwTRY_CAST
 	kwTYPE
-	kwTYPECAST // matches 'TYPE_CAST'
 	kwTYPES
 	kwUNBOUNDED
 	kwUNCOMMITTED
@@ -511,26 +451,26 @@ const (
 	kwUNLOCK
 	kwUNSET
 	kwUNSIGNED
-	kwUP
 	kwUPDATE
+	kwUSAGE
 	kwUSE
-	kwUSE_MV
 	kwUSER
+	kwUSERS
 	kwUSING
 	kwVALUE
 	kwVALUES
 	kwVARBINARY
 	kwVARCHAR
-	kwVARIABLE
 	kwVARIABLES
-	kwVARIANT
-	kwVAULT
-	kwVAULTS
+	kwVECTOR
 	kwVERBOSE
 	kwVERSION
 	kwVIEW
 	kwVIEWS
-	kwWARM
+	kwVOLUME
+	kwVOLUMES
+	kwWAREHOUSE
+	kwWAREHOUSES
 	kwWARNINGS
 	kwWEEK
 	kwWHEN
@@ -538,922 +478,959 @@ const (
 	kwWHITELIST
 	kwWITH
 	kwWORK
-	kwWORKLOAD
 	kwWRITE
-	kwXOR
 	kwYEAR
+
+	// The Doris residue: Doris words this parser still reads, which
+	// StarRocksLex.g4 has no token for. See dorisOnlyKeywords.
+	kwACCOUNT_LOCK
+	kwACCOUNT_UNLOCK
+	kwACTIONS
+	kwAGG_STATE
+	kwALWAYS
+	kwAUTO
+	kwBRIEF
+	kwCALL
+	kwCOMPLETE
+	kwCONDITIONS
+	kwCONSTRAINT
+	kwCONSTRAINTS
+	kwDATETIMEV1
+	kwDATETIMEV2
+	kwDATEV1
+	kwDATEV2
+	kwDECIMALV3
+	kwDO
+	kwENCRYPTKEY
+	kwEXTENDED
+	kwFAILED_LOGIN_ATTEMPTS
+	kwFEATURE
+	kwFOREIGN
+	kwGENERATED
+	kwGENERIC
+	kwHDFS
+	kwIPV4
+	kwIPV6
+	kwJOBS
+	kwJSONB
+	kwLAYOUT
+	kwMATCHED
+	kwNEVER
+	kwPASSWORD_EXPIRE
+	kwPASSWORD_HISTORY
+	kwPASSWORD_LOCK_TIME
+	kwPERMISSIVE
+	kwQUANTILE_STATE
+	kwQUANTILE_UNION
+	kwQUEUED
+	kwREFERENCES
+	kwRESTRICTIVE
+	kwS3
+	kwSONAME
+	kwSQL_BLOCK_RULE
+	kwSTAGE
+	kwSTARTS
+	kwVARIABLE
+	kwVARIANT
+	kwVAULT
+	kwWORKLOAD
 )
 
-// keywordMap maps lowercase keyword strings to their token kinds.
-// Case-insensitive lookup is performed by lowercasing the input in KeywordToken.
+// keywordMap maps a keyword text, lowercased, to its token. It is the pinned
+// release's own grammar, not the Doris fork's: StarRocksLex.g4's keyword
+// rules, with the reservedness StarRocks.g4's nonReserved rule gives them,
+// both read from ../testdata. TestKeywordTableMatchesGrammar fails a table
+// that stops matching them, so a keyword the engine adds, drops or un-reserves
+// is a test failure rather than a silent over-acceptance.
 var keywordMap = map[string]TokenKind{
-	"account_lock":                         kwACCOUNT_LOCK,
-	"account_unlock":                       kwACCOUNT_UNLOCK,
-	"actions":                              kwACTIONS,
-	"add":                                  kwADD,
-	"admin":                                kwADMIN,
-	"after":                                kwAFTER,
-	"agg_state":                            kwAGG_STATE,
-	"aggregate":                            kwAGGREGATE,
-	"alias":                                kwALIAS,
-	"all":                                  kwALL,
-	"alter":                                kwALTER,
-	"always":                               kwALWAYS,
-	"analyze":                              kwANALYZE,
-	"analyzed":                             kwANALYZED,
-	"analyzer":                             kwANALYZER,
-	"and":                                  kwAND,
-	"ann":                                  kwANN,
-	"anti":                                 kwANTI,
-	"append":                               kwAPPEND,
-	"array":                                kwARRAY,
-	"as":                                   kwAS,
-	"asc":                                  kwASC,
-	"at":                                   kwAT,
-	"authors":                              kwAUTHORS,
-	"auto":                                 kwAUTO,
-	"auto_increment":                       kwAUTO_INCREMENT,
-	"backend":                              kwBACKEND,
-	"backends":                             kwBACKENDS,
-	"backup":                               kwBACKUP,
-	"begin":                                kwBEGIN,
-	"belong":                               kwBELONG,
-	"between":                              kwBETWEEN,
-	"bigint":                               kwBIGINT,
-	"bin":                                  kwBIN,
-	"binary":                               kwBINARY,
-	"binlog":                               kwBINLOG,
-	"bitand":                               kwBITAND,
-	"bitmap":                               kwBITMAP,
-	"bitmap_empty":                         kwBITMAP_EMPTY,
-	"bitmap_union":                         kwBITMAP_UNION,
-	"bitor":                                kwBITOR,
-	"bitxor":                               kwBITXOR,
-	"blob":                                 kwBLOB,
-	"boolean":                              kwBOOLEAN,
-	"both":                                 kwBOTH,
-	"branch":                               kwBRANCH,
-	"brief":                                kwBRIEF,
-	"broker":                               kwBROKER,
-	"buckets":                              kwBUCKETS,
-	"build":                                kwBUILD,
-	"builtin":                              kwBUILTIN,
-	"bulk":                                 kwBULK,
-	"by":                                   kwBY,
-	"cache":                                kwCACHE,
-	"cached":                               kwCACHED,
-	"call":                                 kwCALL,
-	"cancel":                               kwCANCEL,
-	"case":                                 kwCASE,
-	"cast":                                 kwCAST,
-	"catalog":                              kwCATALOG,
-	"catalogs":                             kwCATALOGS,
-	"chain":                                kwCHAIN,
-	"char":                                 kwCHAR,
-	"character":                            kwCHAR, // alias for CHAR
-	"char_filter":                          kwCHAR_FILTER,
-	"charset":                              kwCHARSET,
-	"check":                                kwCHECK,
-	"clean":                                kwCLEAN,
-	"cluster":                              kwCLUSTER,
-	"clusters":                             kwCLUSTERS,
-	"collate":                              kwCOLLATE,
-	"collation":                            kwCOLLATION,
-	"collect":                              kwCOLLECT,
-	"colocate":                             kwCOLOCATE,
-	"column":                               kwCOLUMN,
-	"columns":                              kwCOLUMNS,
-	"comment":                              kwCOMMENT,
-	"commit":                               kwCOMMIT,
-	"committed":                            kwCOMMITTED,
-	"compact":                              kwCOMPACT,
-	"complete":                             kwCOMPLETE,
-	"compress_type":                        kwCOMPRESS_TYPE,
-	"compute":                              kwCOMPUTE,
-	"conditions":                           kwCONDITIONS,
-	"config":                               kwCONFIG,
-	"connection":                           kwCONNECTION,
-	"connection_id":                        kwCONNECTION_ID,
-	"consistent":                           kwCONSISTENT,
-	"constraint":                           kwCONSTRAINT,
-	"constraints":                          kwCONSTRAINTS,
-	"convert":                              kwCONVERT,
-	"convert_light_schema_change_process":  kwCONVERT_LSC,
-	"copy":                                 kwCOPY,
-	"costs":                                kwCOSTS,
-	"count":                                kwCOUNT,
-	"create":                               kwCREATE,
-	"creation":                             kwCREATION,
-	"cron":                                 kwCRON,
-	"cross":                                kwCROSS,
-	"cube":                                 kwCUBE,
-	"current":                              kwCURRENT,
-	"current_catalog":                      kwCURRENT_CATALOG,
-	"current_date":                         kwCURRENT_DATE,
-	"current_time":                         kwCURRENT_TIME,
-	"current_timestamp":                    kwCURRENT_TIMESTAMP,
-	"current_user":                         kwCURRENT_USER,
-	"data":                                 kwDATA,
-	"database":                             kwDATABASE,
-	"databases":                            kwDATABASES,
-	"date":                                 kwDATE,
-	"datetime":                             kwDATETIME,
-	"datetimev1":                           kwDATETIMEV1,
-	"datetimev2":                           kwDATETIMEV2,
-	"datev1":                               kwDATEV1,
-	"datev2":                               kwDATEV2,
-	"day":                                  kwDAY,
-	"day_hour":                             kwDAY_HOUR,
-	"day_second":                           kwDAY_SECOND,
-	"days":                                 kwDAYS,
-	"decimal":                              kwDECIMAL,
-	"decimalv2":                            kwDECIMALV2,
-	"decimalv3":                            kwDECIMALV3,
-	"decommission":                         kwDECOMMISSION,
-	"default":                              kwDEFAULT,
-	"deferred":                             kwDEFERRED,
-	"delete":                               kwDELETE,
-	"demand":                               kwDEMAND,
-	"desc":                                 kwDESC,
-	"describe":                             kwDESCRIBE,
-	"diagnose":                             kwDIAGNOSE,
-	"diagnosis":                            kwDIAGNOSIS,
-	"dictionaries":                         kwDICTIONARIES,
-	"dictionary":                           kwDICTIONARY,
-	"disk":                                 kwDISK,
-	"distinct":                             kwDISTINCT,
-	"distinctpc":                           kwDISTINCTPC,
-	"distinctpcsa":                         kwDISTINCTPCSA,
-	"distributed":                          kwDISTRIBUTED,
-	"distribution":                         kwDISTRIBUTION,
-	"div":                                  kwDIV,
-	"do":                                   kwDO,
-	"doris_internal_table_id":              kwDORIS_INTERNAL_TABLE_ID,
-	"double":                               kwDOUBLE,
-	"drop":                                 kwDROP,
-	"dropp":                                kwDROPP,
-	"dual":                                 kwDUAL,
-	"dump":                                 kwDUMP,
-	"duplicate":                            kwDUPLICATE,
-	"dynamic":                              kwDYNAMIC,
-	"e":                                    kwE,
-	"else":                                 kwELSE,
-	"enable":                               kwENABLE,
-	"encryption":                           kwENCRYPTION,
-	"encryptkey":                           kwENCRYPTKEY,
-	"encryptkeys":                          kwENCRYPTKEYS,
-	"end":                                  kwEND,
-	"ends":                                 kwENDS,
-	"engine":                               kwENGINE,
-	"engines":                              kwENGINES,
-	"enter":                                kwENTER,
-	"errors":                               kwERRORS,
-	"escape":                               kwESCAPE,
-	"events":                               kwEVENTS,
-	"every":                                kwEVERY,
-	"except":                               kwEXCEPT,
-	"exclude":                              kwEXCLUDE,
-	"execute":                              kwEXECUTE,
-	"exists":                               kwEXISTS,
-	"expired":                              kwEXPIRED,
-	"explain":                              kwEXPLAIN,
-	"export":                               kwEXPORT,
-	"extended":                             kwEXTENDED,
-	"external":                             kwEXTERNAL,
-	"extract":                              kwEXTRACT,
-	"failed_login_attempts":                kwFAILED_LOGIN_ATTEMPTS,
-	"false":                                kwFALSE,
-	"fast":                                 kwFAST,
-	"feature":                              kwFEATURE,
-	"field":                                kwFIELD,
-	"fields":                               kwFIELDS,
-	"file":                                 kwFILE,
-	"filter":                               kwFILTER,
-	"first":                                kwFIRST,
-	"float":                                kwFLOAT,
-	"follower":                             kwFOLLOWER,
-	"following":                            kwFOLLOWING,
-	"for":                                  kwFOR,
-	"foreign":                              kwFOREIGN,
-	"force":                                kwFORCE,
-	"format":                               kwFORMAT,
-	"free":                                 kwFREE,
-	"from":                                 kwFROM,
-	"frontend":                             kwFRONTEND,
-	"frontends":                            kwFRONTENDS,
-	"full":                                 kwFULL,
-	"function":                             kwFUNCTION,
-	"functions":                            kwFUNCTIONS,
-	"generated":                            kwGENERATED,
-	"generic":                              kwGENERIC,
-	"global":                               kwGLOBAL,
-	"grant":                                kwGRANT,
-	"grants":                               kwGRANTS,
-	"graph":                                kwGRAPH,
-	"group":                                kwGROUP,
-	"group_concat":                         kwGROUP_CONCAT,
-	"grouping":                             kwGROUPING,
-	"groups":                               kwGROUPS,
-	"hash":                                 kwHASH,
-	"hash_map":                             kwHASH_MAP,
-	"having":                               kwHAVING,
-	"hdfs":                                 kwHDFS,
-	"help":                                 kwHELP,
-	"histogram":                            kwHISTOGRAM,
-	"hll":                                  kwHLL,
-	"hll_union":                            kwHLL_UNION,
-	"hostname":                             kwHOSTNAME,
-	"hotspot":                              kwHOTSPOT,
-	"hour":                                 kwHOUR,
-	"hours":                                kwHOURS,
-	"hub":                                  kwHUB,
-	"identified":                           kwIDENTIFIED,
-	"if":                                   kwIF,
-	"ignore":                               kwIGNORE,
-	"immediate":                            kwIMMEDIATE,
-	"in":                                   kwIN,
-	"incremental":                          kwINCREMENTAL,
-	"index":                                kwINDEX,
-	"indexes":                              kwINDEXES,
-	"infile":                               kwINFILE,
-	"inner":                                kwINNER,
-	"insert":                               kwINSERT,
-	"install":                              kwINSTALL,
-	"int":                                  kwINT,
-	"integer":                              kwINTEGER,
-	"intermediate":                         kwINTERMEDIATE,
-	"intersect":                            kwINTERSECT,
-	"interval":                             kwINTERVAL,
-	"into":                                 kwINTO,
-	"inverted":                             kwINVERTED,
-	"ip_trie":                              kwIP_TRIE,
-	"ipv4":                                 kwIPV4,
-	"ipv6":                                 kwIPV6,
-	"is":                                   kwIS,
-	"is_not_null_pred":                     kwIS_NOT_NULL_PRED,
-	"is_null_pred":                         kwIS_NULL_PRED,
-	"isnull":                               kwISNULL,
-	"isolation":                            kwISOLATION,
-	"job":                                  kwJOB,
-	"jobs":                                 kwJOBS,
-	"join":                                 kwJOIN,
-	"json":                                 kwJSON,
-	"jsonb":                                kwJSONB,
-	"key":                                  kwKEY,
-	"keys":                                 kwKEYS,
-	"kill":                                 kwKILL,
-	"label":                                kwLABEL,
-	"largeint":                             kwLARGEINT,
-	"last":                                 kwLAST,
-	"lateral":                              kwLATERAL,
-	"layout":                               kwLAYOUT,
-	"ldap":                                 kwLDAP,
-	"ldap_admin_password":                  kwLDAP_ADMIN_PASSWORD,
-	"leading":                              kwLEADING,
-	"left":                                 kwLEFT,
-	"less":                                 kwLESS,
-	"level":                                kwLEVEL,
-	"like":                                 kwLIKE,
-	"limit":                                kwLIMIT,
-	"lines":                                kwLINES,
-	"link":                                 kwLINK,
-	"list":                                 kwLIST,
-	"load":                                 kwLOAD,
-	"local":                                kwLOCAL,
-	"localtime":                            kwLOCALTIME,
-	"localtimestamp":                       kwLOCALTIMESTAMP,
-	"location":                             kwLOCATION,
-	"lock":                                 kwLOCK,
-	"logical":                              kwLOGICAL,
-	"low_priority":                         kwLOW_PRIORITY,
-	"manual":                               kwMANUAL,
-	"map":                                  kwMAP,
-	"match":                                kwMATCH,
-	"match_all":                            kwMATCH_ALL,
-	"match_any":                            kwMATCH_ANY,
-	"match_name":                           kwMATCH_NAME,
-	"match_name_glob":                      kwMATCH_NAME_GLOB,
-	"match_phrase":                         kwMATCH_PHRASE,
-	"match_phrase_edge":                    kwMATCH_PHRASE_EDGE,
-	"match_phrase_prefix":                  kwMATCH_PHRASE_PREFIX,
-	"match_regexp":                         kwMATCH_REGEXP,
-	"matched":                              kwMATCHED,
-	"materialized":                         kwMATERIALIZED,
-	"max":                                  kwMAX,
-	"maxvalue":                             kwMAXVALUE,
-	"memo":                                 kwMEMO,
-	"merge":                                kwMERGE,
-	"mid":                                  kwMID,
-	"migrate":                              kwMIGRATE,
-	"migrations":                           kwMIGRATIONS,
-	"min":                                  kwMIN,
-	"minus":                                kwMINUS,
-	"minute":                               kwMINUTE,
-	"minute_second":                        kwMINUTE_SECOND,
-	"minutes":                              kwMINUTES,
-	"modify":                               kwMODIFY,
-	"month":                                kwMONTH,
-	"mtmv":                                 kwMTMV,
-	"name":                                 kwNAME,
-	"names":                                kwNAMES,
-	"natural":                              kwNATURAL,
-	"negative":                             kwNEGATIVE,
-	"never":                                kwNEVER,
-	"next":                                 kwNEXT,
-	"ngram_bf":                             kwNGRAM_BF,
-	"no":                                   kwNO,
-	"no_use_mv":                            kwNO_USE_MV,
-	"non_nullable":                         kwNON_NULLABLE,
-	"not":                                  kwNOT,
-	"null":                                 kwNULL,
-	"nulls":                                kwNULLS,
-	"observer":                             kwOBSERVER,
-	"of":                                   kwOF,
-	"off":                                  kwOFF,
-	"offset":                               kwOFFSET,
-	"on":                                   kwON,
-	"only":                                 kwONLY,
-	"open":                                 kwOPEN,
-	"optimize":                             kwOPTIMIZE,
-	"optimized":                            kwOPTIMIZED,
-	"or":                                   kwOR,
-	"order":                                kwORDER,
-	"outer":                                kwOUTER,
-	"outfile":                              kwOUTFILE,
-	"over":                                 kwOVER,
-	"overwrite":                            kwOVERWRITE,
-	"parameter":                            kwPARAMETER,
-	"parsed":                               kwPARSED,
-	"partition":                            kwPARTITION,
-	"partitions":                           kwPARTITIONS,
-	"password":                             kwPASSWORD,
-	"password_expire":                      kwPASSWORD_EXPIRE,
-	"password_history":                     kwPASSWORD_HISTORY,
-	"password_lock_time":                   kwPASSWORD_LOCK_TIME,
-	"password_reuse":                       kwPASSWORD_REUSE,
-	"path":                                 kwPATH,
-	"pause":                                kwPAUSE,
-	"percent":                              kwPERCENT,
-	"percentile":                           kwPERCENTILE,
-	"percentile_union":                     kwPERCENTILE_UNION,
-	"period":                               kwPERIOD,
-	"permissive":                           kwPERMISSIVE,
-	"physical":                             kwPHYSICAL,
-	"pi":                                   kwPI,
-	"plan":                                 kwPLAN,
-	"play":                                 kwPLAY,
-	"plugin":                               kwPLUGIN,
-	"plugins":                              kwPLUGINS,
-	"policy":                               kwPOLICY,
-	"position":                             kwPOSITION,
-	"preceding":                            kwPRECEDING,
-	"prepare":                              kwPREPARE,
-	"primary":                              kwPRIMARY,
-	"privileges":                           kwPRIVILEGES,
-	"proc":                                 kwPROC,
-	"procedure":                            kwPROCEDURE,
-	"process":                              kwPROCESS,
-	"processlist":                          kwPROCESSLIST,
-	"profile":                              kwPROFILE,
-	"properties":                           kwPROPERTIES,
-	"property":                             kwPROPERTY,
-	"qualify":                              kwQUALIFY,
-	"quantile_state":                       kwQUANTILE_STATE,
-	"quantile_union":                       kwQUANTILE_UNION,
-	"quarter":                              kwQUARTER,
-	"query":                                kwQUERY,
-	"queued":                               kwQUEUED,
-	"quota":                                kwQUOTA,
-	"random":                               kwRANDOM,
-	"range":                                kwRANGE,
-	"read":                                 kwREAD,
-	"real":                                 kwREAL,
-	"rebalance":                            kwREBALANCE,
-	"recent":                               kwRECENT,
-	"recover":                              kwRECOVER,
-	"recursive":                            kwRECURSIVE,
-	"recycle":                              kwRECYCLE,
-	"references":                           kwREFERENCES,
-	"refresh":                              kwREFRESH,
-	"regexp":                               kwREGEXP,
-	"release":                              kwRELEASE,
-	"rename":                               kwRENAME,
-	"repair":                               kwREPAIR,
-	"repeatable":                           kwREPEATABLE,
-	"replace":                              kwREPLACE,
-	"replace_if_not_null":                  kwREPLACE_IF_NOT_NULL,
-	"replayer":                             kwREPLAYER,
-	"replica":                              kwREPLICA,
-	"repositories":                         kwREPOSITORIES,
-	"repository":                           kwREPOSITORY,
-	"resource":                             kwRESOURCE,
-	"resources":                            kwRESOURCES,
-	"restore":                              kwRESTORE,
-	"restrictive":                          kwRESTRICTIVE,
-	"resume":                               kwRESUME,
-	"retain":                               kwRETAIN,
-	"retention":                            kwRETENTION,
-	"returns":                              kwRETURNS,
-	"revoke":                               kwREVOKE,
-	"rewritten":                            kwREWRITTEN,
-	"right":                                kwRIGHT,
-	"rlike":                                kwRLIKE,
-	"role":                                 kwROLE,
-	"roles":                                kwROLES,
-	"rollback":                             kwROLLBACK,
-	"rollup":                               kwROLLUP,
-	"root":                                 kwROOT,
-	"rotate":                               kwROTATE,
-	"routine":                              kwROUTINE,
-	"row":                                  kwROW,
-	"rows":                                 kwROWS,
-	"s3":                                   kwS3,
-	"sample":                               kwSAMPLE,
-	"schedule":                             kwSCHEDULE,
-	"scheduler":                            kwSCHEDULER,
-	"schema":                               kwSCHEMA,
-	"schemas":                              kwSCHEMAS,
-	"second":                               kwSECOND,
-	"select":                               kwSELECT,
-	"semi":                                 kwSEMI,
-	"separator":                            kwSEPARATOR,
-	"serializable":                         kwSERIALIZABLE,
-	"session":                              kwSESSION,
-	"session_user":                         kwSESSION_USER,
-	"set":                                  kwSET,
-	"set_session_variable":                 kwSET_SESSION_VARIABLE,
-	"sets":                                 kwSETS,
-	"shape":                                kwSHAPE,
-	"show":                                 kwSHOW,
-	"signed":                               kwSIGNED,
-	"skew":                                 kwSKEW,
-	"smallint":                             kwSMALLINT,
-	"snapshot":                             kwSNAPSHOT,
-	"snapshots":                            kwSNAPSHOTS,
-	"soname":                               kwSONAME,
-	"split":                                kwSPLIT,
-	"sql":                                  kwSQL,
-	"sql_block_rule":                       kwSQL_BLOCK_RULE,
-	"stage":                                kwSTAGE,
-	"stages":                               kwSTAGES,
-	"start":                                kwSTART,
-	"starts":                               kwSTARTS,
-	"stats":                                kwSTATS,
-	"status":                               kwSTATUS,
-	"stop":                                 kwSTOP,
-	"storage":                              kwSTORAGE,
-	"stream":                               kwSTREAM,
-	"streaming":                            kwSTREAMING,
-	"string":                               kwSTRING,
-	"struct":                               kwSTRUCT,
-	"substr":                               kwSUBSTR,
-	"substring":                            kwSUBSTRING,
-	"sum":                                  kwSUM,
-	"superuser":                            kwSUPERUSER,
-	"switch":                               kwSWITCH,
-	"sync":                                 kwSYNC,
-	"system":                               kwSYSTEM,
-	"table":                                kwTABLE,
-	"tables":                               kwTABLES,
-	"tablesample":                          kwTABLESAMPLE,
-	"tablet":                               kwTABLET,
-	"tablets":                              kwTABLETS,
-	"tag":                                  kwTAG,
-	"task":                                 kwTASK,
-	"tasks":                                kwTASKS,
-	"tde":                                  kwTDE,
-	"temporary":                            kwTEMPORARY,
-	"terminated":                           kwTERMINATED,
-	"text":                                 kwTEXT,
-	"than":                                 kwTHAN,
-	"then":                                 kwTHEN,
-	"time":                                 kwTIME,
-	"timestamp":                            kwTIMESTAMP,
-	"tinyint":                              kwTINYINT,
-	"to":                                   kwTO,
-	"token_filter":                         kwTOKEN_FILTER,
-	"tokenizer":                            kwTOKENIZER,
-	"trailing":                             kwTRAILING,
-	"transaction":                          kwTRANSACTION,
-	"trash":                                kwTRASH,
-	"tree":                                 kwTREE,
-	"triggers":                             kwTRIGGERS,
-	"trim":                                 kwTRIM,
-	"true":                                 kwTRUE,
-	"truncate":                             kwTRUNCATE,
-	"try_cast":                             kwTRY_CAST,
-	"type":                                 kwTYPE,
-	"type_cast":                            kwTYPECAST, // alias for TYPECAST
-	"types":                                kwTYPES,
-	"unbounded":                            kwUNBOUNDED,
-	"uncommitted":                          kwUNCOMMITTED,
-	"uninstall":                            kwUNINSTALL,
-	"union":                                kwUNION,
-	"unique":                               kwUNIQUE,
-	"unlock":                               kwUNLOCK,
-	"unset":                                kwUNSET,
-	"unsigned":                             kwUNSIGNED,
-	"up":                                   kwUP,
-	"update":                               kwUPDATE,
-	"use":                                  kwUSE,
-	"use_mv":                               kwUSE_MV,
-	"user":                                 kwUSER,
-	"using":                                kwUSING,
-	"value":                                kwVALUE,
-	"values":                               kwVALUES,
-	"varbinary":                            kwVARBINARY,
-	"varchar":                              kwVARCHAR,
-	"variable":                             kwVARIABLE,
-	"variables":                            kwVARIABLES,
-	"variant":                              kwVARIANT,
-	"vault":                                kwVAULT,
-	"vaults":                               kwVAULTS,
-	"verbose":                              kwVERBOSE,
-	"version":                              kwVERSION,
-	"view":                                 kwVIEW,
-	"views":                                kwVIEWS,
-	"warm":                                 kwWARM,
-	"warnings":                             kwWARNINGS,
-	"week":                                 kwWEEK,
-	"when":                                 kwWHEN,
-	"where":                                kwWHERE,
-	"whitelist":                            kwWHITELIST,
-	"with":                                 kwWITH,
-	"work":                                 kwWORK,
-	"workload":                             kwWORKLOAD,
-	"write":                                kwWRITE,
-	"xor":                                  kwXOR,
-	"year":                                 kwYEAR,
+	"access":               kwACCESS,
+	"active":               kwACTIVE,
+	"add":                  kwADD,
+	"admin":                kwADMIN,
+	"advisor":              kwADVISOR,
+	"after":                kwAFTER,
+	"aggregate":            kwAGGREGATE,
+	"all":                  kwALL,
+	"alter":                kwALTER,
+	"analyze":              kwANALYZE,
+	"and":                  kwAND,
+	"anti":                 kwANTI,
+	"apply":                kwAPPLY,
+	"array":                kwARRAY,
+	"array_agg":            kwARRAY_AGG,
+	"array_agg_distinct":   kwARRAY_AGG_DISTINCT,
+	"as":                   kwAS,
+	"asc":                  kwASC,
+	"async":                kwASYNC,
+	"authentication":       kwAUTHENTICATION,
+	"authors":              kwAUTHORS,
+	"automated":            kwAUTOMATED,
+	"auto_increment":       kwAUTO_INCREMENT,
+	"avg":                  kwAVG,
+	"backend":              kwBACKEND,
+	"backends":             kwBACKENDS,
+	"backup":               kwBACKUP,
+	"base":                 kwBASE,
+	"before":               kwBEFORE,
+	"begin":                kwBEGIN,
+	"between":              kwBETWEEN,
+	"bigint":               kwBIGINT,
+	"binary":               kwBINARY,
+	"bitmap":               kwBITMAP,
+	"bitmap_union":         kwBITMAP_UNION,
+	"bitshiftleft":         kwBITSHIFTLEFT,
+	"bitshiftright":        kwBITSHIFTRIGHT,
+	"bitshiftrightlogical": kwBITSHIFTRIGHTLOGICAL,
+	"blackhole":            kwBLACKHOLE,
+	"blacklist":            kwBLACKLIST,
+	"body":                 kwBODY,
+	"boolean":              kwBOOLEAN,
+	"both":                 kwBOTH,
+	"branch":               kwBRANCH,
+	"broker":               kwBROKER,
+	"buckets":              kwBUCKETS,
+	"builtin":              kwBUILTIN,
+	"by":                   kwBY,
+	"cache":                kwCACHE,
+	"cancel":               kwCANCEL,
+	"case":                 kwCASE,
+	"cast":                 kwCAST,
+	"catalog":              kwCATALOG,
+	"catalogs":             kwCATALOGS,
+	"ceil":                 kwCEIL,
+	"chain":                kwCHAIN,
+	"char":                 kwCHAR,
+	"character":            kwCHARACTER,
+	"charset":              kwCHARSET,
+	"check":                kwCHECK,
+	"clean":                kwCLEAN,
+	"clear":                kwCLEAR,
+	"cluster":              kwCLUSTER,
+	"clusters":             kwCLUSTERS,
+	"collate":              kwCOLLATE,
+	"collation":            kwCOLLATION,
+	"column":               kwCOLUMN,
+	"columns":              kwCOLUMNS,
+	"comment":              kwCOMMENT,
+	"commit":               kwCOMMIT,
+	"committed":            kwCOMMITTED,
+	"compact":              kwCOMPACT,
+	"compaction":           kwCOMPACTION,
+	"compute":              kwCOMPUTE,
+	"config":               kwCONFIG,
+	"connection":           kwCONNECTION,
+	"consistent":           kwCONSISTENT,
+	"convert":              kwCONVERT,
+	"costs":                kwCOSTS,
+	"count":                kwCOUNT,
+	"create":               kwCREATE,
+	"cross":                kwCROSS,
+	"cube":                 kwCUBE,
+	"cume_dist":            kwCUME_DIST,
+	"cumulative":           kwCUMULATIVE,
+	"current":              kwCURRENT,
+	"current_date":         kwCURRENT_DATE,
+	"current_role":         kwCURRENT_ROLE,
+	"current_time":         kwCURRENT_TIME,
+	"current_timestamp":    kwCURRENT_TIMESTAMP,
+	"current_user":         kwCURRENT_USER,
+	"data":                 kwDATA,
+	"database":             kwDATABASE,
+	"databases":            kwDATABASES,
+	"datacache":            kwDATACACHE,
+	"date":                 kwDATE,
+	"datetime":             kwDATETIME,
+	"day":                  kwDAY,
+	"days":                 kwDAYS,
+	"deallocate":           kwDEALLOCATE,
+	"decimal":              kwDECIMAL,
+	"decimal128":           kwDECIMAL128,
+	"decimal32":            kwDECIMAL32,
+	"decimal64":            kwDECIMAL64,
+	"decimalv2":            kwDECIMALV2,
+	"decommission":         kwDECOMMISSION,
+	"default":              kwDEFAULT,
+	"deferred":             kwDEFERRED,
+	"delete":               kwDELETE,
+	"dense_rank":           kwDENSE_RANK,
+	"desc":                 kwDESC,
+	"describe":             kwDESCRIBE,
+	"dictionary":           kwDICTIONARY,
+	"dictionary_get":       kwDICTIONARY_GET,
+	"disable":              kwDISABLE,
+	"disk":                 kwDISK,
+	"distinct":             kwDISTINCT,
+	"distributed":          kwDISTRIBUTED,
+	"distribution":         kwDISTRIBUTION,
+	"div":                  kwDIV,
+	"double":               kwDOUBLE,
+	"drop":                 kwDROP,
+	"dual":                 kwDUAL,
+	"duplicate":            kwDUPLICATE,
+	"dynamic":              kwDYNAMIC,
+	"else":                 kwELSE,
+	"enable":               kwENABLE,
+	"enclose":              kwENCLOSE,
+	"end":                  kwEND,
+	"engine":               kwENGINE,
+	"engines":              kwENGINES,
+	"errors":               kwERRORS,
+	"escape":               kwESCAPE,
+	"events":               kwEVENTS,
+	"every":                kwEVERY,
+	"except":               kwEXCEPT,
+	"execute":              kwEXECUTE,
+	"exists":               kwEXISTS,
+	"explain":              kwEXPLAIN,
+	"export":               kwEXPORT,
+	"external":             kwEXTERNAL,
+	"extract":              kwEXTRACT,
+	"failpoint":            kwFAILPOINT,
+	"failpoints":           kwFAILPOINTS,
+	"false":                kwFALSE,
+	"field":                kwFIELD,
+	"fields":               kwFIELDS,
+	"file":                 kwFILE,
+	"files":                kwFILES,
+	"filter":               kwFILTER,
+	"first":                kwFIRST,
+	"first_value":          kwFIRST_VALUE,
+	"float":                kwFLOAT,
+	"floor":                kwFLOOR,
+	"fn":                   kwFN,
+	"follower":             kwFOLLOWER,
+	"following":            kwFOLLOWING,
+	"for":                  kwFOR,
+	"force":                kwFORCE,
+	"format":               kwFORMAT,
+	"free":                 kwFREE,
+	"from":                 kwFROM,
+	"frontend":             kwFRONTEND,
+	"frontends":            kwFRONTENDS,
+	"full":                 kwFULL,
+	"function":             kwFUNCTION,
+	"functions":            kwFUNCTIONS,
+	"gin":                  kwGIN,
+	"global":               kwGLOBAL,
+	"grant":                kwGRANT,
+	"grants":               kwGRANTS,
+	"group":                kwGROUP,
+	"grouping":             kwGROUPING,
+	"grouping_id":          kwGROUPING_ID,
+	"groups":               kwGROUPS,
+	"group_concat":         kwGROUP_CONCAT,
+	"hash":                 kwHASH,
+	"having":               kwHAVING,
+	"help":                 kwHELP,
+	"histogram":            kwHISTOGRAM,
+	"hll":                  kwHLL,
+	"hll_union":            kwHLL_UNION,
+	"host":                 kwHOST,
+	"hour":                 kwHOUR,
+	"hours":                kwHOURS,
+	"hub":                  kwHUB,
+	"identified":           kwIDENTIFIED,
+	"if":                   kwIF,
+	"ignore":               kwIGNORE,
+	"image":                kwIMAGE,
+	"immediate":            kwIMMEDIATE,
+	"impersonate":          kwIMPERSONATE,
+	"in":                   kwIN,
+	"inactive":             kwINACTIVE,
+	"incremental":          kwINCREMENTAL,
+	"index":                kwINDEX,
+	"indexes":              kwINDEXES,
+	"infile":               kwINFILE,
+	"inner":                kwINNER,
+	"insert":               kwINSERT,
+	"install":              kwINSTALL,
+	"int":                  kwINT,
+	"integer":              kwINTEGER,
+	"integration":          kwINTEGRATION,
+	"integrations":         kwINTEGRATIONS,
+	"intermediate":         kwINTERMEDIATE,
+	"intersect":            kwINTERSECT,
+	"interval":             kwINTERVAL,
+	"into":                 kwINTO,
+	"invoker":              kwINVOKER,
+	"is":                   kwIS,
+	"isolation":            kwISOLATION,
+	"job":                  kwJOB,
+	"join":                 kwJOIN,
+	"json":                 kwJSON,
+	"key":                  kwKEY,
+	"keys":                 kwKEYS,
+	"kill":                 kwKILL,
+	"label":                kwLABEL,
+	"lag":                  kwLAG,
+	"largeint":             kwLARGEINT,
+	"last":                 kwLAST,
+	"last_value":           kwLAST_VALUE,
+	"lateral":              kwLATERAL,
+	"lead":                 kwLEAD,
+	"left":                 kwLEFT,
+	"less":                 kwLESS,
+	"level":                kwLEVEL,
+	"like":                 kwLIKE,
+	"limit":                kwLIMIT,
+	"list":                 kwLIST,
+	"load":                 kwLOAD,
+	"local":                kwLOCAL,
+	"localtime":            kwLOCALTIME,
+	"localtimestamp":       kwLOCALTIMESTAMP,
+	"location":             kwLOCATION,
+	"locations":            kwLOCATIONS,
+	"lock":                 kwLOCK,
+	"logical":              kwLOGICAL,
+	"logs":                 kwLOGS,
+	"low_priority":         kwLOW_PRIORITY,
+	"manual":               kwMANUAL,
+	"map":                  kwMAP,
+	"mapping":              kwMAPPING,
+	"mappings":             kwMAPPINGS,
+	"masking":              kwMASKING,
+	"match":                kwMATCH,
+	"materialized":         kwMATERIALIZED,
+	"max":                  kwMAX,
+	"maxvalue":             kwMAXVALUE,
+	"merge":                kwMERGE,
+	"meta":                 kwMETA,
+	"microsecond":          kwMICROSECOND,
+	"millisecond":          kwMILLISECOND,
+	"min":                  kwMIN,
+	"minus":                kwMINUS,
+	"minute":               kwMINUTE,
+	"minutes":              kwMINUTES,
+	"mod":                  kwMOD,
+	"mode":                 kwMODE,
+	"modify":               kwMODIFY,
+	"month":                kwMONTH,
+	"name":                 kwNAME,
+	"names":                kwNAMES,
+	"negative":             kwNEGATIVE,
+	"ngrambf":              kwNGRAMBF,
+	"no":                   kwNO,
+	"node":                 kwNODE,
+	"nodes":                kwNODES,
+	"none":                 kwNONE,
+	"not":                  kwNOT,
+	"ntile":                kwNTILE,
+	"null":                 kwNULL,
+	"nulls":                kwNULLS,
+	"number":               kwNUMBER,
+	"numeric":              kwNUMERIC,
+	"observer":             kwOBSERVER,
+	"of":                   kwOF,
+	"off":                  kwOFF,
+	"offset":               kwOFFSET,
+	"on":                   kwON,
+	"only":                 kwONLY,
+	"open":                 kwOPEN,
+	"operate":              kwOPERATE,
+	"optimize":             kwOPTIMIZE,
+	"optimizer":            kwOPTIMIZER,
+	"option":               kwOPTION,
+	"or":                   kwOR,
+	"order":                kwORDER,
+	"outer":                kwOUTER,
+	"outfile":              kwOUTFILE,
+	"over":                 kwOVER,
+	"overwrite":            kwOVERWRITE,
+	"partition":            kwPARTITION,
+	"partitions":           kwPARTITIONS,
+	"password":             kwPASSWORD,
+	"path":                 kwPATH,
+	"pause":                kwPAUSE,
+	"pending":              kwPENDING,
+	"percentile":           kwPERCENTILE,
+	"percentile_union":     kwPERCENTILE_UNION,
+	"percent_rank":         kwPERCENT_RANK,
+	"persistent":           kwPERSISTENT,
+	"pipe":                 kwPIPE,
+	"pipes":                kwPIPES,
+	"pivot":                kwPIVOT,
+	"plan":                 kwPLAN,
+	"plugin":               kwPLUGIN,
+	"plugins":              kwPLUGINS,
+	"policies":             kwPOLICIES,
+	"policy":               kwPOLICY,
+	"preceding":            kwPRECEDING,
+	"prepare":              kwPREPARE,
+	"primary":              kwPRIMARY,
+	"priority":             kwPRIORITY,
+	"privileges":           kwPRIVILEGES,
+	"probability":          kwPROBABILITY,
+	"proc":                 kwPROC,
+	"procedure":            kwPROCEDURE,
+	"processlist":          kwPROCESSLIST,
+	"profile":              kwPROFILE,
+	"profilelist":          kwPROFILELIST,
+	"properties":           kwPROPERTIES,
+	"property":             kwPROPERTY,
+	"qualify":              kwQUALIFY,
+	"quarter":              kwQUARTER,
+	"queries":              kwQUERIES,
+	"query":                kwQUERY,
+	"queue":                kwQUEUE,
+	"quota":                kwQUOTA,
+	"random":               kwRANDOM,
+	"range":                kwRANGE,
+	"rank":                 kwRANK,
+	"read":                 kwREAD,
+	"reason":               kwREASON,
+	"recover":              kwRECOVER,
+	"refresh":              kwREFRESH,
+	"regexp":               kwREGEXP,
+	"release":              kwRELEASE,
+	"remove":               kwREMOVE,
+	"rename":               kwRENAME,
+	"repair":               kwREPAIR,
+	"repeatable":           kwREPEATABLE,
+	"replace":              kwREPLACE,
+	"replace_if_not_null":  kwREPLACE_IF_NOT_NULL,
+	"replica":              kwREPLICA,
+	"repositories":         kwREPOSITORIES,
+	"repository":           kwREPOSITORY,
+	"resource":             kwRESOURCE,
+	"resources":            kwRESOURCES,
+	"restore":              kwRESTORE,
+	"resume":               kwRESUME,
+	"retain":               kwRETAIN,
+	"retention":            kwRETENTION,
+	"retry":                kwRETRY,
+	"returns":              kwRETURNS,
+	"revert":               kwREVERT,
+	"revoke":               kwREVOKE,
+	"rewrite":              kwREWRITE,
+	"right":                kwRIGHT,
+	"rlike":                kwRLIKE,
+	"role":                 kwROLE,
+	"roles":                kwROLES,
+	"rollback":             kwROLLBACK,
+	"rollup":               kwROLLUP,
+	"routine":              kwROUTINE,
+	"row":                  kwROW,
+	"rows":                 kwROWS,
+	"row_number":           kwROW_NUMBER,
+	"rule":                 kwRULE,
+	"rules":                kwRULES,
+	"running":              kwRUNNING,
+	"sample":               kwSAMPLE,
+	"schedule":             kwSCHEDULE,
+	"scheduler":            kwSCHEDULER,
+	"schema":               kwSCHEMA,
+	"schemas":              kwSCHEMAS,
+	"second":               kwSECOND,
+	"security":             kwSECURITY,
+	"select":               kwSELECT,
+	"semi":                 kwSEMI,
+	"separator":            kwSEPARATOR,
+	"serializable":         kwSERIALIZABLE,
+	"session":              kwSESSION,
+	"set":                  kwSET,
+	"sets":                 kwSETS,
+	"set_var":              kwSET_VAR,
+	"show":                 kwSHOW,
+	"signed":               kwSIGNED,
+	"skip_header":          kwSKIP_HEADER,
+	"smallint":             kwSMALLINT,
+	"snapshot":             kwSNAPSHOT,
+	"snapshots":            kwSNAPSHOTS,
+	"sqlblacklist":         kwSQLBLACKLIST,
+	"start":                kwSTART,
+	"stats":                kwSTATS,
+	"status":               kwSTATUS,
+	"stop":                 kwSTOP,
+	"storage":              kwSTORAGE,
+	"stream":               kwSTREAM,
+	"string":               kwSTRING,
+	"struct":               kwSTRUCT,
+	"submit":               kwSUBMIT,
+	"sum":                  kwSUM,
+	"suspend":              kwSUSPEND,
+	"swap":                 kwSWAP,
+	"sync":                 kwSYNC,
+	"system":               kwSYSTEM,
+	"system_time":          kwSYSTEM_TIME,
+	"table":                kwTABLE,
+	"tables":               kwTABLES,
+	"tablet":               kwTABLET,
+	"tablets":              kwTABLETS,
+	"tag":                  kwTAG,
+	"task":                 kwTASK,
+	"temporary":            kwTEMPORARY,
+	"terminated":           kwTERMINATED,
+	"text":                 kwTEXT,
+	"than":                 kwTHAN,
+	"then":                 kwTHEN,
+	"time":                 kwTIME,
+	"times":                kwTIMES,
+	"timestamp":            kwTIMESTAMP,
+	"timestampadd":         kwTIMESTAMPADD,
+	"timestampdiff":        kwTIMESTAMPDIFF,
+	"tinyint":              kwTINYINT,
+	"to":                   kwTO,
+	"trace":                kwTRACE,
+	"transaction":          kwTRANSACTION,
+	"translate":            kwTRANSLATE,
+	"triggers":             kwTRIGGERS,
+	"trim_space":           kwTRIM_SPACE,
+	"true":                 kwTRUE,
+	"truncate":             kwTRUNCATE,
+	"type":                 kwTYPE,
+	"types":                kwTYPES,
+	"unbounded":            kwUNBOUNDED,
+	"uncommitted":          kwUNCOMMITTED,
+	"uninstall":            kwUNINSTALL,
+	"union":                kwUNION,
+	"unique":               kwUNIQUE,
+	"unlock":               kwUNLOCK,
+	"unset":                kwUNSET,
+	"unsigned":             kwUNSIGNED,
+	"update":               kwUPDATE,
+	"usage":                kwUSAGE,
+	"use":                  kwUSE,
+	"user":                 kwUSER,
+	"users":                kwUSERS,
+	"using":                kwUSING,
+	"value":                kwVALUE,
+	"values":               kwVALUES,
+	"varbinary":            kwVARBINARY,
+	"varchar":              kwVARCHAR,
+	"variables":            kwVARIABLES,
+	"vector":               kwVECTOR,
+	"verbose":              kwVERBOSE,
+	"version":              kwVERSION,
+	"view":                 kwVIEW,
+	"views":                kwVIEWS,
+	"volume":               kwVOLUME,
+	"volumes":              kwVOLUMES,
+	"warehouse":            kwWAREHOUSE,
+	"warehouses":           kwWAREHOUSES,
+	"warnings":             kwWARNINGS,
+	"week":                 kwWEEK,
+	"when":                 kwWHEN,
+	"where":                kwWHERE,
+	"whitelist":            kwWHITELIST,
+	"with":                 kwWITH,
+	"work":                 kwWORK,
+	"write":                kwWRITE,
+	"year":                 kwYEAR,
 }
 
-// nonReservedKeywords is the set of keywords that can be used as unquoted
-// identifiers. Seeded from the nonReserved rule in DorisParser.g4 (lines 1906-2257).
-// Note: COMMENT_START (/*), LEFT_BRACE ({), RIGHT_BRACE (}) and HINT_START/HINT_END
-// appear in the nonReserved grammar rule but are operators/punctuation, not keywords
-// handled here.
+// dorisOnlyKeywords maps the Doris words this hand-written parser still reads
+// to their tokens. StarRocksLex.g4 has no rule for any of them, so the engine
+// reads each as an identifier and has no statement or clause that uses it;
+// what they reach here is the fork's Doris-only grammar, which follows the
+// words the parser matched: CALL, MERGE, BUILD INDEX, the WORKLOAD GROUP,
+// WORKLOAD POLICY and SQL_BLOCK_RULE statements, STAGE, STORAGE VAULT and
+// ENCRYPT KEY objects, Doris's column types, SHOW modifiers, MERGE and MTMV
+// clauses and INSERT-time constraints. They stay non-reserved, so an
+// identifier use of each reads as the engine reads it; the statements and
+// clauses behind them are pinned in testdata/compat.tsv as rows only omni
+// accepts, so removing one makes the pin fail rather than go unnoticed.
+var dorisOnlyKeywords = map[string]TokenKind{
+	"account_lock":          kwACCOUNT_LOCK,
+	"account_unlock":        kwACCOUNT_UNLOCK,
+	"actions":               kwACTIONS,
+	"agg_state":             kwAGG_STATE,
+	"always":                kwALWAYS,
+	"auto":                  kwAUTO,
+	"brief":                 kwBRIEF,
+	"call":                  kwCALL,
+	"complete":              kwCOMPLETE,
+	"conditions":            kwCONDITIONS,
+	"constraint":            kwCONSTRAINT,
+	"constraints":           kwCONSTRAINTS,
+	"datetimev1":            kwDATETIMEV1,
+	"datetimev2":            kwDATETIMEV2,
+	"datev1":                kwDATEV1,
+	"datev2":                kwDATEV2,
+	"decimalv3":             kwDECIMALV3,
+	"do":                    kwDO,
+	"encryptkey":            kwENCRYPTKEY,
+	"extended":              kwEXTENDED,
+	"failed_login_attempts": kwFAILED_LOGIN_ATTEMPTS,
+	"feature":               kwFEATURE,
+	"foreign":               kwFOREIGN,
+	"generated":             kwGENERATED,
+	"generic":               kwGENERIC,
+	"hdfs":                  kwHDFS,
+	"ipv4":                  kwIPV4,
+	"ipv6":                  kwIPV6,
+	"jobs":                  kwJOBS,
+	"jsonb":                 kwJSONB,
+	"layout":                kwLAYOUT,
+	"matched":               kwMATCHED,
+	"never":                 kwNEVER,
+	"password_expire":       kwPASSWORD_EXPIRE,
+	"password_history":      kwPASSWORD_HISTORY,
+	"password_lock_time":    kwPASSWORD_LOCK_TIME,
+	"permissive":            kwPERMISSIVE,
+	"quantile_state":        kwQUANTILE_STATE,
+	"quantile_union":        kwQUANTILE_UNION,
+	"queued":                kwQUEUED,
+	"references":            kwREFERENCES,
+	"restrictive":           kwRESTRICTIVE,
+	"s3":                    kwS3,
+	"soname":                kwSONAME,
+	"sql_block_rule":        kwSQL_BLOCK_RULE,
+	"stage":                 kwSTAGE,
+	"starts":                kwSTARTS,
+	"variable":              kwVARIABLE,
+	"variant":               kwVARIANT,
+	"vault":                 kwVAULT,
+	"workload":              kwWORKLOAD,
+}
+
+// dorisOnlyKeywordKinds holds the kinds of dorisOnlyKeywords.
+var dorisOnlyKeywordKinds = func() map[TokenKind]string {
+	m := make(map[TokenKind]string, len(dorisOnlyKeywords))
+	for word, kind := range dorisOnlyKeywords {
+		m[kind] = word
+	}
+	return m
+}()
+
+// nonReservedKeywords holds the keywords StarRocks.g4's nonReserved rule
+// allows as bare identifiers. A keyword the rule does not name is reserved.
 var nonReservedKeywords = map[TokenKind]bool{
-	kwACTIONS:                true,
-	kwAFTER:                  true,
-	kwAGG_STATE:              true,
-	kwAGGREGATE:              true,
-	kwALIAS:                  true,
-	kwALWAYS:                 true,
-	kwANALYZED:               true,
-	kwANN:                    true,
-	kwARRAY:                  true,
-	kwAT:                     true,
-	kwAUTHORS:                true,
-	kwAUTO_INCREMENT:         true,
-	kwBACKENDS:               true,
-	kwBACKUP:                 true,
-	kwBEGIN:                  true,
-	kwBELONG:                 true,
-	kwBIN:                    true,
-	kwBITAND:                 true,
-	kwBITMAP:                 true,
-	kwBITMAP_EMPTY:           true,
-	kwBITMAP_UNION:           true,
-	kwBITOR:                  true,
-	kwBITXOR:                 true,
-	kwBLOB:                   true,
-	kwBOOLEAN:                true,
-	kwBRANCH:                 true,
-	kwBRIEF:                  true,
-	kwBROKER:                 true,
-	kwBUCKETS:                true,
-	kwBUILD:                  true,
-	kwBUILTIN:                true,
-	kwBULK:                   true,
-	kwCACHE:                  true,
-	kwCACHED:                 true,
-	kwCALL:                   true,
-	kwCATALOG:                true,
-	kwCATALOGS:               true,
-	kwCHAIN:                  true,
-	kwCHAR:                   true,
-	kwCHARSET:                true,
-	kwCHECK:                  true,
-	kwCLUSTER:                true,
-	kwCLUSTERS:               true,
-	kwCOLLATION:              true,
-	kwCOLLECT:                true,
-	kwCOLOCATE:               true,
-	kwCOLUMNS:                true,
-	kwCOMMENT:                true,
-	kwCOMMIT:                 true,
-	kwCOMMITTED:              true,
-	kwCOMPACT:                true,
-	kwCOMPLETE:               true,
-	kwCOMPRESS_TYPE:          true,
-	kwCOMPUTE:                true,
-	kwCONDITIONS:             true,
-	kwCONFIG:                 true,
-	kwCONNECTION:             true,
-	kwCONNECTION_ID:          true,
-	kwCONSISTENT:             true,
-	kwCONSTRAINTS:            true,
-	kwCONVERT:                true,
-	kwCONVERT_LSC:            true,
-	kwCOPY:                   true,
-	kwCOSTS:                  true,
-	kwCOUNT:                  true,
-	kwCREATION:               true,
-	kwCRON:                   true,
-	kwCURRENT_CATALOG:        true,
-	kwCURRENT_DATE:           true,
-	kwCURRENT_TIME:           true,
-	kwCURRENT_TIMESTAMP:      true,
-	// CURRENT_USER is reserved: StarRocks.g4's nonReserved leaves it out.
-	kwDATA:                   true,
-	kwDATE:                   true,
-	kwDATETIME:               true,
-	kwDATETIMEV1:             true,
-	kwDATETIMEV2:             true,
-	kwDATEV1:                 true,
-	kwDATEV2:                 true,
-	kwDAY:                    true,
-	kwDAYS:                   true,
-	kwDECIMAL:                true,
-	kwDECIMALV2:              true,
-	kwDECIMALV3:              true,
-	kwDEFERRED:               true,
-	kwDEMAND:                 true,
-	kwDIAGNOSE:               true,
-	kwDIAGNOSIS:              true,
-	kwDICTIONARIES:           true,
-	kwDICTIONARY:             true,
-	kwDISTINCTPC:             true,
-	kwDISTINCTPCSA:           true,
-	kwDO:                     true,
-	kwDORIS_INTERNAL_TABLE_ID: true,
-	kwDUAL:                   true,
-	kwDUMP:                   true,
-	kwDYNAMIC:                true,
-	kwE:                      true,
-	kwENABLE:                 true,
-	kwENCRYPTION:             true,
-	kwENCRYPTKEY:             true,
-	kwENCRYPTKEYS:            true,
-	kwEND:                    true,
-	kwENDS:                   true,
-	kwENGINE:                 true,
-	kwENGINES:                true,
-	kwERRORS:                 true,
-	kwESCAPE:                 true,
-	kwEVENTS:                 true,
-	kwEVERY:                  true,
-	kwEXCLUDE:                true,
-	kwEXPIRED:                true,
-	kwEXTERNAL:               true,
-	kwFAILED_LOGIN_ATTEMPTS:  true,
-	kwFAST:                   true,
-	kwFEATURE:                true,
-	kwFIELD:                  true,
-	kwFIELDS:                 true,
-	kwFILE:                   true,
-	kwFILTER:                 true,
-	kwFIRST:                  true,
-	kwFORMAT:                 true,
-	kwFREE:                   true,
-	kwFRONTENDS:              true,
-	kwFUNCTION:               true,
-	kwGENERATED:              true,
-	kwGENERIC:                true,
-	kwGLOBAL:                 true,
-	kwGRAPH:                  true,
-	kwGROUPING:               true,
-	kwGROUPS:                 true,
-	kwGROUP_CONCAT:           true,
-	kwHASH:                   true,
-	kwHASH_MAP:               true,
-	kwHDFS:                   true,
-	kwHELP:                   true,
-	kwHISTOGRAM:              true,
-	kwHLL_UNION:              true,
-	kwHOSTNAME:               true,
-	kwHOTSPOT:                true,
-	kwHOUR:                   true,
-	kwHOURS:                  true,
-	kwHUB:                    true,
-	kwIDENTIFIED:             true,
-	kwIGNORE:                 true,
-	kwIMMEDIATE:              true,
-	kwINCREMENTAL:            true,
-	kwINDEXES:                true,
-	kwINSERT:                 true,
-	kwINVERTED:               true,
-	kwIP_TRIE:                true,
-	kwIPV4:                   true,
-	kwIPV6:                   true,
-	kwIS_NOT_NULL_PRED:       true,
-	kwIS_NULL_PRED:           true,
-	kwISNULL:                 true,
-	kwISOLATION:              true,
-	kwJOB:                    true,
-	kwJOBS:                   true,
-	kwJSON:                   true,
-	kwJSONB:                  true,
-	kwLABEL:                  true,
-	kwLAST:                   true,
-	kwLDAP:                   true,
-	kwLDAP_ADMIN_PASSWORD:    true,
-	kwLESS:                   true,
-	kwLEVEL:                  true,
-	kwLINES:                  true,
-	kwLINK:                   true,
-	kwLOCAL:                  true,
-	kwLOCALTIME:              true,
-	kwLOCALTIMESTAMP:         true,
-	kwLOCATION:               true,
-	kwLOCK:                   true,
-	kwLOGICAL:                true,
-	kwMANUAL:                 true,
-	kwMAP:                    true,
-	kwMATCHED:                true,
-	kwMATCH_ALL:              true,
-	kwMATCH_ANY:              true,
-	kwMATCH_PHRASE:           true,
-	kwMATCH_PHRASE_EDGE:      true,
-	kwMATCH_PHRASE_PREFIX:    true,
-	kwMATCH_REGEXP:           true,
-	kwMATCH_NAME:             true,
-	kwMATCH_NAME_GLOB:        true,
-	kwMATERIALIZED:           true,
-	kwMAX:                    true,
-	kwMEMO:                   true,
-	kwMERGE:                  true,
-	kwMID:                    true,
-	kwMIGRATE:                true,
-	kwMIGRATIONS:             true,
-	kwMIN:                    true,
-	kwMINUTE:                 true,
-	kwMINUTES:                true,
-	kwMODIFY:                 true,
-	kwMONTH:                  true,
-	kwMTMV:                   true,
-	kwNAME:                   true,
-	kwNAMES:                  true,
-	kwNEGATIVE:               true,
-	kwNEVER:                  true,
-	kwNEXT:                   true,
-	kwNGRAM_BF:               true,
-	kwNO:                     true,
-	kwNON_NULLABLE:           true,
-	kwNULLS:                  true,
-	kwOF:                     true,
-	kwOFF:                    true,
-	kwOFFSET:                 true,
-	kwONLY:                   true,
-	kwOPEN:                   true,
-	kwOPTIMIZE:               true,
-	kwOPTIMIZED:              true,
-	kwPARAMETER:              true,
-	kwPARSED:                 true,
-	kwPASSWORD:               true,
-	kwPASSWORD_EXPIRE:        true,
-	kwPASSWORD_HISTORY:       true,
-	kwPASSWORD_LOCK_TIME:     true,
-	kwPASSWORD_REUSE:         true,
-	kwPARTITIONS:             true,
-	kwPATH:                   true,
-	kwPAUSE:                  true,
-	kwPERCENT:                true,
-	kwPERCENTILE:             true,
-	kwPERCENTILE_UNION:       true,
-	kwPERIOD:                 true,
-	kwPERMISSIVE:             true,
-	kwPHYSICAL:               true,
-	kwPI:                     true,
-	kwPLAN:                   true,
-	kwPLUGIN:                 true,
-	kwPLUGINS:                true,
-	kwPOLICY:                 true,
-	kwPOSITION:               true,
-	kwPRIVILEGES:             true,
-	kwPROC:                   true,
-	kwPROCESS:                true,
-	kwPROCESSLIST:            true,
-	kwPROFILE:                true,
-	kwPROPERTIES:             true,
-	kwPROPERTY:               true,
-	kwQUANTILE_STATE:         true,
-	kwQUANTILE_UNION:         true,
-	kwQUARTER:                true,
-	kwQUERY:                  true,
-	kwQUOTA:                  true,
-	kwQUALIFY:                true,
-	kwQUEUED:                 true,
-	kwRANDOM:                 true,
-	kwRECENT:                 true,
-	kwRECOVER:                true,
-	kwRECURSIVE:              true,
-	kwRECYCLE:                true,
-	kwREFRESH:                true,
-	kwREPEATABLE:             true,
-	kwREPLACE:                true,
-	kwREPLACE_IF_NOT_NULL:    true,
-	kwREPLAYER:               true,
-	kwREPOSITORIES:           true,
-	kwREPOSITORY:             true,
-	kwRESOURCE:               true,
-	kwRESOURCES:              true,
-	kwRESTORE:                true,
-	kwRESTRICTIVE:            true,
-	kwRESUME:                 true,
-	kwRETAIN:                 true,
-	kwRETENTION:              true,
-	kwRETURNS:                true,
-	kwREWRITTEN:              true,
-	kwRLIKE:                  true,
-	kwROLLBACK:               true,
-	kwROLLUP:                 true,
-	kwROOT:                   true,
-	kwROTATE:                 true,
-	kwROUTINE:                true,
-	kwS3:                     true,
-	kwSAMPLE:                 true,
-	kwSCHEDULE:               true,
-	kwSCHEDULER:              true,
-	kwSCHEMA:                 true,
-	kwSECOND:                 true,
-	kwSEPARATOR:              true,
-	kwSERIALIZABLE:           true,
-	kwSET_SESSION_VARIABLE:   true,
-	kwSESSION:                true,
-	kwSESSION_USER:           true,
-	kwSHAPE:                  true,
-	kwSKEW:                   true,
-	kwSNAPSHOT:               true,
-	kwSNAPSHOTS:              true,
-	kwSONAME:                 true,
-	kwSPLIT:                  true,
-	kwSQL:                    true,
-	kwSTAGE:                  true,
-	kwSTAGES:                 true,
-	kwSTART:                  true,
-	kwSTARTS:                 true,
-	kwSTATS:                  true,
-	kwSTATUS:                 true,
-	kwSTOP:                   true,
-	kwSTORAGE:                true,
-	kwSTREAM:                 true,
-	kwSTREAMING:              true,
-	kwSTRING:                 true,
-	kwSTRUCT:                 true,
-	kwSUBSTR:                 true,
-	kwSUBSTRING:              true,
-	kwSUM:                    true,
-	kwTABLES:                 true,
-	kwTAG:                    true,
-	kwTASK:                   true,
-	kwTASKS:                  true,
-	kwTDE:                    true,
-	kwTEMPORARY:              true,
-	kwTEXT:                   true,
-	kwTHAN:                   true,
-	kwTIME:                   true,
-	kwTIMESTAMP:              true,
-	kwTRANSACTION:            true,
-	kwTREE:                   true,
-	kwTRIGGERS:               true,
-	kwTRUNCATE:               true,
-	kwTYPE:                   true,
-	kwTYPES:                  true,
-	kwUNCOMMITTED:            true,
-	kwUNLOCK:                 true,
-	kwUNSET:                  true,
-	kwUP:                     true,
-	kwUSER:                   true,
-	kwVALUE:                  true,
-	kwVARBINARY:              true,
-	kwVARCHAR:                true,
-	kwVARIABLE:               true,
-	kwVARIABLES:              true,
-	kwVARIANT:                true,
-	kwVAULT:                  true,
-	kwVAULTS:                 true,
-	kwVERBOSE:                true,
-	kwVERSION:                true,
-	kwVIEW:                   true,
-	kwVIEWS:                  true,
-	kwWARM:                   true,
-	kwWARNINGS:               true,
-	kwWEEK:                   true,
-	kwWORK:                   true,
-	kwYEAR:                   true,
+	kwACCESS:              true,
+	kwACTIVE:              true,
+	kwADMIN:               true,
+	kwADVISOR:             true,
+	kwAFTER:               true,
+	kwAGGREGATE:           true,
+	kwANTI:                true,
+	kwAPPLY:               true,
+	kwARRAY_AGG:           true,
+	kwARRAY_AGG_DISTINCT:  true,
+	kwASYNC:               true,
+	kwAUTHENTICATION:      true,
+	kwAUTHORS:             true,
+	kwAUTOMATED:           true,
+	kwAUTO_INCREMENT:      true,
+	kwAVG:                 true,
+	kwBACKEND:             true,
+	kwBACKENDS:            true,
+	kwBACKUP:              true,
+	kwBASE:                true,
+	kwBEFORE:              true,
+	kwBEGIN:               true,
+	kwBINARY:              true,
+	kwBITMAP_UNION:        true,
+	kwBLACKHOLE:           true,
+	kwBLACKLIST:           true,
+	kwBODY:                true,
+	kwBOOLEAN:             true,
+	kwBRANCH:              true,
+	kwBROKER:              true,
+	kwBUCKETS:             true,
+	kwBUILTIN:             true,
+	kwCACHE:               true,
+	kwCANCEL:              true,
+	kwCAST:                true,
+	kwCATALOG:             true,
+	kwCATALOGS:            true,
+	kwCEIL:                true,
+	kwCHAIN:               true,
+	kwCHARSET:             true,
+	kwCLEAN:               true,
+	kwCLEAR:               true,
+	kwCLUSTER:             true,
+	kwCLUSTERS:            true,
+	kwCOLLATION:           true,
+	kwCOLUMNS:             true,
+	kwCOMMENT:             true,
+	kwCOMMIT:              true,
+	kwCOMMITTED:           true,
+	kwCOMPACT:             true,
+	kwCOMPUTE:             true,
+	kwCONFIG:              true,
+	kwCONNECTION:          true,
+	kwCONSISTENT:          true,
+	kwCOSTS:               true,
+	kwCOUNT:               true,
+	kwCUME_DIST:           true,
+	kwCUMULATIVE:          true,
+	kwCURRENT:             true,
+	kwDATA:                true,
+	kwDATACACHE:           true,
+	kwDATE:                true,
+	kwDATETIME:            true,
+	kwDAY:                 true,
+	kwDAYS:                true,
+	kwDEALLOCATE:          true,
+	kwDECOMMISSION:        true,
+	kwDICTIONARY:          true,
+	kwDICTIONARY_GET:      true,
+	kwDISABLE:             true,
+	kwDISK:                true,
+	kwDISTRIBUTED:         true,
+	kwDISTRIBUTION:        true,
+	kwDUPLICATE:           true,
+	kwDYNAMIC:             true,
+	kwENABLE:              true,
+	kwENCLOSE:             true,
+	kwEND:                 true,
+	kwENGINE:              true,
+	kwENGINES:             true,
+	kwERRORS:              true,
+	kwESCAPE:              true,
+	kwEVENTS:              true,
+	kwEVERY:               true,
+	kwEXECUTE:             true,
+	kwEXPORT:              true,
+	kwEXTERNAL:            true,
+	kwEXTRACT:             true,
+	kwFAILPOINT:           true,
+	kwFAILPOINTS:          true,
+	kwFIELD:               true,
+	kwFIELDS:              true,
+	kwFILE:                true,
+	kwFILTER:              true,
+	kwFIRST:               true,
+	kwFLOOR:               true,
+	kwFN:                  true,
+	kwFOLLOWER:            true,
+	kwFOLLOWING:           true,
+	kwFORMAT:              true,
+	kwFREE:                true,
+	kwFRONTEND:            true,
+	kwFRONTENDS:           true,
+	kwFUNCTIONS:           true,
+	kwGLOBAL:              true,
+	kwGRANTS:              true,
+	kwGROUP_CONCAT:        true,
+	kwHASH:                true,
+	kwHELP:                true,
+	kwHISTOGRAM:           true,
+	kwHLL_UNION:           true,
+	kwHOST:                true,
+	kwHOUR:                true,
+	kwHOURS:               true,
+	kwHUB:                 true,
+	kwIDENTIFIED:          true,
+	kwIMAGE:               true,
+	kwIMPERSONATE:         true,
+	kwINACTIVE:            true,
+	kwINCREMENTAL:         true,
+	kwINDEXES:             true,
+	kwINSTALL:             true,
+	kwINTEGRATION:         true,
+	kwINTEGRATIONS:        true,
+	kwINTERMEDIATE:        true,
+	kwINTERVAL:            true,
+	kwISOLATION:           true,
+	kwJOB:                 true,
+	kwLABEL:               true,
+	kwLAST:                true,
+	kwLESS:                true,
+	kwLEVEL:               true,
+	kwLIST:                true,
+	kwLOCAL:               true,
+	kwLOCATION:            true,
+	kwLOCATIONS:           true,
+	kwLOCK:                true,
+	kwLOGICAL:             true,
+	kwLOGS:                true,
+	kwLOW_PRIORITY:        true,
+	kwMANUAL:              true,
+	kwMAP:                 true,
+	kwMAPPING:             true,
+	kwMAPPINGS:            true,
+	kwMASKING:             true,
+	kwMATCH:               true,
+	kwMATERIALIZED:        true,
+	kwMAX:                 true,
+	kwMERGE:               true,
+	kwMETA:                true,
+	kwMIN:                 true,
+	kwMINUS:               true,
+	kwMINUTE:              true,
+	kwMINUTES:             true,
+	kwMODE:                true,
+	kwMODIFY:              true,
+	kwMONTH:               true,
+	kwNAME:                true,
+	kwNAMES:               true,
+	kwNEGATIVE:            true,
+	kwNGRAMBF:             true,
+	kwNO:                  true,
+	kwNODE:                true,
+	kwNODES:               true,
+	kwNONE:                true,
+	kwNULLS:               true,
+	kwNUMBER:              true,
+	kwNUMERIC:             true,
+	kwOBSERVER:            true,
+	kwOF:                  true,
+	kwOFF:                 true,
+	kwOFFSET:              true,
+	kwONLY:                true,
+	kwOPEN:                true,
+	kwOPERATE:             true,
+	kwOPTIMIZER:           true,
+	kwOPTION:              true,
+	kwOVERWRITE:           true,
+	kwPARTITIONS:          true,
+	kwPASSWORD:            true,
+	kwPATH:                true,
+	kwPAUSE:               true,
+	kwPENDING:             true,
+	kwPERCENTILE_UNION:    true,
+	kwPERCENT_RANK:        true,
+	kwPERSISTENT:          true,
+	kwPIPE:                true,
+	kwPIPES:               true,
+	kwPIVOT:               true,
+	kwPLAN:                true,
+	kwPLUGIN:              true,
+	kwPLUGINS:             true,
+	kwPOLICIES:            true,
+	kwPOLICY:              true,
+	kwPRECEDING:           true,
+	kwPRIORITY:            true,
+	kwPRIVILEGES:          true,
+	kwPROBABILITY:         true,
+	kwPROC:                true,
+	kwPROCESSLIST:         true,
+	kwPROFILE:             true,
+	kwPROFILELIST:         true,
+	kwPROPERTIES:          true,
+	kwPROPERTY:            true,
+	kwQUALIFY:             true,
+	kwQUARTER:             true,
+	kwQUERIES:             true,
+	kwQUERY:               true,
+	kwQUEUE:               true,
+	kwQUOTA:               true,
+	kwRANDOM:              true,
+	kwRANK:                true,
+	kwREASON:              true,
+	kwRECOVER:             true,
+	kwREFRESH:             true,
+	kwREMOVE:              true,
+	kwREPAIR:              true,
+	kwREPEATABLE:          true,
+	kwREPLACE_IF_NOT_NULL: true,
+	kwREPLICA:             true,
+	kwREPOSITORIES:        true,
+	kwREPOSITORY:          true,
+	kwRESOURCE:            true,
+	kwRESOURCES:           true,
+	kwRESTORE:             true,
+	kwRESUME:              true,
+	kwRETAIN:              true,
+	kwRETENTION:           true,
+	kwRETRY:               true,
+	kwRETURNS:             true,
+	kwREVERT:              true,
+	kwREWRITE:             true,
+	kwROLE:                true,
+	kwROLES:               true,
+	kwROLLBACK:            true,
+	kwROLLUP:              true,
+	kwROUTINE:             true,
+	kwROW:                 true,
+	kwRULE:                true,
+	kwRULES:               true,
+	kwRUNNING:             true,
+	kwSAMPLE:              true,
+	kwSCHEDULE:            true,
+	kwSCHEDULER:           true,
+	kwSECOND:              true,
+	kwSECURITY:            true,
+	kwSEMI:                true,
+	kwSEPARATOR:           true,
+	kwSERIALIZABLE:        true,
+	kwSESSION:             true,
+	kwSETS:                true,
+	kwSIGNED:              true,
+	kwSKIP_HEADER:         true,
+	kwSNAPSHOT:            true,
+	kwSNAPSHOTS:           true,
+	kwSQLBLACKLIST:        true,
+	kwSTART:               true,
+	kwSTATS:               true,
+	kwSTATUS:              true,
+	kwSTOP:                true,
+	kwSTORAGE:             true,
+	kwSTREAM:              true,
+	kwSTRING:              true,
+	kwSTRUCT:              true,
+	kwSUBMIT:              true,
+	kwSUM:                 true,
+	kwSUSPEND:             true,
+	kwSWAP:                true,
+	kwSYNC:                true,
+	kwSYSTEM_TIME:         true,
+	kwTABLES:              true,
+	kwTABLET:              true,
+	kwTABLETS:             true,
+	kwTAG:                 true,
+	kwTASK:                true,
+	kwTEMPORARY:           true,
+	kwTHAN:                true,
+	kwTIME:                true,
+	kwTIMES:               true,
+	kwTIMESTAMP:           true,
+	kwTIMESTAMPADD:        true,
+	kwTIMESTAMPDIFF:       true,
+	kwTRACE:               true,
+	kwTRANSACTION:         true,
+	kwTRANSLATE:           true,
+	kwTRIGGERS:            true,
+	kwTRIM_SPACE:          true,
+	kwTRUNCATE:            true,
+	kwTYPE:                true,
+	kwTYPES:               true,
+	kwUNBOUNDED:           true,
+	kwUNCOMMITTED:         true,
+	kwUNINSTALL:           true,
+	kwUNLOCK:              true,
+	kwUNSET:               true,
+	kwUSAGE:               true,
+	kwUSER:                true,
+	kwUSERS:               true,
+	kwVALUE:               true,
+	kwVARBINARY:           true,
+	kwVARIABLES:           true,
+	kwVECTOR:              true,
+	kwVERBOSE:             true,
+	kwVERSION:             true,
+	kwVIEW:                true,
+	kwVIEWS:               true,
+	kwVOLUME:              true,
+	kwVOLUMES:             true,
+	kwWAREHOUSE:           true,
+	kwWAREHOUSES:          true,
+	kwWARNINGS:            true,
+	kwWEEK:                true,
+	kwWHITELIST:           true,
+	kwWORK:                true,
+	kwWRITE:               true,
+	kwYEAR:                true,
+}
+
+// IsReserved reports whether kind is a reserved keyword that cannot be used as
+// an unquoted identifier.
+func IsReserved(kind TokenKind) bool {
+	if kind >= 700 && dorisOnlyKeywordKinds[kind] != "" {
+		return false
+	}
+	return kind >= 700 && !nonReservedKeywords[kind]
 }
 
 // KeywordToken returns the keyword TokenKind for a name, or (0, false)
 // if name is not a keyword. Lookup is case-insensitive.
 func KeywordToken(name string) (TokenKind, bool) {
-	kind, ok := keywordMap[strings.ToLower(name)]
+	lower := strings.ToLower(name)
+	if kind, ok := keywordMap[lower]; ok {
+		return kind, true
+	}
+	kind, ok := dorisOnlyKeywords[lower]
 	return kind, ok
-}
-
-// IsReserved reports whether kind is a reserved keyword that cannot be
-// used as an unquoted identifier.
-func IsReserved(kind TokenKind) bool {
-	return kind >= 700 && !nonReservedKeywords[kind]
 }
 
 // tokenNames maps a TokenKind to its display name. It is built at package
@@ -1462,9 +1439,12 @@ func IsReserved(kind TokenKind) bool {
 var tokenNames = buildTokenNames()
 
 func buildTokenNames() map[TokenKind]string {
-	m := make(map[TokenKind]string, len(keywordMap)+20)
+	m := make(map[TokenKind]string, len(keywordMap)+len(dorisOnlyKeywords)+20)
 	for name, k := range keywordMap {
 		m[k] = strings.ToUpper(name)
+	}
+	for kind, word := range dorisOnlyKeywordKinds {
+		m[kind] = strings.ToUpper(word)
 	}
 	m[tokEOF] = "EOF"
 	m[tokInvalid] = "INVALID"
@@ -1490,11 +1470,6 @@ func buildTokenNames() map[TokenKind]string {
 	m[tokDotDotDot] = "..."
 	m[tokHintStart] = "HINT_START"
 	m[tokHintEnd] = "HINT_END"
-	// Fix non-determinism for aliases that map multiple strings
-	// to the same TokenKind (e.g., "char"/"character" -> kwCHAR).
-	m[kwCHAR] = "CHAR"
-	m[kwTYPECAST] = "TYPECAST"
-	m[kwCONVERT_LSC] = "CONVERT_LSC"
 	return m
 }
 

@@ -126,7 +126,7 @@ func TestResolveQuerySpanTables(t *testing.T) {
 		},
 		{
 			name:      "table-valued function is not a table",
-			statement: "SELECT * FROM unnest(array(1, 2)) AS x",
+			statement: "SELECT * FROM unnest([1, 2]) AS x",
 			want:      nil,
 		},
 	}

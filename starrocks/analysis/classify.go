@@ -103,7 +103,6 @@ func init() {
 		"LOCK",
 		"UNLOCK",
 		"USE",
-		"WARM",
 		"PAUSE",
 		"RESUME",
 	)

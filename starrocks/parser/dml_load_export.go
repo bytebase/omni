@@ -59,14 +59,9 @@ func (p *Parser) parseTruncateTable() (ast.Node, error) {
 	return stmt, nil
 }
 
-// isIdentText checks whether cur is an identifier with the given lowercase text.
-// Used for pseudo-keywords like FILES and PATTERN that may appear as bare idents.
-func isIdentText(p *Parser, lower string) bool {
-	if p.cur.Kind == tokIdent || (p.cur.Kind >= 700 && !IsReserved(p.cur.Kind)) {
-		return strings.ToLower(p.cur.Str) == lower
-	}
-	return false
-}
+// isIdentText checks whether cur is the word, spelled in any case, for a word
+// the parser reads before it knows which clause it is in.
+func isIdentText(p *Parser, lower string) bool { return p.atWord(lower) }
 
 // parseStringList parses stringList (StarRocks.g4:2633):
 // '(' string (',' string)* ')'.
@@ -345,8 +340,15 @@ func (p *Parser) isLoadFormatPropsStart() bool {
 
 // loadFormatPropWord returns the formatProps word tok spells, or "".
 func loadFormatPropWord(tok Token) string {
-	if tok.Kind == kwESCAPE {
+	switch tok.Kind {
+	case kwESCAPE:
 		return "ESCAPE"
+	case kwSKIP_HEADER:
+		return "SKIP_HEADER"
+	case kwTRIM_SPACE:
+		return "TRIM_SPACE"
+	case kwENCLOSE:
+		return "ENCLOSE"
 	}
 	if tok.Kind == tokIdent {
 		switch w := strings.ToUpper(tok.Str); w {
