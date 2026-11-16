@@ -108,7 +108,7 @@ func connOptions(cfg driver.Config) (*clickhouse.Options, error) {
 	}
 
 	options := &clickhouse.Options{
-		Addr: []string{host + ":" + port},
+		Addr: []string{net.JoinHostPort(host, port)},
 		Auth: clickhouse.Auth{
 			Database: cfg.Database,
 			Username: cfg.User,

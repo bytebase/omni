@@ -157,6 +157,11 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 // in, and every statement takes the wrapper.
 func statementWithResultLimit(statement string, limit int) string {
 	wrapped := trimStatement(statement)
+	// Only a statement that can stand as a subquery takes the wrapper. A
+	// SHOW, DESCRIBE, INSERT or EXPLAIN is run as written.
+	if !isSubqueryable(wrapped) {
+		return statement
+	}
 	// A trailing line comment would swallow the wrapper's closing parenthesis.
 	if endsInLineComment(wrapped) {
 		wrapped += "\n"
@@ -164,12 +169,28 @@ func statementWithResultLimit(statement string, limit int) string {
 	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result LIMIT %d;", wrapped, limit)
 }
 
+// isSubqueryable reports whether statement can stand inside a CTE.
+func isSubqueryable(statement string) bool {
+	body := statementBody(statement)
+	if strings.HasPrefix(body, "(") {
+		return true
+	}
+	upper := strings.ToUpper(body)
+	for _, keyword := range []string{"SELECT", "WITH", "TABLE", "VALUES"} {
+		if startsWithKeyword(upper, keyword) {
+			return true
+		}
+	}
+	return false
+}
+
 // endsInLineComment reports whether statement ends inside a `--` comment,
 // reading strings, quoted identifiers and block comments so a `--` inside one
 // does not count.
 func endsInLineComment(statement string) bool {
 	runes := []rune(statement)
-	line, block, str, ident := false, false, false, false
+	line, block, str := false, false, false
+	var ident rune
 	for i := 0; i < len(runes); i++ {
 		c := runes[i]
 		switch {
@@ -188,9 +209,9 @@ func endsInLineComment(statement string) bool {
 			} else if c == '\'' {
 				str = false
 			}
-		case ident:
-			if c == '"' {
-				ident = false
+		case ident != 0:
+			if c == ident {
+				ident = 0
 			}
 		default:
 			switch {
@@ -202,8 +223,8 @@ func endsInLineComment(statement string) bool {
 				i++
 			case c == '\'':
 				str = true
-			case c == '"':
-				ident = true
+			case c == '"' || c == '`':
+				ident = c
 			}
 		}
 	}
@@ -251,6 +272,12 @@ func explainStatement(statement, format string) string {
 // ignoring leading comments and whitespace. It stands in for an AST check on an
 // engine whose parser lives outside this tree.
 func startsWithExplain(statement string) bool {
+	return startsWithKeyword(statementBody(statement), "EXPLAIN")
+}
+
+// statementBody is statement without its leading comments and whitespace, or
+// "" when a block comment is not closed.
+func statementBody(statement string) string {
 	s := statement
 	for {
 		s = strings.TrimLeft(s, " \t\r\n\v\f")
@@ -258,25 +285,17 @@ func startsWithExplain(statement string) bool {
 		case strings.HasPrefix(s, "--"):
 			_, rest, found := strings.Cut(s, "\n")
 			if !found {
-				return false
+				return ""
 			}
 			s = rest
 		case strings.HasPrefix(s, "/*"):
 			rest, closed := pastBlockComment(s)
 			if !closed {
-				return false
+				return ""
 			}
 			s = rest
 		default:
-			const explain = "EXPLAIN"
-			if len(s) < len(explain) || !strings.EqualFold(s[:len(explain)], explain) {
-				return false
-			}
-			if len(s) == len(explain) {
-				return true
-			}
-			c := s[len(explain)]
-			return c != '_' && c != '$' && (c < '0' || c > '9') && (c < 'a' || c > 'z') && (c < 'A' || c > 'Z') && c < 0x80
+			return s
 		}
 	}
 }
@@ -391,7 +410,14 @@ func removeQuotedTextAndComment(statement string) (string, error) {
 			start = i
 		case i < len(runes) && runes[i] == '"':
 			buf.WriteString(string(runes[start:i]))
-			if err := scanIdentifier(runes, &i); err != nil {
+			if err := scanIdentifier(runes, &i, '"'); err != nil {
+				return "", err
+			}
+			buf.WriteByte(' ')
+			start = i
+		case i < len(runes) && runes[i] == '`':
+			buf.WriteString(string(runes[start:i]))
+			if err := scanIdentifier(runes, &i, '`'); err != nil {
 				return "", err
 			}
 			buf.WriteByte(' ')
@@ -451,13 +477,13 @@ func scanString(runes []rune, i *int) error {
 	}
 }
 
-func scanIdentifier(runes []rune, i *int) error {
+func scanIdentifier(runes []rune, i *int, delimiter rune) error {
 	*i++
 	for {
 		switch {
 		case *i >= len(runes):
-			return errors.New("invalid indentifier: not found delimiter: \", but found EOF")
-		case runes[*i] == '"':
+			return fmt.Errorf("invalid indentifier: not found delimiter: %c, but found EOF", delimiter)
+		case runes[*i] == delimiter:
 			*i++
 			return nil
 		default:

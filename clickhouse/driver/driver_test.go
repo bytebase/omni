@@ -35,6 +35,18 @@ func TestConnOptionsDefaults(t *testing.T) {
 	}
 }
 
+func TestConnOptionsIPv6(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Host = "2001:db8::1"
+	options, err := connOptions(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := options.Addr, []string{"[2001:db8::1]:9000"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Addr = %v, want %v", got, want)
+	}
+}
+
 func TestConnOptionsParamsOverrideSettings(t *testing.T) {
 	cfg := baseConfig()
 	cfg.Database = "sales"
@@ -169,9 +181,34 @@ func TestStatementWithResultLimit(t *testing.T) {
 	if got, want := statementWithResultLimit("SELECT 1 -- note", 5), "WITH result AS (SELECT 1 -- note\n) SELECT * FROM result LIMIT 5;"; got != want {
 		t.Errorf("limit with a comment = %q, want %q", got, want)
 	}
+	if got, want := statementWithResultLimit("INSERT INTO t VALUES (1)", 5), "INSERT INTO t VALUES (1)"; got != want {
+		t.Errorf("limit on an insert = %q, want it unchanged", got)
+	}
+	if got, want := statementWithResultLimit("SHOW TABLES", 5), "SHOW TABLES"; got != want {
+		t.Errorf("limit on SHOW = %q, want it unchanged", got)
+	}
+	if got, want := statementWithResultLimit("SELECT `a--b`", 5), "WITH result AS (SELECT `a--b`) SELECT * FROM result LIMIT 5;"; got != want {
+		t.Errorf("limit with a backtick = %q, want %q", got, want)
+	}
 	for _, statement := range []string{"SELECT '--'", "SELECT \"--\"", "SELECT 1 /* -- */", "SELECT 1 -- note\n"} {
 		if got := statementWithResultLimit(statement, 5); strings.Contains(got, "-- note\n\n") || !strings.HasSuffix(got, "LIMIT 5;") {
 			t.Errorf("limit(%q) = %q", statement, got)
+		}
+	}
+}
+
+func TestSplitKeyExpressions(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want []string
+	}{
+		{"id", []string{"id"}},
+		{"id, name", []string{"id", "name"}},
+		{"a, tuple(b, c), d", []string{"a", "tuple(b, c)", "d"}},
+		{"f('x,y'), `a,b`", []string{"f('x,y')", "`a,b`"}},
+	} {
+		if got := splitKeyExpressions(tc.in); !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("splitKeyExpressions(%q) = %q, want %q", tc.in, got, tc.want)
 		}
 	}
 }
@@ -213,6 +250,8 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"EXISTS TABLE q", true},
 		{"CHECK TABLE q", true},
 		{"SHOW TABLES; DROP TABLE q", false},
+		{"SELECT `a--b` FROM t", true},
+		{"SELECT `a;b` FROM t", true},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {

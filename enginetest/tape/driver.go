@@ -90,7 +90,7 @@ func (s *session) reproduces() {
 		if s.got[i].req.render() != s.want[i].req.render() {
 			return
 		}
-		was, now := s.spelledNow(s.want[i].ans), s.got[i].ans
+		was, now := normalizedAnswer(s.spelledNow(s.want[i].ans)), normalizedAnswer(s.got[i].ans)
 		normalizeScans(&was, &now)
 		if was.render() != now.render() {
 			s.t.Errorf("stream %q: the engine answered request %d (%s) differently than the committed tape. Make the test's requests deterministic, or pin what varies.\nwas:\n%snow:\n%s",
@@ -111,6 +111,18 @@ func (s *session) spelledNow(a answer) answer {
 		a.err = text
 	}
 	return a
+}
+
+// normalizedAnswer copies the column slices, so comparison can normalize a
+// scan type without changing the answer a recording holds or writes.
+func normalizedAnswer(a answer) answer {
+	out := a
+	out.sets = make([]resultSet, len(a.sets))
+	for i, set := range a.sets {
+		out.sets[i] = set
+		out.sets[i].cols = append([]column(nil), set.cols...)
+	}
+	return out
 }
 
 // normalizeScans clears a scan type one answer names and the other does not, so

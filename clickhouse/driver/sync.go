@@ -224,7 +224,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		}
 		table.Indexes = indexes
 		if row.primaryKey != "" {
-			primaryKeys := strings.Split(row.primaryKey, ", ")
+			primaryKeys := splitKeyExpressions(row.primaryKey)
 			// ClickHouse keeps primary keys in system.tables rather than in an
 			// index, so they are recorded as one to fit the metadata design.
 			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
@@ -233,7 +233,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			})
 		}
 		if row.sortingKey != "" {
-			table.SortingKeys = strings.Split(row.sortingKey, ", ")
+			table.SortingKeys = splitKeyExpressions(row.sortingKey)
 		}
 		schemaMetadata.Tables = append(schemaMetadata.Tables, table)
 	}
@@ -242,6 +242,46 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		Name:    databaseName,
 		Schemas: []*metadatapb.SchemaMetadata{schemaMetadata},
 	}, nil
+}
+
+// splitKeyExpressions splits ClickHouse's comma-separated sorting key, primary
+// key and index expressions at top-level commas only: a function or tuple keeps
+// its own commas.
+func splitKeyExpressions(s string) []string {
+	runes := []rune(s)
+	var out []string
+	start, depth := 0, 0
+	var quote rune
+	for i := 0; i < len(runes); i++ {
+		c := runes[i]
+		switch {
+		case quote != 0:
+			if c == '\\' && quote == '\'' {
+				i++
+			} else if c == quote {
+				quote = 0
+			}
+		case c == '\'' || c == '"' || c == '`':
+			quote = c
+		case c == '(' || c == '[' || c == '{':
+			depth++
+		case c == ')' || c == ']' || c == '}':
+			if depth > 0 {
+				depth--
+			}
+		case c == ',' && depth == 0:
+			out = append(out, strings.TrimSpace(string(runes[start:i])))
+			start = i + 1
+		}
+	}
+	out = append(out, strings.TrimSpace(string(runes[start:])))
+	var expressions []string
+	for _, expression := range out {
+		if expression != "" {
+			expressions = append(expressions, expression)
+		}
+	}
+	return expressions
 }
 
 // syncDatabaseName is Config.Database, or the connection's own database when
@@ -289,7 +329,7 @@ func (d *Driver) getDataSkippingIndices(ctx context.Context, database, table str
 		); err != nil {
 			return nil, err
 		}
-		index.Expressions = strings.Split(expr, ", ")
+		index.Expressions = splitKeyExpressions(expr)
 		indices = append(indices, index)
 	}
 	if err := rows.Err(); err != nil {

@@ -244,6 +244,17 @@ func TestQueryError(t *testing.T) {
 	}
 }
 
+func TestQueryLimitInsert(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "INSERT INTO q (id) VALUES (4)", driver.QueryOptions{Limit: 1})
+	if len(results) != 1 || results[0].Err != nil {
+		t.Fatalf("results = %+v", results)
+	}
+	if results[0].AffectedRows == nil {
+		t.Errorf("Statement = %q, want the insert run as written", results[0].Statement)
+	}
+}
+
 func TestQueryMaxResultBytes(t *testing.T) {
 	d := setupQuery(t)
 	results := query(t, d, "SELECT * FROM q ORDER BY id", driver.QueryOptions{MaxResultBytes: 100})

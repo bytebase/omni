@@ -763,6 +763,12 @@ func TestReproducesAllowsANewScanType(t *testing.T) {
 	if len(f.errs) != 0 {
 		t.Fatalf("reproduces reported %q", f.errs)
 	}
+	if got := s.want[0].ans.sets[0].cols[0].scan; got != "" {
+		t.Errorf("reproduces changed the committed answer's scan type to %q", got)
+	}
+	if got := s.got[0].ans.sets[0].cols[0].scan; got != "int64" {
+		t.Errorf("reproduces changed the recording's scan type to %q", got)
+	}
 }
 
 func TestParseRejects(t *testing.T) {
