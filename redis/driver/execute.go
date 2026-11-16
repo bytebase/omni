@@ -1,0 +1,40 @@
+package driver
+
+import (
+	"context"
+	"errors"
+
+	"github.com/redis/go-redis/v9"
+
+	"github.com/bytebase/omni/driver"
+)
+
+// Execute runs every command of script in order, one command per line, as one
+// pipeline, and returns the rows they affected, which is 0: a Redis command
+// reports no row count.
+//
+// A command the server refuses ends the script with its error. Execute runs each
+// command whatever opts.Transaction, opts.Isolation and opts.MaxRetries say,
+// because Redis has no multi-statement transaction and no lock timeout to retry,
+// and reports nothing to opts.Log, as Bytebase's driver logged none of a
+// script's commands.
+func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
+	if opts.CreateDatabase {
+		return 0, errors.New("redis: cannot create database")
+	}
+
+	inputs, _, err := splitCommands(script)
+	if err != nil {
+		return 0, err
+	}
+	cmds, err := d.client.Do(ctx, inputs)
+	if err != nil {
+		return 0, err
+	}
+	for _, cmd := range cmds {
+		if cmd.Err() != nil && cmd.Err() != redis.Nil {
+			return 0, cmd.Err()
+		}
+	}
+	return 0, nil
+}

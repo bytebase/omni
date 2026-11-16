@@ -1,0 +1,11 @@
+-- pin: driver redis:7.4.12-alpine sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe 7.4.12
+
+== TestExecute driver#1
+> raw
+| {"login":{},"op":"Do","commands":[["SET","greeting","hello"],["INCR","counter"]]}
+< raw
+| {"commands":[{"value":{"kind":"string","string":"OK"}},{"value":{"kind":"int","int":1}}]}
+> raw
+| {"login":{},"op":"Do","commands":[["GET","greeting"],["GET","counter"]]}
+< raw
+| {"commands":[{"value":{"kind":"string","string":"hello"}},{"value":{"kind":"string","string":"1"}}]}
