@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<!-- The pinned HiveServer2's hive-site.xml, mounted beside the image's own
+     configuration.
+
+     Hive 4 translates a CREATE TABLE into an external table, which leaves the
+     managed-table branch of the driver's sync (partitions, row count, data
+     size) with no fixture. Disabling strict managed tables lets
+     ALTER TABLE ... SET TBLPROPERTIES('EXTERNAL'='FALSE') store a managed
+     table, and the warehouse stays on the container's own filesystem rather
+     than the hdfs:///user/hive/warehouse this image has no HDFS for. -->
+<configuration>
+  <property>
+    <name>hive.strict.managed.tables</name>
+    <value>false</value>
+  </property>
+  <property>
+    <name>hive.metastore.warehouse.dir</name>
+    <value>file:/opt/hive/data/warehouse</value>
+  </property>
+</configuration>
