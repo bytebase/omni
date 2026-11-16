@@ -174,9 +174,15 @@ func parseValueType(value any, typeName string) driver.Value {
 		if i, ok := value.(int64); ok {
 			return driver.Value{Kind: driver.Int64, Int64: i}
 		}
-	case "DOUBLE_TYPE", "DOUBLE", "FLOAT_TYPE", "FLOAT":
+	case "DOUBLE_TYPE", "DOUBLE":
 		if f, ok := value.(float64); ok {
-			return driver.Value{Kind: driver.String, String: strconv.FormatFloat(f, 'f', 20, 64)}
+			return driver.Value{Kind: driver.Float64, Float64: f}
+		}
+	case "FLOAT_TYPE", "FLOAT":
+		if f, ok := value.(float64); ok {
+			// FLOAT is four bytes on the server; gohive decodes every number as a
+			// float64, so narrow it to the value Hive stored.
+			return driver.Value{Kind: driver.Float32, Float64: float64(float32(f))}
 		}
 	case "BINARY_TYPE", "BINARY":
 		if b, ok := value.([]byte); ok {

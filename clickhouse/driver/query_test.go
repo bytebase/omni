@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/go-cmp/cmp"
 
@@ -114,9 +115,9 @@ func TestQuery(t *testing.T) {
 		{Kind: driver.Float64, Float64: 2.5},
 		{Kind: driver.String, String: "a"},
 		{Kind: driver.Bool, Bool: true},
-		{Kind: driver.String, String: "2026-03-04T00:00:00Z"},
-		{Kind: driver.String, String: "2026-03-04T05:06:07Z"},
-		{Kind: driver.String, String: "2026-03-04T05:06:07.891Z"},
+		{Kind: driver.Timestamp, Time: time.Date(2026, 3, 4, 0, 0, 0, 0, time.UTC)},
+		{Kind: driver.TimestampTZ, Time: time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)},
+		{Kind: driver.TimestampTZ, Time: time.Date(2026, 3, 4, 5, 6, 7, 891000000, time.UTC), Precision: 3},
 		{Kind: driver.Int32, Int64: 42},
 		{Kind: driver.String, String: "abcd"},
 	}
@@ -197,6 +198,9 @@ func TestQueryExplain(t *testing.T) {
 	if results[0].Err != nil {
 		t.Fatalf("explain failed: %v", results[0].Err)
 	}
+	if results[0].Plan == nil || results[0].Plan.Format != "TEXT" || results[0].Plan.Executed {
+		t.Errorf("Plan = %+v, want a TEXT plan that did not run", results[0].Plan)
+	}
 	if len(results[0].Rows) == 0 {
 		t.Error("explain returned no rows")
 	}
@@ -214,8 +218,35 @@ func TestQueryExplainJSON(t *testing.T) {
 	if results[0].Err != nil {
 		t.Fatalf("explain failed: %v", results[0].Err)
 	}
+	if results[0].Plan == nil || results[0].Plan.Format != "JSON" {
+		t.Errorf("Plan = %+v, want JSON", results[0].Plan)
+	}
 	if len(results[0].Rows) == 0 {
 		t.Error("explain returned no rows")
+	}
+}
+
+func TestQueryExplainPreserved(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "EXPLAIN SELECT id FROM q;\nEXPLAIN json = 1, indexes = 1 SELECT id FROM q;\nEXPLAIN PLAN json = 1 SELECT id FROM q;\nEXPLAIN json = 0 SELECT id FROM q",
+		driver.QueryOptions{Explain: true, ExplainFormat: "JSON"})
+	if len(results) != 4 {
+		t.Fatalf("results = %d, want 4", len(results))
+	}
+	if results[0].Statement != "EXPLAIN SELECT id FROM q;" {
+		t.Errorf("text explain was rewritten: %q", results[0].Statement)
+	}
+	if results[0].Plan == nil || results[0].Plan.Format != "TEXT" {
+		t.Errorf("text plan = %+v, want TEXT", results[0].Plan)
+	}
+	if results[1].Plan == nil || results[1].Plan.Format != "JSON" {
+		t.Errorf("json plan = %+v, want JSON", results[1].Plan)
+	}
+	if results[2].Plan == nil || results[2].Plan.Format != "JSON" {
+		t.Errorf("PLAN with json = 1 = %+v, want JSON", results[2].Plan)
+	}
+	if results[3].Plan == nil || results[3].Plan.Format != "TEXT" {
+		t.Errorf("json = 0 = %+v, want TEXT", results[3].Plan)
 	}
 }
 
