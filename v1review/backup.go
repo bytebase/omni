@@ -6,7 +6,8 @@ package v1review
 // writes to exists. Both arrive in a PriorBackupFacts, so no connection
 // crosses the contract. Oracle's LONG/LONG RAW warning reads the pre-change
 // snapshot instead, through the v1review.Schema every rule that looks
-// something up already receives.
+// something up already receives. A condition an engine judges from SQL alone
+// gets a code here; none of them needs another fact.
 const (
 	// PriorBackupScriptTooLarge: the reviewed SQL is larger than a prior
 	// backup can take. Value holds the limit in bytes, as the V1 advisor
@@ -31,7 +32,8 @@ const (
 	// PriorBackupMixedDMLOnTable: the reviewed statements change one table
 	// with more than one kind of DML. Table holds the table as the V1 advisor
 	// printed it, qualified by every name it resolved: "database.table" for
-	// MySQL, "schema.table" for Oracle, "database.schema.table" for MSSQL.
+	// MySQL, "schema.table" for Oracle and PostgreSQL, "database.schema.table"
+	// for MSSQL. TiDB printed MySQL's qualifiers lower-cased.
 	PriorBackupMixedDMLOnTable Code = "prior-backup-mixed-dml-on-table"
 	// PriorBackupUncopyableColumn: a table the reviewed statements change has
 	// a column a backup cannot copy: Oracle's LONG and LONG RAW, which CREATE
@@ -39,6 +41,20 @@ const (
 	// the V1 advisor printed them, and Value the column names as it printed
 	// them, each double-quoted and separated by ", ".
 	PriorBackupUncopyableColumn Code = "prior-backup-uncopyable-column"
+	// PriorBackupDataModifyingCTE: a statement holds a WITH query that changes
+	// data, so a prior backup cannot save the rows it changes. Value holds the
+	// CTE names as the PostgreSQL V1 advisor printed them, each double-quoted
+	// and separated by ", ". The V1 advisor worded the advice differently for
+	// an UPDATE or DELETE, which the backup task rejects, and for any other
+	// statement, whose rows it merely does not cover; the caller reads that
+	// from the statement.
+	PriorBackupDataModifyingCTE Code = "prior-backup-data-modifying-cte"
+	// PriorBackupTooManyDMLStatements: the reviewed batch changes rows in more
+	// statements than a prior backup groups into one backup. Value holds the
+	// limit, as the V1 advisor printed it. TiDB's backup transformer routes
+	// that many statements into a single-table backup, so a batch above the
+	// limit that spans more than one table is rejected at run time.
+	PriorBackupTooManyDMLStatements Code = "prior-backup-too-many-dml-statements"
 )
 
 // PriorBackupFacts is what Bytebase resolves for a prior-backup check: what
