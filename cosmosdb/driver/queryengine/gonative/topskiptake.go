@@ -2,9 +2,9 @@ package gonative
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 
-	"errors"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos/queryengine"
 )
 

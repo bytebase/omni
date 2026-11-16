@@ -7,11 +7,10 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/bytebase/omni/cosmosdb/internal/testcontainer"
 	"github.com/bytebase/omni/driver"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // newDriver returns a driver whose client is t's tape: a replay of the pinned

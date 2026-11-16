@@ -16,7 +16,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	azruntime "github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
-
 	"github.com/bytebase/omni/cosmosdb/internal/testcontainer"
 	"github.com/bytebase/omni/driver"
 	"github.com/bytebase/omni/enginetest/tape"

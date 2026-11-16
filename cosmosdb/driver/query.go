@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/bytebase/omni/cosmosdb"
-
 	"github.com/bytebase/omni/driver"
 )
 
@@ -69,7 +68,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 				{Kind: driver.String, String: string(item)},
 			})
 		}
-	case asContainerOpenError(err) != nil:
+	case isContainerOpenError(err):
+		// The container the query names did not open, and its own failure is
+		// the one to report.
 		result.Err = err
 	default:
 		result.Err = fmt.Errorf("failed to read more items: %w", err)
@@ -99,12 +100,9 @@ func queryEveryPartition(ctx context.Context, c Client, req PageRequest) (PageAn
 	return c.Page(ctx, req)
 }
 
-// asContainerOpenError returns the container the driver could not open, or nil
-// for any other error.
-func asContainerOpenError(err error) error {
+// isContainerOpenError reports whether err is the container the driver could
+// not open, whose message the query reports as its own.
+func isContainerOpenError(err error) bool {
 	var openErr *containerOpenError
-	if errors.As(err, &openErr) {
-		return openErr
-	}
-	return nil
+	return errors.As(err, &openErr)
 }

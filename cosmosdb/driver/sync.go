@@ -3,9 +3,8 @@ package driver
 import (
 	"context"
 
-	metadatapb "github.com/bytebase/omni/metadata"
-
 	"github.com/bytebase/omni/driver"
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // SyncInstance syncs the instance meta: the account's databases, without their

@@ -10,7 +10,6 @@ import (
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
-
 	"github.com/bytebase/omni/cosmosdb/driver/queryengine/gonative"
 )
 

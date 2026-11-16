@@ -3,11 +3,11 @@ package gonative
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
-	"errors"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos/queryengine"
 )
 

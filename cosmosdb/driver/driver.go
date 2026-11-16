@@ -67,7 +67,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
-
 	"github.com/bytebase/omni/driver"
 )
 
@@ -118,14 +117,14 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 // azcosmos client, with the emulator's REST listing when the caller named the
 // emulator. Open is this client with the account and database kept.
 func NewClient(cfg driver.Config) (Client, error) {
-	transport, err := newTransport(cfg)
+	httpClient, err := newHTTPClient(cfg)
 	if err != nil {
 		return nil, err
 	}
 	var options *azcosmos.ClientOptions
-	if transport != nil {
+	if httpClient != nil {
 		options = &azcosmos.ClientOptions{
-			ClientOptions: azcore.ClientOptions{Transport: transport},
+			ClientOptions: azcore.ClientOptions{Transport: httpClient},
 		}
 	}
 
@@ -169,7 +168,7 @@ func NewClient(cfg driver.Config) (Client, error) {
 		// The metadata listings below go over the emulator's REST API, whose
 		// queries do not run through the client's query path. Its own
 		// transport is the one the account client uses.
-		rest, restErr := newEmulatorRESTClient(cfg, transport)
+		rest, restErr := newEmulatorRESTClient(cfg, httpClient)
 		if restErr != nil {
 			return nil, restErr
 		}
@@ -187,9 +186,9 @@ func isEmulator(cfg driver.Config) bool {
 	return false
 }
 
-// newTransport returns the HTTP transport the account is reached over, or nil
+// newHTTPClient returns the HTTP client the account is reached over, or nil
 // for the client's own.
-func newTransport(cfg driver.Config) (*http.Client, error) {
+func newHTTPClient(cfg driver.Config) (*http.Client, error) {
 	if cfg.TLS == nil && cfg.Dial == nil {
 		return nil, nil
 	}

@@ -6,10 +6,9 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/bytebase/omni/cosmosdb/internal/testcontainer"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/bytebase/omni/cosmosdb/internal/testcontainer"
 )
 
 // The multi-page fixture: the queries whose results a range can only deliver

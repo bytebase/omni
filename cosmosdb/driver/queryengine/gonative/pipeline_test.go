@@ -10,10 +10,9 @@ import (
 	"testing"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos/queryengine"
+	"github.com/bytebase/omni/cosmosdb/driver/queryengine/gonative"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/bytebase/omni/cosmosdb/driver/queryengine/gonative"
 )
 
 // mustReadFile loads a fixture path and fails the test on error.

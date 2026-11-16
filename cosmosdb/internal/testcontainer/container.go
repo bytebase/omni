@@ -44,16 +44,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
+	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
+	"github.com/bytebase/omni/enginetest"
+	"github.com/bytebase/omni/enginetest/tape"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
-	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos"
-
-	"github.com/bytebase/omni/enginetest"
-	"github.com/bytebase/omni/enginetest/tape"
 )
 
 // Pins is cosmosdb/testdata/pins.tsv.
