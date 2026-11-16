@@ -17,13 +17,14 @@ type recorder struct {
 }
 
 type response struct {
-	affected int64
-	err      error
+	affected  int64
+	perResult []int64
+	err       error
 }
 
 func (r *recorder) CommandExecute(command driver.Command) { r.commands = append(r.commands, command) }
-func (r *recorder) CommandResponse(affected int64, _ []int64, err error) {
-	r.responses = append(r.responses, response{affected: affected, err: err})
+func (r *recorder) CommandResponse(affected int64, perResult []int64, err error) {
+	r.responses = append(r.responses, response{affected: affected, perResult: perResult, err: err})
 }
 func (r *recorder) TransactionControl(op driver.TransactionOp, _ error) {
 	r.transactions = append(r.transactions, op)
@@ -51,24 +52,27 @@ func TestExecuteLogsParseFailure(t *testing.T) {
 }
 
 // TestExecute runs the statements of a script in order, logs each, and reports
-// the state they left: MongoDB reports no affected-row count, and the driver
-// does not read the one a write answers with.
+// the state they left.
 func TestExecute(t *testing.T) {
 	d := openDriver(t, testDatabase)
 	log := &recorder{}
 	script := "db.users.insertMany([{_id: 1, name: \"alice\"}]);\ndb.users.createIndex({name: 1}, {unique: true});\ndb.users.updateOne({_id: 1}, {$set: {name: \"alice\", age: 30}});"
 	affected, err := d.Execute(context.Background(), script, driver.ExecuteOptions{Log: log})
 	require.NoError(t, err)
-	require.Zero(t, affected)
+	// One document inserted and one modified; a createIndex counts nothing.
+	require.Equal(t, int64(2), affected)
 
 	require.Len(t, log.commands, 3)
 	require.Equal(t, "db.users.insertMany([{_id: 1, name: \"alice\"}]);", log.commands[0].Text)
 	require.Equal(t, 0, log.commands[0].ByteStart)
 	require.Equal(t, len(log.commands[0].Text), log.commands[0].ByteEnd)
 	require.Len(t, log.responses, 3)
+	require.Equal(t, []int64{1}, log.responses[0].perResult)
+	require.Equal(t, int64(1), log.responses[0].affected)
+	require.Equal(t, []int64{0}, log.responses[1].perResult)
+	require.Equal(t, []int64{1}, log.responses[2].perResult)
 	for _, response := range log.responses {
 		require.NoError(t, response.err)
-		require.Zero(t, response.affected)
 	}
 
 	results := query(t, d, "db.users.find()", driver.QueryOptions{})
@@ -78,9 +82,11 @@ func TestExecute(t *testing.T) {
 
 	// A statement that fails ends the script with its error, so the statement
 	// after it never runs.
+	// The rows the statements before the failure affected come back with its
+	// error.
 	affected, err = d.Execute(context.Background(), "db.users.insertOne({_id: 2});\ndb.users.insertOne({_id: 1});\ndb.users.insertOne({_id: 3});", driver.ExecuteOptions{})
 	require.ErrorContains(t, err, "E11000 duplicate key error")
-	require.Zero(t, affected)
+	require.Equal(t, int64(1), affected)
 	after := query(t, d, "db.users.find()", driver.QueryOptions{})
 	require.Len(t, after, 1)
 	require.Len(t, after[0].Rows, 2)

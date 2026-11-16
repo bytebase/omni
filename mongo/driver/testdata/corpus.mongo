@@ -21,3 +21,4 @@ db.nested.insertOne({_id: 1, doc: {a: [1, 2], b: "x"}, list: [{k: 1}, {k: 2}]});
 db.runCommand({create: "v_adults", viewOn: "users", pipeline: [{$match: {age: {$gte: 18}}}]}); // not restorable: TestDumpGaps
 db.createCollection("sessions");
 db.sessions.createIndex({created_at: 1}, {expireAfterSeconds: 3600}); // not restorable: TestDumpGaps
+db.runCommand({create: "telemetry", timeseries: {timeField: "at", metaField: "sensor", granularity: "seconds"}}); // not restorable: TestDumpGaps

@@ -11,6 +11,8 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	"go.mongodb.org/mongo-driver/v2/bson"
+
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -66,6 +68,29 @@ db.runCommand({create: "v_adults", viewOn: "users", pipeline: [{$match: {age: {$
 		require.Len(t, source.GetSchemas()[0].GetViews(), 1)
 		if len(restored.GetSchemas()[0].GetViews()) > 0 {
 			t.Fatal("restore created the view; if the gap closed, remove it")
+		}
+	})
+
+	t.Run("time-series collection", func(t *testing.T) {
+		const setup = `db.runCommand({create: "telemetry", timeseries: {timeField: "at", metaField: "sensor", granularity: "seconds"}});`
+		d, client := openDriverWithClient(t, testDatabase)
+		source, _, err := dumpAndRestore(t, d, testDatabase, "omni_restored", setup)
+		require.NoError(t, err)
+		var names []string
+		for _, table := range source.GetSchemas()[0].GetTables() {
+			names = append(names, table.GetName())
+		}
+		require.Contains(t, names, "telemetry", "a time-series collection is synced")
+		collections, err := client.ListCollections(context.Background(), "omni_restored")
+		require.NoError(t, err)
+		for _, collection := range collections {
+			if collection["name"] != "telemetry" {
+				continue
+			}
+			options, _ := collection["options"].(bson.M)
+			if _, ok := options["timeseries"]; ok {
+				t.Fatalf("restore kept the time-series options; if the gap closed, remove it: %v", collection)
+			}
 		}
 	})
 
