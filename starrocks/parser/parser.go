@@ -576,13 +576,14 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwCALL:
 		return p.parseCallProcedure()
 
-	// Load / Export / Copy
+	// Load / Export. StarRocks has no COPY statement: StarRocks.g4 has no
+	// COPY rule and the pinned 3.4.10 server answers "COPY INTO t FROM
+	// @stage" with a syntax error at COPY. The fork inherited Doris's COPY
+	// INTO; it is not read here.
 	case kwLOAD:
 		return p.parseLoad()
 	case kwEXPORT:
 		return p.parseExport()
-	case kwCOPY:
-		return p.parseCopyInto()
 
 	// Transaction
 	case kwBEGIN:

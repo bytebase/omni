@@ -62,6 +62,12 @@ func (c *tapeClient) Ping(ctx context.Context) error {
 	return err
 }
 
+// Close sends a close.
+func (c *tapeClient) Close() error {
+	_, err := c.do(context.Background(), request{Op: opClose})
+	return err
+}
+
 // ListDatabases returns the account's database names.
 func (c *tapeClient) ListDatabases(ctx context.Context) ([]string, error) {
 	a, err := c.do(ctx, request{Op: opListDatabases})
@@ -124,6 +130,7 @@ func (c *tapeClient) do(_ context.Context, r request) (answer, error) {
 // The calls the driver makes of its client, as a tape names them.
 const (
 	opPing           = "Ping"
+	opClose          = "Close"
 	opListDatabases  = "ListDatabases"
 	opListContainers = "ListContainers"
 	opPage           = "Page"
@@ -161,8 +168,17 @@ type answer struct {
 // type and the same text a recording's error had: the driver reads a
 // cross-partition refusal off both, and a test reads the status off either.
 type clientError struct {
-	Response *responseError `json:"response,omitempty"`
-	Message  string         `json:"message,omitempty"`
+	Response *responseError  `json:"response,omitempty"`
+	Emulator *emulatorStatus `json:"emulator,omitempty"`
+	Message  string          `json:"message,omitempty"`
+}
+
+// emulatorStatus is a failed emulator REST call as a tape holds it: the status
+// and body its text is made of, so a replay's error is the same type the live
+// client returns.
+type emulatorStatus struct {
+	StatusCode int    `json:"statusCode"`
+	Body       string `json:"body,omitempty"`
 }
 
 // responseError is an *azcore.ResponseError as a tape holds it: the fields that
@@ -177,6 +193,9 @@ type responseError struct {
 }
 
 func (e *clientError) err() error {
+	if e.Emulator != nil {
+		return &emulatorHTTPError{StatusCode: e.Emulator.StatusCode, Body: e.Emulator.Body}
+	}
 	if e.Response == nil {
 		return errors.New(e.Message)
 	}
@@ -194,6 +213,13 @@ func (e *clientError) err() error {
 // encodeError renders err as an answer's error half. A gateway error keeps the
 // response behind its text; any other error is its text alone.
 func encodeError(err error) *clientError {
+	var restErr *emulatorHTTPError
+	if errors.As(err, &restErr) {
+		return &clientError{Emulator: &emulatorStatus{
+			StatusCode: restErr.StatusCode,
+			Body:       activityID.ReplaceAllString(restErr.Body, "ActivityId: 00000000-0000-0000-0000-000000000000"),
+		}}
+	}
 	var responseErr *azcore.ResponseError
 	if !errors.As(err, &responseErr) || responseErr.RawResponse == nil {
 		return &clientError{Message: err.Error()}
@@ -292,6 +318,8 @@ func live(t testing.TB, emulator bool, text string) (string, error) {
 	switch req.Op {
 	case opPing:
 		err = c.Ping(ctx)
+	case opClose:
+		err = c.Close()
 	case opListDatabases:
 		a.Listing, err = c.ListDatabases(ctx)
 	case opListContainers:

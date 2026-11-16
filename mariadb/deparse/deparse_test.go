@@ -594,20 +594,18 @@ func TestDeparse_Section_3_5_WindowFunctions(t *testing.T) {
 	}
 }
 
-func TestDeparse_Section_3_6_OperatorToFunctionRewrites(t *testing.T) {
+// MariaDB keeps an operator an operator: REGEXP prints as `regexp`, where MySQL
+// 8.0 rewrites it to regexp_like(), and there is no -> or ->> to rewrite into
+// JSON_EXTRACT() because the parser reads no arrow (mariadb/parser/expr.go).
+func TestDeparse_Section_3_6_OperatorAliases(t *testing.T) {
 	cases := []struct {
 		name     string
 		input    string
 		expected string
 	}{
-		// REGEXP → regexp_like()
 		{"regexp", "a REGEXP 'pattern'", "`a` regexp 'pattern'"},
-		// NOT REGEXP → (not(regexp_like()))
+		// NOT REGEXP prints as the negation of the operator.
 		{"not_regexp", "a NOT REGEXP 'p'", "!(`a` regexp 'p')"},
-		// -> → json_extract()
-		{"json_extract", "a->'$.key'", "json_extract(`a`,'$.key')"},
-		// ->> → json_unquote(json_extract())
-		{"json_unquote", "a->>'$.key'", "json_unquote(json_extract(`a`,'$.key'))"},
 	}
 
 	for _, tc := range cases {

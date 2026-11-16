@@ -44,11 +44,12 @@
 // and Cosmos DB has no statement form that opens another one, so the container
 // is the query's scope rather than a name inside its text.
 //
-// QueryOptions.Explain, QueryOptions.MaskingEnabled and
-// QueryOptions.MaxResultBytes do nothing: the container API has no plan to ask
-// for, a row is one TEXT column of JSON with nothing to mask, and Bytebase's
-// driver never capped a result's bytes. QueryOptions.Limit caps the rows the
-// driver reads and is also the query's page size below 1000 rows.
+// QueryOptions.Explain and QueryOptions.MaskingEnabled do nothing: the
+// container API has no plan to ask for, and a row is one TEXT column of JSON
+// with nothing to mask. QueryOptions.Limit caps the rows the driver reads and
+// is also the query's page size below 1000 rows; QueryOptions.MaxResultBytes
+// caps the bytes it hands back, over the rows a page already delivered, since
+// the client's pager reads a page at a time.
 //
 // A query can fail at the gateway with the gateway's own error, which is an
 // *azcore.ResponseError: a cross-partition query the gateway refuses is
@@ -225,8 +226,7 @@ func (d *Driver) Ping(ctx context.Context) error {
 	return nil
 }
 
-// Close closes the driver. The client holds no session to release, so this
-// releases nothing, as Bytebase's driver did.
-func (*Driver) Close() error {
-	return nil
+// Close closes the driver and the connections its client opened.
+func (d *Driver) Close() error {
+	return d.client.Close()
 }

@@ -1,8 +1,11 @@
 package gonative
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azcosmos/queryengine"
 )
@@ -32,13 +35,62 @@ func parseDistinctPartitionResponse(raw []byte) (*distinctPartitionResponse, err
 // The approach: unmarshal into `any`, which turns objects into map[string]any,
 // then re-marshal — Go's encoding/json sorts map keys alphabetically in that
 // path, which gives us the canonical ordering for free.
+//
+// Numbers are decoded as their own text and canonicalized by value, because a
+// float64 cannot hold every integer Cosmos stores: 9007199254740992 and
+// 9007199254740993 both round to the same double, which would collapse two
+// DISTINCT values and two GROUP BY groups into one.
 func canonicalJSON(raw json.RawMessage) ([]byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
 	var v any
-	if err := json.Unmarshal(raw, &v); err != nil {
+	if err := dec.Decode(&v); err != nil {
 		return nil, fmt.Errorf("gonative: canonicalize: %w", err)
 	}
-	return json.Marshal(v)
+	return json.Marshal(canonicalValue(v))
 }
+
+// canonicalValue replaces every number in v with its canonical text, so that
+// the map keys and array entries around it marshal unchanged.
+func canonicalValue(v any) any {
+	switch x := v.(type) {
+	case json.Number:
+		return canonicalNumber(x)
+	case []any:
+		for i := range x {
+			x[i] = canonicalValue(x[i])
+		}
+		return x
+	case map[string]any:
+		for k := range x {
+			x[k] = canonicalValue(x[k])
+		}
+		return x
+	}
+	return v
+}
+
+// canonicalNumber renders a number by value, so that the forms a store may hold
+// one value in meet: an integer is spelled in its digits, a double that holds a
+// whole number is spelled the same way, and any other double in the shortest
+// form that reads back as itself. Two integers the double format cannot tell
+// apart stay apart, since each is read from its own digits.
+func canonicalNumber(n json.Number) json.Number {
+	if i, err := n.Int64(); err == nil {
+		return json.Number(strconv.FormatInt(i, 10))
+	}
+	f, err := strconv.ParseFloat(n.String(), 64)
+	if err != nil {
+		return n
+	}
+	if f == math.Trunc(f) && f >= -twoPow63 && f < twoPow63 {
+		return json.Number(strconv.FormatInt(int64(f), 10))
+	}
+	return json.Number(strconv.FormatFloat(f, 'g', -1, 64))
+}
+
+// twoPow63 is 2^63, the first whole number an int64 cannot hold.
+const twoPow63 = 9223372036854775808.0
 
 // distinctPipeline implements queryengine.QueryPipeline for unordered DISTINCT
 // queries. It streams raw documents in the order partitions deliver them and

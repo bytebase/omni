@@ -120,6 +120,32 @@ func TestFeedAggregatePartial_SkipsAnAbsentPartial(t *testing.T) {
 	assert.Nil(t, out)
 }
 
+// SUM over a field a partition holds no number for is undefined over the whole
+// container: the service's own SumAggregator makes an undefined partial poison
+// the total rather than adding up the partitions that do hold numbers.
+func TestSumAgg_AbsentPartialMakesTheTotalUndefined(t *testing.T) {
+	a := newAggregator("Sum")
+	require.NoError(t, feedAggregatePartial(a, "Sum", aggItem{Item: json.RawMessage(`5`)}))
+	out, err := a.finalize()
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`5`), out)
+
+	require.NoError(t, feedAggregatePartial(a, "Sum", aggItem{}))
+	out, err = a.finalize()
+	require.NoError(t, err)
+	assert.Nil(t, out, "one partition without a number makes the sum undefined")
+
+	// The other aggregates keep adding up the partitions that contributed:
+	// AVG's partial carries its own row count, and an absent one is a
+	// partition with nothing to average.
+	b := newAggregator("Avg")
+	require.NoError(t, feedAggregatePartial(b, "Avg", aggItem{Item: json.RawMessage(`{"sum":6,"count":2}`)}))
+	require.NoError(t, feedAggregatePartial(b, "Avg", aggItem{}))
+	out, err = b.finalize()
+	require.NoError(t, err)
+	assert.Equal(t, json.RawMessage(`3`), out)
+}
+
 // ---------------------------------------------------------- Min
 
 func TestMinAgg_EmptyFinalizesToUndefined(t *testing.T) {

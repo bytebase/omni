@@ -37,6 +37,52 @@ func TestCanonicalJSON_DistinctScalars(t *testing.T) {
 	assert.NotEqual(t, string(a), string(b))
 }
 
+// Two integers the double format cannot tell apart are two values: a store
+// that holds both must answer two DISTINCT values and two GROUP BY groups.
+func TestCanonicalJSON_IntegerPrecision(t *testing.T) {
+	a, err := canonicalJSON([]byte(`9007199254740992`))
+	require.NoError(t, err)
+	b, err := canonicalJSON([]byte(`9007199254740993`))
+	require.NoError(t, err)
+	assert.NotEqual(t, string(a), string(b), "2^53 and 2^53+1 are not one value")
+
+	x, err := canonicalJSON([]byte(`{"v":[9007199254740992]}`))
+	require.NoError(t, err)
+	y, err := canonicalJSON([]byte(`{"v":[9007199254740993]}`))
+	require.NoError(t, err)
+	assert.NotEqual(t, string(x), string(y), "nested integers keep their precision too")
+
+	// The same integer written as a double or in exponent form is one value —
+	// the forms a store may hold it in, and what DISTINCT and GROUP BY compare.
+	for _, same := range []string{`1`, `1000`, `1000000`, `-7`} {
+		want, err := canonicalJSON([]byte(same))
+		require.NoError(t, err)
+		for _, written := range []string{same + `.0`, same + `e0`} {
+			got, err := canonicalJSON([]byte(written))
+			require.NoError(t, err)
+			assert.Equal(t, string(want), string(got), "%s and %s are one number", same, written)
+		}
+	}
+	for _, written := range []string{`1e3`, `1e6`, `1000000.000`} {
+		got, err := canonicalJSON([]byte(written))
+		require.NoError(t, err)
+		assert.NotContains(t, string(got), "e", "a whole number is spelled in its digits: %s", written)
+	}
+
+	// 2^53+1 as a double is 2^53, which is its own value; as an integer it is
+	// not, and the two must not meet.
+	c, err := canonicalJSON([]byte(`9007199254740993`))
+	require.NoError(t, err)
+	d, err := canonicalJSON([]byte(`9007199254740993.0`))
+	require.NoError(t, err)
+	assert.NotEqual(t, string(c), string(d), "a decimal is a double, and this one is not that integer")
+	e, err := canonicalJSON([]byte(`9007199254740992.0`))
+	require.NoError(t, err)
+	f, err := canonicalJSON([]byte(`9007199254740992`))
+	require.NoError(t, err)
+	assert.Equal(t, string(f), string(e), "2^53 is exact both ways")
+}
+
 func TestCanonicalJSON_NumericEquivalence(t *testing.T) {
 	// JSON 1 and 1.0 are both valid numerics; Go unmarshal treats both as float64,
 	// then re-marshal emits the shortest representation. Both → "1" (same canonical bytes).

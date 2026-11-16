@@ -85,20 +85,18 @@ func commentOnlyRanges(trimmed string) []Range {
 }
 
 // containsCommentMarker reports whether s contains one of the comment
-// introducers parser.Split's lexer skips (`--`, `//`, `#`, `/*`). A string
-// literal could false-positive, but this runs only when the splitter found no
-// segments at all.
+// introducers parser.Split's lexer skips (`--`, `/*`). Neither engine has a
+// `//` or a `#` comment, so those are not markers: they leave a chunk the
+// splitter keeps. A string literal could false-positive, but this runs only
+// when the splitter found no segments at all.
 func containsCommentMarker(s string) bool {
 	for i := 0; i < len(s); i++ {
 		c := s[i]
-		if c == '#' {
-			return true
-		}
 		if i+1 < len(s) {
 			if c == '-' && s[i+1] == '-' {
 				return true
 			}
-			if c == '/' && (s[i+1] == '*' || s[i+1] == '/') {
+			if c == '/' && s[i+1] == '*' {
 				return true
 			}
 		}

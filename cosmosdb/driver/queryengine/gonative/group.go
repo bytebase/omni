@@ -19,10 +19,26 @@ type groupByItem struct {
 	Item json.RawMessage `json:"item"`
 }
 
-// groupDoc is one Documents[i] entry in a GROUP BY per-partition response.
+// groupDoc is one Documents[i] entry in a GROUP BY per-partition response. The
+// payload is an object of alias → partial for the object form, and the
+// projected value itself for the VALUE form, which the plan spells as an empty
+// groupByAliases.
 type groupDoc struct {
-	GroupByItems []groupByItem              `json:"groupByItems"`
-	Payload      map[string]json.RawMessage `json:"payload"`
+	GroupByItems []groupByItem   `json:"groupByItems"`
+	Payload      json.RawMessage `json:"payload"`
+}
+
+// payloadFields decodes the payload as the object form's alias → partial map,
+// and reports false when it is a projected value instead.
+func (d groupDoc) payloadFields() (map[string]json.RawMessage, bool) {
+	var fields map[string]json.RawMessage
+	if len(d.Payload) == 0 || d.Payload[0] != '{' {
+		return nil, false
+	}
+	if err := json.Unmarshal(d.Payload, &fields); err != nil {
+		return nil, false
+	}
+	return fields, true
 }
 
 // groupPartitionResponse decodes a GROUP BY per-partition body.
@@ -53,6 +69,9 @@ type groupState struct {
 	// aggregators are ordered per groupByAliases; entries whose alias is a
 	// group-key column are nil.
 	aggregators []aggregator
+	// value is the group's row for the VALUE form, where the projection is one
+	// value per group rather than an object of aliases.
+	value json.RawMessage
 }
 
 // groupPipeline implements queryengine.QueryPipeline for plans with GROUP BY.
@@ -73,6 +92,9 @@ type groupPipeline struct {
 	// aggregate kind for aliases[i] ("" when the alias is a group-key column).
 	aliases []string
 	kinds   []string
+	// value reports the VALUE form: no aliases, and each group's row is the
+	// projected value.
+	value bool
 
 	// groups is the per-group state, keyed on the canonical JSON of
 	// groupByItems. Grows to the cardinality of distinct group keys.
@@ -105,7 +127,10 @@ func newGroupPipeline(plan *planDoc, pkRangeIDs []string) (*groupPipeline, error
 	if len(qi.GroupByExpressions) == 0 {
 		return nil, errors.New("gonative: groupPipeline requires groupByExpressions")
 	}
-	if len(qi.GroupByAliases) == 0 {
+	// A VALUE-form projection carries no aliases: the plan's payload is the
+	// projected value itself, one per group.
+	value := len(qi.GroupByAliases) == 0
+	if value && !qi.HasSelectValue {
 		return nil, errors.New("gonative: groupPipeline requires groupByAliases")
 	}
 	aliases := append([]string(nil), qi.GroupByAliases...)
@@ -139,6 +164,7 @@ func newGroupPipeline(plan *planDoc, pkRangeIDs []string) (*groupPipeline, error
 		fanout:  newRangeFanout(pkRangeIDs),
 		aliases: aliases,
 		kinds:   kinds,
+		value:   value,
 		groups:  make(map[string]*groupState),
 		sort:    sortKeys,
 	}, nil
@@ -209,6 +235,7 @@ func (p *groupPipeline) ProvideData(results []queryengine.QueryResult) error {
 				p.groups[key] = state
 				p.order = append(p.order, key)
 			}
+			fields, _ := doc.payloadFields()
 			// Merge this partition's aggregate contributions into the group's state.
 			for i, alias := range p.aliases {
 				if p.kinds[i] == "" {
@@ -216,7 +243,7 @@ func (p *groupPipeline) ProvideData(results []queryengine.QueryResult) error {
 					// the same value so no work needed.
 					continue
 				}
-				rawItem, ok := doc.Payload[alias]
+				rawItem, ok := fields[alias]
 				if !ok {
 					return fmt.Errorf("gonative: group doc %d missing payload alias %q", docIdx, alias)
 				}
@@ -239,6 +266,13 @@ func (p *groupPipeline) ProvideData(results []queryengine.QueryResult) error {
 // (they're identical for every subsequent partition reporting the same key)
 // and allocates aggregators for the aggregate columns.
 func (p *groupPipeline) initGroupState(doc groupDoc) *groupState {
+	if p.value {
+		return &groupState{
+			items: append([]groupByItem(nil), doc.GroupByItems...),
+			value: append([]byte(nil), doc.Payload...),
+		}
+	}
+	fields, _ := doc.payloadFields()
 	s := &groupState{
 		keyValues:   make(map[string]json.RawMessage, len(p.aliases)),
 		items:       append([]groupByItem(nil), doc.GroupByItems...),
@@ -247,7 +281,7 @@ func (p *groupPipeline) initGroupState(doc groupDoc) *groupState {
 	for i, alias := range p.aliases {
 		if p.kinds[i] == "" {
 			// Group-key column: store raw value.
-			if v, ok := doc.Payload[alias]; ok {
+			if v, ok := fields[alias]; ok {
 				s.keyValues[alias] = append([]byte(nil), v...)
 			}
 		} else {
@@ -268,6 +302,9 @@ func (p *groupPipeline) finalize() error {
 		row, err := p.buildRow(p.groups[key])
 		if err != nil {
 			return err
+		}
+		if row == nil {
+			continue
 		}
 		p.pending = append(p.pending, row)
 	}
@@ -507,6 +544,14 @@ func isUndefinedItem(raw json.RawMessage) bool {
 // column is undefined in every row — is left out of the object, which is how
 // the gateway spells it.
 func (p *groupPipeline) buildRow(s *groupState) ([]byte, error) {
+	if p.value {
+		// A group whose projection is undefined contributes no row: the service
+		// omits an undefined value from its results.
+		if len(s.value) == 0 {
+			return nil, nil
+		}
+		return s.value, nil
+	}
 	var buf []byte
 	buf = append(buf, '{')
 	for i, alias := range p.aliases {

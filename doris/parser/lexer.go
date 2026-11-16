@@ -124,6 +124,11 @@ func isIdentCont(ch byte) bool {
 
 // --- Whitespace & Comments -------------------------------------------------
 
+// skipWhitespaceAndComments skips what DorisLexer.g4 puts on a hidden
+// channel: WS, SIMPLE_COMMENT (`--`, which needs a blank after it) and
+// BRACKETED_COMMENT. It has no `//` or `#` rule, and the pinned 3.1.4 server
+// agrees: `SELECT 1 // x` is extraneous input '/' and `SELECT 1 # x` is
+// mismatched input '#'. Both reach the parser as tokens and fail there.
 func (l *Lexer) skipWhitespaceAndComments() {
 	for l.pos < len(l.input) {
 		ch := l.input[l.pos]
@@ -133,16 +138,6 @@ func (l *Lexer) skipWhitespaceAndComments() {
 		case ch == '-' && l.peek(1) == '-' && l.isLineCommentAfterDash():
 			// MySQL-compatible: -- must be followed by space/tab/newline/EOF
 			l.pos += 2
-			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
-				l.pos++
-			}
-		case ch == '/' && l.peek(1) == '/':
-			l.pos += 2
-			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
-				l.pos++
-			}
-		case ch == '#':
-			l.pos++
 			for l.pos < len(l.input) && l.input[l.pos] != '\n' {
 				l.pos++
 			}

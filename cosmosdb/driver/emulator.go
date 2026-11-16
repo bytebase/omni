@@ -80,10 +80,24 @@ func (c *emulatorRESTClient) get(path, resourceType, resourceLink string) ([]byt
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("HTTP %d: %s", resp.StatusCode, string(body))
+		return nil, &emulatorHTTPError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 	return body, nil
 }
+
+// close releases the REST client's idle connections.
+func (c *emulatorRESTClient) close() {
+	c.httpClient.CloseIdleConnections()
+}
+
+// emulatorHTTPError is the emulator's answer to a REST call that failed. The
+// text is what it always was; the type lets a caller read the status.
+type emulatorHTTPError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *emulatorHTTPError) Error() string { return fmt.Sprintf("HTTP %d: %s", e.StatusCode, e.Body) }
 
 type listDatabasesResponse struct {
 	Databases []struct {

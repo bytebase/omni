@@ -105,7 +105,44 @@ func TestNewGroupPipeline_RequiresGroupByExpressions(t *testing.T) {
 	assert.Contains(t, err.Error(), "groupByExpressions")
 }
 
+// SELECT VALUE c.a FROM c GROUP BY c.a: the plan carries no aliases — the
+// payload is the projected value itself — and the engine must answer the value
+// rather than reject the query.
+func TestGroupPipeline_ValueFormEmitsTheProjectedValue(t *testing.T) {
+	plan := &planDoc{}
+	plan.QueryInfo.GroupByExpressions = []string{"c.a"}
+	plan.QueryInfo.HasSelectValue = true
+	plan.QueryInfo.RewrittenQuery = `SELECT {"groupByItems":[{"item":c.a}],"payload":c.a} FROM c GROUP BY c.a`
+	p, err := newGroupPipeline(plan, []string{"0"})
+	require.NoError(t, err)
+
+	rows := driveGroup(t, p, map[string][]byte{"0": mkGroupBodyRaw(t,
+		`{"groupByItems":[{"item":"AD"}],"payload":"AD"}`,
+		`{"groupByItems":[{"item":"AE"}],"payload":"AE"}`,
+	)})
+	assert.Equal(t, []string{`"AD"`, `"AE"`}, []string{string(rows[0]), string(rows[1])})
+}
+
+// A group whose projected value is undefined contributes no row, as the service
+// omits an undefined value from its results.
+func TestGroupPipeline_ValueFormOmitsAnUndefinedGroup(t *testing.T) {
+	plan := &planDoc{}
+	plan.QueryInfo.GroupByExpressions = []string{"c.a"}
+	plan.QueryInfo.HasSelectValue = true
+	p, err := newGroupPipeline(plan, []string{"0"})
+	require.NoError(t, err)
+
+	rows := driveGroup(t, p, map[string][]byte{"0": mkGroupBodyRaw(t,
+		`{"groupByItems":[{"item":"AD"}],"payload":"AD"}`,
+		`{"groupByItems":[{}]}`,
+	)})
+	assert.Equal(t, []string{`"AD"`}, []string{string(rows[0])})
+	assert.Len(t, rows, 1)
+}
+
 func TestNewGroupPipeline_RequiresGroupByAliases(t *testing.T) {
+	// Neither an object projection (aliases) nor a VALUE one: there is nothing
+	// to emit per group.
 	plan := &planDoc{}
 	plan.QueryInfo.GroupByExpressions = []string{"c.a"}
 	_, err := newGroupPipeline(plan, []string{"0"})

@@ -63,10 +63,19 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	answer, err := queryEveryPartition(ctx, s.driver.client, req)
 	switch {
 	case err == nil:
+		totalBytes := driver.HeaderByteSize(result.Columns)
 		for _, item := range answer.Items {
-			result.Rows = append(result.Rows, []driver.Value{
-				{Kind: driver.String, String: string(item)},
-			})
+			row := []driver.Value{{Kind: driver.String, String: string(item)}}
+			result.Rows = append(result.Rows, row)
+			if opts.MaxResultBytes > 0 {
+				totalBytes += driver.RowByteSize(row)
+				if totalBytes > opts.MaxResultBytes {
+					// The client's pager is below this driver: the cap is
+					// applied to the rows it handed over, not to the read.
+					result.Truncated = true
+					break
+				}
+			}
 		}
 	case isContainerOpenError(err):
 		// The container the query names did not open, and its own failure is

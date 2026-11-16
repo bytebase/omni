@@ -11692,3 +11692,15 @@ accept	accept	engine	suite:no-job-statements	PAUSE ROUTINE LOAD FOR job
 accept	accept	engine	suite:no-job-statements	RESUME ROUTINE LOAD FOR job
 accept	accept	engine	suite:no-job-statements	CANCEL REFRESH MATERIALIZED VIEW mv
 accept	accept	engine	suite:no-job-statements	CANCEL LOAD WHERE LABEL = 'x'
+reject	reject	engine	suite:comments	SELECT 1 // x
+accept	accept	engine	suite:comments	SELECT 1 # x
+accept	accept	engine	suite:comments	SELECT 1+#2
+reject	reject	engine	suite:comments	SELECT 1 # 2
+reject	reject	engine	suite:comments	// x
+reject	reject	engine	suite:comments	# x
+accept	accept	engine	suite:comments	SELECT 1 -- x
+reject	reject	engine	suite:copy-into	COPY INTO t FROM @stage
+reject	reject	engine	suite:copy-into	COPY INTO t FROM 'stage/path'
+reject	reject	engine	suite:copy-into	COPY INTO t FROM @stage PROPERTIES ("k"="v")
+accept	accept	engine	suite:copy-into	CREATE TABLE t (copy INT)
+accept	accept	engine	suite:copy-into	SELECT copy FROM t

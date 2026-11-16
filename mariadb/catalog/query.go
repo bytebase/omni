@@ -1056,10 +1056,6 @@ func (c *CastExprQ) exprCollation() string   { return c.Collation }
 //   - MatchAgainstExprQ: `MATCH (col) AGAINST ('text' IN NATURAL LANGUAGE MODE)`.
 //                       MySQL fulltext predicate. Deferred to Phase 4 (deparse
 //                       fidelity for fulltext indexes).
-//   - JsonExtractExprQ: `col->'$.x'` and `col->>'$.x'` operator forms (vs the
-//                       JSON_EXTRACT function form). Deferred to Phase 3 once
-//                       we decide whether the analyzer normalizes one form to
-//                       the other or preserves both.
 //   - AssignmentExprQ:  `SET col = expr` for UPDATE statements. Deferred to
 //                       Phase 8+ when DML analysis lands.
 //

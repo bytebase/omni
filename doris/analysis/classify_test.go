@@ -83,7 +83,8 @@ func TestClassify(t *testing.T) {
 		// Comment skipping
 		{"-- comment\nSELECT 1", QueryTypeSelect},
 		{"/* block comment */ SELECT 1", QueryTypeSelect},
-		{"# hash comment\nINSERT INTO t VALUES (1)", QueryTypeDML},
+		// '#' is no comment in either engine, so this is not the INSERT.
+		{"# hash comment\nINSERT INTO t VALUES (1)", QueryTypeUnknown},
 		{"-- leading comment\nCREATE TABLE t (id INT)", QueryTypeDDL},
 
 		// Unknown / edge cases
