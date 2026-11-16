@@ -49,6 +49,16 @@ type priorBackupDML struct {
 // lower-cased, which is also how V1 printed the table. The mixed DML tables
 // come in sorted key order, as V1 printed them; a batch that changes rows
 // through an INSERT is not grouped, since V1 collected only UPDATE and DELETE.
+//
+// Two judgments here are not V1's. A reference to a WITH clause's CTE is not a
+// table and does not count as a change, where V1 grouped the reference under a
+// table of the CTE's name and the backup transformer drops it. A multi-table
+// DELETE's target is resolved through its USING clause to the table that
+// clause binds the name to, where V1 grouped the name as written, so an alias
+// grouped under a table of the alias's name. Both made this rule disagree with
+// the transform it predicts: this one approved a change the transform rejects,
+// and reported tables that do not exist.
+//
 // Ported from Bytebase's V1 rule BUILTIN_PRIOR_BACKUP_CHECK; Bytebase calls it
 // only when the review enables prior backup.
 func PriorBackupCheck(stmts []ast.Node, database string, schema v1review.Schema, facts v1review.PriorBackupFacts) []v1review.Finding {
@@ -74,17 +84,14 @@ func PriorBackupCheck(stmts []ast.Node, database string, schema v1review.Schema,
 		case *ast.UpdateStmt:
 			// A SET column names the table the UPDATE changes, not the tables
 			// its joins read.
-			aliases := newUpdateTableAliases(n.Tables, database)
+			aliases := newUpdateTableAliases(n.Tables, database, cteNames(n.CTEs))
 			for _, table := range updateTargets(n.SetList, aliases, schema.Metadata) {
 				changes = append(changes, priorBackupDML{table: table, kind: priorBackupUpdate})
 			}
 		case *ast.DeleteStmt:
-			// A DELETE's tables are the tables it deletes from; its USING
-			// clause only filters. V1 read the names as written, so a
-			// multi-table DELETE that targets an alias ("DELETE b FROM t AS b")
-			// groups under the alias rather than the table the USING clause
-			// resolves it to.
-			for _, table := range deleteTables(n.Tables, database) {
+			// A DELETE changes the tables it deletes from; its USING clause
+			// only filters.
+			for _, table := range deleteTargets(n, database) {
 				changes = append(changes, priorBackupDML{table: table, kind: priorBackupDelete})
 			}
 		default:
@@ -122,33 +129,113 @@ func priorBackupTableKey(table priorBackupTable) string {
 	return strings.ToLower(table.database) + "." + strings.ToLower(table.table)
 }
 
-// deleteTables returns the tables a DELETE's table list names, an unqualified
-// name resolved to database. A derived table names none.
-func deleteTables(tables []ast.TableExpr, database string) []priorBackupTable {
+// cteNames returns the names a WITH clause declares, lower-cased: TiDB
+// resolves a reference to a CTE case-insensitively.
+func cteNames(ctes []*ast.CommonTableExpr) map[string]bool {
+	if len(ctes) == 0 {
+		return nil
+	}
+	names := make(map[string]bool, len(ctes))
+	for _, cte := range ctes {
+		if cte != nil {
+			names[strings.ToLower(cte.Name)] = true
+		}
+	}
+	return names
+}
+
+// isCTEReference reports whether a table reference names a CTE of the
+// statement holding it rather than a table. A CTE reference is never
+// schema-qualified, so a qualified name is a table even when it matches one.
+func isCTEReference(ref *ast.TableRef, ctes map[string]bool) bool {
+	return ref.Schema == "" && ctes[strings.ToLower(ref.Name)]
+}
+
+// deleteTables returns the tables a table list names, an unqualified name
+// resolved to database. A reference to a CTE and a derived table name none.
+func deleteTables(tables []ast.TableExpr, database string, ctes map[string]bool) []priorBackupTable {
 	var result []priorBackupTable
 	for _, table := range tables {
-		result = append(result, tableExprRefs(table, database)...)
+		result = append(result, tableExprRefs(table, database, ctes)...)
 	}
 	return result
 }
 
 // tableExprRefs returns the base tables one table expression names: the table
 // a reference names, both sides of a join, and nothing for a derived table.
-func tableExprRefs(expr ast.TableExpr, database string) []priorBackupTable {
+func tableExprRefs(expr ast.TableExpr, database string, ctes map[string]bool) []priorBackupTable {
 	switch n := expr.(type) {
 	case *ast.TableRef:
+		if isCTEReference(n, ctes) {
+			return nil
+		}
 		if n.Schema != "" {
 			database = n.Schema
 		}
 		return []priorBackupTable{{database: database, table: n.Name}}
 	case *ast.JoinClause:
-		left := tableExprRefs(n.Left, database)
-		right := tableExprRefs(n.Right, database)
+		left := tableExprRefs(n.Left, database, ctes)
+		right := tableExprRefs(n.Right, database, ctes)
 		return append(left, right...)
 	case *ast.SubqueryExpr:
 		return nil
 	default:
 		return nil
+	}
+}
+
+// deleteTargets returns the tables a DELETE deletes from. A multi-table DELETE
+// names its targets by the aliases or names its USING clause declares, so each
+// target is resolved there to the table that clause binds it to; a name the
+// clause does not declare is kept as written.
+func deleteTargets(stmt *ast.DeleteStmt, database string) []priorBackupTable {
+	ctes := cteNames(stmt.CTEs)
+	targets := deleteTables(stmt.Tables, database, ctes)
+	if len(stmt.Using) == 0 {
+		return targets
+	}
+	for i, target := range targets {
+		if table, ok := deleteTargetTable(target.table, stmt.Using, database, ctes); ok {
+			targets[i] = table
+		}
+	}
+	return targets
+}
+
+// deleteTargetTable returns the table a multi-table DELETE's USING clause
+// binds name to, by an alias or by a table's own name. ok is false when the
+// clause declares no such name.
+func deleteTargetTable(name string, using []ast.TableExpr, database string, ctes map[string]bool) (priorBackupTable, bool) {
+	for _, expr := range using {
+		if table, ok := tableExprByName(name, expr, database, ctes); ok {
+			return table, true
+		}
+	}
+	return priorBackupTable{}, false
+}
+
+func tableExprByName(name string, expr ast.TableExpr, database string, ctes map[string]bool) (priorBackupTable, bool) {
+	switch n := expr.(type) {
+	case *ast.TableRef:
+		if isCTEReference(n, ctes) {
+			return priorBackupTable{}, false
+		}
+		if !strings.EqualFold(n.Name, name) && (n.Alias == "" || !strings.EqualFold(n.Alias, name)) {
+			return priorBackupTable{}, false
+		}
+		if n.Schema != "" {
+			database = n.Schema
+		}
+		return priorBackupTable{database: database, table: n.Name}, true
+	case *ast.JoinClause:
+		if table, ok := tableExprByName(name, n.Left, database, ctes); ok {
+			return table, true
+		}
+		return tableExprByName(name, n.Right, database, ctes)
+	case *ast.SubqueryExpr:
+		return priorBackupTable{}, false
+	default:
+		return priorBackupTable{}, false
 	}
 }
 
@@ -165,21 +252,24 @@ type updateTableAliases struct {
 
 // newUpdateTableAliases reads an UPDATE's table list, an unqualified name
 // resolved to database.
-func newUpdateTableAliases(tables []ast.TableExpr, database string) *updateTableAliases {
+func newUpdateTableAliases(tables []ast.TableExpr, database string, ctes map[string]bool) *updateTableAliases {
 	m := &updateTableAliases{
 		bySchemaName: make(map[string]priorBackupTable),
 		byAlias:      make(map[string]priorBackupTable),
 		byBareName:   make(map[string][]priorBackupTable),
 	}
 	for _, table := range tables {
-		collectTableAliases(table, database, m)
+		collectTableAliases(table, database, ctes, m)
 	}
 	return m
 }
 
-func collectTableAliases(expr ast.TableExpr, database string, m *updateTableAliases) {
+func collectTableAliases(expr ast.TableExpr, database string, ctes map[string]bool, m *updateTableAliases) {
 	switch n := expr.(type) {
 	case *ast.TableRef:
+		if isCTEReference(n, ctes) {
+			return
+		}
 		if n.Schema != "" {
 			database = n.Schema
 		}
@@ -198,8 +288,8 @@ func collectTableAliases(expr ast.TableExpr, database string, m *updateTableAlia
 		}
 		m.distinctBases = append(m.distinctBases, base)
 	case *ast.JoinClause:
-		collectTableAliases(n.Left, database, m)
-		collectTableAliases(n.Right, database, m)
+		collectTableAliases(n.Left, database, ctes, m)
+		collectTableAliases(n.Right, database, ctes, m)
 	case *ast.SubqueryExpr:
 	default:
 	}

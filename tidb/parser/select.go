@@ -123,6 +123,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.Loc.Start = start
+		stmt.CTEs = ctes
 		return stmt, nil
 
 	case kwUPDATE:
@@ -131,6 +132,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.Loc.Start = start
+		stmt.CTEs = ctes
 		return stmt, nil
 
 	case kwDELETE:
@@ -139,6 +141,7 @@ func (p *Parser) parseWithStmt() (nodes.Node, error) {
 			return nil, err
 		}
 		stmt.Loc.Start = start
+		stmt.CTEs = ctes
 		return stmt, nil
 
 	default:
