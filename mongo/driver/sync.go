@@ -64,8 +64,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to list collection names: %w", err)
 	}
-	var collectionNames []string
-	var viewNames []string
+	type collectionInfo struct {
+		name    string
+		options string // canonical Extended JSON, or empty when there are none
+	}
+	var collectionsToSync []collectionInfo
+	var viewsToSync []collectionInfo
 	for _, collection := range collections {
 		var tp string
 		if t, ok := collection["type"]; ok {
@@ -86,19 +90,25 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		if !ok {
 			return nil, errors.New("cannot convert collection name to string")
 		}
+		options, err := collectionOptions(collection)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read the options of collection %s: %w", collectionName, err)
+		}
+		info := collectionInfo{name: collectionName, options: options}
 		switch tp {
 		case "collection":
-			collectionNames = append(collectionNames, collectionName)
+			collectionsToSync = append(collectionsToSync, info)
 		case "view":
-			viewNames = append(viewNames, collectionName)
+			viewsToSync = append(viewsToSync, info)
 		default:
 			// Other types like system collections
 		}
 	}
-	slices.Sort(collectionNames)
-	slices.Sort(viewNames)
+	slices.SortFunc(collectionsToSync, func(a, b collectionInfo) int { return strings.Compare(a.name, b.name) })
+	slices.SortFunc(viewsToSync, func(a, b collectionInfo) int { return strings.Compare(a.name, b.name) })
 
-	for _, collectionName := range collectionNames {
+	for _, collectionInfo := range collectionsToSync {
+		collectionName := collectionInfo.name
 		if isSystemCollection(collectionName) {
 			continue
 		}
@@ -131,16 +141,20 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			return nil, fmt.Errorf("failed to get index schema of collection %s: %w", collectionName, err)
 		}
 		schemaMetadata.Tables = append(schemaMetadata.Tables, &metadatapb.TableMetadata{
-			Name:      collectionName,
-			RowCount:  count,
-			DataSize:  dataSize64,
-			IndexSize: totalIndexSize64,
-			Indexes:   indexes,
+			Name:          collectionName,
+			RowCount:      count,
+			DataSize:      dataSize64,
+			IndexSize:     totalIndexSize64,
+			Indexes:       indexes,
+			CreateOptions: collectionInfo.options,
 		})
 	}
 
-	for _, viewName := range viewNames {
-		schemaMetadata.Views = append(schemaMetadata.Views, &metadatapb.ViewMetadata{Name: viewName})
+	for _, view := range viewsToSync {
+		schemaMetadata.Views = append(schemaMetadata.Views, &metadatapb.ViewMetadata{
+			Name:       view.name,
+			Definition: view.options,
+		})
 	}
 
 	return &metadatapb.DatabaseSchemaMetadata{
@@ -181,11 +195,16 @@ func getIndexes(ctx context.Context, c client, database, collectionName string) 
 				return nil, errors.New("cannot convert unique to bool")
 			}
 		}
+		definition, err := indexDefinition(indexInfo)
+		if err != nil {
+			return nil, fmt.Errorf("cannot read the options of index %s: %w", indexName, err)
+		}
 
 		if _, ok := indexMap[indexName]; !ok {
 			indexMap[indexName] = &metadatapb.IndexMetadata{
-				Name:   indexName,
-				Unique: unique,
+				Name:       indexName,
+				Unique:     unique,
+				Definition: definition,
 			}
 		}
 		indexMap[indexName].Expressions = append(indexMap[indexName].Expressions, string(expression))
