@@ -188,6 +188,20 @@ func TestPriorBackupCheck(t *testing.T) {
 			want:   []priorBackupFinding{mixedDML("test.dbo.x")},
 		},
 		{
+			// Prior backup never copies a temp table, so two kinds of DML on
+			// one cannot conflict.
+			name:   "a temp table is not grouped",
+			sql:    "UPDATE #t SET a = 1;\nDELETE FROM #t WHERE id = 2;",
+			schema: priorBackupSchema(),
+			facts:  priorBackupFacts(10),
+		},
+		{
+			name:   "a temp table reached through an alias is not grouped",
+			sql:    "UPDATE x SET a = 1 FROM #t AS x WHERE x.id = 1;\nDELETE FROM #t WHERE id = 2;",
+			schema: priorBackupSchema(),
+			facts:  priorBackupFacts(10),
+		},
+		{
 			name:   "a table variable is not grouped",
 			sql:    "UPDATE @tv SET a = 1;\nDELETE FROM t WHERE id = 2;",
 			schema: priorBackupSchema(),

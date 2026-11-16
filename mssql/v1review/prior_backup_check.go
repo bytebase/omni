@@ -3,6 +3,7 @@ package v1review
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/bytebase/omni/mssql/ast"
 	"github.com/bytebase/omni/v1review"
@@ -35,7 +36,8 @@ type priorBackupTable struct {
 // allows; the database the backup writes to is missing, which ends the check;
 // the batch holds a DDL statement; and one table is changed by more than one
 // kind of DML. Tables are grouped as "database.schema.table", an unqualified
-// reference resolved to schema's database and dbo. V1 reported the DDL once
+// reference resolved to schema's database and dbo, and a temp table skipped
+// because the backup transformer never copies one. V1 reported the DDL once
 // for the batch and anchored every finding at the script's first line, so no
 // finding carries a statement index or a range; the tables of the mixed DML
 // findings come in the order the statements first name them rather than in
@@ -105,9 +107,13 @@ func priorBackupTableOf(relation ast.TableExpr, fromClause *ast.List, databaseNa
 	// resolved to the snapshot's own database and dbo.
 	if fromClause != nil && table.database == databaseName && table.schema == defaultSchema {
 		if physical := physicalTableOfAlias(fromClause, table); physical != nil {
-			physical.statementType = statementType
-			return physical
+			table = physical
 		}
+	}
+	// A temp table is the session's own and prior backup never copies it, so
+	// statements on one cannot conflict with each other.
+	if strings.HasPrefix(table.table, "#") {
+		return nil
 	}
 	table.statementType = statementType
 	return table
