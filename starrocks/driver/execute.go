@@ -197,9 +197,11 @@ func delimiterCommands(script string) []driver.Command {
 	}
 
 	i := 0
+	started := false
 	for i < len(script) {
-		// A directive is recognized only where a statement may begin.
-		if strings.TrimSpace(script[start:i]) == "" {
+		// A directive is recognized only where a statement may begin: comments
+		// before it belong to no statement, so they do not start one.
+		if !started {
 			if terminator, next, ok := delimiterDirective(script, i); ok {
 				delimiter = terminator
 				start, i = next, next
@@ -208,6 +210,7 @@ func delimiterCommands(script string) []driver.Command {
 		}
 		switch {
 		case script[i] == '\'' || script[i] == '"' || script[i] == '`':
+			started = true
 			quote := script[i]
 			i++
 			for i < len(script) {
@@ -242,7 +245,11 @@ func delimiterCommands(script string) []driver.Command {
 			emit(i)
 			i += len(delimiter)
 			start = i
+			started = false
 		default:
+			if script[i] != ' ' && script[i] != '\t' && script[i] != '\n' && script[i] != '\r' {
+				started = true
+			}
 			i++
 		}
 	}

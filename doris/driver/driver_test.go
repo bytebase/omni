@@ -108,6 +108,12 @@ func TestSplitExecuteCommandsDelimiter(t *testing.T) {
 			script: "DELIMITER ;\nSELECT 'a;b';\nSELECT 2;",
 			want:   []string{"SELECT 'a;b';", "SELECT 2;"},
 		},
+		{
+			// A comment before a directive belongs to no statement, so it does
+			// not hide the directive that follows it.
+			script: "-- migration header\nDELIMITER $$\nSELECT 1$$ -- first query\nDELIMITER ;\nSELECT 2;",
+			want:   []string{"SELECT 1", "SELECT 2;"},
+		},
 	}
 	for _, tc := range tests {
 		commands := splitExecuteCommands(tc.script)
