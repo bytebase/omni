@@ -185,8 +185,15 @@ func appendReplyRows(result *driver.Result, cmd *redis.Cmd, maxBytes int64, tota
 }
 
 // replyRow is one row of an answer: the element's position and its value as a
-// string.
+// string, or NULL for an element that holds none — a missing key in an MGET, a
+// missing field in an HMGET.
 func replyRow(i int, value any) []driver.Value {
+	if value == nil {
+		return []driver.Value{
+			{Kind: driver.Int32, Int64: int64(i)},
+			{Kind: driver.Null},
+		}
+	}
 	return []driver.Value{
 		{Kind: driver.Int32, Int64: int64(i)},
 		{Kind: driver.String, String: fmt.Sprintf("%v", value)},

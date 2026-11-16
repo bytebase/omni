@@ -21,7 +21,11 @@
 //
 // Config.Host is one server, or a comma-separated list of them for Sentinel and
 // Cluster, each optionally carrying its own port. Config.Port applies to a
-// single host that has none, and both default to 6379. Config.Database is the
+// single host that has none, and both default to 6379. With Config.Dial set and
+// no host, one server is reached at the port alone: the dialer names the endpoint
+// itself, as a cloud connector does, and ignores the address it is handed. A
+// cluster's or a sentinel deployment's addresses route commands, so those are
+// always named. Config.Database is the
 // numeric database index the session selects, as Redis writes it ("0" through
 // "15" on a default server); empty means 0. Config.User and Config.Password are
 // the login, which for Sentinel is the master's; Options.SentinelUser and
@@ -49,11 +53,13 @@
 // cluster, so nothing is lost.
 //
 // A query runs each line of a script as one command, each as its own request, and
-// returns one Result per command, with the columns "#" and "Value". A reply that is an array becomes
-// one row per element and any other reply one row. A missing key is a row with
-// a NULL value, as Bytebase showed it; a command the server refused ends the
-// script on that command's Result, which errs with the server's own error, so
-// redis.Nil is the one a caller compares by identity. QueryOptions.MaxResultBytes
+// returns one Result per command, with the columns "#" and "Value". A reply that
+// is an array becomes one row per element and any other reply one row. A missing
+// key is a row with a NULL value, as Bytebase showed it, and so is an array
+// element that holds no value (a missing key in an MGET), where Bytebase rendered
+// the text <nil>. A command the server refused ends the script on that command's
+// Result, which errs with the server's own error, so redis.Nil is the one a caller
+// compares by identity. QueryOptions.MaxResultBytes
 // stops a command's rows at the cap and sets Result.Truncated; Bytebase measured
 // proto.Size of the whole result at power-of-two row counts and answered an error
 // message instead, so the cut here lands at a different row and a caller reports
@@ -141,11 +147,11 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 	if err != nil {
 		return nil, err
 	}
-	addresses, err := endpoints(cfg.Host, cfg.Port)
+	dialer := dialer(cfg)
+	addresses, err := endpoints(cfg.Host, cfg.Port, cfg.Dial != nil)
 	if err != nil {
 		return nil, err
 	}
-	dialer := dialer(cfg)
 	d := &Driver{databaseName: strconv.Itoa(database)}
 	switch opt.Type {
 	case "", Standalone:
@@ -168,6 +174,9 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 		}
 		d.client = &liveClient{client: redis.NewClient(options)}
 	case Sentinel:
+		if strings.TrimSpace(cfg.Host) == "" {
+			return nil, errors.New("a sentinel deployment needs the sentinels' addresses")
+		}
 		options := &redis.FailoverOptions{
 			MasterName:            opt.MasterName,
 			Username:              cfg.User,
@@ -182,6 +191,12 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 		}
 		d.client = &liveClient{client: redis.NewFailoverClient(options)}
 	case Cluster:
+		if strings.TrimSpace(cfg.Host) == "" {
+			return nil, errors.New("a Redis Cluster needs its nodes' addresses")
+		}
+		if database != 0 {
+			return nil, fmt.Errorf("a Redis Cluster has database 0 only, but %d was given", database)
+		}
 		options := &redis.ClusterOptions{
 			Addrs:                 addresses,
 			Username:              cfg.User,
@@ -219,9 +234,19 @@ func databaseIndex(database string) (int, error) {
 // endpoints returns the server addresses, each with its port. A host may carry
 // its own port, which a list of hosts uses for each of them; port applies to a
 // single host that has none.
-func endpoints(host, port string) ([]string, error) {
+//
+// With dial set and no host, the caller's dialer names the endpoint itself, so
+// the one address is a port with no host for it to ignore.
+func endpoints(host, port string, dial bool) ([]string, error) {
 	if strings.TrimSpace(host) == "" {
-		return nil, errors.New("host must be set")
+		if !dial {
+			return nil, errors.New("host must be set")
+		}
+		p := strings.TrimSpace(port)
+		if p == "" {
+			p = "6379"
+		}
+		return []string{":" + p}, nil
 	}
 	var addresses []string
 	for _, one := range strings.Split(host, ",") {

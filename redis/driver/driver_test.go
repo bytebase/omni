@@ -60,7 +60,7 @@ func TestEndpoints(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := endpoints(tc.host, tc.port)
+			got, err := endpoints(tc.host, tc.port, false)
 			if tc.wantErr {
 				require.Error(t, err)
 				return
@@ -93,6 +93,19 @@ func TestDatabaseIndex(t *testing.T) {
 			require.Equal(t, tc.want, got)
 		})
 	}
+}
+
+// TestEndpointsWithoutAHostWithADialer holds the one address a dialer that names
+// its own endpoint is handed: the port alone, which the dialer ignores.
+func TestEndpointsWithoutAHostWithADialer(t *testing.T) {
+	got, err := endpoints("", "6380", true)
+	require.NoError(t, err)
+	require.Equal(t, []string{":6380"}, got)
+	got, err = endpoints("", "", true)
+	require.NoError(t, err)
+	require.Equal(t, []string{":6379"}, got)
+	_, err = endpoints("", "6380", false)
+	require.ErrorContains(t, err, "host must be set")
 }
 
 func TestOpen(t *testing.T) {
@@ -144,6 +157,36 @@ func TestOpen(t *testing.T) {
 			name:             "a cluster",
 			cfg:              driver.Config{Host: "node1:6379,node2:6379"},
 			opts:             Options{Type: Cluster},
+			wantDatabaseName: "0",
+		},
+		{
+			name:    "a cluster with a database index it does not have",
+			cfg:     driver.Config{Host: "node1:6379,node2:6379", Database: "3"},
+			opts:    Options{Type: Cluster},
+			wantErr: "a Redis Cluster has database 0 only, but 3 was given",
+		},
+		{
+			name: "a cluster with no address",
+			cfg: driver.Config{
+				Dial: func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("no connection") },
+			},
+			opts:    Options{Type: Cluster},
+			wantErr: "a Redis Cluster needs its nodes' addresses",
+		},
+		{
+			name: "a sentinel deployment with no address",
+			cfg: driver.Config{
+				Dial: func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("no connection") },
+			},
+			opts:    Options{Type: Sentinel, MasterName: "mymaster"},
+			wantErr: "a sentinel deployment needs the sentinels' addresses",
+		},
+		{
+			name: "a dialer that names its own endpoint",
+			cfg: driver.Config{
+				Database: "0",
+				Dial:     func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("no connection") },
+			},
 			wantDatabaseName: "0",
 		},
 	}

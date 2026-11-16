@@ -115,6 +115,25 @@ func TestQueryCommandError(t *testing.T) {
 	require.Equal(t, driver.Null, after[0].Rows[0][1].Kind, "the command after the refused one ran")
 }
 
+// TestQueryArrayWithAMissingKey holds an array answer whose element holds no
+// value: a missing key in an MGET is a NULL cell, not the text `<nil>`.
+func TestQueryArrayWithAMissingKey(t *testing.T) {
+	ctx := context.Background()
+	d := openDriver(t, testcontainer.Login{}, "0")
+	// The pinned server is a cluster, so both keys carry the same hash tag: an
+	// MGET across slots is a CROSSSLOT error, not an answer.
+	_, err := d.Execute(ctx, "SET {user}present value", driver.ExecuteOptions{})
+	require.NoError(t, err)
+
+	results := query(t, d, "MGET {user}present {user}missing", driver.QueryOptions{})
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 2)
+	_, value := row(t, results[0].Rows[0])
+	require.Equal(t, "value", value)
+	require.Equal(t, driver.Null, results[0].Rows[1][1].Kind)
+}
+
 // TestQueryExplainRefused holds an explain to the error Redis's driver answers
 // it with: Redis states no plan.
 func TestQueryExplainRefused(t *testing.T) {
