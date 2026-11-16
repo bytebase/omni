@@ -43,6 +43,10 @@ import (
 // <last insert id>", "< error" with the codec's text, "< badconn", or one
 // "< result" per result set with its columns and rows.
 //
+// A protocol that is not database/sql records an engine's client library
+// instead: "> raw" with the request's text and "< raw" with the answer's,
+// both as text lines. See OpenRaw.
+//
 // A request's text, or a text argument, of more than 64 KB is written as
 // "|# sha256:<hex> <bytes>" and not in full: a replay only compares it, and
 // a statement that size says nothing to a reader. Answers are always whole.
@@ -57,17 +61,18 @@ type exchange struct {
 }
 
 type request struct {
-	kind string // exec, query, begin, commit, rollback
+	kind string // exec, query, begin, commit, rollback, raw
 	text string
 	sum  string // in place of a text over digestOver: its digest
 	args []value
 }
 
 type answer struct {
-	kind     string // ok, error, badconn, rows
+	kind     string // ok, error, badconn, rows, raw
 	affected string // exec only: decimal, or - when the driver could not say
 	lastID   string
 	err      string // the codec's text
+	text     string // raw only: the answer as the client returned it
 	sets     []resultSet
 
 	// raw is an error that is not the engine's answer, which only a
@@ -207,6 +212,11 @@ const sameText = " ^"
 
 // writeRequest writes r. prev is the request before it in its stream, or nil.
 func writeRequest(b *strings.Builder, r request, prev *request) {
+	if r.kind == "raw" {
+		b.WriteString("> raw\n")
+		writeTextOrSum(b, r.text, r.sum)
+		return
+	}
 	if r.kind != "exec" && r.kind != "query" {
 		b.WriteString("> " + r.kind + "\n")
 		return
@@ -243,6 +253,9 @@ func writeAnswer(b *strings.Builder, a answer) {
 		writeText(b, a.err)
 	case "badconn":
 		b.WriteString("< badconn\n")
+	case "raw":
+		b.WriteString("< raw\n")
+		writeText(b, a.text)
 	case "rows":
 		for _, s := range a.sets {
 			b.WriteString("< result\n")
@@ -314,6 +327,16 @@ func (r request) render() string {
 
 // describe names a request in one line for a message.
 func (r request) describe() string {
+	if r.kind == "raw" {
+		if r.sum != "" {
+			return "raw <" + r.sum + ">"
+		}
+		text := r.text
+		if len(text) > 200 {
+			text = text[:200] + "..."
+		}
+		return "raw " + strconv.Quote(text)
+	}
 	if r.kind != "exec" && r.kind != "query" {
 		return r.kind
 	}
@@ -407,6 +430,16 @@ func (p *parser) exchange(prev *request) (exchange, error) {
 	kind, same := strings.CutSuffix(strings.TrimPrefix(p.peek(), "> "), sameText)
 	e.req.kind = kind
 	switch e.req.kind {
+	case "raw":
+		if same {
+			return e, p.errorf("^ after raw, which has no text")
+		}
+		p.i++
+		text, sum, err := p.textOrSum()
+		if err != nil {
+			return e, err
+		}
+		e.req.text, e.req.sum = text, sum
 	case "exec", "query":
 		if same {
 			if prev == nil || prev.kind != kind {
@@ -462,6 +495,10 @@ func (p *parser) answer() (answer, error) {
 	case line == "< badconn":
 		p.i++
 		return answer{kind: "badconn"}, nil
+	case line == "< raw":
+		p.i++
+		text, err := p.text()
+		return answer{kind: "raw", text: text}, err
 	case line == "< result":
 		a := answer{kind: "rows"}
 		for p.peek() == "< result" {
@@ -490,7 +527,7 @@ func (p *parser) answer() (answer, error) {
 		}
 		return a, nil
 	}
-	return answer{}, p.errorf("want an answer (< ok, < error, < badconn, < result), got %q", line)
+	return answer{}, p.errorf("want an answer (< ok, < error, < badconn, < result, < raw), got %q", line)
 }
 
 func (p *parser) column() (column, error) {

@@ -904,3 +904,95 @@ func TestLiveRunsOnlyInARecording(t *testing.T) {
 		t.Errorf("Live skipped a recording")
 	}
 }
+
+// TestRawRecordThenReplay records a stream of opaque exchanges and replays it,
+// holding both directions: a request the tape does not hold fails, and so does
+// a recorded request the test never sends.
+func TestRawRecordThenReplay(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	exchange := func(t testing.TB) []string {
+		r := OpenRaw(t, srv, "default", func(req string) (string, error) {
+			return "answer to " + req, nil
+		})
+		var log []string
+		for _, req := range []string{"list", "find\ndocs", "scalar"} {
+			ans, err := r.Do(req)
+			if err != nil {
+				return append(log, "do: "+err.Error())
+			}
+			log = append(log, ans)
+		}
+		return log
+	}
+	recorded, errs := run(t, "TestFake", exchange)
+	if len(errs) > 0 {
+		t.Fatalf("recording failed: %v", errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"> raw\n| list\n< raw\n| answer to list\n",
+		"> raw\n| find\n| docs\n< raw\n| answer to find\n| docs\n",
+	} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("the tape lacks %q:\n%s", want, b)
+		}
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", exchange)
+	if len(errs) > 0 {
+		t.Fatalf("replay failed: %v", errs)
+	}
+	if strings.Join(replayed, "\n") != strings.Join(recorded, "\n") {
+		t.Errorf("a replay differs from its recording:\nrecorded:\n%s\nreplayed:\n%s",
+			strings.Join(recorded, "\n"), strings.Join(replayed, "\n"))
+	}
+
+	_, errs = run(t, "TestFake", func(t testing.TB) []string {
+		r := OpenRaw(t, srv, "default", nil)
+		_, _ = r.Do("another")
+		return nil
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], `no recorded answer for raw "another" (request 1 of stream "TestFake default#1"); the tape holds raw "list"`) {
+		t.Errorf("got %q", errs)
+	}
+
+	_, errs = run(t, "TestFake", func(t testing.TB) []string {
+		r := OpenRaw(t, srv, "default", nil)
+		_, _ = r.Do("list")
+		return nil
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], `holds 2 recorded requests the test never sent, starting with raw "find\ndocs"`) {
+		t.Errorf("got %q", errs)
+	}
+}
+
+// TestRawRecordingRefusesAnExchangeWithNoAnswer holds OpenRaw to what a tape
+// can hold: an engine's answer, never the failure to get one.
+func TestRawRecordingRefusesAnExchangeWithNoAnswer(t *testing.T) {
+	srv, _ := harness(t)
+	record(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		r := OpenRaw(t, srv, "default", func(string) (string, error) {
+			return "", errors.New("the client had no answer")
+		})
+		if _, err := r.Do("list"); err == nil {
+			return []string{"a failed exchange answered"}
+		}
+		return nil
+	})
+	if len(errs) > 0 {
+		t.Errorf("an exchange the client answered with an error is the test's, not the harness's: %q", errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "raw") {
+		t.Errorf("the tape holds a failed exchange:\n%s", b)
+	}
+}

@@ -1,0 +1,9 @@
+# The servers this engine's committed answers come from. default records the
+# tapes and holds the version every test reads: MongoDB 8.0, the 8.0 LTS line.
+# MongoDB's server cannot judge the mongosh grammar a driver sends, so unlike
+# the other engines' pins there is no compat.tsv judged by this server; the
+# driver's tapes are what its answers are committed as. Bytebase supports
+# MongoDB 4.4 and later, which mongo/driver pins with the wire-version refusal
+# its client sends, not with a second server.
+# columns: role, image, digest, source tag
+default	mongo:8.0.38	sha256:d97fea17ccb8d004cd137be8dab54d70d0df11be69c9f422aefe4484c8414ab7	r8.0.38
