@@ -129,8 +129,25 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	// Perform topological sort
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there are cycles, fall back to original order: create every table
-		// without foreign keys, then add the foreign keys once all tables exist.
+		// If there are cycles, fall back to original order. Functions a virtual
+		// column calls must exist before their table; the foreign keys are added
+		// once all tables exist.
+		prewrittenFunctions := map[string]bool{}
+		for _, table := range tables {
+			for _, column := range table.Columns {
+				if column.GetGeneration() == nil {
+					continue
+				}
+				for _, function := range schema.Functions {
+					if !prewrittenFunctions[function.Name] && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
+						if err := writeFunction(&buf, function); err != nil {
+							return "", err
+						}
+						prewrittenFunctions[function.Name] = true
+					}
+				}
+			}
+		}
 		for _, table := range tables {
 			if err := writeTableWithOptions(&buf, table, false, false); err != nil {
 				return "", err
@@ -147,6 +164,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			return "", err
 		}
 		for _, function := range schema.Functions {
+			if prewrittenFunctions[function.Name] {
+				continue
+			}
 			if err := writeFunction(&buf, function); err != nil {
 				return "", err
 			}

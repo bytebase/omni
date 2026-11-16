@@ -608,7 +608,29 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	// Get topological order
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there's a cycle, fall back to a safe order
+		// If there's a cycle, fall back to a safe order. Functions a virtual
+		// column calls must exist before their table.
+		prewrittenFunctions := map[string]bool{}
+		for _, tableDiff := range tableMap {
+			if tableDiff.NewTable == nil {
+				continue
+			}
+			for _, column := range tableDiff.NewTable.Columns {
+				if column.GetGeneration() == nil {
+					continue
+				}
+				for functionID, functionDiff := range functionMap {
+					function := functionDiff.NewFunction
+					if function == nil {
+						function = functionDiff.OldFunction
+					}
+					if function != nil && !prewrittenFunctions[functionID] && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
+						writeFunctionDiff(buf, functionDiff)
+						prewrittenFunctions[functionID] = true
+					}
+				}
+			}
+		}
 		// Create tables first (without foreign keys)
 		for _, tableDiff := range tableMap {
 			if tableDiff.Action == DiffActionCreate {
@@ -637,7 +659,10 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		writeMigrationViewsInDependencyOrder(buf, viewMap, materializedViewMap)
 
 		// Create functions
-		for _, funcDiff := range functionMap {
+		for functionID, funcDiff := range functionMap {
+			if prewrittenFunctions[functionID] {
+				continue
+			}
 			writeFunctionDiff(buf, funcDiff)
 		}
 

@@ -1448,3 +1448,25 @@ func TestDeferrableForeignKeyIsRejected(t *testing.T) {
 		t.Fatal("deferrable foreign key was accepted")
 	}
 }
+
+func TestFallbackOrdersVirtualColumnFunctionBeforeTable(t *testing.T) {
+	to, err := LoadSQL(`CREATE TABLE P (ID NUMBER, C_ID NUMBER REFERENCES C(ID)); CREATE TABLE C (ID NUMBER, P_ID NUMBER REFERENCES P(ID)); CREATE FUNCTION Z(N NUMBER) RETURN NUMBER IS BEGIN RETURN N; END; CREATE TABLE A (ID NUMBER, V AS (Z(ID)))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, "CREATE OR REPLACE FUNCTION Z")
+	table := strings.Index(definition, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("definition table precedes function:\n%s", definition)
+	}
+	sql := migrationFor(t, New(), to)
+	function = strings.Index(sql, "CREATE OR REPLACE FUNCTION Z")
+	table = strings.Index(sql, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("migration table precedes function:\n%s", sql)
+	}
+}
