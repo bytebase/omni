@@ -1,0 +1,7 @@
+# The server this engine's committed answers come from. Apache Hive 4.0.1
+# through a HiveServer2 with the embedded Derby metastore; the tapes are
+# recorded through hive/internal/testcontainer and replayed with no server.
+# Hive has no omni tree to parse it, so there is no compat.tsv and no judge
+# row: default is the server itself, pinned by digest.
+# columns: role, image, digest, source tag
+default	apache/hive:4.0.1	sha256:5194161ef50b80875f937dff04936df047cbe894e9727ab8f0606349345b1bd3	rel/release-4.0.1
