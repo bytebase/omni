@@ -30,6 +30,7 @@ func TestRenderExtendedJSON(t *testing.T) {
 		{name: "regular expression", in: `{"$regularExpression":{"pattern":"^a/b","options":"i"}}`, want: `/^a\/b/i`},
 		{name: "empty regular expression", in: `{"$regularExpression":{"pattern":"","options":"i"}}`, want: `/(?:)/i`},
 		{name: "regular expression with a newline", in: `{"$regularExpression":{"pattern":"a\nb","options":""}}`, want: `/a\nb/`},
+		{name: "regular expression keeps a backslash before a slash", in: `{"$regularExpression":{"pattern":"\\\\/","options":""}}`, want: `/\\\//`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := renderExtendedJSON(tc.in)
@@ -50,6 +51,8 @@ func TestRenderExtendedJSONRefusesAKindGomongoCannotBuild(t *testing.T) {
 		{name: "max key", in: `{"$maxKey":1}`, want: "no mongosh spelling"},
 		{name: "symbol", in: `{"$symbol":"x"}`, want: "no mongosh spelling"},
 		{name: "code", in: `{"$code":"x"}`, want: "no mongosh spelling"},
+		{name: "JavaScript with scope", in: `{"$code":"function(){}","$scope":{}}`, want: "JavaScript with scope"},
+		{name: "__proto__", in: `{"__proto__":"kept","normal":1}`, want: "own-property"},
 		{name: "nan", in: `{"$numberDouble":"NaN"}`, want: "no mongosh literal"},
 		{name: "infinity", in: `{"$numberDouble":"Infinity"}`, want: "no mongosh literal"},
 		{name: "trailing data", in: `{} {}`, want: "trailing data"},

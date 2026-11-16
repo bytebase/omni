@@ -151,8 +151,14 @@ func (v *jsonValue) objectLiteral() (string, error) {
 			return literal, err
 		}
 	}
+	if isJavaScriptWithScope(v.fields) {
+		return "", fmt.Errorf("JavaScript with scope has no mongosh spelling gomongo can execute")
+	}
 	parts := make([]string, len(v.fields))
 	for i, field := range v.fields {
+		if field.key == "__proto__" {
+			return "", fmt.Errorf("a __proto__ field has no own-property spelling in a mongosh object literal")
+		}
 		literal, err := field.value.literal()
 		if err != nil {
 			return "", err
@@ -160,6 +166,26 @@ func (v *jsonValue) objectLiteral() (string, error) {
 		parts[i] = quoteString(field.key) + ": " + literal
 	}
 	return "{" + strings.Join(parts, ", ") + "}", nil
+}
+
+// isJavaScriptWithScope reports an Extended JSON JavaScript-with-scope
+// wrapper, whose canonical form has both $code and $scope. It is not a
+// single-field wrapper, so it has to be recognized before the fields are
+// rendered as an ordinary document.
+func isJavaScriptWithScope(fields []jsonField) bool {
+	if len(fields) != 2 {
+		return false
+	}
+	var code, scope bool
+	for _, field := range fields {
+		switch field.key {
+		case "$code":
+			code = true
+		case "$scope":
+			scope = true
+		}
+	}
+	return code && scope
 }
 
 // extendedJSONLiteral renders a field that is one of Extended JSON's type
@@ -327,15 +353,49 @@ func regexLiteral(value *jsonValue) (string, bool, error) {
 		}
 	}
 	// A regex literal is the one spelling gomongo turns into a BSON regex. An
-	// empty pattern and a line terminator would end the literal early, so both
-	// take a spelling that matches the same strings.
+	// empty pattern takes a spelling that matches the same strings, and the
+	// pattern itself is escaped for a JavaScript literal.
 	if pattern == "" {
 		pattern = "(?:)"
 	}
-	pattern = strings.NewReplacer("\n", `\n`, "\r", `\r`, "\u2028", `\u2028`, "\u2029", `\u2029`).Replace(pattern)
-	escaped := strings.ReplaceAll(pattern, `\/`, `/`)
-	escaped = strings.ReplaceAll(escaped, `/`, `\/`)
-	return "/" + escaped + "/" + options, true, nil
+	return "/" + regexPattern(pattern) + "/" + options, true, nil
+}
+
+// regexPattern escapes a BSON regex pattern for a JavaScript literal. A slash
+// ends the literal unless an odd number of backslashes already escapes it, and
+// a line terminator cannot appear raw.
+func regexPattern(pattern string) string {
+	var b strings.Builder
+	backslashes := 0
+	for _, r := range pattern {
+		switch r {
+		case '\\':
+			backslashes++
+			b.WriteRune(r)
+		case '/':
+			if backslashes%2 == 0 {
+				b.WriteByte('\\')
+			}
+			b.WriteRune(r)
+			backslashes = 0
+		case '\n':
+			b.WriteString(`\n`)
+			backslashes = 0
+		case '\r':
+			b.WriteString(`\r`)
+			backslashes = 0
+		case '\u2028':
+			b.WriteString(`\u2028`)
+			backslashes = 0
+		case '\u2029':
+			b.WriteString(`\u2029`)
+			backslashes = 0
+		default:
+			b.WriteRune(r)
+			backslashes = 0
+		}
+	}
+	return b.String()
 }
 
 // quoteString renders s as a JavaScript string literal. JSON's string grammar
