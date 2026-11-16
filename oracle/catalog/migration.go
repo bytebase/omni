@@ -21,6 +21,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 func generateMigration(diff *MetadataDiff) (string, error) {
 	var buf strings.Builder
 	renames := findConstraintRenames(diff)
+	detached := findDetachedIncomingForeignKeys(diff, renames)
 
 	// Safe order for migrations:
 	// 1. Drop dependent objects first (in reverse dependency order)
@@ -40,7 +41,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	}
 
 	// Phase 2: Create/Alter objects using topological sort
-	createObjectsInOrder(diff, &buf, renames)
+	createObjectsInOrder(diff, &buf, renames, detached)
 
 	return buf.String(), nil
 }
@@ -419,8 +420,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 }
 
 // createObjectsInOrder creates all objects in topological order (dependencies first)
-func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet) {
-	incomingCreated := map[string]bool{}
+func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet, detached incomingForeignKeySet) {
 	// First create schemas (they don't have dependencies)
 	var schemasToCreate []string
 	for _, schemaDiff := range diff.SchemaChanges {
@@ -722,7 +722,6 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 						} else if indexDiff.NewIndex.Unique {
 							writeMigrationUniqueKey(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
 						}
-						writeIncomingForeignKeysToCreate(buf, diff, tableDiff, indexDiff.NewIndex.Expressions, incomingCreated)
 					} else {
 						writeMigrationIndex(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
 					}
@@ -759,6 +758,10 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			// Handle index comment changes
 			generateIndexCommentChanges(buf, tableDiff)
 		}
+	}
+
+	for _, incoming := range detached.sorted() {
+		writeMigrationForeignKey(buf, incoming.schema, incoming.table, incoming.foreignKey)
 	}
 
 	// Foreign keys that wait for a key added by this migration come after every
@@ -882,6 +885,7 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 
 // incomingForeignKey is another table's foreign key on a rebuilt column.
 type incomingForeignKey struct {
+	schema     string
 	table      string
 	foreignKey *metadatapb.ForeignKeyMetadata
 }
@@ -928,7 +932,7 @@ func findIncomingForeignKeys(diff *MetadataDiff, database *metadatapb.DatabaseSc
 		}
 		for _, fk := range table.GetForeignKeys() {
 			if !handled[fk.GetName()] && referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, columns) {
-				result = append(result, incomingForeignKey{table: table.GetName(), foreignKey: fk})
+				result = append(result, incomingForeignKey{schema: tableDiff.SchemaName, table: table.GetName(), foreignKey: fk})
 			}
 		}
 	}
@@ -943,17 +947,6 @@ func writeIncomingForeignKeysToDrop(buf *strings.Builder, diff *MetadataDiff, ta
 		}
 		seen[key] = true
 		writeDropForeignKey(buf, tableDiff.SchemaName, incoming.table, incoming.foreignKey.GetName())
-	}
-}
-
-func writeIncomingForeignKeysToCreate(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, columns []string, seen map[string]bool) {
-	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, columns, DiffActionCreate) {
-		key := incoming.table + "\x00" + incoming.foreignKey.GetName()
-		if seen[key] {
-			continue
-		}
-		seen[key] = true
-		writeMigrationForeignKey(buf, tableDiff.SchemaName, incoming.table, incoming.foreignKey)
 	}
 }
 
@@ -2496,6 +2489,39 @@ func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
 		}
 	}
 	return set
+}
+
+type incomingForeignKeySet map[string]incomingForeignKey
+
+func (s incomingForeignKeySet) sorted() []incomingForeignKey {
+	keys := make([]string, 0, len(s))
+	for key := range s {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	result := make([]incomingForeignKey, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, s[key])
+	}
+	return result
+}
+
+func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenameSet) incomingForeignKeySet {
+	detached := incomingForeignKeySet{}
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter {
+			continue
+		}
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action != DiffActionDrop || !indexDiff.OldIndex.GetIsConstraint() || renames.oldName(tableDiff, indexDiff.OldIndex.GetName()) != "" {
+				continue
+			}
+			for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, indexDiff.OldIndex.GetExpressions(), DiffActionDrop) {
+				detached[incoming.table+"\x00"+incoming.foreignKey.GetName()] = incoming
+			}
+		}
+	}
+	return detached
 }
 
 func writeRenameConstraint(out *strings.Builder, schema, table, oldName, newName string) {

@@ -645,3 +645,45 @@ func TestLoadMetadataCopiesSnapshot(t *testing.T) {
 		t.Fatal("catalog aliases the caller's snapshot")
 	}
 }
+
+func TestAddingOverlappingUniqueDoesNotRecreateForeignKey(t *testing.T) {
+	oldParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "CODE", Type: "NUMBER", Position: 2}}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_P", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	newParent := &metadatapb.TableMetadata{Name: "P", Columns: oldParent.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_P", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}, {Name: "UK_P", Unique: true, IsConstraint: true, Expressions: []string{"ID", "CODE"}}}}
+	child := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldParent, child}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newParent, child}}))
+	if strings.Contains(sql, `ADD CONSTRAINT "C_FK"`) {
+		t.Fatalf("unchanged foreign key was recreated:\n%s", sql)
+	}
+}
+
+func TestRenameColumnUpdatesIndexAndGenerationExpressions(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C VARCHAR2(10), V AS (UPPER(C))); CREATE INDEX I ON T (LOWER(C))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T RENAME COLUMN C TO D`, nil); err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if got := table.Indexes[0].Expressions[0]; !strings.Contains(got, "D") || strings.Contains(got, "C") {
+		t.Fatalf("index expression = %q", got)
+	}
+	if got := table.Columns[1].Generation.Expression; strings.Contains(got, "C") {
+		t.Fatalf("generation expression = %q", got)
+	}
+}
+
+func TestDropNamedNotNullConstraintMakesColumnNullable(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{
+		Name:             "T",
+		Columns:          []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}},
+		CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "NN", Expression: `"C" IS NOT NULL`}},
+	}}})
+	if _, err := c.Exec(`ALTER TABLE T DROP CONSTRAINT NN`, nil); err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if !table.Columns[0].Nullable || len(table.CheckConstraints) != 0 {
+		t.Fatalf("column/check = %+v / %+v", table.Columns[0], table.CheckConstraints)
+	}
+}

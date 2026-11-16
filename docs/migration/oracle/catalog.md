@@ -94,6 +94,11 @@ replay tests exercise.
 - Replacing a key detaches and restores the unchanged incoming foreign keys.
 - Catalog snapshots are copied with a standard-library helper, so production
   catalog code imports no protobuf runtime.
+- Only the incoming foreign keys detached by a key replacement are restored.
+- Renaming a column rewrites function-based index and virtual-column
+  expressions.
+- Dropping a named NOT NULL check makes its column nullable when no other check
+  still requires it.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

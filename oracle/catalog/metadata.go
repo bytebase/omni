@@ -345,6 +345,30 @@ func (e *oracleMetadataExtractor) removeNamedNotNull(table *metadatapb.TableMeta
 	table.CheckConstraints = checks
 }
 
+func (e *oracleMetadataExtractor) clearNamedNotNull(table *metadatapb.TableMetadata, check *metadatapb.CheckConstraintMetadata) {
+	expression := strings.TrimSpace(check.Expression)
+	suffix := " IS NOT NULL"
+	if !strings.HasSuffix(strings.ToUpper(expression), suffix) {
+		return
+	}
+	columnName := strings.TrimSpace(expression[:len(expression)-len(suffix)])
+	columnName = strings.Trim(columnName, `"`)
+	for _, other := range table.CheckConstraints {
+		if other.Name == check.Name {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(other.Expression), suffix)), `"`+columnName+`"`) {
+			return
+		}
+	}
+	for _, column := range table.Columns {
+		if column.Name == columnName {
+			column.Nullable = true
+			return
+		}
+	}
+}
+
 func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstraint, table *metadatapb.TableMetadata, column *metadatapb.ColumnMetadata) {
 	switch n.Type {
 	case ast.CONSTRAINT_NOT_NULL:
@@ -602,9 +626,12 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 	}
 	for _, index := range table.Indexes {
 		for i, expression := range index.Expressions {
-			if expression == oldName || expression == `"`+oldName+`"` {
-				index.Expressions[i] = newName
-			}
+			index.Expressions[i] = renameIdentifier(expression, oldName, newName)
+		}
+	}
+	for _, column := range table.Columns {
+		if column.GetGeneration() != nil {
+			column.Generation.Expression = renameIdentifier(column.Generation.GetExpression(), oldName, newName)
 		}
 	}
 	for _, check := range table.CheckConstraints {
@@ -713,9 +740,11 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	table.Indexes = indexes
 	var checks []*metadatapb.CheckConstraintMetadata
 	for _, check := range table.CheckConstraints {
-		if check.Name != name {
-			checks = append(checks, check)
+		if check.Name == name {
+			e.clearNamedNotNull(table, check)
+			continue
 		}
+		checks = append(checks, check)
 	}
 	table.CheckConstraints = checks
 	var foreignKeys []*metadatapb.ForeignKeyMetadata
