@@ -9,8 +9,8 @@ import (
 
 func TestGetQuerySpan(t *testing.T) {
 	type testCase struct {
-		Description string                  `yaml:"description"`
-		Statement   string                  `yaml:"statement"`
+		Description string                `yaml:"description"`
+		Statement   string                `yaml:"statement"`
 		QueryType   elasticsearch.QueryType `yaml:"queryType"`
 	}
 

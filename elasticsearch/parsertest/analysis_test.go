@@ -9,11 +9,11 @@ import (
 
 func TestClassifyMaskableAPI(t *testing.T) {
 	type testCase struct {
-		Description string               `yaml:"description"`
-		Method      string               `yaml:"method"`
-		URL         string               `yaml:"url"`
+		Description string              `yaml:"description"`
+		Method      string              `yaml:"method"`
+		URL         string              `yaml:"url"`
 		WantAPI     analysis.MaskableAPI `yaml:"wantAPI"`
-		WantIndex   string               `yaml:"wantIndex"`
+		WantIndex   string              `yaml:"wantIndex"`
 	}
 
 	cases := loadYAML[testCase](t, "masking_classify_api.yaml")
@@ -29,15 +29,15 @@ func TestClassifyMaskableAPI(t *testing.T) {
 
 func TestAnalyzeRequestBody(t *testing.T) {
 	type testCase struct {
-		Description        string                    `yaml:"description"`
-		Body               string                    `yaml:"body"`
+		Description        string                   `yaml:"description"`
+		Body               string                   `yaml:"body"`
 		WantBlocked        []analysis.BlockedFeature `yaml:"wantBlocked"`
-		WantSourceDisabled bool                      `yaml:"wantSourceDisabled"`
-		WantSourceFields   []string                  `yaml:"wantSourceFields"`
-		WantFields         []string                  `yaml:"wantFields"`
-		WantHighlight      []string                  `yaml:"wantHighlight"`
-		WantSort           []string                  `yaml:"wantSort"`
-		WantInnerHits      bool                      `yaml:"wantInnerHits"`
+		WantSourceDisabled bool                     `yaml:"wantSourceDisabled"`
+		WantSourceFields   []string                 `yaml:"wantSourceFields"`
+		WantFields         []string                 `yaml:"wantFields"`
+		WantHighlight      []string                 `yaml:"wantHighlight"`
+		WantSort           []string                 `yaml:"wantSort"`
+		WantInnerHits      bool                     `yaml:"wantInnerHits"`
 	}
 
 	cases := loadYAML[testCase](t, "masking_analyze_body.yaml")

@@ -10,8 +10,8 @@ import (
 
 func TestGetStatementRanges(t *testing.T) {
 	type testCase struct {
-		Description string        `yaml:"description,omitempty"`
-		Statement   string        `yaml:"statement,omitempty"`
+		Description string      `yaml:"description,omitempty"`
+		Statement   string      `yaml:"statement,omitempty"`
 		Result      []es.LSPRange `yaml:"result,omitempty"`
 	}
 
