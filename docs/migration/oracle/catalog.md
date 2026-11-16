@@ -69,6 +69,10 @@ replay tests exercise.
 - Renaming a column updates both sides of every foreign key that names it.
 - Executing a statement keeps schema metadata the extractor does not own, such
   as synonyms.
+- Dropping a column removes the indexes, checks and foreign keys that name it,
+  and renaming a table updates incoming foreign keys.
+- A sequence definition renders `MINVALUE` and `CACHE`, and a quoted
+  user-defined type keeps its spelling.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

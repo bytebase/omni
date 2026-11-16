@@ -385,3 +385,54 @@ func TestExecPreservesUnhandledSchemaMetadata(t *testing.T) {
 		t.Fatalf("synonyms lost: %+v", c.Metadata().Schemas[0])
 	}
 }
+
+func TestExecDropsColumnDependents(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{
+		Name:             "T",
+		Columns:          []*metadatapb.ColumnMetadata{{Name: "A", Type: "NUMBER", Position: 1}, {Name: "B", Type: "NUMBER", Position: 2}},
+		Indexes:          []*metadatapb.IndexMetadata{{Name: "T_A", Expressions: []string{"A"}, Visible: true}},
+		CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "T_A_CK", Expression: `"A" > 0`}},
+	}}})
+	if _, err := c.Exec(`ALTER TABLE "T" DROP COLUMN "A"`, nil); err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if len(table.Indexes) != 0 || len(table.CheckConstraints) != 0 {
+		t.Fatalf("dependent metadata survived: %+v", table)
+	}
+}
+
+func TestRenameTableUpdatesForeignKeys(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{
+		{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}},
+		{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}},
+	}})
+	if _, err := c.Exec(`ALTER TABLE "P" RENAME TO "P_NEW"`, nil); err != nil {
+		t.Fatal(err)
+	}
+	child := tableByName(c.Metadata().Schemas[0])["C"]
+	if child.ForeignKeys[0].ReferencedTable != "P_NEW" {
+		t.Fatalf("foreign key still references %q", child.ForeignKeys[0].ReferencedTable)
+	}
+}
+
+func TestDefinitionRendersSequenceBounds(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Sequences: []*metadatapb.SequenceMetadata{{Name: "S", MinValue: "1", MaxValue: "9999", CacheSize: "20", Cycle: true}}}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `MINVALUE 1`) || !strings.Contains(definition, `CACHE 20`) {
+		t.Fatalf("sequence bounds missing:\n%s", definition)
+	}
+}
+
+func TestQuotedUserDefinedTypeKeepsSpelling(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (A "Address")`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := meta.Schemas[0].Tables[0].Columns[0].Type; got != `"Address"` {
+		t.Fatalf("type = %q", got)
+	}
+}

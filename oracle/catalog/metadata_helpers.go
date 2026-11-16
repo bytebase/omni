@@ -11,7 +11,7 @@ func normalizeDataTypeText(text string) string {
 		return ""
 	}
 
-	normalized := strings.ToUpper(text)
+	normalized := upperOutsideQuotes(text)
 
 	switch {
 	case strings.HasPrefix(normalized, "VARCHAR2"):
@@ -101,6 +101,38 @@ func normalizeDataTypeText(text string) string {
 	default:
 		return normalized
 	}
+}
+
+// upperOutsideQuotes folds unquoted text the way Oracle folds identifiers,
+// leaving a quoted identifier's spelling alone.
+func upperOutsideQuotes(text string) string {
+	var out strings.Builder
+	var quote bool
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if quote {
+			out.WriteByte(c)
+			if c == '"' {
+				if i+1 < len(text) && text[i+1] == '"' {
+					out.WriteByte(text[i+1])
+					i++
+				} else {
+					quote = false
+				}
+			}
+			continue
+		}
+		if c == '"' {
+			quote = true
+			out.WriteByte(c)
+			continue
+		}
+		if c >= 'a' && c <= 'z' {
+			c -= 'a' - 'A'
+		}
+		out.WriteByte(c)
+	}
+	return out.String()
 }
 
 func parseInt(s string) int {

@@ -538,6 +538,45 @@ func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, na
 		}
 	}
 	table.Columns = columns
+
+	var indexes []*metadatapb.IndexMetadata
+	for _, index := range table.Indexes {
+		if !slices.ContainsFunc(index.Expressions, func(expression string) bool { return expressionReferencesColumn(expression, name) }) {
+			indexes = append(indexes, index)
+		}
+	}
+	table.Indexes = indexes
+
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		if !expressionReferencesColumn(check.Expression, name) {
+			checks = append(checks, check)
+		}
+	}
+	table.CheckConstraints = checks
+
+	var foreignKeys []*metadatapb.ForeignKeyMetadata
+	for _, fk := range table.ForeignKeys {
+		onColumn := slices.Contains(fk.Columns, name)
+		referencesColumn := fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name)
+		if !onColumn && !referencesColumn {
+			foreignKeys = append(foreignKeys, fk)
+		}
+	}
+	table.ForeignKeys = foreignKeys
+	for _, other := range e.tables {
+		if other == table {
+			continue
+		}
+		var remaining []*metadatapb.ForeignKeyMetadata
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name) {
+				continue
+			}
+			remaining = append(remaining, fk)
+		}
+		other.ForeignKeys = remaining
+	}
 }
 
 func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, oldName, newName string) {
@@ -705,6 +744,18 @@ func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
 	}
 	delete(e.tables, oldName)
 	table.Name = newName
+	for _, fk := range table.ForeignKeys {
+		if fk.ReferencedTable == oldName {
+			fk.ReferencedTable = newName
+		}
+	}
+	for _, other := range e.tables {
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable == oldName {
+				fk.ReferencedTable = newName
+			}
+		}
+	}
 	e.tables[newName] = table
 }
 

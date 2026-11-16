@@ -728,6 +728,24 @@ func writeSequence(buf *strings.Builder, sequence *metadatapb.SequenceMetadata) 
 		}
 	}
 
+	if sequence.MinValue != "" && sequence.MinValue != "0" {
+		if _, err := buf.WriteString(" MINVALUE "); err != nil {
+			return err
+		}
+		if _, err := buf.WriteString(sequence.MinValue); err != nil {
+			return err
+		}
+	}
+
+	if sequence.CacheSize != "" && sequence.CacheSize != "0" {
+		if _, err := buf.WriteString(" CACHE "); err != nil {
+			return err
+		}
+		if _, err := buf.WriteString(sequence.CacheSize); err != nil {
+			return err
+		}
+	}
+
 	if sequence.Cycle {
 		if _, err := buf.WriteString(" CYCLE"); err != nil {
 			return err
