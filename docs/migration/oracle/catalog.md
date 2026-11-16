@@ -150,6 +150,12 @@ replay tests exercise.
 - `ALTER TRIGGER ... ENABLE/DISABLE` is kept in the stored declaration.
 - Dropping an independent CHECK does not clear a separate column NOT NULL.
 - Dependent virtual columns are dropped before the columns they reference.
+- A self-referencing foreign key the diff removes is not restored.
+- The migration fallback targets materialized-view nodes and skips comment-only
+  views and materialized views.
+- Trigger comparison normalizes only the declaration header, not literals in
+  the body.
+- Materialized views keep their `BUILD`/`REFRESH` policy in the definition.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

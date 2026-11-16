@@ -1825,10 +1825,10 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 			graph.AddNode("m:" + key)
 		}
 	}
-	addEdges := func(key string, dependencies []*metadatapb.DependencyColumn) {
+	addEdges := func(destination string, dependencies []*metadatapb.DependencyColumn) {
 		for _, dependency := range dependencies {
 			for _, candidate := range []string{"v:" + getMigrationObjectID(dependency.Schema, dependency.Table), "m:" + getMigrationObjectID(dependency.Schema, dependency.Table)} {
-				graph.AddEdge(candidate, "v:"+key)
+				graph.AddEdge(candidate, destination)
 			}
 		}
 	}
@@ -1838,7 +1838,7 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 			view = diff.OldView
 		}
 		if view != nil {
-			addEdges(key, view.DependencyColumns)
+			addEdges("v:"+key, view.DependencyColumns)
 		}
 	}
 	for key, diff := range materializedViews {
@@ -1847,11 +1847,7 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 			view = diff.OldMaterializedView
 		}
 		if view != nil {
-			for _, dependency := range view.DependencyColumns {
-				for _, candidate := range []string{"v:" + getMigrationObjectID(dependency.Schema, dependency.Table), "m:" + getMigrationObjectID(dependency.Schema, dependency.Table)} {
-					graph.AddEdge(candidate, "v:"+key)
-				}
-			}
+			addEdges("m:"+key, view.DependencyColumns)
 		}
 	}
 	ordered, err := graph.TopologicalSort()
@@ -1868,13 +1864,15 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 	for _, node := range ordered {
 		if strings.HasPrefix(node, "v:") {
 			key := strings.TrimPrefix(node, "v:")
-			if diff := views[key]; diff != nil {
+			if diff := views[key]; diff != nil &&
+				(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView))) {
 				writeMigrationView(out, diff.SchemaName, diff.NewView)
 			}
 			continue
 		}
 		key := strings.TrimPrefix(node, "m:")
-		if diff := materializedViews[key]; diff != nil {
+		if diff := materializedViews[key]; diff != nil &&
+			(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && materializedViewNeedsRecreate(diff.OldMaterializedView, diff.NewMaterializedView))) {
 			writeMigrationMaterializedView(out, diff.SchemaName, diff.NewMaterializedView)
 		}
 	}
@@ -1890,7 +1888,12 @@ func writeMigrationView(out *strings.Builder, schema string, view *metadatapb.Vi
 	}
 	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(view.Name)
-	_, _ = out.WriteString(`" AS `)
+	_, _ = out.WriteString(`"`)
+	if materializedViewDefinitionHasClause(view.Definition) {
+		_, _ = out.WriteString(` `)
+	} else {
+		_, _ = out.WriteString(` AS `)
+	}
 	_, _ = out.WriteString(view.Definition)
 	if !strings.HasSuffix(strings.TrimSpace(view.Definition), ";") {
 		_, _ = out.WriteString(`;`)
@@ -1916,7 +1919,12 @@ func writeMigrationMaterializedView(out *strings.Builder, schema string, view *m
 	}
 	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(view.Name)
-	_, _ = out.WriteString(`" AS `)
+	_, _ = out.WriteString(`"`)
+	if materializedViewDefinitionHasClause(view.Definition) {
+		_, _ = out.WriteString(` `)
+	} else {
+		_, _ = out.WriteString(` AS `)
+	}
 	_, _ = out.WriteString(view.Definition)
 	if !strings.HasSuffix(strings.TrimSpace(view.Definition), ";") {
 		_, _ = out.WriteString(`;`)
@@ -2595,6 +2603,10 @@ func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenam
 		if tableDiff.Action != DiffActionAlter {
 			continue
 		}
+		handledForeignKeys := map[string]bool{}
+		for _, fkDiff := range tableDiff.ForeignKeyChanges {
+			handledForeignKeys[strings.TrimSpace(cmp.Or(fkDiff.NewForeignKey, fkDiff.OldForeignKey).GetName())] = true
+		}
 		for _, indexDiff := range tableDiff.IndexChanges {
 			if indexDiff.Action != DiffActionDrop || !indexDiff.OldIndex.GetIsConstraint() || renames.oldName(tableDiff, indexDiff.OldIndex.GetName()) != "" {
 				continue
@@ -2603,6 +2615,9 @@ func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenam
 				detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = incoming
 			}
 			for _, fk := range tableDiff.OldTable.GetForeignKeys() {
+				if handledForeignKeys[fk.GetName()] {
+					continue
+				}
 				if fk.GetReferencedTable() == tableDiff.TableName &&
 					referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, indexDiff.OldIndex.GetExpressions()) {
 					detached[incomingForeignKeyKey(tableDiff.TableName, fk.GetName())] = incomingForeignKey{schema: tableDiff.SchemaName, table: tableDiff.TableName, foreignKey: fk}

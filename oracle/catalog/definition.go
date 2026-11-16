@@ -915,6 +915,11 @@ func virtualColumnClause(generation *metadatapb.GenerationMetadata) string {
 }
 
 // writeMaterializedView writes a CREATE MATERIALIZED VIEW statement
+func materializedViewDefinitionHasClause(definition string) bool {
+	upper := strings.ToUpper(strings.TrimSpace(definition))
+	return strings.HasPrefix(upper, "BUILD ") || strings.HasPrefix(upper, "REFRESH ")
+}
+
 func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedViewMetadata) error {
 	if _, err := buf.WriteString(`CREATE MATERIALIZED VIEW "`); err != nil {
 		return err
@@ -922,7 +927,14 @@ func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedVi
 	if _, err := buf.WriteString(view.Name); err != nil {
 		return err
 	}
-	if _, err := buf.WriteString(`" AS `); err != nil {
+	if _, err := buf.WriteString(`"`); err != nil {
+		return err
+	}
+	if materializedViewDefinitionHasClause(view.Definition) {
+		if _, err := buf.WriteString(` `); err != nil {
+			return err
+		}
+	} else if _, err := buf.WriteString(` AS `); err != nil {
 		return err
 	}
 	if _, err := buf.WriteString(view.Definition); err != nil {

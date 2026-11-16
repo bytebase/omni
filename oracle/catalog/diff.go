@@ -631,8 +631,46 @@ var (
 )
 
 func normalizeTriggerBody(body string) string {
-	normalized := triggerCreateReplace.ReplaceAllString(normalizeExpression(body), "CREATE TRIGGER")
-	return triggerQualifiedName.ReplaceAllString(normalized, `$1`)
+	headerEnd := triggerHeaderEnd(body)
+	header := triggerCreateReplace.ReplaceAllString(normalizeExpression(body[:headerEnd]), "CREATE TRIGGER")
+	header = replaceFirstMatch(header, triggerQualifiedName)
+	header = replaceFirstMatch(header, triggerQualifiedName)
+	return header + normalizeExpression(body[headerEnd:])
+}
+
+func triggerHeaderEnd(body string) int {
+	upper := strings.ToUpper(body)
+	var quote byte
+	for i := 0; i < len(body); i++ {
+		c := body[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '\'' {
+			quote = c
+			continue
+		}
+		if i > 0 && isIdentifierByte(body[i-1]) {
+			continue
+		}
+		for _, keyword := range []string{"BEGIN", "DECLARE"} {
+			if strings.HasPrefix(upper[i:], keyword) && (i+len(keyword) == len(body) || !isIdentifierByte(body[i+len(keyword)])) {
+				return i
+			}
+		}
+	}
+	return len(body)
+}
+
+func replaceFirstMatch(text string, pattern *regexp.Regexp) string {
+	match := pattern.FindStringSubmatchIndex(text)
+	if match == nil || len(match) < 4 {
+		return text
+	}
+	return text[:match[0]] + text[match[2]:match[3]] + text[match[1]:]
 }
 
 func viewChanged(a, b *metadatapb.ViewMetadata) bool {

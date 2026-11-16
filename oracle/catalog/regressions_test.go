@@ -1233,3 +1233,61 @@ func TestDropVirtualColumnBeforeSource(t *testing.T) {
 		t.Fatalf("virtual column dropped after its source:\n%s", sql)
 	}
 }
+
+func TestRemovedSelfForeignKeyIsNotRestored(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "PARENT_ID", Type: "NUMBER", Position: 2}}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_T", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "FK_T", Columns: []string{"PARENT_ID"}, ReferencedTable: "T", ReferencedColumns: []string{"ID"}}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: oldTable.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "UK_T", Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if strings.Count(sql, `DROP CONSTRAINT "FK_T"`) != 1 || strings.Contains(sql, `ADD CONSTRAINT "FK_T"`) {
+		t.Fatalf("removed self foreign key handled wrong:\n%s", sql)
+	}
+}
+
+func TestFallbackOrdersMaterializedViewDependencies(t *testing.T) {
+	to, err := LoadSQL(`CREATE TABLE P (ID NUMBER, C_ID NUMBER REFERENCES C(ID)); CREATE TABLE C (ID NUMBER, P_ID NUMBER REFERENCES P(ID)); CREATE MATERIALIZED VIEW Z AS SELECT ID FROM P; CREATE MATERIALIZED VIEW A AS SELECT ID FROM Z;`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, New(), to)
+	z := strings.Index(sql, `CREATE MATERIALIZED VIEW "Z"`)
+	a := strings.Index(sql, `CREATE MATERIALIZED VIEW "A"`)
+	if z < 0 || a < 0 || z > a {
+		t.Fatalf("materialized views out of order:\n%s", sql)
+	}
+}
+
+func TestFallbackSkipsCommentOnlyView(t *testing.T) {
+	parent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "C_ID", Type: "NUMBER", Position: 2}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "P_FK", Columns: []string{"C_ID"}, ReferencedTable: "C", ReferencedColumns: []string{"ID"}}}}
+	child := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "P_ID", Type: "NUMBER", Position: 2}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}}
+	oldView := &metadatapb.ViewMetadata{Name: "V", Definition: "SELECT ID FROM P", Comment: "old", DependencyColumns: []*metadatapb.DependencyColumn{{Table: "P", Column: "*"}}}
+	newView := cloneView(oldView)
+	newView.Comment = "new"
+	from := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{parent, child}, Views: []*metadatapb.ViewMetadata{oldView}})
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{parent, child}, Views: []*metadatapb.ViewMetadata{newView}})
+	sql := migrationFor(t, from, to)
+	if strings.Contains(sql, "CREATE VIEW") || !strings.Contains(sql, `COMMENT ON TABLE "V" IS 'new';`) {
+		t.Fatalf("comment-only view recreated:\n%s", sql)
+	}
+}
+
+func TestTriggerLiteralOwnerIsSignificant(t *testing.T) {
+	a := &metadatapb.TriggerMetadata{Name: "TRG", Body: "CREATE TRIGGER TRG BEFORE INSERT ON T FOR EACH ROW BEGIN :NEW.C := ' ON APP.X'; END;"}
+	b := &metadatapb.TriggerMetadata{Name: "TRG", Body: "CREATE TRIGGER TRG BEFORE INSERT ON T FOR EACH ROW BEGIN :NEW.C := ' ON OTHER.X'; END;"}
+	if triggerEqual(a, b) {
+		t.Fatal("trigger literal owner was normalized away")
+	}
+}
+
+func TestMaterializedViewKeepsRefreshPolicy(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (ID NUMBER); CREATE MATERIALIZED VIEW MV BUILD IMMEDIATE REFRESH COMPLETE ON COMMIT AS SELECT ID FROM T`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `CREATE MATERIALIZED VIEW "MV" BUILD IMMEDIATE REFRESH COMPLETE ON COMMIT AS SELECT`) {
+		t.Fatalf("refresh policy missing:\n%s", definition)
+	}
+}
