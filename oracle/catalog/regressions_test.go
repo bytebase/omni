@@ -1716,3 +1716,42 @@ func TestConstraintColumnWhitespaceIsSignificant(t *testing.T) {
 		t.Fatal("constraint column whitespace normalized away")
 	}
 }
+
+func TestDefaultOnNullImpliesNotNull(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER DEFAULT ON NULL 1)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	column := tableByName(c.Metadata().Schemas[0])["T"].Columns[0]
+	if column.Nullable || !column.DefaultOnNull {
+		t.Fatalf("column = %+v", column)
+	}
+}
+
+func TestDropColumnKeepsCheckInAlternativeQuote(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, D VARCHAR2(30), CONSTRAINT CK CHECK (D <> q'[don't C]')); ALTER TABLE T DROP COLUMN C`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	if len(table.CheckConstraints) != 1 {
+		t.Fatalf("check removed: %+v", table.CheckConstraints)
+	}
+}
+
+func TestDropConstraintKeepsStandaloneSameNameIndex(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, D NUMBER, CONSTRAINT CK CHECK(C > 0)); CREATE UNIQUE INDEX CK ON T(D); ALTER TABLE T DROP CONSTRAINT CK`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	found := false
+	for _, index := range table.Indexes {
+		if index.Name == "CK" {
+			found = true
+		}
+	}
+	if !found || len(table.CheckConstraints) != 0 {
+		t.Fatalf("index/check = %+v / %+v", table.Indexes, table.CheckConstraints)
+	}
+}

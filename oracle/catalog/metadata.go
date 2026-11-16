@@ -317,6 +317,9 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 	}
 	column.IsInvisible = n.Invisible
 	column.DefaultOnNull = n.DefaultOnNull
+	if n.DefaultOnNull {
+		column.Nullable = false
+	}
 	if n.Collation != "" {
 		column.Collation = n.Collation
 	}
@@ -625,6 +628,9 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		if def.Default != nil {
 			column.Default = e.nodeText(def.Default)
 			column.DefaultOnNull = def.DefaultOnNull
+			if def.DefaultOnNull {
+				column.Nullable = false
+			}
 		}
 		switch {
 		case def.NotNull:
@@ -882,7 +888,7 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	}
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
-		if index.Name == name {
+		if index.Name == name && index.IsConstraint {
 			if index.Primary {
 				e.clearPrimaryKeyNotNull(table, index.Expressions)
 			}

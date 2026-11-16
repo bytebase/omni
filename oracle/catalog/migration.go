@@ -1380,6 +1380,10 @@ func expressionReferencesColumn(expression, column string) bool {
 		return c == '_' || c == '$' || c == '#' || ('0' <= c && c <= '9') || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')
 	}
 	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			i = end
+			continue
+		}
 		switch c := expression[i]; {
 		case c == '\'' || c == '"':
 			end := strings.IndexByte(expression[i+1:], c)
