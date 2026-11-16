@@ -738,7 +738,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 			// Add foreign keys, except those that wait for a key this migration adds.
 			for _, fkDiff := range tableDiff.ForeignKeyChanges {
-				if fkDiff.Action == DiffActionCreate && !waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) {
+				if fkDiff.Action == DiffActionCreate &&
+					!waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) &&
+					!waitsForRebuild(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) {
 					writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey)
 				}
 			}
@@ -770,7 +772,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	for _, tableDiff := range diff.TableChanges {
 		if tableDiff.Action == DiffActionAlter {
 			for _, fkDiff := range tableDiff.ForeignKeyChanges {
-				if fkDiff.Action == DiffActionCreate && waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) {
+				if fkDiff.Action == DiffActionCreate &&
+					(waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) ||
+						waitsForRebuild(diff, tableDiff.SchemaName, fkDiff.NewForeignKey)) {
 					writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey)
 				}
 			}

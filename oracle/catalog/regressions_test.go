@@ -853,3 +853,78 @@ func TestDefinitionDefersFunctionBasedIndexUntilFunction(t *testing.T) {
 		t.Fatalf("function-based index precedes its function:\n%s", definition)
 	}
 }
+
+func TestRenameColumnUpdatesSelfForeignKey(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY, PARENT_ID NUMBER REFERENCES T(ID))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T RENAME COLUMN ID TO NEW_ID`, nil); err != nil {
+		t.Fatal(err)
+	}
+	fk := tableByName(c.Metadata().Schemas[0])["T"].ForeignKeys[0]
+	if !slices.Equal(fk.ReferencedColumns, []string{"NEW_ID"}) {
+		t.Fatalf("referenced columns = %v", fk.ReferencedColumns)
+	}
+}
+
+func TestRenameColumnQuotesCaseSensitiveName(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER CHECK (C > 0))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T RENAME COLUMN C TO "d"`, nil); err != nil {
+		t.Fatal(err)
+	}
+	check := tableByName(c.Metadata().Schemas[0])["T"].CheckConstraints[0]
+	if !strings.Contains(check.Expression, `"d"`) {
+		t.Fatalf("check expression = %q", check.Expression)
+	}
+}
+
+func TestDropUniqueKeepsOtherUniqueKeys(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (A NUMBER UNIQUE, B NUMBER UNIQUE); ALTER TABLE T DROP UNIQUE (A)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	var unique [][]string
+	for _, index := range table.Indexes {
+		if index.Unique && !index.Primary {
+			unique = append(unique, index.Expressions)
+		}
+	}
+	if len(unique) != 1 || !slices.Equal(unique[0], []string{"B"}) {
+		t.Fatalf("unique keys = %v", unique)
+	}
+}
+
+func TestViewKeepsCheckOption(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C NUMBER); CREATE VIEW V AS SELECT C FROM T WHERE C > 0 WITH CHECK OPTION`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, "WITH CHECK OPTION") {
+		t.Fatalf("check option missing:\n%s", definition)
+	}
+}
+
+func TestSequenceKeepsExplicitZero(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE SEQUENCE S MINVALUE 0 START WITH 0 MAXVALUE 100 NOCACHE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"START WITH 0", "MINVALUE 0", "MAXVALUE 100", "NOCACHE"} {
+		if !strings.Contains(definition, want) {
+			t.Fatalf("%s missing:\n%s", want, definition)
+		}
+	}
+}

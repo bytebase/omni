@@ -828,6 +828,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 
 	case p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE:
 		subtype := "UNIQUE"
+		var columns []string
 		if p.cur.Type == kwPRIMARY {
 			subtype = "PRIMARY KEY"
 			p.advance()
@@ -836,7 +837,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			}
 		} else {
 			p.advance()
-			if err := p.parseATNameList(); err != nil {
+			var err error
+			columns, err = p.parseATNameListStrings()
+			if err != nil {
 				return nil, err
 			}
 		}
@@ -849,10 +852,19 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if p.cur.Type == kwONLINE {
 			p.advance()
 		}
+		var constraint *nodes.TableConstraint
+		if len(columns) > 0 {
+			items := &nodes.List{}
+			for _, column := range columns {
+				items.Items = append(items.Items, &nodes.String{Str: column})
+			}
+			constraint = &nodes.TableConstraint{Columns: items, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+		}
 		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_DROP_CONSTRAINT,
-			Subtype: subtype,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+			Action:     nodes.AT_DROP_CONSTRAINT,
+			Constraint: constraint,
+			Subtype:    subtype,
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
 	case p.cur.Type == '(':

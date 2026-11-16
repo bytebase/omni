@@ -754,7 +754,7 @@ func writeSequence(buf *strings.Builder, sequence *metadatapb.SequenceMetadata) 
 		return err
 	}
 
-	if sequence.Start != "" && sequence.Start != "0" {
+	if sequence.Start != "" {
 		if _, err := buf.WriteString(" START WITH "); err != nil {
 			return err
 		}
@@ -772,7 +772,7 @@ func writeSequence(buf *strings.Builder, sequence *metadatapb.SequenceMetadata) 
 		}
 	}
 
-	if sequence.MaxValue != "" && sequence.MaxValue != "0" {
+	if sequence.MaxValue != "" {
 		if _, err := buf.WriteString(" MAXVALUE "); err != nil {
 			return err
 		}
@@ -781,7 +781,7 @@ func writeSequence(buf *strings.Builder, sequence *metadatapb.SequenceMetadata) 
 		}
 	}
 
-	if sequence.MinValue != "" && sequence.MinValue != "0" {
+	if sequence.MinValue != "" {
 		if _, err := buf.WriteString(" MINVALUE "); err != nil {
 			return err
 		}

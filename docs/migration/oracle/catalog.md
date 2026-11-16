@@ -113,6 +113,13 @@ replay tests exercise.
 - `DROP` validates the statement's owner before removing an object.
 - `CREATE TABLE IF NOT EXISTS` leaves an existing table unchanged.
 - Function-based indexes are emitted after the functions they call.
+- A self-referencing foreign key's referenced columns follow a column rename, and
+  a renamed identifier that needs quotes is written quoted.
+- `DROP UNIQUE (columns)` removes only the matching unique key.
+- View definitions keep `WITH READ ONLY` and `WITH CHECK OPTION`.
+- A sequence definition keeps explicit zero starts and bounds.
+- An added foreign key waits for a referenced column rebuild as well as a key
+  addition.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

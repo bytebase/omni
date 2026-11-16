@@ -115,6 +115,29 @@ func (p *Parser) parseATNameList() error {
 	return p.atExpect(')')
 }
 
+// parseATNameListStrings reads ( name [, name ]... ) and returns the names.
+func (p *Parser) parseATNameListStrings() ([]string, error) {
+	if err := p.atExpect('('); err != nil {
+		return nil, err
+	}
+	var names []string
+	for {
+		name, err := p.parseATNameString()
+		if err != nil {
+			return nil, err
+		}
+		names = append(names, name)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if err := p.atExpect(')'); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
 // parseATExprList reads ( expr [, expr ]... ).
 func (p *Parser) parseATExprList() error {
 	if err := p.atExpect('('); err != nil {

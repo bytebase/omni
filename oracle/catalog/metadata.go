@@ -495,10 +495,14 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				e.extractTableConstraint(action.Constraint, table)
 			}
 		case ast.AT_DROP_CONSTRAINT:
-			if action.Constraint != nil {
+			if action.Constraint != nil && action.Constraint.Name != "" {
 				e.dropConstraint(table, action.Constraint.Name)
 			} else {
-				e.dropConstraintSubtype(table, action.Subtype)
+				var columns []string
+				if action.Constraint != nil {
+					columns = stringList(action.Constraint.Columns)
+				}
+				e.dropConstraintSubtype(table, action.Subtype, columns)
 			}
 		case ast.AT_RENAME_CONSTRAINT:
 			e.renameConstraint(table, action.ColumnName, action.NewName)
@@ -646,9 +650,6 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 		fk.Columns = renameColumnNames(fk.Columns, oldName, newName)
 	}
 	for _, other := range e.tables {
-		if other == table {
-			continue
-		}
 		for _, fk := range other.ForeignKeys {
 			if fk.ReferencedTable == table.Name {
 				fk.ReferencedColumns = renameColumnNames(fk.ReferencedColumns, oldName, newName)
@@ -700,9 +701,7 @@ func renameIdentifier(expression, oldName, newName string) string {
 			}
 			identifier := expression[i:end]
 			if len(identifier) >= 2 && identifier[1:len(identifier)-1] == oldName {
-				out.WriteString(`"`)
-				out.WriteString(newName)
-				out.WriteString(`"`)
+				writeRenamedIdentifier(&out, newName, true)
 			} else {
 				out.WriteString(identifier)
 			}
@@ -714,7 +713,7 @@ func renameIdentifier(expression, oldName, newName string) string {
 			}
 			token := expression[i:end]
 			if strings.EqualFold(token, oldName) {
-				out.WriteString(newName)
+				writeRenamedIdentifier(&out, newName, false)
 			} else {
 				out.WriteString(token)
 			}
@@ -725,6 +724,17 @@ func renameIdentifier(expression, oldName, newName string) string {
 		}
 	}
 	return out.String()
+}
+
+func writeRenamedIdentifier(out *strings.Builder, name string, forceQuote bool) {
+	quote := forceQuote || needsConstraintQuotes(name)
+	if !quote {
+		out.WriteString(name)
+		return
+	}
+	out.WriteString(`"`)
+	out.WriteString(strings.ReplaceAll(name, `"`, `""`))
+	out.WriteString(`"`)
 }
 
 func isIdentifierByte(c byte) bool {
@@ -761,15 +771,32 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	table.ForeignKeys = foreignKeys
 }
 
-func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string) {
+func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string) {
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
-		drop := (subtype == "PRIMARY KEY" && index.Primary) || (subtype == "UNIQUE" && index.Unique && !index.Primary)
+		drop := subtype == "PRIMARY KEY" && index.Primary
+		if subtype == "UNIQUE" && index.Unique && !index.Primary {
+			drop = len(columns) == 0 || expressionsMatchColumns(index.Expressions, columns)
+		}
 		if !drop {
 			indexes = append(indexes, index)
 		}
 	}
 	table.Indexes = indexes
+}
+
+func expressionsMatchColumns(expressions, columns []string) bool {
+	if len(expressions) != len(columns) {
+		return false
+	}
+	for i, expression := range expressions {
+		expression = strings.Trim(expression, `"`)
+		column := strings.Trim(columns[i], `"`)
+		if !strings.EqualFold(expression, column) {
+			return false
+		}
+	}
+	return true
 }
 
 func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetadata, oldName, newName string) {
@@ -1071,6 +1098,15 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	}
 
 	definition := e.nodeText(n.Query)
+	if n.WithReadOnly {
+		definition = strings.TrimSpace(definition) + " WITH READ ONLY"
+	} else if n.WithCheckOpt {
+		restriction := " WITH CHECK OPTION"
+		if n.ConstraintName != "" {
+			restriction += ` CONSTRAINT "` + n.ConstraintName + `"`
+		}
+		definition = strings.TrimSpace(definition) + restriction
+	}
 	if n.Materialized {
 		materializedView := &metadatapb.MaterializedViewMetadata{
 			Name:              viewName,
