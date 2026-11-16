@@ -110,3 +110,25 @@ func TestSchemaEmpty(t *testing.T) {
 		t.Errorf("SchemaIndex on an empty schema = %v, %q", got, table)
 	}
 }
+
+func TestSchemaSameDatabase(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		schema Schema
+		asked  string
+		want   bool
+	}{
+		{name: "the same name", schema: Schema{Metadata: &metadata.DatabaseSchemaMetadata{Name: "shop"}}, asked: "shop", want: true},
+		{name: "another name", schema: Schema{Metadata: &metadata.DatabaseSchemaMetadata{Name: "shop"}}, asked: "other"},
+		{name: "case differs, case insensitive", schema: Schema{Metadata: &metadata.DatabaseSchemaMetadata{Name: "shop"}}, asked: "Shop", want: true},
+		{name: "case differs, case sensitive", schema: Schema{ObjectCaseSensitive: true, Metadata: &metadata.DatabaseSchemaMetadata{Name: "shop"}}, asked: "Shop"},
+		{name: "no snapshot"},
+		{name: "an unnamed snapshot", asked: "shop"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.schema.SameDatabase(tt.asked); got != tt.want {
+				t.Errorf("SameDatabase(%q) = %v, want %v", tt.asked, got, tt.want)
+			}
+		})
+	}
+}

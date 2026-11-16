@@ -69,6 +69,14 @@ func (s Schema) DatabaseName() string {
 	return s.Metadata.GetName()
 }
 
+// SameDatabase reports whether name is the name of the database the snapshot is
+// of, compared as ObjectCaseSensitive says; an empty name is no database. A
+// rule reads it to tell the database the snapshot holds tables for from one it
+// says nothing about.
+func (s Schema) SameDatabase(name string) bool {
+	return name != "" && fold(name, s.ObjectCaseSensitive) == fold(s.DatabaseName(), s.ObjectCaseSensitive)
+}
+
 // HasNoTable reports whether no schema of the snapshot lists a table. Among
 // schemas of the same name only the last is read, as the V1 advisors read
 // them.
