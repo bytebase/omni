@@ -2200,11 +2200,10 @@ type TablePartitionMetadata struct {
 	// https://www.postgresql.org/docs/current/sql-createtable.html. For MySQL,
 	// the expression is the `expr` or `column_list` of the following syntax.
 	// PARTITION BY
-	//
-	//	{ [LINEAR] HASH(expr)
-	//	| [LINEAR] KEY [ALGORITHM={1 | 2}] (column_list)
-	//	| RANGE{(expr) | COLUMNS(column_list)}
-	//	| LIST{(expr) | COLUMNS(column_list)} }.
+	//    { [LINEAR] HASH(expr)
+	//    | [LINEAR] KEY [ALGORITHM={1 | 2}] (column_list)
+	//    | RANGE{(expr) | COLUMNS(column_list)}
+	//    | LIST{(expr) | COLUMNS(column_list)} }.
 	Expression string `protobuf:"bytes,3,opt,name=expression,proto3" json:"expression,omitempty"`
 	// The value is the value of a table partition.
 	// For MySQL, the value is for RANGE and LIST partition types,
@@ -2363,20 +2362,17 @@ type ColumnMetadata struct {
 	// This field stores the actual constraint name from the database.
 	//
 	// Example: A column definition like:
-	//
-	//	CREATE TABLE employees (
-	//	  status NVARCHAR(20) DEFAULT 'active'
-	//	)
+	//   CREATE TABLE employees (
+	//     status NVARCHAR(20) DEFAULT 'active'
+	//   )
 	//
 	// Will create a constraint with an auto-generated name like 'DF__employees__statu__3B75D760'
 	// or a user-defined name if specified:
-	//
-	//	ALTER TABLE employees ADD CONSTRAINT DF_employees_status DEFAULT 'active' FOR status
+	//   ALTER TABLE employees ADD CONSTRAINT DF_employees_status DEFAULT 'active' FOR status
 	//
 	// To modify the default, you must first drop the existing constraint by name:
-	//
-	//	ALTER TABLE employees DROP CONSTRAINT DF__employees__statu__3B75D760
-	//	ALTER TABLE employees ADD CONSTRAINT DF_employees_status DEFAULT 'inactive' FOR status
+	//   ALTER TABLE employees DROP CONSTRAINT DF__employees__statu__3B75D760
+	//   ALTER TABLE employees ADD CONSTRAINT DF_employees_status DEFAULT 'inactive' FOR status
 	//
 	// This field is populated when syncing from the database. When empty (e.g., when parsing
 	// from SQL files), the system cannot automatically drop the constraint.
@@ -3233,7 +3229,6 @@ type IndexMetadata struct {
 	//   - column key:        bare identifier            e.g. "id", `"Name"`
 	//   - function-call key: bare func_expr_windowless  e.g. "lower(name)"
 	//   - expression key:    parenthesized a_expr       e.g. "(payload ->> 'k'::text)"
-	//
 	// The DDL emitter writes entries verbatim into the CREATE INDEX key list.
 	Expressions []string `protobuf:"bytes,2,rep,name=expressions,proto3" json:"expressions,omitempty"`
 	// The ordered list of key lengths for the index.
