@@ -360,7 +360,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 	// Drop schemas (must be empty)
 	for _, schemaDiff := range diff.SchemaChanges {
-		if schemaDiff.Action == DiffActionDrop {
+		if schemaDiff.Action == DiffActionDrop && schemaDiff.SchemaName != "" {
 			// Before dropping a schema, we need to drop all objects inside it
 			// This handles cases where the diff doesn't include objects within a schema being dropped
 			if schemaDiff.OldSchema != nil {
@@ -408,7 +408,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	// First create schemas (they don't have dependencies)
 	var schemasToCreate []string
 	for _, schemaDiff := range diff.SchemaChanges {
-		if schemaDiff.Action == DiffActionCreate {
+		if schemaDiff.Action == DiffActionCreate && schemaDiff.SchemaName != "" {
 			schemasToCreate = append(schemasToCreate, schemaDiff.SchemaName)
 		}
 	}
@@ -627,7 +627,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		for _, tableDiff := range tableMap {
 			if tableDiff.Action == DiffActionCreate && tableDiff.NewTable != nil {
 				for _, fk := range tableDiff.NewTable.ForeignKeys {
-					if !waitsForRebuild(diff, tableDiff.SchemaName, fk) {
+					if !waitsForRebuild(diff, tableDiff.SchemaName, fk) && !waitsForKeyAddition(diff, tableDiff.SchemaName, fk) {
 						writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk)
 					}
 				}
@@ -683,7 +683,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		for _, tableDiff := range tableMap {
 			if tableDiff.Action == DiffActionCreate && tableDiff.NewTable != nil {
 				for _, fk := range tableDiff.NewTable.ForeignKeys {
-					if !waitsForRebuild(diff, tableDiff.SchemaName, fk) {
+					if !waitsForRebuild(diff, tableDiff.SchemaName, fk) && !waitsForKeyAddition(diff, tableDiff.SchemaName, fk) {
 						writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk)
 					}
 				}
@@ -749,6 +749,19 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 			// Handle index comment changes
 			generateIndexCommentChanges(buf, tableDiff)
+		}
+	}
+
+	// New tables' foreign keys that wait for a key added by this migration come
+	// after every ALTER that adds one.
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
+			continue
+		}
+		for _, fk := range tableDiff.NewTable.ForeignKeys {
+			if waitsForRebuild(diff, tableDiff.SchemaName, fk) || waitsForKeyAddition(diff, tableDiff.SchemaName, fk) {
+				writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk)
+			}
 		}
 	}
 
@@ -889,7 +902,8 @@ func findIncomingForeignKeys(diff *MetadataDiff, database *metadatapb.DatabaseSc
 		switch other := tableDiffs[table.GetName()]; {
 		case other == nil:
 		case other.Action == DiffActionCreate && action == DiffActionCreate:
-			// A new table's foreign keys on a rebuilt key waited for it.
+			// A new table's foreign keys on a rebuilt key are added after it.
+			continue
 		case other.Action != DiffActionAlter:
 			continue
 		default:
@@ -1425,7 +1439,9 @@ func writeColumnAttributes(out *strings.Builder, column *metadatapb.ColumnMetada
 	if column.IsInvisible {
 		_, _ = out.WriteString(` INVISIBLE`)
 	}
-	if column.Generation != nil {
+	if column.IsIdentity {
+		_, _ = out.WriteString(columnIdentityClause(column))
+	} else if column.Generation != nil {
 		_, _ = out.WriteString(virtualColumnClause(column.Generation))
 	} else if defaultExpr := getDefaultExpression(column); defaultExpr != "" {
 		_, _ = out.WriteString(` DEFAULT `)
@@ -1578,9 +1594,10 @@ func writeFunctionDiff(out *strings.Builder, funcDiff *FunctionDiff) {
 	case DiffActionAlter:
 		// Oracle requires CREATE OR REPLACE for functions
 		definition := funcDiff.NewFunction.Definition
-		// If the definition doesn't start with CREATE, add the CREATE OR REPLACE prefix
 		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(definition)), "CREATE") {
 			_, _ = out.WriteString("CREATE OR REPLACE ")
+		} else {
+			definition = alterRoutineDefinition(definition)
 		}
 		_, _ = out.WriteString(definition)
 		if !strings.HasSuffix(strings.TrimSpace(definition), ";") {
@@ -1719,9 +1736,10 @@ func writeProcedureDiff(out *strings.Builder, procDiff *ProcedureDiff) {
 	case DiffActionAlter:
 		// Oracle requires CREATE OR REPLACE for procedures
 		definition := procDiff.NewProcedure.Definition
-		// If the definition doesn't start with CREATE, add the CREATE OR REPLACE prefix
 		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(definition)), "CREATE") {
 			_, _ = out.WriteString("CREATE OR REPLACE ")
+		} else {
+			definition = alterRoutineDefinition(definition)
 		}
 		_, _ = out.WriteString(definition)
 		if !strings.HasSuffix(strings.TrimSpace(definition), ";") {
@@ -1785,6 +1803,9 @@ func writeMigrationMaterializedView(out *strings.Builder, schema string, view *m
 	}
 	for _, trigger := range view.Triggers {
 		writeMigrationTrigger(out, trigger)
+	}
+	for _, index := range view.Indexes {
+		writeMigrationIndex(out, schema, view.Name, index)
 	}
 }
 
@@ -1992,6 +2013,9 @@ func writeMigrationIndex(out *strings.Builder, schema, table string, index *meta
 		}
 	}
 	_, _ = out.WriteString(`)`)
+	if !index.Visible {
+		_, _ = out.WriteString(` INVISIBLE`)
+	}
 
 	_, _ = out.WriteString(`;`)
 	_, _ = out.WriteString("\n")
@@ -2006,7 +2030,7 @@ func writeMigrationIndex(out *strings.Builder, schema, table string, index *meta
 
 // writeViewComment writes a COMMENT ON VIEW statement
 func writeViewComment(out *strings.Builder, schema, viewName, comment string) {
-	_, _ = out.WriteString(`COMMENT ON VIEW `)
+	_, _ = out.WriteString(`COMMENT ON TABLE `)
 	if schema != "" {
 		_, _ = out.WriteString(`"`)
 		_, _ = out.WriteString(schema)
@@ -2520,4 +2544,50 @@ func isSimpleIdentifier(expression string) bool {
 	}
 	c := expression[0]
 	return !(c >= '0' && c <= '9')
+}
+
+// alterRoutineDefinition turns a plain CREATE declaration into CREATE OR
+// REPLACE, which is what ALTERing an existing routine needs.
+func alterRoutineDefinition(definition string) string {
+	trimmed := strings.TrimSpace(definition)
+	upper := strings.ToUpper(trimmed)
+	if strings.HasPrefix(upper, "CREATE OR REPLACE ") {
+		return definition
+	}
+	if strings.HasPrefix(upper, "CREATE ") {
+		return "CREATE OR REPLACE " + trimmed[len("CREATE "):]
+	}
+	return definition
+}
+
+// waitsForKeyAddition reports whether a new table's foreign key references a
+// key this migration adds to an existing table.
+func waitsForKeyAddition(diff *MetadataDiff, schemaName string, fk *metadatapb.ForeignKeyMetadata) bool {
+	if len(fk.GetReferencedColumns()) == 0 {
+		return false
+	}
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter || tableDiff.TableName != fk.GetReferencedTable() {
+			continue
+		}
+		if fk.GetReferencedSchema() != "" && fk.GetReferencedSchema() != tableDiff.SchemaName && fk.GetReferencedSchema() != schemaName {
+			continue
+		}
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action != DiffActionCreate || !indexDiff.NewIndex.GetIsConstraint() {
+				continue
+			}
+			all := true
+			for _, column := range fk.GetReferencedColumns() {
+				if !slices.Contains(indexDiff.NewIndex.GetExpressions(), column) {
+					all = false
+					break
+				}
+			}
+			if all {
+				return true
+			}
+		}
+	}
+	return false
 }

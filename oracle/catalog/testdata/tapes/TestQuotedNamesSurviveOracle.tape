@@ -26,7 +26,7 @@
 | 		WHERE owner = 'OmniQuoted' AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'FUNCTION', 'PROCEDURE', 'INDEX', 'TRIGGER')
 | 		ORDER BY object_type, object_name
 < result
-< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR"
+< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR" "string"
 < row
 : string
 | TABLE/Mixed Case

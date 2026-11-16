@@ -12,7 +12,7 @@
 < ok 0 0
 > exec
 | CREATE TABLE "DEPARTMENTS" (
-|   "ID" NUMBER NOT NULL,
+|   "ID" NUMBER GENERATED ALWAYS AS IDENTITY NOT NULL,
 |   "NAME" VARCHAR2(100 BYTE) NOT NULL,
 |   "BUDGET" NUMBER(12, 2) DEFAULT 0,
 |   CONSTRAINT "PK_DEPARTMENTS" PRIMARY KEY ("ID")
@@ -22,7 +22,7 @@
 |
 |
 | CREATE TABLE "EMPLOYEES" (
-|   "ID" NUMBER NOT NULL,
+|   "ID" NUMBER GENERATED ALWAYS AS IDENTITY NOT NULL,
 |   "NAME" VARCHAR2(100 BYTE) NOT NULL,
 |   "EMAIL" VARCHAR2(100 BYTE),
 |   "DEPARTMENT_ID" NUMBER,
@@ -50,7 +50,7 @@
 | 		WHERE owner = 'OMNI_CAT_0' AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'FUNCTION', 'PROCEDURE', 'INDEX', 'TRIGGER')
 | 		ORDER BY object_type, object_name
 < result
-< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR"
+< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR" "string"
 < row
 : string
 | INDEX/IDX_EMP_DEPT
@@ -66,6 +66,12 @@
 < row
 : string
 | INDEX/UK_EMPLOYEES_EMAIL
+< row
+: string
+| SEQUENCE/ISEQ$$_9000001
+< row
+: string
+| SEQUENCE/ISEQ$$_9000002
 < row
 : string
 | TABLE/DEPARTMENTS
@@ -109,7 +115,7 @@
 | 		WHERE owner = 'OMNI_CAT_1' AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'FUNCTION', 'PROCEDURE', 'INDEX', 'TRIGGER')
 | 		ORDER BY object_type, object_name
 < result
-< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR"
+< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR" "string"
 < row
 : string
 | INDEX/PK_EMPLOYEES
@@ -145,7 +151,7 @@
 | 		WHERE owner = 'OMNI_CAT_2' AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'FUNCTION', 'PROCEDURE', 'INDEX', 'TRIGGER')
 | 		ORDER BY object_type, object_name
 < result
-< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR"
+< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR" "string"
 < row
 : string
 | TABLE/T
@@ -166,7 +172,7 @@
 | 		WHERE owner = 'OMNI_CAT_3' AND object_type IN ('TABLE', 'VIEW', 'MATERIALIZED VIEW', 'SEQUENCE', 'FUNCTION', 'PROCEDURE', 'INDEX', 'TRIGGER')
 | 		ORDER BY object_type, object_name
 < result
-< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR"
+< column "OBJECT_TYPE||'/'||OBJECT_NAME" "NCHAR" "string"
 < row
 : string
 | SEQUENCE/AUDIT_LOG_SEQ

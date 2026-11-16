@@ -537,8 +537,71 @@ func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, 
 		}
 	}
 	for _, check := range table.CheckConstraints {
-		check.Expression = strings.ReplaceAll(check.Expression, oldName, newName)
+		check.Expression = renameIdentifier(check.Expression, oldName, newName)
 	}
+}
+
+// renameIdentifier rewrites identifier tokens that name oldName and leaves
+// string literals and other identifiers alone.
+func renameIdentifier(expression, oldName, newName string) string {
+	var out strings.Builder
+	for i := 0; i < len(expression); {
+		switch c := expression[i]; {
+		case c == '\'':
+			end := i + 1
+			for end < len(expression) {
+				if expression[end] == '\'' {
+					if end+1 < len(expression) && expression[end+1] == '\'' {
+						end += 2
+						continue
+					}
+					end++
+					break
+				}
+				end++
+			}
+			out.WriteString(expression[i:end])
+			i = end
+		case c == '"':
+			end := i + 1
+			for end < len(expression) && expression[end] != '"' {
+				end++
+			}
+			if end < len(expression) {
+				end++
+			}
+			identifier := expression[i:end]
+			if len(identifier) >= 2 && identifier[1:len(identifier)-1] == oldName {
+				out.WriteString(`"`)
+				out.WriteString(newName)
+				out.WriteString(`"`)
+			} else {
+				out.WriteString(identifier)
+			}
+			i = end
+		case isIdentifierByte(c):
+			end := i + 1
+			for end < len(expression) && isIdentifierByte(expression[end]) {
+				end++
+			}
+			token := expression[i:end]
+			if strings.EqualFold(token, oldName) {
+				out.WriteString(newName)
+			} else {
+				out.WriteString(token)
+			}
+			i = end
+		default:
+			out.WriteByte(c)
+			i++
+		}
+	}
+	return out.String()
+}
+
+func isIdentifierByte(c byte) bool {
+	return c == '_' || c == '$' || c == '#' ||
+		(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }
 
 func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata, name string) {

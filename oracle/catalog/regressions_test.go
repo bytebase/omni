@@ -120,3 +120,113 @@ func TestConstraintRenameKeepsIncomingForeignKeys(t *testing.T) {
 		t.Fatalf("constraint dropped instead of renamed:\n%s", sql)
 	}
 }
+
+func TestDefinitionRendersIdentity(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{
+		Name: "T",
+		Columns: []*metadatapb.ColumnMetadata{{
+			Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true,
+			IdentityGeneration: metadatapb.ColumnMetadata_ALWAYS, IdentitySeed: 5, IdentityIncrement: 2,
+		}},
+	}}}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `GENERATED ALWAYS AS IDENTITY (START WITH 5 INCREMENT BY 2)`) {
+		t.Fatalf("identity clause missing:\n%s", definition)
+	}
+	created := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{}), &Catalog{meta: meta})
+	if !strings.Contains(created, `GENERATED ALWAYS AS IDENTITY (START WITH 5 INCREMENT BY 2)`) {
+		t.Fatalf("identity clause missing from migration:\n%s", created)
+	}
+}
+
+func TestDefinitionDefersCyclicForeignKeys(t *testing.T) {
+	a := &metadatapb.TableMetadata{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "B_ID", Type: "NUMBER", Position: 2}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "A_FK", Columns: []string{"B_ID"}, ReferencedTable: "B", ReferencedColumns: []string{"ID"}}}}
+	b := &metadatapb.TableMetadata{Name: "B", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}, {Name: "A_ID", Type: "NUMBER", Position: 2}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "B_FK", Columns: []string{"A_ID"}, ReferencedTable: "A", ReferencedColumns: []string{"ID"}}}}
+	definition, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{a, b}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(definition, `CONSTRAINT "A_FK"`) && strings.Contains(definition[:strings.Index(definition, `CREATE TABLE "B"`)], `CONSTRAINT "A_FK"`) {
+		t.Fatalf("cyclic foreign key is embedded in CREATE TABLE:\n%s", definition)
+	}
+	if !strings.Contains(definition, `ALTER TABLE "A" ADD CONSTRAINT "A_FK"`) || !strings.Contains(definition, `ALTER TABLE "B" ADD CONSTRAINT "B_FK"`) {
+		t.Fatalf("cyclic foreign keys were not deferred:\n%s", definition)
+	}
+}
+
+func TestMigrationSkipsUnnamedSchema(t *testing.T) {
+	target, err := LoadSQL(`CREATE TABLE T (ID NUMBER)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, New(), target)
+	if strings.Contains(sql, `CREATE USER`) {
+		t.Fatalf("unnamed schema became a user:\n%s", sql)
+	}
+	if !strings.Contains(sql, `CREATE TABLE "T"`) {
+		t.Fatalf("table missing:\n%s", sql)
+	}
+}
+
+func TestMigrationRestoresMaterializedViewIndexes(t *testing.T) {
+	oldView := &metadatapb.MaterializedViewMetadata{Name: "MV", Definition: "SELECT 1 AS X FROM DUAL"}
+	newView := &metadatapb.MaterializedViewMetadata{Name: "MV", Definition: "SELECT 2 AS X FROM DUAL", Indexes: []*metadatapb.IndexMetadata{{Name: "MV_IDX", Expressions: []string{"X"}, Visible: true}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{MaterializedViews: []*metadatapb.MaterializedViewMetadata{oldView}}), catalogFromSchema(&metadatapb.SchemaMetadata{MaterializedViews: []*metadatapb.MaterializedViewMetadata{newView}}))
+	if !strings.Contains(sql, `CREATE INDEX "MV_IDX" ON "MV"`) {
+		t.Fatalf("materialized-view index missing:\n%s", sql)
+	}
+}
+
+func TestMigrationDefersForeignKeyUntilKeyAddition(t *testing.T) {
+	oldParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}
+	newParent := &metadatapb.TableMetadata{Name: "P", Columns: oldParent.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "P_PK", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	child := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldParent}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newParent, child}}))
+	key := strings.Index(sql, `ADD CONSTRAINT "P_PK"`)
+	fk := strings.Index(sql, `ADD CONSTRAINT "C_FK"`)
+	if key < 0 || fk < 0 || key > fk {
+		t.Fatalf("child foreign key was not deferred until after the key:\n%s", sql)
+	}
+}
+
+func TestMigrationRendersInvisibleIndex(t *testing.T) {
+	table := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "T_IDX", Expressions: []string{"C"}}}}
+	definition, err := DatabaseDefinition(&metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{table}}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `CREATE INDEX "T_IDX" ON "T" ("C" ASC) INVISIBLE;`) {
+		t.Fatalf("invisible index missing from definition:\n%s", definition)
+	}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{table}}))
+	if !strings.Contains(sql, `CREATE INDEX "T_IDX" ON "T" ("C" ASC) INVISIBLE;`) {
+		t.Fatalf("invisible index missing from migration:\n%s", sql)
+	}
+}
+
+func TestMigrationAlterProcedureUsesOrReplace(t *testing.T) {
+	oldProc := &metadatapb.ProcedureMetadata{Name: "P", Definition: "CREATE PROCEDURE P IS BEGIN NULL; END;"}
+	newProc := &metadatapb.ProcedureMetadata{Name: "P", Definition: "CREATE PROCEDURE P IS BEGIN DBMS_OUTPUT.PUT_LINE('x'); END;"}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Procedures: []*metadatapb.ProcedureMetadata{oldProc}}), catalogFromSchema(&metadatapb.SchemaMetadata{Procedures: []*metadatapb.ProcedureMetadata{newProc}}))
+	if !strings.Contains(sql, "CREATE OR REPLACE PROCEDURE P IS") {
+		t.Fatalf("altered procedure is not CREATE OR REPLACE:\n%s", sql)
+	}
+}
+
+func TestRenameIdentifierKeepsLiterals(t *testing.T) {
+	if got := renameIdentifier(`CODE <> 'CODE' AND "CODE" > 0`, "CODE", "NEW_CODE"); got != `NEW_CODE <> 'CODE' AND "NEW_CODE" > 0` {
+		t.Fatalf("renamed expression = %q", got)
+	}
+}
+
+func TestMigrationViewCommentUsesTable(t *testing.T) {
+	oldView := &metadatapb.ViewMetadata{Name: "V", Definition: "SELECT 1 AS X FROM DUAL", Comment: "old"}
+	newView := &metadatapb.ViewMetadata{Name: "V", Definition: "SELECT 2 AS X FROM DUAL", Comment: "new"}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Views: []*metadatapb.ViewMetadata{oldView}}), catalogFromSchema(&metadatapb.SchemaMetadata{Views: []*metadatapb.ViewMetadata{newView}}))
+	if !strings.Contains(sql, `COMMENT ON TABLE "V" IS 'new';`) || strings.Contains(sql, `COMMENT ON VIEW`) {
+		t.Fatalf("view comment is not COMMENT ON TABLE:\n%s", sql)
+	}
+}

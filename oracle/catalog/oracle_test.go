@@ -131,6 +131,9 @@ func readObjects(t *testing.T, conn *sql.Conn, schema string) []string {
 		if err := rows.Scan(&name); err != nil {
 			t.Fatal(err)
 		}
+		if strings.HasPrefix(name, "SEQUENCE/ISEQ$$_") {
+			continue
+		}
 		result = append(result, name)
 	}
 	if err := rows.Err(); err != nil {

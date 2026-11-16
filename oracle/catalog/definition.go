@@ -109,10 +109,18 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	// Perform topological sort
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
-		// If there are cycles, fall back to original order
+		// If there are cycles, fall back to original order: create every table
+		// without foreign keys, then add the foreign keys once all tables exist.
 		for _, table := range tables {
-			if err := writeTable(&buf, table); err != nil {
+			if err := writeTableWithForeignKeys(&buf, table, false); err != nil {
 				return "", err
+			}
+		}
+		for _, table := range tables {
+			for _, fk := range table.ForeignKeys {
+				if err := writeAddForeignKey(&buf, table.Name, fk); err != nil {
+					return "", err
+				}
 			}
 		}
 		for _, view := range schema.Views {
@@ -223,6 +231,10 @@ func GetProcedureDefinition(_ string, procedure *metadatapb.ProcedureMetadata) (
 }
 
 func writeTable(buf *strings.Builder, table *metadatapb.TableMetadata) error {
+	return writeTableWithForeignKeys(buf, table, true)
+}
+
+func writeTableWithForeignKeys(buf *strings.Builder, table *metadatapb.TableMetadata, includeForeignKeys bool) error {
 	if _, err := buf.WriteString(`CREATE TABLE "`); err != nil {
 		return err
 	}
@@ -274,12 +286,14 @@ func writeTable(buf *strings.Builder, table *metadatapb.TableMetadata) error {
 		}
 	}
 
-	for _, fk := range table.ForeignKeys {
-		if err := writeSeparator(); err != nil {
-			return err
-		}
-		if err := writeForeignKey(buf, fk); err != nil {
-			return err
+	if includeForeignKeys {
+		for _, fk := range table.ForeignKeys {
+			if err := writeSeparator(); err != nil {
+				return err
+			}
+			if err := writeForeignKey(buf, fk); err != nil {
+				return err
+			}
 		}
 	}
 	if _, err := buf.WriteString("\n);\n\n"); err != nil {
@@ -398,7 +412,15 @@ func writeIndex(buf *strings.Builder, table string, index *metadatapb.IndexMetad
 		}
 	}
 
-	if _, err := buf.WriteString(`);`); err != nil {
+	if _, err := buf.WriteString(`)`); err != nil {
+		return err
+	}
+	if !index.Visible {
+		if _, err := buf.WriteString(` INVISIBLE`); err != nil {
+			return err
+		}
+	}
+	if _, err := buf.WriteString(`;`); err != nil {
 		return err
 	}
 	if _, err := buf.WriteString("\n\n"); err != nil {
@@ -473,6 +495,25 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 	}
 	_, err := buf.WriteString(`)`)
 	return err
+}
+
+func writeAddForeignKey(buf *strings.Builder, table string, fk *metadatapb.ForeignKeyMetadata) error {
+	if _, err := buf.WriteString(`ALTER TABLE "`); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(table); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(`" ADD `); err != nil {
+		return err
+	}
+	if err := writeForeignKey(buf, fk); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(";\n\n"); err != nil {
+		return err
+	}
+	return nil
 }
 
 func writeCheckConstraint(buf *strings.Builder, check *metadatapb.CheckConstraintMetadata) error {
@@ -576,6 +617,17 @@ func writeColumn(buf *strings.Builder, column *metadatapb.ColumnMetadata) error 
 		if _, err := buf.WriteString(` INVISIBLE`); err != nil {
 			return err
 		}
+	}
+	if column.IsIdentity {
+		if _, err := buf.WriteString(columnIdentityClause(column)); err != nil {
+			return err
+		}
+		if !column.Nullable {
+			if _, err := buf.WriteString(` NOT NULL`); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
 	if column.Generation != nil {
 		if _, err := buf.WriteString(virtualColumnClause(column.Generation)); err != nil {

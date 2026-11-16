@@ -28,7 +28,7 @@ func TestDatabaseDefinition(t *testing.T) {
 	if err := yaml.Unmarshal(content, &tests); err != nil {
 		t.Fatal(err)
 	}
-	for _, tc := range tests {
+	for i, tc := range tests {
 		t.Run(tc.Description, func(t *testing.T) {
 			meta := &metadatapb.DatabaseSchemaMetadata{}
 			if err := protojson.Unmarshal([]byte(tc.Metadata), meta); err != nil {
@@ -38,13 +38,24 @@ func TestDatabaseDefinition(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != tc.Expected {
+			if *update {
+				tests[i].Expected = got
+			} else if got != tc.Expected {
 				t.Errorf("definition mismatch\n--- got ---\n%s\n--- want ---\n%s", got, tc.Expected)
 			}
 			if _, err := metadataFromSQL(got); err != nil {
 				t.Errorf("generated definition does not parse: %v", err)
 			}
 		})
+	}
+	if *update {
+		content, err := yaml.Marshal(tests)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile("testdata/get_database_definition.yaml", content, 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 

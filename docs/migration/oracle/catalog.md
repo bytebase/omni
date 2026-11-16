@@ -38,8 +38,20 @@ replay tests exercise.
   `RENAME CONSTRAINT`, not drop and create, so its incoming foreign keys stay
   attached.
 - `DEFAULT ON NULL` is kept in CREATE/ADD and changed through MODIFY.
-- Migration statements keep a bitmap index's `BITMAP` modifier, quote a
-  case-sensitive key column, and recreate a changed view's triggers.
+- Migration statements keep a bitmap index's `BITMAP` modifier and an
+  invisible index's `INVISIBLE`, quote a case-sensitive key column, and recreate
+  a changed view's triggers.
+- Identity columns render `GENERATED ... AS IDENTITY` with their seed and
+  increment, in a definition and in CREATE/ADD.
+- A definition with mutually referencing tables creates the tables first and
+  adds their foreign keys afterwards.
+- A migration creates a key added to an existing table before a new table's
+  foreign key that references it, and skips `CREATE USER` for the unnamed
+  current schema.
+- A changed view's comments use `COMMENT ON TABLE`, which is Oracle's form for
+  a view, and a changed procedure is always `CREATE OR REPLACE`.
+- Renaming a column rewrites identifier tokens in check expressions, not string
+  literals.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
