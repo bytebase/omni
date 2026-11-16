@@ -253,6 +253,9 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 		return
 	}
 
+	if n.IfNotExists && e.tables[tableName] != nil {
+		return
+	}
 	table := e.getOrCreateTable(tableName)
 	for _, item := range listItems(n.Columns) {
 		column, ok := item.(*ast.ColumnDef)
@@ -817,6 +820,9 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 	for _, item := range listItems(n.Names) {
 		nameNode, ok := item.(*ast.ObjectName)
 		if !ok {
+			continue
+		}
+		if !e.useSchema(nameNode.Schema) {
 			continue
 		}
 		name := objectName(nameNode)
@@ -1527,7 +1533,7 @@ type viewDependencyVisitor struct {
 
 func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
 	if ref, ok := node.(*ast.TableRef); ok && ref.Name != nil && ref.Name.Name != "" {
-		if ref.Name.Schema == "" && v.cteNames[strings.ToUpper(ref.Name.Name)] {
+		if ref.Name.Schema == "" && v.cteNames[ref.Name.Name] {
 			return v
 		}
 		schema := ref.Name.Schema
@@ -1549,7 +1555,7 @@ func (v *cteNameVisitor) Visit(node ast.Node) ast.Visitor {
 	if selectStmt, ok := node.(*ast.SelectStmt); ok && selectStmt.WithClause != nil {
 		for _, item := range listItems(selectStmt.WithClause.CTEs) {
 			if cte, ok := item.(*ast.CTE); ok && cte.Name != "" {
-				v.names[strings.ToUpper(cte.Name)] = true
+				v.names[cte.Name] = true
 			}
 		}
 	}

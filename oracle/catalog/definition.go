@@ -116,7 +116,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		// If there are cycles, fall back to original order: create every table
 		// without foreign keys, then add the foreign keys once all tables exist.
 		for _, table := range tables {
-			if err := writeTableWithForeignKeys(&buf, table, false); err != nil {
+			if err := writeTableWithOptions(&buf, table, false, false); err != nil {
 				return "", err
 			}
 		}
@@ -147,13 +147,16 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				return "", err
 			}
 		}
+		if err := writeDeferredFunctionIndexes(&buf, tables); err != nil {
+			return "", err
+		}
 		return buf.String(), nil
 	}
 
 	// Generate objects in dependency order
 	for _, objectID := range orderedList {
 		if table, ok := tableMap[objectID]; ok {
-			if err := writeTable(&buf, table); err != nil {
+			if err := writeTableWithoutFunctionIndexes(&buf, table); err != nil {
 				return "", err
 			}
 		}
@@ -178,8 +181,25 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			}
 		}
 	}
+	if err := writeDeferredFunctionIndexes(&buf, tables); err != nil {
+		return "", err
+	}
 
 	return buf.String(), nil
+}
+
+func writeDeferredFunctionIndexes(buf *strings.Builder, tables []*metadatapb.TableMetadata) error {
+	for _, table := range tables {
+		for _, index := range table.Indexes {
+			if index.IsConstraint || !strings.Contains(index.Type, "FUNCTION-BASED") {
+				continue
+			}
+			if err := writeIndex(buf, table.Name, index); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func GetTableDefinition(_ string, table *metadatapb.TableMetadata, _ []*metadatapb.SequenceMetadata) (string, error) {
@@ -235,10 +255,18 @@ func GetProcedureDefinition(_ string, procedure *metadatapb.ProcedureMetadata) (
 }
 
 func writeTable(buf *strings.Builder, table *metadatapb.TableMetadata) error {
-	return writeTableWithForeignKeys(buf, table, true)
+	return writeTableWithOptions(buf, table, true, true)
+}
+
+func writeTableWithoutFunctionIndexes(buf *strings.Builder, table *metadatapb.TableMetadata) error {
+	return writeTableWithOptions(buf, table, true, false)
 }
 
 func writeTableWithForeignKeys(buf *strings.Builder, table *metadatapb.TableMetadata, includeForeignKeys bool) error {
+	return writeTableWithOptions(buf, table, includeForeignKeys, true)
+}
+
+func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata, includeForeignKeys, includeFunctionIndexes bool) error {
 	if _, err := buf.WriteString(`CREATE TABLE "`); err != nil {
 		return err
 	}
@@ -306,6 +334,9 @@ func writeTableWithForeignKeys(buf *strings.Builder, table *metadatapb.TableMeta
 
 	for _, index := range table.Indexes {
 		if index.IsConstraint {
+			continue
+		}
+		if !includeFunctionIndexes && strings.Contains(index.Type, "FUNCTION-BASED") {
 			continue
 		}
 		if err := writeIndex(buf, table.Name, index); err != nil {

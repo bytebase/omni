@@ -45,8 +45,8 @@ func TestMigrationKeepsDefaultOnNull(t *testing.T) {
 	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Default: "1", Position: 1}}}
 	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Default: "1", DefaultOnNull: true, Position: 1}}}
 	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
-	if !strings.Contains(sql, `DEFAULT ON NULL 1`) {
-		t.Fatalf("DEFAULT ON NULL change missing:\n%s", sql)
+	if !strings.Contains(sql, `DEFAULT ON NULL 1`) || strings.Contains(sql, `DROP IDENTITY`) {
+		t.Fatalf("DEFAULT ON NULL change wrong:\n%s", sql)
 	}
 
 	created := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
@@ -783,5 +783,73 @@ func TestViewDependenciesExcludeCTE(t *testing.T) {
 		if dependency.Table == "A" {
 			t.Fatalf("CTE name recorded as a dependency: %+v", z.DependencyColumns)
 		}
+	}
+}
+
+func TestDropRejectsAnotherOwner(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}}})
+	results, err := c.Exec(`DROP TABLE OTHER.T`, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) == 0 || results[0].Error == nil {
+		t.Fatal("drop from another owner was applied")
+	}
+	if tableByName(c.Metadata().Schemas[0])["T"] == nil {
+		t.Fatal("local table was deleted")
+	}
+}
+
+func TestViewDependenciesKeepQuotedCTECase(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C NUMBER); CREATE VIEW Z AS SELECT C FROM T; CREATE VIEW A AS WITH "z" AS (SELECT C FROM T) SELECT Z.C FROM Z JOIN "z" ON Z.C = "z".C`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var a *metadatapb.ViewMetadata
+	for _, view := range meta.Schemas[0].Views {
+		if view.Name == "A" {
+			a = view
+		}
+	}
+	if a == nil {
+		t.Fatal("view A missing")
+	}
+	found := false
+	for _, dependency := range a.DependencyColumns {
+		if dependency.Table == "Z" {
+			found = true
+		}
+		if dependency.Table == "z" {
+			t.Fatalf("quoted CTE recorded as dependency: %+v", a.DependencyColumns)
+		}
+	}
+	if !found {
+		t.Fatalf("view Z dependency missing: %+v", a.DependencyColumns)
+	}
+}
+
+func TestCreateTableIfNotExistsKeepsExistingColumns(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (ID NUMBER); CREATE TABLE IF NOT EXISTS T (ID NUMBER)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := len(meta.Schemas[0].Tables[0].Columns); got != 1 {
+		t.Fatalf("columns = %d, want 1", got)
+	}
+}
+
+func TestDefinitionDefersFunctionBasedIndexUntilFunction(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Tables:    []*metadatapb.TableMetadata{{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "I", Type: "FUNCTION-BASED NORMAL", Expressions: []string{"Z(ID)"}, Visible: true}}}},
+		Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z(P NUMBER) RETURN NUMBER IS BEGIN RETURN P; END;"}},
+	}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, "CREATE OR REPLACE FUNCTION Z")
+	index := strings.Index(definition, `CREATE INDEX "I"`)
+	if function < 0 || index < 0 || function > index {
+		t.Fatalf("function-based index precedes its function:\n%s", definition)
 	}
 }

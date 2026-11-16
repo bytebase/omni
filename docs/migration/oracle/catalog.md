@@ -108,7 +108,11 @@ replay tests exercise.
 - `DROP PRIMARY KEY`/`DROP UNIQUE` without a constraint name removes the
   matching key, and identity `ON NULL` changes render through MODIFY.
 - View dependencies exclude names introduced by a CTE while keeping the tables
-  its query reads.
+  its query reads; quoted CTE names stay case-sensitive.
+- A non-identity `DEFAULT ON NULL` change does not emit identity DDL.
+- `DROP` validates the statement's owner before removing an object.
+- `CREATE TABLE IF NOT EXISTS` leaves an existing table unchanged.
+- Function-based indexes are emitted after the functions they call.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
