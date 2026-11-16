@@ -1045,7 +1045,8 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 	if colDiff.OldColumn.GetIsIdentity() != colDiff.NewColumn.GetIsIdentity() ||
 		colDiff.OldColumn.GetIdentityGeneration() != colDiff.NewColumn.GetIdentityGeneration() ||
 		colDiff.OldColumn.GetIdentitySeed() != colDiff.NewColumn.GetIdentitySeed() ||
-		colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() {
+		colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() ||
+		colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull() {
 		if colDiff.NewColumn.GetIsIdentity() {
 			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, strings.TrimSpace(columnIdentityClause(colDiff.NewColumn)))
 		} else {

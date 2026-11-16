@@ -494,6 +494,8 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 		case ast.AT_DROP_CONSTRAINT:
 			if action.Constraint != nil {
 				e.dropConstraint(table, action.Constraint.Name)
+			} else {
+				e.dropConstraintSubtype(table, action.Subtype)
 			}
 		case ast.AT_RENAME_CONSTRAINT:
 			e.renameConstraint(table, action.ColumnName, action.NewName)
@@ -754,6 +756,17 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 		}
 	}
 	table.ForeignKeys = foreignKeys
+}
+
+func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string) {
+	var indexes []*metadatapb.IndexMetadata
+	for _, index := range table.Indexes {
+		drop := (subtype == "PRIMARY KEY" && index.Primary) || (subtype == "UNIQUE" && index.Unique && !index.Primary)
+		if !drop {
+			indexes = append(indexes, index)
+		}
+	}
+	table.Indexes = indexes
 }
 
 func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetadata, oldName, newName string) {
@@ -1506,13 +1519,17 @@ func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClau
 }
 
 type viewDependencyVisitor struct {
-	schema string
-	seen   map[string]bool
-	result *[]*metadatapb.DependencyColumn
+	schema   string
+	seen     map[string]bool
+	cteNames map[string]bool
+	result   *[]*metadatapb.DependencyColumn
 }
 
 func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
 	if ref, ok := node.(*ast.TableRef); ok && ref.Name != nil && ref.Name.Name != "" {
+		if ref.Name.Schema == "" && v.cteNames[strings.ToUpper(ref.Name.Name)] {
+			return v
+		}
 		schema := ref.Name.Schema
 		if schema == "" {
 			schema = v.schema
@@ -1526,11 +1543,26 @@ func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
 	return v
 }
 
+type cteNameVisitor struct{ names map[string]bool }
+
+func (v *cteNameVisitor) Visit(node ast.Node) ast.Visitor {
+	if selectStmt, ok := node.(*ast.SelectStmt); ok && selectStmt.WithClause != nil {
+		for _, item := range listItems(selectStmt.WithClause.CTEs) {
+			if cte, ok := item.(*ast.CTE); ok && cte.Name != "" {
+				v.names[strings.ToUpper(cte.Name)] = true
+			}
+		}
+	}
+	return v
+}
+
 func viewDependencyColumns(query ast.StmtNode, schema string) []*metadatapb.DependencyColumn {
 	if query == nil {
 		return nil
 	}
+	cteNames := map[string]bool{}
+	ast.Walk(&cteNameVisitor{names: cteNames}, query)
 	var result []*metadatapb.DependencyColumn
-	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result}, query)
+	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, cteNames: cteNames, result: &result}, query)
 	return result
 }

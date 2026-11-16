@@ -105,6 +105,10 @@ replay tests exercise.
 - A table definition renders its table and column comments.
 - A constraint column that is reserved or not a simple identifier is quoted in
   a migration.
+- `DROP PRIMARY KEY`/`DROP UNIQUE` without a constraint name removes the
+  matching key, and identity `ON NULL` changes render through MODIFY.
+- View dependencies exclude names introduced by a CTE while keeping the tables
+  its query reads.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
