@@ -95,7 +95,7 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 
 func writeReferencedFunctions(out *strings.Builder, schemas []*metadata.SchemaMetadata, names map[string]bool) {
 	for _, schema := range schemas {
-		for _, function := range schema.Functions {
+		for _, function := range sortFunctions(schema.Name, schema.Functions) {
 			if function.GetSkipDump() {
 				continue
 			}
@@ -104,6 +104,45 @@ func writeReferencedFunctions(out *strings.Builder, schemas []*metadata.SchemaMe
 			}
 		}
 	}
+}
+
+// sortFunctions puts a function after any function its body names.
+func sortFunctions(schemaName string, functions []*metadata.FunctionMetadata) []*metadata.FunctionMetadata {
+	graph := newGraph()
+	byName := make(map[string]*metadata.FunctionMetadata)
+	for _, function := range functions {
+		if function.GetSkipDump() {
+			continue
+		}
+		id := objectID(schemaName, function.Name)
+		graph.addNode(id)
+		byName[id] = function
+	}
+	for _, function := range functions {
+		if function.GetSkipDump() {
+			continue
+		}
+		id := objectID(schemaName, function.Name)
+		for _, other := range functions {
+			if other == function || other.GetSkipDump() {
+				continue
+			}
+			if strings.Contains(strings.ToLower(function.Definition), strings.ToLower(other.Name)) {
+				graph.addEdge(objectID(schemaName, other.Name), id)
+			}
+		}
+	}
+	order, err := graph.topologicalSort()
+	if err != nil {
+		return functions
+	}
+	result := make([]*metadata.FunctionMetadata, 0, len(functions))
+	for _, id := range order {
+		if function := byName[id]; function != nil {
+			result = append(result, function)
+		}
+	}
+	return result
 }
 
 // functionsReferencedByTables names the functions a column default or computed
@@ -302,7 +341,7 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 }
 
 func writeFunctionsAndProcedures(out *strings.Builder, schema *metadata.SchemaMetadata, early map[string]bool) {
-	for _, function := range schema.Functions {
+	for _, function := range sortFunctions(schema.Name, schema.Functions) {
 		if function.GetSkipDump() || early[objectID(schema.Name, function.Name)] {
 			continue
 		}

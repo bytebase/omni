@@ -425,7 +425,7 @@ func compareColumns(oldTable, newTable *metadata.TableMetadata) []*ColumnDiffEnt
 }
 
 func columnsEqual(a, b *metadata.ColumnMetadata) bool {
-	if a.Type != b.Type || a.Nullable != b.Nullable {
+	if !typesEqual(a.Type, b.Type) || a.Nullable != b.Nullable {
 		return false
 	}
 	if !expressionsEqual(a.Default, b.Default) {
@@ -448,6 +448,15 @@ func columnsEqual(a, b *metadata.ColumnMetadata) bool {
 		return false
 	}
 	return a.IsInvisible == b.IsInvisible
+}
+
+func typesEqual(a, b string) bool {
+	return normalizeType(a) == normalizeType(b)
+}
+
+func normalizeType(value string) string {
+	value = strings.ToLower(value)
+	return strings.ReplaceAll(value, " ", "")
 }
 
 func generationEqual(a, b *metadata.GenerationMetadata) bool {
