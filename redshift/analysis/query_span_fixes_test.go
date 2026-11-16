@@ -426,6 +426,39 @@ func TestRedshiftFunctionSourceNestedScalarSubqueriesStayLinear(t *testing.T) {
 	})
 }
 
+// TestRedshiftQuerySpanSetOpOffsetFunction covers a function in the set-operation
+// node's own OFFSET clause.
+func TestRedshiftQuerySpanSetOpOffsetFunction(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT (SELECT 1 UNION ALL SELECT 2 OFFSET reporting_fn() LIMIT 1) AS x")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "x",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
+// TestRedshiftFunctionSourceNestedDerivedTablesStayLinear: each derived query's
+// projection is cached, so wrapping a query in another derived table does not
+// reanalyze every level below it.
+func TestRedshiftFunctionSourceNestedDerivedTablesStayLinear(t *testing.T) {
+	const depth = 200
+	sql := "SELECT 1 AS x"
+	for i := 0; i < depth; i++ {
+		sql = "SELECT (SELECT * FROM (" + sql + ") d" + fmt.Sprint(i) + ") AS x"
+	}
+	stmts, err := parseRedshiftSpan(sql)
+	require.NoError(t, err)
+	require.Len(t, stmts, 1)
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	cputime.Within(t, 2*time.Second, fmt.Sprintf("function sources through %d nested derived tables", depth), func() {
+		_, _, _, err := q.collectFunctionBodySources(stmts[0].AST, map[string]bool{}, make(map[string]functionBodySources))
+		require.NoError(t, err)
+	})
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {

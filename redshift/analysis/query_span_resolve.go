@@ -17,6 +17,16 @@ type querySpanResolver struct {
 	defaultDatabase string
 	searchPath      []string
 	opts            ResolveOptions
+
+	// functionProjectionCache memoises a SELECT's function-source projection
+	// within one span, so a derived or scalar subquery reached by more than one
+	// pass is analyzed once.
+	functionProjectionCache map[*ast.SelectStmt]functionProjectionCacheEntry
+}
+
+type functionProjectionCacheEntry struct {
+	projection functionSourceProjection
+	issues     functionBodyIssues
 }
 
 func newQuerySpanResolver(defaultDatabase string, searchPath []string, opts ResolveOptions) *querySpanResolver {
@@ -529,6 +539,21 @@ func (q *querySpanResolver) collectSelectFunctionProjection(selectStmt *ast.Sele
 	if selectStmt == nil {
 		return functionSourceProjection{}, functionBodyIssues{}, nil
 	}
+	if entry, ok := q.functionProjectionCache[selectStmt]; ok {
+		return entry.projection, entry.issues, nil
+	}
+	projection, issues, err := q.collectSelectFunctionProjectionUncached(selectStmt, functionStack, cache, outerScope)
+	if err != nil {
+		return functionSourceProjection{}, functionBodyIssues{}, err
+	}
+	if q.functionProjectionCache == nil {
+		q.functionProjectionCache = make(map[*ast.SelectStmt]functionProjectionCacheEntry)
+	}
+	q.functionProjectionCache[selectStmt] = functionProjectionCacheEntry{projection: projection, issues: issues}
+	return projection, issues, nil
+}
+
+func (q *querySpanResolver) collectSelectFunctionProjectionUncached(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) (functionSourceProjection, functionBodyIssues, error) {
 
 	if selectStmt.Op != ast.SETOP_NONE {
 		// A set operation's output column i is fed by column i of every arm, so
@@ -549,18 +574,26 @@ func (q *querySpanResolver) collectSelectFunctionProjection(selectStmt *ast.Sele
 			return functionSourceProjection{}, functionBodyIssues{}, err
 		}
 		issues.merge(rightIssues)
+		clauseSources, clauseIssues, err := q.collectSelectClauseSources(selectStmt, functionStack, cache, scope)
+		if err != nil {
+			return functionSourceProjection{}, functionBodyIssues{}, err
+		}
+		issues.merge(clauseIssues)
 		if left.opaque || right.opaque {
 			// An unresolved star makes an arm's width unknown; positional
 			// merging would pair the wrong columns. Keep the left arm's shape as
 			// the output shape and leave the projection opaque.
 			result := left
 			result.opaque = true
+			mergeClauseSources(&result, clauseSources)
 			return result, issues, nil
 		}
-		return functionSourceProjection{
+		result := functionSourceProjection{
 			names:   left.names,
 			sources: mergeFunctionArmResultSources(left.sources, right.sources),
-		}, issues, nil
+		}
+		mergeClauseSources(&result, clauseSources)
+		return result, issues, nil
 	}
 
 	if selectStmt.TargetList == nil {
@@ -1211,6 +1244,12 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		}
 		issues.merge(rightIssues)
 		mergeSourceColumnSet(result, right)
+		clauses, clauseIssues, err := q.collectSelectClauseSources(selectStmt, functionStack, cache, scope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(clauseIssues)
+		mergeSourceColumnSet(result, clauses)
 		return result, issues, nil
 	}
 	// Target stars expand from the recovered projections; the expression walk
@@ -1224,6 +1263,26 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 	for _, sources := range projection.sources {
 		mergeSourceColumnSet(result, sources)
 	}
+	clauseSources, clauseIssues, clauseErr := q.collectSelectClauseSources(selectStmt, functionStack, cache, scope)
+	if clauseErr != nil {
+		return nil, functionBodyIssues{}, clauseErr
+	}
+	issues.merge(clauseIssues)
+	mergeSourceColumnSet(result, clauseSources)
+	sources, fromIssues, fromErr := q.collectFunctionFromClauseSources(selectStmt.FromClause, functionStack, cache, scope)
+	if fromErr != nil {
+		return nil, functionBodyIssues{}, fromErr
+	}
+	issues.merge(fromIssues)
+	mergeSourceColumnSet(result, sources)
+	return result, issues, nil
+}
+
+// collectSelectClauseSources collects functions in a SELECT's expression-bearing
+// clauses without revisiting its target list.
+func (q *querySpanResolver) collectSelectClauseSources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+	result := make(ColumnSet)
+	issues := functionBodyIssues{}
 	for _, clause := range []ast.Node{
 		selectStmt.DistinctClause,
 		selectStmt.ValuesLists,
@@ -1246,13 +1305,13 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		issues.merge(clauseIssues)
 		mergeSourceColumnSet(result, sources)
 	}
-	sources, fromIssues, fromErr := q.collectFunctionFromClauseSources(selectStmt.FromClause, functionStack, cache, scope)
-	if fromErr != nil {
-		return nil, functionBodyIssues{}, fromErr
-	}
-	issues.merge(fromIssues)
-	mergeSourceColumnSet(result, sources)
 	return result, issues, nil
+}
+
+func mergeClauseSources(projection *functionSourceProjection, sources ColumnSet) {
+	for i := range projection.sources {
+		mergeSourceColumnSet(projection.sources[i], sources)
+	}
 }
 
 // collectFunctionFromClauseSources collects the function dependencies in FROM
