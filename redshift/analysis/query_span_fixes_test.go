@@ -74,6 +74,38 @@ func TestRedshiftQuerySpanScalarSubqueryFunctionCTE(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanStarOverCrossJoin covers an ordinary joined star, whose
+// join has no USING clause to read.
+func TestRedshiftQuerySpanStarOverCrossJoin(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("SELECT * FROM (SELECT reporting_fn() AS x) a CROSS JOIN (SELECT 0 AS y) b")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 2)
+	require.Equal(t, ResolvedQuerySpanResult{
+		Name: "x",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+		IsPlainField: true,
+	}, span.Results[0])
+	require.Equal(t, "y", span.Results[1].Name)
+}
+
+// TestRedshiftQuerySpanScalarSubqueryShadowsOuterBinding covers an inner FROM
+// alias over a CTE that is also bound outside: the inner scope wins instead of
+// making the unqualified column ambiguous.
+func TestRedshiftQuerySpanScalarSubqueryShadowsOuterBinding(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH c AS (SELECT reporting_fn() AS x) SELECT (SELECT x FROM c AS cc) AS y FROM c")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanStarKeepsFollowingFunctionAligned covers a projection
 // with a multi-column star followed by a function: the function's output name
 // and sources must stay aligned after the star expands.

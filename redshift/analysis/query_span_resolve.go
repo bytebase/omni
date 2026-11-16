@@ -242,6 +242,10 @@ type functionSourceProjection struct {
 type functionSourceScope struct {
 	defs     map[string]functionSourceProjection
 	bindings map[string]functionSourceProjection
+	// outerBindings are the enclosing queries' FROM bindings, kept separate so
+	// an inner relation shadows a same-named outer one and an unqualified
+	// column prefers the inner scope instead of looking ambiguous.
+	outerBindings map[string]functionSourceProjection
 }
 
 func (q *querySpanResolver) collectAccessTables(node ast.Node) (ColumnSet, error) {
@@ -578,7 +582,8 @@ func appendFunctionProjection(dst *functionSourceProjection, src functionSourceP
 // concatenates them; a USING/NATURAL join lists each common column once, first,
 // unioning its sources, then the remaining left and right columns.
 func mergeFunctionJoinProjection(left, right functionSourceProjection, n *ast.JoinExpr) (functionSourceProjection, bool) {
-	if len(n.UsingClause.Items) == 0 && !n.IsNatural {
+	using := redshiftStringList(n.UsingClause)
+	if len(using) == 0 && !n.IsNatural {
 		var result functionSourceProjection
 		appendFunctionProjection(&result, left)
 		appendFunctionProjection(&result, right)
@@ -599,7 +604,7 @@ func mergeFunctionJoinProjection(left, right functionSourceProjection, n *ast.Jo
 			names = append(names, name)
 		}
 	} else {
-		names = redshiftStringList(n.UsingClause)
+		names = using
 	}
 	usedLeft := make([]bool, len(left.names))
 	usedRight := make([]bool, len(right.names))
@@ -692,7 +697,7 @@ func mergeFunctionArmResultSources(left, right []ColumnSet) []ColumnSet {
 }
 
 func (q *querySpanResolver) functionSourceScopeForSelect(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) (functionSourceScope, functionBodyIssues, error) {
-	scope := cloneFunctionSourceScope(outerScope)
+	scope := enterFunctionSourceScope(outerScope)
 	issues := functionBodyIssues{}
 
 	if selectStmt.WithClause != nil && selectStmt.WithClause.Ctes != nil {
@@ -1074,14 +1079,39 @@ func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResul
 
 func cloneFunctionSourceScope(scope functionSourceScope) functionSourceScope {
 	result := functionSourceScope{
-		defs:     make(map[string]functionSourceProjection, len(scope.defs)),
-		bindings: make(map[string]functionSourceProjection, len(scope.bindings)),
+		defs:          make(map[string]functionSourceProjection, len(scope.defs)),
+		bindings:      make(map[string]functionSourceProjection, len(scope.bindings)),
+		outerBindings: make(map[string]functionSourceProjection, len(scope.outerBindings)),
 	}
 	for name, projection := range scope.defs {
 		result.defs[name] = projection
 	}
 	for name, projection := range scope.bindings {
 		result.bindings[name] = projection
+	}
+	for name, projection := range scope.outerBindings {
+		result.outerBindings[name] = projection
+	}
+	return result
+}
+
+// enterFunctionSourceScope starts a nested query's scope. It inherits the CTE
+// definitions and makes the enclosing query's bindings fallbacks, not peers of
+// the nested FROM bindings.
+func enterFunctionSourceScope(outer functionSourceScope) functionSourceScope {
+	result := functionSourceScope{
+		defs:          make(map[string]functionSourceProjection, len(outer.defs)),
+		bindings:      make(map[string]functionSourceProjection),
+		outerBindings: make(map[string]functionSourceProjection, len(outer.bindings)+len(outer.outerBindings)),
+	}
+	for name, projection := range outer.defs {
+		result.defs[name] = projection
+	}
+	for name, projection := range outer.outerBindings {
+		result.outerBindings[name] = projection
+	}
+	for name, projection := range outer.bindings {
+		result.outerBindings[name] = projection
 	}
 	return result
 }
@@ -1098,7 +1128,11 @@ func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRe
 	case 1:
 		return resolveUnqualifiedFunctionColumn(scope, parts[0])
 	case 2:
-		if projection, ok := scope.bindings[strings.ToLower(parts[0])]; ok {
+		key := strings.ToLower(parts[0])
+		if projection, ok := scope.bindings[key]; ok {
+			return projection.functionSourcesForColumn(parts[1])
+		}
+		if projection, ok := scope.outerBindings[key]; ok {
 			return projection.functionSourcesForColumn(parts[1])
 		}
 		return ColumnSet{}
@@ -1108,21 +1142,31 @@ func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRe
 }
 
 func resolveUnqualifiedFunctionColumn(scope functionSourceScope, columnName string) ColumnSet {
-	var result ColumnSet
-	for _, projection := range scope.bindings {
-		sources := projection.functionSourcesForColumn(columnName)
-		if len(sources) == 0 {
+	if sources, found, ambiguous := lookupUnqualifiedFunctionColumn(scope.bindings, columnName); ambiguous {
+		return ColumnSet{}
+	} else if found {
+		return sources
+	}
+	sources, _, _ := lookupUnqualifiedFunctionColumn(scope.outerBindings, columnName)
+	return sources
+}
+
+// lookupUnqualifiedFunctionColumn searches one scope level. found reports a
+// single visible relation exposing the name (its sources may be empty);
+// ambiguous reports that several do.
+func lookupUnqualifiedFunctionColumn(bindings map[string]functionSourceProjection, columnName string) (sources ColumnSet, found, ambiguous bool) {
+	for _, projection := range bindings {
+		index, ok := functionColumnIndex(projection, columnName)
+		if !ok {
 			continue
 		}
-		if result != nil {
-			return ColumnSet{}
+		if found {
+			return nil, false, true
 		}
-		result = sources
+		found = true
+		sources = projection.sources[index]
 	}
-	if result == nil {
-		return ColumnSet{}
-	}
-	return result
+	return sources, found, false
 }
 
 func (p functionSourceProjection) functionSourcesForColumn(columnName string) ColumnSet {
