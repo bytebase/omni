@@ -24,7 +24,7 @@
 > raw
 | {"method":"POST","route":"/alpha/_doc/app_bulk","body":"{\"errors\": true, \"items\": [{\"update\": {\"error\": {\"reason\": \"logged application error\"}}}]}\n"}
 < raw
-| {"status":201,"contentType":"application/json","body":"{\"errors\":false,\"items\":[]}"}
+| {"status":201,"contentType":"application/json","body":"{\"_id\":\"app_bulk\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":4,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
 > raw
 | {"method":"POST","route":"/alpha/_refresh"}
 < raw

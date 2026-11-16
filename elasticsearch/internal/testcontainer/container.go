@@ -393,7 +393,7 @@ func narrow(route, contentType string, body []byte) ([]byte, bool) {
 		sort.SliceStable(entries, func(i, j int) bool { return entries[i].Index < entries[j].Index })
 		narrowed, err := json.Marshal(entries)
 		return narrowed, err == nil
-	case strings.Contains(route, "_bulk"):
+	case isBulkEndpoint(route):
 		return narrowBulk(body)
 	case strings.HasPrefix(route, "/_security/user"), strings.HasPrefix(route, "/_plugins/_security/api/internalusers"):
 		var users map[string]struct {
@@ -415,6 +415,15 @@ func narrow(route, contentType string, body []byte) ([]byte, bool) {
 	}
 	narrowed, err := json.Marshal(withoutTimings(document))
 	return narrowed, err == nil
+}
+
+// isBulkEndpoint reports whether a route names the bulk endpoint, "/_bulk" or
+// "/<index>/_bulk". A document whose id or index carries the word is not one:
+// its answer is the document's, and narrowing it would fabricate a verdict.
+func isBulkEndpoint(route string) bool {
+	path, _, _ := strings.Cut(route, "?")
+	path = strings.TrimRight(path, "/")
+	return path == "_bulk" || strings.HasSuffix(path, "/_bulk")
 }
 
 // narrowBulk keeps what the driver reads of a bulk answer: whether any item
