@@ -1,0 +1,125 @@
+{
+  "name": "omni_driver",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "empty",
+          "indexes": [
+            {
+              "name": "_id_",
+              "expressions": [
+                "{\"_id\":1}"
+              ]
+            }
+          ],
+          "indexSize": "4096"
+        },
+        {
+          "name": "events",
+          "indexes": [
+            {
+              "name": "_id_",
+              "expressions": [
+                "{\"_id\":1}"
+              ]
+            },
+            {
+              "name": "kind_1__id_-1",
+              "expressions": [
+                "{\"kind\":1,\"_id\":-1}"
+              ]
+            }
+          ],
+          "rowCount": "2",
+          "dataSize": "65",
+          "indexSize": "24576"
+        },
+        {
+          "name": "nested",
+          "indexes": [
+            {
+              "name": "_id_",
+              "expressions": [
+                "{\"_id\":1}"
+              ]
+            }
+          ],
+          "rowCount": "1",
+          "dataSize": "96",
+          "indexSize": "4096"
+        },
+        {
+          "name": "orders",
+          "indexes": [
+            {
+              "name": "_id_",
+              "expressions": [
+                "{\"_id\":1}"
+              ]
+            },
+            {
+              "name": "customer_id_1_created_at_-1",
+              "expressions": [
+                "{\"customer_id\":1,\"created_at\":-1}"
+              ]
+            }
+          ],
+          "rowCount": "1",
+          "dataSize": "66",
+          "indexSize": "24576"
+        },
+        {
+          "name": "sessions",
+          "indexes": [
+            {
+              "name": "_id_",
+              "expressions": [
+                "{\"_id\":1}"
+              ]
+            },
+            {
+              "name": "created_at_1",
+              "expressions": [
+                "{\"created_at\":1}"
+              ]
+            }
+          ],
+          "indexSize": "8192"
+        },
+        {
+          "name": "users",
+          "indexes": [
+            {
+              "name": "_id_",
+              "expressions": [
+                "{\"_id\":1}"
+              ]
+            },
+            {
+              "name": "age_-1_name_1",
+              "expressions": [
+                "{\"age\":-1,\"name\":1}"
+              ]
+            },
+            {
+              "name": "name_1",
+              "expressions": [
+                "{\"name\":1}"
+              ],
+              "unique": true
+            }
+          ],
+          "rowCount": "3",
+          "dataSize": "285",
+          "indexSize": "45056"
+        }
+      ],
+      "views": [
+        {
+          "name": "v_adults"
+        }
+      ]
+    }
+  ]
+}

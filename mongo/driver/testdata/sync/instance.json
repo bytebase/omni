@@ -1,0 +1,9 @@
+{
+  "databases": [
+    "omni_driver"
+  ],
+  "roles": [
+    "admin.testuser"
+  ],
+  "version": "8.0.38"
+}

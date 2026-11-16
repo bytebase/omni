@@ -4,7 +4,12 @@
 // A test calls its engine's testcontainer.Open(t), which calls Open here
 // and gets an ordinary *sql.DB. In a replay, the default, that connection
 // answers from testdata/tapes/<top-level test>.tape. With OMNI_RECORD=1 it
-// talks to the pinned server and writes the tape. Replay holds a test to
+// talks to the pinned server and writes the tape.
+//
+// An engine whose client library is not database/sql calls OpenRaw instead and
+// writes the exchange itself: a request and its answer are opaque text, which
+// the engine's testcontainer spells so that one request always answers the same
+// text. Replay holds a test to
 // its tape in both directions: a request the tape does not hold next fails,
 // and so do recorded requests the test never sends. So what a test sends
 // must depend only on its inputs, never on omni's results.
@@ -147,6 +152,28 @@ func (f *fileState) poison() error {
 // package's TestMain must run tests through Main.
 func Open(t testing.TB, s *Server, role string) *sql.DB {
 	t.Helper()
+	ses, f, pin, recording := begin(t, s, role)
+
+	c := &connector{s: ses}
+	if recording {
+		c.live = s.Live(t, pin)
+	}
+
+	db := sql.OpenDB(c)
+	db.SetMaxOpenConns(1)
+	db.SetMaxIdleConns(1)
+	t.Cleanup(func() {
+		_ = db.Close()
+		end(t, f, ses, role, pin, recording)
+	})
+	return db
+}
+
+// begin opens t's stream in pin row role: a replay of its tape, or, in a
+// recording, a stream that will be written down. Each stream is named by t,
+// role and how many streams t opened before.
+func begin(t testing.TB, s *Server, role string) (*session, *fileState, enginetest.Pin, bool) {
+	t.Helper()
 	recording := enginetest.Recording(t)
 	pin, err := enginetest.LoadPin(s.Pins, role)
 	if err != nil {
@@ -182,10 +209,7 @@ func Open(t testing.TB, s *Server, role string) *sql.DB {
 		ses.want = committed.exchanges
 	}
 
-	c := &connector{s: ses}
-	if recording {
-		c.live = s.Live(t, pin)
-	} else {
+	if !recording {
 		switch {
 		case f.old == nil:
 			t.Fatalf("tape: no tape %s. Record it:\n  %s", f.path, recordCommand(t))
@@ -196,29 +220,79 @@ func Open(t testing.TB, s *Server, role string) *sql.DB {
 			t.Fatalf("tape: %s has no stream %q. Record it:\n  %s", f.path, name, recordCommand(t))
 		}
 	}
+	return ses, f, pin, recording
+}
 
-	db := sql.OpenDB(c)
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	t.Cleanup(func() {
-		_ = db.Close()
-		if !recording {
-			ses.finish()
-			return
+// end accounts for one stream once its test is done: a replay fails on
+// answers no request asked for, and a recording replaces the file it opened.
+func end(t testing.TB, f *fileState, ses *session, role string, pin enginetest.Pin, recording bool) {
+	t.Helper()
+	if !recording {
+		ses.finish()
+		return
+	}
+	ses.reproduces()
+	reg.Lock()
+	defer reg.Unlock()
+	if f.poisoned {
+		return // the test failed, and the committed tape stays
+	}
+	f.pins[role] = pin.String()
+	f.recorded[ses.name] = &stream{name: ses.name, exchanges: ses.got}
+	if err := f.write(); err != nil {
+		t.Errorf("tape: %v", err)
+	}
+}
+
+// OpenRaw returns t's stream in pin row role. live, when the run records,
+// answers a request from the pinned server; a replay never calls it and may
+// pass nil.
+func OpenRaw(t testing.TB, s *Server, role string, live func(req string) (string, error)) *Raw {
+	t.Helper()
+	ses, f, pin, recording := begin(t, s, role)
+	t.Cleanup(func() { end(t, f, ses, role, pin, recording) })
+	r := &Raw{ses: ses}
+	if recording {
+		r.live = live
+	}
+	return r
+}
+
+// Raw is one stream of opaque exchanges, for an engine whose client library is
+// not database/sql: a request is the text the driver asked its client, and the
+// answer is the text the client returned. Neither is interpreted here; each
+// engine's testcontainer writes them so that the same request always answers
+// the same text.
+type Raw struct {
+	ses  *session
+	live func(req string) (string, error)
+}
+
+// Do sends one request and returns its answer. In a recording it asks the
+// pinned server and writes the answer down; in a replay it returns the
+// recorded answer, failing the test when the tape holds another request next.
+// A returned error means the answer could not be produced at all, which a
+// tape cannot hold: the request or the server is not the engine's answer.
+//
+// A Server whose Codec is a Renamer has the values the engine made up replaced
+// in the answer and in the requests that repeat them, as a database/sql
+// stream does.
+func (r *Raw) Do(text string) (string, error) {
+	req := request{kind: "raw", text: text}
+	if r.live == nil {
+		a, err := r.ses.replay(req)
+		if err != nil {
+			return "", err
 		}
-		ses.reproduces()
-		reg.Lock()
-		defer reg.Unlock()
-		if f.poisoned {
-			return // the test failed, and the committed tape stays
-		}
-		f.pins[role] = pin.String()
-		f.recorded[name] = &stream{name: name, exchanges: ses.got}
-		if err := f.write(); err != nil {
-			t.Errorf("tape: %v", err)
-		}
-	})
-	return db
+		return a.text, nil
+	}
+	ans, err := r.live(r.ses.show(text))
+	if err != nil {
+		return "", err
+	}
+	ans = r.ses.hide(ans)
+	r.ses.record(req, answer{kind: "raw", text: ans})
+	return ans, nil
 }
 
 // write saves the streams this run recorded, in name order. A recording

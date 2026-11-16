@@ -1,0 +1,23 @@
+// The collections, documents and indexes every sync test reads. A document's
+// _id is written out, never made up, so two recordings of this corpus answer
+// the same bytes.
+db.createCollection("users");
+db.users.insertMany([
+  {_id: 1, name: "alice", age: 30, tags: ["admin", "staff"], profile: {city: "lisbon", zip: "1000-001"}},
+  {_id: 2, name: "bob", age: 17, tags: [], profile: {city: "porto"}},
+  {_id: 3, name: "carol", age: 42, contact: {email: "carol@example.com"}}
+]);
+db.users.createIndex({name: 1}, {unique: true});
+db.users.createIndex({age: -1, name: 1});
+db.createCollection("orders");
+db.orders.insertOne({_id: 1, customer_id: 1, total: 100.5, created_at: 1767323045000});
+db.orders.createIndex({customer_id: 1, created_at: -1});
+db.createCollection("events");
+db.events.insertMany([{_id: "a", kind: "login"}, {_id: "b", kind: "logout"}]);
+db.events.createIndex({kind: 1, _id: -1});
+db.createCollection("empty");
+db.createCollection("nested");
+db.nested.insertOne({_id: 1, doc: {a: [1, 2], b: "x"}, list: [{k: 1}, {k: 2}]});
+db.runCommand({create: "v_adults", viewOn: "users", pipeline: [{$match: {age: {$gte: 18}}}]}); // not restorable: TestDumpGaps
+db.createCollection("sessions");
+db.sessions.createIndex({created_at: 1}, {expireAfterSeconds: 3600}); // not restorable: TestDumpGaps
