@@ -1,0 +1,7 @@
+# The server this engine's committed answers come from. default records the
+# tapes and nothing else: DynamoDB Local, Amazon's own local endpoint for the
+# service, at the release whose answers they hold. There is no compat.tsv
+# jar to judge: partiql's compatibility rows are judged by the reference
+# grammar in partiql/testdata.
+# columns: role, image, digest, source tag
+default	amazon/dynamodb-local:3.3.2	sha256:6ada631ec7aa5fc83446855eb17233e3dad184fec47477e8140c6c569cfe0c86	3.3.2
