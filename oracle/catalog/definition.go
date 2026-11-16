@@ -748,7 +748,11 @@ func writeSequence(buf *strings.Builder, sequence *metadatapb.SequenceMetadata) 
 		}
 	}
 
-	if sequence.CacheSize != "" && sequence.CacheSize != "0" {
+	if sequence.CacheSize == "0" {
+		if _, err := buf.WriteString(" NOCACHE"); err != nil {
+			return err
+		}
+	} else if sequence.CacheSize != "" {
 		if _, err := buf.WriteString(" CACHE "); err != nil {
 			return err
 		}
@@ -841,8 +845,15 @@ func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedVi
 	if _, err := buf.WriteString("\n\n"); err != nil {
 		return err
 	}
-
-	return writeTriggers(buf, view.Triggers)
+	if err := writeTriggers(buf, view.Triggers); err != nil {
+		return err
+	}
+	for _, index := range view.Indexes {
+		if err := writeIndex(buf, view.Name, index); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // writeFunction writes a CREATE FUNCTION statement

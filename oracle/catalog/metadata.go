@@ -10,7 +10,6 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/ast"
-	"google.golang.org/protobuf/proto"
 )
 
 // metadataFromSQL parses Oracle DDL and returns the schema it defines.
@@ -509,7 +508,12 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 		case def.Identity != nil:
 			column.Nullable = false
 		}
-		if def.Identity != nil {
+		if def.DropIdentity {
+			column.IsIdentity = false
+			column.IdentityGeneration = metadatapb.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED
+			column.IdentitySeed = 0
+			column.IdentityIncrement = 0
+		} else if def.Identity != nil {
 			applyIdentity(column, def.Identity, e.nodeText(def.Identity))
 		}
 		if def.Collation != "" {
@@ -1064,6 +1068,9 @@ func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStm
 	sequence.MinValue = e.nodeText(n.MinValue)
 	sequence.MaxValue = e.nodeText(n.MaxValue)
 	sequence.CacheSize = e.nodeText(n.Cache)
+	if n.NoCache {
+		sequence.CacheSize = "0"
+	}
 	sequence.Cycle = n.Cycle
 	e.sequences[sequenceName] = sequence
 }
@@ -1097,7 +1104,7 @@ func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt)
 	if n.Cache != nil {
 		sequence.CacheSize = e.nodeText(n.Cache)
 	} else if n.NoCache {
-		sequence.CacheSize = ""
+		sequence.CacheSize = "0"
 	}
 	switch {
 	case n.Cycle:
@@ -1422,25 +1429,25 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 	schema := meta.GetSchemas()[0]
 	e.currentSchema = schema.GetName()
 	for _, table := range schema.GetTables() {
-		e.tables[table.GetName()] = proto.CloneOf(table)
+		e.tables[table.GetName()] = cloneTable(table)
 	}
 	for _, view := range schema.GetViews() {
-		e.views[view.GetName()] = proto.CloneOf(view)
+		e.views[view.GetName()] = cloneView(view)
 	}
 	for _, view := range schema.GetMaterializedViews() {
-		e.materializedViews[view.GetName()] = proto.CloneOf(view)
+		e.materializedViews[view.GetName()] = cloneMaterializedView(view)
 	}
 	for _, fn := range schema.GetFunctions() {
-		e.functions[fn.GetName()] = proto.CloneOf(fn)
+		e.functions[fn.GetName()] = cloneFunction(fn)
 	}
 	for _, proc := range schema.GetProcedures() {
-		e.procedures[proc.GetName()] = proto.CloneOf(proc)
+		e.procedures[proc.GetName()] = cloneProcedure(proc)
 	}
 	for _, seq := range schema.GetSequences() {
-		e.sequences[seq.GetName()] = proto.CloneOf(seq)
+		e.sequences[seq.GetName()] = cloneSequence(seq)
 	}
 	for _, pkg := range schema.GetPackages() {
-		e.packages[pkg.GetName()] = proto.CloneOf(pkg)
+		e.packages[pkg.GetName()] = clonePackage(pkg)
 	}
 	return e
 }

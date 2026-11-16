@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
-	"google.golang.org/protobuf/proto"
 )
 
 // GenerateMigration renders the DDL that turns from into to.
@@ -50,6 +49,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet) {
 	// Build dependency graph for all objects being dropped or altered
 	graph := newGraph()
+	incomingDropped := map[string]bool{}
 
 	// Maps to store different object types
 	viewMap := make(map[string]*ViewDiff)
@@ -262,6 +262,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
 								continue
 							}
+							writeIncomingForeignKeysToDrop(buf, diff, tableDiff, indexDiff.OldIndex.Expressions, incomingDropped)
 							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
@@ -338,6 +339,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
 								continue
 							}
+							writeIncomingForeignKeysToDrop(buf, diff, tableDiff, indexDiff.OldIndex.Expressions, incomingDropped)
 							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
@@ -418,6 +420,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 // createObjectsInOrder creates all objects in topological order (dependencies first)
 func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet) {
+	incomingCreated := map[string]bool{}
 	// First create schemas (they don't have dependencies)
 	var schemasToCreate []string
 	for _, schemaDiff := range diff.SchemaChanges {
@@ -719,6 +722,7 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 						} else if indexDiff.NewIndex.Unique {
 							writeMigrationUniqueKey(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
 						}
+						writeIncomingForeignKeysToCreate(buf, diff, tableDiff, indexDiff.NewIndex.Expressions, incomingCreated)
 					} else {
 						writeMigrationIndex(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
 					}
@@ -931,6 +935,28 @@ func findIncomingForeignKeys(diff *MetadataDiff, database *metadatapb.DatabaseSc
 	return result
 }
 
+func writeIncomingForeignKeysToDrop(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, columns []string, seen map[string]bool) {
+	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, columns, DiffActionDrop) {
+		key := incoming.table + "\x00" + incoming.foreignKey.GetName()
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		writeDropForeignKey(buf, tableDiff.SchemaName, incoming.table, incoming.foreignKey.GetName())
+	}
+}
+
+func writeIncomingForeignKeysToCreate(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, columns []string, seen map[string]bool) {
+	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, columns, DiffActionCreate) {
+		key := incoming.table + "\x00" + incoming.foreignKey.GetName()
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		writeMigrationForeignKey(buf, tableDiff.SchemaName, incoming.table, incoming.foreignKey)
+	}
+}
+
 // waitsForRebuild reports whether a new table's foreign key references a column
 // the diff rebuilds. writeAlterColumns adds it after the rebuild: added with
 // the table, it would hold the key the rebuild drops (ORA-02273).
@@ -988,7 +1014,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			writeAddColumn(&buf, schemaName, tableName, colDiff.NewColumn)
 		} else {
 			// Added nullable, so that NOT NULL comes back under its name.
-			column := proto.CloneOf(colDiff.NewColumn)
+			column := cloneColumn(colDiff.NewColumn)
 			column.Nullable = true
 			writeAddColumn(&buf, schemaName, tableName, column)
 			writeSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn, notNull.name)
@@ -1724,7 +1750,9 @@ func writeMigrationCreateSequence(out *strings.Builder, schema string, seq *meta
 		_, _ = out.WriteString(` MAXVALUE `)
 		_, _ = out.WriteString(seq.MaxValue)
 	}
-	if seq.CacheSize != "" {
+	if seq.CacheSize == "0" {
+		_, _ = out.WriteString(` NOCACHE`)
+	} else if seq.CacheSize != "" {
 		_, _ = out.WriteString(` CACHE `)
 		_, _ = out.WriteString(seq.CacheSize)
 	}
@@ -2517,9 +2545,12 @@ func writeMigrationAlterSequence(out *strings.Builder, schema string, oldSeq, ne
 		}
 	}
 	if oldSeq.GetCacheSize() != newSeq.GetCacheSize() {
-		if newSeq.GetCacheSize() == "" {
+		switch newSeq.GetCacheSize() {
+		case "0":
 			clauses = append(clauses, "NOCACHE")
-		} else {
+		case "":
+			clauses = append(clauses, "CACHE 20")
+		default:
 			clauses = append(clauses, "CACHE "+newSeq.GetCacheSize())
 		}
 	}

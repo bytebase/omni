@@ -7,7 +7,6 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/oracle"
 	"github.com/bytebase/omni/oracle/ast"
-	"google.golang.org/protobuf/proto"
 )
 
 // Catalog is the in-memory Oracle catalog. Oracle has one schema per user, so a
@@ -56,7 +55,7 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSch
 		c.meta = &metadatapb.DatabaseSchemaMetadata{}
 		return report, nil
 	}
-	c.meta = proto.CloneOf(meta)
+	c.meta = cloneMetadata(meta)
 	return report, nil
 }
 
@@ -145,14 +144,14 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	meta := extractor.databaseMetadata()
 	// Keep any additional schemas the catalog already carried; Oracle's DDL
 	// names one schema at a time.
-	result := proto.CloneOf(c.meta)
+	result := cloneMetadata(c.meta)
 	result.Name = meta.GetName()
 	if len(meta.GetSchemas()) > 0 {
 		if len(result.GetSchemas()) == 0 {
 			result.Schemas = meta.Schemas
 		} else {
 			oldSchema, newSchema := result.Schemas[0], meta.Schemas[0]
-			merged := proto.CloneOf(oldSchema)
+			merged := cloneSchema(oldSchema)
 			merged.Name = newSchema.GetName()
 			merged.Tables = newSchema.GetTables()
 			merged.Views = newSchema.GetViews()

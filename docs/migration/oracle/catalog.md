@@ -88,6 +88,12 @@ replay tests exercise.
 - A function declaration is recognized through whitespace between `CREATE`,
   `OR REPLACE` and `FUNCTION`.
 - Expression comparison recognizes Oracle's alternative-quoted literals.
+- `Exec` applies `DROP IDENTITY`, and `NOCACHE` keeps its explicit state through
+  extraction, definitions and migrations.
+- A materialized-view definition renders its indexes.
+- Replacing a key detaches and restores the unchanged incoming foreign keys.
+- Catalog snapshots are copied with a standard-library helper, so production
+  catalog code imports no protobuf runtime.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

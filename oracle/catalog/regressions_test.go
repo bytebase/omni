@@ -570,3 +570,78 @@ func TestMigrationQualifiesIndexName(t *testing.T) {
 		t.Fatalf("index name is not owner-qualified:\n%s", sql)
 	}
 }
+
+func TestExecDropsIdentity(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER GENERATED ALWAYS AS IDENTITY)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T MODIFY ID DROP IDENTITY`, nil); err != nil {
+		t.Fatal(err)
+	}
+	column := tableByName(c.Metadata().Schemas[0])["T"].Columns[0]
+	if column.IsIdentity || column.IdentityGeneration != metadatapb.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED {
+		t.Fatalf("identity survived: %+v", column)
+	}
+}
+
+func TestNoCacheSurvivesExtractionAndRendering(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE SEQUENCE S NOCACHE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := meta.Schemas[0].Sequences[0].CacheSize; got != "0" {
+		t.Fatalf("cache size = %q, want NOCACHE sentinel", got)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `NOCACHE`) {
+		t.Fatalf("NOCACHE missing from definition:\n%s", definition)
+	}
+	oldSeq := &metadatapb.SequenceMetadata{Name: "S", CacheSize: "20"}
+	newSeq := &metadatapb.SequenceMetadata{Name: "S", CacheSize: "0"}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{oldSeq}}), catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{newSeq}}))
+	if !strings.Contains(sql, `NOCACHE`) {
+		t.Fatalf("NOCACHE change missing from migration:\n%s", sql)
+	}
+}
+
+func TestDefinitionRendersMaterializedViewIndexes(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "MV", Definition: "SELECT 1 AS X FROM DUAL", Indexes: []*metadatapb.IndexMetadata{{Name: "MV_IDX", Expressions: []string{"X"}, Visible: true}}}}}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `CREATE INDEX "MV_IDX" ON "MV"`) {
+		t.Fatalf("materialized-view index missing from definition:\n%s", definition)
+	}
+}
+
+func TestKeyReplacementDetachesIncomingForeignKey(t *testing.T) {
+	oldParent := &metadatapb.TableMetadata{Name: "P", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK_P", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	newParent := &metadatapb.TableMetadata{Name: "P", Columns: oldParent.Columns, Indexes: []*metadatapb.IndexMetadata{{Name: "UK_P", Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}
+	child := &metadatapb.TableMetadata{Name: "C", Columns: []*metadatapb.ColumnMetadata{{Name: "P_ID", Type: "NUMBER", Position: 1}}, ForeignKeys: []*metadatapb.ForeignKeyMetadata{{Name: "C_FK", Columns: []string{"P_ID"}, ReferencedTable: "P", ReferencedColumns: []string{"ID"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldParent, child}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newParent, child}}))
+	drop := strings.Index(sql, `DROP CONSTRAINT "C_FK"`)
+	dropKey := strings.Index(sql, `DROP CONSTRAINT "PK_P"`)
+	createKey := strings.Index(sql, `ADD CONSTRAINT "UK_P"`)
+	add := strings.LastIndex(sql, `ADD CONSTRAINT "C_FK"`)
+	if drop < 0 || dropKey < 0 || createKey < 0 || add < 0 || !(drop < dropKey && createKey < add) {
+		t.Fatalf("incoming foreign key was not detached and restored:\n%s", sql)
+	}
+}
+
+func TestLoadMetadataCopiesSnapshot(t *testing.T) {
+	table := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}}
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{table}}}}
+	c := New()
+	if _, err := c.LoadMetadata(context.Background(), meta); err != nil {
+		t.Fatal(err)
+	}
+	table.Name = "CHANGED"
+	if c.Metadata().Schemas[0].Tables[0].Name != "T" {
+		t.Fatal("catalog aliases the caller's snapshot")
+	}
+}
