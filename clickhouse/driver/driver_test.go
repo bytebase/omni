@@ -1,0 +1,211 @@
+package driver
+
+import (
+	"context"
+	"crypto/tls"
+	"net"
+	"reflect"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/bytebase/omni/driver"
+)
+
+func baseConfig() driver.Config {
+	return driver.Config{User: "default", Host: "db.example.com", Port: "9000"}
+}
+
+func TestConnOptionsDefaults(t *testing.T) {
+	options, err := connOptions(baseConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, want := options.Addr, []string{"db.example.com:9000"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("Addr = %v, want %v", got, want)
+	}
+	if options.Auth.Username != "default" || options.Auth.Database != "" {
+		t.Errorf("Auth = %+v", options.Auth)
+	}
+	if options.Settings["max_execution_time"] != 300 {
+		t.Errorf("max_execution_time = %v, want 300", options.Settings["max_execution_time"])
+	}
+	if options.DialTimeout != 10*time.Second {
+		t.Errorf("DialTimeout = %v", options.DialTimeout)
+	}
+}
+
+func TestConnOptionsParamsOverrideSettings(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Database = "sales"
+	cfg.Params = map[string]string{
+		"max_execution_time": "5",
+		"max_block_size":     "1024",
+		"insert_deduplicate": "true",
+	}
+	options, err := connOptions(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := options.Settings["max_execution_time"]; got != int64(5) {
+		t.Errorf("max_execution_time = %#v, want the int64 5", got)
+	}
+	if got := options.Settings["max_block_size"]; got != int64(1024) {
+		t.Errorf("max_block_size = %#v, want the int64 1024", got)
+	}
+	if got := options.Settings["insert_deduplicate"]; got != "true" {
+		t.Errorf("insert_deduplicate = %#v, want the string true", got)
+	}
+	if options.Auth.Database != "sales" {
+		t.Errorf("Auth.Database = %q", options.Auth.Database)
+	}
+}
+
+func TestConnOptionsTLSAndDial(t *testing.T) {
+	cfg := baseConfig()
+	var gotHost string
+	cfg.TLS = func(host string) (*tls.Config, error) {
+		gotHost = host
+		return &tls.Config{ServerName: host}, nil
+	}
+	var dialedAddress string
+	cfg.Dial = func(_ context.Context, network, address string) (net.Conn, error) {
+		if network != "tcp" {
+			t.Errorf("network = %q, want tcp", network)
+		}
+		dialedAddress = address
+		return nil, net.ErrClosed
+	}
+	options, err := connOptions(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotHost != "db.example.com" || options.TLS == nil || options.TLS.ServerName != gotHost {
+		t.Fatalf("gotHost=%q TLS=%+v", gotHost, options.TLS)
+	}
+	if _, err := options.DialContext(context.Background(), "db.example.com:9000"); err == nil {
+		t.Error("DialContext did not fail")
+	}
+	if dialedAddress != "db.example.com:9000" {
+		t.Errorf("dialed %q", dialedAddress)
+	}
+}
+
+func TestConnOptionsValidation(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		edit func(*driver.Config)
+		want string
+	}{
+		{"blank host", func(c *driver.Config) { c.Host = "  " }, "host must be set"},
+		{"blank port", func(c *driver.Config) { c.Port = "  " }, "port must be set"},
+	} {
+		cfg := baseConfig()
+		tc.edit(&cfg)
+		if _, err := connOptions(cfg); err == nil || !strings.Contains(err.Error(), tc.want) {
+			t.Errorf("%s: err = %v, want %q", tc.name, err, tc.want)
+		}
+	}
+}
+
+func TestOpenDoesNotConnect(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Host, cfg.Port = "127.0.0.1", "1"
+	d, err := Open(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := d.Ping(context.Background()); err == nil {
+		t.Error("Ping reached a server on port 1")
+	}
+	if err := d.Close(); err != nil {
+		t.Error(err)
+	}
+}
+
+func TestSplitSQL(t *testing.T) {
+	script := "SELECT 1;\nSELECT 2\n;\n-- a comment\nSELECT 3"
+	got, err := splitSQL(script)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var texts []string
+	for _, statement := range got {
+		texts = append(texts, statement.Text)
+	}
+	want := []string{"SELECT 1;", "\nSELECT 2\n;", "\n-- a comment\nSELECT 3"}
+	if !reflect.DeepEqual(texts, want) {
+		t.Fatalf("statements = %q, want %q", texts, want)
+	}
+	if got[0].ByteStart != 0 || got[0].ByteEnd != len("SELECT 1;") {
+		t.Errorf("first range = %d:%d", got[0].ByteStart, got[0].ByteEnd)
+	}
+}
+
+func TestSplitSQLCommentOnlyText(t *testing.T) {
+	got, err := splitSQL("\n-- only a comment\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 0 {
+		t.Fatalf("statements = %+v, want none", got)
+	}
+	// A lone terminator is content to this splitter, so it survives the empty
+	// filter and reaches the server, as it did in Bytebase.
+	got, err = splitSQL(";\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Text != ";" {
+		t.Fatalf("statements = %+v, want the lone terminator", got)
+	}
+}
+
+func TestStatementWithResultLimit(t *testing.T) {
+	if got, want := statementWithResultLimit("SELECT 1;  ", 5), "WITH result AS (SELECT 1) SELECT * FROM result LIMIT 5;"; got != want {
+		t.Errorf("limit = %q, want %q", got, want)
+	}
+}
+
+func TestExplainStatement(t *testing.T) {
+	for _, tc := range []struct {
+		statement, format, want string
+	}{
+		{"SELECT 1", "", "EXPLAIN SELECT 1"},
+		{"SELECT 1", "JSON", "EXPLAIN json = 1, indexes = 1 SELECT 1"},
+		{"EXPLAIN SELECT 1", "JSON", "EXPLAIN SELECT 1"},
+		{"/* c */ explain json = 1 SELECT 1", "JSON", "/* c */ explain json = 1 SELECT 1"},
+	} {
+		if got := explainStatement(tc.statement, tc.format); got != tc.want {
+			t.Errorf("explainStatement(%q, %q) = %q, want %q", tc.statement, tc.format, got, tc.want)
+		}
+	}
+}
+
+func TestValidateSQLForEditor(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		query     bool
+	}{
+		{"SELECT 1", true},
+		{" select * from t", true},
+		{"EXPLAIN SELECT 1", true},
+		{"EXPLAIN ANALYZE SELECT 1", false},
+		{"WITH x AS (SELECT 1) SELECT * FROM x", true},
+		{"WITH x AS (SELECT 1) INSERT INTO t SELECT * FROM x", false},
+		{"INSERT INTO t VALUES (1)", false},
+		{"SELECT 'DROP TABLE t' AS x", true},
+		{"-- SELECT\nDROP TABLE t", false},
+		{"SELECT 1; DROP TABLE t", false},
+		{"/* /* */ SELECT 1", true},
+	} {
+		got, err := validateSQLForEditor(tc.statement)
+		if err != nil {
+			t.Errorf("%q: %v", tc.statement, err)
+			continue
+		}
+		if got != tc.query {
+			t.Errorf("validateSQLForEditor(%q) = %v, want %v", tc.statement, got, tc.query)
+		}
+	}
+}

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -704,6 +705,52 @@ func TestAnUnsignedValueReplaysAsUint64(t *testing.T) {
 	}
 }
 
+// A client whose own rows are typed (ClickHouse's) answers with Go's narrower
+// integers and float32 before database/sql converts them. The tape keeps each
+// type, and a replay hands the driver the same one.
+func TestNarrowerNumericValuesReplay(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT numerics")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			values := make([]any, 12)
+			dest := make([]any, 12)
+			for i := range values {
+				dest[i] = &values[i]
+			}
+			if err := rows.Scan(dest...); err != nil {
+				return []string{err.Error()}
+			}
+			for _, v := range values {
+				out = append(out, fmt.Sprintf("%T %v", v, v))
+			}
+		}
+		return out
+	}
+	want := []string{
+		"int -1", "int8 -8", "int16 -16", "int32 -32", "int64 -64",
+		"uint 1", "uint8 8", "uint16 16", "uint32 32", "uint64 64",
+		"float32 1.5", "float64 2.5",
+	}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(recorded, want) {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(replayed, want) {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
@@ -730,7 +777,7 @@ func TestFormatRoundTrips(t *testing.T) {
 		name: "TestX/sub name default#1",
 		exchanges: []exchange{
 			{request{kind: "query", text: "", args: []value{{kind: "string", text: ""}, {kind: "float64", text: "1.5"}, {kind: "bool", text: "true"}, {kind: "time", text: "2026-11-12T00:00:00Z"}}},
-				answer{kind: "rows", sets: []resultSet{{cols: []column{{"a \"b\"", "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
+				answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a \"b\"", typ: "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
 			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
 			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
@@ -795,6 +842,12 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 		}}, nil
 	case "SELECT unsigned":
 		return &fakeRows{sets: []fakeSet{{[]string{"n"}, []string{"UNSIGNED BIGINT"}, [][]driver.Value{{uint64(1<<64 - 1)}}}}}, nil
+	case "SELECT numerics":
+		return &fakeRows{sets: []fakeSet{{
+			[]string{"i", "i8", "i16", "i32", "i64", "u", "u8", "u16", "u32", "u64", "f32", "f64"},
+			[]string{"INT", "INT8", "INT16", "INT32", "INT64", "UINT", "UINT8", "UINT16", "UINT32", "UINT64", "FLOAT32", "FLOAT64"},
+			[][]driver.Value{{int(-1), int8(-8), int16(-16), int32(-32), int64(-64), uint(1), uint8(8), uint16(16), uint32(32), uint64(64), float32(1.5), float64(2.5)}},
+		}}}, nil
 	case "SELECT now":
 		c.e.now++
 		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil
