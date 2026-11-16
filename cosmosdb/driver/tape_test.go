@@ -86,6 +86,20 @@ func (c *tapeClient) ListContainers(ctx context.Context, database string) ([]str
 	return a.Listing, nil
 }
 
+// Plan returns the plan the gateway stated for a statement.
+func (c *tapeClient) Plan(ctx context.Context, req PageRequest) ([]byte, error) {
+	a, err := c.do(ctx, request{
+		Op:        opPlan,
+		Database:  req.Database,
+		Container: req.Container,
+		Statement: req.Statement,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return a.Plan, nil
+}
+
 // Page reads one container query, page by page.
 func (c *tapeClient) Page(ctx context.Context, req PageRequest) (PageAnswer, error) {
 	a, err := c.do(ctx, request{
@@ -134,6 +148,7 @@ const (
 	opListDatabases  = "ListDatabases"
 	opListContainers = "ListContainers"
 	opPage           = "Page"
+	opPlan           = "Plan"
 )
 
 // request is one call as a tape holds it.
@@ -160,6 +175,7 @@ type answer struct {
 	Listing []string          `json:"listing,omitempty"`
 	Items   []json.RawMessage `json:"items,omitempty"`
 	Pages   int               `json:"pages,omitempty"`
+	Plan    json.RawMessage   `json:"plan,omitempty"`
 	Error   *clientError      `json:"error,omitempty"`
 }
 
@@ -324,6 +340,12 @@ func live(t testing.TB, emulator bool, text string) (string, error) {
 		a.Listing, err = c.ListDatabases(ctx)
 	case opListContainers:
 		a.Listing, err = c.ListContainers(ctx, req.Database)
+	case opPlan:
+		a.Plan, err = c.Plan(ctx, PageRequest{
+			Database:  req.Database,
+			Container: req.Container,
+			Statement: req.Statement,
+		})
 	case opPage:
 		var page PageAnswer
 		page, err = c.Page(ctx, PageRequest{
