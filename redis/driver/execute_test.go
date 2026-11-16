@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -63,50 +64,57 @@ func TestExecuteUnreadableQuoting(t *testing.T) {
 	require.ErrorContains(t, err, "failed to split command")
 }
 
-func TestSplitCommands(t *testing.T) {
-	tests := []struct {
-		name      string
-		statement string
-		wantArgs  [][]any
-		wantLines []string
-	}{
-		{
-			name:      "one command per line",
-			statement: "GET a\nGET b",
-			wantArgs:  [][]any{{"GET", "a"}, {"GET", "b"}},
-			wantLines: []string{"GET a", "GET b"},
-		},
-		{
-			name:      "a blank line does not shift the commands after it",
-			statement: "GET a\n\nGET b\n   \nGET c",
-			wantArgs:  [][]any{{"GET", "a"}, {"GET", "b"}, {"GET", "c"}},
-			wantLines: []string{"GET a", "GET b", "GET c"},
-		},
-		{
-			name:      "quoted argument",
-			statement: `SET a "two words"`,
-			wantArgs:  [][]any{{"SET", "a", "two words"}},
-			wantLines: []string{`SET a "two words"`},
-		},
-		{
-			name:      "no commands",
-			statement: "\n  \n",
-			wantArgs:  nil,
-			wantLines: nil,
-		},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			args, lines, err := splitCommands(tc.statement)
-			require.NoError(t, err)
-			require.Equal(t, tc.wantArgs, args)
-			require.Equal(t, tc.wantLines, lines)
-			require.Len(t, lines, len(args))
-		})
-	}
+// logRecorder records what Execute reports.
+type logRecorder struct {
+	commands  []driver.Command
+	responses []string
 }
 
-func TestSplitCommandsRejectsAnUnclosedQuote(t *testing.T) {
-	_, _, err := splitCommands(`SET a "unclosed`)
-	require.Error(t, err)
+func (l *logRecorder) CommandExecute(command driver.Command) {
+	l.commands = append(l.commands, command)
+}
+
+func (l *logRecorder) CommandResponse(affectedRows int64, perResult []int64, err error) {
+	response := fmt.Sprintf("%d", affectedRows)
+	if err != nil {
+		response += ":" + err.Error()
+	}
+	l.responses = append(l.responses, response)
+}
+
+func (*logRecorder) TransactionControl(driver.TransactionOp, error) {}
+
+func (*logRecorder) Retry(error, int, int) {}
+
+// TestExecuteLogsItsSteps holds a change script's task run log to every command it
+// ran, with the command's range in the script, and to the error of the command
+// that ended it.
+func TestExecuteLogsItsSteps(t *testing.T) {
+	ctx := context.Background()
+	d := openDriver(t, testcontainer.Login{}, "0")
+	script := "SET greeting \"hello world\"\n\nINCR counter"
+	log := &logRecorder{}
+	_, err := d.Execute(ctx, script, driver.ExecuteOptions{Log: log})
+	require.NoError(t, err)
+	require.Len(t, log.commands, 2)
+	for _, command := range log.commands {
+		require.Equal(t, command.Text, script[command.ByteStart:command.ByteEnd])
+	}
+	require.Equal(t, "SET greeting \"hello world\"", log.commands[0].Text)
+	require.Equal(t, "INCR counter", log.commands[1].Text)
+	require.Equal(t, []string{"0", "0"}, log.responses)
+}
+
+// TestExecuteLogsTheCommandThatFailed holds the step that ended a script: its
+// command and its error both reach the log.
+func TestExecuteLogsTheCommandThatFailed(t *testing.T) {
+	ctx := context.Background()
+	d := openDriver(t, testcontainer.Login{}, "0")
+	log := &logRecorder{}
+	_, err := d.Execute(ctx, "SET key text\nLPUSH key x", driver.ExecuteOptions{Log: log})
+	require.ErrorContains(t, err, "WRONGTYPE")
+	require.Len(t, log.commands, 2)
+	require.Len(t, log.responses, 2)
+	require.Equal(t, "0", log.responses[0])
+	require.Contains(t, log.responses[1], "WRONGTYPE")
 }

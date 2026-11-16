@@ -99,7 +99,7 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		// db_b.job (... INTO TABLE t ...) loads db_b.t). LOAD DATA carries no
 		// label and keeps the request database.
 		loadDatabase := database
-		if label := labelDatabase(n.Label); label != "" {
+		if label := labelDatabase(n.LabelParts); label != "" {
 			loadDatabase = label
 		}
 		for _, desc := range n.DataDescs {
@@ -191,11 +191,12 @@ func statementText(text string) string {
 	return text
 }
 
-// labelDatabase returns the database part of a LOAD LABEL, which the parser
-// joins as "db.label", or "" when the label carries no qualifier.
-func labelDatabase(label string) string {
-	if dot := strings.LastIndexByte(label, '.'); dot >= 0 {
-		return label[:dot]
+// labelDatabase returns the database part of a LOAD LABEL from its parsed
+// parts, or "" when the label carries no qualifier. Reading the parts keeps a
+// dot inside a quoted label or database part from becoming a qualifier.
+func labelDatabase(parts []string) string {
+	if len(parts) < 2 {
+		return ""
 	}
-	return ""
+	return parts[len(parts)-2]
 }

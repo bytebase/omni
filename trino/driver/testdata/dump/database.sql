@@ -1,3 +1,9 @@
+CREATE SCHEMA IF NOT EXISTS "default";
+
+CREATE SCHEMA IF NOT EXISTS "information_schema";
+
+CREATE SCHEMA IF NOT EXISTS "omni_driver";
+
 CREATE TABLE IF NOT EXISTS "information_schema"."applicable_roles" (
     "grantee" varchar,
     "grantee_type" varchar,
@@ -56,6 +62,11 @@ CREATE TABLE IF NOT EXISTS "information_schema"."views" (
     "view_definition" varchar
 );
 
+CREATE TABLE IF NOT EXISTS "omni_driver"."a""b" (
+    "c""d" varchar,
+    "id" integer
+);
+
 CREATE TABLE IF NOT EXISTS "omni_driver"."mixedcase" (
     "id" integer NOT NULL,
     "weird name" varchar(10),
@@ -94,4 +105,16 @@ CREATE TABLE IF NOT EXISTS "omni_driver"."types" (
     "c_map" map(varchar, integer),
     "c_row" row("x" integer, "y" varchar)
 );
+
+CREATE OR REPLACE VIEW "omni_driver"."v_types" AS
+SELECT
+  c_integer
+, c_varchar
+FROM
+  memory.omni_driver.types;
+
+CREATE OR REPLACE VIEW "omni_driver"."v_derived" AS
+SELECT c_integer
+FROM
+  memory.omni_driver.v_types;
 
