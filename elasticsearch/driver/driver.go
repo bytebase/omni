@@ -373,8 +373,12 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 				result.Plan = explainQueryPlan()
 				break
 			}
-			if failed, total, reason := bulkFailures(value); failed > 0 {
-				return nil, fmt.Errorf("%d of %d bulk items failed: %s", failed, total, reason)
+			// Only a bulk request's own answer states its items' verdicts; a
+			// document a caller reads may hold fields with the same names.
+			if strings.Contains(request.URL, "_bulk") {
+				if failed, total, reason := bulkFailures(value); failed > 0 {
+					return nil, fmt.Errorf("%d of %d bulk items failed: %s", failed, total, reason)
+				}
 			}
 			// Object response: one column per key, ordered by name so one query
 			// shows its columns the same way every run.

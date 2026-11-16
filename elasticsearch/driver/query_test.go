@@ -51,7 +51,7 @@ GET /_cat/indices?format=json`, driver.QueryOptions{})
 	}
 	require.Equal(t, "0", values["took"])
 	require.Equal(t, "false", values["timed_out"])
-	require.Contains(t, values["hits"], `"total":{"relation":"eq","value":4}`)
+	require.Contains(t, values["hits"], `"total":{"relation":"eq","value":5}`)
 	require.Len(t, search.Rows, 1)
 
 	// The cat answer is an array: one column holding it.
@@ -59,7 +59,7 @@ GET /_cat/indices?format=json`, driver.QueryOptions{})
 	require.Equal(t, []driver.Column{{Name: "result"}}, cat.Columns)
 	require.Len(t, cat.Rows, 1)
 	require.Contains(t, cat.Rows[0][0].String, `"index":"alpha"`)
-	require.Contains(t, cat.Rows[0][0].String, `"docs.count":"4"`)
+	require.Contains(t, cat.Rows[0][0].String, `"docs.count":"5"`)
 }
 
 // TestQueryTextPlain reads an answer the endpoint sends as plain text.
@@ -171,6 +171,27 @@ func TestQueryHead(t *testing.T) {
 	require.Len(t, results, 1)
 	require.Error(t, results[0].Err)
 	require.Contains(t, results[0].Err.Error(), "request failed with status code 404")
+}
+
+// TestQueryReadsADocumentThatLooksLikeABulkAnswer holds a document whose own
+// fields are named like a bulk answer's to the document: only a bulk request's
+// answer states a bulk verdict.
+func TestQueryReadsADocumentThatLooksLikeABulkAnswer(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.http")))
+	sess := openSession(t, d)
+
+	results, err := sess.Query(context.Background(), "GET /alpha/_source/app-errors", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	require.Len(t, results[0].Rows, 1)
+	values := map[string]string{}
+	for i, column := range results[0].Columns {
+		values[column.Name] = results[0].Rows[0][i].String
+	}
+	require.Equal(t, "true", values["errors"])
+	require.Contains(t, values["items"], "logged application error")
 }
 
 // TestQueryBulkFailure holds a bulk whose items failed to the answer's own

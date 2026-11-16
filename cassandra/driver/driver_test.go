@@ -134,20 +134,39 @@ func TestConvertRowValue(t *testing.T) {
 // TestValueGroups holds gocql's tuple expansion to one group per column: a
 // tuple column answers its elements as one value, every other column one.
 func TestValueGroups(t *testing.T) {
-	columns := 3
-	require.Equal(t, []int{1, 1, 1}, valueGroups(columns, nil))
-	require.Equal(t, []int{1, 1, 1}, valueGroups(columns, []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
+	scalar := testType(gocql.TypeInt)
+	tuple := testType(gocql.TypeTuple)
+	columns := func(types ...gocql.TypeInfo) []gocql.ColumnInfo {
+		out := make([]gocql.ColumnInfo, len(types))
+		for i, info := range types {
+			out[i] = gocql.ColumnInfo{Name: "c", TypeInfo: info}
+		}
+		return out
+	}
+	require.Equal(t, []int{1, 1, 1}, valueGroups(columns(scalar, scalar, scalar), nil))
+	require.Equal(t, []int{1, 1, 1}, valueGroups(columns(scalar, scalar, scalar), []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
 	// A tuple in the middle: a, tup[0], tup[1], c.
-	require.Equal(t, []int{1, 2, 1}, valueGroups(columns, []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
+	require.Equal(t, []int{1, 2, 1}, valueGroups(columns(scalar, tuple, scalar), []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
 	// A tuple of three, first.
-	require.Equal(t, []int{3, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
+	require.Equal(t, []int{3, 1}, valueGroups(columns(tuple, scalar), []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
 	// The same tuple selected twice: its names repeat, and the position is
 	// what tells the two groups apart.
-	require.Equal(t, []int{2, 2}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[0]", "tup[1]"}}}))
-	require.Equal(t, []int{2, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "id"}}}))
-	// A column whose name itself contains a bracket is one value.
-	require.Equal(t, []int{1, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"odd[1]", "b"}}}))
+	require.Equal(t, []int{2, 2}, valueGroups(columns(tuple, tuple), []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[0]", "tup[1]"}}}))
+	require.Equal(t, []int{2, 1}, valueGroups(columns(tuple, scalar), []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "id"}}}))
+	// A scalar alias that looks like a tuple element is one value: the column's
+	// type, not its name, says what it holds.
+	require.Equal(t, []int{1, 1, 2}, valueGroups(columns(scalar, scalar, tuple), []gocql.RowData{{Columns: []string{"x[0]", "x[1]", "tup[0]", "tup[1]"}}}))
+	// A grouping that does not consume every value is not one to align by.
+	require.Equal(t, []int{1, 1}, valueGroups(columns(scalar, tuple), []gocql.RowData{{Columns: []string{"a", "b", "c"}}}))
 }
+
+// testType is a CQL type for the grouping test: only the type itself is read.
+type testType gocql.Type
+
+func (t testType) Type() gocql.Type          { return gocql.Type(t) }
+func (testType) Zero() any                   { return nil }
+func (testType) Marshal(any) ([]byte, error) { return nil, nil }
+func (testType) Unmarshal([]byte, any) error { return nil }
 
 func TestConvertTuple(t *testing.T) {
 	seven := 7

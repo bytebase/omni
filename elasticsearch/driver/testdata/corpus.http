@@ -18,6 +18,9 @@ POST /alpha/_doc/3
 POST /alpha/_doc/big
 {"big": 9007199254740993, "name": "big"}
 
+POST /alpha/_doc/app-errors
+{"errors": true, "items": [{"update": {"error": {"reason": "logged application error"}}}]}
+
 POST /alpha/_refresh
 
 PUT /beta

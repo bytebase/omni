@@ -96,7 +96,7 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 			}
 			totalBytes = driver.HeaderByteSize(result.Columns)
 		}
-		groups := valueGroups(len(columns), rows)
+		groups := valueGroups(columns, rows)
 		for _, rowData := range rows {
 			row := make([]driver.Value, 0, len(groups))
 			next := 0
@@ -138,11 +138,12 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 
 // valueGroups returns how many of a row's values each column contributes.
 // gocql expands a tuple column into one value per element and names those row
-// columns "<name>[i]"; every other column is one value. When a client answers
-// no row column names, or as many as there are columns, every column is one
-// value.
-func valueGroups(columns int, rows []gocql.RowData) []int {
-	groups := make([]int, columns)
+// columns "<name>[i]"; every other column is one value, even one whose alias
+// looks like a tuple element ("x[0]"). A grouping that does not consume exactly
+// the row's values is not one this driver can align, and every column then takes
+// one value.
+func valueGroups(columns []gocql.ColumnInfo, rows []gocql.RowData) []int {
+	groups := make([]int, len(columns))
 	for i := range groups {
 		groups[i] = 1
 	}
@@ -150,30 +151,36 @@ func valueGroups(columns int, rows []gocql.RowData) []int {
 		return groups
 	}
 	names := rows[0].Columns
-	if len(names) == 0 || len(names) == columns {
+	if len(names) == 0 || len(names) == len(columns) {
 		return groups
 	}
 	at := 0
-	for i := 0; i < columns && at < len(names); i++ {
-		base, index, ok := tupleElementName(names[at])
-		// A tuple's elements are named base[0], base[1], … in order, so a group
-		// ends where the index stops following the position. Two selections of
-		// the same tuple repeat those names, and the position is what tells them
-		// apart: tup[0], tup[1], tup[0], tup[1] is two groups of two.
-		if !ok || index != 0 {
-			at++
-			continue
+	for i, column := range columns {
+		if at >= len(names) {
+			break
 		}
-		count := 1
-		for at+count < len(names) {
-			nextBase, nextIndex, ok := tupleElementName(names[at+count])
-			if !ok || nextBase != base || nextIndex != count {
-				break
+		size := 1
+		if column.TypeInfo != nil && column.TypeInfo.Type() == gocql.TypeTuple {
+			base, index, ok := tupleElementName(names[at])
+			if ok && index == 0 {
+				count := 1
+				for at+count < len(names) {
+					nextBase, nextIndex, ok := tupleElementName(names[at+count])
+					if !ok || nextBase != base || nextIndex != count {
+						break
+					}
+					count++
+				}
+				size = count
 			}
-			count++
 		}
-		groups[i] = count
-		at += count
+		groups[i] = size
+		at += size
+	}
+	if at != len(names) {
+		for i := range groups {
+			groups[i] = 1
+		}
 	}
 	return groups
 }

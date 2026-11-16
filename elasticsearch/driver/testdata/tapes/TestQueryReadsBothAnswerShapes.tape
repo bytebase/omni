@@ -22,6 +22,10 @@
 < raw
 | {"status":201,"contentType":"application/json","body":"{\"_id\":\"big\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":3,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
 > raw
+| {"method":"POST","route":"/alpha/_doc/app-errors","body":"{\"errors\": true, \"items\": [{\"update\": {\"error\": {\"reason\": \"logged application error\"}}}]}\n"}
+< raw
+| {"status":201,"contentType":"application/json","body":"{\"_id\":\"app-errors\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":4,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
+> raw
 | {"method":"POST","route":"/alpha/_refresh"}
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1}}"}
@@ -60,8 +64,8 @@
 > raw
 | {"method":"GET","route":"/alpha/_search","body":"{  \"query\": {\"match_all\": {}}}\n"}
 < raw
-| {"status":200,"contentType":"application/json","body":"{\"_shards\":{\"failed\":0,\"skipped\":0,\"successful\":1,\"total\":1},\"hits\":{\"hits\":[{\"_id\":\"1\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"n\":1,\"name\":\"row 1\"}},{\"_id\":\"2\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"n\":2,\"name\":\"row 2\"}},{\"_id\":\"3\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"n\":3,\"name\":\"row 3\"}},{\"_id\":\"big\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"big\":9007199254740993,\"name\":\"big\"}}],\"max_score\":1.0,\"total\":{\"relation\":\"eq\",\"value\":4}},\"timed_out\":false,\"took\":0}"}
+| {"status":200,"contentType":"application/json","body":"{\"_shards\":{\"failed\":0,\"skipped\":0,\"successful\":1,\"total\":1},\"hits\":{\"hits\":[{\"_id\":\"1\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"n\":1,\"name\":\"row 1\"}},{\"_id\":\"2\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"n\":2,\"name\":\"row 2\"}},{\"_id\":\"3\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"n\":3,\"name\":\"row 3\"}},{\"_id\":\"big\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"big\":9007199254740993,\"name\":\"big\"}},{\"_id\":\"app-errors\",\"_index\":\"alpha\",\"_score\":1.0,\"_source\":{\"errors\":true,\"items\":[{\"update\":{\"error\":{\"reason\":\"logged application error\"}}}]}}],\"max_score\":1.0,\"total\":{\"relation\":\"eq\",\"value\":5}},\"timed_out\":false,\"took\":0}"}
 > raw
 | {"method":"GET","route":"/_cat/indices?format=json"}
 < raw
-| {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"4\",\"store.size\":\"5.3kb\"},{\"index\":\"beta\",\"docs.count\":\"5\",\"store.size\":\"5.1kb\"}]"}
+| {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"5\",\"store.size\":\"6.6kb\"},{\"index\":\"beta\",\"docs.count\":\"5\",\"store.size\":\"5.1kb\"}]"}
