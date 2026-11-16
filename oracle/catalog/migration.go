@@ -273,11 +273,9 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 					}
 				}
 
-				// Drop columns
-				for _, colDiff := range tableDiff.ColumnChanges {
-					if colDiff.Action == DiffActionDrop {
-						writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
-					}
+				// Drop dependent virtual columns before ordinary columns.
+				for _, colDiff := range orderedColumnDrops(tableDiff.ColumnChanges) {
+					writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
 				}
 
 				// Drop triggers
@@ -349,11 +347,9 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 					}
 				}
 
-				// Drop columns
-				for _, colDiff := range tableDiff.ColumnChanges {
-					if colDiff.Action == DiffActionDrop {
-						writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
-					}
+				// Drop dependent virtual columns before ordinary columns.
+				for _, colDiff := range orderedColumnDrops(tableDiff.ColumnChanges) {
+					writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
 				}
 
 				// Drop triggers
@@ -778,6 +774,17 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
+			continue
+		}
+		for _, index := range tableDiff.NewTable.Indexes {
+			if !index.IsConstraint && strings.Contains(index.Type, "FUNCTION-BASED") {
+				writeMigrationIndex(buf, tableDiff.SchemaName, tableDiff.TableName, index)
+			}
+		}
+	}
+
 	// Handle comment changes for other object types
 	generateViewCommentChanges(buf, diff)
 	generateMaterializedViewCommentChanges(buf, diff)
@@ -805,7 +812,7 @@ func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMe
 
 	// Add non-constraint indexes
 	for _, index := range table.Indexes {
-		if !index.IsConstraint {
+		if !index.IsConstraint && !strings.Contains(index.Type, "FUNCTION-BASED") {
 			writeMigrationIndex(&buf, schemaName, tableName, index)
 		}
 	}
@@ -835,6 +842,21 @@ func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMe
 	}
 
 	return buf.String(), nil
+}
+
+func orderedColumnDrops(changes []*ColumnDiff) []*ColumnDiff {
+	var virtual, ordinary []*ColumnDiff
+	for _, change := range changes {
+		if change.Action != DiffActionDrop || change.OldColumn == nil {
+			continue
+		}
+		if change.OldColumn.GetGeneration() != nil {
+			virtual = append(virtual, change)
+		} else {
+			ordinary = append(ordinary, change)
+		}
+	}
+	return append(virtual, ordinary...)
 }
 
 // writeAlterColumns writes one table's column alterations. A rebuilt column
@@ -1045,17 +1067,16 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 		}
 	}
 
-	// Handle default value changes
-	oldHasDefault := hasDefaultValue(colDiff.OldColumn)
-	newHasDefault := hasDefaultValue(colDiff.NewColumn)
-	if (oldHasDefault || newHasDefault) && !colDiff.OldColumn.GetIsIdentity() && !colDiff.NewColumn.GetIsIdentity() {
+	// Handle default value changes. An old identity's backing-sequence default
+	// disappears with DROP IDENTITY, so only the new column's ordinary default
+	// matters.
+	oldHasDefault := hasDefaultValue(colDiff.OldColumn) && !colDiff.OldColumn.GetIsIdentity()
+	newHasDefault := hasDefaultValue(colDiff.NewColumn) && !colDiff.NewColumn.GetIsIdentity()
+	if oldHasDefault || newHasDefault {
 		if !defaultValuesEqual(colDiff.OldColumn, colDiff.NewColumn) {
-			// First drop the old default if it exists
 			if oldHasDefault {
 				writeAlterColumnDropDefault(&buf, schemaName, tableName, colDiff.OldColumn.Name)
 			}
-
-			// Add new default if needed
 			if newHasDefault {
 				defaultExpr := getDefaultExpression(colDiff.NewColumn)
 				writeAlterColumnSetDefault(&buf, schemaName, tableName, colDiff.NewColumn.Name, defaultExpr, colDiff.NewColumn.DefaultOnNull)

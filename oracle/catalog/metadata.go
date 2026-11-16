@@ -39,6 +39,7 @@ func metadataFromSQL(schemaText string) (*metadatapb.DatabaseSchemaMetadata, err
 
 func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 	return &oracleMetadataExtractor{
+		namedNotNull:      make(map[string]bool),
 		tables:            make(map[string]*metadatapb.TableMetadata),
 		views:             make(map[string]*metadatapb.ViewMetadata),
 		materializedViews: make(map[string]*metadatapb.MaterializedViewMetadata),
@@ -55,6 +56,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 
 type oracleMetadataExtractor struct {
 	err               error
+	namedNotNull      map[string]bool
 	currentDatabase   string
 	currentSchema     string
 	tables            map[string]*metadatapb.TableMetadata
@@ -225,6 +227,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 		e.extractComment(n)
 	case *ast.AlterSequenceStmt:
 		e.extractAlterSequence(n)
+	case *ast.AlterTriggerStmt:
+		e.extractAlterTrigger(n)
 	case *ast.DropStmt:
 		e.extractDrop(n)
 	default:
@@ -347,6 +351,7 @@ func (e *oracleMetadataExtractor) addNamedNotNull(table *metadatapb.TableMetadat
 		Name:       name,
 		Expression: `"` + column + `" IS NOT NULL`,
 	})
+	e.namedNotNull[table.Name+"\x00"+name] = true
 }
 
 func (e *oracleMetadataExtractor) removeNamedNotNull(table *metadatapb.TableMetadata, column string) {
@@ -781,7 +786,9 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	var checks []*metadatapb.CheckConstraintMetadata
 	for _, check := range table.CheckConstraints {
 		if check.Name == name {
-			e.clearNamedNotNull(table, check)
+			if e.namedNotNull[table.Name+"\x00"+check.Name] {
+				e.clearNamedNotNull(table, check)
+			}
 			continue
 		}
 		checks = append(checks, check)
@@ -1331,6 +1338,33 @@ func triggerAttributes(n *ast.CreateTriggerStmt) (string, string) {
 	return strings.Join(events, " OR "), timing
 }
 
+func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
+	name := objectName(n.Name)
+	if name == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	trigger := e.triggers[name]
+	if trigger == nil {
+		return
+	}
+	switch strings.ToUpper(n.Action) {
+	case "DISABLE":
+		if !strings.Contains(strings.ToUpper(trigger.Body), "DISABLE") {
+			trigger.Body = strings.TrimSpace(trigger.Body) + "\nALTER TRIGGER \"" + name + "\" DISABLE;"
+		}
+	case "ENABLE":
+		var lines []string
+		for _, line := range strings.Split(trigger.Body, "\n") {
+			upper := strings.ToUpper(line)
+			if strings.Contains(upper, "ALTER TRIGGER") && strings.Contains(upper, "DISABLE") {
+				continue
+			}
+			lines = append(lines, line)
+		}
+		trigger.Body = strings.Join(lines, "\n")
+	}
+}
+
 func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt) {
 	triggerName := objectName(n.Name)
 	tableName := objectName(n.Table)
@@ -1628,13 +1662,25 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 	schema := meta.GetSchemas()[0]
 	e.currentSchema = schema.GetName()
 	for _, table := range schema.GetTables() {
-		e.tables[table.GetName()] = cloneTable(table)
+		cloned := cloneTable(table)
+		e.tables[table.GetName()] = cloned
+		for _, trigger := range cloned.GetTriggers() {
+			e.triggers[trigger.GetName()] = trigger
+		}
 	}
 	for _, view := range schema.GetViews() {
-		e.views[view.GetName()] = cloneView(view)
+		cloned := cloneView(view)
+		e.views[view.GetName()] = cloned
+		for _, trigger := range cloned.GetTriggers() {
+			e.triggers[trigger.GetName()] = trigger
+		}
 	}
 	for _, view := range schema.GetMaterializedViews() {
-		e.materializedViews[view.GetName()] = cloneMaterializedView(view)
+		cloned := cloneMaterializedView(view)
+		e.materializedViews[view.GetName()] = cloned
+		for _, trigger := range cloned.GetTriggers() {
+			e.triggers[trigger.GetName()] = trigger
+		}
 	}
 	for _, fn := range schema.GetFunctions() {
 		e.functions[fn.GetName()] = cloneFunction(fn)

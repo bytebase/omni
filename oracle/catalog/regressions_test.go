@@ -673,17 +673,17 @@ func TestRenameColumnUpdatesIndexAndGenerationExpressions(t *testing.T) {
 	}
 }
 
-func TestDropNamedNotNullConstraintMakesColumnNullable(t *testing.T) {
-	c := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{
-		Name:             "T",
-		Columns:          []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}},
-		CheckConstraints: []*metadatapb.CheckConstraintMetadata{{Name: "NN", Expression: `"C" IS NOT NULL`}},
-	}}})
-	if _, err := c.Exec(`ALTER TABLE T DROP CONSTRAINT NN`, nil); err != nil {
+func TestDropCheckConstraintKeepsIndependentNotNull(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C NUMBER NOT NULL, CONSTRAINT CK CHECK (C IS NOT NULL))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := &Catalog{meta: meta}
+	if _, err := c.Exec(`ALTER TABLE T DROP CONSTRAINT CK`, nil); err != nil {
 		t.Fatal(err)
 	}
 	table := tableByName(c.Metadata().Schemas[0])["T"]
-	if !table.Columns[0].Nullable || len(table.CheckConstraints) != 0 {
+	if table.Columns[0].Nullable || len(table.CheckConstraints) != 0 {
 		t.Fatalf("column/check = %+v / %+v", table.Columns[0], table.CheckConstraints)
 	}
 }
@@ -1185,5 +1185,51 @@ func TestDefinitionOrdersViewsWhenTablesCycle(t *testing.T) {
 	a := strings.Index(definition, `CREATE VIEW "A"`)
 	if z < 0 || a < 0 || z > a {
 		t.Fatalf("views out of dependency order:\n%s", definition)
+	}
+}
+
+func TestMigrationDefersFunctionBasedIndexUntilFunction(t *testing.T) {
+	table := &metadatapb.TableMetadata{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "I", Type: "FUNCTION-BASED NORMAL", Expressions: []string{"Z(ID)"}, Visible: true}}}
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{table}, Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z(P NUMBER) RETURN NUMBER IS BEGIN RETURN P; END;"}}})
+	sql := migrationFor(t, New(), to)
+	function := strings.Index(sql, "CREATE OR REPLACE FUNCTION Z")
+	index := strings.Index(sql, `CREATE INDEX "I"`)
+	if function < 0 || index < 0 || function > index {
+		t.Fatalf("function-based index precedes its function:\n%s", sql)
+	}
+}
+
+func TestIdentityToOrdinaryDefault(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT, Default: `"APP"."ISEQ$$_1".nextval`}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, Default: "42"}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if !strings.Contains(sql, `DROP IDENTITY`) || !strings.Contains(sql, `DEFAULT 42`) {
+		t.Fatalf("identity-to-default migration:\n%s", sql)
+	}
+}
+
+func TestAlterTriggerDisable(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TRG BEFORE INSERT ON T FOR EACH ROW BEGIN NULL; END; ALTER TRIGGER TRG DISABLE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	trigger := tableByName(c.Metadata().Schemas[0])["T"].Triggers[0]
+	if !strings.Contains(strings.ToUpper(trigger.Body), "ALTER TRIGGER") || !strings.Contains(strings.ToUpper(trigger.Body), "DISABLE") {
+		t.Fatalf("trigger body = %q", trigger.Body)
+	}
+}
+
+func TestDropVirtualColumnBeforeSource(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{
+		{Name: "A", Type: "NUMBER", Position: 1},
+		{Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "A+1"}},
+		{Name: "B", Type: "NUMBER", Position: 3},
+	}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "B", Type: "NUMBER", Position: 3}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	v := strings.Index(sql, `DROP COLUMN "V"`)
+	a := strings.Index(sql, `DROP COLUMN "A"`)
+	if v < 0 || a < 0 || v > a {
+		t.Fatalf("virtual column dropped after its source:\n%s", sql)
 	}
 }

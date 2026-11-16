@@ -144,6 +144,12 @@ replay tests exercise.
   `CREATE`/`OR REPLACE` on separate lines and `EDITIONABLE`.
 - Triggers extracted from SQL carry their event and timing, and trigger bodies
   compare without schema qualification or `OR REPLACE` spelling differences.
+- Initial migrations defer function-based indexes until their functions exist.
+- An identity column that becomes ordinary applies its new default after
+  `DROP IDENTITY`.
+- `ALTER TRIGGER ... ENABLE/DISABLE` is kept in the stored declaration.
+- Dropping an independent CHECK does not clear a separate column NOT NULL.
+- Dependent virtual columns are dropped before the columns they reference.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
