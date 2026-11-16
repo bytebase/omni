@@ -73,9 +73,9 @@
 // Execute runs every command of a script as its own request and returns the rows
 // affected, which is 0: a Redis command reports no row count. A command the
 // server refuses ends the script, so the commands after it do not run, and
-// ExecuteOptions' transaction settings, CreateDatabase and MaxRetries do nothing.
-// ExecuteOptions.Log receives nothing, as it did in Bytebase, which logged none of
-// a script's commands.
+// ExecuteOptions' transaction settings, CreateDatabase and MaxRetries do nothing,
+// and every command and its response reaches ExecuteOptions.Log, so a task run's
+// log holds the script's steps.
 package driver
 
 import (
