@@ -215,7 +215,7 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 	case *ast.CreateTableStmt:
 		c.execCreateTable(n, source)
 	case *ast.CreateIndexStmt:
-		c.execCreateIndex(n)
+		c.execCreateIndex(n, source)
 	case *ast.CreateSpatialIndexStmt:
 		c.execCreateSpatialIndex(n)
 	case *ast.CreateViewStmt:
@@ -269,7 +269,7 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) {
 			if !ok {
 				continue
 			}
-			table.Indexes = append(table.Indexes, inlineIndexMetadata(index))
+			table.Indexes = append(table.Indexes, inlineIndexMetadata(index, source))
 		}
 	}
 }
@@ -280,7 +280,16 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		Position: int32(len(table.Columns) + 1),
 		Nullable: true,
 	}
-	if n.DataType != nil {
+	if n.Computed != nil {
+		expression := strings.TrimSpace(nodeText(n.Computed.Expr, source))
+		if !strings.HasPrefix(expression, "(") {
+			expression = "(" + expression + ")"
+		}
+		column.Type = "AS " + expression
+		if n.Computed.Persisted {
+			column.Type += " PERSISTED"
+		}
+	} else if n.DataType != nil {
 		column.Type = nodeText(n.DataType, source)
 	}
 	if n.Identity != nil {
@@ -323,6 +332,7 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 			case ast.ConstraintDefault:
 				if constraint.Expr != nil {
 					column.Default = nodeText(constraint.Expr, source)
+					column.DefaultConstraintName = constraint.Name
 				}
 			case ast.ConstraintCheck:
 				c.appendCheckConstraint(table, constraint, source)
@@ -346,7 +356,13 @@ func constraintName(prefix string, counter int) string {
 func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.TableMetadata, schemaName, source string) {
 	switch n.Type {
 	case ast.ConstraintPrimaryKey:
-		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", indexColumnNames(n.Columns), true))
+		names := indexColumnNames(n.Columns)
+		for _, name := range names {
+			if column := columnByName(table, name); column != nil {
+				column.Nullable = false
+			}
+		}
+		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", names, true))
 	case ast.ConstraintUnique:
 		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", indexColumnNames(n.Columns), false))
 	case ast.ConstraintCheck:
@@ -356,7 +372,7 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 	}
 }
 
-func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt) {
+func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) {
 	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
 	table := c.getOrCreateTable(schemaName, tableName)
 
@@ -369,6 +385,9 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt) {
 		IsConstraint: false,
 	}
 	appendIndexColumns(index, n.Columns)
+	if n.WhereClause != nil {
+		index.Definition = "WHERE " + strings.TrimSpace(nodeText(n.WhereClause, source))
+	}
 	table.Indexes = append(table.Indexes, index)
 }
 
@@ -425,6 +444,24 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
 	sequence := &metadata.SequenceMetadata{Name: sequenceName}
 	if n.DataType != nil {
 		sequence.DataType = nodeText(n.DataType, source)
+	}
+	if n.Start != nil {
+		sequence.Start = strings.TrimSpace(nodeText(n.Start, source))
+	}
+	if n.Increment != nil {
+		sequence.Increment = strings.TrimSpace(nodeText(n.Increment, source))
+	}
+	if n.MinValue != nil {
+		sequence.MinValue = strings.TrimSpace(nodeText(n.MinValue, source))
+	}
+	if n.MaxValue != nil {
+		sequence.MaxValue = strings.TrimSpace(nodeText(n.MaxValue, source))
+	}
+	if n.Cycle != nil {
+		sequence.Cycle = *n.Cycle
+	}
+	if n.Cache != nil {
+		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	}
 	schema.Sequences = append(schema.Sequences, sequence)
 }
@@ -510,7 +547,7 @@ func (c *Catalog) constraintIndexMetadata(n *ast.ConstraintDef, prefix string, c
 	return index
 }
 
-func inlineIndexMetadata(n *ast.InlineIndexDef) *metadata.IndexMetadata {
+func inlineIndexMetadata(n *ast.InlineIndexDef, source string) *metadata.IndexMetadata {
 	index := &metadata.IndexMetadata{
 		Name:         n.Name,
 		Unique:       n.Unique,
@@ -520,6 +557,9 @@ func inlineIndexMetadata(n *ast.InlineIndexDef) *metadata.IndexMetadata {
 		IsConstraint: false,
 	}
 	appendIndexColumns(index, n.Columns)
+	if n.WhereClause != nil {
+		index.Definition = "WHERE " + strings.TrimSpace(nodeText(n.WhereClause, source))
+	}
 	return index
 }
 

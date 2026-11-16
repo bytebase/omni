@@ -38,6 +38,8 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 		}
 	}
 
+	writeSequences(&buf, to.Schemas)
+
 	if hasTables(to.Schemas) {
 		writeAllTablesInOrder(&buf, to.Schemas)
 	}
@@ -49,11 +51,59 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 		writeAllViewsInOrder(&buf, to.Schemas)
 	}
 
+	if !hasViews(to.Schemas) && hasTables(to.Schemas) && hasRoutines(to.Schemas) {
+		buf.WriteString("GO\n\n")
+	}
+
 	for _, schema := range to.Schemas {
 		writeFunctionsAndProcedures(&buf, schema)
 	}
 
 	return buf.String(), nil
+}
+
+func hasRoutines(schemas []*metadata.SchemaMetadata) bool {
+	for _, schema := range schemas {
+		if len(schema.Functions) > 0 || len(schema.Procedures) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// writeSequences renders CREATE SEQUENCE before tables, since a table may use
+// NEXT VALUE FOR in a default.
+func writeSequences(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
+	for _, schema := range schemas {
+		for _, sequence := range schema.Sequences {
+			if sequence.GetSkipDump() {
+				continue
+			}
+			fmt.Fprintf(out, "CREATE SEQUENCE [%s].[%s]", schema.Name, sequence.Name)
+			if sequence.DataType != "" {
+				fmt.Fprintf(out, "\n    AS %s", sequence.DataType)
+			}
+			if sequence.Start != "" {
+				fmt.Fprintf(out, "\n    START WITH %s", sequence.Start)
+			}
+			if sequence.Increment != "" {
+				fmt.Fprintf(out, "\n    INCREMENT BY %s", sequence.Increment)
+			}
+			if sequence.MinValue != "" {
+				fmt.Fprintf(out, "\n    MINVALUE %s", sequence.MinValue)
+			}
+			if sequence.MaxValue != "" {
+				fmt.Fprintf(out, "\n    MAXVALUE %s", sequence.MaxValue)
+			}
+			if sequence.Cycle {
+				out.WriteString("\n    CYCLE")
+			}
+			if sequence.CacheSize != "" {
+				fmt.Fprintf(out, "\n    CACHE %s", sequence.CacheSize)
+			}
+			out.WriteString(";\n\n")
+		}
+	}
 }
 
 // Definition renders the catalog's own snapshot.
@@ -98,8 +148,20 @@ func writeAllTablesInOrder(out *strings.Builder, schemas []*metadata.SchemaMetad
 	if len(allTables) == 0 {
 		return
 	}
-	for _, tws := range sortTablesByDependencies(allTables) {
-		writeTable(out, tws.schema, tws.table)
+	sorted, cyclic := sortTablesByDependencies(allTables)
+	for _, tws := range sorted {
+		if cyclic {
+			writeTableWithoutForeignKeys(out, tws.schema, tws.table)
+		} else {
+			writeTable(out, tws.schema, tws.table)
+		}
+	}
+	if cyclic {
+		for _, tws := range sorted {
+			for _, fk := range tws.table.ForeignKeys {
+				writeDeferredForeignKey(out, tws.schema, tws.table.Name, fk)
+			}
+		}
 	}
 }
 
@@ -108,9 +170,9 @@ type tableWithSchema struct {
 	table  *metadata.TableMetadata
 }
 
-func sortTablesByDependencies(tables []tableWithSchema) []tableWithSchema {
+func sortTablesByDependencies(tables []tableWithSchema) ([]tableWithSchema, bool) {
 	if len(tables) <= 1 {
-		return tables
+		return tables, false
 	}
 	tableMap := make(map[string]tableWithSchema)
 	for _, tws := range tables {
@@ -124,6 +186,9 @@ func sortTablesByDependencies(tables []tableWithSchema) []tableWithSchema {
 		tableID := objectID(tws.schema, tws.table.Name)
 		for _, fk := range tws.table.ForeignKeys {
 			refID := objectID(fk.ReferencedSchema, fk.ReferencedTable)
+			if refID == tableID {
+				continue
+			}
 			if _, exists := tableMap[refID]; exists {
 				graph.addEdge(refID, tableID)
 			}
@@ -131,7 +196,7 @@ func sortTablesByDependencies(tables []tableWithSchema) []tableWithSchema {
 	}
 	sortedIDs, err := graph.topologicalSort()
 	if err != nil {
-		return tables
+		return tables, true
 	}
 	result := make([]tableWithSchema, 0, len(sortedIDs))
 	for _, id := range sortedIDs {
@@ -139,7 +204,7 @@ func sortTablesByDependencies(tables []tableWithSchema) []tableWithSchema {
 			result = append(result, tws)
 		}
 	}
-	return result
+	return result, false
 }
 
 func writeAllViewsInOrder(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
@@ -206,6 +271,16 @@ func sortViewsByDependencies(views []viewWithSchema) []viewWithSchema {
 }
 
 func writeTable(out *strings.Builder, schemaName string, table *metadata.TableMetadata) {
+	writeTableBody(out, schemaName, table, true)
+}
+
+// writeTableWithoutForeignKeys renders a table whose foreign keys wait for an
+// ALTER TABLE after every table exists, which is how a cycle is restored.
+func writeTableWithoutForeignKeys(out *strings.Builder, schemaName string, table *metadata.TableMetadata) {
+	writeTableBody(out, schemaName, table, false)
+}
+
+func writeTableBody(out *strings.Builder, schemaName string, table *metadata.TableMetadata, includeForeignKeys bool) {
 	fmt.Fprintf(out, "CREATE TABLE [%s].[%s] (\n", schemaName, table.Name)
 	for i, column := range table.Columns {
 		if i != 0 {
@@ -220,9 +295,11 @@ func writeTable(out *strings.Builder, schemaName string, table *metadata.TableMe
 		out.WriteString(",\n")
 		writeKey(out, key)
 	}
-	for _, fk := range table.ForeignKeys {
-		out.WriteString(",\n")
-		writeForeignKey(out, fk)
+	if includeForeignKeys {
+		for _, fk := range table.ForeignKeys {
+			out.WriteString(",\n")
+			writeForeignKey(out, fk)
+		}
 	}
 	for _, check := range table.CheckConstraints {
 		out.WriteString(",\n")
@@ -235,6 +312,31 @@ func writeTable(out *strings.Builder, schemaName string, table *metadata.TableMe
 		}
 		writeIndex(out, schemaName, table.Name, index)
 	}
+}
+
+func writeDeferredForeignKey(out *strings.Builder, schemaName, tableName string, fk *metadata.ForeignKeyMetadata) {
+	fmt.Fprintf(out, "ALTER TABLE [%s].[%s] ADD CONSTRAINT [%s] FOREIGN KEY (", schemaName, tableName, fk.Name)
+	for i, column := range fk.Columns {
+		if i != 0 {
+			out.WriteString(", ")
+		}
+		fmt.Fprintf(out, "[%s]", column)
+	}
+	fmt.Fprintf(out, ") REFERENCES [%s].[%s] (", fk.ReferencedSchema, fk.ReferencedTable)
+	for i, column := range fk.ReferencedColumns {
+		if i != 0 {
+			out.WriteString(", ")
+		}
+		fmt.Fprintf(out, "[%s]", column)
+	}
+	out.WriteString(")")
+	if fk.OnDelete != "" {
+		fmt.Fprintf(out, " ON DELETE %s", fk.OnDelete)
+	}
+	if fk.OnUpdate != "" {
+		fmt.Fprintf(out, " ON UPDATE %s", fk.OnUpdate)
+	}
+	out.WriteString(";\n\n")
 }
 
 func writeClusteredColumnStoreIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
@@ -277,7 +379,11 @@ func writeNormalIndex(out *strings.Builder, schemaName, tableName string, index 
 			out.WriteString(" ASC")
 		}
 	}
-	out.WriteString("\n);\n\n")
+	out.WriteString("\n)")
+	if where := indexWhereClause(index.Definition); where != "" {
+		fmt.Fprintf(out, "\nWHERE %s", where)
+	}
+	out.WriteString(";\n\n")
 }
 
 func writeIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
@@ -396,6 +502,20 @@ func GetProcedureDefinition(procedure *metadata.ProcedureMetadata) (string, erro
 	var buf strings.Builder
 	writeProcedure(&buf, procedure)
 	return buf.String(), nil
+}
+
+// indexWhereClause returns the predicate of a filtered index from either a
+// bare predicate or a definition that carries it after WHERE.
+func indexWhereClause(definition string) string {
+	trimmed := strings.TrimSpace(definition)
+	upper := strings.ToUpper(trimmed)
+	if strings.HasPrefix(upper, "WHERE ") {
+		return strings.TrimSpace(trimmed[len("WHERE "):])
+	}
+	if whereIndex := strings.Index(upper, " WHERE "); whereIndex != -1 {
+		return strings.TrimSpace(trimmed[whereIndex+len(" WHERE "):])
+	}
+	return ""
 }
 
 func generateSpatialIndexDefinition(index *metadata.IndexMetadata, schemaName, tableName string) string {

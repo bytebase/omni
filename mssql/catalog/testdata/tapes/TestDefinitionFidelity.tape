@@ -4272,6 +4272,9 @@
 | CREATE SCHEMA [fid_routines];
 < ok 0 -
 > exec
+| CREATE SEQUENCE [fid_routines].[item_seq]
+|     AS bigint;
+|
 | CREATE TABLE [fid_cols].[customers] (
 |     [id] int NOT NULL,
 |     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
@@ -4377,19 +4380,19 @@
 < column "definition" "NVARCHAR"
 < column "default_name" "NVARCHAR"
 < row
-: int64 1365579903
+: int64 1381579960
 : string
 | (sysutcdatetime())
 : string
 | DF__customers__creat__standin4
 < row
-: int64 1381579960
+: int64 1397580017
 : string
 | ((0))
 : string
 | DF__customers__balan__standin5
 < row
-: int64 1477580302
+: int64 1493580359
 : string
 | ((0))
 : string
@@ -4448,7 +4451,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 1
 : string
 | id
@@ -4471,7 +4474,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 2
 : string
 | name
@@ -4495,7 +4498,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 3
 : string
 | email
@@ -4519,7 +4522,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 4
 : string
 | created_at
@@ -4534,7 +4537,7 @@
 : null
 : bool false
 : bool false
-: int64 1365579903
+: int64 1381579960
 : null
 : null
 < row
@@ -4542,7 +4545,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 5
 : string
 | balance
@@ -4557,7 +4560,7 @@
 : null
 : bool false
 : bool false
-: int64 1381579960
+: int64 1397580017
 : null
 : null
 < row
@@ -4565,7 +4568,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 1
 : string
 | id
@@ -4588,7 +4591,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 2
 : string
 | customer_id
@@ -4611,7 +4614,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 3
 : string
 | status
@@ -4635,7 +4638,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 4
 : string
 | note
@@ -4659,7 +4662,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 5
 : string
 | total
@@ -4674,7 +4677,7 @@
 : null
 : bool false
 : bool false
-: int64 1477580302
+: int64 1493580359
 : null
 : null
 < row
@@ -4682,7 +4685,7 @@
 | fid_routines
 : string
 | items
-: int64 1397580017
+: int64 1413580074
 : int64 1
 : string
 | id
@@ -4705,7 +4708,7 @@
 | fid_routines
 : string
 | items
-: int64 1397580017
+: int64 1413580074
 : int64 2
 : string
 | name
@@ -4729,7 +4732,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1525580473
+: int64 1541580530
 : int64 1
 : string
 | id
@@ -4752,7 +4755,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1525580473
+: int64 1541580530
 : int64 2
 : string
 | name
@@ -4776,7 +4779,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1541580530
+: int64 1557580587
 : int64 1
 : string
 | name
@@ -4953,7 +4956,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 3
 : string
 | IX_orders_note
@@ -4968,7 +4971,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 3
 : string
 | IX_orders_note
@@ -4983,7 +4986,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 4
 : string
 | UX_orders_status_id
@@ -4998,7 +5001,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 4
 : string
 | UX_orders_status_id
@@ -5142,7 +5145,7 @@
 | fid_cols
 : string
 | orders
-: int64 1493580359
+: int64 1509580416
 : string
 | FK_orders_customers
 : string
@@ -5178,19 +5181,19 @@
 < column "schema_name" "NVARCHAR"
 < column "table_name" "NVARCHAR"
 < row
-: int64 1333579789
+: int64 1349579846
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1397580017
+: int64 1413580074
 : string
 | fid_routines
 : string
 | items
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | fid_cols
 : string
@@ -5210,10 +5213,10 @@
 < column "object_id" "INT"
 < column "definition" "NVARCHAR"
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | CK_orders_total
-: int64 1509580416
+: int64 1525580473
 : string
 | ([total]>=(0))
 > query
@@ -5239,19 +5242,19 @@
 : string
 | trace_xe_event_map
 < row
-: int64 1333579789
+: int64 1349579846
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1397580017
+: int64 1413580074
 : string
 | fid_routines
 : string
 | items
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | fid_cols
 : string
@@ -5329,7 +5332,7 @@
 : int64 229
 < row
 : int64 34
-: int64 2793
+: int64 2794
 < row
 : int64 35
 : int64 0
@@ -5398,7 +5401,7 @@
 : int64 0
 < row
 : int64 60
-: int64 273
+: int64 274
 < row
 : int64 62
 : int64 0
@@ -5571,13 +5574,13 @@
 : int64 885578193
 : int64 0
 < row
-: int64 1333579789
+: int64 1349579846
 : int64 0
 < row
-: int64 1397580017
+: int64 1413580074
 : int64 0
 < row
-: int64 1429580131
+: int64 1445580188
 : int64 0
 < row
 : int64 1993058136
@@ -5610,19 +5613,19 @@
 < column "" "NVARCHAR"
 < column "name" "NVARCHAR"
 < row
-: int64 1333579789
+: int64 1349579846
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | fid_cols
 : string
 | orders
 < row
-: int64 1397580017
+: int64 1413580074
 : string
 | fid_routines
 : string
@@ -5658,7 +5661,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1541580530
+: int64 1557580587
 : string
 | CREATE VIEW [fid_routines].[v_item_names] AS
 | SELECT [name] FROM [fid_routines].[v_items];
@@ -5667,7 +5670,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1525580473
+: int64 1541580530
 : string
 | CREATE VIEW [fid_routines].[v_items] AS
 | SELECT [id], [name] FROM [fid_routines].[items];
@@ -5694,6 +5697,14 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_seq
+: string
+| bigint
+: null
 > query
 |
 | 	SELECT
@@ -5913,19 +5924,19 @@
 < column "definition" "NVARCHAR"
 < column "default_name" "NVARCHAR"
 < row
-: int64 1365579903
+: int64 1381579960
 : string
 | (sysutcdatetime())
 : string
 | DF__customers__creat__standin4
 < row
-: int64 1381579960
+: int64 1397580017
 : string
 | ((0))
 : string
 | DF__customers__balan__standin5
 < row
-: int64 1477580302
+: int64 1493580359
 : string
 | ((0))
 : string
@@ -5984,7 +5995,7 @@
 | fid_a
 : string
 | parents
-: int64 1589580701
+: int64 1605580758
 : int64 1
 : string
 | id
@@ -6007,7 +6018,7 @@
 | fid_b
 : string
 | children
-: int64 1621580815
+: int64 1637580872
 : int64 1
 : string
 | id
@@ -6030,7 +6041,7 @@
 | fid_b
 : string
 | children
-: int64 1621580815
+: int64 1637580872
 : int64 2
 : string
 | parent_id
@@ -6053,7 +6064,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 1
 : string
 | id
@@ -6076,7 +6087,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 2
 : string
 | name
@@ -6100,7 +6111,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 3
 : string
 | email
@@ -6124,7 +6135,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 4
 : string
 | created_at
@@ -6139,7 +6150,7 @@
 : null
 : bool false
 : bool false
-: int64 1365579903
+: int64 1381579960
 : null
 : null
 < row
@@ -6147,7 +6158,7 @@
 | fid_cols
 : string
 | customers
-: int64 1333579789
+: int64 1349579846
 : int64 5
 : string
 | balance
@@ -6162,7 +6173,7 @@
 : null
 : bool false
 : bool false
-: int64 1381579960
+: int64 1397580017
 : null
 : null
 < row
@@ -6170,7 +6181,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 1
 : string
 | id
@@ -6193,7 +6204,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 2
 : string
 | customer_id
@@ -6216,7 +6227,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 3
 : string
 | status
@@ -6240,7 +6251,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 4
 : string
 | note
@@ -6264,7 +6275,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 5
 : string
 | total
@@ -6279,7 +6290,7 @@
 : null
 : bool false
 : bool false
-: int64 1477580302
+: int64 1493580359
 : null
 : null
 < row
@@ -6287,7 +6298,7 @@
 | fid_routines
 : string
 | items
-: int64 1397580017
+: int64 1413580074
 : int64 1
 : string
 | id
@@ -6310,7 +6321,7 @@
 | fid_routines
 : string
 | items
-: int64 1397580017
+: int64 1413580074
 : int64 2
 : string
 | name
@@ -6334,7 +6345,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1525580473
+: int64 1541580530
 : int64 1
 : string
 | id
@@ -6357,7 +6368,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1525580473
+: int64 1541580530
 : int64 2
 : string
 | name
@@ -6381,7 +6392,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1541580530
+: int64 1557580587
 : int64 1
 : string
 | name
@@ -6588,7 +6599,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 3
 : string
 | IX_orders_note
@@ -6603,7 +6614,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 3
 : string
 | IX_orders_note
@@ -6618,7 +6629,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 4
 : string
 | UX_orders_status_id
@@ -6633,7 +6644,7 @@
 | fid_cols
 : string
 | orders
-: int64 1429580131
+: int64 1445580188
 : int64 4
 : string
 | UX_orders_status_id
@@ -6777,7 +6788,7 @@
 | fid_b
 : string
 | children
-: int64 1653580929
+: int64 1669580986
 : string
 | FK_children_parents
 : string
@@ -6795,7 +6806,7 @@
 | fid_cols
 : string
 | orders
-: int64 1493580359
+: int64 1509580416
 : string
 | FK_orders_customers
 : string
@@ -6831,31 +6842,31 @@
 < column "schema_name" "NVARCHAR"
 < column "table_name" "NVARCHAR"
 < row
-: int64 1333579789
+: int64 1349579846
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1397580017
+: int64 1413580074
 : string
 | fid_routines
 : string
 | items
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | fid_cols
 : string
 | orders
 < row
-: int64 1589580701
+: int64 1605580758
 : string
 | fid_a
 : string
 | parents
 < row
-: int64 1621580815
+: int64 1637580872
 : string
 | fid_b
 : string
@@ -6875,10 +6886,10 @@
 < column "object_id" "INT"
 < column "definition" "NVARCHAR"
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | CK_orders_total
-: int64 1509580416
+: int64 1525580473
 : string
 | ([total]>=(0))
 > query
@@ -6904,31 +6915,31 @@
 : string
 | trace_xe_event_map
 < row
-: int64 1333579789
+: int64 1349579846
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1397580017
+: int64 1413580074
 : string
 | fid_routines
 : string
 | items
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | fid_cols
 : string
 | orders
 < row
-: int64 1589580701
+: int64 1605580758
 : string
 | fid_a
 : string
 | parents
 < row
-: int64 1621580815
+: int64 1637580872
 : string
 | fid_b
 : string
@@ -7006,7 +7017,7 @@
 : int64 229
 < row
 : int64 34
-: int64 2798
+: int64 2799
 < row
 : int64 35
 : int64 0
@@ -7075,7 +7086,7 @@
 : int64 0
 < row
 : int64 60
-: int64 275
+: int64 276
 < row
 : int64 62
 : int64 0
@@ -7248,19 +7259,19 @@
 : int64 885578193
 : int64 0
 < row
-: int64 1333579789
+: int64 1349579846
 : int64 0
 < row
-: int64 1397580017
+: int64 1413580074
 : int64 0
 < row
-: int64 1429580131
+: int64 1445580188
 : int64 0
 < row
-: int64 1589580701
+: int64 1605580758
 : int64 0
 < row
-: int64 1621580815
+: int64 1637580872
 : int64 0
 < row
 : int64 1993058136
@@ -7293,31 +7304,31 @@
 < column "" "NVARCHAR"
 < column "name" "NVARCHAR"
 < row
-: int64 1589580701
+: int64 1605580758
 : string
 | fid_a
 : string
 | parents
 < row
-: int64 1621580815
+: int64 1637580872
 : string
 | fid_b
 : string
 | children
 < row
-: int64 1333579789
+: int64 1349579846
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1429580131
+: int64 1445580188
 : string
 | fid_cols
 : string
 | orders
 < row
-: int64 1397580017
+: int64 1413580074
 : string
 | fid_routines
 : string
@@ -7353,7 +7364,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1541580530
+: int64 1557580587
 : string
 | CREATE VIEW [fid_routines].[v_item_names] AS
 | SELECT [name] FROM [fid_routines].[v_items];
@@ -7362,7 +7373,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1525580473
+: int64 1541580530
 : string
 | CREATE VIEW [fid_routines].[v_items] AS
 | SELECT [id], [name] FROM [fid_routines].[items];
@@ -7389,6 +7400,14 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_seq
+: string
+| bigint
+: null
 > query
 |
 | 	SELECT
@@ -7544,6 +7563,7 @@
 | DROP VIEW IF EXISTS [fid_routines].[v_items];
 | DROP PROCEDURE IF EXISTS [fid_routines].[get_items];
 | DROP FUNCTION IF EXISTS [fid_routines].[item_name];
+| DROP SEQUENCE IF EXISTS [fid_routines].[item_seq];
 | ALTER TABLE [fid_b].[children] DROP CONSTRAINT IF EXISTS [FK_children_parents];
 | ALTER TABLE [fid_cols].[orders] DROP CONSTRAINT IF EXISTS [FK_orders_customers];
 | DROP TABLE IF EXISTS [fid_a].[parents];
@@ -7569,6 +7589,9 @@
 | CREATE SCHEMA [fid_routines];
 < ok 0 -
 > exec
+| CREATE SEQUENCE [fid_routines].[item_seq]
+|     AS bigint;
+|
 | CREATE TABLE [fid_a].[parents] (
 |     [id] int NOT NULL,
 |     CONSTRAINT [PK_parents] PRIMARY KEY CLUSTERED ([id] ASC)
@@ -7692,19 +7715,19 @@
 < column "definition" "NVARCHAR"
 < column "default_name" "NVARCHAR"
 < row
-: int64 1733581214
+: int64 1765581328
 : string
 | (sysutcdatetime())
 : string
 | DF__customers__creat__standin7
 < row
-: int64 1749581271
+: int64 1781581385
 : string
 | ((0))
 : string
 | DF__customers__balan__standin8
 < row
-: int64 1893581784
+: int64 1925581898
 : string
 | ((0))
 : string
@@ -7763,7 +7786,7 @@
 | fid_a
 : string
 | parents
-: int64 1669580986
+: int64 1701581100
 : int64 1
 : string
 | id
@@ -7786,7 +7809,7 @@
 | fid_b
 : string
 | children
-: int64 1797581442
+: int64 1829581556
 : int64 1
 : string
 | id
@@ -7809,7 +7832,7 @@
 | fid_b
 : string
 | children
-: int64 1797581442
+: int64 1829581556
 : int64 2
 : string
 | parent_id
@@ -7832,7 +7855,7 @@
 | fid_cols
 : string
 | customers
-: int64 1701581100
+: int64 1733581214
 : int64 1
 : string
 | id
@@ -7855,7 +7878,7 @@
 | fid_cols
 : string
 | customers
-: int64 1701581100
+: int64 1733581214
 : int64 2
 : string
 | name
@@ -7879,7 +7902,7 @@
 | fid_cols
 : string
 | customers
-: int64 1701581100
+: int64 1733581214
 : int64 3
 : string
 | email
@@ -7903,7 +7926,7 @@
 | fid_cols
 : string
 | customers
-: int64 1701581100
+: int64 1733581214
 : int64 4
 : string
 | created_at
@@ -7918,7 +7941,7 @@
 : null
 : bool false
 : bool false
-: int64 1733581214
+: int64 1765581328
 : null
 : null
 < row
@@ -7926,7 +7949,7 @@
 | fid_cols
 : string
 | customers
-: int64 1701581100
+: int64 1733581214
 : int64 5
 : string
 | balance
@@ -7941,7 +7964,7 @@
 : null
 : bool false
 : bool false
-: int64 1749581271
+: int64 1781581385
 : null
 : null
 < row
@@ -7949,7 +7972,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 1
 : string
 | id
@@ -7972,7 +7995,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 2
 : string
 | customer_id
@@ -7995,7 +8018,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 3
 : string
 | status
@@ -8019,7 +8042,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 4
 : string
 | note
@@ -8043,7 +8066,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 5
 : string
 | total
@@ -8058,7 +8081,7 @@
 : null
 : bool false
 : bool false
-: int64 1893581784
+: int64 1925581898
 : null
 : null
 < row
@@ -8066,7 +8089,7 @@
 | fid_routines
 : string
 | items
-: int64 1765581328
+: int64 1797581442
 : int64 1
 : string
 | id
@@ -8089,7 +8112,7 @@
 | fid_routines
 : string
 | items
-: int64 1765581328
+: int64 1797581442
 : int64 2
 : string
 | name
@@ -8113,7 +8136,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1941581955
+: int64 1973582069
 : int64 1
 : string
 | id
@@ -8136,7 +8159,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1941581955
+: int64 1973582069
 : int64 2
 : string
 | name
@@ -8160,7 +8183,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1957582012
+: int64 1989582126
 : int64 1
 : string
 | name
@@ -8367,7 +8390,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 3
 : string
 | IX_orders_note
@@ -8382,7 +8405,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 3
 : string
 | IX_orders_note
@@ -8397,7 +8420,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 4
 : string
 | UX_orders_status_id
@@ -8412,7 +8435,7 @@
 | fid_cols
 : string
 | orders
-: int64 1845581613
+: int64 1877581727
 : int64 4
 : string
 | UX_orders_status_id
@@ -8556,7 +8579,7 @@
 | fid_b
 : string
 | children
-: int64 1829581556
+: int64 1861581670
 : string
 | FK_children_parents
 : string
@@ -8574,7 +8597,7 @@
 | fid_cols
 : string
 | orders
-: int64 1909581841
+: int64 1941581955
 : string
 | FK_orders_customers
 : string
@@ -8610,31 +8633,31 @@
 < column "schema_name" "NVARCHAR"
 < column "table_name" "NVARCHAR"
 < row
-: int64 1669580986
+: int64 1701581100
 : string
 | fid_a
 : string
 | parents
 < row
-: int64 1701581100
+: int64 1733581214
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1765581328
+: int64 1797581442
 : string
 | fid_routines
 : string
 | items
 < row
-: int64 1797581442
+: int64 1829581556
 : string
 | fid_b
 : string
 | children
 < row
-: int64 1845581613
+: int64 1877581727
 : string
 | fid_cols
 : string
@@ -8654,10 +8677,10 @@
 < column "object_id" "INT"
 < column "definition" "NVARCHAR"
 < row
-: int64 1845581613
+: int64 1877581727
 : string
 | CK_orders_total
-: int64 1925581898
+: int64 1957582012
 : string
 | ([total]>=(0))
 > query
@@ -8683,31 +8706,31 @@
 : string
 | trace_xe_event_map
 < row
-: int64 1669580986
+: int64 1701581100
 : string
 | fid_a
 : string
 | parents
 < row
-: int64 1701581100
+: int64 1733581214
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1765581328
+: int64 1797581442
 : string
 | fid_routines
 : string
 | items
 < row
-: int64 1797581442
+: int64 1829581556
 : string
 | fid_b
 : string
 | children
 < row
-: int64 1845581613
+: int64 1877581727
 : string
 | fid_cols
 : string
@@ -8785,7 +8808,7 @@
 : int64 229
 < row
 : int64 34
-: int64 2798
+: int64 2799
 < row
 : int64 35
 : int64 0
@@ -8854,7 +8877,7 @@
 : int64 0
 < row
 : int64 60
-: int64 275
+: int64 276
 < row
 : int64 62
 : int64 0
@@ -9027,19 +9050,19 @@
 : int64 885578193
 : int64 0
 < row
-: int64 1669580986
-: int64 0
-< row
 : int64 1701581100
 : int64 0
 < row
-: int64 1765581328
+: int64 1733581214
 : int64 0
 < row
 : int64 1797581442
 : int64 0
 < row
-: int64 1845581613
+: int64 1829581556
+: int64 0
+< row
+: int64 1877581727
 : int64 0
 < row
 : int64 1993058136
@@ -9072,31 +9095,31 @@
 < column "" "NVARCHAR"
 < column "name" "NVARCHAR"
 < row
-: int64 1669580986
+: int64 1701581100
 : string
 | fid_a
 : string
 | parents
 < row
-: int64 1797581442
+: int64 1829581556
 : string
 | fid_b
 : string
 | children
 < row
-: int64 1701581100
+: int64 1733581214
 : string
 | fid_cols
 : string
 | customers
 < row
-: int64 1845581613
+: int64 1877581727
 : string
 | fid_cols
 : string
 | orders
 < row
-: int64 1765581328
+: int64 1797581442
 : string
 | fid_routines
 : string
@@ -9132,7 +9155,7 @@
 | fid_routines
 : string
 | v_item_names
-: int64 1957582012
+: int64 1989582126
 : string
 | CREATE VIEW [fid_routines].[v_item_names] AS
 | SELECT [name] FROM [fid_routines].[v_items];
@@ -9141,7 +9164,7 @@
 | fid_routines
 : string
 | v_items
-: int64 1941581955
+: int64 1973582069
 : string
 | CREATE VIEW [fid_routines].[v_items] AS
 | SELECT [id], [name] FROM [fid_routines].[items];
@@ -9168,6 +9191,14 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "comment" "NVARCHAR"
+< row
+: string
+| fid_routines
+: string
+| item_seq
+: string
+| bigint
+: null
 > query
 |
 | 	SELECT

@@ -1350,7 +1350,7 @@
 > exec
 | CREATE TABLE [fid_added_columns_keys_constraints].[added] (
 |   [id] int NOT NULL,
-|   [note] nvarchar(20) NULL,
+|   [note] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 |   CONSTRAINT [PK_added] PRIMARY KEY CLUSTERED ([id]),
 |   CONSTRAINT [CK_added_note] CHECK (([note] IS NULL OR [note]<>''))
 | );
@@ -4443,7 +4443,7 @@
 > exec
 | CREATE TABLE [fid_added_views_functions_procedures_sequences].[added] (
 |   [id] int NOT NULL,
-|   [note] nvarchar(20) NULL,
+|   [note] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 |   CONSTRAINT [PK_added] PRIMARY KEY CLUSTERED ([id]),
 |   CONSTRAINT [CK_added_note] CHECK (([note] IS NULL OR [note]<>''))
 | );
@@ -8108,7 +8108,7 @@
 > exec
 | CREATE TABLE [fid_added_cross_schema].[added] (
 |   [id] int NOT NULL,
-|   [note] nvarchar(20) NULL,
+|   [note] nvarchar(20) COLLATE SQL_Latin1_General_CP1_CI_AS NULL,
 |   CONSTRAINT [PK_added] PRIMARY KEY CLUSTERED ([id]),
 |   CONSTRAINT [CK_added_note] CHECK (([note] IS NULL OR [note]<>''))
 | );

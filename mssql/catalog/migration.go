@@ -44,9 +44,12 @@ func (p *MigrationPlan) IsEmpty() bool { return p.SQL() == "" }
 // GenerateMigration produces the script that transforms from into to, using the
 // precomputed diff. It is Bytebase's schema/mssql generator ported verbatim.
 func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
-	_ = from
 	_ = to
 	var buf strings.Builder
+	inbound := inboundForeignKeys(from, diff)
+	for _, ref := range inbound {
+		fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\nGO\n", ref.schema, ref.table, ref.fk.Name)
+	}
 
 	var schemasToCreate []string
 	for _, schemaDiff := range diff.Schemas {
@@ -81,6 +84,11 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action == DiffDrop {
 			fmt.Fprintf(&buf, "DROP FUNCTION [%s].[%s];\nGO\n", funcDiff.SchemaName, funcDiff.FunctionName)
+		}
+	}
+	for _, sequenceDiff := range diff.Sequences {
+		if sequenceDiff.Action == DiffDrop {
+			fmt.Fprintf(&buf, "DROP SEQUENCE [%s].[%s];\nGO\n", sequenceDiff.SchemaName, sequenceDiff.SequenceName)
 		}
 	}
 
@@ -202,6 +210,18 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				buf.WriteString("\n")
 			}
 		}
+	}
+
+	for _, ref := range inbound {
+		buf.WriteString(generateAddForeignKey(ref.schema, ref.table, ref.fk))
+		buf.WriteString(";\n")
+	}
+
+	for _, sequenceDiff := range diff.Sequences {
+		if sequenceDiff.Action != DiffAlter {
+			continue
+		}
+		buf.WriteString(generateAlterSequence(sequenceDiff))
 	}
 
 	for _, tableDiff := range diff.Tables {
@@ -340,12 +360,8 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if sequenceDiff.Action != DiffCreate {
 			continue
 		}
-		fmt.Fprintf(&buf, "CREATE SEQUENCE [%s].[%s]", sequenceDiff.SchemaName, sequenceDiff.SequenceName)
-		if sequenceDiff.NewSequence.DataType != "" {
-			buf.WriteString(" AS ")
-			buf.WriteString(sequenceDiff.NewSequence.DataType)
-		}
-		buf.WriteString(";\nGO\n")
+		buf.WriteString(generateCreateSequence(sequenceDiff.SchemaName, sequenceDiff.SequenceName, sequenceDiff.NewSequence))
+		buf.WriteString("\nGO\n")
 		if sequenceDiff.NewSequence.Comment != "" {
 			buf.WriteString(generateSequenceCommentSQL("ADD", sequenceDiff.SchemaName, sequenceDiff.SequenceName, sequenceDiff.NewSequence.Comment))
 			buf.WriteString(";\nGO\n")
@@ -358,6 +374,136 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		ops = append(ops, MigrationOp{Type: OpScript, SQL: text})
 	}
 	return &MigrationPlan{Ops: ops}
+}
+
+func appendMigrationDirection(buf *strings.Builder, descending []bool, index int) {
+	if index < len(descending) && descending[index] {
+		buf.WriteString(" DESC")
+	}
+}
+
+// generateAlterSequence emits the options ALTER SEQUENCE can change. A type
+// change is not alterable in SQL Server, so it is recreated instead.
+func generateAlterSequence(diff *SequenceDiffEntry) string {
+	oldSequence, newSequence := diff.OldSequence, diff.NewSequence
+	var buf strings.Builder
+	if oldSequence.DataType != newSequence.DataType {
+		fmt.Fprintf(&buf, "DROP SEQUENCE [%s].[%s];\nGO\n", diff.SchemaName, diff.SequenceName)
+		buf.WriteString(generateCreateSequence(diff.SchemaName, diff.SequenceName, newSequence))
+		buf.WriteString("\nGO\n")
+		return buf.String()
+	}
+	fmt.Fprintf(&buf, "ALTER SEQUENCE [%s].[%s]", diff.SchemaName, diff.SequenceName)
+	if newSequence.Start != "" {
+		fmt.Fprintf(&buf, " RESTART WITH %s", newSequence.Start)
+	}
+	if newSequence.Increment != "" {
+		fmt.Fprintf(&buf, " INCREMENT BY %s", newSequence.Increment)
+	}
+	if newSequence.MinValue != "" {
+		fmt.Fprintf(&buf, " MINVALUE %s", newSequence.MinValue)
+	}
+	if newSequence.MaxValue != "" {
+		fmt.Fprintf(&buf, " MAXVALUE %s", newSequence.MaxValue)
+	}
+	if newSequence.Cycle {
+		buf.WriteString(" CYCLE")
+	} else {
+		buf.WriteString(" NO CYCLE")
+	}
+	if newSequence.CacheSize != "" {
+		fmt.Fprintf(&buf, " CACHE %s", newSequence.CacheSize)
+	}
+	buf.WriteString(";\nGO\n")
+	return buf.String()
+}
+
+func generateCreateSequence(schemaName, sequenceName string, sequence *metadata.SequenceMetadata) string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "CREATE SEQUENCE [%s].[%s]", schemaName, sequenceName)
+	if sequence.DataType != "" {
+		fmt.Fprintf(&buf, " AS %s", sequence.DataType)
+	}
+	if sequence.Start != "" {
+		fmt.Fprintf(&buf, " START WITH %s", sequence.Start)
+	}
+	if sequence.Increment != "" {
+		fmt.Fprintf(&buf, " INCREMENT BY %s", sequence.Increment)
+	}
+	if sequence.MinValue != "" {
+		fmt.Fprintf(&buf, " MINVALUE %s", sequence.MinValue)
+	}
+	if sequence.MaxValue != "" {
+		fmt.Fprintf(&buf, " MAXVALUE %s", sequence.MaxValue)
+	}
+	if sequence.Cycle {
+		buf.WriteString(" CYCLE")
+	}
+	if sequence.CacheSize != "" {
+		fmt.Fprintf(&buf, " CACHE %s", sequence.CacheSize)
+	}
+	buf.WriteString(";")
+	return buf.String()
+}
+
+// foreignKeyRef is an unchanged foreign key that references a key being
+// replaced, so it must be dropped before and recreated after the replacement.
+type foreignKeyRef struct {
+	schema string
+	table  string
+	fk     *metadata.ForeignKeyMetadata
+}
+
+func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
+	if from == nil {
+		return nil
+	}
+	replaced := make(map[string]bool)
+	droppedTables := make(map[string]bool)
+	explicit := make(map[string]bool)
+	for _, tableDiff := range diff.Tables {
+		tableID := objectID(tableDiff.SchemaName, tableDiff.TableName)
+		switch tableDiff.Action {
+		case DiffDrop:
+			droppedTables[tableID] = true
+		case DiffAlter:
+			droppedKey := false
+			for _, indexDiff := range tableDiff.Indexes {
+				if indexDiff.Action == DiffDrop && indexDiff.OldIndex.IsConstraint {
+					droppedKey = true
+				}
+			}
+			if droppedKey {
+				replaced[tableID] = true
+			}
+			for _, fkDiff := range tableDiff.ForeignKeys {
+				name := fkDiffName(fkDiff)
+				explicit[tableID+"."+name] = true
+			}
+		}
+	}
+	if len(replaced) == 0 {
+		return nil
+	}
+	var refs []foreignKeyRef
+	for _, schema := range from.Metadata().Schemas {
+		for _, table := range schema.Tables {
+			tableID := objectID(schema.Name, table.Name)
+			if droppedTables[tableID] {
+				continue
+			}
+			for _, fk := range table.ForeignKeys {
+				if !replaced[objectID(fk.ReferencedSchema, fk.ReferencedTable)] {
+					continue
+				}
+				if explicit[tableID+"."+fk.Name] {
+					continue
+				}
+				refs = append(refs, foreignKeyRef{schema: schema.Name, table: table.Name, fk: fk})
+			}
+		}
+	}
+	return refs
 }
 
 func generateCreateTable(schemaName, tableName string, table *metadata.TableMetadata) string {
@@ -399,6 +545,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 				buf.WriteString(", ")
 			}
 			fmt.Fprintf(&buf, "[%s]", expr)
+			appendMigrationDirection(&buf, idx.Descending, j)
 		}
 		buf.WriteString(")")
 		constraintAdded = true
@@ -465,6 +612,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 					buf.WriteString(", ")
 				}
 				fmt.Fprintf(&buf, "[%s]", expr)
+				appendMigrationDirection(&buf, indexDiff.NewIndex.Descending, j)
 			}
 			buf.WriteString(");\n")
 		} else {
@@ -496,6 +644,9 @@ func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 		return buf.String()
 	}
 	buf.WriteString(column.Type)
+	if column.Collation != "" {
+		fmt.Fprintf(&buf, " COLLATE %s", column.Collation)
+	}
 	if column.IsIdentity {
 		fmt.Fprintf(&buf, " IDENTITY(%d,%d)", column.IdentitySeed, column.IdentityIncrement)
 	}
@@ -515,14 +666,20 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 	var buf strings.Builder
 	if colDiff.OldColumn.Type != colDiff.NewColumn.Type {
 		fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ALTER COLUMN [%s] %s", schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
+		if colDiff.OldColumn.Collation != colDiff.NewColumn.Collation && colDiff.NewColumn.Collation != "" {
+			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
+		}
 		if colDiff.NewColumn.Nullable {
 			buf.WriteString(" NULL")
 		} else {
 			buf.WriteString(" NOT NULL")
 		}
 		buf.WriteString(";\n")
-	} else if colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable {
+	} else if colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable || colDiff.OldColumn.Collation != colDiff.NewColumn.Collation {
 		fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ALTER COLUMN [%s] %s", schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
+		if colDiff.NewColumn.Collation != "" {
+			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
+		}
 		if colDiff.NewColumn.Nullable {
 			buf.WriteString(" NULL")
 		} else {
@@ -589,8 +746,12 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 				buf.WriteString(", ")
 			}
 			fmt.Fprintf(&buf, "[%s]", expr)
+			appendMigrationDirection(&buf, index.Descending, i)
 		}
 		buf.WriteString(")")
+		if where := indexWhereClause(index.Definition); where != "" {
+			fmt.Fprintf(&buf, " WHERE %s", where)
+		}
 		return buf.String()
 	}
 }
@@ -748,6 +909,9 @@ func createTablesInOrder(diff *SchemaDiff, buf *strings.Builder) {
 		}
 		for _, fk := range tableDiff.NewTable.ForeignKeys {
 			refID := objectID(fk.ReferencedSchema, fk.ReferencedTable)
+			if refID == tableID {
+				continue
+			}
 			if _, ok := tableMap[refID]; ok {
 				graph.addEdge(refID, tableID)
 			}

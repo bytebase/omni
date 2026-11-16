@@ -139,11 +139,15 @@ func Diff(from, to *Catalog) *SchemaDiff {
 
 	for _, name := range sortedSchemaNames(from.schemas) {
 		if to.schemaByName[normalize(name)] == nil {
+			oldSchema := from.schemaByName[normalize(name)]
 			diff.Schemas = append(diff.Schemas, &SchemaDiffEntry{
 				Action:     DiffDrop,
 				SchemaName: name,
-				OldSchema:  from.schemaByName[normalize(name)],
+				OldSchema:  oldSchema,
 			})
+			if oldSchema != nil {
+				addDroppedSchemaObjects(diff, name, oldSchema)
+			}
 		}
 	}
 
@@ -167,6 +171,59 @@ func Diff(from, to *Catalog) *SchemaDiff {
 
 	sortDiff(diff)
 	return diff
+}
+
+// addDroppedSchemaObjects turns a removed schema into object-level drops, so
+// the dependency-ordered drop phases empty it before DROP SCHEMA runs.
+func addDroppedSchemaObjects(diff *SchemaDiff, schemaName string, schema *metadata.SchemaMetadata) {
+	for _, name := range sortedViewNames(schema) {
+		view := viewByName(schema, name)
+		if view != nil && !view.GetSkipDump() {
+			diff.Views = append(diff.Views, &ViewDiffEntry{
+				Action:     DiffDrop,
+				SchemaName: schemaName,
+				ViewName:   name,
+				OldView:    view,
+			})
+		}
+	}
+	for _, function := range schema.GetFunctions() {
+		if function.GetSkipDump() {
+			continue
+		}
+		name := function.Signature
+		if name == "" {
+			name = function.Name
+		}
+		diff.Functions = append(diff.Functions, &FunctionDiffEntry{
+			Action:       DiffDrop,
+			SchemaName:   schemaName,
+			FunctionName: name,
+			OldFunction:  function,
+		})
+	}
+	for _, name := range sortedProcedureNames(schema) {
+		procedure := procedureByName(schema, name)
+		if procedure != nil && !procedure.SkipDump {
+			diff.Procedures = append(diff.Procedures, &ProcedureDiffEntry{
+				Action:        DiffDrop,
+				SchemaName:    schemaName,
+				ProcedureName: name,
+				OldProcedure:  procedure,
+			})
+		}
+	}
+	for _, sequence := range schema.GetSequences() {
+		if sequence.GetSkipDump() {
+			continue
+		}
+		diff.Sequences = append(diff.Sequences, &SequenceDiffEntry{
+			Action:       DiffDrop,
+			SchemaName:   schemaName,
+			SequenceName: sequence.Name,
+			OldSequence:  sequence,
+		})
+	}
 }
 
 func addNewSchemaObjects(diff *SchemaDiff, schemaName string, schema *metadata.SchemaMetadata) {
@@ -538,18 +595,7 @@ func dimensionalConfigsEqual(a, b *metadata.DimensionalConfig) bool {
 }
 
 func whereClausesEqual(a, b string) bool {
-	return extractWhereClause(a) == extractWhereClause(b)
-}
-
-func extractWhereClause(definition string) string {
-	if definition == "" {
-		return ""
-	}
-	whereIndex := strings.Index(strings.ToUpper(definition), " WHERE ")
-	if whereIndex == -1 {
-		return ""
-	}
-	return strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(definition[whereIndex+7:]), ";"))
+	return indexWhereClause(a) == indexWhereClause(b)
 }
 
 func compareForeignKeys(oldFKs, newFKs []*metadata.ForeignKeyMetadata) []*ForeignKeyDiffEntry {
@@ -951,7 +997,51 @@ func expressionsEqual(a, b string) bool {
 	if strings.TrimSpace(a) == "" || strings.TrimSpace(b) == "" {
 		return false
 	}
-	return strings.EqualFold(strings.Join(strings.Fields(a), " "), strings.Join(strings.Fields(b), " "))
+	return normalizeExpression(a) == normalizeExpression(b)
+}
+
+// normalizeExpression collapses whitespace and folds case outside string
+// literals only, so two defaults that differ inside quotes stay different.
+func normalizeExpression(expression string) string {
+	var out strings.Builder
+	inLiteral := false
+	space := false
+	for i := 0; i < len(expression); i++ {
+		ch := expression[i]
+		if inLiteral {
+			out.WriteByte(ch)
+			if ch == '\'' {
+				if i+1 < len(expression) && expression[i+1] == '\'' {
+					out.WriteByte('\'')
+					i++
+					continue
+				}
+				inLiteral = false
+			}
+			continue
+		}
+		switch {
+		case ch == '\'':
+			if space {
+				out.WriteByte(' ')
+				space = false
+			}
+			inLiteral = true
+			out.WriteByte(ch)
+		case ch == ' ' || ch == '\t' || ch == '\r' || ch == '\n':
+			space = true
+		default:
+			if space {
+				out.WriteByte(' ')
+				space = false
+			}
+			if ch >= 'a' && ch <= 'z' {
+				ch -= 'a' - 'A'
+			}
+			out.WriteByte(ch)
+		}
+	}
+	return strings.TrimSpace(out.String())
 }
 
 func sortDiff(diff *SchemaDiff) {
