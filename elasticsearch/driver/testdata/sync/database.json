@@ -5,8 +5,8 @@
       "tables": [
         {
           "name": "alpha",
-          "rowCount": "3",
-          "dataSize": "5017"
+          "rowCount": "5",
+          "dataSize": "6758"
         },
         {
           "name": "beta",

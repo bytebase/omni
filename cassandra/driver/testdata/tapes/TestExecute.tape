@@ -24,4 +24,4 @@
 > raw
 | {"op":"query","statement":"SELECT id, note FROM exec_items"}
 < raw
-| {"columns":[{"name":"id","type":9},{"name":"note","type":13}],"rows":[[{"kind":"int","text":"1"},{"kind":"string","text":"z"}]]}
+| {"columns":[{"name":"id","type":9},{"name":"note","type":13}],"rowColumns":["id","note"],"rows":[[{"kind":"int","text":"1"},{"kind":"string","text":"z"}]]}

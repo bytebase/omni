@@ -72,6 +72,18 @@ func TestTheTapeHoldsWhatTheDriverReads(t *testing.T) {
 		require.Equal(t, `{"hits":{"hits":[{"_id":"1","_source":{"profile":{"id":"customer-id","time_in_nanos":42},"took":"original"}}]},"took":0}`, string(narrowed))
 	})
 
+	t.Run("a document named like the bulk endpoint", func(t *testing.T) {
+		// The word in a document's id does not make its answer a bulk verdict.
+		_, ok := narrow("/alpha/_doc/app_bulk", "application/json", []byte(`{"_index":"alpha","result":"created"}`))
+		require.True(t, ok)
+		narrowed, _ := narrow("/alpha/_doc/app_bulk", "application/json", []byte(`{"_index":"alpha","result":"created"}`))
+		require.Contains(t, string(narrowed), `"result":"created"`)
+		require.False(t, isBulkEndpoint("/alpha/_doc/app_bulk"))
+		require.True(t, isBulkEndpoint("/_bulk"))
+		require.True(t, isBulkEndpoint("/alpha/_bulk"))
+		require.False(t, isBulkEndpoint("/alpha/_source/app_bulk"))
+	})
+
 	t.Run("plain text", func(t *testing.T) {
 		_, ok := narrow("/_cat/indices", "text/plain; charset=UTF-8", []byte("alpha\nbeta\n"))
 		require.False(t, ok, "a plain-text answer is held as sent")

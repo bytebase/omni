@@ -16,4 +16,4 @@
 > raw
 | {"op":"query","statement":"SELECT id FROM kept"}
 < raw
-| {"columns":[{"name":"id","type":9}],"rows":[[{"kind":"int","text":"1"}]]}
+| {"columns":[{"name":"id","type":9}],"rowColumns":["id"],"rows":[[{"kind":"int","text":"1"}]]}

@@ -2,11 +2,11 @@
 
 == TestQuery driver#1
 > raw
-| {"op":"exec","statement":"-- The tables and rows every cassandra/driver test records against. A recording\n-- starts from an empty keyspace, so the tape holds these statements' answers\n-- and nothing a previous test left behind.\n\nCREATE TABLE omni_types (\n    id int PRIMARY KEY,\n    txt text,\n    ascii_col ascii,\n    vc varchar,\n    flag boolean,\n    bi bigint,\n    ti tinyint,\n    si smallint,\n    dbl double,\n    flt float,\n    dec decimal,\n    vi varint,\n    ts timestamp,\n    dt date,\n    tm time,\n    uid uuid,\n    tuid timeuuid,\n    bl blob,\n    dur duration,\n    lst list\u003cint\u003e,\n    st set\u003ctext\u003e,\n    mp map\u003ctext,int\u003e,\n    addr inet\n)"}
+| {"op":"exec","statement":"-- The tables and rows every cassandra/driver test records against. A recording\n-- starts from an empty keyspace, so the tape holds these statements' answers\n-- and nothing a previous test left behind.\n\nCREATE TABLE omni_types (\n    id int PRIMARY KEY,\n    txt text,\n    ascii_col ascii,\n    vc varchar,\n    flag boolean,\n    bi bigint,\n    ti tinyint,\n    si smallint,\n    dbl double,\n    flt float,\n    dec decimal,\n    vi varint,\n    ts timestamp,\n    dt date,\n    tm time,\n    uid uuid,\n    tuid timeuuid,\n    bl blob,\n    dur duration,\n    lst list\u003cint\u003e,\n    st set\u003ctext\u003e,\n    mp map\u003ctext,int\u003e,\n    addr inet,\n    tup tuple\u003cint, text\u003e\n)"}
 < raw
 | {}
 > raw
-| {"op":"exec","statement":"INSERT INTO omni_types (\n    id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr\n) VALUES (\n    1, 'text value', 'ascii', 'varchar', true, 9223372036854775807, 7, 300, 3.5, 1.25, 1.5,\n    123456789012345678901234567890, '2026-01-02 03:04:05.678', '2026-01-02', '08:12:54.123456789',\n    6afaf7c2-c0c2-0ddc-7f22-71b8f0a0b0c0, 50554d6e-29bb-11e5-b345-feff819cdc9f,\n    0xdeadbeef, 1mo2d3h, [1, 2, 3], {'a', 'b'}, {'a': 1, 'b': 2}, '10.0.0.1'\n)"}
+| {"op":"exec","statement":"INSERT INTO omni_types (\n    id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup\n) VALUES (\n    1, 'text value', 'ascii', 'varchar', true, 9223372036854775807, 7, 300, 3.5, 1.25, 1.5,\n    123456789012345678901234567890, '2026-01-02 03:04:05.678', '2026-01-02', '08:12:54.123456789',\n    6afaf7c2-c0c2-0ddc-7f22-71b8f0a0b0c0, 50554d6e-29bb-11e5-b345-feff819cdc9f,\n    0xdeadbeef, 1mo2d3h, [1, 2, 3], {'a', 'b'}, {'a': 1, 'b': 2}, '10.0.0.1', (7, 'seven')\n)"}
 < raw
 | {}
 > raw
@@ -58,11 +58,11 @@
 < raw
 | {}
 > raw
-| {"op":"exec","statement":"CREATE TABLE omni_events (\n    group_id int,\n    bucket int,\n    event_id int,\n    payload text,\n    PRIMARY KEY ((group_id), bucket, event_id)\n) WITH CLUSTERING ORDER BY (bucket DESC, event_id ASC)"}
+| {"op":"exec","statement":"CREATE TABLE omni_events (\n    group_id int,\n    bucket int,\n    event_id int,\n    payload text,\n    note text static,\n    PRIMARY KEY ((group_id), bucket, event_id)\n) WITH CLUSTERING ORDER BY (bucket DESC, event_id ASC)"}
 < raw
 | {}
 > raw
-| {"op":"exec","statement":"INSERT INTO omni_events (group_id, bucket, event_id, payload) VALUES (1, 2, 3, 'p1')"}
+| {"op":"exec","statement":"INSERT INTO omni_events (group_id, bucket, event_id, payload, note) VALUES (1, 2, 3, 'p1', 'first group')"}
 < raw
 | {}
 > raw
@@ -70,7 +70,7 @@
 < raw
 | {}
 > raw
-| {"op":"exec","statement":"INSERT INTO omni_events (group_id, bucket, event_id, payload) VALUES (2, 9, 1, 'p3')"}
+| {"op":"exec","statement":"INSERT INTO omni_events (group_id, bucket, event_id, payload, note) VALUES (2, 9, 1, 'p3', 'second group')"}
 < raw
 | {}
 > raw
@@ -78,10 +78,10 @@
 < raw
 | {}
 > raw
-| {"op":"query","statement":"SELECT id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr\n\t\tFROM omni_types WHERE id = 1"}
+| {"op":"query","statement":"SELECT id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup\n\t\tFROM omni_types WHERE id = 1"}
 < raw
-| {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"ascii_col","type":1},{"name":"vc","type":13},{"name":"flag","type":4},{"name":"bi","type":2},{"name":"ti","type":20},{"name":"si","type":19},{"name":"dbl","type":7},{"name":"flt","type":8},{"name":"dec","type":6},{"name":"vi","type":14},{"name":"ts","type":11},{"name":"dt","type":17},{"name":"tm","type":18},{"name":"uid","type":12},{"name":"tuid","type":15},{"name":"bl","type":3},{"name":"dur","type":21},{"name":"lst","type":32},{"name":"st","type":34},{"name":"mp","type":33},{"name":"addr","type":16}],"rows":[[{"kind":"int","text":"1"},{"kind":"string","text":"text value"},{"kind":"string","text":"ascii"},{"kind":"string","text":"varchar"},{"kind":"bool","text":"true"},{"kind":"int64","text":"9223372036854775807"},{"kind":"int8","text":"7"},{"kind":"int16","text":"300"},{"kind":"float64","text":"3.5"},{"kind":"float32","text":"1.25"},{"kind":"inf.Dec","text":"1.5"},{"kind":"big.Int","text":"123456789012345678901234567890"},{"kind":"timestamp","text":"2026-01-02T03:04:05.678Z"},{"kind":"timestamp","text":"2026-01-02T00:00:00Z"},{"kind":"duration","text":"29574123456789"},{"kind":"uuid","text":"6afaf7c2-c0c2-0ddc-7f22-71b8f0a0b0c0"},{"kind":"uuid","text":"50554d6e-29bb-11e5-b345-feff819cdc9f"},{"kind":"bytes","text":"3q2+7w=="},{"kind":"gocql.Duration","months":1,"days":2,"nanos":10800000000000},{"kind":"json","text":"[1,2,3]"},{"kind":"json","text":"[\"a\",\"b\"]"},{"kind":"json","text":"{\"a\":1,\"b\":2}"},{"kind":"json","text":"\"10.0.0.1\""}]]}
+| {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"ascii_col","type":1},{"name":"vc","type":13},{"name":"flag","type":4},{"name":"bi","type":2},{"name":"ti","type":20},{"name":"si","type":19},{"name":"dbl","type":7},{"name":"flt","type":8},{"name":"dec","type":6},{"name":"vi","type":14},{"name":"ts","type":11},{"name":"dt","type":17},{"name":"tm","type":18},{"name":"uid","type":12},{"name":"tuid","type":15},{"name":"bl","type":3},{"name":"dur","type":21},{"name":"lst","type":32},{"name":"st","type":34},{"name":"mp","type":33},{"name":"addr","type":16},{"name":"tup","type":49,"tupleElements":2}],"rowColumns":["id","txt","ascii_col","vc","flag","bi","ti","si","dbl","flt","dec","vi","ts","dt","tm","uid","tuid","bl","dur","lst","st","mp","addr","tup[0]","tup[1]"],"rows":[[{"kind":"int","text":"1"},{"kind":"string","text":"text value"},{"kind":"string","text":"ascii"},{"kind":"string","text":"varchar"},{"kind":"bool","text":"true"},{"kind":"int64","text":"9223372036854775807"},{"kind":"int8","text":"7"},{"kind":"int16","text":"300"},{"kind":"float64","text":"3.5"},{"kind":"float32","text":"1.25"},{"kind":"inf.Dec","text":"1.5"},{"kind":"big.Int","text":"123456789012345678901234567890"},{"kind":"timestamp","text":"2026-01-02T03:04:05.678Z"},{"kind":"timestamp","text":"2026-01-02T00:00:00Z"},{"kind":"duration","text":"29574123456789"},{"kind":"uuid","text":"6afaf7c2-c0c2-0ddc-7f22-71b8f0a0b0c0"},{"kind":"uuid","text":"50554d6e-29bb-11e5-b345-feff819cdc9f"},{"kind":"bytes","text":"3q2+7w=="},{"kind":"gocql.Duration","months":1,"days":2,"nanos":10800000000000},{"kind":"json","text":"[1,2,3]"},{"kind":"json","text":"[\"a\",\"b\"]"},{"kind":"json","text":"{\"a\":1,\"b\":2}"},{"kind":"json","text":"\"10.0.0.1\""},{"kind":"int","text":"7"},{"kind":"string","text":"seven"}]]}
 > raw
 | {"op":"query","statement":"SELECT id, txt, dec, vi FROM omni_types WHERE id = 2"}
 < raw
-| {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"dec","type":6},{"name":"vi","type":14}],"rows":[[{"kind":"int","text":"2"},{"kind":"string"},{"kind":"inf.Dec","null":true},{"kind":"big.Int","null":true}]]}
+| {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"dec","type":6},{"name":"vi","type":14}],"rowColumns":["id","txt","dec","vi"],"rows":[[{"kind":"int","text":"2"},{"kind":"string"},{"kind":"inf.Dec","null":true},{"kind":"big.Int","null":true}]]}

@@ -101,12 +101,12 @@ func (c *Client) Query(ctx context.Context, statement string, pageSize int, page
 	for _, column := range a.Columns {
 		columns = append(columns, gocql.ColumnInfo{
 			Name:     column.Name,
-			TypeInfo: tapeType(column.Type),
+			TypeInfo: tapeType{typ: gocql.Type(column.Type), elements: column.TupleElements},
 		})
 	}
 	rows := make([]gocql.RowData, 0, len(a.Rows))
 	for _, values := range a.Rows {
-		row := gocql.RowData{Values: make([]any, 0, len(values))}
+		row := gocql.RowData{Columns: a.RowColumns, Values: make([]any, 0, len(values))}
 		for _, value := range values {
 			decoded, err := decodeCell(value)
 			if err != nil {
@@ -178,17 +178,24 @@ func (r request) text() (string, error) {
 // answer is one call's answer as a tape holds it: the columns and rows of one
 // page, the state that continues after it, or the error gocql returned.
 type answer struct {
-	Columns   []column     `json:"columns,omitempty"`
-	Rows      [][]cell     `json:"rows,omitempty"`
-	PageState string       `json:"pageState,omitempty"`
-	Error     *clientError `json:"error,omitempty"`
+	Columns []column `json:"columns,omitempty"`
+	// RowColumns are the names gocql gives the values of one row, which differ
+	// from Columns only where a tuple column expands into one value per
+	// element ("name[0]", "name[1]", ...).
+	RowColumns []string     `json:"rowColumns,omitempty"`
+	Rows       [][]cell     `json:"rows,omitempty"`
+	PageState  string       `json:"pageState,omitempty"`
+	Error      *clientError `json:"error,omitempty"`
 }
 
-// column is one column as a tape holds it: its name and the CQL type gocql
-// described it with.
+// column is one column as a tape holds it: its name, the CQL type gocql
+// described it with, and, for a tuple, how many values the row expands it into.
 type column struct {
 	Name string `json:"name"`
 	Type int    `json:"type"`
+	// TupleElements is the number of elements a tuple column expands into;
+	// zero for every other type.
+	TupleElements int `json:"tupleElements,omitempty"`
 }
 
 // clientError is an error the server answered, as a tape holds it. Cassandra's
@@ -509,12 +516,18 @@ func decodeCell(c cell) (any, error) {
 	}
 }
 
-// tapeType is a column's CQL type as a tape holds it. The driver reads only the
-// type itself, so the wire marshalling a live TypeInfo also offers stays
-// unimplemented here.
-type tapeType int
+// tapeType is a column's CQL type as a tape holds it. The driver reads the type
+// and, for a tuple, its element count, so the wire marshalling a live TypeInfo
+// also offers stays unimplemented here.
+type tapeType struct {
+	typ      gocql.Type
+	elements int
+}
 
-func (t tapeType) Type() gocql.Type { return gocql.Type(t) }
+func (t tapeType) Type() gocql.Type { return t.typ }
+
+// Elements is how many values a tuple column expands into.
+func (t tapeType) Elements() int { return t.elements }
 
 func (tapeType) Zero() any { return nil }
 
@@ -759,7 +772,14 @@ func liveDo(t testing.TB, text, keyspace string) (string, error) {
 			return "", err
 		}
 		for _, info := range columns {
-			a.Columns = append(a.Columns, column{Name: info.Name, Type: int(info.TypeInfo.Type())})
+			entry := column{Name: info.Name, Type: int(info.TypeInfo.Type())}
+			if tuple, ok := info.TypeInfo.(gocql.TupleTypeInfo); ok {
+				entry.TupleElements = len(tuple.Elems)
+			}
+			a.Columns = append(a.Columns, entry)
+		}
+		if len(rows) > 0 {
+			a.RowColumns = rows[0].Columns
 		}
 		for _, row := range rows {
 			values := make([]cell, 0, len(row.Values))

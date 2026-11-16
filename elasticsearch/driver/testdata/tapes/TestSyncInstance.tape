@@ -18,6 +18,14 @@
 < raw
 | {"status":201,"contentType":"application/json","body":"{\"_id\":\"3\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":2,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
 > raw
+| {"method":"POST","route":"/alpha/_doc/big","body":"{\"big\": 9007199254740993, \"name\": \"big\"}\n"}
+< raw
+| {"status":201,"contentType":"application/json","body":"{\"_id\":\"big\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":3,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
+> raw
+| {"method":"POST","route":"/alpha/_doc/app_bulk","body":"{\"errors\": true, \"items\": [{\"update\": {\"error\": {\"reason\": \"logged application error\"}}}]}\n"}
+< raw
+| {"status":201,"contentType":"application/json","body":"{\"_id\":\"app_bulk\",\"_index\":\"alpha\",\"_primary_term\":1,\"_seq_no\":4,\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1},\"_version\":1,\"result\":\"created\"}"}
+> raw
 | {"method":"POST","route":"/alpha/_refresh"}
 < raw
 | {"status":200,"contentType":"application/json","body":"{\"_shards\":{\"failed\":0,\"successful\":1,\"total\":1}}"}
@@ -60,11 +68,11 @@
 > raw
 | {"method":"GET","route":"/*/_settings?filter_path=**.hidden\u0026expand_wildcards=open,hidden"}
 < raw
-| {"status":200,"contentType":"application/json","body":"{\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
+| {"status":200,"contentType":"application/json","body":"{\".ds-.logs-deprecation.elasticsearch-default-2026.11.16-000001\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\".security-7\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}},\"hidden-one\":{\"settings\":{\"index\":{\"hidden\":\"true\"}}}}"}
 > raw
 | {"method":"GET","route":"/_cat/indices?format=json\u0026pretty"}
 < raw
-| {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"3\",\"store.size\":\"4.9kb\"},{\"index\":\"beta\",\"docs.count\":\"5\",\"store.size\":\"5.1kb\"}]"}
+| {"status":200,"contentType":"application/json","body":"[{\"index\":\"alpha\",\"docs.count\":\"5\",\"store.size\":\"6.6kb\"},{\"index\":\"beta\",\"docs.count\":\"5\",\"store.size\":\"5.1kb\"}]"}
 > raw
 | {"method":"GET","route":"/_security/user"}
 < raw
