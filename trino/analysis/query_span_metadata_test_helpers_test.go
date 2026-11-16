@@ -1,11 +1,11 @@
 package analysis
 
 import (
-	"fmt"
-
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
+// buildMockDatabaseMetadataGetter mirrors the ResolveOptions contract: a
+// database that is not synced returns nil metadata and no error.
 func buildMockDatabaseMetadataGetter(databaseMetadata []*metadatapb.DatabaseSchemaMetadata) (func(string) (*metadatapb.DatabaseSchemaMetadata, error), func() ([]string, error)) {
 	return func(databaseName string) (*metadatapb.DatabaseSchemaMetadata, error) {
 			for _, meta := range databaseMetadata {
@@ -13,7 +13,7 @@ func buildMockDatabaseMetadataGetter(databaseMetadata []*metadatapb.DatabaseSche
 					return meta, nil
 				}
 			}
-			return nil, fmt.Errorf("database %q not found", databaseName)
+			return nil, nil
 		}, func() ([]string, error) {
 			var names []string
 			for _, meta := range databaseMetadata {

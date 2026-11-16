@@ -36,6 +36,15 @@ POST /exec_items/_refresh`, driver.ExecuteOptions{
 	require.Equal(t, int64(1), schema.Schemas[0].Tables[0].RowCount)
 }
 
+// TestExecuteUnreadableScript holds a script the console parser cannot read to
+// the call's error: a syntax error is not a request to run, and the splitter
+// keeps only the readable requests.
+func TestExecuteUnreadableScript(t *testing.T) {
+	d := &Driver{}
+	_, err := d.Execute(context.Background(), "PUT /alpha\n{}\ngarbage", driver.ExecuteOptions{})
+	require.Error(t, err)
+}
+
 // TestExecuteStopsAtAFailingRequest holds a script's failure to its own error,
 // and the requests before it stay: each REST request stands alone.
 func TestExecuteStopsAtAFailingRequest(t *testing.T) {

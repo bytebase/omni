@@ -65,14 +65,18 @@ func TestSyncDatabase(t *testing.T) {
 	writeOrCompareGolden(t, filepath.Join("testdata", "sync", "database.json"), got)
 }
 
-// TestSyncDatabaseEmpty holds a keyspace with no tables: Bytebase's sync
-// reported an empty schema, and a keyspace the server does not have answers the
-// same, since its catalog queries report no rows rather than an error.
-func TestSyncDatabaseEmpty(t *testing.T) {
+// TestSyncDatabaseMissing holds a keyspace the server no longer has to
+// driver.ErrNotFound, so a keyspace dropped after the driver opened is reported
+// as gone rather than as an empty schema. A driver opened on a keyspace the
+// server never had fails earlier: gocql builds no session without it.
+func TestSyncDatabaseMissing(t *testing.T) {
 	d := openDriver(t)
-	got, err := d.SyncDatabase(context.Background())
-	require.NoError(t, err)
-	require.Empty(t, got.Schemas[0].Tables)
+	// Ping creates the session the driver's client holds, whose keyspace the
+	// next step drops; a session outlives its keyspace.
+	require.NoError(t, d.Ping(context.Background()))
+	testcontainer.Reset(t)
+	_, err := d.SyncDatabase(context.Background())
+	require.ErrorIs(t, err, driver.ErrNotFound)
 }
 
 // TestSyncInstance holds the pinned server's version and keyspaces to

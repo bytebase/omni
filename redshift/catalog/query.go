@@ -663,6 +663,7 @@ type RangeTableEntry struct {
 	RelOID        uint32   // for RTERelation
 	RelName       string   // original table name
 	SchemaName    string   // schema name (for deparse)
+	CatalogName   string   // database name for a cross-database reference (empty for the session database)
 	Alias         string   // user-provided alias (empty = none)
 	ERef          string   // effective reference name for deparse
 	ColNames      []string // column names visible from this RTE

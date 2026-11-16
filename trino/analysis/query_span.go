@@ -41,11 +41,12 @@ type QuerySpan struct {
 	// "column names come from the first select" rule.
 	//
 	// A star select item appears in one of two forms: expanded — when every
-	// relation it covers is a derived relation (subquery in FROM, CTE, aliased
-	// UNNEST) whose projection is fully resolved, the star is replaced by its
-	// exact output columns in order — or as a single "*" / "<rel>.*" entry when
-	// expansion would need catalog metadata (base tables, coalescing joins),
-	// which the consumer expands itself.
+	// relation it covers has a fully resolved projection (a subquery in FROM,
+	// CTE, aliased UNNEST, catalog-known table/view, or a USING/NATURAL join
+	// over those), the star is replaced by its exact output columns in order —
+	// or as a single "*" / "<rel>.*" entry (with Star set) when expansion would
+	// need metadata the analysis does not have, which the consumer expands
+	// itself.
 	Results []ColumnInfo
 
 	// PredicateColumns is the set of columns referenced in filter/join positions
@@ -81,6 +82,12 @@ type ColumnInfo struct {
 	// feed this output column (the column refs in the select-item expression,
 	// excluding those inside nested subqueries).
 	SourceColumns []ColumnRef
+
+	// Star marks a star select item this analysis could not expand: Name is then
+	// "*" or "<rel>.*" and consumers apply their own metadata expansion. It keys
+	// on the select item, not the name, so a column aliased to "*" stays an
+	// ordinary column.
+	Star bool
 }
 
 // ColumnRef identifies a column by its optional catalog/schema/table qualifier
@@ -129,7 +136,14 @@ func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) 
 	if err != nil {
 		return nil, parser.FirstError(err)
 	}
-	span := &QuerySpan{Type: Classify(statement)}
+	return getQuerySpanFromFile(file, Classify(statement), vs)
+}
+
+// getQuerySpanFromFile analyzes an already-parsed file. Callers that parsed a
+// statement to classify or validate it pass the same tree here, so a statement
+// is parsed once.
+func getQuerySpanFromFile(file *ast.File, queryType QueryType, vs *viewState) (*QuerySpan, error) {
+	span := &QuerySpan{Type: queryType}
 	if file == nil || len(file.Stmts) == 0 {
 		return span, nil
 	}
@@ -149,17 +163,43 @@ func getQuerySpanWithViews(statement string, vs *viewState) (*QuerySpan, error) 
 	// direct base-table references untouched. Base tables read through views
 	// resolved during the pass are collected into this statement's
 	// AccessTables.
-	if len(file.Stmts) > 0 {
-		var viewTables []TableAccess
-		if vs != nil {
-			savedOut := vs.tablesOut
-			vs.tablesOut = &viewTables
-			defer func() { vs.tablesOut = savedOut }()
-		}
-		resolveDerivedLineage(file.Stmts[0], span, vs)
-		appendViewTables(span, viewTables)
-	}
+	qs, _ := file.Stmts[0].(*parser.QueryStmt)
+	finishQuerySpan(qs, span, vs)
 	return span, nil
+}
+
+// getQuerySpanForQuery analyzes one already-parsed query node. It is the
+// single-query counterpart of getQuerySpanFromFile, for a statement whose
+// defining query was unwrapped from its AST (EXPLAIN, CREATE … AS SELECT).
+func getQuerySpanForQuery(q *parser.Query, queryType QueryType, vs *viewState) (*QuerySpan, error) {
+	span := &QuerySpan{Type: queryType}
+	if q == nil {
+		return span, nil
+	}
+	w := newSpanWalker(span)
+	w.visitQuery(q, true)
+	if w.parseErr != nil {
+		return nil, w.parseErr
+	}
+	finishQuerySpan(&parser.QueryStmt{Query: q}, span, vs)
+	return span, nil
+}
+
+// finishQuerySpan deepens a walked span's lineage and merges the base tables
+// read through resolved views. vs.tablesOut is scoped to this statement so a
+// nested view analysis cannot leak its tables into the outer span.
+func finishQuerySpan(qs *parser.QueryStmt, span *QuerySpan, vs *viewState) {
+	if qs == nil || qs.Query == nil {
+		return
+	}
+	var viewTables []TableAccess
+	if vs != nil {
+		savedOut := vs.tablesOut
+		vs.tablesOut = &viewTables
+		defer func() { vs.tablesOut = savedOut }()
+	}
+	resolveDerivedLineageQuery(qs.Query, span, vs)
+	appendViewTables(span, viewTables)
 }
 
 // ---------------------------------------------------------------------------
@@ -318,7 +358,7 @@ func (w *spanWalker) visitQueryNode(node parser.QueryNode, outermost bool) {
 		// result column when this is the outermost query.
 		w.recordTable(n.Name, "")
 		if outermost && !w.resolved {
-			w.span.Results = append(w.span.Results, ColumnInfo{Name: "*"})
+			w.span.Results = append(w.span.Results, ColumnInfo{Name: "*", Star: true})
 			w.resolved = true
 		}
 	case *parser.ValuesQuery:
@@ -938,6 +978,7 @@ func (w *spanWalker) makeColumnInfo(item parser.SelectItem) ColumnInfo {
 	switch item.Kind {
 	case parser.SelectAll:
 		info.Name = "*"
+		info.Star = true
 		return info
 	case parser.SelectAllFrom:
 		// expr.* — name it "<expr>.*" best-effort; the underlying columns are
@@ -948,6 +989,7 @@ func (w *spanWalker) makeColumnInfo(item parser.SelectItem) ColumnInfo {
 			info.Name = "*"
 		}
 		info.SourceColumns = w.collectDirectColumns(item.Expr)
+		info.Star = true
 		return info
 	}
 

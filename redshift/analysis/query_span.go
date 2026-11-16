@@ -33,15 +33,21 @@ type QuerySpan struct {
 	PredicateColumns []ColumnResource
 }
 
+// parseRedshiftSpan is redshift.Parse behind a variable so a test can prove a
+// statement is parsed once per analysis.
+var parseRedshiftSpan = redshift.Parse
+
 // GetQuerySpan parses and analyzes a single Redshift SELECT statement.
 func GetQuerySpan(c *catalog.Catalog, sql string) (*QuerySpan, error) {
+	// Keep the pre-parse rejections in place: a statement the span cannot
+	// support fails the same way whether or not it also parses.
 	if strings.Contains(strings.ToLower(sql), "connect by") {
 		return nil, fmt.Errorf("Redshift CONNECT BY query span is not supported")
 	}
 	if c == nil {
 		return nil, fmt.Errorf("catalog is nil")
 	}
-	stmts, err := redshift.Parse(sql)
+	stmts, err := parseRedshiftSpan(sql)
 	if err != nil {
 		return nil, err
 	}
@@ -51,6 +57,21 @@ func GetQuerySpan(c *catalog.Catalog, sql string) (*QuerySpan, error) {
 	stmt, ok := stmts[0].AST.(*ast.SelectStmt)
 	if !ok {
 		return nil, fmt.Errorf("expected SELECT statement, got %T", stmts[0].AST)
+	}
+	return getQuerySpanFromSelect(c, sql, stmt)
+}
+
+// getQuerySpanFromSelect analyzes an already-parsed SELECT. Callers that parsed
+// a statement to classify it pass the same AST here, so it is parsed once.
+func getQuerySpanFromSelect(c *catalog.Catalog, sql string, stmt *ast.SelectStmt) (*QuerySpan, error) {
+	if strings.Contains(strings.ToLower(sql), "connect by") {
+		return nil, fmt.Errorf("Redshift CONNECT BY query span is not supported")
+	}
+	if c == nil {
+		return nil, fmt.Errorf("catalog is nil")
+	}
+	if stmt == nil {
+		return nil, fmt.Errorf("expected SELECT statement")
 	}
 	if stmt.IntoClause != nil {
 		return nil, fmt.Errorf("SELECT INTO creates a table and is not a read-only query span")
@@ -285,7 +306,7 @@ func (w *exprWalker) resolveVar(stack []*catalog.Query, v *catalog.VarExpr) {
 		if colIdx >= 0 && colIdx < len(rel.Columns) {
 			colName = rel.Columns[colIdx].Name
 		}
-		appendSeenColumns(&w.cols, w.seen, ColumnResource{Schema: rel.Schema.Name, Table: rel.Name, Column: colName})
+		appendSeenColumns(&w.cols, w.seen, ColumnResource{Database: rte.CatalogName, Schema: rel.Schema.Name, Table: rel.Name, Column: colName})
 	case catalog.RTESubquery:
 		if rte.Subquery != nil && colIdx >= 0 && colIdx < len(rte.Subquery.TargetList) {
 			w.walkExpr(extend(stack, rte.Subquery), rte.Subquery.TargetList[colIdx].Expr)
