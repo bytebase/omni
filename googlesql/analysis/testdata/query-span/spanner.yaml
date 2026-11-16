@@ -3509,3 +3509,63 @@
         schema: analytics
         table: users
         column: secret
+- description: "predicate columns: a reference without a schema names the default schema"
+  statement: SELECT 1 FROM t WHERE secret = 1 UNION ALL SELECT 1 FROM analytics.t
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "maskingdb",
+      "schemas": [
+        {
+          "name": "analytics",
+          "tables": [
+            {
+              "name": "t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tables": [
+            {
+              "name": "t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: analytics
+        table: t
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: t
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: t
+        column: secret

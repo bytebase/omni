@@ -708,7 +708,9 @@ func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns C
 			if !strings.EqualFold(sc.Database, q.resourceDatabase(ref.Database)) {
 				continue
 			}
-			if ref.Schema != "" && !strings.EqualFold(sc.Schema, ref.Schema) {
+			// The schema always narrows too: a reference resolved without one names the
+			// default schema (""), not every schema of the database (Spanner).
+			if !strings.EqualFold(sc.Schema, ref.Schema) {
 				continue
 			}
 		}

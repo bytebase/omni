@@ -1767,6 +1767,10 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 			// values it projects, so its projected columns are row-condition reads
 			// too (an EXISTS body only decides whether a row exists). Its own
 			// WHERE/ON/HAVING are recorded by its body visit either way.
+			// INTERSECT and EXCEPT decide a row by the values it projects, so a body
+			// built from them reads its output even where the condition only asks
+			// whether a row exists.
+			projects = projects || bodyComparesProjectedValues(query)
 			prev := w.captureFilterProjections
 			// Only a consumed projection reads its expression subqueries; an EXISTS
 			// body's output is not read, nested projections included.
@@ -1919,6 +1923,25 @@ func (w *spanWalker) resolveFilterQualifier(qualifier, column string) ([]ColumnR
 		return refs, true
 	}
 	return nil, false
+}
+
+// bodyComparesProjectedValues reports whether a query body's rows are decided by
+// the values they project (an INTERSECT or EXCEPT anywhere in its set-operation
+// tree), rather than by which rows exist.
+func bodyComparesProjectedValues(body ast.Node) bool {
+	for {
+		switch n := body.(type) {
+		case *ast.QueryStmt:
+			body = n.Body
+		case *ast.SetOperation:
+			if n.Op == ast.SetOpIntersect || n.Op == ast.SetOpExcept {
+				return true
+			}
+			body = n.Left
+		default:
+			return false
+		}
+	}
 }
 
 // filterStarColumn marks a filter reference to a relation whose every column a

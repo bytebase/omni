@@ -5674,3 +5674,76 @@
         table: audit_u
         column: k
 
+- description: "predicate columns: an INTERSECT under EXISTS compares the values it projects"
+  statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: secret
