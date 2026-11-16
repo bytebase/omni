@@ -459,6 +459,25 @@ func TestRedshiftFunctionSourceNestedDerivedTablesStayLinear(t *testing.T) {
 	})
 }
 
+// TestRedshiftQuerySpanSetOpClauseWithNilSources covers merging a set-operation
+// clause into a projection whose expanded base-table star has nil source maps.
+func TestRedshiftQuerySpanSetOpClauseWithNilSources(t *testing.T) {
+	snapshot := redshiftQuerySpanMetadata()
+	snapshot.Schemas[0].MaterializedViews = append(snapshot.Schemas[0].MaterializedViews, &metadata.MaterializedViewMetadata{
+		Name:       "star_mv",
+		Definition: "CREATE MATERIALIZED VIEW public.star_mv AS SELECT * FROM public.orders;",
+	})
+	getter, _ := redshiftMockDatabaseMetadataGetter([]*metadata.DatabaseSchemaMetadata{snapshot})
+	q := newQuerySpanResolver("db", []string{"public"}, ResolveOptions{
+		DefaultDatabase:     "db",
+		SearchPath:          []string{"public"},
+		GetDatabaseMetadata: getter,
+	})
+	span, err := q.getQuerySpan("SELECT * FROM orders UNION ALL SELECT * FROM star_mv OFFSET reporting_fn()")
+	require.NoError(t, err)
+	require.NotEmpty(t, span.Results)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {

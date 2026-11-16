@@ -1310,6 +1310,9 @@ func (q *querySpanResolver) collectSelectClauseSources(selectStmt *ast.SelectStm
 
 func mergeClauseSources(projection *functionSourceProjection, sources ColumnSet) {
 	for i := range projection.sources {
+		if projection.sources[i] == nil {
+			projection.sources[i] = make(ColumnSet)
+		}
 		mergeSourceColumnSet(projection.sources[i], sources)
 	}
 }
