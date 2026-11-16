@@ -326,3 +326,23 @@
       "IHV" NUMBER INVISIBLE GENERATED ALWAYS AS ("A"*2) VIRTUAL
     );
 
+- description: A sequence keeps its start, increment, maximum and cycle
+  metadata: |
+    {
+      "schemas": [
+        {
+          "sequences": [
+            {
+              "name": "AUDIT_LOG_SEQ",
+              "start": "1000",
+              "increment": "2",
+              "maxValue": "9999",
+              "cycle": true
+            }
+          ]
+        }
+      ]
+    }
+  expected: |+
+    CREATE SEQUENCE "AUDIT_LOG_SEQ" START WITH 1000 INCREMENT BY 2 MAXVALUE 9999 CYCLE;
+
