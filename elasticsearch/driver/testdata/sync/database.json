@@ -1,0 +1,19 @@
+{
+  "name": "node",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "alpha",
+          "rowCount": "3",
+          "dataSize": "5017"
+        },
+        {
+          "name": "beta",
+          "rowCount": "5",
+          "dataSize": "5222"
+        }
+      ]
+    }
+  ]
+}
