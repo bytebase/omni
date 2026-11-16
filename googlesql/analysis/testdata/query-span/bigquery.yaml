@@ -5869,3 +5869,63 @@
         table: audit_u
         column: secret
 
+- description: "predicate columns: a value-comparing derived relation inside an EXISTS body"
+  statement: SELECT 1 FROM audit_t WHERE EXISTS (SELECT 1 FROM (SELECT secret FROM audit_t INTERSECT DISTINCT SELECT secret FROM audit_u) d)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: secret

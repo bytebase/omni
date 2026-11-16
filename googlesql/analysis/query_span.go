@@ -1164,7 +1164,16 @@ func (w *spanWalker) buildTableExpr(n *ast.TableExpr) *relation {
 	case n.Subquery != nil:
 		// A FROM subquery: resolve its projection and expose it under the alias so a
 		// `SELECT *` / `alias.col` over it reproduces the subquery's resolved columns.
+		// A body whose rows are decided by the values it projects (INTERSECT/EXCEPT)
+		// reads its output here, whoever consumes the relation.
+		capture := w.captureFilterProjections
+		compares := bodyComparesProjectedValues(n.Subquery)
+		w.captureFilterProjections = capture || compares
 		cols := w.visitBody(n.Subquery)
+		w.captureFilterProjections = capture
+		if compares {
+			w.addProjectionFilterColumns(cols)
+		}
 		w.registerFromAlias(n.Alias)
 		rel = &relation{name: strings.ToLower(n.Alias), columns: cols}
 		w.addLeaf(rel)
