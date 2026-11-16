@@ -927,24 +927,19 @@ func normalizeFunctionDefinition(definition string) string {
 	if definition == "" {
 		return ""
 	}
-	normalized := strings.ToLower(definition)
-	normalized = strings.ReplaceAll(normalized, "\n", " ")
-	normalized = strings.ReplaceAll(normalized, "\t", " ")
-	for strings.Contains(normalized, "  ") {
-		normalized = strings.ReplaceAll(normalized, "  ", " ")
-	}
-	normalized = strings.ReplaceAll(normalized, "create or replace function", "create function")
-	normalized = strings.ReplaceAll(normalized, "create or replace procedure", "create procedure")
-	normalized = strings.ReplaceAll(normalized, "function public.", "function ")
-	normalized = strings.ReplaceAll(normalized, "procedure public.", "procedure ")
-	normalized = strings.ReplaceAll(normalized, "character varying", "varchar")
-	normalized = strings.ReplaceAll(normalized, "returns numeric", "returns decimal")
+	normalized := normalizeExpression(definition)
+	normalized = strings.ReplaceAll(normalized, "CREATE OR REPLACE FUNCTION", "CREATE FUNCTION")
+	normalized = strings.ReplaceAll(normalized, "CREATE OR REPLACE PROCEDURE", "CREATE PROCEDURE")
+	normalized = strings.ReplaceAll(normalized, "FUNCTION PUBLIC.", "FUNCTION ")
+	normalized = strings.ReplaceAll(normalized, "PROCEDURE PUBLIC.", "PROCEDURE ")
+	normalized = strings.ReplaceAll(normalized, "CHARACTER VARYING", "VARCHAR")
+	normalized = strings.ReplaceAll(normalized, "RETURNS NUMERIC", "RETURNS DECIMAL")
 	normalized = strings.ReplaceAll(normalized, "$function$", "$$")
 	normalized = strings.ReplaceAll(normalized, "$procedure$", "$$")
-	if strings.Contains(normalized, "language plpgsql") && !strings.HasSuffix(strings.TrimSpace(normalized), "language plpgsql") {
-		withoutLanguage := strings.ReplaceAll(normalized, " language plpgsql", "")
-		withoutLanguage = strings.ReplaceAll(withoutLanguage, "language plpgsql ", "")
-		normalized = strings.TrimSpace(withoutLanguage) + " language plpgsql"
+	if strings.Contains(normalized, "LANGUAGE PLPGSQL") && !strings.HasSuffix(strings.TrimSpace(normalized), "LANGUAGE PLPGSQL") {
+		withoutLanguage := strings.ReplaceAll(normalized, " LANGUAGE PLPGSQL", "")
+		withoutLanguage = strings.ReplaceAll(withoutLanguage, "LANGUAGE PLPGSQL ", "")
+		normalized = strings.TrimSpace(withoutLanguage) + " LANGUAGE PLPGSQL"
 	}
 	return strings.TrimSpace(normalized)
 }

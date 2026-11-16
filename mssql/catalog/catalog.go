@@ -362,9 +362,9 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 				column.Nullable = false
 			}
 		}
-		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", names, true))
+		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, constraintPrefix("PK", table.Name), names, true))
 	case ast.ConstraintUnique:
-		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, "", indexColumnNames(n.Columns), false))
+		table.Indexes = append(table.Indexes, c.constraintIndexMetadata(n, constraintPrefix("UQ", table.Name), indexColumnNames(n.Columns), false))
 	case ast.ConstraintCheck:
 		c.appendCheckConstraint(table, n, source)
 	case ast.ConstraintForeignKey:
@@ -636,6 +636,12 @@ func (c *Catalog) getOrCreateTable(schemaName, tableName string) *metadata.Table
 	schema.Tables = append(schema.Tables, table)
 	c.tableByName[key] = table
 	return table
+}
+
+// quote renders an identifier as a bracketed name, doubling a closing bracket
+// inside it so the name means what the metadata says.
+func quote(name string) string {
+	return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
 }
 
 func normalize(name string) string {

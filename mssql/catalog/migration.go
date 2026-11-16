@@ -48,7 +48,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	var buf strings.Builder
 	inbound := inboundForeignKeys(from, diff)
 	for _, ref := range inbound {
-		fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\nGO\n", ref.schema, ref.table, ref.fk.Name)
+		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\nGO\n", quote(ref.schema), quote(ref.table), quote(ref.fk.Name))
 	}
 
 	var schemasToCreate []string
@@ -66,29 +66,29 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		case DiffAlter:
 			for _, fkDiff := range tableDiff.ForeignKeys {
 				if fkDiff.Action == DiffDrop {
-					fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\nGO\n", tableDiff.SchemaName, tableDiff.TableName, fkDiff.OldForeignKey.Name)
+					fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\nGO\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(fkDiff.OldForeignKey.Name))
 				}
 			}
 		case DiffDrop:
 			for _, fk := range tableDiff.OldTable.ForeignKeys {
-				fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\n", tableDiff.SchemaName, tableDiff.TableName, fk.Name)
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(fk.Name))
 			}
 		}
 	}
 
 	for _, procDiff := range diff.Procedures {
 		if procDiff.Action == DiffDrop {
-			fmt.Fprintf(&buf, "DROP PROCEDURE [%s].[%s];\nGO\n", procDiff.SchemaName, procDiff.ProcedureName)
+			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
 		}
 	}
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action == DiffDrop {
-			fmt.Fprintf(&buf, "DROP FUNCTION [%s].[%s];\nGO\n", funcDiff.SchemaName, funcDiff.FunctionName)
+			fmt.Fprintf(&buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 		}
 	}
 	for _, sequenceDiff := range diff.Sequences {
 		if sequenceDiff.Action == DiffDrop {
-			fmt.Fprintf(&buf, "DROP SEQUENCE [%s].[%s];\nGO\n", sequenceDiff.SchemaName, sequenceDiff.SequenceName)
+			fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(sequenceDiff.SchemaName), quote(sequenceDiff.SequenceName))
 		}
 	}
 
@@ -100,7 +100,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 		for _, checkDiff := range tableDiff.Checks {
 			if checkDiff.Action == DiffDrop {
-				fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\n", tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.OldCheckConstraint.Name))
 			}
 		}
 		for _, indexDiff := range tableDiff.Indexes {
@@ -108,9 +108,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				continue
 			}
 			if indexDiff.OldIndex.IsConstraint {
-				fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\n", tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(indexDiff.OldIndex.Name))
 			} else {
-				fmt.Fprintf(&buf, "DROP INDEX [%s] ON [%s].[%s];\n", indexDiff.OldIndex.Name, tableDiff.SchemaName, tableDiff.TableName)
+				fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(indexDiff.OldIndex.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
 			}
 		}
 
@@ -129,9 +129,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				buf.WriteString("GO\n")
 			}
 			if getColumnDefaultValue(colDiff.OldColumn) != "" && colDiff.OldColumn.DefaultConstraintName != "" {
-				fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\n", tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.DefaultConstraintName)
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.DefaultConstraintName))
 			}
-			fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP COLUMN [%s];\n", tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
 		}
 	}
 
@@ -157,7 +157,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			buf.WriteString("GO\n")
 		}
 		hasTableDrops = true
-		fmt.Fprintf(&buf, "DROP TABLE [%s].[%s];\n", tableDiff.SchemaName, tableDiff.TableName)
+		fmt.Fprintf(&buf, "DROP TABLE %s.%s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName))
 	}
 
 	for _, schemaDiff := range diff.Schemas {
@@ -173,7 +173,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 				}
 			}
 			if !alreadyHandled {
-				fmt.Fprintf(&buf, "DROP TABLE [%s].[%s];\n", schemaDiff.SchemaName, table.Name)
+				fmt.Fprintf(&buf, "DROP TABLE %s.%s;\n", quote(schemaDiff.SchemaName), quote(table.Name))
 			}
 		}
 	}
@@ -182,7 +182,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if schemaDiff.Action != DiffDrop || strings.ToLower(schemaDiff.SchemaName) == defaultSchema {
 			continue
 		}
-		fmt.Fprintf(&buf, "DROP SCHEMA [%s];\nGO\n", schemaDiff.SchemaName)
+		fmt.Fprintf(&buf, "DROP SCHEMA %s;\nGO\n", quote(schemaDiff.SchemaName))
 	}
 
 	dropPhaseHasContent := buf.Len() > 0
@@ -194,10 +194,24 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 
 	for _, schemaName := range schemasToCreate {
-		fmt.Fprintf(&buf, "CREATE SCHEMA [%s];\nGO\n", schemaName)
+		fmt.Fprintf(&buf, "CREATE SCHEMA %s;\nGO\n", quote(schemaName))
 	}
 	if len(schemasToCreate) > 0 && (hasCreateOrAlterTables(diff) || hasCreateViews(diff) || hasCreateFunctions(diff) || hasCreateProcedures(diff)) {
 		buf.WriteString("\n")
+	}
+
+	for _, sequenceDiff := range diff.Sequences {
+		switch sequenceDiff.Action {
+		case DiffCreate:
+			buf.WriteString(generateCreateSequence(sequenceDiff.SchemaName, sequenceDiff.SequenceName, sequenceDiff.NewSequence))
+			buf.WriteString("\nGO\n")
+			if sequenceDiff.NewSequence.Comment != "" {
+				buf.WriteString(generateSequenceCommentSQL("ADD", sequenceDiff.SchemaName, sequenceDiff.SequenceName, sequenceDiff.NewSequence.Comment))
+				buf.WriteString(";\nGO\n")
+			}
+		case DiffAlter:
+			buf.WriteString(generateAlterSequence(sequenceDiff))
+		}
 	}
 
 	createTablesInOrder(diff, &buf)
@@ -218,13 +232,6 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 		buf.WriteString(generateAddForeignKey(ref.schema, ref.table, ref.fk))
 		buf.WriteString(";\n")
-	}
-
-	for _, sequenceDiff := range diff.Sequences {
-		if sequenceDiff.Action != DiffAlter {
-			continue
-		}
-		buf.WriteString(generateAlterSequence(sequenceDiff))
 	}
 
 	for _, tableDiff := range diff.Tables {
@@ -350,24 +357,12 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			}
 			buf.WriteString("\nGO\n")
 		case DiffAlter:
-			fmt.Fprintf(&buf, "DROP PROCEDURE [%s].[%s];\nGO\n", procDiff.SchemaName, procDiff.ProcedureName)
+			fmt.Fprintf(&buf, "DROP PROCEDURE %s.%s;\nGO\n", quote(procDiff.SchemaName), quote(procDiff.ProcedureName))
 			buf.WriteString(procDiff.NewProcedure.Definition)
 			if !strings.HasSuffix(strings.TrimSpace(procDiff.NewProcedure.Definition), ";") {
 				buf.WriteString(";")
 			}
 			buf.WriteString("\nGO\n")
-		}
-	}
-
-	for _, sequenceDiff := range diff.Sequences {
-		if sequenceDiff.Action != DiffCreate {
-			continue
-		}
-		buf.WriteString(generateCreateSequence(sequenceDiff.SchemaName, sequenceDiff.SequenceName, sequenceDiff.NewSequence))
-		buf.WriteString("\nGO\n")
-		if sequenceDiff.NewSequence.Comment != "" {
-			buf.WriteString(generateSequenceCommentSQL("ADD", sequenceDiff.SchemaName, sequenceDiff.SequenceName, sequenceDiff.NewSequence.Comment))
-			buf.WriteString(";\nGO\n")
 		}
 	}
 
@@ -391,13 +386,13 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 	oldSequence, newSequence := diff.OldSequence, diff.NewSequence
 	var buf strings.Builder
 	if oldSequence.DataType != newSequence.DataType {
-		fmt.Fprintf(&buf, "DROP SEQUENCE [%s].[%s];\nGO\n", diff.SchemaName, diff.SequenceName)
+		fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(diff.SchemaName), quote(diff.SequenceName))
 		buf.WriteString(generateCreateSequence(diff.SchemaName, diff.SequenceName, newSequence))
 		buf.WriteString("\nGO\n")
 		return buf.String()
 	}
-	fmt.Fprintf(&buf, "ALTER SEQUENCE [%s].[%s]", diff.SchemaName, diff.SequenceName)
-	if newSequence.Start != "" {
+	fmt.Fprintf(&buf, "ALTER SEQUENCE %s.%s", quote(diff.SchemaName), quote(diff.SequenceName))
+	if newSequence.Start != "" && newSequence.Start != oldSequence.Start {
 		fmt.Fprintf(&buf, " RESTART WITH %s", newSequence.Start)
 	}
 	if newSequence.Increment != "" {
@@ -423,7 +418,7 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 
 func generateCreateSequence(schemaName, sequenceName string, sequence *metadata.SequenceMetadata) string {
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "CREATE SEQUENCE [%s].[%s]", schemaName, sequenceName)
+	fmt.Fprintf(&buf, "CREATE SEQUENCE %s.%s", quote(schemaName), quote(sequenceName))
 	if sequence.DataType != "" {
 		fmt.Fprintf(&buf, " AS %s", sequence.DataType)
 	}
@@ -518,7 +513,7 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 
 func generateCreateTable(schemaName, tableName string, table *metadata.TableMetadata) string {
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "CREATE TABLE [%s].[%s] (\n", schemaName, tableName)
+	fmt.Fprintf(&buf, "CREATE TABLE %s.%s (\n", quote(schemaName), quote(tableName))
 	for i, column := range table.Columns {
 		buf.WriteString("  ")
 		buf.WriteString(generateColumnDefinition(column))
@@ -536,7 +531,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 		if constraintAdded {
 			buf.WriteString(",\n")
 		}
-		fmt.Fprintf(&buf, "  CONSTRAINT [%s]", idx.Name)
+		fmt.Fprintf(&buf, "  CONSTRAINT %s", quote(idx.Name))
 		switch {
 		case idx.Primary:
 			buf.WriteString(" PRIMARY KEY")
@@ -554,7 +549,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 			if j > 0 {
 				buf.WriteString(", ")
 			}
-			fmt.Fprintf(&buf, "[%s]", expr)
+			fmt.Fprintf(&buf, "%s", quote(expr))
 			appendMigrationDirection(&buf, idx.Descending, j)
 		}
 		buf.WriteString(")")
@@ -567,7 +562,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 		buf.WriteString("\n")
 	}
 	for i, check := range table.CheckConstraints {
-		fmt.Fprintf(&buf, "  CONSTRAINT [%s] CHECK (%s)", check.Name, check.Expression)
+		fmt.Fprintf(&buf, "  CONSTRAINT %s CHECK (%s)", quote(check.Name), check.Expression)
 		if i < len(table.CheckConstraints)-1 {
 			buf.WriteString(",")
 		}
@@ -588,14 +583,41 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 
 func generateAlterTable(tableDiff *TableDiffEntry) string {
 	var buf strings.Builder
+	// A computed column cannot be changed with ALTER COLUMN. Drop the indexes
+	// that use it, drop the column, add the new expression, and rebuild them.
+	var rebuiltIndexes []string
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action == DiffCreate {
-			fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ADD %s;\n", tableDiff.SchemaName, tableDiff.TableName, generateColumnDefinition(colDiff.NewColumn))
+		if colDiff.Action != DiffAlter || !computedColumnChanged(colDiff) {
+			continue
+		}
+		for _, index := range tableDiff.OldTable.Indexes {
+			if index.IsConstraint || !indexUsesColumn(index, colDiff.OldColumn.Name) {
+				continue
+			}
+			if indexChangeScheduled(tableDiff, index.Name) {
+				continue
+			}
+			fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(index.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
+			rebuiltIndexes = append(rebuiltIndexes, index.Name)
+		}
+		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
+	}
+	for _, colDiff := range tableDiff.Columns {
+		if colDiff.Action == DiffCreate || (colDiff.Action == DiffAlter && computedColumnChanged(colDiff)) {
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), generateColumnDefinition(colDiff.NewColumn))
 		}
 	}
 	for _, colDiff := range tableDiff.Columns {
-		if colDiff.Action == DiffAlter {
+		if colDiff.Action == DiffAlter && !computedColumnChanged(colDiff) {
 			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, colDiff))
+		}
+	}
+	for _, name := range rebuiltIndexes {
+		for _, index := range tableDiff.NewTable.Indexes {
+			if index.Name == name && !index.IsConstraint && !indexChangeScheduled(tableDiff, name) {
+				buf.WriteString(generateCreateIndex(tableDiff.SchemaName, tableDiff.TableName, index))
+				buf.WriteString(";\n")
+			}
 		}
 	}
 	for _, indexDiff := range tableDiff.Indexes {
@@ -603,7 +625,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 			continue
 		}
 		if indexDiff.NewIndex.IsConstraint {
-			fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ADD CONSTRAINT [%s]", tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex.Name)
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(indexDiff.NewIndex.Name))
 			switch {
 			case indexDiff.NewIndex.Primary:
 				buf.WriteString(" PRIMARY KEY")
@@ -621,7 +643,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 				if j > 0 {
 					buf.WriteString(", ")
 				}
-				fmt.Fprintf(&buf, "[%s]", expr)
+				fmt.Fprintf(&buf, "%s", quote(expr))
 				appendMigrationDirection(&buf, indexDiff.NewIndex.Descending, j)
 			}
 			buf.WriteString(");\n")
@@ -632,8 +654,8 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	}
 	for _, checkDiff := range tableDiff.Checks {
 		if checkDiff.Action == DiffCreate {
-			fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ADD CONSTRAINT [%s] CHECK (%s);\n",
-				tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint.Name, checkDiff.NewCheckConstraint.Expression)
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK (%s);\n",
+				quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(checkDiff.NewCheckConstraint.Name), checkDiff.NewCheckConstraint.Expression)
 		}
 	}
 	for _, fkDiff := range tableDiff.ForeignKeys {
@@ -645,9 +667,38 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	return buf.String()
 }
 
+func computedColumnChanged(diff *ColumnDiffEntry) bool {
+	if diff.OldColumn == nil || diff.NewColumn == nil {
+		return false
+	}
+	return isComputedColumnType(diff.OldColumn.Type) || isComputedColumnType(diff.NewColumn.Type)
+}
+
+func isComputedColumnType(columnType string) bool {
+	return strings.HasPrefix(strings.TrimSpace(columnType), "AS ")
+}
+
+func indexUsesColumn(index *metadata.IndexMetadata, name string) bool {
+	for _, expression := range index.Expressions {
+		if strings.EqualFold(expression, name) {
+			return true
+		}
+	}
+	return false
+}
+
+func indexChangeScheduled(table *TableDiffEntry, name string) bool {
+	for _, indexDiff := range table.Indexes {
+		if indexDiffName(indexDiff) == name {
+			return true
+		}
+	}
+	return false
+}
+
 func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "[%s] ", column.Name)
+	fmt.Fprintf(&buf, "%s ", quote(column.Name))
 	isComputedColumn := strings.Contains(column.Type, " AS (") || strings.HasPrefix(column.Type, "AS (")
 	if isComputedColumn {
 		buf.WriteString(column.Type)
@@ -675,7 +726,7 @@ func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry) string {
 	var buf strings.Builder
 	if colDiff.OldColumn.Type != colDiff.NewColumn.Type {
-		fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ALTER COLUMN [%s] %s", schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
+		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ALTER COLUMN %s %s", quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name), colDiff.NewColumn.Type)
 		if colDiff.OldColumn.Collation != colDiff.NewColumn.Collation && colDiff.NewColumn.Collation != "" {
 			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
 		}
@@ -686,7 +737,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 		}
 		buf.WriteString(";\n")
 	} else if colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable || colDiff.OldColumn.Collation != colDiff.NewColumn.Collation {
-		fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ALTER COLUMN [%s] %s", schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
+		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ALTER COLUMN %s %s", quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name), colDiff.NewColumn.Type)
 		if colDiff.NewColumn.Collation != "" {
 			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
 		}
@@ -701,11 +752,11 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry)
 	newDefault := getColumnDefaultValue(colDiff.NewColumn)
 	if oldDefault != newDefault {
 		if oldDefault != "" && colDiff.OldColumn.DefaultConstraintName != "" {
-			fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] DROP CONSTRAINT [%s];\n", schemaName, tableName, colDiff.OldColumn.DefaultConstraintName)
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schemaName), quote(tableName), quote(colDiff.OldColumn.DefaultConstraintName))
 		}
 		if newDefault != "" {
-			fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ADD CONSTRAINT [DF_%s_%s] DEFAULT %s FOR [%s];\n",
-				schemaName, tableName, tableName, colDiff.NewColumn.Name, newDefault, colDiff.NewColumn.Name)
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s DEFAULT %s FOR %s;\n",
+				quote(schemaName), quote(tableName), quote("DF_"+tableName+"_"+colDiff.NewColumn.Name), newDefault, quote(colDiff.NewColumn.Name))
 		}
 	}
 	return buf.String()
@@ -723,17 +774,17 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 	buf.WriteString("CREATE")
 	switch strings.ToUpper(index.Type) {
 	case "CLUSTERED COLUMNSTORE":
-		fmt.Fprintf(&buf, " CLUSTERED COLUMNSTORE INDEX [%s] ON [%s].[%s]", index.Name, schemaName, tableName)
+		fmt.Fprintf(&buf, " CLUSTERED COLUMNSTORE INDEX %s ON %s.%s", quote(index.Name), quote(schemaName), quote(tableName))
 		return buf.String()
 	case "NONCLUSTERED COLUMNSTORE":
-		fmt.Fprintf(&buf, " NONCLUSTERED COLUMNSTORE INDEX [%s] ON [%s].[%s]", index.Name, schemaName, tableName)
+		fmt.Fprintf(&buf, " NONCLUSTERED COLUMNSTORE INDEX %s ON %s.%s", quote(index.Name), quote(schemaName), quote(tableName))
 		if len(index.Expressions) > 0 {
 			buf.WriteString(" (")
 			for i, expr := range index.Expressions {
 				if i > 0 {
 					buf.WriteString(", ")
 				}
-				fmt.Fprintf(&buf, "[%s]", expr)
+				fmt.Fprintf(&buf, "%s", quote(expr))
 			}
 			buf.WriteString(")")
 		}
@@ -750,12 +801,12 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 		case "NONCLUSTERED":
 			buf.WriteString(" NONCLUSTERED")
 		}
-		fmt.Fprintf(&buf, " INDEX [%s] ON [%s].[%s] (", index.Name, schemaName, tableName)
+		fmt.Fprintf(&buf, " INDEX %s ON %s.%s (", quote(index.Name), quote(schemaName), quote(tableName))
 		for i, expr := range index.Expressions {
 			if i > 0 {
 				buf.WriteString(", ")
 			}
-			fmt.Fprintf(&buf, "[%s]", expr)
+			fmt.Fprintf(&buf, "%s", quote(expr))
 			appendMigrationDirection(&buf, index.Descending, i)
 		}
 		buf.WriteString(")")
@@ -768,25 +819,28 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 
 func generateAddForeignKey(schemaName, tableName string, fk *metadata.ForeignKeyMetadata) string {
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "ALTER TABLE [%s].[%s] ADD CONSTRAINT [%s] FOREIGN KEY (", schemaName, tableName, fk.Name)
+	fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (", quote(schemaName), quote(tableName), quote(fk.Name))
 	for i, col := range fk.Columns {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		fmt.Fprintf(&buf, "[%s]", col)
+		fmt.Fprintf(&buf, "%s", quote(col))
 	}
 	buf.WriteString(") REFERENCES ")
 	if fk.ReferencedSchema != "" {
-		fmt.Fprintf(&buf, "[%s].", fk.ReferencedSchema)
+		fmt.Fprintf(&buf, "%s.", quote(fk.ReferencedSchema))
 	}
-	fmt.Fprintf(&buf, "[%s] (", fk.ReferencedTable)
-	for i, col := range fk.ReferencedColumns {
-		if i > 0 {
-			buf.WriteString(", ")
+	buf.WriteString(quote(fk.ReferencedTable))
+	if len(fk.ReferencedColumns) > 0 {
+		buf.WriteString(" (")
+		for i, col := range fk.ReferencedColumns {
+			if i > 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteString(quote(col))
 		}
-		fmt.Fprintf(&buf, "[%s]", col)
+		buf.WriteString(")")
 	}
-	buf.WriteString(")")
 	if fk.OnDelete != "" {
 		buf.WriteString(" ON DELETE ")
 		buf.WriteString(fk.OnDelete)
@@ -884,13 +938,13 @@ func dropViewsInOrder(diff *SchemaDiff, buf *strings.Builder) {
 	ordered, err := graph.topologicalSort()
 	if err != nil {
 		for _, viewDiff := range viewsToProcess {
-			fmt.Fprintf(buf, "DROP VIEW [%s].[%s];\nGO\n", viewDiff.SchemaName, viewDiff.ViewName)
+			fmt.Fprintf(buf, "DROP VIEW %s.%s;\nGO\n", quote(viewDiff.SchemaName), quote(viewDiff.ViewName))
 		}
 		return
 	}
 	for _, viewID := range ordered {
 		if viewDiff, ok := viewMap[viewID]; ok {
-			fmt.Fprintf(buf, "DROP VIEW [%s].[%s];\nGO\n", viewDiff.SchemaName, viewDiff.ViewName)
+			fmt.Fprintf(buf, "DROP VIEW %s.%s;\nGO\n", quote(viewDiff.SchemaName), quote(viewDiff.ViewName))
 		}
 	}
 }
@@ -1038,12 +1092,12 @@ func hasCreateProcedures(diff *SchemaDiff) bool {
 
 func generateSpatialIndexDDL(index *metadata.IndexMetadata, schemaName, tableName string) string {
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "CREATE SPATIAL INDEX [%s] ON [%s].[%s] (", index.Name, schemaName, tableName)
+	fmt.Fprintf(&buf, "CREATE SPATIAL INDEX %s ON %s.%s (", quote(index.Name), quote(schemaName), quote(tableName))
 	for i, expr := range index.Expressions {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		fmt.Fprintf(&buf, "[%s]", expr)
+		fmt.Fprintf(&buf, "%s", quote(expr))
 	}
 	buf.WriteString(")")
 	if index.SpatialConfig == nil || index.SpatialConfig.Tessellation == nil {

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/bytebase/omni/metadata"
 )
 
 func TestDefinitionRendersSequenceOptions(t *testing.T) {
@@ -146,4 +148,98 @@ CREATE SEQUENCE [gone].[s] AS INT;
 	}
 	require.Less(t, strings.Index(sql, "DROP VIEW [gone].[v]"), strings.Index(sql, "DROP TABLE [gone].[t]"))
 	require.Less(t, strings.Index(sql, "DROP TABLE [gone].[t]"), strings.Index(sql, "DROP SCHEMA [gone]"))
+}
+
+func TestMigrationKeepsSequencePositionWhenOnlyIncrementChanges(t *testing.T) {
+	from, err := LoadSQL(`CREATE SEQUENCE [dbo].[s] AS INT START WITH 1 INCREMENT BY 1;`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE SEQUENCE [dbo].[s] AS INT START WITH 1 INCREMENT BY 2;`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "INCREMENT BY 2")
+	require.NotContains(t, sql, "RESTART WITH")
+}
+
+func TestMigrationRecreatesChangedComputedColumn(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] (
+	[id] int NOT NULL,
+	[value] int NULL,
+	[doubled] AS ([value] * 2) PERSISTED,
+	CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+CREATE INDEX [IX_t_doubled] ON [dbo].[t] ([doubled]);
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[t] (
+	[id] int NOT NULL,
+	[value] int NULL,
+	[doubled] AS ([value] * 3) PERSISTED,
+	CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+CREATE INDEX [IX_t_doubled] ON [dbo].[t] ([doubled]);
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP INDEX [IX_t_doubled]")
+	require.Contains(t, sql, "DROP COLUMN [doubled]")
+	require.Contains(t, sql, "ADD [doubled] AS ([value] * 3) PERSISTED")
+	require.Contains(t, sql, "CREATE INDEX [IX_t_doubled]")
+	require.NotContains(t, sql, "ALTER COLUMN [doubled] AS")
+}
+
+func TestDefinitionRendersTriggers(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+			Triggers: []*metadata.TriggerMetadata{{
+				Name: "trg", Event: "INSERT", Timing: "AFTER",
+				Body: "CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS SELECT 1",
+			}},
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS SELECT 1")
+	require.Contains(t, def, "GO")
+}
+
+func TestForeignKeyWithoutReferencedColumnsRendersValidDDL(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE [dbo].[parent] ([id] int NOT NULL, CONSTRAINT [PK_parent] PRIMARY KEY ([id]));
+CREATE TABLE [dbo].[child] (
+	[id] int NOT NULL,
+	[parent_id] int NOT NULL,
+	CONSTRAINT [PK_child] PRIMARY KEY ([id]),
+	CONSTRAINT [FK_child_parent] FOREIGN KEY ([parent_id]) REFERENCES [dbo].[parent]
+);
+`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "REFERENCES [dbo].[parent]")
+	require.NotContains(t, def, "REFERENCES [dbo].[parent] ()")
+}
+
+func TestDefinitionEscapesClosingBrackets(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[a]]b] ([c]]d] int NOT NULL, CONSTRAINT [PK_a]]b] PRIMARY KEY ([c]]d]));`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "CREATE TABLE [dbo].[a]]b]")
+	require.Contains(t, def, "[c]]d] int")
+	require.Contains(t, def, "CONSTRAINT [PK_a]]b]")
+}
+
+func TestUnnamedTableConstraintsGetNames(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [code] int NOT NULL, PRIMARY KEY ([id]), UNIQUE ([code]));`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, def, "CONSTRAINT []")
+	require.Contains(t, def, "CONSTRAINT [PK_t_1]")
+	require.Contains(t, def, "CONSTRAINT [UQ_t_2]")
 }

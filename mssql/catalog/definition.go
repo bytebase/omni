@@ -34,7 +34,7 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 
 	for _, schema := range to.Schemas {
 		if schema.Name != defaultSchema {
-			fmt.Fprintf(&buf, "CREATE SCHEMA [%s];\nGO\n\n", schema.Name)
+			fmt.Fprintf(&buf, "CREATE SCHEMA %s;\nGO\n\n", quote(schema.Name))
 		}
 	}
 
@@ -54,6 +54,8 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 	if !hasViews(to.Schemas) && hasTables(to.Schemas) && hasRoutines(to.Schemas) {
 		buf.WriteString("GO\n\n")
 	}
+
+	writeTriggers(&buf, to.Schemas)
 
 	for _, schema := range to.Schemas {
 		writeFunctionsAndProcedures(&buf, schema)
@@ -79,7 +81,7 @@ func writeSequences(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 			if sequence.GetSkipDump() {
 				continue
 			}
-			fmt.Fprintf(out, "CREATE SEQUENCE [%s].[%s]", schema.Name, sequence.Name)
+			fmt.Fprintf(out, "CREATE SEQUENCE %s.%s", quote(schema.Name), quote(sequence.Name))
 			if sequence.DataType != "" {
 				fmt.Fprintf(out, "\n    AS %s", sequence.DataType)
 			}
@@ -109,6 +111,29 @@ func writeSequences(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 // Definition renders the catalog's own snapshot.
 func (c *Catalog) Definition(opts DefinitionOptions) (string, error) {
 	return DatabaseDefinition(c.Metadata(), opts)
+}
+
+// writeTriggers renders the synced trigger definitions after their tables and
+// views. The sync stores each as the CREATE TRIGGER text the module holds.
+func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			for _, trigger := range table.Triggers {
+				if trigger.Body == "" || trigger.SkipDump {
+					continue
+				}
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(trigger.Body, ";"))
+			}
+		}
+		for _, view := range schema.Views {
+			for _, trigger := range view.Triggers {
+				if trigger.Body == "" || trigger.SkipDump {
+					continue
+				}
+				fmt.Fprintf(out, "%s\n\nGO\n\n", strings.TrimRight(trigger.Body, ";"))
+			}
+		}
+	}
 }
 
 func writeFunctionsAndProcedures(out *strings.Builder, schema *metadata.SchemaMetadata) {
@@ -281,7 +306,7 @@ func writeTableWithoutForeignKeys(out *strings.Builder, schemaName string, table
 }
 
 func writeTableBody(out *strings.Builder, schemaName string, table *metadata.TableMetadata, includeForeignKeys bool) {
-	fmt.Fprintf(out, "CREATE TABLE [%s].[%s] (\n", schemaName, table.Name)
+	fmt.Fprintf(out, "CREATE TABLE %s.%s (\n", quote(schemaName), quote(table.Name))
 	for i, column := range table.Columns {
 		if i != 0 {
 			out.WriteString(",\n")
@@ -315,21 +340,24 @@ func writeTableBody(out *strings.Builder, schemaName string, table *metadata.Tab
 }
 
 func writeDeferredForeignKey(out *strings.Builder, schemaName, tableName string, fk *metadata.ForeignKeyMetadata) {
-	fmt.Fprintf(out, "ALTER TABLE [%s].[%s] ADD CONSTRAINT [%s] FOREIGN KEY (", schemaName, tableName, fk.Name)
+	fmt.Fprintf(out, "ALTER TABLE %s.%s ADD CONSTRAINT %s FOREIGN KEY (", quote(schemaName), quote(tableName), quote(fk.Name))
 	for i, column := range fk.Columns {
 		if i != 0 {
 			out.WriteString(", ")
 		}
-		fmt.Fprintf(out, "[%s]", column)
+		out.WriteString(quote(column))
 	}
-	fmt.Fprintf(out, ") REFERENCES [%s].[%s] (", fk.ReferencedSchema, fk.ReferencedTable)
-	for i, column := range fk.ReferencedColumns {
-		if i != 0 {
-			out.WriteString(", ")
+	fmt.Fprintf(out, ") REFERENCES %s.%s", quote(fk.ReferencedSchema), quote(fk.ReferencedTable))
+	if len(fk.ReferencedColumns) > 0 {
+		out.WriteString(" (")
+		for i, column := range fk.ReferencedColumns {
+			if i != 0 {
+				out.WriteString(", ")
+			}
+			out.WriteString(quote(column))
 		}
-		fmt.Fprintf(out, "[%s]", column)
+		out.WriteString(")")
 	}
-	out.WriteString(")")
 	if fk.OnDelete != "" {
 		fmt.Fprintf(out, " ON DELETE %s", fk.OnDelete)
 	}
@@ -340,16 +368,16 @@ func writeDeferredForeignKey(out *strings.Builder, schemaName, tableName string,
 }
 
 func writeClusteredColumnStoreIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
-	fmt.Fprintf(out, "CREATE CLUSTERED COLUMNSTORE INDEX [%s] ON [%s].[%s];\n\n", index.Name, schemaName, tableName)
+	fmt.Fprintf(out, "CREATE CLUSTERED COLUMNSTORE INDEX %s ON %s.%s;\n\n", quote(index.Name), quote(schemaName), quote(tableName))
 }
 
 func writeNonClusteredColumnStoreIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {
-	fmt.Fprintf(out, "CREATE NONCLUSTERED COLUMNSTORE INDEX [%s] ON [%s].[%s] (\n", index.Name, schemaName, tableName)
+	fmt.Fprintf(out, "CREATE NONCLUSTERED COLUMNSTORE INDEX %s ON %s.%s (\n", quote(index.Name), quote(schemaName), quote(tableName))
 	for i, column := range index.Expressions {
 		if i != 0 {
 			out.WriteString(",\n")
 		}
-		fmt.Fprintf(out, "    [%s]", column)
+		fmt.Fprintf(out, "    %s", quote(column))
 	}
 	out.WriteString("\n);\n\n")
 }
@@ -367,12 +395,12 @@ func writeNormalIndex(out *strings.Builder, schemaName, tableName string, index 
 	if index.Type != "" {
 		fmt.Fprintf(out, " %s", index.Type)
 	}
-	fmt.Fprintf(out, " INDEX [%s] ON\n[%s].[%s] (\n", index.Name, schemaName, tableName)
+	fmt.Fprintf(out, " INDEX %s ON\n%s.%s (\n", quote(index.Name), quote(schemaName), quote(tableName))
 	for i, column := range index.Expressions {
 		if i != 0 {
 			out.WriteString(",\n")
 		}
-		fmt.Fprintf(out, "    [%s]", column)
+		fmt.Fprintf(out, "    %s", quote(column))
 		if i < len(index.Descending) && index.Descending[i] {
 			out.WriteString(" DESC")
 		} else {
@@ -400,25 +428,28 @@ func writeIndex(out *strings.Builder, schemaName, tableName string, index *metad
 }
 
 func writeCheck(out *strings.Builder, check *metadata.CheckConstraintMetadata) {
-	fmt.Fprintf(out, "    CONSTRAINT [%s] CHECK %s", check.Name, check.Expression)
+	fmt.Fprintf(out, "    CONSTRAINT %s CHECK %s", quote(check.Name), check.Expression)
 }
 
 func writeForeignKey(out *strings.Builder, fk *metadata.ForeignKeyMetadata) {
-	fmt.Fprintf(out, "    CONSTRAINT [%s] FOREIGN KEY (", fk.Name)
+	fmt.Fprintf(out, "    CONSTRAINT %s FOREIGN KEY (", quote(fk.Name))
 	for i, column := range fk.Columns {
 		if i != 0 {
 			out.WriteString(", ")
 		}
-		fmt.Fprintf(out, "[%s]", column)
+		out.WriteString(quote(column))
 	}
-	fmt.Fprintf(out, ") REFERENCES [%s].[%s] (", fk.ReferencedSchema, fk.ReferencedTable)
-	for i, column := range fk.ReferencedColumns {
-		if i != 0 {
-			out.WriteString(", ")
+	fmt.Fprintf(out, ") REFERENCES %s.%s", quote(fk.ReferencedSchema), quote(fk.ReferencedTable))
+	if len(fk.ReferencedColumns) > 0 {
+		out.WriteString(" (")
+		for i, column := range fk.ReferencedColumns {
+			if i != 0 {
+				out.WriteString(", ")
+			}
+			out.WriteString(quote(column))
 		}
-		fmt.Fprintf(out, "[%s]", column)
+		out.WriteString(")")
 	}
-	out.WriteString(")")
 	if fk.OnDelete != "" {
 		fmt.Fprintf(out, " ON DELETE %s", fk.OnDelete)
 	}
@@ -428,7 +459,7 @@ func writeForeignKey(out *strings.Builder, fk *metadata.ForeignKeyMetadata) {
 }
 
 func writeKey(out *strings.Builder, key *metadata.IndexMetadata) {
-	fmt.Fprintf(out, "    CONSTRAINT [%s]", key.Name)
+	fmt.Fprintf(out, "    CONSTRAINT %s", quote(key.Name))
 	if key.Primary {
 		out.WriteString(" PRIMARY KEY")
 	} else if key.Unique {
@@ -442,7 +473,7 @@ func writeKey(out *strings.Builder, key *metadata.IndexMetadata) {
 		if i != 0 {
 			out.WriteString(", ")
 		}
-		fmt.Fprintf(out, "[%s]", column)
+		out.WriteString(quote(column))
 		if i < len(key.Descending) && key.Descending[i] {
 			out.WriteString(" DESC")
 		} else {
@@ -453,7 +484,7 @@ func writeKey(out *strings.Builder, key *metadata.IndexMetadata) {
 }
 
 func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
-	fmt.Fprintf(out, "    [%s] %s", column.Name, column.Type)
+	fmt.Fprintf(out, "    %s %s", quote(column.Name), column.Type)
 	if column.IsIdentity {
 		fmt.Fprintf(out, " IDENTITY(%d,%d)", column.IdentitySeed, column.IdentityIncrement)
 	}
@@ -520,20 +551,18 @@ func indexWhereClause(definition string) string {
 
 func generateSpatialIndexDefinition(index *metadata.IndexMetadata, schemaName, tableName string) string {
 	var buf strings.Builder
-	buf.WriteString("CREATE SPATIAL INDEX [")
-	buf.WriteString(index.Name)
-	buf.WriteString("] ON [")
-	buf.WriteString(schemaName)
-	buf.WriteString("].[")
-	buf.WriteString(tableName)
-	buf.WriteString("] (")
+	buf.WriteString("CREATE SPATIAL INDEX ")
+	buf.WriteString(quote(index.Name))
+	buf.WriteString(" ON ")
+	buf.WriteString(quote(schemaName))
+	buf.WriteString(".")
+	buf.WriteString(quote(tableName))
+	buf.WriteString(" (")
 	for i, expr := range index.Expressions {
 		if i > 0 {
 			buf.WriteString(", ")
 		}
-		buf.WriteString("[")
-		buf.WriteString(expr)
-		buf.WriteString("]")
+		buf.WriteString(quote(expr))
 	}
 	buf.WriteString(")")
 	if index.SpatialConfig == nil || index.SpatialConfig.Tessellation == nil {
