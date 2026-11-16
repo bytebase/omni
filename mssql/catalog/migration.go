@@ -466,7 +466,11 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 		buf.WriteString(" NO CYCLE")
 	}
 	if newSequence.CacheSize != "" {
-		fmt.Fprintf(&buf, " CACHE %s", newSequence.CacheSize)
+		if newSequence.CacheSize == "NO CACHE" {
+			buf.WriteString(" NO CACHE")
+		} else {
+			fmt.Fprintf(&buf, " CACHE %s", newSequence.CacheSize)
+		}
 	}
 	buf.WriteString(";\nGO\n")
 	return buf.String()
@@ -494,7 +498,11 @@ func generateCreateSequence(schemaName, sequenceName string, sequence *metadata.
 		buf.WriteString(" CYCLE")
 	}
 	if sequence.CacheSize != "" {
-		fmt.Fprintf(&buf, " CACHE %s", sequence.CacheSize)
+		if sequence.CacheSize == "NO CACHE" {
+			buf.WriteString(" NO CACHE")
+		} else {
+			fmt.Fprintf(&buf, " CACHE %s", sequence.CacheSize)
+		}
 	}
 	buf.WriteString(";")
 	return buf.String()
@@ -524,7 +532,7 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 		case DiffAlter:
 			droppedKey := false
 			for _, indexDiff := range tableDiff.Indexes {
-				if indexDiff.Action == DiffDrop && indexDiff.OldIndex.IsConstraint {
+				if indexDiff.Action == DiffDrop && (indexDiff.OldIndex.IsConstraint || indexDiff.OldIndex.Unique) {
 					droppedKey = true
 				}
 			}
@@ -647,6 +655,7 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	// A computed column cannot be changed with ALTER COLUMN. Drop the indexes
 	// that use it, drop the column, add the new expression, and rebuild them.
 	var rebuiltIndexes []string
+	var rebuiltChecks []string
 	for _, colDiff := range tableDiff.Columns {
 		if colDiff.Action != DiffAlter || !columnRequiresRebuild(colDiff) {
 			continue
@@ -664,6 +673,16 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 				fmt.Fprintf(&buf, "DROP INDEX %s ON %s.%s;\n", quote(index.Name), quote(tableDiff.SchemaName), quote(tableDiff.TableName))
 			}
 			rebuiltIndexes = append(rebuiltIndexes, index.Name)
+		}
+		for _, check := range tableDiff.OldTable.CheckConstraints {
+			if !strings.Contains(strings.ToLower(check.Expression), strings.ToLower(colDiff.OldColumn.Name)) {
+				continue
+			}
+			if checkChangeScheduled(tableDiff, check.Name) || containsString(rebuiltChecks, check.Name) {
+				continue
+			}
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(check.Name))
+			rebuiltChecks = append(rebuiltChecks, check.Name)
 		}
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP COLUMN %s;\n", quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(colDiff.OldColumn.Name))
 	}
@@ -691,6 +710,14 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 	for _, colDiff := range tableDiff.Columns {
 		if colDiff.Action == DiffAlter && !columnRequiresRebuild(colDiff) {
 			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, colDiff))
+		}
+	}
+	for _, name := range rebuiltChecks {
+		for _, check := range tableDiff.NewTable.CheckConstraints {
+			if check.Name == name && !checkChangeScheduled(tableDiff, name) {
+				fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s CHECK %s;\n",
+					quote(tableDiff.SchemaName), quote(tableDiff.TableName), quote(check.Name), checkExpression(check.Expression))
+			}
 		}
 	}
 	for _, name := range rebuiltIndexes {
@@ -869,6 +896,15 @@ func indexUsesColumn(index *metadata.IndexMetadata, name string) bool {
 	return false
 }
 
+func checkChangeScheduled(table *TableDiffEntry, name string) bool {
+	for _, checkDiff := range table.Checks {
+		if checkDiffName(checkDiff) == name {
+			return true
+		}
+	}
+	return false
+}
+
 func indexChangeScheduled(table *TableDiffEntry, name string) bool {
 	for _, indexDiff := range table.Indexes {
 		if indexDiffName(indexDiff) == name {
@@ -1008,6 +1044,16 @@ func generateCreateIndex(schemaName, tableName string, index *metadata.IndexMeta
 			appendMigrationDirection(&buf, index.Descending, i)
 		}
 		buf.WriteString(")")
+		if include := indexIncludeColumns(index.Definition); len(include) > 0 {
+			buf.WriteString(" INCLUDE (")
+			for i, column := range include {
+				if i > 0 {
+					buf.WriteString(", ")
+				}
+				buf.WriteString(quote(column))
+			}
+			buf.WriteString(")")
+		}
 		if where := indexWhereClause(index.Definition); where != "" {
 			fmt.Fprintf(&buf, " WHERE %s", where)
 		}

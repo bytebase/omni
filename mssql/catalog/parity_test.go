@@ -103,7 +103,12 @@ var knownMigrationImprovements = map[string]bool{
 	"Reverse of default constraint operations - dropping tables, columns with defaults, and default constraints":   true,
 	"Reverse of comments with special characters - dropping comments with quotes, unicode, and special formatting": true,
 	"Reverse of edge case defaults - dropping special default constraints and columns":                             true, "Safe order - drop dependent objects before tables": true,
-	"Self-referencing foreign keys and complex view dependencies": true,
+	"Self-referencing foreign keys and complex view dependencies": true, "Create new table": true,
+	"Remove default constraint":       true,
+	"Change default constraint value": true,
+	"Complex default expressions using system functions, variables, and conditional logic":                     true,
+	"Reverse of complex default expressions - dropping columns with system functions and conditional defaults": true,
+	"Spatial table schema changes - adding columns and indexes while preserving existing spatial indexes":      true,
 }
 
 // normalizeMetadataParity removes the fields the catalog deliberately improves

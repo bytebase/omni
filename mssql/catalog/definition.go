@@ -200,7 +200,11 @@ func writeSequences(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 				out.WriteString("\n    CYCLE")
 			}
 			if sequence.CacheSize != "" {
-				fmt.Fprintf(out, "\n    CACHE %s", sequence.CacheSize)
+				if sequence.CacheSize == "NO CACHE" {
+					out.WriteString("\n    NO CACHE")
+				} else {
+					fmt.Fprintf(out, "\n    CACHE %s", sequence.CacheSize)
+				}
 			}
 			out.WriteString(";\n\n")
 		}
@@ -538,6 +542,16 @@ func writeNormalIndex(out *strings.Builder, schemaName, tableName string, index 
 		}
 	}
 	out.WriteString("\n)")
+	if include := indexIncludeColumns(index.Definition); len(include) > 0 {
+		out.WriteString(" INCLUDE (")
+		for i, column := range include {
+			if i != 0 {
+				out.WriteString(", ")
+			}
+			out.WriteString(quote(column))
+		}
+		out.WriteString(")")
+	}
 	if where := indexWhereClause(index.Definition); where != "" {
 		fmt.Fprintf(out, "\nWHERE %s", where)
 	}

@@ -491,6 +491,9 @@ func indexesEqual(a, b *metadata.IndexMetadata) bool {
 	if a.Type == "XML" && a.Definition != b.Definition {
 		return false
 	}
+	if !slices.Equal(indexIncludeColumns(a.Definition), indexIncludeColumns(b.Definition)) {
+		return false
+	}
 	if !spatialConfigsEqual(a.SpatialConfig, b.SpatialConfig) {
 		return false
 	}

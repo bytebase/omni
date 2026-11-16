@@ -298,6 +298,7 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		column.IsIdentity = true
 		column.IdentitySeed = n.Identity.Seed
 		column.IdentityIncrement = n.Identity.Increment
+		column.Nullable = false
 	}
 	if n.Nullable != nil {
 		column.Nullable = !n.Nullable.NotNull
@@ -344,6 +345,9 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		}
 	}
 
+	if column.Default != "" && column.DefaultConstraintName == "" {
+		column.DefaultConstraintName = "DF_" + table.Name + "_" + column.Name
+	}
 	table.Columns = append(table.Columns, column)
 }
 
@@ -387,9 +391,7 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) {
 		IsConstraint: false,
 	}
 	appendIndexColumns(index, n.Columns)
-	if n.WhereClause != nil {
-		index.Definition = "WHERE " + strings.TrimSpace(nodeText(n.WhereClause, source))
-	}
+	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
 	table.Indexes = append(table.Indexes, index)
 }
 
@@ -462,7 +464,9 @@ func (c *Catalog) execCreateSequence(n *ast.CreateSequenceStmt, source string) {
 	if n.Cycle != nil {
 		sequence.Cycle = *n.Cycle
 	}
-	if n.Cache != nil {
+	if n.NoCache {
+		sequence.CacheSize = "NO CACHE"
+	} else if n.Cache != nil {
 		sequence.CacheSize = strings.TrimSpace(nodeText(n.Cache, source))
 	}
 	schema.Sequences = append(schema.Sequences, sequence)
@@ -595,9 +599,7 @@ func inlineIndexMetadata(n *ast.InlineIndexDef, source string) *metadata.IndexMe
 		IsConstraint: false,
 	}
 	appendIndexColumns(index, n.Columns)
-	if n.WhereClause != nil {
-		index.Definition = "WHERE " + strings.TrimSpace(nodeText(n.WhereClause, source))
-	}
+	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
 	return index
 }
 
@@ -770,6 +772,45 @@ func appendIndexColumns(index *metadata.IndexMetadata, columns *ast.List) {
 		index.Expressions = append(index.Expressions, column.Name)
 		index.Descending = append(index.Descending, column.SortDir == ast.SortDesc)
 	}
+}
+
+func indexDefinition(includeCols *ast.List, whereClause ast.ExprNode, source string) string {
+	var parts []string
+	var include []string
+	if includeCols != nil {
+		for _, item := range includeCols.Items {
+			switch column := item.(type) {
+			case *ast.IndexColumn:
+				include = append(include, column.Name)
+			case *ast.String:
+				include = append(include, column.Str)
+			}
+		}
+	}
+	if len(include) > 0 {
+		parts = append(parts, "INCLUDE:"+strings.Join(include, ","))
+	}
+	if whereClause != nil {
+		parts = append(parts, "WHERE "+strings.TrimSpace(nodeText(whereClause, source)))
+	}
+	return strings.Join(parts, " ")
+}
+
+func indexIncludeColumns(definition string) []string {
+	if !strings.Contains(definition, "INCLUDE:") {
+		return nil
+	}
+	after := strings.SplitN(definition, "INCLUDE:", 2)[1]
+	if index := strings.Index(after, " WHERE "); index != -1 {
+		after = after[:index]
+	}
+	var columns []string
+	for _, column := range strings.Split(after, ",") {
+		if column = strings.TrimSpace(column); column != "" {
+			columns = append(columns, column)
+		}
+	}
+	return columns
 }
 
 func indexColumnNames(columns *ast.List) []string {

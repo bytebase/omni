@@ -455,3 +455,77 @@ func TestDefinitionAndMigrationRenderXMLIndexes(t *testing.T) {
 	require.Contains(t, sql, "CREATE PRIMARY XML INDEX [pxml] ON [dbo].[t] ([doc])")
 	require.Contains(t, sql, "USING XML INDEX [pxml] FOR PATH")
 }
+
+func TestIndexIncludeColumnsSurviveExtractionAndDiff(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [payload] int NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [payload] int NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+CREATE INDEX [IX_t_payload] ON [dbo].[t] ([id]) INCLUDE ([payload]);
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "INCLUDE ([payload])")
+}
+
+func TestSequenceNoCacheSurvivesExtraction(t *testing.T) {
+	c, err := LoadSQL(`CREATE SEQUENCE [dbo].[s] AS INT START WITH 1 INCREMENT BY 1 NO CACHE;`)
+	require.NoError(t, err)
+	require.Equal(t, "NO CACHE", c.GetSchema("dbo").Sequences[0].CacheSize)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "NO CACHE")
+}
+
+func TestIdentityColumnIsNotNullable(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int IDENTITY(1,1));`)
+	require.NoError(t, err)
+	require.False(t, c.GetTable("dbo", "t").Columns[0].Nullable)
+}
+
+func TestUnnamedDefaultGetsConstraintName(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int DEFAULT (0), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int DEFAULT (1), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP CONSTRAINT [DF_t_v]")
+	require.Contains(t, sql, "ADD CONSTRAINT [DF_t_v] DEFAULT (1) FOR [v]")
+}
+
+func TestInboundForeignKeyRebuiltForStandaloneUniqueIndex(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE TABLE [dbo].[p] ([id] int NOT NULL, CONSTRAINT [PK_p] PRIMARY KEY ([id]));
+CREATE UNIQUE INDEX [UX_p_id] ON [dbo].[p] ([id] ASC);
+CREATE TABLE [dbo].[c] ([id] int NOT NULL, [p_id] int NOT NULL, CONSTRAINT [PK_c] PRIMARY KEY ([id]), CONSTRAINT [FK_c_p] FOREIGN KEY ([p_id]) REFERENCES [dbo].[p] ([id]));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[p] ([id] int NOT NULL, CONSTRAINT [PK_p] PRIMARY KEY ([id]));
+CREATE UNIQUE INDEX [UX_p_id] ON [dbo].[p] ([id] DESC);
+CREATE TABLE [dbo].[c] ([id] int NOT NULL, [p_id] int NOT NULL, CONSTRAINT [PK_c] PRIMARY KEY ([id]), CONSTRAINT [FK_c_p] FOREIGN KEY ([p_id]) REFERENCES [dbo].[p] ([id]));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP CONSTRAINT [FK_c_p]")
+	require.Contains(t, sql, "DROP INDEX [UX_p_id]")
+	require.Contains(t, sql, "ADD CONSTRAINT [FK_c_p]")
+	require.Less(t, strings.Index(sql, "DROP CONSTRAINT [FK_c_p]"), strings.Index(sql, "DROP INDEX [UX_p_id]"))
+}
+
+func TestComputedColumnRebuildDropsDependentCheck(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([a] + 1) PERSISTED, CONSTRAINT [CK_c] CHECK ([c] > 0));
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([a] + 2) PERSISTED, CONSTRAINT [CK_c] CHECK ([c] > 0));
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP CONSTRAINT [CK_c]")
+	require.Contains(t, sql, "DROP COLUMN [c]")
+	require.Contains(t, sql, "ADD CONSTRAINT [CK_c] CHECK ([c] > 0)")
+	require.Less(t, strings.Index(sql, "DROP CONSTRAINT [CK_c]"), strings.Index(sql, "DROP COLUMN [c]"))
+	require.Less(t, strings.Index(sql, "DROP COLUMN [c]"), strings.Index(sql, "ADD CONSTRAINT [CK_c]"))
+}
