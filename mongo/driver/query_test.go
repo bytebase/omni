@@ -86,6 +86,74 @@ func TestQueryLimit(t *testing.T) {
 	require.Len(t, results[0].Rows, 1)
 }
 
+// TestQueryLimitDoesNotCapACount holds a row limit to the rows it caps: the
+// client applies the cap to a count itself, which would change what the count
+// counted.
+func TestQueryLimitDoesNotCapACount(t *testing.T) {
+	d := openDriver(t, testDatabase)
+	_, err := d.Execute(context.Background(), `db.users.insertMany([
+		{_id: 1}, {_id: 2}, {_id: 3}, {_id: 4}, {_id: 5}
+	]);`, driver.ExecuteOptions{})
+	require.NoError(t, err)
+
+	for _, statement := range []string{"db.users.countDocuments({})", "db.users.estimatedDocumentCount()"} {
+		results := query(t, d, statement, driver.QueryOptions{Limit: 2})
+		require.Len(t, results, 1, statement)
+		require.NoError(t, results[0].Err)
+		require.Len(t, results[0].Rows, 1)
+		require.Equal(t, `{"value":5}`, results[0].Rows[0][0].String, statement)
+	}
+}
+
+// TestQueryMaxResultBytes holds the row cap a caller sets: rows read up to the
+// limit, Truncated reporting the cut, and no cut when the caller sets none.
+func TestQueryMaxResultBytes(t *testing.T) {
+	d := openDriver(t, testDatabase)
+	_, err := d.Execute(context.Background(), `db.users.insertMany([{_id: 1}, {_id: 2}, {_id: 3}]);`, driver.ExecuteOptions{})
+	require.NoError(t, err)
+
+	all := query(t, d, "db.users.find()", driver.QueryOptions{})
+	require.Len(t, all, 1)
+	require.Len(t, all[0].Rows, 3)
+	require.False(t, all[0].Truncated)
+
+	capped := query(t, d, "db.users.find()", driver.QueryOptions{MaxResultBytes: 1})
+	require.Len(t, capped, 1)
+	require.NoError(t, capped[0].Err)
+	require.True(t, capped[0].Truncated)
+	require.Len(t, capped[0].Rows, 1)
+
+	// A cap the rows fit under cuts nothing.
+	roomy := query(t, d, "db.users.find()", driver.QueryOptions{MaxResultBytes: 1 << 20})
+	require.Len(t, roomy, 1)
+	require.False(t, roomy[0].Truncated)
+	require.Len(t, roomy[0].Rows, 3)
+}
+
+// TestQueryDistinctRendersEveryValueAsAJSONObject holds what a distinct value
+// says: the frontend reads each row as a JSON object, and Extended JSON has no
+// top-level scalar, so int32, double and null values are wrapped rather than
+// rendered as their Go spelling.
+func TestQueryDistinctRendersEveryValueAsAJSONObject(t *testing.T) {
+	d := openDriver(t, testDatabase)
+	_, err := d.Execute(context.Background(), `db.readings.insertMany([
+		{_id: 1, value: 30},
+		{_id: 2, value: 30},
+		{_id: 3, value: 1.5},
+		{_id: 4, value: null}
+	]);`, driver.ExecuteOptions{})
+	require.NoError(t, err)
+
+	results := query(t, d, `db.readings.distinct("value")`, driver.QueryOptions{})
+	require.Len(t, results, 1)
+	require.NoError(t, results[0].Err)
+	var rows []string
+	for _, row := range results[0].Rows {
+		rows = append(rows, row[0].String)
+	}
+	require.ElementsMatch(t, []string{`{"value":30}`, `{"value":1.5}`, `{"value":null}`}, rows)
+}
+
 // TestQueryDoubleNotation pins that a BSON double holding a large integer
 // renders in mongosh notation (plain decimal), not the Go driver's scientific
 // notation, and that a small one keeps its exponent.
@@ -181,6 +249,10 @@ func TestQueryExplain(t *testing.T) {
 	require.Equal(t, statement+`.explain("queryPlanner")`, scripted[0].Statement)
 	require.Equal(t, second+`.explain("queryPlanner")`, scripted[1].Statement)
 	require.Contains(t, planner(scripted[1]), "winningPlan")
+
+	// An explain request answers with a plan, which the result says.
+	require.Equal(t, &driver.Plan{Format: "JSON"}, plan.Plan)
+	require.Equal(t, &driver.Plan{Format: "JSON"}, replanned.Plan)
 
 	// Run on a statement that explains itself reports the plan it returned.
 	ran := explain(statement+`.explain()`, false)

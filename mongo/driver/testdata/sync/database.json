@@ -1,123 +1,135 @@
 {
-  "name": "omni_driver",
-  "schemas": [
+  "name":  "omni_driver",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "empty",
-          "indexes": [
+          "name":  "empty",
+          "indexes":  [
             {
-              "name": "_id_",
-              "expressions": [
+              "name":  "_id_",
+              "expressions":  [
                 "{\"_id\":1}"
               ]
             }
           ],
-          "indexSize": "4096"
+          "indexSize":  "4096"
         },
         {
-          "name": "events",
-          "indexes": [
+          "name":  "events",
+          "indexes":  [
             {
-              "name": "_id_",
-              "expressions": [
+              "name":  "_id_",
+              "expressions":  [
                 "{\"_id\":1}"
               ]
             },
             {
-              "name": "kind_1__id_-1",
-              "expressions": [
+              "name":  "kind_1__id_-1",
+              "expressions":  [
                 "{\"kind\":1,\"_id\":-1}"
               ]
             }
           ],
-          "rowCount": "2",
-          "dataSize": "65",
-          "indexSize": "24576"
+          "rowCount":  "2",
+          "dataSize":  "65",
+          "indexSize":  "24576"
         },
         {
-          "name": "nested",
-          "indexes": [
+          "name":  "nested",
+          "indexes":  [
             {
-              "name": "_id_",
-              "expressions": [
+              "name":  "_id_",
+              "expressions":  [
                 "{\"_id\":1}"
               ]
             }
           ],
-          "rowCount": "1",
-          "dataSize": "96",
-          "indexSize": "4096"
+          "rowCount":  "1",
+          "dataSize":  "96",
+          "indexSize":  "4096"
         },
         {
-          "name": "orders",
-          "indexes": [
+          "name":  "orders",
+          "indexes":  [
             {
-              "name": "_id_",
-              "expressions": [
+              "name":  "_id_",
+              "expressions":  [
                 "{\"_id\":1}"
               ]
             },
             {
-              "name": "customer_id_1_created_at_-1",
-              "expressions": [
+              "name":  "customer_id_1_created_at_-1",
+              "expressions":  [
                 "{\"customer_id\":1,\"created_at\":-1}"
               ]
             }
           ],
-          "rowCount": "1",
-          "dataSize": "66",
-          "indexSize": "24576"
+          "rowCount":  "1",
+          "dataSize":  "66",
+          "indexSize":  "24576"
         },
         {
-          "name": "sessions",
-          "indexes": [
+          "name":  "sessions",
+          "indexes":  [
             {
-              "name": "_id_",
-              "expressions": [
+              "name":  "_id_",
+              "expressions":  [
                 "{\"_id\":1}"
               ]
             },
             {
-              "name": "created_at_1",
-              "expressions": [
+              "name":  "created_at_1",
+              "expressions":  [
                 "{\"created_at\":1}"
               ]
             }
           ],
-          "indexSize": "8192"
+          "indexSize":  "8192"
         },
         {
-          "name": "users",
-          "indexes": [
+          "name":  "telemetry",
+          "indexes":  [
             {
-              "name": "_id_",
-              "expressions": [
+              "name":  "sensor_1_at_1",
+              "expressions":  [
+                "{\"sensor\":1,\"at\":1}"
+              ]
+            }
+          ],
+          "indexSize":  "4096"
+        },
+        {
+          "name":  "users",
+          "indexes":  [
+            {
+              "name":  "_id_",
+              "expressions":  [
                 "{\"_id\":1}"
               ]
             },
             {
-              "name": "age_-1_name_1",
-              "expressions": [
+              "name":  "age_-1_name_1",
+              "expressions":  [
                 "{\"age\":-1,\"name\":1}"
               ]
             },
             {
-              "name": "name_1",
-              "expressions": [
+              "name":  "name_1",
+              "expressions":  [
                 "{\"name\":1}"
               ],
-              "unique": true
+              "unique":  true
             }
           ],
-          "rowCount": "3",
-          "dataSize": "285",
-          "indexSize": "45056"
+          "rowCount":  "3",
+          "dataSize":  "285",
+          "indexSize":  "45056"
         }
       ],
-      "views": [
+      "views":  [
         {
-          "name": "v_adults"
+          "name":  "v_adults"
         }
       ]
     }

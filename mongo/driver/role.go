@@ -59,7 +59,7 @@ func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
 	var instanceRoles []*driver.Role
 	for _, user := range users {
 		instanceRoles = append(instanceRoles, &driver.Role{
-			Name: user.ID,
+			Name: user.UserName,
 		})
 	}
 	return instanceRoles, nil

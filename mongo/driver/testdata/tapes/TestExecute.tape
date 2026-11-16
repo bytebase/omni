@@ -30,6 +30,14 @@
 < raw
 | {"value":{"operation":"OpFind","values":[{"_id":{"$numberInt":"1"},"name":"alice","age":{"$numberInt":"30"}},{"_id":{"$numberInt":"2"}}]}}
 > raw
+| {"op":"Execute","database":"omni_driver","statement":"db.users.insertOne({_id: 9, name: \"dave\", modifiedCount: 100, deletedCount: 7});"}
+< raw
+| {"value":{"operation":"OpInsertOne","values":[{"acknowledged":true,"insertedId":{"$numberInt":"9"}}]}}
+> raw
+| {"op":"Execute","database":"omni_driver","statement":"db.users.find({_id: 9});"}
+< raw
+| {"value":{"operation":"OpFind","values":[{"_id":{"$numberInt":"9"},"name":"dave","modifiedCount":{"$numberInt":"100"},"deletedCount":{"$numberInt":"7"}}]}}
+> raw
 | {"op":"Disconnect"}
 < raw
 | {}

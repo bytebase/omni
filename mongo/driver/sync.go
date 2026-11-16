@@ -69,10 +69,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	for _, collection := range collections {
 		var tp string
 		if t, ok := collection["type"]; ok {
-			if s, ok := t.(string); ok && s == "collection" {
+			switch s, _ := t.(string); s {
+			case "collection", "timeseries":
+				// A time-series collection is a user collection whose
+				// documents the server stores in buckets of its own.
 				tp = "collection"
-			}
-			if s, ok := t.(string); ok && s == "view" {
+			case "view":
 				tp = "view"
 			}
 		}
@@ -162,7 +164,7 @@ func getIndexes(ctx context.Context, c client, database, collectionName string) 
 		}
 		indexName, ok := name.(string)
 		if !ok {
-			return nil, errors.New("cannot cinvert index name to string")
+			return nil, errors.New("cannot convert index name to string")
 		}
 		key, ok := indexInfo["key"]
 		if !ok {

@@ -66,13 +66,17 @@
 < raw
 | {"value":{"operation":"OpCreateIndex","values":["created_at_1"]}}
 > raw
+| {"op":"Execute","database":"omni_driver","statement":"db.runCommand({create: \"telemetry\", timeseries: {timeField: \"at\", metaField: \"sensor\", granularity: \"seconds\"}});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"ok":{"$numberDouble":"1.0"}}]}}
+> raw
 | {"op":"ListDatabaseNames"}
 < raw
 | {"value":{"names":["admin","config","local","omni_driver"]}}
 > raw
 | {"op":"ListCollections","database":"omni_driver"}
 < raw
-| {"value":{"docs":[{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAQ==","subType":"04"}}},"name":"empty","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAg==","subType":"04"}}},"name":"events","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAw==","subType":"04"}}},"name":"nested","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABA==","subType":"04"}}},"name":"orders","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABQ==","subType":"04"}}},"name":"sessions","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABg==","subType":"04"}}},"name":"system.views","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABw==","subType":"04"}}},"name":"users","options":{},"type":"collection"},{"info":{"readOnly":true},"name":"v_adults","options":{"viewOn":"users","pipeline":[{"$match":{"age":{"$gte":{"$numberInt":"18"}}}}]},"type":"view"}]}}
+| {"value":{"docs":[{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAQ==","subType":"04"}}},"name":"empty","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAg==","subType":"04"}}},"name":"events","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAw==","subType":"04"}}},"name":"nested","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABA==","subType":"04"}}},"name":"orders","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABQ==","subType":"04"}}},"name":"sessions","options":{},"type":"collection"},{"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABg==","subType":"04"}}},"name":"system.buckets.telemetry","options":{"validator":{"$jsonSchema":{"bsonType":"object","required":["_id","control","data"],"properties":{"_id":{"bsonType":"objectId"},"control":{"bsonType":"object","required":["version","min","max"],"properties":{"version":{"bsonType":"number"},"min":{"bsonType":"object","required":["at"],"properties":{"at":{"bsonType":"date"}}},"max":{"bsonType":"object","required":["at"],"properties":{"at":{"bsonType":"date"}}},"closed":{"bsonType":"bool"},"count":{"bsonType":"number","minimum":{"$numberInt":"1"}}},"additionalProperties":false},"data":{"bsonType":"object"},"meta":{}},"additionalProperties":false}},"clusteredIndex":true,"timeseries":{"timeField":"at","metaField":"sensor","granularity":"seconds","bucketMaxSpanSeconds":{"$numberInt":"3600"}}},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABw==","subType":"04"}}},"name":"system.views","options":{},"type":"collection"},{"info":{"readOnly":false},"name":"telemetry","options":{"timeseries":{"timeField":"at","metaField":"sensor","granularity":"seconds","bucketMaxSpanSeconds":{"$numberInt":"3600"}}},"type":"timeseries"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACA==","subType":"04"}}},"name":"users","options":{},"type":"collection"},{"info":{"readOnly":true},"name":"v_adults","options":{"viewOn":"users","pipeline":[{"$match":{"age":{"$gte":{"$numberInt":"18"}}}}]},"type":"view"}]}}
 > raw
 | {"op":"EstimatedDocumentCount","database":"omni_driver","collection":"empty"}
 < raw
@@ -133,6 +137,18 @@
 | {"op":"ListIndexes","database":"omni_driver","collection":"sessions"}
 < raw
 | {"value":{"docs":[{"key":{"_id":{"$numberInt":"1"}},"name":"_id_","v":{"$numberInt":"2"}},{"expireAfterSeconds":{"$numberInt":"3600"},"key":{"created_at":{"$numberInt":"1"}},"name":"created_at_1","v":{"$numberInt":"2"}}]}}
+> raw
+| {"op":"EstimatedDocumentCount","database":"omni_driver","collection":"telemetry"}
+< raw
+| {"value":{"count":0}}
+> raw
+| {"op":"CollStats","database":"omni_driver","collection":"telemetry"}
+< raw
+| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"4096"}}}
+> raw
+| {"op":"ListIndexes","database":"omni_driver","collection":"telemetry"}
+< raw
+| {"value":{"docs":[{"key":{"sensor":{"$numberInt":"1"},"at":{"$numberInt":"1"}},"name":"sensor_1_at_1","v":{"$numberInt":"2"}}]}}
 > raw
 | {"op":"EstimatedDocumentCount","database":"omni_driver","collection":"users"}
 < raw

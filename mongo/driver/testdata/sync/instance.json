@@ -3,7 +3,7 @@
     "omni_driver"
   ],
   "roles": [
-    "admin.testuser"
+    "testuser"
   ],
   "version": "8.0.38"
 }
