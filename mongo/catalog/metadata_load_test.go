@@ -13,9 +13,10 @@ func TestLoadMetadata(t *testing.T) {
 		Name: "app",
 		Schemas: []*metadata.SchemaMetadata{{
 			Tables: []*metadata.TableMetadata{{Name: "users"}, {Name: "orders"}, {Name: ""}},
+			Views:  []*metadata.ViewMetadata{{Name: "v_adults"}, {Name: ""}},
 		}},
 	})
-	if got, want := c.Collections(), []string{"orders", "users"}; !slices.Equal(got, want) {
+	if got, want := c.Collections(), []string{"orders", "users", "v_adults"}; !slices.Equal(got, want) {
 		t.Errorf("collections = %v, want %v", got, want)
 	}
 }

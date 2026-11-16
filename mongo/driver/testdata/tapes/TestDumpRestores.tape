@@ -54,9 +54,21 @@
 < raw
 | {"value":{"operation":"OpInsertOne","values":[{"acknowledged":true,"insertedId":{"$numberInt":"1"}}]}}
 > raw
+| {"op":"Execute","database":"omni_driver","statement":"db.runCommand({create: \"v_adults\", viewOn: \"users\", pipeline: [{$match: {age: {$gte: 18}}}]});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"ok":{"$numberDouble":"1.0"}}]}}
+> raw
 | {"op":"Execute","database":"omni_driver","statement":"db.createCollection(\"sessions\");"}
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
+> raw
+| {"op":"Execute","database":"omni_driver","statement":"db.sessions.createIndex({created_at: 1}, {expireAfterSeconds: 3600});"}
+< raw
+| {"value":{"operation":"OpCreateIndex","values":["created_at_1"]}}
+> raw
+| {"op":"Execute","database":"omni_driver","statement":"db.runCommand({create: \"telemetry\", timeseries: {timeField: \"at\", metaField: \"sensor\", granularity: \"seconds\"}});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"ListDatabaseNames"}
 < raw
@@ -64,7 +76,7 @@
 > raw
 | {"op":"ListCollections","database":"omni_driver"}
 < raw
-| {"value":{"docs":[{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAQ==","subType":"04"}}},"name":"empty","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAg==","subType":"04"}}},"name":"events","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAw==","subType":"04"}}},"name":"nested","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABA==","subType":"04"}}},"name":"orders","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABQ==","subType":"04"}}},"name":"sessions","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABg==","subType":"04"}}},"name":"users","options":{},"type":"collection"}]}}
+| {"value":{"docs":[{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAQ==","subType":"04"}}},"name":"empty","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAg==","subType":"04"}}},"name":"events","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAAw==","subType":"04"}}},"name":"nested","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABA==","subType":"04"}}},"name":"orders","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABQ==","subType":"04"}}},"name":"sessions","options":{},"type":"collection"},{"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABg==","subType":"04"}}},"name":"system.buckets.telemetry","options":{"validator":{"$jsonSchema":{"bsonType":"object","required":["_id","control","data"],"properties":{"_id":{"bsonType":"objectId"},"control":{"bsonType":"object","required":["version","min","max"],"properties":{"version":{"bsonType":"number"},"min":{"bsonType":"object","required":["at"],"properties":{"at":{"bsonType":"date"}}},"max":{"bsonType":"object","required":["at"],"properties":{"at":{"bsonType":"date"}}},"closed":{"bsonType":"bool"},"count":{"bsonType":"number","minimum":{"$numberInt":"1"}}},"additionalProperties":false},"data":{"bsonType":"object"},"meta":{}},"additionalProperties":false}},"clusteredIndex":true,"timeseries":{"timeField":"at","metaField":"sensor","granularity":"seconds","bucketMaxSpanSeconds":{"$numberInt":"3600"}}},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABw==","subType":"04"}}},"name":"system.views","options":{},"type":"collection"},{"info":{"readOnly":false},"name":"telemetry","options":{"timeseries":{"timeField":"at","metaField":"sensor","granularity":"seconds","bucketMaxSpanSeconds":{"$numberInt":"3600"}}},"type":"timeseries"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACA==","subType":"04"}}},"name":"users","options":{},"type":"collection"},{"info":{"readOnly":true},"name":"v_adults","options":{"viewOn":"users","pipeline":[{"$match":{"age":{"$gte":{"$numberInt":"18"}}}}]},"type":"view"}]}}
 > raw
 | {"op":"EstimatedDocumentCount","database":"omni_driver","collection":"empty"}
 < raw
@@ -120,11 +132,23 @@
 > raw
 | {"op":"CollStats","database":"omni_driver","collection":"sessions"}
 < raw
-| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"4096"}}}
+| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"8192"}}}
 > raw
 | {"op":"ListIndexes","database":"omni_driver","collection":"sessions"}
 < raw
-| {"value":{"docs":[{"key":{"_id":{"$numberInt":"1"}},"name":"_id_","v":{"$numberInt":"2"}}]}}
+| {"value":{"docs":[{"key":{"_id":{"$numberInt":"1"}},"name":"_id_","v":{"$numberInt":"2"}},{"expireAfterSeconds":{"$numberInt":"3600"},"key":{"created_at":{"$numberInt":"1"}},"name":"created_at_1","v":{"$numberInt":"2"}}]}}
+> raw
+| {"op":"EstimatedDocumentCount","database":"omni_driver","collection":"telemetry"}
+< raw
+| {"value":{"count":0}}
+> raw
+| {"op":"CollStats","database":"omni_driver","collection":"telemetry"}
+< raw
+| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"4096"}}}
+> raw
+| {"op":"ListIndexes","database":"omni_driver","collection":"telemetry"}
+< raw
+| {"value":{"docs":[{"key":{"sensor":{"$numberInt":"1"},"at":{"$numberInt":"1"}},"name":"sensor_1_at_1","v":{"$numberInt":"2"}}]}}
 > raw
 | {"op":"EstimatedDocumentCount","database":"omni_driver","collection":"users"}
 < raw
@@ -142,65 +166,81 @@
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"empty\").createIndex({\"_id\":1}, {\"name\": \"_id_\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"empty\", \"indexes\": [{\"key\": {\"_id\":1}, \"name\": \"_id_\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["_id_"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"Execute","database":"omni_restored","statement":"db.createCollection(\"events\");"}
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"events\").createIndex({\"_id\":1}, {\"name\": \"_id_\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"events\", \"indexes\": [{\"key\": {\"_id\":1}, \"name\": \"_id_\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["_id_"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"events\").createIndex({\"kind\":1,\"_id\":-1}, {\"name\": \"kind_1__id_-1\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"events\", \"indexes\": [{\"key\": {\"kind\":1,\"_id\":-1}, \"name\": \"kind_1__id_-1\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["kind_1__id_-1"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"2"},"createdCollectionAutomatically":false,"ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"Execute","database":"omni_restored","statement":"db.createCollection(\"nested\");"}
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"nested\").createIndex({\"_id\":1}, {\"name\": \"_id_\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"nested\", \"indexes\": [{\"key\": {\"_id\":1}, \"name\": \"_id_\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["_id_"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"Execute","database":"omni_restored","statement":"db.createCollection(\"orders\");"}
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"orders\").createIndex({\"_id\":1}, {\"name\": \"_id_\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"orders\", \"indexes\": [{\"key\": {\"_id\":1}, \"name\": \"_id_\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["_id_"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"orders\").createIndex({\"customer_id\":1,\"created_at\":-1}, {\"name\": \"customer_id_1_created_at_-1\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"orders\", \"indexes\": [{\"key\": {\"customer_id\":1,\"created_at\":-1}, \"name\": \"customer_id_1_created_at_-1\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["customer_id_1_created_at_-1"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"2"},"createdCollectionAutomatically":false,"ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"Execute","database":"omni_restored","statement":"db.createCollection(\"sessions\");"}
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"sessions\").createIndex({\"_id\":1}, {\"name\": \"_id_\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"sessions\", \"indexes\": [{\"key\": {\"_id\":1}, \"name\": \"_id_\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["_id_"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
+> raw
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"sessions\", \"indexes\": [{\"key\": {\"created_at\":1}, \"name\": \"created_at_1\", \"expireAfterSeconds\": 3600, \"v\": 2}]});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"2"},"createdCollectionAutomatically":false,"ok":{"$numberDouble":"1.0"}}]}}
+> raw
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"create\": \"telemetry\", \"timeseries\": {\"timeField\": \"at\", \"metaField\": \"sensor\", \"granularity\": \"seconds\", \"bucketMaxSpanSeconds\": 3600}});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"ok":{"$numberDouble":"1.0"}}]}}
+> raw
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"telemetry\", \"indexes\": [{\"key\": {\"sensor\":1,\"at\":1}, \"name\": \"sensor_1_at_1\", \"v\": 2}]});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"Execute","database":"omni_restored","statement":"db.createCollection(\"users\");"}
 < raw
 | {"value":{"operation":"OpCreateCollection","values":[{"ok":{"$numberInt":"1"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"users\").createIndex({\"_id\":1}, {\"name\": \"_id_\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"users\", \"indexes\": [{\"key\": {\"_id\":1}, \"name\": \"_id_\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["_id_"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"1"},"note":"all indexes already exist","ok":{"$numberDouble":"1.0"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"users\").createIndex({\"age\":-1,\"name\":1}, {\"name\": \"age_-1_name_1\"});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"users\", \"indexes\": [{\"key\": {\"age\":-1,\"name\":1}, \"name\": \"age_-1_name_1\", \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["age_-1_name_1"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"1"},"numIndexesAfter":{"$numberInt":"2"},"createdCollectionAutomatically":false,"ok":{"$numberDouble":"1.0"}}]}}
 > raw
-| {"op":"Execute","database":"omni_restored","statement":"db.getCollection(\"users\").createIndex({\"name\":1}, {\"name\": \"name_1\", \"unique\": true});"}
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"createIndexes\": \"users\", \"indexes\": [{\"key\": {\"name\":1}, \"name\": \"name_1\", \"unique\": true, \"v\": 2}]});"}
 < raw
-| {"value":{"operation":"OpCreateIndex","values":["name_1"]}}
+| {"value":{"operation":"OpRunCommand","values":[{"numIndexesBefore":{"$numberInt":"2"},"numIndexesAfter":{"$numberInt":"3"},"createdCollectionAutomatically":false,"ok":{"$numberDouble":"1.0"}}]}}
+> raw
+| {"op":"Execute","database":"omni_restored","statement":"db.runCommand({\"create\": \"v_adults\", \"viewOn\": \"users\", \"pipeline\": [{\"$match\": {\"age\": {\"$gte\": 18}}}]});"}
+< raw
+| {"value":{"operation":"OpRunCommand","values":[{"ok":{"$numberDouble":"1.0"}}]}}
 > raw
 | {"op":"ListDatabaseNames"}
 < raw
@@ -208,7 +248,7 @@
 > raw
 | {"op":"ListCollections","database":"omni_restored"}
 < raw
-| {"value":{"docs":[{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAABw==","subType":"04"}}},"name":"empty","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACA==","subType":"04"}}},"name":"events","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACQ==","subType":"04"}}},"name":"nested","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACg==","subType":"04"}}},"name":"orders","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACw==","subType":"04"}}},"name":"sessions","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAADA==","subType":"04"}}},"name":"users","options":{},"type":"collection"}]}}
+| {"value":{"docs":[{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACQ==","subType":"04"}}},"name":"empty","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACg==","subType":"04"}}},"name":"events","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAACw==","subType":"04"}}},"name":"nested","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAADA==","subType":"04"}}},"name":"orders","options":{},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAADQ==","subType":"04"}}},"name":"sessions","options":{},"type":"collection"},{"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAADg==","subType":"04"}}},"name":"system.buckets.telemetry","options":{"validator":{"$jsonSchema":{"bsonType":"object","required":["_id","control","data"],"properties":{"_id":{"bsonType":"objectId"},"control":{"bsonType":"object","required":["version","min","max"],"properties":{"version":{"bsonType":"number"},"min":{"bsonType":"object","required":["at"],"properties":{"at":{"bsonType":"date"}}},"max":{"bsonType":"object","required":["at"],"properties":{"at":{"bsonType":"date"}}},"closed":{"bsonType":"bool"},"count":{"bsonType":"number","minimum":{"$numberInt":"1"}}},"additionalProperties":false},"data":{"bsonType":"object"},"meta":{}},"additionalProperties":false}},"clusteredIndex":true,"timeseries":{"timeField":"at","metaField":"sensor","granularity":"seconds","bucketMaxSpanSeconds":{"$numberInt":"3600"}}},"type":"collection"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAADw==","subType":"04"}}},"name":"system.views","options":{},"type":"collection"},{"info":{"readOnly":false},"name":"telemetry","options":{"timeseries":{"timeField":"at","metaField":"sensor","granularity":"seconds","bucketMaxSpanSeconds":{"$numberInt":"3600"}}},"type":"timeseries"},{"idIndex":{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"},"info":{"readOnly":false,"uuid":{"$binary":{"base64":"AAAAAAAAAAAAAAAAAAAAEA==","subType":"04"}}},"name":"users","options":{},"type":"collection"},{"info":{"readOnly":true},"name":"v_adults","options":{"viewOn":"users","pipeline":[{"$match":{"age":{"$gte":{"$numberInt":"18"}}}}]},"type":"view"}]}}
 > raw
 | {"op":"EstimatedDocumentCount","database":"omni_restored","collection":"empty"}
 < raw
@@ -264,11 +304,23 @@
 > raw
 | {"op":"CollStats","database":"omni_restored","collection":"sessions"}
 < raw
-| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"4096"}}}
+| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"8192"}}}
 > raw
 | {"op":"ListIndexes","database":"omni_restored","collection":"sessions"}
 < raw
-| {"value":{"docs":[{"key":{"_id":{"$numberInt":"1"}},"name":"_id_","v":{"$numberInt":"2"}}]}}
+| {"value":{"docs":[{"key":{"_id":{"$numberInt":"1"}},"name":"_id_","v":{"$numberInt":"2"}},{"expireAfterSeconds":{"$numberInt":"3600"},"key":{"created_at":{"$numberInt":"1"}},"name":"created_at_1","v":{"$numberInt":"2"}}]}}
+> raw
+| {"op":"EstimatedDocumentCount","database":"omni_restored","collection":"telemetry"}
+< raw
+| {"value":{"count":0}}
+> raw
+| {"op":"CollStats","database":"omni_restored","collection":"telemetry"}
+< raw
+| {"value":{"size":{"$numberInt":"0"},"totalIndexSize":{"$numberInt":"4096"}}}
+> raw
+| {"op":"ListIndexes","database":"omni_restored","collection":"telemetry"}
+< raw
+| {"value":{"docs":[{"key":{"sensor":{"$numberInt":"1"},"at":{"$numberInt":"1"}},"name":"sensor_1_at_1","v":{"$numberInt":"2"}}]}}
 > raw
 | {"op":"EstimatedDocumentCount","database":"omni_restored","collection":"users"}
 < raw
