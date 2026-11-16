@@ -47,11 +47,11 @@ func TestQuery(t *testing.T) {
 	require.Equal(t, driver.Int64, results[1].Rows[0][0].Kind)
 	require.Equal(t, int64(4), results[1].Rows[0][0].Int64)
 
-	// A float column arrives as text with twenty fractional digits, as
-	// Bytebase mapped it; the follow-up fix(hive) PR makes it a DOUBLE.
-	require.Equal(t, driver.String, results[2].Rows[0][0].Kind)
-	require.Equal(t, "1.50000000000000000000", results[2].Rows[0][0].String)
-	require.Equal(t, "2.50000000000000000000", results[2].Rows[0][1].String)
+	require.Equal(t, driver.Float64, results[2].Rows[0][0].Kind)
+	require.Equal(t, 1.5, results[2].Rows[0][0].Float64)
+	// FLOAT is four bytes on the server, so its value is the float32 Hive stored.
+	require.Equal(t, driver.Float32, results[2].Rows[0][1].Kind)
+	require.Equal(t, 2.5, results[2].Rows[0][1].Float64)
 
 	require.Equal(t, driver.String, results[3].Rows[0][0].Kind)
 	require.Equal(t, "x", results[3].Rows[0][0].String)
