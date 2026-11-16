@@ -5864,3 +5864,89 @@
         schema: ""
         table: audit_u
         column: secret
+- description: "predicate columns: a USING key a later join introduces"
+  statement: SELECT 1 FROM audit_t JOIN audit_u ON audit_t.a = audit_u.a JOIN audit_v USING (b)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t",
+              "columns": [
+                {
+                  "name": "a"
+                },
+                {
+                  "name": "b"
+                }
+              ]
+            },
+            {
+              "name": "audit_u",
+              "columns": [
+                {
+                  "name": "a"
+                }
+              ]
+            },
+            {
+              "name": "audit_v",
+              "columns": [
+                {
+                  "name": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: a
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t
+        column: b
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_u
+        column: a
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_v
+        column: b

@@ -688,6 +688,11 @@ func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColum
 		if q.addMatchingPredicateColumns(out, fullSourceColumns, ref, true, excluded) {
 			continue
 		}
+		if span.filterWildcard[ref] {
+			// A star attribution names the relation the key could belong to; one that does
+			// not hold it contributes nothing and leaves the rest of the set complete.
+			continue
+		}
 		// A qualified ref the expansion cannot attribute is unknown lineage, not a
 		// column to guess at: the statement then reports no predicate columns.
 		return out, fmt.Sprintf("column %q of relation %q is not in the synced metadata", ref.Column, ref.Table)

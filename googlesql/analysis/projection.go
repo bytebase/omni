@@ -127,6 +127,22 @@ type starMerge struct {
 
 // relation is a resolved FROM source: a base table, a CTE reference, a derived
 // subquery, an UNNEST value relation, or a join of these.
+// incompleteColumn reports whether the relation's projection column with this name
+// reads an expression subquery the walk does not carry. The names are indexed on
+// first use: a wide derived relation filtered by many qualified predicates would
+// otherwise scan the whole projection per reference.
+func (r *relation) incompleteColumn(name string) bool {
+	if r.incompleteNames == nil {
+		r.incompleteNames = make(map[string]bool, len(r.columns))
+		for _, c := range r.columns {
+			if c.lineageIncomplete {
+				r.incompleteNames[foldKey(c.name)] = true
+			}
+		}
+	}
+	return r.incompleteNames[foldKey(name)]
+}
+
 type relation struct {
 	// name is the relation's reference name for qualified lookups: the alias if
 	// present, else the (bare) table name; "" for an unnamed join/derived.
@@ -146,6 +162,11 @@ type relation struct {
 	// columns is the ordered resolved projection. For a base table it is a single
 	// baseStar element. It is never changed once the relation is built.
 	columns []projColumn
+
+	// incompleteNames caches, per folded column name, whether that projection column
+	// reads an expression subquery (see projColumn.lineageIncomplete). Built on first
+	// use; columns never change after a relation is built.
+	incompleteNames map[string]bool
 	// index answers lookups of columns by name (see projectionColumnSources).
 	index *relIndex
 }

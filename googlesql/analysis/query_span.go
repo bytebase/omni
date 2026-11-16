@@ -67,6 +67,11 @@ type QuerySpan struct {
 	// retires the written name it stood in for.
 	filterPlaceholderFallback map[ColumnRef]ColumnRef
 
+	// filterWildcard marks a filter reference a base-table star attribution produced:
+	// the star stands for every column of its relation, so the relation not holding
+	// that column is not a lineage gap.
+	filterWildcard map[ColumnRef]bool
+
 	// filterUnresolved is the first row-condition reference this walk could not
 	// resolve to the column it reads. A statement carrying one reports no predicate
 	// columns at all: an empty set is honest, a set missing a read is not.
@@ -1036,7 +1041,10 @@ func (w *spanWalker) buildJoinPart(b *joinBuilder, top *ast.JoinExpr) joinPart {
 		// quadratic in a chain. Both are read BEFORE the join rewrites the builder's
 		// columns in place, which would otherwise hand back the coalesced key with the
 		// star exclusions the coalesce adds.
-		if i == len(spine)-1 {
+		if acc.using == nil {
+			// The left operand's keys were recorded by the join that introduced them only
+			// when that join coalesced the same keys (a chain); otherwise this join is
+			// where they are read.
 			w.addUsingFilterLineage(left, join.Using)
 		}
 		w.addUsingFilterLineage(rightCols, join.Using)
@@ -1059,6 +1067,12 @@ func (w *spanWalker) addUsingFilterLineage(cols []projColumn, keys []string) {
 	for _, lineage := range usingKeyLineages(cols, keys) {
 		for _, ref := range lineage.refs {
 			w.addFilterColumn(ref)
+			// The lineage is read off the operand's star: the key belongs to whichever
+			// relation of the operand holds it, so a relation that does not is not a gap.
+			if w.span.filterWildcard == nil {
+				w.span.filterWildcard = make(map[ColumnRef]bool, len(lineage.refs))
+			}
+			w.span.filterWildcard[ref] = true
 		}
 	}
 }
@@ -1985,14 +1999,8 @@ func bodyComparesProjectedValues(body ast.Node) bool {
 // whose expression holds a subquery: the projection carries the expression's direct
 // columns only, so the read cannot be reported as complete.
 func (w *spanWalker) markIncompleteDerivedColumn(rel *relation, column string) {
-	if rel == nil {
-		return
-	}
-	for _, candidate := range rel.columns {
-		if foldKey(candidate.name) == foldKey(column) && candidate.lineageIncomplete {
-			w.markFilterUnresolved(fmt.Sprintf("projected column %q reads a subquery the walk does not carry", column))
-			return
-		}
+	if rel != nil && rel.incompleteColumn(column) {
+		w.markFilterUnresolved(fmt.Sprintf("projected column %q reads a subquery the walk does not carry", column))
 	}
 }
 
