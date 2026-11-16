@@ -96,6 +96,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action == DiffDrop {
+			if functionUsedByComputed(diff, funcDiff.FunctionName) {
+				fmt.Fprintf(&buf, "-- UNSUPPORTED: function %s.%s is used by a computed column; left unchanged.\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
+				continue
+			}
 			fmt.Fprintf(&buf, "DROP FUNCTION %s.%s;\nGO\n", quote(funcDiff.SchemaName), quote(funcDiff.FunctionName))
 		}
 	}
@@ -171,6 +175,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 			continue
 		}
 		for _, table := range schemaDiff.OldSchema.Tables {
+			if table.GetSkipDump() {
+				continue
+			}
 			alreadyHandled := false
 			for _, tableDiff := range diff.Tables {
 				if tableDiff.Action == DiffDrop && tableDiff.SchemaName == schemaDiff.SchemaName && tableDiff.TableName == table.Name {
@@ -197,6 +204,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 	for _, schemaDiff := range diff.Schemas {
 		if schemaDiff.Action != DiffDrop || strings.ToLower(schemaDiff.SchemaName) == defaultSchema {
+			continue
+		}
+		if schemaHasSkipDump(schemaDiff.OldSchema) {
+			fmt.Fprintf(&buf, "-- UNSUPPORTED: schema %s still holds objects marked SkipDump; left unchanged.\n", quote(schemaDiff.SchemaName))
 			continue
 		}
 		fmt.Fprintf(&buf, "DROP SCHEMA %s;\nGO\n", quote(schemaDiff.SchemaName))
@@ -239,7 +250,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 
 	tableFunctions := migrationTableFunctions(diff)
 	for _, funcDiff := range diff.Functions {
-		if tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+		if tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] && !functionUsedByComputed(diff, funcDiff.FunctionName) {
 			writeFunctionMigration(&buf, funcDiff)
 		}
 	}
@@ -399,7 +410,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		delete(earlyFunctions, name)
 	}
 	for _, funcDiff := range diff.Functions {
-		if !earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+		if !earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || functionUsedByComputed(diff, funcDiff.FunctionName) {
 			continue
 		}
 		writeFunctionMigration(&buf, funcDiff)
@@ -411,7 +422,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		if funcDiff.Action != DiffCreate {
 			continue
 		}
-		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+		if earlyFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || tableFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] || functionUsedByComputed(diff, funcDiff.FunctionName) {
 			continue
 		}
 		buf.WriteString(creationDefinition(funcDiff.NewFunction.Definition))
@@ -497,22 +508,7 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 }
 
 func generateCreateSynonym(schemaName string, synonym *metadata.SynonymMetadata) string {
-	var buf strings.Builder
-	fmt.Fprintf(&buf, "CREATE SYNONYM %s.%s FOR ", quote(schemaName), quote(synonym.Name))
-	var parts []string
-	if synonym.TargetServer != "" {
-		parts = append(parts, quote(synonym.TargetServer))
-	}
-	if synonym.TargetDatabase != "" {
-		parts = append(parts, quote(synonym.TargetDatabase))
-	}
-	if synonym.TargetSchema != "" {
-		parts = append(parts, quote(synonym.TargetSchema))
-	}
-	parts = append(parts, quote(synonym.TargetName))
-	buf.WriteString(strings.Join(parts, "."))
-	buf.WriteString(";")
-	return buf.String()
+	return fmt.Sprintf("CREATE SYNONYM %s.%s FOR %s;", quote(schemaName), quote(synonym.Name), synonymTarget(synonym))
 }
 
 func generateCreateSequence(schemaName, sequenceName string, sequence *metadata.SequenceMetadata) string {
@@ -678,7 +674,7 @@ func generateCreateTable(schemaName, tableName string, table *metadata.TableMeta
 	}
 	buf.WriteString(");")
 
-	for _, idx := range table.Indexes {
+	for _, idx := range orderedIndexes(table.Indexes) {
 		if idx.IsConstraint {
 			continue
 		}
@@ -832,6 +828,55 @@ func generateAlterTable(tableDiff *TableDiffEntry) string {
 		}
 	}
 	return buf.String()
+}
+
+func schemaHasSkipDump(schema *metadata.SchemaMetadata) bool {
+	if schema == nil {
+		return false
+	}
+	for _, table := range schema.Tables {
+		if table.GetSkipDump() {
+			return true
+		}
+	}
+	for _, view := range schema.Views {
+		if view.GetSkipDump() {
+			return true
+		}
+	}
+	for _, function := range schema.Functions {
+		if function.GetSkipDump() {
+			return true
+		}
+	}
+	for _, procedure := range schema.Procedures {
+		if procedure.SkipDump {
+			return true
+		}
+	}
+	for _, sequence := range schema.Sequences {
+		if sequence.GetSkipDump() {
+			return true
+		}
+	}
+	return false
+}
+
+func functionUsedByComputed(diff *SchemaDiff, functionName string) bool {
+	for _, tableDiff := range diff.Tables {
+		tables := []*metadata.TableMetadata{tableDiff.OldTable, tableDiff.NewTable}
+		for _, table := range tables {
+			if table == nil {
+				continue
+			}
+			for _, column := range table.Columns {
+				if isComputedColumnType(column.Type) && strings.Contains(strings.ToLower(column.Type), strings.ToLower(functionName)) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 func migrationTableFunctions(diff *SchemaDiff) map[string]bool {

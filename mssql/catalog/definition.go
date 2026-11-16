@@ -67,7 +67,7 @@ func DatabaseDefinition(to *metadata.DatabaseSchemaMetadata, opts DefinitionOpti
 	}
 
 	if hasViews(to.Schemas) {
-		if (hasTables(to.Schemas) || hasPreamble) && len(tableFunctions) == 0 && len(viewFunctions) == 0 {
+		if len(viewFunctions) == 0 && (hasTables(to.Schemas) || hasPreamble) {
 			buf.WriteString("GO\n\n")
 		}
 		writeAllViewsInOrder(&buf, to.Schemas)
@@ -204,22 +204,31 @@ func hasRoutines(schemas []*metadata.SchemaMetadata) bool {
 func writeSynonyms(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 	for _, schema := range schemas {
 		for _, synonym := range schema.Synonyms {
-			fmt.Fprintf(out, "CREATE SYNONYM %s.%s FOR ", quote(schema.Name), quote(synonym.Name))
-			var parts []string
-			if synonym.TargetServer != "" {
-				parts = append(parts, quote(synonym.TargetServer))
-			}
-			if synonym.TargetDatabase != "" {
-				parts = append(parts, quote(synonym.TargetDatabase))
-			}
-			if synonym.TargetSchema != "" {
-				parts = append(parts, quote(synonym.TargetSchema))
-			}
-			parts = append(parts, quote(synonym.TargetName))
-			out.WriteString(strings.Join(parts, "."))
-			out.WriteString(";\n\n")
+			fmt.Fprintf(out, "CREATE SYNONYM %s.%s FOR %s;\n\n", quote(schema.Name), quote(synonym.Name), synonymTarget(synonym))
 		}
 	}
+}
+
+// synonymTarget keeps interior empty components, so [db]..[object] does not
+// become the different [db].[object].
+func synonymTarget(synonym *metadata.SynonymMetadata) string {
+	components := []string{synonym.TargetServer, synonym.TargetDatabase, synonym.TargetSchema, synonym.TargetName}
+	start := 0
+	for i := 0; i < 3; i++ {
+		if components[i] != "" {
+			start = i
+			break
+		}
+	}
+	var parts []string
+	for i := start; i < len(components); i++ {
+		if components[i] == "" {
+			parts = append(parts, "")
+		} else {
+			parts = append(parts, quote(components[i]))
+		}
+	}
+	return strings.Join(parts, ".")
 }
 
 // writeSequences renders CREATE SEQUENCE before tables, since a table may use
@@ -496,7 +505,7 @@ func writeTableBody(out *strings.Builder, schemaName string, table *metadata.Tab
 		writeCheck(out, check)
 	}
 	out.WriteString("\n);\n\n")
-	for _, index := range table.Indexes {
+	for _, index := range orderedIndexes(table.Indexes) {
 		if index.IsConstraint {
 			continue
 		}
@@ -549,6 +558,21 @@ func writeXMLIndex(out *strings.Builder, schemaName, tableName string, index *me
 	}
 	fmt.Fprintf(out, "CREATE PRIMARY XML INDEX %s ON %s.%s (%s);\n\n",
 		quote(index.Name), quote(schemaName), quote(tableName), column)
+}
+
+func orderedIndexes(indexes []*metadata.IndexMetadata) []*metadata.IndexMetadata {
+	out := make([]*metadata.IndexMetadata, 0, len(indexes))
+	for _, index := range indexes {
+		if index.Type == "XML" && index.Definition == "PRIMARY" {
+			out = append(out, index)
+		}
+	}
+	for _, index := range indexes {
+		if index.Type != "XML" || index.Definition != "PRIMARY" {
+			out = append(out, index)
+		}
+	}
+	return out
 }
 
 func writeClusteredColumnStoreIndex(out *strings.Builder, schemaName, tableName string, index *metadata.IndexMetadata) {

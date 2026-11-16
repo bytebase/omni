@@ -993,24 +993,7 @@ func checkExpressionsEqual(a, b string) bool {
 // normalizeFunctionDefinition is Bytebase's function comparison normalization,
 // ported because Bytebase applies it to every engine, SQL Server included.
 func normalizeFunctionDefinition(definition string) string {
-	if definition == "" {
-		return ""
-	}
-	normalized := normalizeExpression(definition)
-	normalized = strings.ReplaceAll(normalized, "CREATE OR REPLACE FUNCTION", "CREATE FUNCTION")
-	normalized = strings.ReplaceAll(normalized, "CREATE OR REPLACE PROCEDURE", "CREATE PROCEDURE")
-	normalized = strings.ReplaceAll(normalized, "FUNCTION PUBLIC.", "FUNCTION ")
-	normalized = strings.ReplaceAll(normalized, "PROCEDURE PUBLIC.", "PROCEDURE ")
-	normalized = strings.ReplaceAll(normalized, "CHARACTER VARYING", "VARCHAR")
-	normalized = strings.ReplaceAll(normalized, "RETURNS NUMERIC", "RETURNS DECIMAL")
-	normalized = strings.ReplaceAll(normalized, "$function$", "$$")
-	normalized = strings.ReplaceAll(normalized, "$procedure$", "$$")
-	if strings.Contains(normalized, "LANGUAGE PLPGSQL") && !strings.HasSuffix(strings.TrimSpace(normalized), "LANGUAGE PLPGSQL") {
-		withoutLanguage := strings.ReplaceAll(normalized, " LANGUAGE PLPGSQL", "")
-		withoutLanguage = strings.ReplaceAll(withoutLanguage, "LANGUAGE PLPGSQL ", "")
-		normalized = strings.TrimSpace(withoutLanguage) + " LANGUAGE PLPGSQL"
-	}
-	return strings.TrimSpace(normalized)
+	return normalizeExpression(definition)
 }
 
 func procedureDefinitionsEqual(a, b string) bool {

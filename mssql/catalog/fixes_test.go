@@ -649,3 +649,38 @@ CREATE NONCLUSTERED COLUMNSTORE INDEX [ix] ON [dbo].[t] ([amount]) WHERE [active
 	sql := GenerateMigration(empty, c, Diff(empty, c)).SQL()
 	require.Contains(t, sql, "WHERE [active] = 1")
 }
+
+func TestSynonymKeepsEmptyMultipartComponent(t *testing.T) {
+	synonym := &metadata.SynonymMetadata{Name: "s", TargetDatabase: "otherdb", TargetName: "target"}
+	require.Equal(t, "[otherdb]..[target]", synonymTarget(synonym))
+}
+
+func TestDefinitionOrdersPrimaryXMLBeforeSecondary(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "doc", Type: "xml"}},
+			Indexes: []*metadata.IndexMetadata{
+				{Name: "A_path", Type: "XML", Expressions: []string{"doc"}, Definition: "USING XML INDEX Z_primary FOR PATH"},
+				{Name: "Z_primary", Type: "XML", Expressions: []string{"doc"}, Definition: "PRIMARY"},
+			},
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Less(t, strings.Index(def, "CREATE PRIMARY XML INDEX [Z_primary]"), strings.Index(def, "CREATE XML INDEX [A_path]"))
+}
+
+func TestSkipDumpTableIsNotDroppedWithItsSchema(t *testing.T) {
+	from := New()
+	require.NoError(t, from.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:   "app",
+		Tables: []*metadata.TableMetadata{{Name: "protected", SkipDump: true, Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}}}},
+	}}}))
+	to := New()
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "DROP TABLE [app].[protected]")
+	require.NotContains(t, sql, "DROP SCHEMA [app]")
+	require.Contains(t, sql, "UNSUPPORTED: schema [app]")
+}
