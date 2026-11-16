@@ -8,6 +8,11 @@ CREATE VIEW `v_open_accounts` AS SELECT
   1 AS `acct_email`;
 
 --
+-- Sequence structure for `seq_orders`
+--
+CREATE SEQUENCE `seq_orders` start with 10 minvalue 1 maxvalue 10000 increment by 2 cache 50 cycle ENGINE=InnoDB COMMENT='order seq';
+
+--
 -- Table structure for `accounts`
 --
 CREATE TABLE `accounts` (
