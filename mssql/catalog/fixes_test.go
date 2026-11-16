@@ -529,3 +529,76 @@ CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([a] + 2) PERSISTED, CONSTRAINT
 	require.Less(t, strings.Index(sql, "DROP CONSTRAINT [CK_c]"), strings.Index(sql, "DROP COLUMN [c]"))
 	require.Less(t, strings.Index(sql, "DROP COLUMN [c]"), strings.Index(sql, "ADD CONSTRAINT [CK_c]"))
 }
+
+func TestLoadSQLExtractsXMLIndexes(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([doc] xml NULL);
+CREATE PRIMARY XML INDEX [pxml] ON [dbo].[t] ([doc]);
+CREATE XML INDEX [sxml] ON [dbo].[t] ([doc]) USING XML INDEX [pxml] FOR PATH;
+`)
+	require.NoError(t, err)
+	indexes := c.GetTable("dbo", "t").Indexes
+	require.Len(t, indexes, 2)
+	require.Equal(t, "PRIMARY", indexes[0].Definition)
+	require.Equal(t, "USING XML INDEX pxml FOR PATH", indexes[1].Definition)
+}
+
+func TestSynonymDiffAndMigration(t *testing.T) {
+	from := New()
+	require.NoError(t, from.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:     "dbo",
+		Synonyms: []*metadata.SynonymMetadata{{Name: "old", TargetSchema: "dbo", TargetName: "a"}},
+	}}}))
+	to := New()
+	require.NoError(t, to.LoadMetadata(t.Context(), &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name:     "dbo",
+		Synonyms: []*metadata.SynonymMetadata{{Name: "new", TargetSchema: "dbo", TargetName: "b"}},
+	}}}))
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP SYNONYM [dbo].[old]")
+	require.Contains(t, sql, "CREATE SYNONYM [dbo].[new] FOR [dbo].[b]")
+}
+
+func TestSequenceTypeChangeIsExplicitlyUnsupported(t *testing.T) {
+	from, err := LoadSQL(`CREATE SEQUENCE [dbo].[s] AS INT START WITH 1;`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE SEQUENCE [dbo].[s] AS BIGINT START WITH 1;`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "UNSUPPORTED: sequence [dbo].[s] data type change")
+	require.NotContains(t, sql, "DROP SEQUENCE")
+}
+
+func TestExtendedPropertyEscapesNames(t *testing.T) {
+	sql := generateTableCommentSQL("ADD", "dbo", "O'Brien", "it's")
+	require.Contains(t, sql, "'TABLE', 'O''Brien'")
+	require.Contains(t, sql, "N'it''s'")
+}
+
+func TestForeignKeyUnqualifiedTargetUsesDefaultSchema(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE SCHEMA [app];
+CREATE TABLE [dbo].[parent] ([id] int NOT NULL, CONSTRAINT [PK_parent] PRIMARY KEY ([id]));
+CREATE TABLE [app].[child] ([id] int NOT NULL, [parent_id] int NULL, CONSTRAINT [PK_child] PRIMARY KEY ([id]), CONSTRAINT [FK_child_parent] FOREIGN KEY ([parent_id]) REFERENCES [parent] ([id]));
+`)
+	require.NoError(t, err)
+	fk := c.GetTable("app", "child").ForeignKeys[0]
+	require.Equal(t, "dbo", fk.ReferencedSchema)
+}
+
+func TestComputedRebuildDropsCoveringIndex(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([a] + 1) PERSISTED);
+CREATE INDEX [IX_t] ON [dbo].[t] ([a]) INCLUDE ([c]);
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([a] int NOT NULL, [c] AS ([a] + 2) PERSISTED);
+CREATE INDEX [IX_t] ON [dbo].[t] ([a]) INCLUDE ([c]);
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP INDEX [IX_t]")
+	require.Contains(t, sql, "DROP COLUMN [c]")
+	require.Contains(t, sql, "INCLUDE ([c])")
+}

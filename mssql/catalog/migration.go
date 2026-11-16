@@ -208,6 +208,17 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for _, schemaName := range schemasToCreate {
 		fmt.Fprintf(&buf, "CREATE SCHEMA %s;\nGO\n", quote(schemaName))
 	}
+	for _, synonymDiff := range diff.Synonyms {
+		if synonymDiff.Action == DiffDrop {
+			fmt.Fprintf(&buf, "DROP SYNONYM %s.%s;\nGO\n", quote(synonymDiff.SchemaName), quote(synonymDiff.SynonymName))
+		}
+	}
+	for _, synonymDiff := range diff.Synonyms {
+		if synonymDiff.Action == DiffCreate || synonymDiff.Action == DiffAlter {
+			buf.WriteString(generateCreateSynonym(synonymDiff.SchemaName, synonymDiff.NewSynonym))
+			buf.WriteString("\nGO\n")
+		}
+	}
 	if len(schemasToCreate) > 0 && (hasCreateOrAlterTables(diff) || hasCreateViews(diff) || hasCreateFunctions(diff) || hasCreateProcedures(diff)) {
 		buf.WriteString("\n")
 	}
@@ -442,9 +453,8 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 	oldSequence, newSequence := diff.OldSequence, diff.NewSequence
 	var buf strings.Builder
 	if oldSequence.DataType != newSequence.DataType {
-		fmt.Fprintf(&buf, "DROP SEQUENCE %s.%s;\nGO\n", quote(diff.SchemaName), quote(diff.SequenceName))
-		buf.WriteString(generateCreateSequence(diff.SchemaName, diff.SequenceName, newSequence))
-		buf.WriteString("\nGO\n")
+		fmt.Fprintf(&buf, "-- UNSUPPORTED: sequence %s.%s data type change requires recreating it; current position would be lost.\n",
+			quote(diff.SchemaName), quote(diff.SequenceName))
 		return buf.String()
 	}
 	fmt.Fprintf(&buf, "ALTER SEQUENCE %s.%s", quote(diff.SchemaName), quote(diff.SequenceName))
@@ -473,6 +483,25 @@ func generateAlterSequence(diff *SequenceDiffEntry) string {
 		}
 	}
 	buf.WriteString(";\nGO\n")
+	return buf.String()
+}
+
+func generateCreateSynonym(schemaName string, synonym *metadata.SynonymMetadata) string {
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "CREATE SYNONYM %s.%s FOR ", quote(schemaName), quote(synonym.Name))
+	var parts []string
+	if synonym.TargetServer != "" {
+		parts = append(parts, quote(synonym.TargetServer))
+	}
+	if synonym.TargetDatabase != "" {
+		parts = append(parts, quote(synonym.TargetDatabase))
+	}
+	if synonym.TargetSchema != "" {
+		parts = append(parts, quote(synonym.TargetSchema))
+	}
+	parts = append(parts, quote(synonym.TargetName))
+	buf.WriteString(strings.Join(parts, "."))
+	buf.WriteString(";")
 	return buf.String()
 }
 
@@ -893,6 +922,11 @@ func indexUsesColumn(index *metadata.IndexMetadata, name string) bool {
 			return true
 		}
 	}
+	for _, column := range indexIncludeColumns(index.Definition) {
+		if strings.EqualFold(column, name) {
+			return true
+		}
+	}
 	return false
 }
 
@@ -1123,15 +1157,19 @@ func hasConstraintsInTable(table *metadata.TableMetadata) bool {
 	return false
 }
 
+func literal(value string) string {
+	return strings.ReplaceAll(value, "'", "''")
+}
+
 func generateExtendedPropertySQL(action, objectType, schemaName, objectName, comment string) string {
 	var buf strings.Builder
 	switch action {
 	case "ADD":
-		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, objectType, objectName)
+		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), literal(schemaName), objectType, literal(objectName))
 	case "UPDATE":
-		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, objectType, objectName)
+		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', '%s', '%s'", strings.ReplaceAll(comment, "'", "''"), literal(schemaName), objectType, literal(objectName))
 	case "DROP":
-		fmt.Fprintf(&buf, "EXEC sp_dropextendedproperty 'MS_Description', 'SCHEMA', '%s', '%s', '%s'", schemaName, objectType, objectName)
+		fmt.Fprintf(&buf, "EXEC sp_dropextendedproperty 'MS_Description', 'SCHEMA', '%s', '%s', '%s'", literal(schemaName), objectType, literal(objectName))
 	}
 	return buf.String()
 }
@@ -1156,11 +1194,11 @@ func generateColumnCommentSQL(action, schemaName, tableName, columnName, comment
 	var buf strings.Builder
 	switch action {
 	case "ADD":
-		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, tableName, columnName)
+		fmt.Fprintf(&buf, "EXEC sp_addextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), literal(schemaName), literal(tableName), literal(columnName))
 	case "UPDATE":
-		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), schemaName, tableName, columnName)
+		fmt.Fprintf(&buf, "EXEC sp_updateextendedproperty 'MS_Description', N'%s', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", strings.ReplaceAll(comment, "'", "''"), literal(schemaName), literal(tableName), literal(columnName))
 	case "DROP":
-		fmt.Fprintf(&buf, "EXEC sp_dropextendedproperty 'MS_Description', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", schemaName, tableName, columnName)
+		fmt.Fprintf(&buf, "EXEC sp_dropextendedproperty 'MS_Description', 'SCHEMA', '%s', 'TABLE', '%s', 'COLUMN', '%s'", literal(schemaName), literal(tableName), literal(columnName))
 	}
 	return buf.String()
 }

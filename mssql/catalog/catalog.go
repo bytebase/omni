@@ -10,11 +10,10 @@ package catalog
 
 import (
 	"context"
+	"encoding/json"
 	"slices"
 	"strconv"
 	"strings"
-
-	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql"
@@ -218,6 +217,8 @@ func (c *Catalog) execStatement(node ast.Node, source string) error {
 		c.execCreateIndex(n, source)
 	case *ast.CreateSpatialIndexStmt:
 		c.execCreateSpatialIndex(n)
+	case *ast.CreateXmlIndexStmt:
+		c.execCreateXMLIndex(n)
 	case *ast.CreateViewStmt:
 		c.execCreateRoutine("view", n.Name, n, source)
 	case *ast.CreateProcedureStmt:
@@ -340,7 +341,7 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 			case ast.ConstraintCheck:
 				c.appendCheckConstraint(table, constraint, source)
 			case ast.ConstraintForeignKey:
-				c.appendForeignKey(table, constraint, []string{column.Name}, schemaName)
+				c.appendForeignKey(table, constraint, []string{column.Name}, c.defaultSchema)
 			}
 		}
 	}
@@ -374,7 +375,7 @@ func (c *Catalog) extractTableConstraint(n *ast.ConstraintDef, table *metadata.T
 	case ast.ConstraintCheck:
 		c.appendCheckConstraint(table, n, source)
 	case ast.ConstraintForeignKey:
-		c.appendForeignKey(table, n, stringNodeList(n.Columns), schemaName)
+		c.appendForeignKey(table, n, stringNodeList(n.Columns), c.defaultSchema)
 	}
 }
 
@@ -392,6 +393,26 @@ func (c *Catalog) execCreateIndex(n *ast.CreateIndexStmt, source string) {
 	}
 	appendIndexColumns(index, n.Columns)
 	index.Definition = indexDefinition(n.IncludeCols, n.WhereClause, source)
+	table.Indexes = append(table.Indexes, index)
+}
+
+func (c *Catalog) execCreateXMLIndex(n *ast.CreateXmlIndexStmt) {
+	schemaName, tableName := tableRefSchemaObject(n.Table, c.defaultSchema)
+	table := c.getOrCreateTable(schemaName, tableName)
+	index := &metadata.IndexMetadata{
+		Name:         n.Name,
+		Type:         "XML",
+		Expressions:  []string{n.XmlColumn},
+		Descending:   []bool{false},
+		IsConstraint: false,
+		Definition:   "PRIMARY",
+	}
+	if !n.Primary {
+		index.Definition = "USING XML INDEX " + n.UsingIndex
+		if n.SecondaryFor != "" {
+			index.Definition += " FOR " + n.SecondaryFor
+		}
+	}
 	table.Indexes = append(table.Indexes, index)
 }
 
@@ -859,6 +880,20 @@ func referentialAction(action ast.ReferentialAction) string {
 	}
 }
 
+// cloneSchema copies a snapshot through its JSON form. The metadata types are
+// protobuf messages, whose mutex rules prevent a struct copy, and the catalog
+// must not take a direct protobuf dependency.
 func cloneSchema(schema *metadata.SchemaMetadata) *metadata.SchemaMetadata {
-	return proto.Clone(schema).(*metadata.SchemaMetadata)
+	data, err := json.Marshal(schema)
+	if err != nil {
+		return schema
+	}
+	out := &metadata.SchemaMetadata{}
+	if err := json.Unmarshal(data, out); err != nil {
+		return schema
+	}
+	if out.Tables == nil {
+		out.Tables = []*metadata.TableMetadata{}
+	}
+	return out
 }

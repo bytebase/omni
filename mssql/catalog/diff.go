@@ -75,6 +75,15 @@ type TriggerDiffEntry struct {
 	NewTrigger *metadata.TriggerMetadata
 }
 
+// SynonymDiffEntry describes a synonym change.
+type SynonymDiffEntry struct {
+	Action      DiffAction
+	SchemaName  string
+	SynonymName string
+	OldSynonym  *metadata.SynonymMetadata
+	NewSynonym  *metadata.SynonymMetadata
+}
+
 // ViewDiffEntry describes a view change.
 type ViewDiffEntry struct {
 	Action     DiffAction
@@ -117,6 +126,7 @@ type SchemaDiff struct {
 	Schemas      []*SchemaDiffEntry
 	Tables       []*TableDiffEntry
 	Views        []*ViewDiffEntry
+	Synonyms     []*SynonymDiffEntry
 	Functions    []*FunctionDiffEntry
 	Procedures   []*ProcedureDiffEntry
 	Sequences    []*SequenceDiffEntry
@@ -128,6 +138,7 @@ func (d *SchemaDiff) IsEmpty() bool {
 	return len(d.Schemas) == 0 &&
 		len(d.Tables) == 0 &&
 		len(d.Views) == 0 &&
+		len(d.Synonyms) == 0 &&
 		len(d.Functions) == 0 &&
 		len(d.Procedures) == 0 &&
 		len(d.Sequences) == 0
@@ -225,6 +236,14 @@ func addDroppedSchemaObjects(diff *SchemaDiff, schemaName string, schema *metada
 			})
 		}
 	}
+	for _, synonym := range schema.Synonyms {
+		diff.Synonyms = append(diff.Synonyms, &SynonymDiffEntry{
+			Action:      DiffDrop,
+			SchemaName:  schemaName,
+			SynonymName: synonym.Name,
+			OldSynonym:  synonym,
+		})
+	}
 	for _, sequence := range schema.GetSequences() {
 		if sequence.GetSkipDump() {
 			continue
@@ -260,6 +279,9 @@ func addNewSchemaObjects(diff *SchemaDiff, schemaName string, schema *metadata.S
 				NewView:    view,
 			})
 		}
+	}
+	for _, synonym := range schema.Synonyms {
+		diff.Synonyms = append(diff.Synonyms, &SynonymDiffEntry{Action: DiffCreate, SchemaName: schemaName, SynonymName: synonym.Name, NewSynonym: synonym})
 	}
 	for _, function := range schema.GetFunctions() {
 		if function.GetSkipDump() {
@@ -338,6 +360,7 @@ func compareSchemaObjects(diff *SchemaDiff, schemaName string, oldSchema, newSch
 	}
 
 	compareViews(diff, schemaName, oldSchema, newSchema)
+	compareSynonyms(diff, schemaName, oldSchema, newSchema)
 	compareFunctions(diff, schemaName, oldSchema, newSchema)
 	compareProcedures(diff, schemaName, oldSchema, newSchema)
 	compareSequences(diff, schemaName, oldSchema, newSchema)
@@ -776,6 +799,38 @@ func triggerListsEqual(a, b []*metadata.TriggerMetadata) bool {
 	return true
 }
 
+func compareSynonyms(diff *SchemaDiff, schemaName string, oldSchema, newSchema *metadata.SchemaMetadata) {
+	oldMap := make(map[string]*metadata.SynonymMetadata)
+	for _, synonym := range oldSchema.Synonyms {
+		oldMap[synonym.Name] = synonym
+	}
+	newMap := make(map[string]*metadata.SynonymMetadata)
+	for _, synonym := range newSchema.Synonyms {
+		newMap[synonym.Name] = synonym
+	}
+	for name, oldSynonym := range oldMap {
+		if _, ok := newMap[name]; !ok {
+			diff.Synonyms = append(diff.Synonyms, &SynonymDiffEntry{Action: DiffDrop, SchemaName: schemaName, SynonymName: name, OldSynonym: oldSynonym})
+		}
+	}
+	for name, newSynonym := range newMap {
+		oldSynonym, ok := oldMap[name]
+		if !ok {
+			diff.Synonyms = append(diff.Synonyms, &SynonymDiffEntry{Action: DiffCreate, SchemaName: schemaName, SynonymName: name, NewSynonym: newSynonym})
+			continue
+		}
+		if oldSynonym.TargetServer != newSynonym.TargetServer ||
+			oldSynonym.TargetDatabase != newSynonym.TargetDatabase ||
+			oldSynonym.TargetSchema != newSynonym.TargetSchema ||
+			oldSynonym.TargetName != newSynonym.TargetName {
+			diff.Synonyms = append(diff.Synonyms,
+				&SynonymDiffEntry{Action: DiffDrop, SchemaName: schemaName, SynonymName: name, OldSynonym: oldSynonym},
+				&SynonymDiffEntry{Action: DiffCreate, SchemaName: schemaName, SynonymName: name, NewSynonym: newSynonym},
+			)
+		}
+	}
+}
+
 func compareFunctions(diff *SchemaDiff, schemaName string, oldSchema, newSchema *metadata.SchemaMetadata) {
 	oldFunctions := functionsBySignature(oldSchema)
 	newFunctions := functionsBySignature(newSchema)
@@ -1078,6 +1133,15 @@ func sortDiff(diff *SchemaDiff) {
 		}
 		if a.TableName != b.TableName {
 			return strings.Compare(a.TableName, b.TableName)
+		}
+		return strings.Compare(string(a.Action), string(b.Action))
+	})
+	slices.SortFunc(diff.Synonyms, func(a, b *SynonymDiffEntry) int {
+		if a.SchemaName != b.SchemaName {
+			return strings.Compare(a.SchemaName, b.SchemaName)
+		}
+		if a.SynonymName != b.SynonymName {
+			return strings.Compare(a.SynonymName, b.SynonymName)
 		}
 		return strings.Compare(string(a.Action), string(b.Action))
 	})
