@@ -95,6 +95,13 @@ func newClient(ctx context.Context, cfg driver.Config) (client, error) {
 	// real AWS endpoint for the region and the configured host:port is
 	// silently ignored, routing queries intended for a local endpoint to AWS.
 	if endpoint := endpoint(cfg); endpoint != "" {
+		// Config.TLS makes TLS required, and an http URL would carry the
+		// statements in plaintext whatever transport the SDK is given: the
+		// configuration contradicts itself, so it is refused rather than
+		// quietly downgraded.
+		if cfg.TLS != nil && strings.HasPrefix(strings.ToLower(endpoint), "http://") {
+			return nil, fmt.Errorf("TLS is required but the endpoint %s is http", endpoint)
+		}
 		options = append(options, func(o *awssdk.Options) {
 			o.BaseEndpoint = aws.String(endpoint)
 		})

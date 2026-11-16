@@ -41,7 +41,8 @@
 // {account_id}-{region} name Bytebase built.
 //
 // Config.TLS supplies the TLS settings for the endpoint's host and makes TLS
-// required; nil leaves the SDK's own transport, which is how a server's
+// required, so an endpoint URL that names http is refused rather than reached
+// in plaintext; nil leaves the SDK's own transport, which is how a server's
 // certificate is verified. Config.Dial opens the connections the client makes,
 // so an SSH tunnel or a cloud connector reaches the endpoint unchanged.
 // Config.Database is the pseudo database name the caller recorded, reported by

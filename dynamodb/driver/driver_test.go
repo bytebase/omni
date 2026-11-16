@@ -148,6 +148,22 @@ func setHermeticAWSEnv(t *testing.T) {
 	t.Setenv("AWS_SHARED_CREDENTIALS_FILE", missing)
 }
 
+// TestOpenRejectsPlaintextWithTLS holds that a configuration asking for TLS and
+// naming an http endpoint is refused: the transport's TLS settings never apply
+// to an http request, so the statements would travel in plaintext.
+func TestOpenRejectsPlaintextWithTLS(t *testing.T) {
+	setHermeticAWSEnv(t)
+	_, err := Open(context.Background(), driver.Config{
+		Host:     "http://localhost",
+		Port:     "8000",
+		Params:   map[string]string{ParamRegion: testRegion},
+		User:     "any",
+		Password: "any",
+		TLS:      func(string) (*tls.Config, error) { return &tls.Config{}, nil },
+	})
+	require.EqualError(t, err, "TLS is required but the endpoint http://localhost:8000 is http")
+}
+
 // TestOpenAndClose opens a driver against a region without reaching it, which
 // is what Open promises: the client is built, the endpoint is not asked.
 func TestOpenAndClose(t *testing.T) {
