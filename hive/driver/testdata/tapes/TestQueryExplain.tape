@@ -28,6 +28,9 @@
 > exec
 | CREATE VIEW v_users AS SELECT id, name FROM ext_users
 < ok - -
+> exec
+| USE `omni_query_explain`
+< ok - -
 > query
 | EXPLAIN SELECT id FROM orders
 < result

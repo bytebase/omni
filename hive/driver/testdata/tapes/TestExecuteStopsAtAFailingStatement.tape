@@ -41,6 +41,9 @@
 < error
 | 40000
 | Error while compiling statement: FAILED: RuntimeException org.apache.hadoop.hive.ql.metadata.InvalidTableException: Table not found no_such_table
+> exec
+| USE `omni_execute_error`
+< ok - -
 > query
 | SHOW TABLES
 < result

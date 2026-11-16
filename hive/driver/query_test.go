@@ -198,6 +198,57 @@ func TestQuerySelectsTheSchema(t *testing.T) {
 	require.Equal(t, int64(0), results[0].Rows[0][0].Int64)
 }
 
+// TestSessionStartsFromTheConfiguredDatabase: a session that selected another
+// database leaves that choice on the pooled connection, and the next session
+// starts from the database the driver was opened on.
+func TestSessionStartsFromTheConfiguredDatabase(t *testing.T) {
+	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+		for _, stmt := range []string{
+			"DROP DATABASE IF EXISTS omni_session_home CASCADE",
+			"DROP DATABASE IF EXISTS omni_session_other CASCADE",
+			"CREATE DATABASE omni_session_home",
+			"CREATE DATABASE omni_session_other",
+		} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	db := testcontainer.Open(t, "omni_session_home")
+	execCorpus(t, db, `CREATE TABLE omni_session_home.t (tag STRING) STORED AS PARQUET
+
+ALTER TABLE omni_session_home.t SET TBLPROPERTIES('EXTERNAL'='FALSE')
+
+INSERT INTO omni_session_home.t VALUES ('home')
+
+CREATE TABLE omni_session_other.t (tag STRING) STORED AS PARQUET
+
+ALTER TABLE omni_session_other.t SET TBLPROPERTIES('EXTERNAL'='FALSE')
+
+INSERT INTO omni_session_other.t VALUES ('other')`)
+	d := &Driver{db: db, databaseName: "omni_session_home"}
+	tag := func(sess driver.Session) string {
+		results, err := sess.Query(context.Background(), "SELECT tag FROM t", driver.QueryOptions{})
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NoError(t, results[0].Err)
+		require.Len(t, results[0].Rows, 1)
+		return results[0].Rows[0][0].String
+	}
+
+	sess := openSession(t, d)
+	require.Equal(t, "home", tag(sess))
+	results, err := sess.Query(context.Background(), "USE omni_session_other", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Error(t, results[0].Err)
+	require.Equal(t, "other", tag(sess))
+	require.NoError(t, sess.Close())
+
+	require.Equal(t, "home", tag(openSession(t, d)))
+}
+
 // TestQuerySelectsTheSchemaAgainAfterAStatementChangesIt: a USE the session ran
 // moves the connection to another database, and a caller that names a database
 // gets it selected again rather than the last one it asked for.

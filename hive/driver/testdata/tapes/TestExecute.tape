@@ -39,6 +39,9 @@
 |
 | 		INSERT INTO exec_t VALUES (1, 'a'), (2, 'b')
 < ok - -
+> exec
+| USE `omni_execute`
+< ok - -
 > query
 | SELECT id, note FROM exec_t
 < result

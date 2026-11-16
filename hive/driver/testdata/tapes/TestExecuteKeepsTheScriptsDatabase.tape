@@ -43,6 +43,9 @@
 |
 | 		INSERT INTO use_t VALUES (7)
 < ok - -
+> exec
+| USE `omni_execute_use`
+< ok - -
 > query
 | SELECT id FROM use_t
 < result

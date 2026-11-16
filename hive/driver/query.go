@@ -19,6 +19,15 @@ func (d *Driver) Session(ctx context.Context) (driver.Session, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The pool has no reset hook for Hive, so a connection another session left
+	// on its own database arrives here still there: start from the database this
+	// driver was opened on.
+	if d.databaseName != "" {
+		if _, err := conn.ExecContext(ctx, "USE "+quoteBacktick(d.databaseName)); err != nil {
+			_ = conn.Close()
+			return nil, fmt.Errorf("failed to select database %s: %w", d.databaseName, err)
+		}
+	}
 	return &session{conn: conn}, nil
 }
 

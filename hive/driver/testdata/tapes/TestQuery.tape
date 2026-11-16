@@ -28,6 +28,9 @@
 > exec
 | CREATE VIEW v_users AS SELECT id, name FROM ext_users
 < ok - -
+> exec
+| USE `omni_query`
+< ok - -
 > query
 | SELECT CAST(1 AS TINYINT) AS tiny, CAST(2 AS SMALLINT) AS small, CAST(3 AS INT) AS i
 < result
