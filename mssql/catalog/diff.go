@@ -174,8 +174,20 @@ func Diff(from, to *Catalog) *SchemaDiff {
 }
 
 // addDroppedSchemaObjects turns a removed schema into object-level drops, so
-// the dependency-ordered drop phases empty it before DROP SCHEMA runs.
+// the dependency-ordered drop phases empty it before DROP SCHEMA runs and
+// every foreign key sees its own drop.
 func addDroppedSchemaObjects(diff *SchemaDiff, schemaName string, schema *metadata.SchemaMetadata) {
+	for _, name := range sortedTableNames(schema) {
+		table := tableByName(schema, name)
+		if table != nil && !table.GetSkipDump() {
+			diff.Tables = append(diff.Tables, &TableDiffEntry{
+				Action:     DiffDrop,
+				SchemaName: schemaName,
+				TableName:  name,
+				OldTable:   table,
+			})
+		}
+	}
 	for _, name := range sortedViewNames(schema) {
 		view := viewByName(schema, name)
 		if view != nil && !view.GetSkipDump() {

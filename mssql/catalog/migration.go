@@ -213,6 +213,9 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	}
 
 	for _, ref := range inbound {
+		if !ref.recreate {
+			continue
+		}
 		buf.WriteString(generateAddForeignKey(ref.schema, ref.table, ref.fk))
 		buf.WriteString(";\n")
 	}
@@ -449,9 +452,10 @@ func generateCreateSequence(schemaName, sequenceName string, sequence *metadata.
 // foreignKeyRef is an unchanged foreign key that references a key being
 // replaced, so it must be dropped before and recreated after the replacement.
 type foreignKeyRef struct {
-	schema string
-	table  string
-	fk     *metadata.ForeignKeyMetadata
+	schema   string
+	table    string
+	fk       *metadata.ForeignKeyMetadata
+	recreate bool
 }
 
 func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
@@ -482,7 +486,7 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 			}
 		}
 	}
-	if len(replaced) == 0 {
+	if len(replaced) == 0 && len(droppedTables) == 0 {
 		return nil
 	}
 	var refs []foreignKeyRef
@@ -493,13 +497,19 @@ func inboundForeignKeys(from *Catalog, diff *SchemaDiff) []foreignKeyRef {
 				continue
 			}
 			for _, fk := range table.ForeignKeys {
-				if !replaced[objectID(fk.ReferencedSchema, fk.ReferencedTable)] {
+				referenced := objectID(fk.ReferencedSchema, fk.ReferencedTable)
+				if !replaced[referenced] && !droppedTables[referenced] {
 					continue
 				}
 				if explicit[tableID+"."+fk.Name] {
 					continue
 				}
-				refs = append(refs, foreignKeyRef{schema: schema.Name, table: table.Name, fk: fk})
+				refs = append(refs, foreignKeyRef{
+					schema:   schema.Name,
+					table:    table.Name,
+					fk:       fk,
+					recreate: replaced[referenced],
+				})
 			}
 		}
 	}

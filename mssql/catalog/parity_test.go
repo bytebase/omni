@@ -83,6 +83,7 @@ var knownMigrationImprovements = map[string]bool{
 	"Edge cases for default constraints including special characters, unicode, extreme values":                  true,
 	"Reverse of index operations - dropping various index types including filtered and computed column indexes": true,
 	"Reverse of computed columns - dropping indexes and computed columns":                                       true,
+	"Cross-schema operations with new schema creation":                                                          true,
 }
 
 // normalizeMetadataParity removes the fields the catalog deliberately improves

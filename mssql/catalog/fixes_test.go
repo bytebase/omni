@@ -120,3 +120,30 @@ func TestExpressionComparisonKeepsLiterals(t *testing.T) {
 	require.False(t, expressionsEqual("'pending'", "'PENDING'"))
 	require.False(t, checkExpressionsEqual("'pending'", "'PENDING'"))
 }
+
+func TestMigrationDropsSchemaObjectsBeforeSchema(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE SCHEMA [gone];
+CREATE TABLE [gone].[t] ([id] int NOT NULL, CONSTRAINT [PK_gone_t] PRIMARY KEY ([id]));
+CREATE VIEW [gone].[v] AS SELECT [id] FROM [gone].[t];
+CREATE PROCEDURE [gone].[p] AS SELECT 1;
+CREATE FUNCTION [gone].[f]() RETURNS int AS BEGIN RETURN 1 END;
+CREATE SEQUENCE [gone].[s] AS INT;
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE SCHEMA [kept];`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	for _, want := range []string{
+		"DROP VIEW [gone].[v]",
+		"DROP PROCEDURE [gone].[p]",
+		"DROP FUNCTION [gone].[f]",
+		"DROP SEQUENCE [gone].[s]",
+		"DROP TABLE [gone].[t]",
+		"DROP SCHEMA [gone]",
+	} {
+		require.Contains(t, sql, want)
+	}
+	require.Less(t, strings.Index(sql, "DROP VIEW [gone].[v]"), strings.Index(sql, "DROP TABLE [gone].[t]"))
+	require.Less(t, strings.Index(sql, "DROP TABLE [gone].[t]"), strings.Index(sql, "DROP SCHEMA [gone]"))
+}
