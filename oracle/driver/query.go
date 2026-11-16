@@ -78,6 +78,13 @@ func (s *session) Query(ctx context.Context, script string, opts omnidriver.Quer
 
 	var results []*omnidriver.Result
 	for _, stmt := range prepared {
+		// The session is the caller's, so the schema is set on every statement
+		// rather than once: a script that switches it switches for the next.
+		if opts.Schema != "" {
+			if _, err := s.conn.ExecContext(ctx, fmt.Sprintf("ALTER SESSION SET CURRENT_SCHEMA = %s", quoteIdent(opts.Schema))); err != nil {
+				return nil, err
+			}
+		}
 		startTime := time.Now()
 		res, err := s.runStatement(ctx, stmt.text, stmt.returnsData, stmt.planAsJSON, opts.MaxResultBytes)
 		stop := false

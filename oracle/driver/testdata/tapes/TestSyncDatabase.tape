@@ -148,6 +148,13 @@
 |
 | CREATE PROCEDURE OMNI_APP.TOUCH (P_ID IN NUMBER) AS BEGIN NULL; END;
 < ok 0 0
+> query
+| SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
+< result
+< column "VERSION_FULL" "NCHAR"
+< row
+: string
+| 23.26.3.0.0
 > begin
 < ok
 > query

@@ -236,16 +236,18 @@ func (d *Driver) SyncInstance(ctx context.Context) (*omnidriver.Instance, error)
 
 // SyncDatabase reads the full schema metadata of Config.Database.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	// The version comes from the server on a connection of its own: the
+	// dictionary reads below hold the transaction's.
+	version, err := d.version(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get version: %w", err)
+	}
+
 	txn, err := d.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = txn.Rollback() }()
-
-	version, err := d.version()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get version: %w", err)
-	}
 
 	columnMap, err := getTableColumns(txn, d.databaseName, version)
 	if err != nil {
