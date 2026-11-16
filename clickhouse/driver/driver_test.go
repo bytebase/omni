@@ -266,6 +266,14 @@ func TestConvertMapWithFloatKeys(t *testing.T) {
 	}
 }
 
+func TestConvertUInt8Array(t *testing.T) {
+	value := any([]uint8{1, 2})
+	got := convertValue("ARRAY(UINT8)", nil, &value)
+	if want := `[1,2]`; got.Kind != driver.String || got.String != want {
+		t.Errorf("Array(UInt8) = %+v, want %s", got, want)
+	}
+}
+
 func TestConvertTimeDuration(t *testing.T) {
 	duration := time.Hour + 2*time.Minute + 3*time.Second + 456*time.Millisecond
 	if got := convertValue("TIME64", nil, &duration); got.Kind != driver.String || got.String != "01:02:03.456" {

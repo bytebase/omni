@@ -393,15 +393,7 @@ func normalizeJSONValue(value any) any {
 		default:
 			return value
 		}
-	case reflect.Slice:
-		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			return value
-		}
-		fallthrough
-	case reflect.Array:
-		if rv.Type().Elem().Kind() == reflect.Uint8 {
-			return value
-		}
+	case reflect.Slice, reflect.Array:
 		out := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
 			out[i] = normalizeJSONValue(rv.Index(i).Interface())
