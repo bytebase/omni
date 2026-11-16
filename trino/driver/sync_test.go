@@ -61,6 +61,11 @@ func TestSyncDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	for _, schema := range got.Schemas {
+		if schema.Name == "information_schema" {
+			t.Errorf("the sync reported the catalog's information_schema as a schema of its own")
+		}
+	}
 	writeOrCompareGolden(t, filepath.Join("testdata", "sync", "database.json"), got)
 }
 
