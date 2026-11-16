@@ -139,6 +139,9 @@ func isDML(stmt ast.StmtNode) bool {
 func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 	extractor := newMetadataExtractorFromMetadata(c.meta, source)
 	extractor.extractStatement(stmt)
+	if extractor.err != nil {
+		return extractor.err
+	}
 	meta := extractor.databaseMetadata()
 	// Keep any additional schemas the catalog already carried; Oracle's DDL
 	// names one schema at a time.

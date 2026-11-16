@@ -147,7 +147,13 @@
           "views": [
             {
               "name": "EXPENSIVE_PRODUCTS",
-              "definition": "SELECT ID, NAME, PRICE\nFROM PRODUCTS\nWHERE PRICE \u003e 100"
+              "definition": "SELECT ID, NAME, PRICE\nFROM PRODUCTS\nWHERE PRICE \u003e 100",
+              "dependency_columns": [
+                {
+                  "table": "PRODUCTS",
+                  "column": "*"
+                }
+              ]
             }
           ]
         }
@@ -1312,11 +1318,23 @@
           "views": [
             {
               "name": "CUSTOMER_SALES_ANALYSIS",
-              "definition": "SELECT\n    st.CUSTOMER_ID,\n    COUNT(DISTINCT st.TRANSACTION_ID) AS TOTAL_TRANSACTIONS,\n    COUNT(DISTINCT TO_CHAR(st.SALE_DATE, 'YYYY-MM')) AS ACTIVE_MONTHS,\n    SUM(st.TOTAL_AMOUNT) AS LIFETIME_VALUE,\n    AVG(st.TOTAL_AMOUNT) AS AVG_TRANSACTION_VALUE,\n    MAX(st.SALE_DATE) AS LAST_PURCHASE_DATE,\n    CASE\n        WHEN MAX(st.SALE_DATE) \u003e= SYSDATE - 30 THEN 'ACTIVE'\n        WHEN MAX(st.SALE_DATE) \u003e= SYSDATE - 90 THEN 'RECENT'\n        ELSE 'INACTIVE'\n    END AS CUSTOMER_STATUS,\n    ROUND(SUM(st.TOTAL_AMOUNT) / NULLIF(COUNT(DISTINCT TO_CHAR(st.SALE_DATE, 'YYYY-MM')), 0), 2) AS MONTHLY_SPEND_RATE\nFROM SALES_TRANSACTIONS st\nWHERE st.SALE_DATE \u003e= ADD_MONTHS(SYSDATE, -24)\nGROUP BY st.CUSTOMER_ID\nHAVING COUNT(*) \u003e= 3"
+              "definition": "SELECT\n    st.CUSTOMER_ID,\n    COUNT(DISTINCT st.TRANSACTION_ID) AS TOTAL_TRANSACTIONS,\n    COUNT(DISTINCT TO_CHAR(st.SALE_DATE, 'YYYY-MM')) AS ACTIVE_MONTHS,\n    SUM(st.TOTAL_AMOUNT) AS LIFETIME_VALUE,\n    AVG(st.TOTAL_AMOUNT) AS AVG_TRANSACTION_VALUE,\n    MAX(st.SALE_DATE) AS LAST_PURCHASE_DATE,\n    CASE\n        WHEN MAX(st.SALE_DATE) \u003e= SYSDATE - 30 THEN 'ACTIVE'\n        WHEN MAX(st.SALE_DATE) \u003e= SYSDATE - 90 THEN 'RECENT'\n        ELSE 'INACTIVE'\n    END AS CUSTOMER_STATUS,\n    ROUND(SUM(st.TOTAL_AMOUNT) / NULLIF(COUNT(DISTINCT TO_CHAR(st.SALE_DATE, 'YYYY-MM')), 0), 2) AS MONTHLY_SPEND_RATE\nFROM SALES_TRANSACTIONS st\nWHERE st.SALE_DATE \u003e= ADD_MONTHS(SYSDATE, -24)\nGROUP BY st.CUSTOMER_ID\nHAVING COUNT(*) \u003e= 3",
+              "dependency_columns": [
+                {
+                  "table": "SALES_TRANSACTIONS",
+                  "column": "*"
+                }
+              ]
             },
             {
               "name": "MONTHLY_SALES_SUMMARY",
-              "definition": "SELECT\n    TO_CHAR(SALE_DATE, 'YYYY-MM') AS SALES_MONTH,\n    REGION,\n    COUNT(*) AS TRANSACTION_COUNT,\n    SUM(QUANTITY) AS TOTAL_QUANTITY,\n    SUM(TOTAL_AMOUNT) AS TOTAL_REVENUE,\n    AVG(TOTAL_AMOUNT) AS AVG_TRANSACTION_VALUE,\n    MIN(SALE_DATE) AS FIRST_SALE_DATE,\n    MAX(SALE_DATE) AS LAST_SALE_DATE\nFROM SALES_TRANSACTIONS\nWHERE SALE_DATE \u003e= ADD_MONTHS(SYSDATE, -12)\nGROUP BY TO_CHAR(SALE_DATE, 'YYYY-MM'), REGION\nHAVING SUM(TOTAL_AMOUNT) \u003e 1000\nORDER BY SALES_MONTH DESC, REGION"
+              "definition": "SELECT\n    TO_CHAR(SALE_DATE, 'YYYY-MM') AS SALES_MONTH,\n    REGION,\n    COUNT(*) AS TRANSACTION_COUNT,\n    SUM(QUANTITY) AS TOTAL_QUANTITY,\n    SUM(TOTAL_AMOUNT) AS TOTAL_REVENUE,\n    AVG(TOTAL_AMOUNT) AS AVG_TRANSACTION_VALUE,\n    MIN(SALE_DATE) AS FIRST_SALE_DATE,\n    MAX(SALE_DATE) AS LAST_SALE_DATE\nFROM SALES_TRANSACTIONS\nWHERE SALE_DATE \u003e= ADD_MONTHS(SYSDATE, -12)\nGROUP BY TO_CHAR(SALE_DATE, 'YYYY-MM'), REGION\nHAVING SUM(TOTAL_AMOUNT) \u003e 1000\nORDER BY SALES_MONTH DESC, REGION",
+              "dependency_columns": [
+                {
+                  "table": "SALES_TRANSACTIONS",
+                  "column": "*"
+                }
+              ]
             }
           ]
         }
@@ -1401,6 +1419,12 @@
             {
               "name": "PRODUCT_PERFORMANCE_MV",
               "definition": "SELECT\n    PRODUCT_ID,\n    CATEGORY,\n    COUNT(*) AS SALES_DAYS,\n    SUM(SALES_AMOUNT) AS TOTAL_REVENUE,\n    SUM(UNITS_SOLD) AS TOTAL_UNITS,\n    SUM(COST_OF_GOODS) AS TOTAL_COST,\n    SUM(SALES_AMOUNT) - SUM(COST_OF_GOODS) AS TOTAL_PROFIT,\n    AVG(SALES_AMOUNT) AS AVG_DAILY_REVENUE,\n    MIN(SALE_DATE) AS FIRST_SALE_DATE,\n    MAX(SALE_DATE) AS LAST_SALE_DATE\nFROM PRODUCT_SALES_DAILY\nWHERE SALE_DATE \u003e= ADD_MONTHS(SYSDATE, -12)\nGROUP BY PRODUCT_ID, CATEGORY\n",
+              "dependency_columns": [
+                {
+                  "table": "PRODUCT_SALES_DAILY",
+                  "column": "*"
+                }
+              ],
               "indexes": [
                 {
                   "name": "IDX_MV_CATEGORY",

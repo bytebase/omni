@@ -443,6 +443,7 @@ func columnEqual(a, b *metadatapb.ColumnMetadata) bool {
 		a.GetIsIdentity() == b.GetIsIdentity() &&
 		a.GetIdentityGeneration() == b.GetIdentityGeneration() &&
 		a.GetIdentitySeed() == b.GetIdentitySeed() &&
+		a.GetIdentityIncrement() == b.GetIdentityIncrement() &&
 		generationEqual(a.GetGeneration(), b.GetGeneration())
 }
 
@@ -607,10 +608,18 @@ func triggerEqual(a, b *metadatapb.TriggerMetadata) bool {
 }
 
 func viewChanged(a, b *metadatapb.ViewMetadata) bool {
+	return viewNeedsRecreate(a, b) || a.GetComment() != b.GetComment()
+}
+
+func viewNeedsRecreate(a, b *metadatapb.ViewMetadata) bool {
 	return a.GetDefinition() != b.GetDefinition() || normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers())
 }
 
 func materializedViewChanged(a, b *metadatapb.MaterializedViewMetadata) bool {
+	return materializedViewNeedsRecreate(a, b) || a.GetComment() != b.GetComment()
+}
+
+func materializedViewNeedsRecreate(a, b *metadatapb.MaterializedViewMetadata) bool {
 	return a.GetDefinition() != b.GetDefinition() || normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers()) || len(compareIndexes(a.GetIndexes(), b.GetIndexes())) > 0
 }
 

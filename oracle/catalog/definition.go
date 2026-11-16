@@ -493,8 +493,18 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 			return err
 		}
 	}
-	_, err := buf.WriteString(`)`)
-	return err
+	if _, err := buf.WriteString(`)`); err != nil {
+		return err
+	}
+	if fk.OnDelete != "" {
+		if _, err := buf.WriteString(` ON DELETE `); err != nil {
+			return err
+		}
+		if _, err := buf.WriteString(fk.OnDelete); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeAddForeignKey(buf *strings.Builder, table string, fk *metadatapb.ForeignKeyMetadata) error {

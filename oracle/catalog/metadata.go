@@ -2,7 +2,9 @@ package catalog
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -30,6 +32,9 @@ func metadataFromSQL(schemaText string) (*metadatapb.DatabaseSchemaMetadata, err
 		extractor.extractStatement(node)
 	}
 
+	if extractor.err != nil {
+		return nil, extractor.err
+	}
 	return extractor.databaseMetadata(), nil
 }
 
@@ -50,6 +55,7 @@ func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
 }
 
 type oracleMetadataExtractor struct {
+	err               error
 	currentDatabase   string
 	currentSchema     string
 	tables            map[string]*metadatapb.TableMetadata
@@ -169,6 +175,25 @@ func (e *oracleMetadataExtractor) getOrCreateTable(tableName string) *metadatapb
 	return table
 }
 
+// useSchema keeps one schema in the extractor. A statement that names another
+// owner would move earlier objects, so it is refused rather than merged.
+func (e *oracleMetadataExtractor) useSchema(schema string) bool {
+	if schema == "" {
+		return true
+	}
+	if e.currentSchema == "" {
+		e.currentSchema = schema
+		return true
+	}
+	if schema == e.currentSchema {
+		return true
+	}
+	if e.err == nil {
+		e.err = fmt.Errorf("statement names schema %q, but the catalog is loading schema %q", schema, e.currentSchema)
+	}
+	return false
+}
+
 func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 	switch n := stmt.(type) {
 	case *ast.CreateTableStmt:
@@ -223,8 +248,8 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 	if tableName == "" {
 		return
 	}
-	if n.Name.Schema != "" {
-		e.currentSchema = n.Name.Schema
+	if !e.useSchema(n.Name.Schema) {
+		return
 	}
 
 	table := e.getOrCreateTable(tableName)
@@ -274,7 +299,7 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 		column.Collation = n.Collation
 	}
 	if n.Identity != nil {
-		column.IsIdentity = true
+		applyIdentity(column, n.Identity, e.nodeText(n.Identity))
 		column.Nullable = false
 	}
 	if n.NotNull {
@@ -475,11 +500,7 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 			column.Nullable = false
 		}
 		if def.Identity != nil {
-			column.IsIdentity = true
-			column.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
-			if !def.Identity.Always {
-				column.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
-			}
+			applyIdentity(column, def.Identity, e.nodeText(def.Identity))
 		}
 		if def.Collation != "" {
 			column.Collation = def.Collation
@@ -854,8 +875,8 @@ func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
 	if tableName == "" || indexName == "" {
 		return
 	}
-	if n.Name.Schema != "" {
-		e.currentSchema = n.Name.Schema
+	if !e.useSchema(n.Name.Schema) {
+		return
 	}
 
 	index := &metadatapb.IndexMetadata{
@@ -910,15 +931,16 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	if viewName == "" {
 		return
 	}
-	if n.Name.Schema != "" {
-		e.currentSchema = n.Name.Schema
+	if !e.useSchema(n.Name.Schema) {
+		return
 	}
 
 	definition := e.nodeText(n.Query)
 	if n.Materialized {
 		materializedView := &metadatapb.MaterializedViewMetadata{
-			Name:       viewName,
-			Definition: definition,
+			Name:              viewName,
+			Definition:        definition,
+			DependencyColumns: viewDependencyColumns(n.Query, e.currentSchema),
 		}
 		if table := e.tables[viewName]; table != nil {
 			materializedView.Triggers = append(materializedView.Triggers, table.Triggers...)
@@ -933,8 +955,9 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	}
 
 	view := &metadatapb.ViewMetadata{
-		Name:       viewName,
-		Definition: definition,
+		Name:              viewName,
+		Definition:        definition,
+		DependencyColumns: viewDependencyColumns(n.Query, e.currentSchema),
 	}
 	if table := e.tables[viewName]; table != nil {
 		view.Triggers = append(view.Triggers, table.Triggers...)
@@ -1038,6 +1061,9 @@ func (e *oracleMetadataExtractor) extractComment(n *ast.CommentStmt) {
 func (e *oracleMetadataExtractor) indexExpression(expr ast.ExprNode) string {
 	switch n := expr.(type) {
 	case *ast.ColumnRef:
+		if text := strings.TrimSpace(e.nodeText(expr)); strings.HasPrefix(text, `"`) && strings.HasSuffix(text, `"`) {
+			return text
+		}
 		return n.Column
 	default:
 		return e.nodeText(expr)
@@ -1291,4 +1317,58 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 		e.packages[pkg.GetName()] = proto.CloneOf(pkg)
 	}
 	return e
+}
+
+var (
+	identityStartPattern     = regexp.MustCompile(`(?i)START\s+WITH\s+([-+]?[0-9]+)`)
+	identityIncrementPattern = regexp.MustCompile(`(?i)INCREMENT\s+BY\s+([-+]?[0-9]+)`)
+)
+
+func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClause, text string) {
+	column.IsIdentity = true
+	if identity != nil && !identity.Always {
+		column.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
+	} else {
+		column.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
+	}
+	if match := identityStartPattern.FindStringSubmatch(text); len(match) == 2 {
+		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+			column.IdentitySeed = value
+		}
+	}
+	if match := identityIncrementPattern.FindStringSubmatch(text); len(match) == 2 {
+		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+			column.IdentityIncrement = value
+		}
+	}
+}
+
+type viewDependencyVisitor struct {
+	schema string
+	seen   map[string]bool
+	result *[]*metadatapb.DependencyColumn
+}
+
+func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
+	if ref, ok := node.(*ast.TableRef); ok && ref.Name != nil && ref.Name.Name != "" {
+		schema := ref.Name.Schema
+		if schema == "" {
+			schema = v.schema
+		}
+		key := schema + "\x00" + ref.Name.Name
+		if !v.seen[key] {
+			v.seen[key] = true
+			*v.result = append(*v.result, &metadatapb.DependencyColumn{Schema: schema, Table: ref.Name.Name, Column: "*"})
+		}
+	}
+	return v
+}
+
+func viewDependencyColumns(query ast.StmtNode, schema string) []*metadatapb.DependencyColumn {
+	if query == nil {
+		return nil
+	}
+	var result []*metadatapb.DependencyColumn
+	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result}, query)
+	return result
 }

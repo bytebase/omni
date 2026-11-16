@@ -72,7 +72,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 	// Add views to graph
 	for _, viewDiff := range diff.ViewChanges {
-		if viewDiff.Action == DiffActionDrop || viewDiff.Action == DiffActionAlter {
+		if viewDiff.Action == DiffActionDrop || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
 			viewID := getMigrationObjectID(viewDiff.SchemaName, viewDiff.ViewName)
 			graph.AddNode(viewID)
 			viewMap[viewID] = viewDiff
@@ -82,7 +82,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 	// Add materialized views to graph
 	for _, mvDiff := range diff.MaterializedViewChanges {
-		if mvDiff.Action == DiffActionDrop || mvDiff.Action == DiffActionAlter {
+		if mvDiff.Action == DiffActionDrop || (mvDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(mvDiff.OldMaterializedView, mvDiff.NewMaterializedView)) {
 			mvID := getMigrationObjectID(mvDiff.SchemaName, mvDiff.MaterializedViewName)
 			graph.AddNode(mvID)
 			materializedViewMap[mvID] = mvDiff
@@ -360,7 +360,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 
 	// Drop schemas (must be empty)
 	for _, schemaDiff := range diff.SchemaChanges {
-		if schemaDiff.Action == DiffActionDrop && schemaDiff.SchemaName != "" {
+		if schemaDiff.Action == DiffActionDrop {
 			// Before dropping a schema, we need to drop all objects inside it
 			// This handles cases where the diff doesn't include objects within a schema being dropped
 			if schemaDiff.OldSchema != nil {
@@ -398,7 +398,9 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 				}
 			}
 
-			writeDropSchema(buf, schemaDiff.SchemaName)
+			if schemaDiff.SchemaName != "" {
+				writeDropSchema(buf, schemaDiff.SchemaName)
+			}
 		}
 	}
 }
@@ -595,21 +597,15 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 		// Create views
 		for _, viewDiff := range viewMap {
-			switch viewDiff.Action {
-			case DiffActionCreate, DiffActionAlter:
+			if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
 				writeMigrationView(buf, viewDiff.SchemaName, viewDiff.NewView)
-			default:
-				// No action needed
 			}
 		}
 
 		// Create materialized views
 		for _, mvDiff := range materializedViewMap {
-			switch mvDiff.Action {
-			case DiffActionCreate, DiffActionAlter:
+			if mvDiff.Action == DiffActionCreate || (mvDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(mvDiff.OldMaterializedView, mvDiff.NewMaterializedView)) {
 				writeMigrationMaterializedView(buf, mvDiff.SchemaName, mvDiff.NewMaterializedView)
-			default:
-				// No action needed
 			}
 		}
 
@@ -659,18 +655,12 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					// No action needed
 				}
 			} else if viewDiff, ok := viewMap[objID]; ok {
-				switch viewDiff.Action {
-				case DiffActionCreate, DiffActionAlter:
+				if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
 					writeMigrationView(buf, viewDiff.SchemaName, viewDiff.NewView)
-				default:
-					// No action needed
 				}
 			} else if mvDiff, ok := materializedViewMap[objID]; ok {
-				switch mvDiff.Action {
-				case DiffActionCreate, DiffActionAlter:
+				if mvDiff.Action == DiffActionCreate || (mvDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(mvDiff.OldMaterializedView, mvDiff.NewMaterializedView)) {
 					writeMigrationMaterializedView(buf, mvDiff.SchemaName, mvDiff.NewMaterializedView)
-				default:
-					// No action needed
 				}
 			} else if funcDiff, ok := functionMap[objID]; ok {
 				writeFunctionDiff(buf, funcDiff)
@@ -1006,6 +996,17 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			writeAlterColumnDropNotNull(&buf, schemaName, tableName, colDiff.NewColumn.Name)
 		} else {
 			writeAlterColumnSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn.Name)
+		}
+	}
+
+	if colDiff.OldColumn.GetIsIdentity() != colDiff.NewColumn.GetIsIdentity() ||
+		colDiff.OldColumn.GetIdentityGeneration() != colDiff.NewColumn.GetIdentityGeneration() ||
+		colDiff.OldColumn.GetIdentitySeed() != colDiff.NewColumn.GetIdentitySeed() ||
+		colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() {
+		if colDiff.NewColumn.GetIsIdentity() {
+			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, strings.TrimSpace(columnIdentityClause(colDiff.NewColumn)))
+		} else {
+			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "DROP IDENTITY")
 		}
 	}
 

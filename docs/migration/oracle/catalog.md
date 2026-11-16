@@ -52,6 +52,18 @@ replay tests exercise.
   a view, and a changed procedure is always `CREATE OR REPLACE`.
 - Renaming a column rewrites identifier tokens in check expressions, not string
   literals.
+- Identity options are read from the clause text, and identity alterations render
+  through MODIFY.
+- Views record the relations their query names, so a generated definition or
+  migration orders a view after its dependencies.
+- A view comment change alone renders the comment without dropping and
+  recreating the view.
+- A statement that names a second owner is refused instead of merging its
+  objects into the schema already loaded.
+- A foreign key keeps its `ON DELETE` action in a definition.
+- Dropping the unnamed schema still drops its objects, and only suppresses
+  `DROP USER`.
+- A quoted column in a function-based index keeps its quotes.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
