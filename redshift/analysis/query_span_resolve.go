@@ -866,8 +866,14 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 			names = append(names, column.GetName())
 		}
 	case findFunctionMaterializedView(schema, n.Relname) != nil:
+		definition := findFunctionMaterializedView(schema, n.Relname).GetDefinition()
 		var ok bool
-		names, ok = functionDefinitionOutputNames(findFunctionMaterializedView(schema, n.Relname).GetDefinition())
+		names, ok = functionDefinitionOutputNames(definition)
+		if !ok {
+			// A star definition cannot be named without analyzing the query;
+			// the catalog knows the base relation's columns.
+			names, ok = q.functionDefinitionCatalogNames(definition)
+		}
 		if !ok {
 			return functionSourceProjection{}, false
 		}
@@ -878,6 +884,40 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 		names = applyFunctionColumnAliases(names, redshiftStringList(n.Alias.Colnames))
 	}
 	return functionSourceProjection{names: names, sources: make([]ColumnSet, len(names))}, true
+}
+
+// functionDefinitionCatalogNames analyzes a view definition against the span
+// catalog to recover output names a star definition hides from the AST.
+func (q *querySpanResolver) functionDefinitionCatalogNames(definition string) ([]string, bool) {
+	stmts, err := parseRedshiftSpan(definition)
+	if err != nil || len(stmts) != 1 {
+		return nil, false
+	}
+	var selectStmt *ast.SelectStmt
+	switch n := stmts[0].AST.(type) {
+	case *ast.SelectStmt:
+		selectStmt = n
+	case *ast.ViewStmt:
+		selectStmt, _ = n.Query.(*ast.SelectStmt)
+	case *ast.CreateTableAsStmt:
+		selectStmt, _ = n.Query.(*ast.SelectStmt)
+	}
+	if selectStmt == nil {
+		return nil, false
+	}
+	cat, err := q.newQuerySpanCatalog()
+	if err != nil {
+		return nil, false
+	}
+	span, err := getQuerySpanFromSelect(cat, definition, selectStmt)
+	if err != nil || span == nil || len(span.Results) == 0 {
+		return nil, false
+	}
+	names := make([]string, 0, len(span.Results))
+	for _, result := range span.Results {
+		names = append(names, result.Name)
+	}
+	return names, true
 }
 
 func findFunctionMaterializedView(schema *metadata.SchemaMetadata, name string) *metadata.MaterializedViewMetadata {

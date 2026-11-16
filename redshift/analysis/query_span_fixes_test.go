@@ -581,6 +581,30 @@ func TestRedshiftQuerySpanMaterializedViewDefinitionExclude(t *testing.T) {
 	}), last.SourceColumns)
 }
 
+// TestRedshiftQuerySpanStarDefinedMaterializedViewKeepsFunction covers a
+// materialized view whose definition is a star; its width comes from the
+// catalog analysis of that definition.
+func TestRedshiftQuerySpanStarDefinedMaterializedViewKeepsFunction(t *testing.T) {
+	snapshot := redshiftQuerySpanMetadata()
+	snapshot.Schemas[0].MaterializedViews = append(snapshot.Schemas[0].MaterializedViews, &metadata.MaterializedViewMetadata{
+		Name:       "star_mv",
+		Definition: "CREATE MATERIALIZED VIEW public.star_mv AS SELECT * FROM public.orders;",
+	})
+	getter, _ := redshiftMockDatabaseMetadataGetter([]*metadata.DatabaseSchemaMetadata{snapshot})
+	q := newQuerySpanResolver("db", []string{"public"}, ResolveOptions{
+		DefaultDatabase:     "db",
+		SearchPath:          []string{"public"},
+		GetDatabaseMetadata: getter,
+	})
+	span, err := q.getQuerySpan("SELECT m.*, reporting_fn() + 1 FROM star_mv m")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 6)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {
