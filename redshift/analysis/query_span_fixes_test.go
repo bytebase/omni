@@ -1,8 +1,12 @@
 package analysis
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/bytebase/omni/enginetest/cputime"
 	"github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/redshift"
 	"github.com/stretchr/testify/require"
@@ -254,6 +258,27 @@ func TestRedshiftQuerySpanCrossDatabaseSourceColumn(t *testing.T) {
 	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
 		{Database: "other_db", Schema: "public", Table: "orders"},
 	}), span.SourceColumns)
+}
+
+// TestRedshiftFunctionSourceManyResolvedJoinsStayLinear: the function-source
+// projection is built only when a star or unqualified column needs it, and an
+// ordinary join chain is flattened once, so a generated query of resolved CTE
+// joins does not copy an ever-growing prefix at every node.
+func TestRedshiftFunctionSourceManyResolvedJoinsStayLinear(t *testing.T) {
+	const joins = 10000
+	parts := make([]string, joins)
+	for i := range parts {
+		parts[i] = fmt.Sprintf("c a%d", i)
+	}
+	sql := "WITH c AS (SELECT 1 AS x) SELECT 1 FROM " + strings.Join(parts, " CROSS JOIN ")
+	stmts, err := parseRedshiftSpan(sql)
+	require.NoError(t, err)
+	require.Len(t, stmts, 1)
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	cputime.Within(t, 2*time.Second, fmt.Sprintf("function sources over %d resolved CTE joins", joins), func() {
+		_, _, _, err := q.collectFunctionBodySources(stmts[0].AST, map[string]bool{}, make(map[string]functionBodySources))
+		require.NoError(t, err)
+	})
 }
 
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and

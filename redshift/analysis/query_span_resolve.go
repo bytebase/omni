@@ -237,6 +237,67 @@ type functionSourceProjection struct {
 	opaque bool
 }
 
+// functionProjection is a FROM item's output, kept as a concatenation tree for
+// ordinary joins so a left-deep chain does not copy its accumulated left side
+// at every node. It is flattened once for a star or a coalescing join.
+type functionProjection struct {
+	flat        *functionSourceProjection
+	left, right *functionProjection
+}
+
+func flatFunctionProjection(p functionSourceProjection) *functionProjection {
+	return &functionProjection{flat: &p}
+}
+
+func (p *functionProjection) flatten() (functionSourceProjection, bool) {
+	if p == nil {
+		return functionSourceProjection{}, false
+	}
+	if p.flat != nil {
+		return *p.flat, true
+	}
+	var result functionSourceProjection
+	var walk func(*functionProjection) bool
+	walk = func(n *functionProjection) bool {
+		if n == nil {
+			return false
+		}
+		if n.flat != nil {
+			result.names = append(result.names, n.flat.names...)
+			result.sources = append(result.sources, n.flat.sources...)
+			result.opaque = result.opaque || n.flat.opaque
+			return true
+		}
+		return walk(n.left) && walk(n.right)
+	}
+	if !walk(p) {
+		return functionSourceProjection{}, false
+	}
+	p.flat = &result
+	p.left, p.right = nil, nil
+	return result, true
+}
+
+// functionProjectionSource computes a query's whole FROM projection on first
+// use, so a query with neither a star nor a function does not build one.
+type functionProjectionSource struct {
+	done       bool
+	projection functionSourceProjection
+	ok         bool
+	compute    func() (functionSourceProjection, bool)
+}
+
+func (s *functionProjectionSource) get() (functionSourceProjection, bool) {
+	if s == nil {
+		return functionSourceProjection{}, false
+	}
+	if !s.done {
+		s.projection, s.ok = s.compute()
+		s.done = true
+	}
+	return s.projection, s.ok
+}
+
 // functionSourceScope separates the CTE definitions a FROM item may reference
 // (defs) from the relations actually bound in the current FROM clause
 // (bindings). Keeping them apart lets `FROM cte AS x` expose only x without also
@@ -246,16 +307,14 @@ type functionSourceScope struct {
 	defs     map[string]functionSourceProjection
 	bindings map[string]functionSourceProjection
 	// projection is this query's whole FROM output, including a USING/NATURAL
-	// join's coalesced columns. Unqualified resolution uses it when every FROM
-	// item has a function projection.
-	projection    functionSourceProjection
-	hasProjection bool
+	// join's coalesced columns, built lazily when an unqualified column needs
+	// it.
+	projection *functionProjectionSource
 	// outerBindings are the enclosing queries' FROM bindings, kept separate so
 	// an inner relation shadows a same-named outer one and an unqualified
 	// column prefers the inner scope instead of looking ambiguous.
-	outerBindings      map[string]functionSourceProjection
-	outerProjection    functionSourceProjection
-	hasOuterProjection bool
+	outerBindings   map[string]functionSourceProjection
+	outerProjection *functionProjectionSource
 }
 
 func (q *querySpanResolver) collectAccessTables(node ast.Node) (ColumnSet, error) {
@@ -551,15 +610,26 @@ func (q *querySpanResolver) functionStarProjection(target *ast.ResTarget, from *
 // functionProjectionForList returns the output of a whole FROM list, or false
 // when an item has no function projection or an unresolved star width.
 func (q *querySpanResolver) functionProjectionForList(from *ast.List, scope functionSourceScope) (functionSourceProjection, bool) {
-	var result functionSourceProjection
+	var tree *functionProjection
 	if from != nil {
 		for _, item := range from.Items {
 			projection, ok := q.functionProjectionForNode(item, scope)
-			if !ok || projection.opaque {
+			if !ok {
 				return functionSourceProjection{}, false
 			}
-			appendFunctionProjection(&result, projection)
+			if tree == nil {
+				tree = projection
+			} else {
+				tree = &functionProjection{left: tree, right: projection}
+			}
 		}
+	}
+	if tree == nil {
+		return functionSourceProjection{}, true
+	}
+	result, ok := tree.flatten()
+	if !ok || result.opaque {
+		return functionSourceProjection{}, false
 	}
 	return result, true
 }
@@ -567,39 +637,61 @@ func (q *querySpanResolver) functionProjectionForList(from *ast.List, scope func
 // functionProjectionForNode returns one FROM item's output names and function
 // sources. A USING/NATURAL join coalesces its common columns into one output
 // column, so expanding `*` over it must not list both inputs' copies.
-func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope functionSourceScope) (functionSourceProjection, bool) {
+func (q *querySpanResolver) functionProjectionForNode(node ast.Node, scope functionSourceScope) (*functionProjection, bool) {
 	switch n := node.(type) {
 	case *ast.RangeVar:
 		if n == nil {
-			return functionSourceProjection{}, false
+			return nil, false
 		}
 		name := n.Relname
 		if n.Alias != nil && n.Alias.Aliasname != "" {
 			name = n.Alias.Aliasname
 		}
 		projection, ok := scope.bindings[strings.ToLower(name)]
-		return projection, ok
+		if !ok {
+			return nil, false
+		}
+		return flatFunctionProjection(projection), true
 	case *ast.RangeSubselect:
 		if n == nil || n.Alias == nil || n.Alias.Aliasname == "" {
-			return functionSourceProjection{}, false
+			return nil, false
 		}
 		projection, ok := scope.bindings[strings.ToLower(n.Alias.Aliasname)]
-		return projection, ok
+		if !ok {
+			return nil, false
+		}
+		return flatFunctionProjection(projection), true
 	case *ast.JoinExpr:
 		if n == nil {
-			return functionSourceProjection{}, false
+			return nil, false
 		}
 		left, ok := q.functionProjectionForNode(n.Larg, scope)
 		if !ok {
-			return functionSourceProjection{}, false
+			return nil, false
 		}
 		right, ok := q.functionProjectionForNode(n.Rarg, scope)
 		if !ok {
-			return functionSourceProjection{}, false
+			return nil, false
 		}
-		return mergeFunctionJoinProjection(left, right, n)
+		using := redshiftStringList(n.UsingClause)
+		if len(using) == 0 && !n.IsNatural {
+			return &functionProjection{left: left, right: right}, true
+		}
+		leftFlat, ok := left.flatten()
+		if !ok {
+			return nil, false
+		}
+		rightFlat, ok := right.flatten()
+		if !ok {
+			return nil, false
+		}
+		merged, ok := mergeFunctionJoinProjection(leftFlat, rightFlat, n)
+		if !ok {
+			return nil, false
+		}
+		return flatFunctionProjection(merged), true
 	default:
-		return functionSourceProjection{}, false
+		return nil, false
 	}
 }
 
@@ -765,9 +857,14 @@ func (q *querySpanResolver) functionSourceScopeForSelect(selectStmt *ast.SelectS
 		return functionSourceScope{}, functionBodyIssues{}, err
 	}
 	issues.merge(sourceIssues)
-	if projection, ok := q.functionProjectionForList(selectStmt.FromClause, scope); ok {
-		scope.projection = projection
-		scope.hasProjection = true
+	if selectStmt.FromClause != nil {
+		from := selectStmt.FromClause
+		projectionScope := scope
+		scope.projection = &functionProjectionSource{
+			compute: func() (functionSourceProjection, bool) {
+				return q.functionProjectionForList(from, projectionScope)
+			},
+		}
 	}
 	return scope, issues, nil
 }
@@ -1149,13 +1246,11 @@ func mergeFunctionResultSources(results []ResolvedQuerySpanResult, functionResul
 
 func cloneFunctionSourceScope(scope functionSourceScope) functionSourceScope {
 	result := functionSourceScope{
-		defs:               make(map[string]functionSourceProjection, len(scope.defs)),
-		bindings:           make(map[string]functionSourceProjection, len(scope.bindings)),
-		projection:         scope.projection,
-		hasProjection:      scope.hasProjection,
-		outerBindings:      make(map[string]functionSourceProjection, len(scope.outerBindings)),
-		outerProjection:    scope.outerProjection,
-		hasOuterProjection: scope.hasOuterProjection,
+		defs:            make(map[string]functionSourceProjection, len(scope.defs)),
+		bindings:        make(map[string]functionSourceProjection, len(scope.bindings)),
+		projection:      scope.projection,
+		outerBindings:   make(map[string]functionSourceProjection, len(scope.outerBindings)),
+		outerProjection: scope.outerProjection,
 	}
 	for name, projection := range scope.defs {
 		result.defs[name] = projection
@@ -1181,12 +1276,10 @@ func enterFunctionSourceScope(outer functionSourceScope) functionSourceScope {
 	for name, projection := range outer.defs {
 		result.defs[name] = projection
 	}
-	if outer.hasProjection {
+	if outer.projection != nil {
 		result.outerProjection = outer.projection
-		result.hasOuterProjection = true
-	} else if outer.hasOuterProjection {
+	} else {
 		result.outerProjection = outer.outerProjection
-		result.hasOuterProjection = true
 	}
 	for name, projection := range outer.outerBindings {
 		result.outerBindings[name] = projection
@@ -1223,9 +1316,9 @@ func resolveFunctionColumnRef(scope functionSourceScope, columnRef *ast.ColumnRe
 }
 
 func resolveUnqualifiedFunctionColumn(scope functionSourceScope, columnName string) ColumnSet {
-	if scope.hasProjection {
-		if index, ok := functionColumnIndex(scope.projection, columnName); ok {
-			return scope.projection.sources[index]
+	if projection, ok := scope.projection.get(); ok {
+		if index, ok := functionColumnIndex(projection, columnName); ok {
+			return projection.sources[index]
 		}
 	} else {
 		if sources, found, ambiguous := lookupUnqualifiedFunctionColumn(scope.bindings, columnName); ambiguous {
@@ -1234,9 +1327,9 @@ func resolveUnqualifiedFunctionColumn(scope functionSourceScope, columnName stri
 			return sources
 		}
 	}
-	if scope.hasOuterProjection {
-		if index, ok := functionColumnIndex(scope.outerProjection, columnName); ok {
-			return scope.outerProjection.sources[index]
+	if projection, ok := scope.outerProjection.get(); ok {
+		if index, ok := functionColumnIndex(projection, columnName); ok {
+			return projection.sources[index]
 		}
 	}
 	sources, _, _ := lookupUnqualifiedFunctionColumn(scope.outerBindings, columnName)
