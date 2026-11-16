@@ -1742,13 +1742,26 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 				w.addFilterColumn(ref)
 			}
 		},
-		onSubquery: func(query ast.Node) {
-			// A scalar or IN subquery in a row condition: its projected columns
-			// decide which rows return, so they are row-condition reads too. Its
-			// own WHERE/ON/HAVING are recorded by its body visit.
-			for _, col := range w.visitBody(query) {
+		onSubquery: func(query ast.Node, projects bool) {
+			// A scalar, IN or ARRAY subquery in a row condition decides rows by the
+			// values it projects, so its projected columns are row-condition reads
+			// too (an EXISTS body only decides whether a row exists). Its own
+			// WHERE/ON/HAVING are recorded by its body visit either way.
+			projection := w.visitBody(query)
+			if !projects {
+				return
+			}
+			for _, col := range projection {
 				for _, ref := range col.sources {
 					w.addFilterColumn(ref)
+				}
+				// A star the walker cannot enumerate stands for every column of its
+				// relation; without this the projection contributes nothing and the
+				// condition would read no column at all.
+				if col.baseStar != nil {
+					star := *col.baseStar
+					star.Column = filterStarColumn
+					w.addFilterColumn(star)
 				}
 			}
 		},
@@ -1831,6 +1844,11 @@ func (w *spanWalker) resolveFilterQualifier(qualifier, column string) []ColumnRe
 	}
 	return nil
 }
+
+// filterStarColumn marks a filter reference to a relation whose every column a
+// star projection stands for; the metadata-aware resolver reads it as "any
+// column of the named relation".
+const filterStarColumn = "*"
 
 // placeholderRefs reports whether refs are the lineage of a recursive CTE's
 // PLACEHOLDER projection, which the fixpoint substitutes for the CTE's columns
@@ -1921,8 +1939,8 @@ func (w *spanWalker) walkWindowSpec(spec *ast.WindowSpec) {
 type exprWalk struct {
 	w          *spanWalker
 	onColumn   func(ColumnRef)
-	onParts    func([]string) // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
-	onSubquery func(ast.Node) // a subquery body, instead of the plain table-discovery visit; nil to visit the body
+	onParts    func([]string)       // raw dotted-name parts of a column reference (for relation-aware resolution); nil to ignore
+	onSubquery func(ast.Node, bool) // a subquery body and whether its projection is read, instead of the plain table-discovery visit; nil to visit the body
 	followSub  bool
 }
 
@@ -1961,11 +1979,13 @@ func (ew *exprWalk) walk(node ast.Node) {
 
 	// --- Subquery bodies (parsed into real QueryStmt by the parser) ---
 	case *ast.SubqueryExpr:
-		ew.followSubquery(e.Query)
+		ew.followSubquery(e.Query, true)
 	case *ast.ExistsExpr:
-		ew.followSubquery(e.Query)
+		// EXISTS depends on whether the body returns a row, not on the values it
+		// projects, so its projection is not a read of those columns.
+		ew.followSubquery(e.Query, false)
 	case *ast.ArraySubqueryExpr:
-		ew.followSubquery(e.Query)
+		ew.followSubquery(e.Query, true)
 
 	// --- Composite expressions: recurse into children ---
 	case *ast.ParenExpr:
@@ -2093,7 +2113,7 @@ func (ew *exprWalk) emitParts(parts []string) {
 // followSubquery recurses into a parsed subquery body when this pass follows
 // subqueries. The body is a *QueryStmt (or set-op / select) the parser already
 // filled, so the walk reaches it directly.
-func (ew *exprWalk) followSubquery(query ast.Node) {
+func (ew *exprWalk) followSubquery(query ast.Node, projects bool) {
 	if !ew.followSub || query == nil {
 		return
 	}
@@ -2101,7 +2121,7 @@ func (ew *exprWalk) followSubquery(query ast.Node) {
 	// in a row condition a scalar or IN subquery's OUTPUT decides which rows
 	// return, so a filter pass needs the lineage the plain visit discards.
 	if ew.onSubquery != nil {
-		ew.onSubquery(query)
+		ew.onSubquery(query, projects)
 		return
 	}
 	// A subquery in an expression position is walked for its tables/predicates;

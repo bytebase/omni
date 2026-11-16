@@ -3932,3 +3932,186 @@
         schema: ""
         table: audit_vault
         column: secret
+- description: "predicate columns: a star subquery's whole relation in a row condition"
+  statement: SELECT 1 FROM audit_guards WHERE 5 IN (SELECT * FROM audit_secrets)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_secrets",
+              "columns": [
+                {
+                  "name": "secret"
+                },
+                {
+                  "name": "token"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: secret
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: token
+- description: "predicate columns: an EXISTS body's projection is not a row condition"
+  statement: SELECT 1 FROM audit_guards WHERE EXISTS (SELECT secret FROM audit_secrets)
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_guards",
+              "columns": [
+                {
+                  "name": "flag"
+                }
+              ]
+            },
+            {
+              "name": "audit_secrets",
+              "columns": [
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_guards
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_secrets
+        column: ""
+    predicatecolumns: []
+- description: "predicate columns: two recursive CTEs keep their own placeholder lineage"
+  statement: WITH RECURSIVE r1 AS (SELECT a AS k FROM audit_t1 UNION ALL SELECT k + 1 FROM r1 WHERE k < 5), r2 AS (SELECT b AS k FROM audit_t2 UNION ALL SELECT k + 1 FROM r2 WHERE k < 3) SELECT 1 FROM r1, r2
+  defaultDatabase: ds1
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "ds1",
+      "schemas": [
+        {
+          "tables": [
+            {
+              "name": "audit_t1",
+              "columns": [
+                {
+                  "name": "a"
+                }
+              ]
+            },
+            {
+              "name": "audit_t2",
+              "columns": [
+                {
+                  "name": "b"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t1
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t2
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: r1
+        column: ""
+      - server: ""
+        database: ds1
+        schema: ""
+        table: r2
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t1
+        column: a
+      - server: ""
+        database: ds1
+        schema: ""
+        table: audit_t2
+        column: b

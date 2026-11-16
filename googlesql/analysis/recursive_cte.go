@@ -62,11 +62,15 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 	// the second resolution are removed, and the loop's other passes add them
 	// below.
 	ctes, fixpoints := len(w.span.CTEs), w.fixpoints
-	projA, phA := placeholderProjection(anchor, "a")
+	// Each fixpoint's placeholders carry its own identity, so substituting one
+	// recursive CTE's placeholders cannot read another's (a statement may hold
+	// several, and they are resolved in statement order).
+	family := strconv.Itoa(w.fixpoints)
+	projA, phA := placeholderProjection(anchor, family+"a")
 	scope.columns[lower] = projA
 	armA := w.visitBody(arm)
 	perPass := len(w.span.CTEs) - ctes
-	projB, phB := placeholderProjection(anchor, "b")
+	projB, phB := placeholderProjection(anchor, family+"b")
 	scope.columns[lower] = projB
 	armB := w.visitBody(arm)
 	w.span.CTEs = w.span.CTEs[:ctes+perPass]
@@ -159,20 +163,28 @@ func (w *spanWalker) recursiveFixpoint(arm ast.Node, anchor []projColumn, scope 
 // substituteFilterPlaceholders replaces each row-condition reference to a
 // placeholder of the CTE's placeholder projection — recorded while the fixpoint
 // resolved the recursive arm — with that column's converged lineage, which is
-// what the arm's output positions stand for.
+// what the arm's output positions stand for. A consumed placeholder leaves the
+// filter set: it names no column, and a later CTE's substitution must not see it.
 func (w *spanWalker) substituteFilterPlaceholders(ph map[ColumnRef]int, cols []projColumn) {
 	if len(ph) == 0 {
 		return
 	}
+	var added []ColumnRef
+	kept := make([]ColumnRef, 0, len(w.span.filterColumns))
 	for _, ref := range w.span.filterColumns {
 		j, ok := ph[ref]
-		if !ok || j >= len(cols) {
+		if !ok {
+			kept = append(kept, ref)
 			continue
 		}
-		for _, source := range cols[j].sources {
-			if source.Column != "" {
-				w.addFilterColumn(source)
-			}
+		if j < len(cols) {
+			added = append(added, cols[j].sources...)
+		}
+	}
+	w.span.filterColumns = kept
+	for _, ref := range added {
+		if ref.Column != "" {
+			w.addFilterColumn(ref)
 		}
 	}
 }

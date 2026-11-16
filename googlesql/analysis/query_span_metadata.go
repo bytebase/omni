@@ -122,7 +122,7 @@ func (q *querySpanResolver) getQuerySpan(statement string) (*ResolvedQuerySpan, 
 	span := &ResolvedQuerySpan{
 		Type:             queryType,
 		SourceColumns:    accessTables,
-		PredicateColumns: q.mapPredicateColumns(rawSpan, fullSourceColumns, aliasMap),
+		PredicateColumns: q.mapPredicateColumns(rawSpan, fullSourceColumns),
 		Results:          results,
 	}
 	if notFound != nil {
@@ -643,10 +643,10 @@ func resultName(r ColumnInfo) string {
 
 // mapPredicateColumns maps the walker's row-condition column refs (WHERE,
 // JOIN ... ON / USING, HAVING) onto the expanded source columns — matching on
-// column name, and on the table when the ref carries one (a relation alias is
-// resolved through aliasMap). The resolved resources therefore carry the
-// dialect's name model: the default database fill-in, the Spanner schema
-// bucketing, and the METADATA-canonical table and column names.
+// column name, and on the table, database and schema the walk resolved the ref
+// to. The resolved resources therefore carry the dialect's name model: the
+// default database fill-in, the Spanner schema bucketing, and the
+// METADATA-canonical table and column names.
 //
 // A qualified ref whose relation the expansion cannot attribute — a recursive
 // CTE's self-reference, a relation only an outer query body knows — falls back
@@ -655,7 +655,7 @@ func resultName(r ColumnInfo) string {
 // check stricter. A map-independent ref that matches no expanded column (a
 // referenced column the metadata does not hold, a pseudo-column) is dropped: a
 // resource the metadata does not have cannot carry a policy.
-func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSet, aliasMap map[string][]string) ColumnSet {
+func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColumns ColumnSet) ColumnSet {
 	out := ColumnSet{}
 	if span == nil {
 		return out
@@ -664,16 +664,50 @@ func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColum
 		if ref.Column == "" {
 			continue
 		}
-		matched := ColumnSet{}
-		addMatchingColumns(matched, fullSourceColumns, ref.Column, ref.Table, aliasMap)
-		if len(matched) == 0 && ref.Table != "" {
-			addMatchingColumns(matched, fullSourceColumns, ref.Column, "", aliasMap)
+		if q.addMatchingPredicateColumns(out, fullSourceColumns, ref, true) {
+			continue
 		}
-		for resource := range matched {
-			out[resource] = true
+		// A qualified ref the expansion cannot attribute (a recursive CTE's
+		// self-reference, a relation only an outer body knows) falls back to the
+		// column name alone.
+		if ref.Table != "" {
+			q.addMatchingPredicateColumns(out, fullSourceColumns, ColumnRef{Column: ref.Column}, false)
 		}
 	}
 	return out
+}
+
+// addMatchingPredicateColumns adds every expanded column a filter ref names and
+// reports whether it found one. A ref the walk resolved to a relation is matched
+// on the table — narrowed by the database and schema it carries, so the same
+// table name in two datasets or schemas of the statement does not over-match —
+// and a star ref (a subquery projecting `*` it could not enumerate) matches every
+// column of its relation. With matchTable false only the column name is compared.
+func (q *querySpanResolver) addMatchingPredicateColumns(dst, fullSourceColumns ColumnSet, ref ColumnRef, matchTable bool) bool {
+	star := ref.Column == filterStarColumn
+	found := false
+	for sc := range fullSourceColumns {
+		if sc.Column == "" {
+			continue
+		}
+		if matchTable && ref.Table != "" {
+			if !strings.EqualFold(sc.Table, ref.Table) {
+				continue
+			}
+			if ref.Database != "" && !strings.EqualFold(sc.Database, q.resourceDatabase(ref.Database)) {
+				continue
+			}
+			if ref.Schema != "" && !strings.EqualFold(sc.Schema, ref.Schema) {
+				continue
+			}
+		}
+		if !star && !strings.EqualFold(sc.Column, ref.Column) {
+			continue
+		}
+		dst[sc] = true
+		found = true
+	}
+	return found
 }
 
 // addMatchingColumns adds every column in fullSourceColumns whose name matches

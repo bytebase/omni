@@ -3443,3 +3443,69 @@
         schema: ""
         table: AuditPeople
         column: Id
+- description: "predicate columns: the same table name in two schemas does not over-match"
+  statement: SELECT 1 FROM analytics.users a CROSS JOIN users b WHERE a.secret = 1
+  defaultDatabase: maskingdb
+  ignoreCaseSensitive: false
+  metadata: |-
+    {
+      "name": "maskingdb",
+      "schemas": [
+        {
+          "name": "analytics",
+          "tables": [
+            {
+              "name": "users",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "tables": [
+            {
+              "name": "users",
+              "columns": [
+                {
+                  "name": "id"
+                },
+                {
+                  "name": "secret"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  querySpan:
+    type: 1
+    results:
+      - name: ""
+        sourcecolumns: []
+        isplainfield: false
+        sourcefieldpaths: []
+        selectasterisk: false
+    sourcecolumns:
+      - server: ""
+        database: maskingdb
+        schema: analytics
+        table: users
+        column: ""
+      - server: ""
+        database: maskingdb
+        schema: ""
+        table: users
+        column: ""
+    predicatecolumns:
+      - server: ""
+        database: maskingdb
+        schema: analytics
+        table: users
+        column: secret
