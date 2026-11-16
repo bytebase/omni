@@ -285,7 +285,9 @@ func doubleLiteral(text string) (string, error) {
 	if !strings.ContainsAny(literal, ".eE") {
 		literal += ".0"
 	}
-	return literal, nil
+	// A bare number is an Int32 in mongosh when it has no fractional part, so
+	// the constructor keeps the BSON double's type.
+	return "Double(" + literal + ")", nil
 }
 
 func dateLiteral(value *jsonValue) (string, bool, error) {
