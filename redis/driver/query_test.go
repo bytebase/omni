@@ -158,10 +158,12 @@ func TestQueryAllNodes(t *testing.T) {
 }
 
 // shardClient answers the all-nodes path, which the pinned server cannot: it is
-// one node. Each shard's answers are the Val each command answered with.
+// one node. Each shard's answers are the Val each request's command answered with,
+// in request order.
 type shardClient struct {
 	answers [][]any
 	errs    [][]error
+	calls   int
 }
 
 func (*shardClient) Ping(context.Context) error { return errors.New("not asked") }
@@ -183,19 +185,18 @@ func (*shardClient) CloseSession(context.Context, int) error { return nil }
 func (*shardClient) Close() error { return nil }
 
 func (c *shardClient) DoEachShard(ctx context.Context, commands [][]any) ([][]*redis.Cmd, error) {
+	call := c.calls
+	c.calls++
 	shards := make([][]*redis.Cmd, len(c.answers))
 	for s, answers := range c.answers {
-		cmds := make([]*redis.Cmd, len(commands))
-		for i := range commands {
-			cmds[i] = redis.NewCmd(ctx)
-			if i < len(answers) {
-				cmds[i].SetVal(answers[i])
-			}
-			if i < len(c.errs[s]) {
-				cmds[i].SetErr(c.errs[s][i])
-			}
+		cmd := redis.NewCmd(ctx, commands[0]...)
+		if call < len(answers) {
+			cmd.SetVal(answers[call])
 		}
-		shards[s] = cmds
+		if s < len(c.errs) && call < len(c.errs[s]) {
+			cmd.SetErr(c.errs[s][call])
+		}
+		shards[s] = []*redis.Cmd{cmd}
 	}
 	return shards, nil
 }

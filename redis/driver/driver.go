@@ -48,8 +48,8 @@
 // command by its key; its sessions run on the pool and Redis refuses SELECT on a
 // cluster, so nothing is lost.
 //
-// A query runs each line of a script as one command and returns one Result per
-// command, with the columns "#" and "Value". A reply that is an array becomes
+// A query runs each line of a script as one command, each as its own request, and
+// returns one Result per command, with the columns "#" and "Value". A reply that is an array becomes
 // one row per element and any other reply one row. A missing key is a row with
 // a NULL value, as Bytebase showed it; a command the server refused ends the
 // script on that command's Result, which errs with the server's own error, so
@@ -64,11 +64,12 @@
 // Bytebase's per-request choice the contract has no field for; it answers one
 // server's driver with Bytebase's error text.
 //
-// Execute sends every command of a script as one pipeline and returns the rows
-// affected, which is 0: a Redis command reports no row count. A command's error
-// ends the script, and ExecuteOptions' transaction settings, CreateDatabase and
-// MaxRetries do nothing. ExecuteOptions.Log receives nothing, as it did in
-// Bytebase, which logged none of a script's commands.
+// Execute runs every command of a script as its own request and returns the rows
+// affected, which is 0: a Redis command reports no row count. A command the
+// server refuses ends the script, so the commands after it do not run, and
+// ExecuteOptions' transaction settings, CreateDatabase and MaxRetries do nothing.
+// ExecuteOptions.Log receives nothing, as it did in Bytebase, which logged none of
+// a script's commands.
 package driver
 
 import (

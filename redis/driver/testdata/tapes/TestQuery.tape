@@ -6,9 +6,13 @@
 < raw
 | {}
 > raw
-| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello world"],["RPUSH","queue","first","second"]]}
+| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello world"]]}
 < raw
-| {"commands":[{"value":{"kind":"string","string":"OK"}},{"value":{"kind":"int","int":2}}]}
+| {"commands":[{"value":{"kind":"string","string":"OK"}}]}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["RPUSH","queue","first","second"]]}
+< raw
+| {"commands":[{"value":{"kind":"int","int":2}}]}
 > raw
 | {"login":{},"op":"CloseSession","session":1}
 < raw
@@ -18,9 +22,21 @@
 < raw
 | {}
 > raw
-| {"login":{},"op":"Do","session":2,"commands":[["GET","greeting"],["GET","missing"],["LRANGE","queue","0","-1"],["DBSIZE"]]}
+| {"login":{},"op":"Do","session":2,"commands":[["GET","greeting"]]}
 < raw
-| {"commands":[{"value":{"kind":"string","string":"hello world"}},{"error":"redis: nil"},{"value":{"kind":"array","array":[{"kind":"string","string":"first"},{"kind":"string","string":"second"}]}},{"value":{"kind":"int","int":2}}]}
+| {"commands":[{"value":{"kind":"string","string":"hello world"}}]}
+> raw
+| {"login":{},"op":"Do","session":2,"commands":[["GET","missing"]]}
+< raw
+| {"commands":[{"error":"redis: nil"}]}
+> raw
+| {"login":{},"op":"Do","session":2,"commands":[["LRANGE","queue","0","-1"]]}
+< raw
+| {"commands":[{"value":{"kind":"array","array":[{"kind":"string","string":"first"},{"kind":"string","string":"second"}]}}]}
+> raw
+| {"login":{},"op":"Do","session":2,"commands":[["DBSIZE"]]}
+< raw
+| {"commands":[{"value":{"kind":"int","int":2}}]}
 > raw
 | {"login":{},"op":"CloseSession","session":2}
 < raw

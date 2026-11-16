@@ -18,9 +18,9 @@
 < raw
 | {}
 > raw
-| {"login":{},"op":"Do","session":2,"commands":[["INCR","counter"],["DBSIZE"]]}
+| {"login":{},"op":"Do","session":2,"commands":[["INCR","counter"]]}
 < raw
-| {"commands":[{"error":"ERR value is not an integer or out of range"},{"value":{"kind":"int","int":1}}]}
+| {"commands":[{"error":"ERR value is not an integer or out of range"}]}
 > raw
 | {"login":{},"op":"CloseSession","session":2}
 < raw

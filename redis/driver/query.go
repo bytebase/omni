@@ -42,8 +42,9 @@ func (s *Session) Close() error {
 }
 
 // Query runs each command of script in order, one command per line, and returns
-// one Result per command. A command that fails ends the script on its Result; the
-// error returned is nil, since the script ran as far as it could. Only text whose
+// one Result per command. Each command is its own request, so a command the server
+// refuses ends the script and the commands after it do not run; the error
+// returned is nil, since the script ran as far as it could. Only text whose
 // quoting cannot be read at all is an error for the call, since then there is no
 // command to send.
 func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
@@ -57,25 +58,26 @@ func (s *Session) Query(ctx context.Context, script string, opts driver.QueryOpt
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	startTime := time.Now()
-	cmds, err := s.driver.client.Do(ctx, s.session, inputs)
-	if err != nil {
-		return nil, err
-	}
-
-	results := make([]*driver.Result, 0, len(cmds))
-	for i, cmd := range cmds {
-		if i >= len(commands) {
-			break
+	results := make([]*driver.Result, 0, len(commands))
+	for i, command := range commands {
+		startTime := time.Now()
+		cmds, err := s.driver.client.Do(ctx, s.session, [][]any{inputs[i]})
+		if err != nil {
+			return nil, err
 		}
-		result := newResult(commands[i])
+		result := newResult(command)
 		result.Latency = time.Since(startTime)
-		results = append(results, result)
-		if cmd.Err() != nil && cmd.Err() != redis.Nil {
-			result.Err = cmd.Err()
+		if len(cmds) == 0 {
+			results = append(results, result)
+			continue
+		}
+		if cmds[0].Err() != nil && cmds[0].Err() != redis.Nil {
+			result.Err = cmds[0].Err()
+			results = append(results, result)
 			break
 		}
-		appendReplyRows(result, cmd, opts.MaxResultBytes, driver.HeaderByteSize(result.Columns))
+		appendReplyRows(result, cmds[0], opts.MaxResultBytes, driver.HeaderByteSize(result.Columns))
+		results = append(results, result)
 	}
 	return results, nil
 }
@@ -95,48 +97,41 @@ func (s *Session) QueryAllNodes(ctx context.Context, script string, opts driver.
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	startTime := time.Now()
-	shards, err := s.driver.client.DoEachShard(ctx, inputs)
-	if err != nil {
-		// A client of one server says so itself, without the wrap a failure of
-		// the cluster's own state takes.
-		var notCluster *notClusterError
-		if errors.As(err, &notCluster) {
-			return nil, err
+	results := make([]*driver.Result, 0, len(commands))
+	for i, command := range commands {
+		startTime := time.Now()
+		shards, err := s.driver.client.DoEachShard(ctx, [][]any{inputs[i]})
+		if err != nil {
+			// A client of one server says so itself, without the wrap a failure
+			// of the cluster's own state takes.
+			var notCluster *notClusterError
+			if errors.As(err, &notCluster) {
+				return nil, err
+			}
+			return nil, fmt.Errorf("failed to query for each shard: %w", err)
 		}
-		return nil, fmt.Errorf("failed to query for each shard: %w", err)
-	}
-
-	results := make([]*driver.Result, len(commands))
-	size := make([]int64, len(commands))
-	for i := range commands {
-		results[i] = newResult(commands[i])
-		size[i] = driver.HeaderByteSize(results[i].Columns)
-	}
-	// A command's replies come from every node before the next command's do, so
-	// a command that fails on one node leaves the earlier commands whole and its
-	// own rows short, and each command's rows are counted once.
-	done := len(results)
-	for i, result := range results {
+		// One command's rows are every node's answers, in node order, before the
+		// next command is sent, so a command that fails on one node leaves the
+		// earlier commands whole and the commands after it unsent.
+		result := newResult(command)
+		size := driver.HeaderByteSize(result.Columns)
 		for _, shard := range shards {
-			if i >= len(shard) {
+			if len(shard) == 0 {
 				continue
 			}
-			if shard[i].Err() != nil && shard[i].Err() != redis.Nil {
-				result.Err = shard[i].Err()
-				done = i + 1
+			if shard[0].Err() != nil && shard[0].Err() != redis.Nil {
+				result.Err = shard[0].Err()
 				break
 			}
-			size[i] = appendReplyRows(result, shard[i], opts.MaxResultBytes, size[i])
+			size = appendReplyRows(result, shard[0], opts.MaxResultBytes, size)
 		}
+		result.Latency = time.Since(startTime)
+		results = append(results, result)
 		if result.Err != nil {
 			break
 		}
 	}
-	for _, result := range results[:done] {
-		result.Latency = time.Since(startTime)
-	}
-	return results[:done], nil
+	return results, nil
 }
 
 // newResult is the empty result of one command: the two columns Bytebase showed

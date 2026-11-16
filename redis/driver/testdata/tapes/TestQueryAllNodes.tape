@@ -18,9 +18,13 @@
 < raw
 | {}
 > raw
-| {"login":{},"cluster":true,"op":"DoEachShard","commands":[["GET","allnodes:key"],["DBSIZE"]]}
+| {"login":{},"cluster":true,"op":"DoEachShard","commands":[["GET","allnodes:key"]]}
 < raw
-| {"shards":[[{"value":{"kind":"string","string":"allnodes-value"}},{"value":{"kind":"int","int":1}}]]}
+| {"shards":[[{"value":{"kind":"string","string":"allnodes-value"}}]]}
+> raw
+| {"login":{},"cluster":true,"op":"DoEachShard","commands":[["DBSIZE"]]}
+< raw
+| {"shards":[[{"value":{"kind":"int","int":1}}]]}
 > raw
 | {"login":{},"cluster":true,"op":"CloseSession","session":2}
 < raw

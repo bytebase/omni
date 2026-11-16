@@ -6,9 +6,21 @@
 < raw
 | {}
 > raw
-| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello world"],["HSET","user:1","name","Alice"],["RPUSH","queue","first","second"],["INCR","counter"]]}
+| {"login":{},"op":"Do","session":1,"commands":[["SET","greeting","hello world"]]}
 < raw
-| {"commands":[{"value":{"kind":"string","string":"OK"}},{"value":{"kind":"int","int":1}},{"value":{"kind":"int","int":2}},{"value":{"kind":"int","int":1}}]}
+| {"commands":[{"value":{"kind":"string","string":"OK"}}]}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["HSET","user:1","name","Alice"]]}
+< raw
+| {"commands":[{"value":{"kind":"int","int":1}}]}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["RPUSH","queue","first","second"]]}
+< raw
+| {"commands":[{"value":{"kind":"int","int":2}}]}
+> raw
+| {"login":{},"op":"Do","session":1,"commands":[["INCR","counter"]]}
+< raw
+| {"commands":[{"value":{"kind":"int","int":1}}]}
 > raw
 | {"login":{},"op":"CloseSession","session":1}
 < raw
