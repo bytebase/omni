@@ -363,9 +363,13 @@ type spanWalker struct {
 	// a HAVING condition — the one row condition that sees select aliases — can
 	// resolve `HAVING total > 1` to the columns the aggregate read.
 	selectAliases map[string][]ColumnRef
-	accessed      map[tableKey]bool
-	predSeen      map[ColumnRef]bool
-	filterSeen    map[ColumnRef]bool
+	// captureFilterProjections is set while a row condition consumes a query body's
+	// output, so the subqueries inside that body's projection expressions keep their
+	// lineage instead of only being walked for tables.
+	captureFilterProjections bool
+	accessed                 map[tableKey]bool
+	predSeen                 map[ColumnRef]bool
+	filterSeen               map[ColumnRef]bool
 	// failure, when set, marks the span as fail-closed: the walker met a shape it
 	// parses but cannot resolve to correct lineage without catalog metadata
 	// (NATURAL JOIN; JOIN USING over a deferred set-op projection). GetQuerySpan
@@ -1027,9 +1031,9 @@ func (w *spanWalker) addUsingFilterColumns(b *joinBuilder, acc joinPart, keys []
 			return
 		}
 		for _, ref := range b.cols[acc.start+i].sources {
-			if ref.Column != "" {
-				w.addFilterColumn(ref)
-			}
+			// A recursive CTE's placeholder names no column yet; substituteFilterPlaceholders
+			// replaces it with the arm column's converged lineage.
+			w.addFilterColumn(ref)
 		}
 	}
 }
@@ -1751,7 +1755,10 @@ func (w *spanWalker) walkFilter(expr ast.Node) {
 			// values it projects, so its projected columns are row-condition reads
 			// too (an EXISTS body only decides whether a row exists). Its own
 			// WHERE/ON/HAVING are recorded by its body visit either way.
+			prev := w.captureFilterProjections
+			w.captureFilterProjections = true
 			projection := w.visitBody(query)
+			w.captureFilterProjections = prev
 			if !projects {
 				return
 			}
@@ -1792,7 +1799,10 @@ func (w *spanWalker) filterRefs(parts []string) []ColumnRef {
 		}
 		return []ColumnRef{{Column: parts[0]}}
 	}
-	if refs := w.resolveFilterQualifier(parts[0], parts[1]); len(refs) > 0 {
+	if refs, resolved := w.resolveFilterQualifier(parts[0], parts[1]); resolved {
+		// A derived relation's column that reads no column of its own (a constant)
+		// resolves to no lineage and must not fall through to a physical column of
+		// the same name.
 		return appendWrittenColumn(refs, parts[0], parts[1])
 	}
 	if w.namesAccessRelation(parts[0]) {
@@ -1841,9 +1851,9 @@ func (w *spanWalker) resolveOuterUnqualified(column string) []ColumnRef {
 // correlated reference reaches a relation only an outer query body holds (a CTE
 // or derived relation there included, whose projection is the lineage the
 // reference stands for).
-func (w *spanWalker) resolveFilterQualifier(qualifier, column string) []ColumnRef {
+func (w *spanWalker) resolveFilterQualifier(qualifier, column string) ([]ColumnRef, bool) {
 	if w.leaves.find(qualifier) != nil {
-		return w.resolveColumn(qualifier, column)
+		return w.resolveColumn(qualifier, column), true
 	}
 	for i := len(w.outerLeaves) - 1; i >= 0; i-- {
 		outer := w.outerLeaves[i]
@@ -1854,11 +1864,9 @@ func (w *spanWalker) resolveFilterQualifier(qualifier, column string) []ColumnRe
 		w.leaves = outer
 		refs := w.resolveColumn(qualifier, column)
 		w.leaves = prev
-		if len(refs) > 0 {
-			return refs
-		}
+		return refs, true
 	}
-	return nil
+	return nil, false
 }
 
 // filterStarColumn marks a filter reference to a relation whose every column a
@@ -1878,8 +1886,15 @@ func (w *spanWalker) addProjectionFilterColumns(cols []projColumn) {
 			w.addColumnInfoFilterColumns(col.setOpMerge.left)
 			w.addColumnInfoFilterColumns(col.setOpMerge.right)
 		case col.starGroup != nil:
+			// A REPLACE overrides an output column with another expression, so the
+			// original star does not project it and the replacement's sources are what
+			// the condition reads.
+			except := col.starGroup.except
+			for _, item := range col.starGroup.replace {
+				except = append(append([]string{}, except...), item.Name)
+			}
 			for _, segment := range col.starGroup.segments {
-				w.addStarSegmentFilterColumns(segment, col.starGroup.except)
+				w.addStarSegmentFilterColumns(segment, except)
 			}
 			for _, item := range col.starGroup.replace {
 				for _, ref := range item.Sources {
@@ -1945,20 +1960,34 @@ func (w *spanWalker) addFilterStar(relation ColumnRef, except []string) {
 	key.Column = ""
 	relation.Column = filterStarColumn
 	w.addFilterColumn(relation)
-	if len(except) == 0 {
-		return
-	}
 	if w.span.filterStarExcept == nil {
 		w.span.filterStarExcept = make(map[ColumnRef]map[string]bool, 1)
 	}
-	set := w.span.filterStarExcept[key]
-	if set == nil {
-		set = make(map[string]bool, len(except))
-		w.span.filterStarExcept[key] = set
+	// Two stars over one relation read the same columns, so their EXCEPT lists
+	// INTERSECT: a column either star projects is readable by the condition. A star
+	// with no list projects every column and clears what an earlier one excluded;
+	// a nil entry records that "unrestricted" verdict for a later star.
+	previous, seen := w.span.filterStarExcept[key]
+	if seen && previous == nil {
+		return
 	}
+	if len(except) == 0 {
+		w.span.filterStarExcept[key] = nil
+		return
+	}
+	next := make(map[string]bool, len(except))
 	for _, name := range except {
-		set[foldKey(name)] = true
+		folded := foldKey(name)
+		if !seen || previous[folded] {
+			next[folded] = true
+		}
 	}
+	if seen && len(next) == 0 {
+		// Nothing is excluded by every star over this relation.
+		w.span.filterStarExcept[key] = nil
+		return
+	}
+	w.span.filterStarExcept[key] = next
 }
 
 // placeholderRefs reports whether refs are the lineage of a recursive CTE's
@@ -1978,19 +2007,20 @@ func placeholderRefs(refs []ColumnRef) bool {
 	return true
 }
 
-// namesAccessRelation reports whether name is the table name or alias of a
-// relation the walker recorded anywhere in the statement — a base table or a CTE
-// reference, including one an outer query body holds and a nested body's
-// correlated reference reaches.
+// namesAccessRelation reports whether name is the reference name of a relation in
+// scope — the current body's, then the enclosing bodies' — including a CTE
+// reference. The SQL scopes decide, not the statement's access history: a table
+// of another set-operation arm or another subquery is not a qualifier here.
 func (w *spanWalker) namesAccessRelation(name string) bool {
 	if name == "" {
 		return false
 	}
-	for _, group := range [][]TableAccess{w.span.AccessTables, w.span.CTEReferences} {
-		for _, t := range group {
-			if strings.EqualFold(t.Alias, name) || strings.EqualFold(t.Table, name) {
-				return true
-			}
+	if w.leaves.find(name) != nil {
+		return true
+	}
+	for i := len(w.outerLeaves) - 1; i >= 0; i-- {
+		if outer := w.outerLeaves[i]; outer != nil && outer.find(name) != nil {
+			return true
 		}
 	}
 	return false
@@ -2017,6 +2047,16 @@ func (w *spanWalker) walkSubqueriesOnly(expr ast.Node) {
 		return
 	}
 	ew := &exprWalk{w: w, followSub: true}
+	if w.captureFilterProjections {
+		// A row condition that consumes a query body's output reads the subqueries
+		// inside that body's projection expressions too, one nesting level at a time.
+		ew.onSubquery = func(query ast.Node, projects bool) {
+			projection := w.visitBody(query)
+			if projects {
+				w.addProjectionFilterColumns(projection)
+			}
+		}
+	}
 	ew.walk(expr)
 }
 

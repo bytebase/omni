@@ -675,8 +675,9 @@ func (q *querySpanResolver) mapPredicateColumns(span *QuerySpan, fullSourceColum
 		}
 		// A qualified ref the expansion cannot attribute (a recursive CTE's
 		// self-reference, a relation only an outer body knows) falls back to the
-		// column name alone.
-		if ref.Table != "" {
+		// column name alone. A star ref keeps its relation: a name-only read of "*"
+		// would fan out to every accessed table.
+		if ref.Table != "" && ref.Column != filterStarColumn {
 			q.addMatchingPredicateColumns(out, fullSourceColumns, ColumnRef{Column: ref.Column}, false, excluded)
 		}
 	}
