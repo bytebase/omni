@@ -355,14 +355,16 @@ UPDATE STATISTICS c_big;
 	}
 }
 
+// TestClassifyReceiveAndReadText pins that the statements whose rows masking
+// cannot trace are marked, so masking withholds them.
 func TestClassifyReceiveAndReadText(t *testing.T) {
 	for _, tc := range []struct {
 		sql  string
 		want stmtType
 	}{
-		{"RECEIVE conversation_handle FROM dbo.q;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating},
+		{"RECEIVE conversation_handle FROM dbo.q;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeUntraced},
 		{"RECEIVE @h = conversation_handle FROM dbo.q;", stmtTypeRowCountGenerating},
-		{"READTEXT t.c @ptr 0 100;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating},
+		{"READTEXT t.c @ptr 0 100;", stmtTypeResultSetGenerating | stmtTypeRowCountGenerating | stmtTypeUntraced},
 	} {
 		stmts, err := omnimssql.Parse(tc.sql)
 		if err != nil || len(stmts) != 1 {
