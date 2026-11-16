@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"errors"
 
 	"github.com/bytebase/omni/driver"
 	"github.com/bytebase/omni/elasticsearch"
@@ -16,6 +17,16 @@ import (
 // reported to opts.Log as a command with its range in the script and a
 // response, so a task run's log holds the steps the script ran.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
+	// The splitter keeps a request whose body fails to parse, and drops a
+	// script's syntax errors; a script the console parser cannot read is an
+	// error before any request runs, as it is through Querier.
+	parsed, err := elasticsearch.ParseElasticsearchREST(script)
+	if err != nil {
+		return 0, err
+	}
+	if len(parsed.Errors) > 0 {
+		return 0, errors.New(parsed.Errors[0].Message)
+	}
 	statements, err := elasticsearch.SplitMultiSQL(script)
 	if err != nil {
 		return 0, err

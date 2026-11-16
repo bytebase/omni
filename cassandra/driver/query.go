@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"strconv"
 	"strings"
 	"time"
 
@@ -154,18 +155,41 @@ func valueGroups(columns int, rows []gocql.RowData) []int {
 	}
 	at := 0
 	for i := 0; i < columns && at < len(names); i++ {
-		base := names[at]
-		if k := strings.Index(base, "["); k >= 0 {
-			base = base[:k]
+		base, index, ok := tupleElementName(names[at])
+		// A tuple's elements are named base[0], base[1], … in order, so a group
+		// ends where the index stops following the position. Two selections of
+		// the same tuple repeat those names, and the position is what tells them
+		// apart: tup[0], tup[1], tup[0], tup[1] is two groups of two.
+		if !ok || index != 0 {
+			at++
+			continue
 		}
 		count := 1
-		for at+count < len(names) && strings.HasPrefix(names[at+count], base+"[") && strings.HasSuffix(names[at+count], "]") {
+		for at+count < len(names) {
+			nextBase, nextIndex, ok := tupleElementName(names[at+count])
+			if !ok || nextBase != base || nextIndex != count {
+				break
+			}
 			count++
 		}
 		groups[i] = count
 		at += count
 	}
 	return groups
+}
+
+// tupleElementName splits a row column name gocql gives a tuple's element,
+// "name[2]", into its base name and its index.
+func tupleElementName(name string) (string, int, bool) {
+	open := strings.LastIndex(name, "[")
+	if open < 0 || !strings.HasSuffix(name, "]") {
+		return "", 0, false
+	}
+	index, err := strconv.Atoi(name[open+1 : len(name)-1])
+	if err != nil {
+		return "", 0, false
+	}
+	return name[:open], index, true
 }
 
 // convertTuple reads a tuple column's elements as the JSON spelling the column

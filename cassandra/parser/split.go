@@ -9,6 +9,10 @@ package parser
 func Split(sql string) []Segment {
 	var segments []Segment
 	start := 0
+	// pieceStart is where the statement since the last semicolon begins; the
+	// batch checks read only it, so a long batch is not re-lexed at every inner
+	// semicolon.
+	pieceStart := 0
 	inBatch := false
 	emit := func(end int) {
 		seg := makeSegment(sql, start, end)
@@ -31,22 +35,30 @@ func Split(sql string) []Segment {
 		case ch == '/' && i+1 < len(sql) && sql[i+1] == '*':
 			i = skipBlockComment(sql, i)
 		case ch == ';':
-			text := sql[start:i]
+			piece := sql[pieceStart:i]
 			switch {
 			case inBatch:
 				// Inside a batch a semicolon separates the inner statements;
 				// only APPLY BATCH closes it.
-				if endsBatch(text) {
+				if endsBatch(piece) {
 					emit(i)
 					inBatch = false
 					start = i + 1
 				}
-			case beginsBatch(text):
-				inBatch = true
+			case beginsBatch(sql[start:i]):
+				// A batch that closes at once — BEGIN BATCH APPLY BATCH — is
+				// one statement too.
+				if endsBatch(piece) {
+					emit(i)
+					start = i + 1
+				} else {
+					inBatch = true
+				}
 			default:
 				emit(i)
 				start = i + 1
 			}
+			pieceStart = i + 1
 			i++
 		default:
 			i++

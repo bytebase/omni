@@ -23,6 +23,8 @@ func TestSplit(t *testing.T) {
 		{"BEGIN UNLOGGED BATCH INSERT INTO t (id) VALUES (1); APPLY BATCH; SELECT 1", 2},
 		{"BEGIN COUNTER BATCH UPDATE t SET c = c + 1 WHERE id = 1; APPLY BATCH", 1},
 		{"BEGIN BATCH INSERT INTO t (id) VALUES (1); -- one; two\nAPPLY BATCH;", 1}, // a semicolon in a comment does not close a batch
+		{"BEGIN BATCH INSERT INTO t (id) VALUES (1); INSERT INTO t (id) VALUES (2); INSERT INTO t (id) VALUES (3); APPLY BATCH; SELECT 1", 2},
+		{"BEGIN BATCH APPLY BATCH; SELECT 1", 2}, // a batch that closes at once is one statement too
 	}
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {

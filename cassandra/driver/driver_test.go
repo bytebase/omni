@@ -141,6 +141,12 @@ func TestValueGroups(t *testing.T) {
 	require.Equal(t, []int{1, 2, 1}, valueGroups(columns, []gocql.RowData{{Columns: []string{"a", "tup[0]", "tup[1]", "c"}}}))
 	// A tuple of three, first.
 	require.Equal(t, []int{3, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[2]", "b"}}}))
+	// The same tuple selected twice: its names repeat, and the position is
+	// what tells the two groups apart.
+	require.Equal(t, []int{2, 2}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "tup[0]", "tup[1]"}}}))
+	require.Equal(t, []int{2, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"tup[0]", "tup[1]", "id"}}}))
+	// A column whose name itself contains a bracket is one value.
+	require.Equal(t, []int{1, 1}, valueGroups(2, []gocql.RowData{{Columns: []string{"odd[1]", "b"}}}))
 }
 
 func TestConvertTuple(t *testing.T) {
