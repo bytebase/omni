@@ -2,7 +2,6 @@ package analysis
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/bytebase/omni/metadata"
 )
@@ -106,41 +105,4 @@ func searchFunctions(meta *metadata.DatabaseSchemaMetadata, searchPath []string,
 		}
 	}
 	return schemas, funcs
-}
-
-func relationColumnNames(table *metadata.TableMetadata) []string {
-	names := make([]string, 0, len(table.GetColumns()))
-	for _, column := range table.GetColumns() {
-		names = append(names, column.GetName())
-	}
-	return names
-}
-
-func viewColumnNames(view *metadata.ViewMetadata) []string {
-	names := make([]string, 0, len(view.GetColumns()))
-	for _, column := range view.GetColumns() {
-		names = append(names, column.GetName())
-	}
-	return names
-}
-
-func externalTableColumnNames(table *metadata.ExternalTableMetadata) []string {
-	names := make([]string, 0, len(table.GetColumns()))
-	for _, column := range table.GetColumns() {
-		names = append(names, column.GetName())
-	}
-	return names
-}
-
-func normalizedSchemaName(meta *metadata.DatabaseSchemaMetadata, name string) *metadata.SchemaMetadata {
-	schema := schemaMetadata(meta, name)
-	if schema != nil {
-		return schema
-	}
-	for _, candidate := range meta.GetSchemas() {
-		if strings.EqualFold(candidate.GetName(), name) {
-			return candidate
-		}
-	}
-	return nil
 }
