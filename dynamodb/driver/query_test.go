@@ -134,6 +134,23 @@ func TestQueryMaxResultBytes(t *testing.T) {
 	require.Less(t, len(result.Rows), testcontainer.PeopleCount, "the cap stopped the rows before the answer's last one")
 }
 
+// TestQueryMaxResultBytesStopsTheRead holds that the byte cap stops the read and
+// not only the rows: the tape holds one call, so a driver that asked for the
+// next page would fail its replay.
+func TestQueryMaxResultBytesStopsTheRead(t *testing.T) {
+	session := openSession(t)
+	results, err := session.Query(context.Background(),
+		`SELECT * FROM "paged" WHERE owner = 'o1' AND label <> 'row-0' ORDER BY seq`,
+		driver.QueryOptions{Limit: 3, MaxResultBytes: 30})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	result := results[0]
+	require.NoError(t, result.Err)
+	require.True(t, result.Truncated, "the first page passed the cap, so the read stopped there")
+	require.NotEmpty(t, result.Rows)
+	require.Less(t, len(result.Rows), 3, "fewer rows than the row cap would have taken")
+}
+
 // TestQueryMaxResultBytesWithoutACap holds that a result without a cap is whole.
 func TestQueryMaxResultBytesWithoutACap(t *testing.T) {
 	session := openSession(t)

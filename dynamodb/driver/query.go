@@ -106,6 +106,15 @@ func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, opts 
 	rowMap := make(map[string][]*driver.Value)
 	columnTypeMap := make(map[string]string)
 	totalRowCount := 0
+	// What the caller may receive is measured while the answer is read, so a
+	// read the byte cap stops does not ask for the pages after it: the cells an
+	// item carried are added as it arrives, and no page is asked for once the
+	// cap is passed. The exact cut of the rows is made below, where the columns
+	// and their framing are known, and that is where Result.Truncated is set:
+	// this measure is a lower bound of the same size, so it passes the cap only
+	// where the rows do.
+	ingestedBytes := int64(0)
+read:
 	for {
 		answer, err := d.client.ExecuteStatement(ctx, request)
 		if err != nil {
@@ -147,6 +156,12 @@ func (d *Driver) querySinglePartiQL(ctx context.Context, statement string, opts 
 					rowMap[key] = append(rowMap[key], curKeySet[key].value)
 					columnTypeMap[key] = curKeySet[key].columnType
 				}
+			}
+			for _, value := range curKeySet {
+				ingestedBytes += value.value.ByteSize()
+			}
+			if opts.MaxResultBytes > 0 && ingestedBytes > opts.MaxResultBytes {
+				break read
 			}
 		}
 		if answer.NextToken == "" {
