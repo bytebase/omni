@@ -157,7 +157,7 @@ func TestResolveQuerySpanSystemTables(t *testing.T) {
 	}{
 		{"SELECT * FROM information_schema.tables", QueryTypeSelectInfoSchema, "information_schema.tables"},
 		{"SELECT table_name FROM information_schema.columns WHERE table_schema = 'testdb'", QueryTypeSelectInfoSchema, "information_schema.columns"},
-		{"SELECT * FROM _statistics_.table_statistics", QueryTypeSelectInfoSchema, "_statistics_.table_statistics"},
+		{"SELECT * FROM sys.fe_locks", QueryTypeSelectInfoSchema, "sys.fe_locks"},
 		{"SELECT * FROM users", QueryTypeSelect, "testdb.users"},
 	}
 	for _, tc := range tests {
@@ -331,5 +331,93 @@ func TestResolveQuerySpanReportsScriptPositions(t *testing.T) {
 	}
 	if want := strings.Index(script, "FROM"); errs[0].Position != want {
 		t.Errorf("error position = %d, want %d", errs[0].Position, want)
+	}
+}
+
+func TestResolveQuerySpanFailsClosedOnLexError(t *testing.T) {
+	// SplitStatements drops a chunk that holds no statement, and a dropped
+	// chunk takes its lex error with it, so a buffer such as "/*" would
+	// otherwise answer an empty span for text the engine rejects.
+	for _, script := range []string{
+		"/*",
+		"SELECT * FROM secret; /*",
+	} {
+		span, err := ResolveQuerySpan(script, ResolveOptions{DefaultDatabase: "testdb"})
+		if err == nil {
+			t.Errorf("ResolveQuerySpan(%q) = %+v, want the lex error", script, span)
+			continue
+		}
+		var parseErr *parser.ParseError
+		if !errors.As(err, &parseErr) {
+			t.Fatalf("ResolveQuerySpan(%q) error = %v, want a *parser.ParseError", script, err)
+		}
+		if want := strings.Index(script, "/*"); parseErr.Position != want {
+			t.Errorf("ResolveQuerySpan(%q) error position = %d, want %d", script, parseErr.Position, want)
+		}
+	}
+
+	// A well-formed comment-only buffer stays an empty span, not an error.
+	for _, script := range []string{"-- note", "/* note */"} {
+		span, err := ResolveQuerySpan(script, ResolveOptions{DefaultDatabase: "testdb"})
+		if err != nil {
+			t.Errorf("ResolveQuerySpan(%q): %v", script, err)
+			continue
+		}
+		if span.Type != QueryTypeUnknown || len(span.SourceColumns) != 0 {
+			t.Errorf("ResolveQuerySpan(%q) = %+v, want an empty span", script, span)
+		}
+	}
+}
+
+func TestResolveQuerySpanResultsLineage(t *testing.T) {
+	// The span carries per-column lineage: each output column lists the
+	// column references that feed it. Masking reads it from here; Bytebase's
+	// adapter keeps Results empty so its masking sees what it saw before this
+	// package moved, and surfacing the lineage is that side's change.
+	span, err := ResolveQuerySpan("SELECT a, b + 1 AS c FROM t", ResolveOptions{DefaultDatabase: "testdb"})
+	if err != nil {
+		t.Fatalf("ResolveQuerySpan: %v", err)
+	}
+	if len(span.Results) != 2 {
+		t.Fatalf("Results = %+v, want 2 columns", span.Results)
+	}
+	for i, tc := range []struct {
+		name   string
+		source string
+	}{
+		{"a", "a"},
+		{"c", "b"},
+	} {
+		if span.Results[i].Name != tc.name {
+			t.Errorf("Results[%d].Name = %q, want %q", i, span.Results[i].Name, tc.name)
+		}
+		if len(span.Results[i].SourceColumns) != 1 || span.Results[i].SourceColumns[0].Column != tc.source {
+			t.Errorf("Results[%d].SourceColumns = %+v, want column %q", i, span.Results[i].SourceColumns, tc.source)
+		}
+	}
+}
+
+func TestIsSystemDatabase(t *testing.T) {
+	// The pinned 3.4.10 server answers SHOW DATABASES with information_schema
+	// and sys, and ANALYZE TABLE creates no `_statistics_`
+	// (starrocks/testdata/pins.tsv). Doris's mysql and __internal_schema are
+	// not StarRocks databases.
+	for name, want := range map[string]bool{
+		"information_schema": true,
+		"sys":                true,
+		"_statistics_":       false,
+		"mysql":              false,
+		"__internal_schema":  false,
+		"app":                false,
+	} {
+		if got := IsSystemDatabase(name, false); got != want {
+			t.Errorf("IsSystemDatabase(%q) = %v, want %v", name, got, want)
+		}
+	}
+	if !IsSystemDatabase("SYS", true) {
+		t.Error("IsSystemDatabase(\"SYS\", true) = false, want true")
+	}
+	if IsSystemDatabase("SYS", false) {
+		t.Error("IsSystemDatabase(\"SYS\", false) = true, want false")
 	}
 }

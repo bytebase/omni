@@ -55,3 +55,27 @@ func TestDiagnoseForkForms(t *testing.T) {
 		t.Error("Diagnose accepted INSERT OVERWRITE ... BY NAME (a)")
 	}
 }
+
+// Diagnose parses the whole script, so a chunk the splitter drops still
+// reports its lex error. SplitStatements and Classify have no error channel:
+// the first keeps the chunk marked Empty, and the second answers Unknown for
+// text whose first token never arrives, which a permission check denies.
+func TestDiagnoseReportsDroppedChunkLexError(t *testing.T) {
+	const script = "/*"
+	diagnostics := Diagnose(script)
+	if len(diagnostics) == 0 {
+		t.Fatalf("Diagnose(%q) returned no diagnostics", script)
+	}
+	if !strings.Contains(diagnostics[0].Message, "unterminated block comment") {
+		t.Errorf("message = %q, want the unterminated comment", diagnostics[0].Message)
+	}
+	if diagnostics[0].Offset != 0 {
+		t.Errorf("offset = %d, want 0", diagnostics[0].Offset)
+	}
+	if got := ClassifyStatement(script); got != QueryTypeUnknown {
+		t.Errorf("ClassifyStatement(%q) = %s, want %s", script, got, QueryTypeUnknown)
+	}
+	if statements := SplitStatements(script); len(statements) != 1 || !statements[0].Empty {
+		t.Errorf("SplitStatements(%q) = %+v, want one Empty statement", script, statements)
+	}
+}
