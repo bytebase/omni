@@ -91,13 +91,29 @@ func TestDatabaseDefinitionRefusesAnIndexItCannotRender(t *testing.T) {
 }
 
 func TestDatabaseDefinitionRefusesAnOptionItCannotRender(t *testing.T) {
-	_, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
-		Schemas: []*metadata.SchemaMetadata{{
-			Tables: []*metadata.TableMetadata{{
-				Name:          "c",
-				CreateOptions: `{"validator":{"$jsonSchema":{"bsonType":"binData"}},"indexOptionDefaults":{"storageEngine":{"wiredTiger":{"configString":{"$binary":{"base64":"AQI=","subType":"00"}}}}}}`,
-			}},
-		}},
-	})
-	require.ErrorContains(t, err, "no mongosh spelling")
+	for _, tc := range []struct {
+		name    string
+		options string
+		want    string
+	}{
+		{
+			name:    "a BSON kind gomongo cannot build",
+			options: `{"validator":{"$jsonSchema":{"bsonType":"binData"}},"indexOptionDefaults":{"storageEngine":{"wiredTiger":{"configString":{"$binary":{"base64":"AQI=","subType":"00"}}}}}}`,
+			want:    "no mongosh spelling",
+		},
+		{
+			name:    "not a document",
+			options: `[]`,
+			want:    "not a document",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := DatabaseDefinition(&metadata.DatabaseSchemaMetadata{
+				Schemas: []*metadata.SchemaMetadata{{
+					Tables: []*metadata.TableMetadata{{Name: "c", CreateOptions: tc.options}},
+				}},
+			})
+			require.ErrorContains(t, err, tc.want)
+		})
+	}
 }

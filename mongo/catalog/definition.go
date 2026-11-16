@@ -56,9 +56,13 @@ func writeCollection(b *strings.Builder, table *metadata.TableMetadata) error {
 		fmt.Fprintf(b, "db.createCollection(%s);\n", strconv.Quote(table.GetName()))
 		return nil
 	}
+	body, err := objectBody(literal)
+	if err != nil {
+		return fmt.Errorf("collection %q options: %w", table.GetName(), err)
+	}
 	// The create command takes the collection's name beside the options; the
 	// server's answer holds the options alone.
-	fmt.Fprintf(b, "db.runCommand({\"create\": %s, %s});\n", strconv.Quote(table.GetName()), objectBody(literal))
+	fmt.Fprintf(b, "db.runCommand({\"create\": %s, %s});\n", strconv.Quote(table.GetName()), body)
 	return nil
 }
 
@@ -80,7 +84,11 @@ func writeView(b *strings.Builder, view *metadata.ViewMetadata) error {
 		fmt.Fprintf(b, "// View %s is not restorable: the synced metadata carries no definition.\n", strconv.Quote(view.GetName()))
 		return nil
 	}
-	fmt.Fprintf(b, "db.runCommand({\"create\": %s, %s});\n", strconv.Quote(view.GetName()), objectBody(literal))
+	body, err := objectBody(literal)
+	if err != nil {
+		return fmt.Errorf("view %q definition: %w", view.GetName(), err)
+	}
+	fmt.Fprintf(b, "db.runCommand({\"create\": %s, %s});\n", strconv.Quote(view.GetName()), body)
 	return nil
 }
 
@@ -105,7 +113,11 @@ func writeIndex(b *strings.Builder, collection string, index *metadata.IndexMeta
 		if err != nil {
 			return fmt.Errorf("index %q on collection %q: %w", index.GetName(), collection, err)
 		}
-		if body := objectBody(literal); body != "" {
+		body, err := objectBody(literal)
+		if err != nil {
+			return fmt.Errorf("index %q on collection %q: %w", index.GetName(), collection, err)
+		}
+		if body != "" {
 			fields = append(fields, body)
 		}
 	}
@@ -116,9 +128,9 @@ func writeIndex(b *strings.Builder, collection string, index *metadata.IndexMeta
 
 // objectBody returns the fields of a rendered object literal, without its
 // braces, so a caller can put them in another object.
-func objectBody(literal string) string {
+func objectBody(literal string) (string, error) {
 	if len(literal) < 2 || literal[0] != '{' || literal[len(literal)-1] != '}' {
-		return ""
+		return "", fmt.Errorf("the options are not a document: %s", literal)
 	}
-	return literal[1 : len(literal)-1]
+	return literal[1 : len(literal)-1], nil
 }
