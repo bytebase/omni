@@ -1039,6 +1039,10 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 	}
 	defer func() { _ = rows.Close() }()
 
+	// The query reads every constraint of the owner, and a constraint two
+	// foreign keys name is read once per call, so each constraint's columns start
+	// again in this call and then take its rows in position order.
+	cleared := make(map[constraintRef]bool, 8)
 	for rows.Next() {
 		var tableName, constraintName string
 		var columnName sql.NullString
@@ -1050,10 +1054,11 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 		}
 		key := constraintRef{Schema: schemaName, Constraint: constraintName}
 		outerRTableMap[key] = tableName
-		// The query reads every constraint of the owner, and a constraint two
-		// foreign keys name is read once per call, so the columns are set rather
-		// than appended.
-		outerRColumnMap[key] = append(outerRColumnMap[key][:0], columnName.String)
+		if !cleared[key] {
+			cleared[key] = true
+			outerRColumnMap[key] = nil
+		}
+		outerRColumnMap[key] = append(outerRColumnMap[key], columnName.String)
 	}
 	if err := rows.Err(); err != nil {
 		return "", nil, fmt.Errorf("failed to execute query %q: %w", queryColumns, err)

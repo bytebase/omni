@@ -19,7 +19,7 @@
 < ok 0 0
 > exec
 |
-| CREATE TABLE OMNI_OTHER.R (ID NUMBER NOT NULL, CONSTRAINT R_PK PRIMARY KEY (ID))
+| CREATE TABLE OMNI_OTHER.R (ID NUMBER NOT NULL, PART NUMBER NOT NULL, CONSTRAINT R_PK PRIMARY KEY (ID, PART))
 < ok 0 0
 > exec
 |
@@ -27,11 +27,11 @@
 < ok 0 0
 > exec
 |
-| CREATE TABLE OMNI_APP.A (ID NUMBER NOT NULL, R_ID NUMBER NOT NULL, CONSTRAINT A_PK PRIMARY KEY (ID), CONSTRAINT A_R_FK FOREIGN KEY (R_ID) REFERENCES OMNI_OTHER.R (ID))
+| CREATE TABLE OMNI_APP.A (ID NUMBER NOT NULL, R_ID NUMBER NOT NULL, R_PART NUMBER NOT NULL, CONSTRAINT A_PK PRIMARY KEY (ID), CONSTRAINT A_R_FK FOREIGN KEY (R_ID, R_PART) REFERENCES OMNI_OTHER.R (ID, PART))
 < ok 0 0
 > exec
 |
-| CREATE TABLE OMNI_APP.B (ID NUMBER NOT NULL, R_ID NUMBER NOT NULL, CONSTRAINT B_PK PRIMARY KEY (ID), CONSTRAINT B_R_FK FOREIGN KEY (R_ID) REFERENCES OMNI_OTHER.R (ID))
+| CREATE TABLE OMNI_APP.B (ID NUMBER NOT NULL, R_ID NUMBER NOT NULL, R_PART NUMBER NOT NULL, CONSTRAINT B_PK PRIMARY KEY (ID), CONSTRAINT B_R_FK FOREIGN KEY (R_ID, R_PART) REFERENCES OMNI_OTHER.R (ID, PART))
 < ok 0 0
 > query
 | SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
@@ -151,6 +151,34 @@
 : string
 | OMNI_APP
 : string
+| A
+: string
+| R_PART
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 3
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
 | B
 : string
 | ID
@@ -193,6 +221,34 @@
 | 0
 : string
 | 2
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| B
+: string
+| R_PART
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 3
 : null
 : string
 | N
@@ -259,6 +315,13 @@
 : string
 | A
 : string
+| A_R_FK
+: string
+| R_PART
+< row
+: string
+| A
+: string
 | SYS_C9000001
 : string
 | ID
@@ -269,6 +332,13 @@
 | SYS_C9000002
 : string
 | R_ID
+< row
+: string
+| A
+: string
+| SYS_C9000003
+: string
+| R_PART
 < row
 : string
 | B
@@ -287,16 +357,30 @@
 : string
 | B
 : string
-| SYS_C9000003
+| B_R_FK
 : string
-| ID
+| R_PART
 < row
 : string
 | B
 : string
 | SYS_C9000004
 : string
+| ID
+< row
+: string
+| B
+: string
+| SYS_C9000005
+: string
 | R_ID
+< row
+: string
+| B
+: string
+| SYS_C9000006
+: string
+| R_PART
 > query
 |
 | 		SELECT
@@ -369,6 +453,18 @@
 : null
 < row
 : string
+| A
+: string
+| SYS_C9000003
+: string
+| C
+: string
+| "R_PART" IS NOT NULL
+: null
+: null
+: null
+< row
+: string
 | B
 : string
 | B_PK
@@ -396,7 +492,7 @@
 : string
 | B
 : string
-| SYS_C9000003
+| SYS_C9000004
 : string
 | C
 : string
@@ -408,11 +504,23 @@
 : string
 | B
 : string
-| SYS_C9000004
+| SYS_C9000005
 : string
 | C
 : string
 | "R_ID" IS NOT NULL
+: null
+: null
+: null
+< row
+: string
+| B
+: string
+| SYS_C9000006
+: string
+| C
+: string
+| "R_PART" IS NOT NULL
 : null
 : null
 : null
@@ -442,9 +550,23 @@
 : string
 | R
 : string
-| SYS_C9000005
+| R_PK
+: string
+| PART
+< row
+: string
+| R
+: string
+| SYS_C9000007
 : string
 | ID
+< row
+: string
+| R
+: string
+| SYS_C9000008
+: string
+| PART
 > query ^
 < result
 < column "TABLE_NAME" "NCHAR"
@@ -461,9 +583,23 @@
 : string
 | R
 : string
-| SYS_C9000005
+| R_PK
+: string
+| PART
+< row
+: string
+| R
+: string
+| SYS_C9000007
 : string
 | ID
+< row
+: string
+| R
+: string
+| SYS_C9000008
+: string
+| PART
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
