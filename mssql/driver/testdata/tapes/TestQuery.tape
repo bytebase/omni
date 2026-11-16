@@ -203,15 +203,21 @@
 | SELECT * FROM q_missing_table;
 < error
 | 208 1 16 1 Invalid object name 'q_missing_table'.
-> query
-| SELECT 1;
-|
-| SELECT * FROM q_missing_table;
-|
-| SELECT 2;
-|
+> query ^
 < error
-| 208 1 16 3 Invalid object name 'q_missing_table'.
+| 208 1 16 1 Invalid object name 'q_missing_table'.
+> query
+| SELECT COUNT(*) FROM q_items WHERE id = 1;
+< result
+< column "" "INT"
+< row
+: int64 1
+> query
+| CREATE TABLE q_scratch (id INT);
+|
+| INSERT INTO q_scratch VALUES (1);
+|
+< result
 > query
 | SELECT id, REPLICATE(N'x', 200) AS payload FROM q_items ORDER BY id;
 |

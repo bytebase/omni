@@ -201,15 +201,25 @@ END;
 		t.Errorf("error text = %q, want SQL Server's 208 and the object's name", text)
 	}
 
-	// A batch of several statements fails as a whole, and the error still
-	// unwraps to the client's own.
-	_, err = sess.Query(ctx, "SELECT 1;\nSELECT * FROM q_missing_table;\nSELECT 2;", driver.QueryOptions{})
-	if err == nil {
-		t.Fatal("a batch with a missing table should fail")
+	// A failing statement ends the script: the batch after it does not run.
+	failScript, err := sess.Query(ctx, "SELECT * FROM q_missing_table;\nGO\nDELETE FROM q_items WHERE id = 1;", driver.QueryOptions{})
+	if err != nil || len(failScript) != 1 || failScript[0].Err == nil {
+		t.Fatalf("failing script = %+v, %v", failScript, err)
 	}
 	var serverError gomssqldb.Error
-	if !errors.As(err, &serverError) || serverError.Number != 208 {
-		t.Fatalf("batch error = %v, want SQL Server's 208", err)
+	if !errors.As(failScript[0].Err, &serverError) || serverError.Number != 208 {
+		t.Fatalf("statement error = %v, want SQL Server's 208", failScript[0].Err)
+	}
+	counted, err := sess.Query(ctx, "SELECT COUNT(*) FROM q_items WHERE id = 1;", driver.QueryOptions{})
+	if err != nil || len(counted) != 1 || counted[0].Err != nil || counted[0].Rows[0][0].Int64 != 1 {
+		t.Fatalf("the batch after the failure ran: %+v, %v", counted, err)
+	}
+
+	// A batch of statements that report no rows answers with columnless results,
+	// which still leaves each statement its own result.
+	batchy, err := sess.Query(ctx, "CREATE TABLE q_scratch (id INT);\nINSERT INTO q_scratch VALUES (1);", driver.QueryOptions{})
+	if err != nil || len(batchy) != 2 || batchy[0].Err != nil || batchy[1].Err != nil {
+		t.Fatalf("columnless batch = %+v, %v", batchy, err)
 	}
 
 	// The size cap truncates the statement and the next one still runs.

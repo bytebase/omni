@@ -183,7 +183,12 @@ func showplanStatistic(format string) string {
 func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
 	if len(statements) == 1 {
 		results, err := s.runStatementAlone(ctx, statements[0], opts)
-		return results, err != nil, err
+		if err != nil {
+			return results, true, err
+		}
+		// A failing statement ends the script, so its batch is the last one.
+		stop := len(results) > 0 && results[len(results)-1].Err != nil
+		return results, stop, nil
 	}
 	return s.runBatchTogether(ctx, statements, opts)
 }
@@ -246,7 +251,11 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 		if err != nil {
 			return nil, true, err
 		}
-		resultSets = append(resultSets, result)
+		// A statement that reports no rows answers with a columnless result, which
+		// belongs to no result set: matching counts only the sets that have columns.
+		if len(result.Columns) > 0 {
+			resultSets = append(resultSets, result)
+		}
 		if !rows.NextResultSet() {
 			break
 		}
