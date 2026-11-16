@@ -80,7 +80,10 @@ func PriorBackupCheck(stmts []ast.Node, database string, schema v1review.Schema,
 			}
 		case *ast.DeleteStmt:
 			// A DELETE's tables are the tables it deletes from; its USING
-			// clause only filters.
+			// clause only filters. V1 read the names as written, so a
+			// multi-table DELETE that targets an alias ("DELETE b FROM t AS b")
+			// groups under the alias rather than the table the USING clause
+			// resolves it to.
 			for _, table := range deleteTables(n.Tables, database) {
 				changes = append(changes, priorBackupDML{table: table, kind: priorBackupDelete})
 			}

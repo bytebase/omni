@@ -388,6 +388,13 @@ func TestPriorBackupCheckMixedDML(t *testing.T) {
 			want: nil,
 		},
 		{
+			name: "a multi-table DELETE target names its alias",
+			// V1 grouped the names the DELETE targets as written: b is the alias
+			// of tech_book in the USING clause, not a table of that name.
+			sql:  "UPDATE b SET id = 1; DELETE b FROM tech_book AS b WHERE b.id = 1",
+			want: []priorBackupFinding{mixed("test.b")},
+		},
+		{
 			name: "a WITH reference is grouped as a table",
 			// The V1 rule did not tell a WITH-clause reference from a table.
 			sql:  "WITH t AS (SELECT 1 AS id) UPDATE t SET id = 2; DELETE FROM t",
