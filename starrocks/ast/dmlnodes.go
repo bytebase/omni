@@ -231,6 +231,7 @@ var _ Node = (*LoadDataDesc)(nil)
 //	    [BY system] [PROPERTIES (...)]
 type LoadDataStmt struct {
 	Label            string          // load label (db_name.label_name or label_name)
+	LabelParts       []string        // label parts as written: [db_name, label_name] or [label_name]
 	DataDescs        []*LoadDataDesc // data descriptions, if any
 	StorageType      string          // BROKER or RESOURCE, or ""
 	BrokerName       string          // WITH BROKER or WITH RESOURCE name
