@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"encoding"
 	"encoding/json"
 	"fmt"
 	"math/big"
@@ -339,6 +340,10 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 // document can hold: a ClickHouse Map(Float64, ...) arrives as
 // map[float64]..., and encoding/json refuses such a key.
 func normalizeJSONValue(value any) any {
+	switch value.(type) {
+	case json.Marshaler, encoding.TextMarshaler:
+		return value
+	}
 	rv := reflect.ValueOf(value)
 	if !rv.IsValid() {
 		return nil
@@ -357,6 +362,9 @@ func normalizeJSONValue(value any) any {
 		}
 		fallthrough
 	case reflect.Array:
+		if rv.Type().Elem().Kind() == reflect.Uint8 {
+			return value
+		}
 		out := make([]any, rv.Len())
 		for i := 0; i < rv.Len(); i++ {
 			out[i] = normalizeJSONValue(rv.Index(i).Interface())

@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/bytebase/omni/driver"
 )
 
@@ -259,6 +261,15 @@ func TestConvertMapWithFloatKeys(t *testing.T) {
 	got := convertValue("MAP(FLOAT64, STRING)", nil, &value)
 	if got.Kind != driver.String || got.String != `{"1.5":"x"}` {
 		t.Errorf("map = %+v", got)
+	}
+}
+
+func TestConvertUUIDInArray(t *testing.T) {
+	id := uuid.MustParse("550e8400-e29b-41d4-a716-446655440000")
+	value := any([]any{id})
+	got := convertValue("ARRAY(UUID)", nil, &value)
+	if want := `["550e8400-e29b-41d4-a716-446655440000"]`; got.Kind != driver.String || got.String != want {
+		t.Errorf("array of UUID = %+v, want %s", got, want)
 	}
 }
 
