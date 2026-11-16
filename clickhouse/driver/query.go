@@ -367,10 +367,17 @@ func timestampValue(typeName string, t time.Time) driver.Value {
 }
 
 func baseTemporalType(typeName string) string {
-	if strings.HasPrefix(strings.ToUpper(typeName), "NULLABLE(") && strings.HasSuffix(typeName, ")") {
-		return typeName[len("Nullable(") : len(typeName)-1]
+	for {
+		upper := strings.ToUpper(typeName)
+		switch {
+		case strings.HasPrefix(upper, "NULLABLE(") && strings.HasSuffix(typeName, ")"):
+			typeName = typeName[len("Nullable(") : len(typeName)-1]
+		case strings.HasPrefix(upper, "LOWCARDINALITY(") && strings.HasSuffix(typeName, ")"):
+			typeName = typeName[len("LowCardinality(") : len(typeName)-1]
+		default:
+			return typeName
+		}
 	}
-	return typeName
 }
 
 func isZonedTemporal(typeName string) bool {
@@ -471,11 +478,27 @@ func explainFormatOf(statement string) string {
 	if err != nil {
 		return "TEXT"
 	}
-	fields := strings.Fields(body)
-	if len(fields) >= 2 && strings.EqualFold(fields[1], "JSON") {
+	tokens := keywordTokens(body)
+	for i, token := range tokens {
+		if !token.word || !strings.EqualFold(token.text, "JSON") {
+			continue
+		}
+		if i+1 < len(tokens) && tokens[i+1].text == "=" {
+			if i+2 < len(tokens) && settingIsOff(tokens[i+2].text) {
+				return "TEXT"
+			}
+		}
 		return "JSON"
 	}
 	return "TEXT"
+}
+
+func settingIsOff(value string) bool {
+	switch strings.ToUpper(value) {
+	case "0", "FALSE", "OFF", "NO":
+		return true
+	}
+	return false
 }
 
 // translateAggregateFunctionError rewrites the client's opaque "unsupported

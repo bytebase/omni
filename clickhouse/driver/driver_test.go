@@ -288,6 +288,8 @@ func TestConvertTemporal(t *testing.T) {
 		{"zoned datetime", "DateTime('UTC')", driver.TimestampTZ, 0},
 		{"zoned datetime64", "DateTime64(3, 'UTC')", driver.TimestampTZ, 3},
 		{"nullable zoned datetime64", "Nullable(DateTime64(6, 'Asia/Shanghai'))", driver.TimestampTZ, 6},
+		{"low cardinality zoned datetime", "LowCardinality(DateTime('Asia/Shanghai'))", driver.TimestampTZ, 0},
+		{"nullable low cardinality zoned datetime64", "Nullable(LowCardinality(DateTime64(3, 'UTC')))", driver.TimestampTZ, 3},
 	} {
 		got := convertValue(tc.typeName, nil, &at)
 		if got.Kind != tc.kind || got.Precision != tc.precision {

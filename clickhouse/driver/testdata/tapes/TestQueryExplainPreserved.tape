@@ -51,7 +51,7 @@
 |    Output: id
 > query
 |
-| EXPLAIN json = 1, indexes = 1 SELECT id FROM q
+| EXPLAIN json = 1, indexes = 1 SELECT id FROM q;
 < result
 < column "explain" "String" "string"
 < row
@@ -71,3 +71,42 @@
 |     }
 |   }
 | ]
+> query
+|
+| EXPLAIN PLAN json = 1 SELECT id FROM q;
+< result
+< column "explain" "String" "string"
+< row
+: string
+| [
+|   {
+|     "Plan": {
+|       "Node Type": "Expression",
+|       "Node Id": "Expression_5",
+|       "Description": "(Project names + (Projection + Change column names to column identifiers))",
+|       "Plans": [
+|         {
+|           "Node Type": "ReadFromMemoryStorage",
+|           "Node Id": "ReadFromMemoryStorage_0"
+|         }
+|       ]
+|     }
+|   }
+| ]
+> query
+|
+| EXPLAIN json = 0 SELECT id FROM q
+< result
+< column "explain" "String" "string"
+< row
+: string
+| Output: id
+< row
+: string
+|
+< row
+: string
+| ReadFromMemoryStorage
+< row
+: string
+|    Output: id

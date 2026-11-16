@@ -228,10 +228,10 @@ func TestQueryExplainJSON(t *testing.T) {
 
 func TestQueryExplainPreserved(t *testing.T) {
 	d := setupQuery(t)
-	results := query(t, d, "EXPLAIN SELECT id FROM q;\nEXPLAIN json = 1, indexes = 1 SELECT id FROM q",
+	results := query(t, d, "EXPLAIN SELECT id FROM q;\nEXPLAIN json = 1, indexes = 1 SELECT id FROM q;\nEXPLAIN PLAN json = 1 SELECT id FROM q;\nEXPLAIN json = 0 SELECT id FROM q",
 		driver.QueryOptions{Explain: true, ExplainFormat: "JSON"})
-	if len(results) != 2 {
-		t.Fatalf("results = %d, want 2", len(results))
+	if len(results) != 4 {
+		t.Fatalf("results = %d, want 4", len(results))
 	}
 	if results[0].Statement != "EXPLAIN SELECT id FROM q;" {
 		t.Errorf("text explain was rewritten: %q", results[0].Statement)
@@ -241,6 +241,12 @@ func TestQueryExplainPreserved(t *testing.T) {
 	}
 	if results[1].Plan == nil || results[1].Plan.Format != "JSON" {
 		t.Errorf("json plan = %+v, want JSON", results[1].Plan)
+	}
+	if results[2].Plan == nil || results[2].Plan.Format != "JSON" {
+		t.Errorf("PLAN with json = 1 = %+v, want JSON", results[2].Plan)
+	}
+	if results[3].Plan == nil || results[3].Plan.Format != "TEXT" {
+		t.Errorf("json = 0 = %+v, want TEXT", results[3].Plan)
 	}
 }
 
