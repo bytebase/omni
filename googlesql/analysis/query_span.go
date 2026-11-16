@@ -1929,19 +1929,17 @@ func (w *spanWalker) resolveFilterQualifier(qualifier, column string) ([]ColumnR
 // the values they project (an INTERSECT or EXCEPT anywhere in its set-operation
 // tree), rather than by which rows exist.
 func bodyComparesProjectedValues(body ast.Node) bool {
-	for {
-		switch n := body.(type) {
-		case *ast.QueryStmt:
-			body = n.Body
-		case *ast.SetOperation:
-			if n.Op == ast.SetOpIntersect || n.Op == ast.SetOpExcept {
-				return true
-			}
-			body = n.Left
-		default:
-			return false
+	switch n := body.(type) {
+	case *ast.QueryStmt:
+		return bodyComparesProjectedValues(n.Body)
+	case *ast.SetOperation:
+		if n.Op == ast.SetOpIntersect || n.Op == ast.SetOpExcept {
+			return true
 		}
+		// A nested value-comparing branch counts wherever it sits in the tree.
+		return bodyComparesProjectedValues(n.Left) || bodyComparesProjectedValues(n.Right)
 	}
+	return false
 }
 
 // filterStarColumn marks a filter reference to a relation whose every column a
@@ -2224,6 +2222,7 @@ func (w *spanWalker) walkSubqueriesOnly(expr ast.Node) {
 		// A row condition that consumes a query body's output reads the subqueries
 		// inside that body's projection expressions too, one nesting level at a time.
 		ew.onSubquery = func(query ast.Node, projects bool) {
+			projects = projects || bodyComparesProjectedValues(query)
 			prev := w.captureFilterProjections
 			w.captureFilterProjections = projects
 			projection := w.visitBody(query)
