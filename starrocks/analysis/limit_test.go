@@ -77,7 +77,7 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 		{
 			stmt:  "SELECT col1, col2 FROM table1 PROCEDURE ANALYSE(10, 2000);",
 			count: 10,
-			want:  "SELECT * FROM (SELECT col1, col2 FROM table1 PROCEDURE ANALYSE(10, 2000)) result LIMIT 10;",
+			want:  "SELECT * FROM (\nSELECT col1, col2 FROM table1 PROCEDURE ANALYSE(10, 2000)\n) result LIMIT 10;",
 		},
 		{
 			stmt:  "SELECT col1, col2 FROM table1 ORDER BY col1;",
@@ -149,7 +149,7 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 		{
 			stmt:  "SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age;",
 			count: 10,
-			want:  "SELECT * FROM (SELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age) result LIMIT 10;",
+			want:  "SELECT * FROM (\nSELECT * FROM person LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age\n) result LIMIT 10;",
 		},
 		{
 			stmt:  "SELECT * FROM t -- note",
@@ -227,7 +227,7 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 		{
 			stmt:  "SELECT * FROM person /* c */ LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age;",
 			count: 10,
-			want:  "SELECT * FROM (SELECT * FROM person /* c */ LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age) result LIMIT 10;",
+			want:  "SELECT * FROM (\nSELECT * FROM person /* c */ LATERAL VIEW EXPLODE(ARRAY(30, 60)) tableName AS c_age\n) result LIMIT 10;",
 		},
 		// Parenthesized queries: the LIMIT lands on (or caps at) the wrapper,
 		// covering any nesting depth.
@@ -272,5 +272,15 @@ func TestGetStatementWithResultLimit(t *testing.T) {
 	for _, tc := range testCases {
 		got := RewriteResultLimit(tc.stmt, tc.count)
 		require.Equal(t, tc.want, got, tc.stmt)
+	}
+}
+
+// The grammar puts INTO OUTFILE inside the query relation, before LIMIT, so a
+// set operation's cap goes before the export clause rather than after it.
+func TestRewriteResultLimitSetOpOutfile(t *testing.T) {
+	const statement = "SELECT 1 UNION SELECT 2 INTO OUTFILE 's3://bucket/export/'"
+	const want = "SELECT 1 UNION SELECT 2 LIMIT 10 INTO OUTFILE 's3://bucket/export/'"
+	if got := RewriteResultLimit(statement, 10); got != want {
+		t.Errorf("RewriteResultLimit(%q) = %q, want %q", statement, got, want)
 	}
 }

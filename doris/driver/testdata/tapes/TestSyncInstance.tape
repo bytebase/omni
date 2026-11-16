@@ -2,10 +2,13 @@
 
 == TestSyncInstance default#1
 > query
-| SELECT VERSION()
+| SELECT @@version_comment, VERSION()
 < result
+< column "@@version_comment" "TEXT"
 < column "VERSION()" "TEXT"
 < row
+: bytes
+| doris version doris-3.1.4-rc02-7f5ba43de6
 : bytes
 | 5.7.99
 > query
@@ -31,26 +34,12 @@
 | 			DEFAULT_CHARACTER_SET_NAME,
 | 			DEFAULT_COLLATION_NAME
 | 		FROM information_schema.SCHEMATA
-| 		WHERE LOWER(SCHEMA_NAME) NOT IN ('information_schema', '_statistics_')
+| 		WHERE LOWER(SCHEMA_NAME) NOT IN ('__internal_schema', '_statistics_', 'information_schema', 'mysql')
 | 		ORDER BY SCHEMA_NAME
 < result
 < column "SCHEMA_NAME" "CHAR"
 < column "DEFAULT_CHARACTER_SET_NAME" "CHAR"
 < column "DEFAULT_COLLATION_NAME" "CHAR"
-< row
-: bytes
-| __internal_schema
-: bytes
-| utf8mb4
-: bytes
-| utf8mb4_0900_bin
-< row
-: bytes
-| mysql
-: bytes
-| utf8mb4
-: bytes
-| utf8mb4_0900_bin
 < row
 : bytes
 | sync_inst_db

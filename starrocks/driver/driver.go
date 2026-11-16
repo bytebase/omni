@@ -4,9 +4,8 @@
 // and change scripts.
 //
 // There is no Dump: omni has no starrocks/catalog to render a synced schema as
-// DDL. StarRocks has no read-only session parameter and no transaction isolation
-// levels, so driver.Config.ReadOnly and driver.ExecuteOptions.Isolation are
-// ignored.
+// DDL. StarRocks has no read-only session parameter, so driver.Config.ReadOnly
+// is ignored.
 package driver
 
 import (
@@ -211,18 +210,28 @@ func (d *Driver) Close() error {
 	return d.db.Close()
 }
 
-var versionPrefixRe = regexp.MustCompile(`^\d+.\d+.\d+`)
+var (
+	versionPrefixRe = regexp.MustCompile(`^\d+\.\d+\.\d+`)
+	versionInTextRe = regexp.MustCompile(`\d+\.\d+\.\d+`)
+)
 
-// getVersion returns the server version and the rest of its VERSION() string.
+// getVersion returns the engine release and the rest of the text naming it.
+// VERSION() reports the MySQL wire-compatibility version — 5.7.99 for Doris
+// 3.1.4 and 8.0.33 for StarRocks 3.4.10 — so @@version_comment names the
+// release, and VERSION() is only the fallback.
 func (d *Driver) getVersion(ctx context.Context) (string, string, error) {
-	const query = "SELECT VERSION()"
-	var version string
-	if err := d.db.QueryRowContext(ctx, query).Scan(&version); err != nil {
+	const query = "SELECT @@version_comment, VERSION()"
+	var comment, version string
+	if err := d.db.QueryRowContext(ctx, query).Scan(&comment, &version); err != nil {
 		return "", "", fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	if loc := versionInTextRe.FindStringIndex(comment); loc != nil {
+		return comment[loc[0]:loc[1]], comment[loc[1]:], nil
 	}
 	return parseVersion(version)
 }
 
+// parseVersion splits a version string at its leading release triple.
 func parseVersion(version string) (string, string, error) {
 	loc := versionPrefixRe.FindStringIndex(version)
 	if loc == nil {
@@ -231,16 +240,51 @@ func parseVersion(version string) (string, string, error) {
 	return version[loc[0]:loc[1]], version[loc[1]:], nil
 }
 
+// getServerVariable returns one server variable. The engines disagree on how
+// many columns SHOW VARIABLES returns — Doris has four, StarRocks two — so the
+// row is read by column name rather than by a fixed arity.
 func (d *Driver) getServerVariable(ctx context.Context, varName string) (string, error) {
 	query := fmt.Sprintf("SHOW VARIABLES LIKE '%s'", strings.ReplaceAll(varName, "'", "''"))
-	var found, value string
-	if err := d.db.QueryRowContext(ctx, query).Scan(&found, &value); err != nil {
+	rows, err := d.db.QueryContext(ctx, query)
+	if err != nil {
 		return "", fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
-	if varName != found {
-		return "", fmt.Errorf("expecting variable %s, but got %s", varName, found)
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return "", err
 	}
-	return value, nil
+	if len(columns) < 2 {
+		return "", fmt.Errorf("query %q returned %d columns", query, len(columns))
+	}
+	valueIndex := 1
+	for i, column := range columns {
+		if strings.EqualFold(column, "Value") {
+			valueIndex = i
+			break
+		}
+	}
+	values := make([]sql.NullString, len(columns))
+	dest := make([]any, len(columns))
+	for i := range values {
+		dest[i] = &values[i]
+	}
+	for rows.Next() {
+		if err := rows.Scan(dest...); err != nil {
+			return "", err
+		}
+		if !strings.EqualFold(values[0].String, varName) {
+			continue
+		}
+		if !values[valueIndex].Valid {
+			return "", fmt.Errorf("variable %s has no value", varName)
+		}
+		return values[valueIndex].String, nil
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	return "", fmt.Errorf("expecting variable %s, but the server reported none", varName)
 }
 
 func quoteBacktick(name string) string {

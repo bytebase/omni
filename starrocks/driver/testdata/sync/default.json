@@ -1,152 +1,152 @@
 {
-  "name": "omni_sync_corpus",
-  "schemas": [
+  "name":  "omni_sync_corpus",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "accounts",
-          "columns": [
+          "name":  "accounts",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "type": "bigint(20)"
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint(20)"
             },
             {
-              "name": "email",
-              "position": 2,
-              "type": "varchar(190)",
-              "comment": "login email"
+              "name":  "email",
+              "position":  2,
+              "type":  "varchar(190)",
+              "comment":  "login email"
             },
             {
-              "name": "bio",
-              "position": 3,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(65533)"
+              "name":  "bio",
+              "position":  3,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(65533)"
             },
             {
-              "name": "status",
-              "position": 4,
-              "default": "open",
-              "type": "varchar(16)"
+              "name":  "status",
+              "position":  4,
+              "default":  "open",
+              "type":  "varchar(16)"
             },
             {
-              "name": "balance",
-              "position": 5,
-              "default": "0.0000",
-              "type": "decimal(12, 4)"
+              "name":  "balance",
+              "position":  5,
+              "default":  "0.0000",
+              "type":  "decimal(12, 4)"
             },
             {
-              "name": "flag",
-              "position": 6,
-              "default": "1",
-              "type": "tinyint(4)"
+              "name":  "flag",
+              "position":  6,
+              "default":  "1",
+              "type":  "tinyint(4)"
             },
             {
-              "name": "created_at",
-              "position": 7,
-              "default": "CURRENT_TIMESTAMP",
-              "type": "datetime"
+              "name":  "created_at",
+              "position":  7,
+              "default":  "CURRENT_TIMESTAMP",
+              "type":  "datetime"
             },
             {
-              "name": "updated_at",
-              "position": 8,
-              "default": "CURRENT_TIMESTAMP",
-              "nullable": true,
-              "type": "datetime"
+              "name":  "updated_at",
+              "position":  8,
+              "default":  "CURRENT_TIMESTAMP",
+              "nullable":  true,
+              "type":  "datetime"
             },
             {
-              "name": "note",
-              "position": 9,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(100)",
-              "comment": "owner's note"
+              "name":  "note",
+              "position":  9,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(100)",
+              "comment":  "owner's note"
             },
             {
-              "name": "dt",
-              "position": 10,
-              "default": "NULL",
-              "nullable": true,
-              "type": "date"
+              "name":  "dt",
+              "position":  10,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "date"
             },
             {
-              "name": "payload",
-              "position": 11,
-              "default": "NULL",
-              "nullable": true,
-              "type": "json"
+              "name":  "payload",
+              "position":  11,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "json"
             }
           ],
-          "engine": "StarRocks",
-          "collation": "utf8_general_ci",
-          "comment": "customer accounts"
+          "engine":  "StarRocks",
+          "collation":  "utf8_general_ci",
+          "comment":  "customer accounts"
         },
         {
-          "name": "metrics",
-          "columns": [
+          "name":  "metrics",
+          "columns":  [
             {
-              "name": "ts",
-              "position": 1,
-              "type": "datetime"
+              "name":  "ts",
+              "position":  1,
+              "type":  "datetime"
             },
             {
-              "name": "val",
-              "position": 2,
-              "default": "NULL",
-              "nullable": true,
-              "type": "bigint(20)"
+              "name":  "val",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "bigint(20)"
             }
           ],
-          "engine": "StarRocks",
-          "collation": "utf8_general_ci"
+          "engine":  "StarRocks",
+          "collation":  "utf8_general_ci"
         },
         {
-          "name": "orders",
-          "columns": [
+          "name":  "orders",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "type": "bigint(20)"
+              "name":  "id",
+              "position":  1,
+              "type":  "bigint(20)"
             },
             {
-              "name": "account_id",
-              "position": 2,
-              "type": "bigint(20)"
+              "name":  "account_id",
+              "position":  2,
+              "type":  "bigint(20)"
             },
             {
-              "name": "total",
-              "position": 3,
-              "default": "0",
-              "nullable": true,
-              "type": "int(11)"
+              "name":  "total",
+              "position":  3,
+              "default":  "0",
+              "nullable":  true,
+              "type":  "int(11)"
             },
             {
-              "name": "created_on",
-              "position": 4,
-              "default": "NULL",
-              "nullable": true,
-              "type": "date"
+              "name":  "created_on",
+              "position":  4,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "date"
             }
           ],
-          "engine": "StarRocks",
-          "collation": "utf8_general_ci"
+          "engine":  "StarRocks",
+          "collation":  "utf8_general_ci"
         }
       ],
-      "views": [
+      "views":  [
         {
-          "name": "v_open_accounts",
-          "definition": "SELECT `omni_sync_corpus`.`accounts`.`id` AS `acct_id`, `omni_sync_corpus`.`accounts`.`email` AS `acct_email`\nFROM `omni_sync_corpus`.`accounts`\nWHERE `omni_sync_corpus`.`accounts`.`status` = 'open'",
-          "columns": [
+          "name":  "v_open_accounts",
+          "definition":  "SELECT `omni_sync_corpus`.`accounts`.`id` AS `acct_id`, `omni_sync_corpus`.`accounts`.`email` AS `acct_email`\nFROM `omni_sync_corpus`.`accounts`\nWHERE `omni_sync_corpus`.`accounts`.`status` = 'open'",
+          "columns":  [
             {
-              "name": "acct_id",
-              "position": 1,
-              "type": "bigint(20)"
+              "name":  "acct_id",
+              "position":  1,
+              "type":  "bigint(20)"
             },
             {
-              "name": "acct_email",
-              "position": 2,
-              "type": "varchar(190)"
+              "name":  "acct_email",
+              "position":  2,
+              "type":  "varchar(190)"
             }
           ]
         }

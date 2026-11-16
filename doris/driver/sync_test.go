@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	gomysql "github.com/go-sql-driver/mysql"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
@@ -148,6 +149,17 @@ func TestSyncInstance(t *testing.T) {
 	}
 	if diff := cmp.Diff(string(want), got); diff != "" {
 		t.Errorf("SyncInstance differs from %s (-want +got):\n%s", golden, diff)
+	}
+}
+
+// A database the connection itself cannot reach reaches the caller as
+// driver.ErrNotFound; any other client error does not.
+func TestWrapSyncDatabaseErr(t *testing.T) {
+	if err := wrapSyncDatabaseErr(&gomysql.MySQLError{Number: errUnknownDatabase, Message: "Unknown database"}); !errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapSyncDatabaseErr = %v, want driver.ErrNotFound", err)
+	}
+	if err := wrapSyncDatabaseErr(&gomysql.MySQLError{Number: 1146, Message: "Table doesn't exist"}); errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapSyncDatabaseErr = %v, want a plain error", err)
 	}
 }
 

@@ -23,3 +23,50 @@ func TestValidateQueryReportsScriptPositions(t *testing.T) {
 		t.Errorf("error position = %d, want %d", errs[0].Position, want)
 	}
 }
+
+// A statement that changes state outside the session is not read-only, and the
+// session forms stay allowed.
+func TestValidateQueryServerState(t *testing.T) {
+	tests := []struct {
+		statement   string
+		readOnly    bool
+		returnsData bool
+	}{
+		{"SET query_timeout = 3600", true, false},
+		{"SET @@session.query_timeout = 3600", true, false},
+		{"SET GLOBAL query_timeout = 3600", false, false},
+		{"SET @@global.query_timeout = 3600", false, false},
+		{"UNSET VARIABLE ALL", true, false},
+		{"UNSET GLOBAL VARIABLE ALL", false, false},
+		{"SELECT 1", true, true},
+		{"ADMIN SHOW FRONTEND CONFIG", false, true},
+	}
+	for _, tc := range tests {
+		readOnly, returnsData, err := ValidateQuery(tc.statement)
+		if err != nil {
+			t.Errorf("%q: %v", tc.statement, err)
+			continue
+		}
+		if readOnly != tc.readOnly || returnsData != tc.returnsData {
+			t.Errorf("%q = (readOnly %v, returnsData %v), want (%v, %v)", tc.statement, readOnly, returnsData, tc.readOnly, tc.returnsData)
+		}
+	}
+}
+
+// An explained statement is a plan, and only StarRocks's EXPLAIN ANALYZE runs
+// the statement it plans.
+func TestDescribeExplain(t *testing.T) {
+	for _, statement := range []string{"SELECT 1", "SHOW TABLES"} {
+		if _, _, ok := DescribeExplain(statement); ok {
+			t.Errorf("%q describes a plan", statement)
+		}
+	}
+	format, executed, ok := DescribeExplain("EXPLAIN SELECT 1")
+	if !ok || format != "TEXT" || executed {
+		t.Errorf("EXPLAIN = (%q, %v, %v), want (TEXT, false, true)", format, executed, ok)
+	}
+	format, executed, ok = DescribeExplain("EXPLAIN VERBOSE SELECT 1")
+	if !ok || format != "VERBOSE" || executed {
+		t.Errorf("EXPLAIN VERBOSE = (%q, %v, %v), want (VERBOSE, false, true)", format, executed, ok)
+	}
+}

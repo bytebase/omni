@@ -2,10 +2,13 @@
 
 == TestSyncInstance default#1
 > query
-| SELECT VERSION()
+| SELECT @@version_comment, VERSION()
 < result
+< column "@@version_comment" "VARCHAR"
 < column "version()" "VARCHAR"
 < row
+: bytes
+| 3.4.10-965be75
 : bytes
 | 8.0.33
 > query

@@ -8,9 +8,15 @@ import (
 	"strconv"
 	"strings"
 
+	gomysql "github.com/go-sql-driver/mysql"
+
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
+
+// errUnknownDatabase is the client error number for a database the server does
+// not have.
+const errUnknownDatabase = 1049
 
 const (
 	baseTableType        = "BASE TABLE"
@@ -23,7 +29,7 @@ const (
 // exclude from instance discovery, matching the parser-side system-database
 // classification. Doris has no `sys` metadatabase.
 func systemDatabaseExclusion() string {
-	return strings.Join([]string{"'information_schema'", "'_statistics_'"}, ", ")
+	return strings.Join([]string{"'__internal_schema'", "'_statistics_'", "'information_schema'", "'mysql'"}, ", ")
 }
 
 // SyncInstance reads the server version, lower_case_table_names, and
@@ -129,7 +135,12 @@ func (d *Driver) getMaterializedViews(ctx context.Context) (map[string]*metadata
 
 // SyncDatabase reads the full schema metadata of Config.Database, returning
 // driver.ErrNotFound when that database does not exist on the server.
-func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSchemaMetadata, err error) {
+	defer func() {
+		if err != nil {
+			err = wrapSyncDatabaseErr(err)
+		}
+	}()
 	schemaMetadata := &metadatapb.SchemaMetadata{
 		Name: "",
 	}
@@ -350,6 +361,16 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	databaseMetadata.Collation = ""
 
 	return databaseMetadata, nil
+}
+
+// wrapSyncDatabaseErr reports a database the connection cannot reach as
+// driver.ErrNotFound.
+func wrapSyncDatabaseErr(err error) error {
+	var mysqlErr *gomysql.MySQLError
+	if errors.As(err, &mysqlErr) && mysqlErr.Number == errUnknownDatabase {
+		return fmt.Errorf("%w: %w", driver.ErrNotFound, err)
+	}
+	return err
 }
 
 func unescapeExpressionDefault(s string) string {

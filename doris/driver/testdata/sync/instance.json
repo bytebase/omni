@@ -1,10 +1,8 @@
 {
     "databases": [
-      "__internal_schema  ",
-      "mysql  ",
       "sync_inst_db  "
     ],
     "lowerCaseTableNames": 0,
     "roles": null,
-    "version": "5.7.99"
+    "version": "3.1.4"
   }

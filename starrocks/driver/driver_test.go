@@ -89,6 +89,53 @@ func TestSanitizeCommentToken(t *testing.T) {
 	}
 }
 
+// A DELIMITER script is cut by its own terminator, and the directives are not
+// sent: the server knows neither.
+func TestSplitExecuteCommandsDelimiter(t *testing.T) {
+	tests := []struct {
+		script string
+		want   []string
+	}{
+		{
+			script: "DELIMITER $$\nCREATE TABLE t (a INT)$$\nDELIMITER ;\nINSERT INTO t VALUES (1);",
+			want:   []string{"CREATE TABLE t (a INT)", "INSERT INTO t VALUES (1);"},
+		},
+		{
+			script: "  delimiter //\nSELECT 1 // \nSELECT 2 //",
+			want:   []string{"SELECT 1", "SELECT 2"},
+		},
+		{
+			script: "DELIMITER ;\nSELECT 'a;b';\nSELECT 2;",
+			want:   []string{"SELECT 'a;b';", "SELECT 2;"},
+		},
+	}
+	for _, tc := range tests {
+		commands := splitExecuteCommands(tc.script)
+		var got []string
+		for _, cmd := range commands {
+			got = append(got, cmd.Text)
+			if cmd.ByteEnd > len(tc.script) || cmd.ByteStart < 0 || cmd.ByteStart >= cmd.ByteEnd {
+				t.Errorf("%q: command range [%d:%d] is outside the script", tc.script, cmd.ByteStart, cmd.ByteEnd)
+			}
+		}
+		if strings.Join(got, "\n") != strings.Join(tc.want, "\n") {
+			t.Errorf("splitExecuteCommands(%q) = %q, want %q", tc.script, got, tc.want)
+		}
+	}
+}
+
+// A zero-byte value is bytes, not SQL NULL: the slice is non-nil.
+func TestConvertValueEmptyBytes(t *testing.T) {
+	empty := []byte{}
+	if v := convertValue("BIT", nil, &empty); v.Kind != driver.Bytes || len(v.Bytes) != 0 {
+		t.Errorf("empty bytes decoded as %v", v)
+	}
+	var null []byte
+	if v := convertValue("BIT", nil, &null); v.Kind != driver.Null {
+		t.Errorf("nil bytes decoded as %v", v)
+	}
+}
+
 func TestParseVersion(t *testing.T) {
 	tests := []struct {
 		version  string

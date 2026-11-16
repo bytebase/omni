@@ -27,7 +27,7 @@ func RewriteResultLimit(statement string, limit int) string {
 	stmt, err := rewriteResultLimitInline(query, limit)
 	if err != nil {
 		if outfile == "" {
-			return fmt.Sprintf("SELECT * FROM (%s) result LIMIT %d;", trimStatement(query), limit)
+			return fmt.Sprintf("SELECT * FROM (\n%s\n) result LIMIT %d;", trimStatement(query), limit)
 		}
 		stmt = fmt.Sprintf("SELECT * FROM (\n%s\n) result LIMIT %d", trimStatement(query), limit)
 	}
@@ -108,6 +108,22 @@ func rewriteResultLimitInline(statement string, limitCount int) (string, error) 
 		// still a query whose rows need capping, so the caller's CTE-wrap
 		// fallback must run rather than let it through unbounded.
 		return "", errors.New("cannot locate LIMIT on a Doris set operation")
+	case *ast.GroupedQuery:
+		// A parenthesized query or a repeated trailing clause group carries
+		// its outer clauses on the group itself, so the group is where the cap
+		// applies. Unwrapping instead would miss
+		// (SELECT 1 LIMIT 1000) LIMIT 900000: the group's own LIMIT is the one
+		// the engine honors.
+		if stmt.Limit != nil {
+			return rewriteExistingLimit(statement, stmt.Limit, limitCount)
+		}
+		if stmt.Into != nil {
+			return statement[:stmt.Into.Loc.Start] + fmt.Sprintf("LIMIT %d ", limitCount) + statement[stmt.Into.Loc.Start:], nil
+		}
+		if hasUnparsedTail(statement, stmt.Loc.End) {
+			return "", errors.New("statement has unparsed tail content")
+		}
+		return statement[:stmt.Loc.End] + fmt.Sprintf(" LIMIT %d", limitCount) + statement[stmt.Loc.End:], nil
 	default:
 		// A statement Doris parses to something other than a query — DDL, DML,
 		// SHOW, etc. — has no rows to cap; run it unchanged, matching every other

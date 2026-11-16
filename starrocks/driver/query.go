@@ -106,6 +106,11 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		}
 		res.Statement = stmt.text
 		res.Latency = time.Since(startTime)
+		if res.Err == nil {
+			if format, executed, ok := analysis.DescribeExplain(stmt.text); ok {
+				res.Plan = &driver.Plan{Format: format, Executed: executed}
+			}
+		}
 		results = append(results, res)
 		if stop {
 			break
@@ -223,7 +228,8 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any) driver
 			return driver.Value{Kind: driver.Int64, Int64: raw.Int64}
 		}
 	case *[]byte:
-		if len(*raw) > 0 {
+		// nil is SQL NULL; an empty non-nil slice is a zero-byte value.
+		if *raw != nil {
 			return driver.Value{Kind: driver.Bytes, Bytes: *raw}
 		}
 	case *sql.NullBool:
