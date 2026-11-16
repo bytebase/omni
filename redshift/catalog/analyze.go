@@ -5363,6 +5363,12 @@ func buildResolvedArgs(argTypes []uint32, candidateArgTypes []uint32) []uint32 {
 	return resolved
 }
 
+// FigureColName returns the output column name the analyzer would give an
+// expression, for callers that compare against analyzed result names.
+func FigureColName(n nodes.Node) string {
+	return figureColName(n)
+}
+
 // figureColName determines the output column name for an expression.
 //
 // pg: src/backend/parser/parse_target.c — FigureColname

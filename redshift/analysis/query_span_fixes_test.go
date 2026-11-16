@@ -628,6 +628,32 @@ func TestRedshiftQuerySpanAliasedStarDefinedViewKeepsFunction(t *testing.T) {
 	}), span.Results[0].SourceColumns)
 }
 
+// TestRedshiftQuerySpanExcludeImplicitName covers EXCLUDE of an implicitly
+// named expression, using the analyzer's figureColName spelling.
+func TestRedshiftQuerySpanExcludeImplicitName(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan(`SELECT CASE WHEN true THEN 0 END, reporting_fn() + 1 EXCLUDE ("case")`)
+	require.NoError(t, err)
+	require.Len(t, span.Results, 1)
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+	}), span.Results[0].SourceColumns)
+}
+
+// TestRedshiftQuerySpanCTEPredicateSeesPrecedingSibling covers sequential CTE
+// visibility while collecting predicate dependencies.
+func TestRedshiftQuerySpanCTEPredicateSeesPrecedingSibling(t *testing.T) {
+	q := newQuerySpanResolver("db", []string{"public"}, redshiftQuerySpanContext(t))
+	span, err := q.getQuerySpan("WITH a AS (SELECT reporting_fn() AS x) SELECT (WITH b AS (SELECT 1 WHERE (SELECT x FROM a) > 0), a AS (SELECT 0 AS x) SELECT * FROM b) AS y")
+	require.NoError(t, err)
+	require.Equal(t, []ResolvedQuerySpanResult{{
+		Name: "y",
+		SourceColumns: redshiftSourceColumnSetFromList([]ColumnResource{
+			{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		}),
+	}}, span.Results)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {

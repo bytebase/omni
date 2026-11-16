@@ -1328,7 +1328,7 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 		}
 		issues.merge(clauseIssues)
 		mergeSourceColumnSet(result, clauses)
-		withSources, withIssues, err := q.collectWithClauseSubquerySources(selectStmt, functionStack, cache, scope)
+		withSources, withIssues, err := q.collectWithClauseSubquerySources(selectStmt, functionStack, cache, outerScope)
 		if err != nil {
 			return nil, functionBodyIssues{}, err
 		}
@@ -1359,7 +1359,7 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 	}
 	issues.merge(fromIssues)
 	mergeSourceColumnSet(result, sources)
-	withSources, withIssues, withErr := q.collectWithClauseSubquerySources(selectStmt, functionStack, cache, scope)
+	withSources, withIssues, withErr := q.collectWithClauseSubquerySources(selectStmt, functionStack, cache, outerScope)
 	if withErr != nil {
 		return nil, functionBodyIssues{}, withErr
 	}
@@ -1371,27 +1371,37 @@ func (q *querySpanResolver) collectSubqueryFunctionSources(selectStmt *ast.Selec
 // collectWithClauseSubquerySources collects the predicate and FROM
 // dependencies of a subquery's CTE bodies. Their projections are already part
 // of the scope; their clause functions still determine the result values.
-func (q *querySpanResolver) collectWithClauseSubquerySources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, scope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
+func (q *querySpanResolver) collectWithClauseSubquerySources(selectStmt *ast.SelectStmt, functionStack map[string]bool, cache map[string]functionBodySources, outerScope functionSourceScope) (ColumnSet, functionBodyIssues, error) {
 	result := make(ColumnSet)
 	issues := functionBodyIssues{}
 	if selectStmt.WithClause == nil || selectStmt.WithClause.Ctes == nil {
 		return result, issues, nil
 	}
+	// Definition-time visibility: a CTE body sees the enclosing scope and only
+	// the siblings declared before it, not a later same-named CTE.
+	cteScope := cloneFunctionSourceScope(outerScope)
 	for _, item := range selectStmt.WithClause.Ctes.Items {
 		cte, ok := item.(*ast.CommonTableExpr)
-		if !ok {
+		if !ok || cte.Ctename == "" {
 			continue
 		}
 		cteSelect, ok := cte.Ctequery.(*ast.SelectStmt)
 		if !ok {
 			continue
 		}
-		sources, sourceIssues, err := q.collectSubqueryFunctionSources(cteSelect, functionStack, cache, scope)
+		sources, sourceIssues, err := q.collectSubqueryFunctionSources(cteSelect, functionStack, cache, cteScope)
 		if err != nil {
 			return nil, functionBodyIssues{}, err
 		}
 		issues.merge(sourceIssues)
 		mergeSourceColumnSet(result, sources)
+		projection, projIssues, err := q.collectSelectFunctionProjection(cteSelect, functionStack, cache, cteScope)
+		if err != nil {
+			return nil, functionBodyIssues{}, err
+		}
+		issues.merge(projIssues)
+		projection.names = applyFunctionColumnAliases(projection.names, redshiftStringList(cte.Aliascolnames))
+		cteScope.defs[strings.ToLower(cte.Ctename)] = projection
 	}
 	return result, issues, nil
 }
@@ -1885,14 +1895,7 @@ func redshiftTargetOutputName(target *ast.ResTarget) string {
 	if target.Name != "" {
 		return target.Name
 	}
-	if parts := redshiftColumnRefParts(asColumnRef(target.Val)); len(parts) > 0 {
-		return parts[len(parts)-1]
-	}
-	if call, ok := target.Val.(*ast.FuncCall); ok {
-		_, functionName := functionCallName(call.Funcname)
-		return functionName
-	}
-	return ""
+	return catalog.FigureColName(target.Val)
 }
 
 func asColumnRef(node ast.Node) *ast.ColumnRef {
