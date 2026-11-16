@@ -654,6 +654,30 @@ func TestRedshiftQuerySpanCTEPredicateSeesPrecedingSibling(t *testing.T) {
 	}}, span.Results)
 }
 
+// TestRedshiftQuerySpanViewWithoutColumnsKeepsFunction covers a view whose
+// metadata has a definition but no column list.
+func TestRedshiftQuerySpanViewWithoutColumnsKeepsFunction(t *testing.T) {
+	snapshot := redshiftQuerySpanMetadata()
+	snapshot.Schemas[0].Views = append(snapshot.Schemas[0].Views, &metadata.ViewMetadata{
+		Name:       "definition_only_v",
+		Definition: "CREATE VIEW public.definition_only_v AS SELECT id FROM public.orders;",
+	})
+	getter, _ := redshiftMockDatabaseMetadataGetter([]*metadata.DatabaseSchemaMetadata{snapshot})
+	q := newQuerySpanResolver("db", []string{"public"}, ResolveOptions{
+		DefaultDatabase:     "db",
+		SearchPath:          []string{"public"},
+		GetDatabaseMetadata: getter,
+	})
+	span, err := q.getQuerySpan("SELECT v.*, analytics.reporting_fn() + v.id AS y FROM definition_only_v v")
+	require.NoError(t, err)
+	require.Len(t, span.Results, 2)
+	last := span.Results[len(span.Results)-1]
+	require.Equal(t, redshiftSourceColumnSetFromList([]ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "id"},
+		{Database: "db", Schema: "analytics", Table: "events", Column: "event_id"},
+	}), last.SourceColumns)
+}
+
 // TestRedshiftQuerySpanParsesStatementOnce covers defect 10: classification and
 // analysis share one parse.
 func TestRedshiftQuerySpanParsesStatementOnce(t *testing.T) {

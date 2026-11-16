@@ -858,8 +858,19 @@ func (q *querySpanResolver) functionBaseTableProjection(n *ast.RangeVar) (functi
 			names = append(names, column.GetName())
 		}
 	case findFunctionView(schema, n.Relname) != nil:
-		for _, column := range findFunctionView(schema, n.Relname).GetColumns() {
+		view := findFunctionView(schema, n.Relname)
+		for _, column := range view.GetColumns() {
 			names = append(names, column.GetName())
+		}
+		if len(names) == 0 {
+			var ok bool
+			names, ok = functionDefinitionOutputNames(view.GetDefinition())
+			if !ok {
+				names, ok = q.functionDefinitionCatalogNames(view.GetDefinition())
+			}
+			if !ok {
+				return functionSourceProjection{}, false
+			}
 		}
 	case findFunctionExternalTable(schema, n.Relname) != nil:
 		for _, column := range findFunctionExternalTable(schema, n.Relname).GetColumns() {
