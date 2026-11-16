@@ -589,6 +589,7 @@ var sessions = struct {
 	byKeyspace map[string]*gocql.Session
 	started    bool
 	startErr   error
+	container  testcontainers.Container
 	address    string
 	tag        string
 }{byKeyspace: map[string]*gocql.Session{}}
@@ -658,6 +659,7 @@ func startContainer() (err error) {
 	if err != nil {
 		return err
 	}
+	sessions.container = container
 	sessions.address = host + ":" + port.Port()
 	sessions.tag = pin.Tag
 	return nil
@@ -705,12 +707,16 @@ func checkDigest(ctx context.Context, container testcontainers.Container, digest
 	return fmt.Errorf("the Cassandra container runs an image with digests %v, but pins.tsv pins %s", image.RepoDigests, digest)
 }
 
-// Terminate closes the sessions this run started.
+// Terminate closes the sessions this run started and removes the server, so a
+// recording leaves no container behind even when the reaper is disabled.
 func Terminate() {
 	sessions.Lock()
 	defer sessions.Unlock()
 	for _, session := range sessions.byKeyspace {
 		session.Close()
+	}
+	if sessions.container != nil {
+		_ = testcontainers.TerminateContainer(sessions.container)
 	}
 }
 

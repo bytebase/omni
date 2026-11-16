@@ -184,10 +184,11 @@ const (
 )
 
 var liveServer struct {
-	once    sync.Once
-	address string
-	client  *http.Client
-	err     error
+	once      sync.Once
+	container testcontainers.Container
+	address   string
+	client    *http.Client
+	err       error
 }
 
 // live returns the pinned server's address and client, starting the container
@@ -195,7 +196,7 @@ var liveServer struct {
 func live(t testing.TB) (string, *http.Client) {
 	t.Helper()
 	liveServer.once.Do(func() {
-		liveServer.address, liveServer.client, liveServer.err = start(context.Background())
+		liveServer.container, liveServer.address, liveServer.client, liveServer.err = start(context.Background())
 	})
 	if liveServer.err != nil {
 		t.Fatalf("start Elasticsearch: %v", liveServer.err)
@@ -203,10 +204,10 @@ func live(t testing.TB) (string, *http.Client) {
 	return liveServer.address, liveServer.client
 }
 
-func start(ctx context.Context) (address string, client *http.Client, err error) {
+func start(ctx context.Context) (started testcontainers.Container, address string, client *http.Client, err error) {
 	pin, err := enginetest.LoadPin(Pins, Driver)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 	// testcontainers-go panics from MustExtractDockerHost when the Docker
 	// socket is reachable but access is denied, and a test must report that
@@ -242,28 +243,28 @@ func start(ctx context.Context) (address string, client *http.Client, err error)
 				WithStartupTimeout(startupTimeout)),
 	)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 	if err := checkDigest(ctx, container, pin.Digest); err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 	port, err := container.MappedPort(ctx, "9200/tcp")
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 	host, err := container.Host(ctx)
 	if err != nil {
-		return "", nil, err
+		return nil, "", nil, err
 	}
 	address = "http://" + host + ":" + port.Port()
 	client = &http.Client{Timeout: 60 * time.Second}
 
 	body, status, _, err := send(ctx, client, address, http.MethodGet, "/", nil)
 	if err != nil {
-		return "", nil, fmt.Errorf("Elasticsearch does not answer: %w", err)
+		return nil, "", nil, fmt.Errorf("Elasticsearch does not answer: %w", err)
 	}
 	if status != http.StatusOK {
-		return "", nil, fmt.Errorf("Elasticsearch does not answer: %d %s", status, body)
+		return nil, "", nil, fmt.Errorf("Elasticsearch does not answer: %d %s", status, body)
 	}
 	var root struct {
 		Version struct {
@@ -271,12 +272,12 @@ func start(ctx context.Context) (address string, client *http.Client, err error)
 		} `json:"version"`
 	}
 	if err := json.Unmarshal(body, &root); err != nil {
-		return "", nil, fmt.Errorf("Elasticsearch does not answer: %w", err)
+		return nil, "", nil, fmt.Errorf("Elasticsearch does not answer: %w", err)
 	}
 	if root.Version.Number != pin.Tag {
-		return "", nil, fmt.Errorf("the server reports %q, but pins.tsv pins Elasticsearch %s", root.Version.Number, pin.Tag)
+		return nil, "", nil, fmt.Errorf("the server reports %q, but pins.tsv pins Elasticsearch %s", root.Version.Number, pin.Tag)
 	}
-	return address, client, nil
+	return container, address, client, nil
 }
 
 func checkDigest(ctx context.Context, container testcontainers.Container, digest string) error {
@@ -301,9 +302,13 @@ func checkDigest(ctx context.Context, container testcontainers.Container, digest
 	return fmt.Errorf("the Elasticsearch container runs an image with digests %v, but pins.tsv pins %s", image.RepoDigests, digest)
 }
 
-// Terminate removes nothing: the container is the testcontainers runtime's, and
-// the server keeps no session this package opened.
-func Terminate() {}
+// Terminate removes the server this run started, so a recording leaves no
+// container behind even when the reaper is disabled.
+func Terminate() {
+	if liveServer.container != nil {
+		_ = testcontainers.TerminateContainer(liveServer.container)
+	}
+}
 
 // send sends one request to address as the pinned server's user, and returns
 // what the endpoint answered.
