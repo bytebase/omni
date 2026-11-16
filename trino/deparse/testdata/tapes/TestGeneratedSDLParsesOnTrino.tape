@@ -2,15 +2,24 @@
 
 == TestGeneratedSDLParsesOnTrino default#1
 > exec
+| CREATE SCHEMA IF NOT EXISTS "default"
+< ok - -
+> exec
 | CREATE TABLE IF NOT EXISTS "default"."testtable" (
 |     "id" bigint NOT NULL,
 |     "name" varchar
 | )
 < ok - -
 > exec
+| CREATE SCHEMA IF NOT EXISTS "default"
+< ok - -
+> exec
 | CREATE TABLE IF NOT EXISTS "default"."single_col" (
 |     "c" integer NOT NULL
 | )
+< ok - -
+> exec
+| CREATE SCHEMA IF NOT EXISTS "default"
 < ok - -
 > exec
 | CREATE TABLE IF NOT EXISTS "default"."typed" (
@@ -23,8 +32,19 @@
 | )
 < ok - -
 > exec
+| CREATE SCHEMA IF NOT EXISTS "default"
+< ok - -
+> exec
 | CREATE TABLE IF NOT EXISTS "default"."MixedCase" (
 |     "MixedCol" bigint NOT NULL,
 |     "table" varchar
+| )
+< ok - -
+> exec
+| CREATE SCHEMA IF NOT EXISTS "default"
+< ok - -
+> exec
+| CREATE TABLE IF NOT EXISTS "default"."a""b" (
+|     "c""d" varchar
 | )
 < ok - -

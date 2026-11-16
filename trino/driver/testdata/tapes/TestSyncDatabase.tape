@@ -51,10 +51,19 @@
 | )
 < ok 0 -
 > exec
-| -- Views are not part of the synced metadata: the sync reads table_type
-| -- 'TABLE'. TestDumpGaps holds what that costs a dump.
+| CREATE TABLE memory.omni_driver."a""b" (
+|     "c""d" varchar,
+|     id integer
+| )
+< ok 0 -
+> exec
 | CREATE VIEW memory.omni_driver.v_types AS
 |     SELECT c_integer, c_varchar FROM memory.omni_driver.types
+< ok 0 -
+> exec
+| -- Sorts before v_types, so a dump must order it after its dependency.
+| CREATE VIEW memory.omni_driver.v_derived AS
+|     SELECT c_integer FROM memory.omni_driver.v_types
 < ok 0 -
 > query
 | SELECT table_schem FROM system.jdbc.schemas WHERE table_catalog = ? ORDER BY table_schem
@@ -122,6 +131,11 @@
 : string
 | omni_driver
 : string
+| a"b
+< row
+: string
+| omni_driver
+: string
 | mixedcase
 < row
 : string
@@ -133,6 +147,34 @@
 | omni_driver
 : string
 | types
+> query
+| SELECT table_schema, table_name, view_definition FROM "memory".information_schema.views ORDER BY table_schema, table_name
+< result
+< column "table_schema" "VARCHAR"
+< column "table_name" "VARCHAR"
+< column "view_definition" "VARCHAR"
+< row
+: string
+| omni_driver
+: string
+| v_derived
+: string
+| SELECT c_integer
+| FROM
+|   memory.omni_driver.v_types
+|
+< row
+: string
+| omni_driver
+: string
+| v_types
+: string
+| SELECT
+|   c_integer
+| , c_varchar
+| FROM
+|   memory.omni_driver.types
+|
 > query
 | SELECT table_schem, table_name, column_name, type_name, is_nullable FROM system.jdbc.columns WHERE table_cat = ? ORDER BY table_schem, table_name, ordinal_position
 : string
@@ -521,6 +563,28 @@
 : string
 | omni_driver
 : string
+| a"b
+: string
+| c"d
+: string
+| varchar
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
+| a"b
+: string
+| id
+: string
+| integer
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
 | mixedcase
 : string
 | id
@@ -845,6 +909,17 @@
 | c_row
 : string
 | row("x" integer, "y" varchar)
+: string
+| YES
+< row
+: string
+| omni_driver
+: string
+| v_derived
+: string
+| c_integer
+: string
+| integer
 : string
 | YES
 < row

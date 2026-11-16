@@ -8,14 +8,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestGetDatabaseDefinition is the differential-vs-legacy gate: the omni output
-// must be byte-identical to the legacy bytebase plugin/schema/trino
-// GetDatabaseDefinition output. The first three cases are lifted verbatim
-// (inputs and expected strings) from
-// bytebase/backend/plugin/schema/trino/get_database_definition_test.go so any
-// drift from the legacy format fails here. The remaining cases extend coverage
-// to inputs the legacy suite never exercised (multiple tables, multiple
-// schemas, ordering, and nil/empty handling).
+// TestGetDatabaseDefinition pins the DDL the deparser emits. The first three
+// table cases are lifted verbatim (inputs and table text) from
+// bytebase/backend/plugin/schema/trino/get_database_definition_test.go; the
+// CREATE SCHEMA and CREATE VIEW statements are the fidelity additions that make
+// a dump restore into a catalog that does not already hold them. The remaining
+// cases extend coverage to multiple tables, multiple schemas, ordering, and
+// nil/empty handling.
 func TestGetDatabaseDefinition(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -33,7 +32,9 @@ func TestGetDatabaseDefinition(t *testing.T) {
 					{Name: "name", Type: "varchar", Nullable: true},
 				},
 			}),
-			expected: `CREATE TABLE IF NOT EXISTS "testschema"."testtable" (
+			expected: `CREATE SCHEMA IF NOT EXISTS "testschema";
+
+CREATE TABLE IF NOT EXISTS "testschema"."testtable" (
     "id" bigint NOT NULL,
     "name" varchar
 );
@@ -48,7 +49,9 @@ func TestGetDatabaseDefinition(t *testing.T) {
 				Name:    "empty_table",
 				Columns: []*ColumnMetadata{},
 			}),
-			expected: `CREATE TABLE IF NOT EXISTS "testschema"."empty_table" (
+			expected: `CREATE SCHEMA IF NOT EXISTS "testschema";
+
+CREATE TABLE IF NOT EXISTS "testschema"."empty_table" (
 
 );
 
@@ -56,8 +59,7 @@ func TestGetDatabaseDefinition(t *testing.T) {
 		},
 		{
 			// Verbatim from the legacy suite: special characters in identifiers
-			// are emitted as-is inside the double quotes (no escaping), exactly
-			// like the legacy source.
+			// are emitted as-is inside the double quotes.
 			name: "special characters in identifiers (legacy golden)",
 			metadata: oneTable("test-catalog", "test_schema", &TableMetadata{
 				Name: "test.table",
@@ -65,8 +67,28 @@ func TestGetDatabaseDefinition(t *testing.T) {
 					{Name: "id-field", Type: "bigint", Nullable: false},
 				},
 			}),
-			expected: `CREATE TABLE IF NOT EXISTS "test_schema"."test.table" (
+			expected: `CREATE SCHEMA IF NOT EXISTS "test_schema";
+
+CREATE TABLE IF NOT EXISTS "test_schema"."test.table" (
     "id-field" bigint NOT NULL
+);
+
+`,
+		},
+		{
+			// A double quote in any name is written as two double quotes, which
+			// Trino reads back as one inside the identifier.
+			name: "embedded double quotes",
+			metadata: oneTable("cat", `s"1`, &TableMetadata{
+				Name: `t"2`,
+				Columns: []*ColumnMetadata{
+					{Name: `c"3`, Type: "varchar", Nullable: true},
+				},
+			}),
+			expected: `CREATE SCHEMA IF NOT EXISTS "s""1";
+
+CREATE TABLE IF NOT EXISTS "s""1"."t""2" (
+    "c""3" varchar
 );
 
 `,
@@ -87,7 +109,9 @@ func TestGetDatabaseDefinition(t *testing.T) {
 					},
 				},
 			},
-			expected: `CREATE TABLE IF NOT EXISTS "s"."first" (
+			expected: `CREATE SCHEMA IF NOT EXISTS "s";
+
+CREATE TABLE IF NOT EXISTS "s"."first" (
     "a" integer NOT NULL
 );
 
@@ -98,8 +122,8 @@ CREATE TABLE IF NOT EXISTS "s"."second" (
 `,
 		},
 		{
-			// Tables from multiple schemas render schema-by-schema in snapshot
-			// order, qualified by their own schema name.
+			// Every CREATE SCHEMA comes before every table, so a table can
+			// reference one in a schema the dump has not written yet.
 			name: "multiple schemas",
 			metadata: &DatabaseSchemaMetadata{
 				Name: "cat",
@@ -108,7 +132,11 @@ CREATE TABLE IF NOT EXISTS "s"."second" (
 					{Name: "s2", Tables: []*TableMetadata{{Name: "t2", Columns: []*ColumnMetadata{{Name: "c2", Type: "double", Nullable: true}}}}},
 				},
 			},
-			expected: `CREATE TABLE IF NOT EXISTS "s1"."t1" (
+			expected: `CREATE SCHEMA IF NOT EXISTS "s1";
+
+CREATE SCHEMA IF NOT EXISTS "s2";
+
+CREATE TABLE IF NOT EXISTS "s1"."t1" (
     "c1" bigint NOT NULL
 );
 
@@ -119,10 +147,70 @@ CREATE TABLE IF NOT EXISTS "s2"."t2" (
 `,
 		},
 		{
-			// A schema with no tables contributes nothing.
+			// A schema with no relations still restores as a schema.
 			name:     "schema with no tables",
 			metadata: &DatabaseSchemaMetadata{Name: "cat", Schemas: []*SchemaMetadata{{Name: "empty"}}},
-			expected: "",
+			expected: `CREATE SCHEMA IF NOT EXISTS "empty";
+
+`,
+		},
+		{
+			// Every table is written before any view, because a view may read a
+			// table in another schema.
+			name: "view",
+			metadata: &DatabaseSchemaMetadata{
+				Name: "cat",
+				Schemas: []*SchemaMetadata{
+					{
+						Name:   "s",
+						Tables: []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "id", Type: "integer", Nullable: true}}}},
+						Views:  []*ViewMetadata{{Name: "v", Definition: "SELECT id\nFROM\n  \"s\".\"t\"\n"}},
+					},
+				},
+			},
+			expected: `CREATE SCHEMA IF NOT EXISTS "s";
+
+CREATE TABLE IF NOT EXISTS "s"."t" (
+    "id" integer
+);
+
+CREATE OR REPLACE VIEW "s"."v" AS
+SELECT id
+FROM
+  "s"."t";
+
+`,
+		},
+		{
+			// A view that reads another view follows it, even when its name
+			// sorts first.
+			name: "views follow their dependencies",
+			metadata: &DatabaseSchemaMetadata{
+				Name: "cat",
+				Schemas: []*SchemaMetadata{
+					{
+						Name:   "s",
+						Tables: []*TableMetadata{{Name: "t", Columns: []*ColumnMetadata{{Name: "id", Type: "integer", Nullable: true}}}},
+						Views: []*ViewMetadata{
+							{Name: "a_summary", Definition: `SELECT id FROM "s"."z_base"`},
+							{Name: "z_base", Definition: `SELECT id FROM "s"."t"`},
+						},
+					},
+				},
+			},
+			expected: `CREATE SCHEMA IF NOT EXISTS "s";
+
+CREATE TABLE IF NOT EXISTS "s"."t" (
+    "id" integer
+);
+
+CREATE OR REPLACE VIEW "s"."z_base" AS
+SELECT id FROM "s"."t";
+
+CREATE OR REPLACE VIEW "s"."a_summary" AS
+SELECT id FROM "s"."z_base";
+
+`,
 		},
 		{
 			// No schemas at all yields the empty string.
@@ -131,15 +219,14 @@ CREATE TABLE IF NOT EXISTS "s2"."t2" (
 			expected: "",
 		},
 		{
-			// A nil metadata is handled gracefully (the legacy source would
-			// panic on nil; the omni version returns empty instead).
+			// A nil metadata is handled gracefully.
 			name:     "nil metadata",
 			metadata: nil,
 			expected: "",
 		},
 		{
 			// nil entries in the slices are skipped rather than panicking.
-			name: "nil schema, table, and column entries are skipped",
+			name: "nil schema, table, column, and view entries are skipped",
 			metadata: &DatabaseSchemaMetadata{
 				Name: "cat",
 				Schemas: []*SchemaMetadata{
@@ -150,10 +237,13 @@ CREATE TABLE IF NOT EXISTS "s2"."t2" (
 							nil,
 							{Name: "t", Columns: []*ColumnMetadata{nil, {Name: "c", Type: "integer", Nullable: false}}},
 						},
+						Views: []*ViewMetadata{nil},
 					},
 				},
 			},
-			expected: `CREATE TABLE IF NOT EXISTS "s"."t" (
+			expected: `CREATE SCHEMA IF NOT EXISTS "s";
+
+CREATE TABLE IF NOT EXISTS "s"."t" (
     "c" integer NOT NULL
 );
 
@@ -171,14 +261,27 @@ CREATE TABLE IF NOT EXISTS "s2"."t2" (
 	}
 }
 
+// TestGetDatabaseDefinitionRefusesAViewWithoutDefinition pins that a view the
+// dump cannot recreate is an error, not a statement that silently drops it.
+func TestGetDatabaseDefinitionRefusesAViewWithoutDefinition(t *testing.T) {
+	_, err := GetDatabaseDefinition(&DatabaseSchemaMetadata{
+		Name:    "cat",
+		Schemas: []*SchemaMetadata{{Name: "s", Views: []*ViewMetadata{{Name: "v"}}}},
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `view s.v has no definition`)
+}
+
 // TestWriteCreateTable pins the single-statement renderer, mirroring the legacy
 // TestWriteCreateTable (same input, same expected — no trailing blank line, the
 // caller adds that).
 func TestWriteCreateTable(t *testing.T) {
 	tests := []struct {
-		name     string
-		schema   string
-		table    *TableMetadata
+		name   string
+		schema string
+		table  *TableMetadata
+		// expected is the single table statement, without the trailing blank
+		// line.
 		expected string
 	}{
 		{

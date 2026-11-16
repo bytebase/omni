@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
 )
@@ -13,9 +14,8 @@ type tableKey struct {
 	Table  string
 }
 
-// SyncDatabase reads the full schema of Config.Database, as Trino's JDBC
-// metadata reports it: every schema of the catalog, with its tables and their
-// columns. Views are not read: the tables query asks for table_type 'TABLE'.
+// SyncDatabase reads the full schema of Config.Database, as Trino reports it:
+// every schema of the catalog, with its tables, views and their columns.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	schemaNames, err := d.getSchemaList(ctx)
 	if err != nil {
@@ -24,6 +24,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	allTables, err := d.fetchAllTablesForCatalog(ctx, schemaNames)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tables for catalog %s: %w", d.databaseName, err)
+	}
+	allViews, err := d.fetchAllViewsForCatalog(ctx, schemaNames)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch views for catalog %s: %w", d.databaseName, err)
 	}
 	allColumns, err := d.fetchAllColumnsForCatalog(ctx)
 	if err != nil {
@@ -38,9 +42,16 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 				table.Columns = columns
 			}
 		}
+		views := allViews[schemaName]
+		for _, view := range views {
+			if columns, ok := allColumns[tableKey{Schema: schemaName, Table: view.Name}]; ok {
+				view.Columns = columns
+			}
+		}
 		dbMetadata.Schemas = append(dbMetadata.Schemas, &metadatapb.SchemaMetadata{
 			Name:   schemaName,
 			Tables: tables,
+			Views:  views,
 		})
 	}
 	return dbMetadata, nil
@@ -76,6 +87,43 @@ func (d *Driver) fetchAllTablesForCatalog(ctx context.Context, schemas []string)
 		return nil, fmt.Errorf("error during table row iteration: %w", err)
 	}
 	return allTables, nil
+}
+
+// fetchAllViewsForCatalog reads every view's name and defining query from the
+// catalog's information_schema.views. The catalog is quoted because it is an
+// identifier in the query text, not a parameter.
+func (d *Driver) fetchAllViewsForCatalog(ctx context.Context, schemas []string) (map[string][]*metadatapb.ViewMetadata, error) {
+	rows, err := d.db.QueryContext(ctx, fmt.Sprintf(
+		"SELECT table_schema, table_name, view_definition FROM %s.information_schema.views ORDER BY table_schema, table_name",
+		quoteIdentifier(d.databaseName)))
+	if err != nil {
+		return nil, fmt.Errorf("failed to query views for catalog: %w", err)
+	}
+	defer rows.Close()
+
+	allViews := make(map[string][]*metadatapb.ViewMetadata, len(schemas))
+	for _, schema := range schemas {
+		allViews[schema] = []*metadatapb.ViewMetadata{}
+	}
+	for rows.Next() {
+		var schemaName, viewName, definition string
+		if err := rows.Scan(&schemaName, &viewName, &definition); err != nil {
+			return nil, fmt.Errorf("failed to scan view row: %w", err)
+		}
+		allViews[schemaName] = append(allViews[schemaName], &metadatapb.ViewMetadata{
+			Name:       viewName,
+			Definition: definition,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during view row iteration: %w", err)
+	}
+	return allViews, nil
+}
+
+// quoteIdentifier writes name as a double-quoted Trino identifier.
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
 func (d *Driver) fetchAllColumnsForCatalog(ctx context.Context) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
