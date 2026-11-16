@@ -85,12 +85,30 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 
 func connOptions(cfg driver.Config) (*clickhouse.Options, error) {
 	host := strings.TrimSpace(cfg.Host)
-	if host == "" {
-		return nil, fmt.Errorf("host must be set")
-	}
 	port := strings.TrimSpace(cfg.Port)
-	if port == "" {
-		return nil, fmt.Errorf("port must be set")
+	var address string
+	if cfg.Dial != nil {
+		// A custom dialer may name its destination itself; the contract
+		// permits leaving Host and Port empty. The client still needs an
+		// address to hand the dialer.
+		switch {
+		case host != "" && port != "":
+			address = net.JoinHostPort(host, port)
+		case host != "":
+			address = host
+		case port != "":
+			address = net.JoinHostPort("localhost", port)
+		default:
+			address = "dial:9000"
+		}
+	} else {
+		if host == "" {
+			return nil, fmt.Errorf("host must be set")
+		}
+		if port == "" {
+			return nil, fmt.Errorf("port must be set")
+		}
+		address = net.JoinHostPort(host, port)
 	}
 
 	settings := clickhouse.Settings{
@@ -108,7 +126,7 @@ func connOptions(cfg driver.Config) (*clickhouse.Options, error) {
 	}
 
 	options := &clickhouse.Options{
-		Addr: []string{net.JoinHostPort(host, port)},
+		Addr: []string{address},
 		Auth: clickhouse.Auth{
 			Database: cfg.Database,
 			Username: cfg.User,

@@ -35,6 +35,30 @@ func TestConnOptionsDefaults(t *testing.T) {
 	}
 }
 
+func TestConnOptionsDialWithoutHost(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Host, cfg.Port = "", ""
+	var dialed string
+	cfg.Dial = func(_ context.Context, network, address string) (net.Conn, error) {
+		if network != "tcp" {
+			t.Errorf("network = %q", network)
+		}
+		dialed = address
+		return nil, net.ErrClosed
+	}
+	options, err := connOptions(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(options.Addr) != 1 || options.Addr[0] == "" {
+		t.Fatalf("Addr = %v", options.Addr)
+	}
+	_, _ = options.DialContext(context.Background(), options.Addr[0])
+	if dialed != options.Addr[0] {
+		t.Errorf("dialed %q, want %q", dialed, options.Addr[0])
+	}
+}
+
 func TestConnOptionsIPv6(t *testing.T) {
 	cfg := baseConfig()
 	cfg.Host = "2001:db8::1"
@@ -204,6 +228,21 @@ func TestStatementWithResultLimit(t *testing.T) {
 	}
 }
 
+func TestConvertIP(t *testing.T) {
+	ip := net.ParseIP("2001:db8::1")
+	if got := convertValue("IPV6", nil, &ip); got.Kind != driver.String || got.String != "2001:db8::1" {
+		t.Errorf("IPv6 = %+v", got)
+	}
+	pointer := &ip
+	if got := convertValue("NULLABLE(IPV6)", nil, &pointer); got.Kind != driver.String || got.String != "2001:db8::1" {
+		t.Errorf("nullable IPv6 = %+v", got)
+	}
+	var nilIP *net.IP
+	if got := convertValue("NULLABLE(IPV6)", nil, &nilIP); got.Kind != driver.Null {
+		t.Errorf("NULL IPv6 = %+v", got)
+	}
+}
+
 func TestSplitKeyExpressions(t *testing.T) {
 	for _, tc := range []struct {
 		in   string
@@ -259,6 +298,9 @@ func TestValidateSQLForEditor(t *testing.T) {
 		{"SHOW TABLES; DROP TABLE q", false},
 		{"SELECT `a--b` FROM t", true},
 		{"SELECT `a;b` FROM t", true},
+		{"SELECT(1)", true},
+		{"SELECT*FROM q", true},
+		{"SELECT 'x'", true},
 	} {
 		got, err := validateSQLForEditor(tc.statement)
 		if err != nil {

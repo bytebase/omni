@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -245,6 +246,9 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 	if v, ok := value.(*time.Time); ok && v != nil {
 		return driver.Value{Kind: driver.String, String: v.Format(time.RFC3339Nano)}
 	}
+	if v, ok := value.(*net.IP); ok && v != nil {
+		return driver.Value{Kind: driver.String, String: v.String()}
+	}
 	if v, ok := value.(*big.Int); ok && v != nil {
 		return driver.Value{Kind: driver.String, String: v.String()}
 	}
@@ -312,6 +316,9 @@ func convertValue(_ string, _ *sql.ColumnType, value any) driver.Value {
 	}
 	if v, ok := value.(**time.Time); ok && *v != nil {
 		return driver.Value{Kind: driver.String, String: (*v).Format(time.RFC3339Nano)}
+	}
+	if v, ok := value.(**net.IP); ok && *v != nil {
+		return driver.Value{Kind: driver.String, String: (*v).String()}
 	}
 	if v, ok := value.(**big.Int); ok && *v != nil {
 		return driver.Value{Kind: driver.String, String: (*v).String()}

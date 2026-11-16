@@ -345,8 +345,6 @@ func validateSQLForEditor(statement string) (bool, error) {
 }
 
 var (
-	selectRe        = regexp.MustCompile(`^SELECT\s+?`)
-	selectStarRe    = regexp.MustCompile(`^SELECT\*\s+?`)
 	explainRe       = regexp.MustCompile(`^EXPLAIN\s+?`)
 	explainAnalyze  = regexp.MustCompile(`^EXPLAIN\s+ANALYZE\s+?`)
 	cteRe           = regexp.MustCompile(`^WITH\s+?`)
@@ -372,7 +370,7 @@ func checkStatementWithoutQuotedTextAndComment(statement string) bool {
 			return true
 		}
 	}
-	if selectRe.MatchString(formatted) || selectStarRe.MatchString(formatted) {
+	if startsWithKeyword(formatted, "SELECT") {
 		return true
 	}
 	if explainRe.MatchString(formatted) {
