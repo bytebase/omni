@@ -17,6 +17,10 @@ import (
 // keep that so the resource keys are unchanged across the cutover.
 const defaultTrinoSchema = "public"
 
+// parseTrinoSpan is parser.Parse behind a variable so a test can prove a
+// statement is parsed once per analysis.
+var parseTrinoSpan = parser.Parse
+
 // resolver analyses a single Trino statement and produces a
 // base.QuerySpan: the set of physical columns it reads (expanded against
 // catalog metadata when available), the predicate columns it filters on, and
@@ -80,8 +84,11 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 
 	// Resolve the statement type up front so non-SELECT statements short-circuit
 	// the way the legacy plugin did. EXPLAIN ANALYZE classifies as Select.
-	file, err := parser.Parse(single)
-	if err != nil || file == nil || len(file.Stmts) == 0 {
+	file, err := parseTrinoSpan(single)
+	if err != nil {
+		return nil, parser.FirstError(err)
+	}
+	if file == nil || len(file.Stmts) == 0 {
 		return nil, fmt.Errorf("failed to parse Trino statement: %s", single)
 	}
 	node := file.Stmts[0]
@@ -104,18 +111,19 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 		queryType == Explain ||
 		queryType == SelectInfoSchema
 
-	// Unwrap EXPLAIN so the inner query's tables are visible: omni's span walker
-	// only descends into SELECT/set-op at the top level.
-	spanInput := single
-	if explain, ok := node.(*parser.ExplainStmt); ok && explain.Statement != nil {
-		if loc, ok := nodeSpan(explain.Statement); ok && loc.Start >= 0 && loc.End <= len(single) && loc.Start < loc.End {
-			spanInput = single[loc.Start:loc.End]
+	// Analyze the query the already-parsed statement defines. EXPLAIN and
+	// CREATE VIEW/TABLE … AS SELECT carry their query in the AST, so unwrapping
+	// it costs no second parse. The catalog scan still reads the whole
+	// statement text: it only looks for catalog names the metadata must load.
+	query := spanQueryNode(node)
+	var rawSpan *QuerySpan
+	if query != nil {
+		rawSpan, err = getQuerySpanForQuery(query, queryType, newViewState(q.buildSpanCatalog(single)))
+		if err != nil {
+			return nil, err
 		}
-	}
-
-	rawSpan, err := GetQuerySpanWithCatalog(spanInput, q.buildSpanCatalog(spanInput))
-	if err != nil {
-		return nil, err
+	} else {
+		rawSpan = &QuerySpan{Type: queryType}
 	}
 
 	tables := q.toTableResources(rawSpan)
@@ -144,7 +152,10 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 	// detected and skipped per resolved table inside expandTablesToColumns (not
 	// via a query-text substring scan), so a real maskable table is still
 	// expanded even when the same statement mentions "system." in a literal.
-	orderedColumns, fullSourceColumns, notFound := q.expandTablesToColumns(rawSpan)
+	orderedColumns, fullSourceColumns, notFound, err := q.expandTablesToColumns(rawSpan)
+	if err != nil {
+		return nil, err
+	}
 
 	results := q.buildResults(rawSpan, fullSourceColumns, orderedColumns, aliasMap)
 	predicateColumns := q.mapPredicateColumns(rawSpan, fullSourceColumns, aliasMap)
@@ -159,6 +170,27 @@ func (q *resolver) getQuerySpan(statement string) (*ResolvedQuerySpan, error) {
 		span.NotFoundError = notFound
 	}
 	return span, nil
+}
+
+// spanQueryNode returns the query a statement defines, for the statement kinds
+// whose reads live in an inner query. EXPLAIN and CREATE … AS SELECT keep the
+// query in the parsed AST, so analyzing it parses nothing again.
+func spanQueryNode(node ast.Node) *parser.Query {
+	switch n := node.(type) {
+	case *parser.QueryStmt:
+		return n.Query
+	case *parser.ExplainStmt:
+		if n.Statement != nil {
+			return spanQueryNode(n.Statement)
+		}
+	case *parser.CreateViewStmt:
+		return n.Query
+	case *parser.CreateTableAsStmt:
+		return n.Query
+	case *parser.CreateMaterializedViewStmt:
+		return n.Query
+	}
+	return nil
 }
 
 // buildSpanCatalog constructs the omni Trino catalog the query-span analysis
@@ -279,7 +311,7 @@ func (q *resolver) resolveCatalogSchema(catalog, schema string) (string, string)
 // resource so the read is still recorded. The first ResourceNotFoundError
 // encountered is returned (non-fatally) so the caller can attach it to the span,
 // matching the legacy listener behaviour.
-func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, *ResourceNotFoundError) {
+func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, *ResourceNotFoundError, error) {
 	ordered := make([]Column, 0)
 	set := make(ColumnSet)
 	var firstNotFound *ResourceNotFoundError
@@ -292,7 +324,7 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 		ordered = append(ordered, res)
 	}
 	if span == nil {
-		return ordered, set, nil
+		return ordered, set, nil, nil
 	}
 	for _, t := range span.AccessTables {
 		db, schema := q.resolveCatalogSchema(t.Catalog, t.Schema)
@@ -320,12 +352,18 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 		columns, err := q.tableColumns(db, schema, t.Table)
 		if err != nil {
 			var notFound *ResourceNotFoundError
-			if errors.As(err, &notFound) && firstNotFound == nil {
-				firstNotFound = notFound
+			if errors.As(err, &notFound) {
+				if firstNotFound == nil {
+					firstNotFound = notFound
+				}
+				// A missing resource is reported on the span; the table-level
+				// resource still records the read.
+				add(Column{Database: db, Schema: schema, Table: t.Table})
+				continue
 			}
-			// Keep the table-level resource (NotFound or any other error).
-			add(Column{Database: db, Schema: schema, Table: t.Table})
-			continue
+			// Any other metadata failure is not a missing object; surfacing it
+			// prevents a successful span that silently under-reports lineage.
+			return nil, nil, nil, err
 		}
 		if len(columns) == 0 {
 			add(Column{Database: db, Schema: schema, Table: t.Table})
@@ -335,7 +373,7 @@ func (q *resolver) expandTablesToColumns(span *QuerySpan) ([]Column, ColumnSet, 
 			add(Column{Database: db, Schema: schema, Table: t.Table, Column: col})
 		}
 	}
-	return ordered, set, firstNotFound
+	return ordered, set, firstNotFound, nil
 }
 
 // isSystemSchemaTable reports whether a resolved table reference targets a Trino
@@ -372,7 +410,7 @@ func (q *resolver) buildResults(span *QuerySpan, fullSourceColumns ColumnSet, or
 		// the base table's columns. This matches the prior ANTLR plugin (which
 		// produced no columns for such stars) and is tracked as a follow-up; a
 		// correct fix needs omni's analysis to expose the star's output columns.
-		if r.Name == "*" {
+		if r.Star && r.Name == "*" {
 			results = appendStarColumns(results, orderedColumns, nil)
 			continue
 		}
@@ -387,7 +425,7 @@ func (q *resolver) buildResults(span *QuerySpan, fullSourceColumns ColumnSet, or
 		// detection inspects the source-ref shape, not just the display name, so a
 		// column merely aliased to a name ending in ".*" is not mistaken for a
 		// star.
-		if isQualifiedStar(r) {
+		if r.Star && isQualifiedStar(r) {
 			targets := q.qualifiedStarTargets(r.SourceColumns[0], span)
 			results = appendStarColumns(results, orderedColumns, targets)
 			continue

@@ -102,15 +102,31 @@ func TestGetQuerySpan_StarOverMixedBaseDerivedStaysOpaque(t *testing.T) {
 	}
 }
 
-// TestGetQuerySpan_StarOverUsingJoinStaysOpaque guards that a USING join blocks
-// expansion: the coalesced join column changes the output width/order.
-func TestGetQuerySpan_StarOverUsingJoinStaysOpaque(t *testing.T) {
+// TestGetQuerySpan_StarOverUsingJoinExpandsCoalesced guards that a USING join
+// expands to its coalesced projection: each join column once at the front, then
+// the left and right non-join columns.
+func TestGetQuerySpan_StarOverUsingJoinExpandsCoalesced(t *testing.T) {
 	span, err := GetQuerySpan("WITH a AS (SELECT k, p FROM t1), b AS (SELECT k, q FROM t2) SELECT * FROM a JOIN b USING (k)")
 	if err != nil {
 		t.Fatalf("GetQuerySpan returned error: %v", err)
 	}
-	if got := resultNames(span); !sameNames(got, "*") {
-		t.Fatalf("Results = %v, want exactly [*] (USING join coalesces; must not expand)", got)
+	if got := resultNames(span); !sameNames(got, "k", "p", "q") {
+		t.Fatalf("Results = %v, want [k p q] (USING coalesces k once, first)", got)
+	}
+	if !hasSource(span.Results[0].SourceColumns, ColumnRef{Column: "k"}) {
+		t.Errorf("k.SourceColumns = %+v, want both sides' k", span.Results[0].SourceColumns)
+	}
+}
+
+// TestGetQuerySpan_StarOverNaturalJoinExpandsCoalesced covers NATURAL, whose
+// common columns come from the left relation's order.
+func TestGetQuerySpan_StarOverNaturalJoinExpandsCoalesced(t *testing.T) {
+	span, err := GetQuerySpan("WITH a AS (SELECT k, p FROM t1), b AS (SELECT k, q FROM t2) SELECT * FROM a NATURAL JOIN b")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if got := resultNames(span); !sameNames(got, "k", "p", "q") {
+		t.Fatalf("Results = %v, want [k p q] (NATURAL coalesces common k once, first)", got)
 	}
 }
 
