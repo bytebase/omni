@@ -1424,13 +1424,13 @@ func writeRelationCommentSDL(out io.Writer, schemaName string, table string, tex
 	if _, err := io.WriteString(out, `COMMENT ON TABLE "`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, schemaName); err != nil {
+	if _, err := io.WriteString(out, escapeIdentifier(schemaName)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `"."`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, table); err != nil {
+	if _, err := io.WriteString(out, escapeIdentifier(table)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `" IS '`); err != nil {
