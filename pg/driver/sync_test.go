@@ -7,9 +7,14 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -24,6 +29,80 @@ import (
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files under testdata/sync from this run")
+
+// TestSyncQueriesOrderTheirRows holds every query sync.go sends to an
+// ORDER BY. A sync query's row order decides the recorded OIDs (the
+// testcontainer numbers them as the test reads them) and the order of the
+// metadata's slices, so an order the container picks records a different
+// tape and golden on the next run, and re-recording cannot prove a change.
+func TestSyncQueriesOrderTheirRows(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "sync.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var exprs []ast.Expr
+	ast.Inspect(file, func(n ast.Node) bool {
+		switch n := n.(type) {
+		case *ast.ValueSpec:
+			exprs = append(exprs, n.Values...)
+		case *ast.AssignStmt:
+			exprs = append(exprs, n.Rhs...)
+		case *ast.ReturnStmt:
+			exprs = append(exprs, n.Results...)
+		}
+		return true
+	})
+	for _, e := range exprs {
+		text, ok := queryText(e)
+		if !ok || !readQuery.MatchString(text) || !readsRows.MatchString(text) || ordersRows.MatchString(text) {
+			continue
+		}
+		t.Errorf("the query at %s returns rows the container orders itself, which a recording cannot reproduce. Add an ORDER BY that makes the order a function of the data:\n%s",
+			fset.Position(e.Pos()), strings.TrimSpace(text))
+	}
+}
+
+var (
+	readQuery  = regexp.MustCompile(`(?is)^\s*(select|with|table|values)\b`)
+	readsRows  = regexp.MustCompile(`(?i)\bfrom\b`)
+	ordersRows = regexp.MustCompile(`(?i)\border\s+by\b`)
+)
+
+// queryText is the text of a query an expression builds: its string literals,
+// with an fmt.Sprintf call contributing its format string, so a query written
+// as concatenation is read whole. It reports false for anything else.
+func queryText(e ast.Expr) (string, bool) {
+	switch v := e.(type) {
+	case *ast.BasicLit:
+		if v.Kind != token.STRING {
+			return "", false
+		}
+		s, err := strconv.Unquote(v.Value)
+		if err != nil {
+			return "", false
+		}
+		return s, true
+	case *ast.ParenExpr:
+		return queryText(v.X)
+	case *ast.BinaryExpr:
+		if v.Op != token.ADD {
+			return "", false
+		}
+		left, leftOK := queryText(v.X)
+		right, rightOK := queryText(v.Y)
+		if !leftOK || !rightOK {
+			return "", false
+		}
+		return left + right, true
+	case *ast.CallExpr:
+		if len(v.Args) == 0 {
+			return "", false
+		}
+		return queryText(v.Args[0])
+	}
+	return "", false
+}
 
 // versions are the pinned servers of every major release Bytebase
 // supports, oldest first.
