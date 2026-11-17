@@ -354,6 +354,16 @@ func TestStripDatashareQualifier(t *testing.T) {
 			statement: `SELECT EXTRACT(day FROM shared.ts) FROM shared.facts`,
 			want:      `SELECT EXTRACT(day FROM shared.ts) FROM facts`,
 		},
+		{
+			name:      "a relation after a subquery is still in the relation list",
+			statement: `SELECT * FROM (SELECT 1) AS x, shared.t`,
+			want:      `SELECT * FROM (SELECT 1) AS x, t`,
+		},
+		{
+			name:      "a relation after a joined subquery is rewritten",
+			statement: `SELECT * FROM shared.a JOIN (SELECT 1 AS n) AS s ON true JOIN shared.b ON true`,
+			want:      `SELECT * FROM a JOIN (SELECT 1 AS n) AS s ON true JOIN b ON true`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := stripDatashareQualifier(tc.statement, "shared"); got != tc.want {

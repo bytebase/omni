@@ -387,24 +387,30 @@ func stripDatashareQualifier(statement, databaseName string) string {
 	var b strings.Builder
 	last := 0
 	// inRelation is true while the tokens are a relation list, which is where
-	// the database qualifier belongs. parens records whether each open
-	// parenthesis holds an expression, where a FROM starts an argument
-	// (EXTRACT(x FROM y)) rather than a relation list.
+	// the database qualifier belongs. parens records, for each open
+	// parenthesis, whether it holds an expression — where a FROM starts an
+	// argument (EXTRACT(x FROM y)) rather than a relation list — and the
+	// relation list the parenthesis was opened in, which continues after it.
 	inRelation := false
-	var parens []bool
+	type paren struct {
+		expression bool
+		inRelation bool
+	}
+	var parens []paren
 	for i, token := range tokens {
 		switch token.Type {
 		case '(':
-			parens = append(parens, i > 0 && opensExpression(tokens[i-1]))
+			parens = append(parens, paren{expression: i > 0 && opensExpression(tokens[i-1]), inRelation: inRelation})
 			continue
 		case ')':
 			if len(parens) > 0 {
+				inRelation = parens[len(parens)-1].inRelation
 				parens = parens[:len(parens)-1]
 			}
 			continue
 		}
 		if relationListStart[token.Type] {
-			inRelation = len(parens) == 0 || !parens[len(parens)-1]
+			inRelation = len(parens) == 0 || !parens[len(parens)-1].expression
 			continue
 		}
 		if relationListEnd[token.Type] {
