@@ -364,12 +364,19 @@ differences, confirmed by the cluster.
   `QueryPlan` unset; omni sets `Result.Plan.Format = "TEXT"`. The rows are the
   same plan lines.
 
+The harness can fail: mapping a foreign key's `confdeltype` `a` to `CASCADE`
+in omni made `TestParitySyncDatabase` report the differing `on_delete`, and the
+mutation was reverted. The six mutations above could not all be tried, because
+this corpus cannot observe them: an empty table's `reltuples` is 0.001 and
+`::bigint` already gives the clamp's 0; the plan's only `rows=` line is its
+first; the foreign key states `a`, and Redshift refuses `CASCADE`; and the
+corpus has no `BIT` value, no `INSERT` in a query, and no `FOR UPDATE`.
+
 What the harness did **not** exercise: an inbound datashare (no share existed,
 so the rewrite and `SVV_ALL_*` are uncompared), `SHOW VIEW` against a view the
-login does not own, `MaxResultBytes` truncation, a search path across two
-schemas, and the six mutation checks above. Bytebase's driver also never failed
-on the corpus, so the permission bug the sync had is fixed by omni's exclusion
-rather than observed in both.
+login does not own, `MaxResultBytes` truncation, and a search path across two
+schemas. Bytebase's driver also never failed on the corpus, so the permission
+bug the sync had is fixed by omni's exclusion rather than observed in both.
 
 ## Step 9 — what a failure means
 
