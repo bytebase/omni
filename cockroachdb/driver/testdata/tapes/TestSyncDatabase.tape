@@ -733,6 +733,51 @@
 : null
 > query
 |
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid), obj_description(con.oid, 'pg_constraint')
+| FROM pg_catalog.pg_constraint con
+| JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+| JOIN pg_catalog.pg_namespace nsp ON nsp.oid = con.connamespace
+| WHERE con.contype = 'c'
+| 	AND nsp.nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
+| ORDER BY nsp.nspname, rel.relname, con.conname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
+< row
+: string
+| app
+: string
+| customer
+: string
+| check_balance
+: string
+| CHECK ((balance >= 0))
+: null
+< row
+: string
+| app
+: string
+| customer
+: string
+| customer_email_check
+: string
+| CHECK ((email != ''::STRING))
+: null
+< row
+: string
+| app
+: string
+| orders
+: string
+| orders_amount_positive
+: string
+| CHECK ((amount > 0))
+: null
+> query
+|
 | SELECT
 | 	n.nspname AS fk_schema,
 | 	fk_cls.relname AS fk_table,
@@ -1040,11 +1085,19 @@
 | 	SELECT a + b;
 | $$
 > query
-| SELECT sequence_schema, sequence_name, data_type FROM information_schema.sequences ORDER BY sequence_schema, sequence_name;
+|
+| 		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
+| 		FROM information_schema.sequences
+| 		ORDER BY sequence_schema, sequence_name;
 < result
 < column "sequence_schema" "TEXT"
 < column "sequence_name" "TEXT"
 < column "data_type" "TEXT"
+< column "start_value" "TEXT"
+< column "minimum_value" "TEXT"
+< column "maximum_value" "TEXT"
+< column "increment" "TEXT"
+< column "cycle_option" "TEXT"
 < row
 : string
 | app
@@ -1052,6 +1105,16 @@
 | counter
 : string
 | INT8
+: string
+| 10
+: string
+| -100
+: string
+| 1000
+: string
+| 5
+: string
+| NO
 < row
 : string
 | audit
@@ -1059,6 +1122,16 @@
 | big_seq
 : string
 | INT8
+: string
+| 1
+: string
+| 1
+: string
+| 9223372036854775807
+: string
+| 1
+: string
+| NO
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description

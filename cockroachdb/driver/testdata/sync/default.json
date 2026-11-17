@@ -121,7 +121,17 @@
               "definition": "CREATE UNIQUE INDEX customer_pkey ON omni_testsyncdatabase.app.customer USING btree (id ASC)"
             }
           ],
-          "comment": "a customer"
+          "comment": "a customer",
+          "checkConstraints": [
+            {
+              "name": "check_balance",
+              "expression": "((balance >= 0))"
+            },
+            {
+              "name": "customer_email_check",
+              "expression": "((email != ''::STRING))"
+            }
+          ]
         },
         {
           "name": "orders",
@@ -189,6 +199,12 @@
               "onDelete": "CASCADE",
               "onUpdate": "RESTRICT",
               "matchType": "SIMPLE"
+            }
+          ],
+          "checkConstraints": [
+            {
+              "name": "orders_amount_positive",
+              "expression": "((amount > 0))"
             }
           ]
         }
@@ -295,7 +311,11 @@
       "sequences": [
         {
           "name": "counter",
-          "dataType": "INT8"
+          "dataType": "INT8",
+          "start": "10",
+          "minValue": "-100",
+          "maxValue": "1000",
+          "increment": "5"
         }
       ]
     },
@@ -304,7 +324,11 @@
       "sequences": [
         {
           "name": "big_seq",
-          "dataType": "INT8"
+          "dataType": "INT8",
+          "start": "1",
+          "minValue": "1",
+          "maxValue": "9223372036854775807",
+          "increment": "1"
         }
       ]
     },

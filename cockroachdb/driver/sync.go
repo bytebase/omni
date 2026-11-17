@@ -95,7 +95,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indexes from database %q: %w", d.databaseName, err)
 	}
-	tableMap, externalTableMap, err := getTables(txn, isAtLeastPG10, columnMap, indexMap)
+	checksMap, err := getChecks(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get check constraints from database %q: %w", d.databaseName, err)
+	}
+	tableMap, externalTableMap, err := getTables(txn, isAtLeastPG10, columnMap, indexMap, checksMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tables from database %q: %w", d.databaseName, err)
 	}
@@ -467,7 +471,7 @@ func getListTableQuery(isAtLeastPG10 bool) string {
 }
 
 // getTables gets all tables of a database.
-func getTables(txn *sql.Tx, isAtLeastPG10 bool, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.TableMetadata, map[string][]*metadatapb.ExternalTableMetadata, error) {
+func getTables(txn *sql.Tx, isAtLeastPG10 bool, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata, checksMap map[tableKey][]*metadatapb.CheckConstraintMetadata) (map[string][]*metadatapb.TableMetadata, map[string][]*metadatapb.ExternalTableMetadata, error) {
 	foreignKeysMap, err := getForeignKeys(txn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get foreign keys: %w", err)
@@ -499,6 +503,7 @@ func getTables(txn *sql.Tx, isAtLeastPG10 bool, columnMap map[tableKey][]*metada
 		table.Columns = columnMap[key]
 		table.Indexes = indexMap[key]
 		table.ForeignKeys = foreignKeysMap[key]
+		table.CheckConstraints = checksMap[key]
 
 		tableMap[schemaName] = append(tableMap[schemaName], table)
 	}
@@ -864,9 +869,45 @@ func getExtensions(txn *sql.Tx) ([]*metadatapb.ExtensionMetadata, error) {
 	return extensions, nil
 }
 
+var listCheckConstraintQuery = `
+SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid), obj_description(con.oid, 'pg_constraint')
+FROM pg_catalog.pg_constraint con
+JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+JOIN pg_catalog.pg_namespace nsp ON nsp.oid = con.connamespace` + fmt.Sprintf(`
+WHERE con.contype = 'c'
+	AND nsp.nspname NOT IN (%s)
+ORDER BY nsp.nspname, rel.relname, con.conname;`, crrawanalysis.SystemSchemaWhereClause)
+
+func getChecks(txn *sql.Tx) (map[tableKey][]*metadatapb.CheckConstraintMetadata, error) {
+	checksMap := make(map[tableKey][]*metadatapb.CheckConstraintMetadata)
+	rows, err := txn.Query(listCheckConstraintQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		check := &metadatapb.CheckConstraintMetadata{}
+		var schemaName, tableName, definition string
+		var comment sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &check.Name, &definition, &comment); err != nil {
+			return nil, err
+		}
+		check.Expression = strings.TrimPrefix(definition, "CHECK ")
+		if comment.Valid {
+			check.Comment = comment.String
+		}
+		key := tableKey{Schema: schemaName, Table: tableName}
+		checksMap[key] = append(checksMap[key], check)
+	}
+	return checksMap, rows.Err()
+}
+
 // getSequences gets all sequences of a database.
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
-	query := `SELECT sequence_schema, sequence_name, data_type FROM information_schema.sequences ORDER BY sequence_schema, sequence_name;`
+	query := `
+		SELECT sequence_schema, sequence_name, data_type, start_value, minimum_value, maximum_value, increment, cycle_option
+		FROM information_schema.sequences
+		ORDER BY sequence_schema, sequence_name;`
 	rows, err := txn.Query(query)
 	if err != nil {
 		return nil, err
@@ -876,10 +917,11 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	sequenceMap := make(map[string][]*metadatapb.SequenceMetadata)
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
-		var schemaName string
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType); err != nil {
+		var schemaName, cycleOption string
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &sequence.Start, &sequence.MinValue, &sequence.MaxValue, &sequence.Increment, &cycleOption); err != nil {
 			return nil, err
 		}
+		sequence.Cycle = strings.EqualFold(cycleOption, "YES")
 		sequenceMap[schemaName] = append(sequenceMap[schemaName], sequence)
 	}
 	if err := rows.Err(); err != nil {
