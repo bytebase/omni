@@ -19,7 +19,7 @@ func TestSplit(t *testing.T) {
 		},
 		{
 			statement: "SELECT\n\n\n\n1;\n\n;\n\n\nSELECT\n\n\n\n2;",
-			want:      []string{"SELECT\n\n\n\n1;", "SELECT\n\n\n\n2;"},
+			want:      []string{"SELECT\n\n\n\n1;", "", "SELECT\n\n\n\n2;"},
 		},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
@@ -27,6 +27,14 @@ func TestSplit(t *testing.T) {
 				t.Errorf("Split() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestSplitKeepsEmptySegments(t *testing.T) {
+	got := Split(`SELECT 1; ; SELECT 2;`)
+	want := []string{`SELECT 1;`, ``, `SELECT 2;`}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Split() mismatch (-want +got):\n%s", diff)
 	}
 }
 

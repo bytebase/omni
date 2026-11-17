@@ -77,6 +77,27 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 		sessionSearchPath []string
 	}
 	savepoints := map[tree.Name]searchPathSnapshot{}
+	var savepointOrder []tree.Name
+	// restoreSavepoint makes a savepoint's search path current and drops the
+	// savepoints nested after it.
+	restoreSavepoint := func(name tree.Name) bool {
+		index := slices.Index(savepointOrder, name)
+		if index < 0 {
+			return false
+		}
+		snapshot := savepoints[name]
+		if slices.Equal(sessionSearchPath, snapshot.sessionSearchPath) {
+			searchPath = snapshot.searchPath
+		} else {
+			// A non-local SET since the savepoint is not rolled back.
+			searchPath = sessionSearchPath
+		}
+		for _, later := range savepointOrder[index+1:] {
+			delete(savepoints, later)
+		}
+		savepointOrder = savepointOrder[:index+1]
+		return true
+	}
 	changes := Changes{}
 	schemaOf := func(table string) string {
 		if metadata != nil {
@@ -243,16 +264,21 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 			}
 		case *tree.BeginTransaction:
 			savepoints = map[tree.Name]searchPathSnapshot{}
+			savepointOrder = nil
 		case *tree.Savepoint:
+			if index := slices.Index(savepointOrder, n.Name); index >= 0 {
+				savepointOrder = slices.Delete(savepointOrder, index, index+1)
+			}
 			savepoints[n.Name] = searchPathSnapshot{searchPath: searchPath, sessionSearchPath: sessionSearchPath}
+			savepointOrder = append(savepointOrder, n.Name)
 		case *tree.RollbackToSavepoint:
 			// CockroachDB rolls a SET LOCAL back to the savepoint; a SET since then stays.
-			if snapshot, ok := savepoints[n.Savepoint]; ok {
-				if slices.Equal(sessionSearchPath, snapshot.sessionSearchPath) {
-					searchPath = snapshot.searchPath
-				} else {
-					searchPath = sessionSearchPath
-				}
+			restoreSavepoint(n.Savepoint)
+		case *tree.ReleaseSavepoint:
+			// CockroachDB also rolls a SET LOCAL back when the savepoint is released.
+			if restoreSavepoint(n.Savepoint) {
+				delete(savepoints, n.Savepoint)
+				savepointOrder = savepointOrder[:len(savepointOrder)-1]
 			}
 		case *tree.Discard:
 			if n.Mode == tree.DiscardModeAll {
@@ -262,6 +288,7 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 			// Unlike PostgreSQL, CockroachDB keeps a SET made in a transaction that rolls back.
 			searchPath = sessionSearchPath
 			savepoints = map[tree.Name]searchPathSnapshot{}
+			savepointOrder = nil
 		case *tree.SetVar:
 			if n.ResetAll || strings.EqualFold(n.Name, "search_path") {
 				searchPath = getSearchPath(n, initialSearchPath)

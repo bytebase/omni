@@ -27,7 +27,8 @@ func Parse(script string) (statements.Statements, error) {
 
 // Split returns each statement of script with its terminating semicolon,
 // lexically, so a script the parser rejects still splits. A segment that holds
-// no statement, such as a lone ";", is dropped.
+// no statement, such as a lone ";", is "" so a caller can account for every
+// boundary.
 func Split(script string) []string {
 	var result []string
 	for {
@@ -36,9 +37,10 @@ func Split(script string) []string {
 			break
 		}
 		segment := strings.TrimLeftFunc(script[:pos], unicode.IsSpace)
-		if holdsStatement(segment) {
-			result = append(result, segment)
+		if !holdsStatement(segment) {
+			segment = ""
 		}
+		result = append(result, segment)
 		script = script[pos:]
 	}
 	if segment := strings.TrimLeftFunc(script, unicode.IsSpace); holdsStatement(segment) {

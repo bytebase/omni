@@ -536,3 +536,16 @@ func TestExtractChangedResourcesInsertWithLimit(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractChangedResourcesReleaseSavepoint(t *testing.T) {
+	const statement = `BEGIN;
+SAVEPOINT s;
+SET LOCAL search_path = app;
+RELEASE SAVEPOINT s;
+DELETE FROM t;
+COMMIT;`
+	got := ExtractChangedResources(mustParse(t, statement), "db", []string{"public"}, nil)
+	if diff := cmp.Diff([]string{"db.public.t"}, resourceNames(got)); diff != "" {
+		t.Errorf("resources mismatch (-want +got):\n%s", diff)
+	}
+}
