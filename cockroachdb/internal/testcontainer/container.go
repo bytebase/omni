@@ -78,6 +78,7 @@ const statementTimeout = "30s"
 // A instance is one pinned server this run started.
 type instance struct {
 	once      sync.Once
+	termOnce  sync.Once
 	pin       enginetest.Pin
 	container testcontainers.Container
 	base      *pgx.ConnConfig
@@ -85,6 +86,17 @@ type instance struct {
 
 	mu      sync.Mutex
 	created map[string]bool // the top-level tests whose databases were made
+}
+
+// terminate removes this test's server. The first test that starts the
+// instance registers it as a cleanup, so a package run holds one server at a
+// time instead of one per test.
+func (in *instance) terminate() {
+	in.termOnce.Do(func() {
+		if in.container != nil {
+			_ = testcontainers.TerminateContainer(in.container)
+		}
+	})
 }
 
 // One server per top-level test, not one per pin role: a table or view OID
@@ -113,6 +125,7 @@ func started(t testing.TB, pin enginetest.Pin) *instance {
 	if in.pin != pin {
 		t.Fatalf("this run started CockroachDB at %s, not %s", in.pin, pin)
 	}
+	t.Cleanup(in.terminate)
 	return in
 }
 
@@ -227,9 +240,7 @@ func Terminate() {
 	shared.Lock()
 	defer shared.Unlock()
 	for _, in := range shared.byKey {
-		if in.container != nil {
-			_ = testcontainers.TerminateContainer(in.container)
-		}
+		in.terminate()
 	}
 }
 

@@ -188,6 +188,33 @@
 : string
 | UTC
 > query
+| SELECT 1:::INT8 AS v;
+< result
+< column "v" "INT8"
+< row
+: int64 1
+> query
+| SHOW timezone
+< result
+< column "timezone" "TEXT"
+< row
+: string
+| UTC
+> query
+| SHOW CLUSTER SETTING version;
+< result
+< column "version" "TEXT"
+< row
+: string
+| 25.2
+> query
+| SHOW timezone
+< result
+< column "timezone" "TEXT"
+< row
+: string
+| UTC
+> query
 | SELECT 1;
 < result
 < column "?column?" "INT8"

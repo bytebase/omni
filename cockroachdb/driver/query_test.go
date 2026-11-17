@@ -189,6 +189,22 @@ INSERT INTO other.thing VALUES (7);`)
 		}
 	})
 
+	t.Run("cockroach syntax", func(t *testing.T) {
+		results, err := session.Query(ctx, "SELECT 1:::INT8 AS v; SHOW CLUSTER SETTING version;", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 2 || results[0].Err != nil || results[1].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		if got := results[0].Rows[0][0]; got.Kind != driver.Int64 || got.Int64 != 1 {
+			t.Errorf("v = %+v, want int64 1", got)
+		}
+		if len(results[1].Rows) != 1 {
+			t.Errorf("SHOW CLUSTER SETTING rows = %d, want 1", len(results[1].Rows))
+		}
+	})
+
 	t.Run("error stops the script", func(t *testing.T) {
 		results, err := session.Query(ctx, "SELECT 1; SELECT * FROM app.missing; SELECT 3;", driver.QueryOptions{})
 		if err != nil {
@@ -256,5 +272,24 @@ func TestValidateQueryExplainAnalyze(t *testing.T) {
 	}
 	if !returnsData {
 		t.Error("returnsData = false, want true")
+	}
+}
+
+// TestValidateQueryCockroachSyntax pins statements the PostgreSQL grammar
+// rejects but CockroachDB accepts and returns rows for.
+func TestValidateQueryCockroachSyntax(t *testing.T) {
+	for _, statement := range []string{
+		"SHOW CLUSTER SETTING version",
+		"SHOW CREATE TABLE app.people",
+		"SELECT 1:::INT8",
+	} {
+		_, returnsData, err := validateQuery(statement)
+		if err != nil {
+			t.Errorf("%s: %v", statement, err)
+			continue
+		}
+		if !returnsData {
+			t.Errorf("%s: returnsData = false, want true", statement)
+		}
 	}
 }

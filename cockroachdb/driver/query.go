@@ -15,6 +15,8 @@ import (
 	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
+	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
+	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/stdlib"
 
@@ -150,37 +152,31 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	return results, nil
 }
 
-// validateQuery reports whether the statement may run in the SQL editor's
-// read-only mode and whether every statement returns data. CockroachDB is
-// dispatched through the PostgreSQL grammar, as Bytebase does.
+// validateQuery reports whether the statement returns rows. CockroachDB's
+// own parser decides, so its native syntax (SHOW, a cast like 1:::INT8) and a
+// SELECT over a mutating CTE are read the same way the server reads them.
+// readOnly is Bytebase's editor question and comes from the PostgreSQL
+// grammar when that grammar accepts the statement.
 func validateQuery(statement string) (readOnly, returnsData bool, err error) {
-	stmts, err := omnipg.Parse(statement)
+	parsed, err := crrawparser.Parse(statement)
 	if err != nil {
 		return false, false, err
 	}
-	nodes := make([]ast.Node, 0, len(stmts))
-	for _, stmt := range stmts {
-		nodes = append(nodes, stmt.AST)
-	}
-	readOnly, returnsData = pganalysis.ValidateQuery(nodes)
-	if !returnsData {
-		for _, node := range nodes {
-			switch n := node.(type) {
-			case *ast.SelectStmt, *ast.ExplainStmt:
-				returnsData = true
-			case *ast.InsertStmt:
-				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
-			case *ast.UpdateStmt:
-				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
-			case *ast.DeleteStmt:
-				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
-			case *ast.MergeStmt:
-				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
-			}
-			if returnsData {
-				break
-			}
+	for _, stmt := range parsed {
+		node, ok := stmt.AST.(crrawparsertree.Statement)
+		if !ok {
+			continue
 		}
+		if node.StatementReturnType() == crrawparsertree.Rows {
+			returnsData = true
+		}
+	}
+	if stmts, perr := omnipg.Parse(statement); perr == nil {
+		nodes := make([]ast.Node, 0, len(stmts))
+		for _, stmt := range stmts {
+			nodes = append(nodes, stmt.AST)
+		}
+		readOnly, _ = pganalysis.ValidateQuery(nodes)
 	}
 	return readOnly, returnsData, nil
 }
