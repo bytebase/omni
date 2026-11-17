@@ -502,3 +502,37 @@ func affectedRows(metadata *testMetadata, changes Changes) int64 {
 	}
 	return rows
 }
+
+func TestExtractChangedResourcesSavepoint(t *testing.T) {
+	const statement = `BEGIN;
+SAVEPOINT s;
+SET LOCAL search_path = app;
+ROLLBACK TO SAVEPOINT s;
+DELETE FROM t;
+COMMIT;`
+	got := ExtractChangedResources(mustParse(t, statement), "db", []string{"public"}, nil)
+	if diff := cmp.Diff([]string{"db.public.t"}, resourceNames(got)); diff != "" {
+		t.Errorf("resources mismatch (-want +got):\n%s", diff)
+	}
+	if diff := cmp.Diff([]string{"DELETE FROM t"}, dmlTexts(got)); diff != "" {
+		t.Errorf("DMLStatements mismatch (-want +got):\n%s", diff)
+	}
+}
+
+func TestExtractChangedResourcesInsertWithLimit(t *testing.T) {
+	for _, statement := range []string{
+		`INSERT INTO t VALUES (1), (2) LIMIT 1`,
+		`INSERT INTO t VALUES (1), (2) OFFSET 1`,
+		`INSERT INTO t (VALUES (1), (2)) LIMIT 0`,
+	} {
+		t.Run(statement, func(t *testing.T) {
+			got := ExtractChangedResources(mustParse(t, statement), "db", []string{"public"}, nil)
+			if got.InsertCount != 0 {
+				t.Errorf("InsertCount = %d, want 0", got.InsertCount)
+			}
+			if got.DMLCount != 1 {
+				t.Errorf("DMLCount = %d, want 1", got.DMLCount)
+			}
+		})
+	}
+}

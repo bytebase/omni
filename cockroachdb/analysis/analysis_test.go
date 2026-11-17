@@ -23,14 +23,18 @@ func TestSplit(t *testing.T) {
 		},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
-			got, err := Split(tc.statement)
-			if err != nil {
-				t.Fatalf("Split(%q): %v", tc.statement, err)
-			}
-			if diff := cmp.Diff(tc.want, got); diff != "" {
+			if diff := cmp.Diff(tc.want, Split(tc.statement)); diff != "" {
 				t.Errorf("Split() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+func TestSplitDoesNotParse(t *testing.T) {
+	got := Split(`SELECT 1; SELECT FROM; SELECT 2;`)
+	want := []string{`SELECT 1;`, `SELECT FROM;`, `SELECT 2;`}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("Split() mismatch (-want +got):\n%s", diff)
 	}
 }
 

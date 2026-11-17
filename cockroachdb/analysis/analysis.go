@@ -25,22 +25,43 @@ func Parse(script string) (statements.Statements, error) {
 	return crrawparser.Parse(script)
 }
 
-// Split returns the text of each statement of script, with a trailing
-// semicolon on each.
-func Split(script string) ([]string, error) {
-	parsed, err := Parse(script)
-	if err != nil {
-		return nil, err
-	}
-	result := make([]string, 0, len(parsed))
-	for _, stmt := range parsed {
-		text := stmt.SQL
-		if !strings.HasSuffix(text, ";") {
-			text += ";"
+// Split returns each statement of script with its terminating semicolon,
+// lexically, so a script the parser rejects still splits. A segment that holds
+// no statement, such as a lone ";", is dropped.
+func Split(script string) []string {
+	var result []string
+	for {
+		pos, ok := crrawparser.SplitFirstStatement(script)
+		if !ok {
+			break
 		}
-		result = append(result, text)
+		segment := strings.TrimLeftFunc(script[:pos], unicode.IsSpace)
+		if holdsStatement(segment) {
+			result = append(result, segment)
+		}
+		script = script[pos:]
 	}
-	return result, nil
+	if segment := strings.TrimLeftFunc(script, unicode.IsSpace); holdsStatement(segment) {
+		result = append(result, segment)
+	}
+	return result
+}
+
+func holdsStatement(segment string) bool {
+	if strings.TrimSpace(segment) == "" {
+		return false
+	}
+	tokens, ok := crrawparser.Tokens(segment)
+	if !ok {
+		// A lexical error still leaves text worth reporting as one segment.
+		return true
+	}
+	for _, token := range tokens {
+		if token.Str != ";" {
+			return true
+		}
+	}
+	return false
 }
 
 func isSpaceOrSemicolon(r rune) bool {

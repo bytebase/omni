@@ -70,6 +70,13 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 	initialSearchPath := searchPath
 	// sessionSearchPath leaves out SET LOCAL, which lasts until the transaction ends.
 	sessionSearchPath := searchPath
+	// savepoints holds the search path each savepoint saw, so ROLLBACK TO SAVEPOINT
+	// restores it; a savepoint is scoped to its transaction.
+	type searchPathSnapshot struct {
+		searchPath        []string
+		sessionSearchPath []string
+	}
+	savepoints := map[tree.Name]searchPathSnapshot{}
 	changes := Changes{}
 	schemaOf := func(table string) string {
 		if metadata != nil {
@@ -234,6 +241,19 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 				addTable(&n.TableOrIndex.Table, true)
 			default:
 			}
+		case *tree.BeginTransaction:
+			savepoints = map[tree.Name]searchPathSnapshot{}
+		case *tree.Savepoint:
+			savepoints[n.Name] = searchPathSnapshot{searchPath: searchPath, sessionSearchPath: sessionSearchPath}
+		case *tree.RollbackToSavepoint:
+			// CockroachDB rolls a SET LOCAL back to the savepoint; a SET since then stays.
+			if snapshot, ok := savepoints[n.Savepoint]; ok {
+				if slices.Equal(sessionSearchPath, snapshot.sessionSearchPath) {
+					searchPath = snapshot.searchPath
+				} else {
+					searchPath = sessionSearchPath
+				}
+			}
 		case *tree.Discard:
 			if n.Mode == tree.DiscardModeAll {
 				searchPath, sessionSearchPath = initialSearchPath, initialSearchPath
@@ -241,6 +261,7 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 		case *tree.CommitTransaction, *tree.RollbackTransaction:
 			// Unlike PostgreSQL, CockroachDB keeps a SET made in a transaction that rolls back.
 			searchPath = sessionSearchPath
+			savepoints = map[tree.Name]searchPathSnapshot{}
 		case *tree.SetVar:
 			if n.ResetAll || strings.EqualFold(n.Name, "search_path") {
 				searchPath = getSearchPath(n, initialSearchPath)
@@ -308,18 +329,25 @@ func getInsertValuesRowCount(insert *tree.Insert) (int, bool) {
 	if insert.Rows == nil || insert.Rows.Select == nil {
 		return 1, true
 	}
-	rows := insert.Rows.Select
-	for {
-		paren, ok := rows.(*tree.ParenSelect)
-		if !ok || paren.Select == nil {
-			break
+	// LIMIT and OFFSET make the row count the plan's to estimate, not VALUES'.
+	if insert.Rows.Limit != nil {
+		return 0, false
+	}
+	return valuesRowCount(insert.Rows.Select)
+}
+
+func valuesRowCount(stmt tree.SelectStatement) (int, bool) {
+	switch n := stmt.(type) {
+	case *tree.ParenSelect:
+		if n.Select == nil || n.Select.Limit != nil {
+			return 0, false
 		}
-		rows = paren.Select.Select
+		return valuesRowCount(n.Select.Select)
+	case *tree.ValuesClause:
+		return len(n.Rows), true
+	default:
+		return 0, false
 	}
-	if values, ok := rows.(*tree.ValuesClause); ok {
-		return len(values.Rows), true
-	}
-	return 0, false
 }
 
 // getMutationTargets returns the target of every INSERT, UPSERT, UPDATE, and DELETE in stmt: stmt
