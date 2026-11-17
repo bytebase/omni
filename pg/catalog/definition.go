@@ -348,7 +348,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			}
 		}
 		if externalTable, ok := foreignTableMap[objectID]; ok {
-			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable, nil); err != nil {
+			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable, externalTable.CheckConstraints); err != nil {
 				return "", err
 			}
 		}

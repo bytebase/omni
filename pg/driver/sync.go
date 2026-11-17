@@ -775,7 +775,7 @@ func getTables(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign keys: %w", err)
 	}
-	foreignTablesMap, err := getForeignTables(txn, columnMap, extensionDepend)
+	foreignTablesMap, err := getForeignTables(txn, columnMap, checksMap, extensionDepend)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign tables: %w", err)
 	}
@@ -830,7 +830,7 @@ func getTables(
 	return tableMap, foreignTablesMap, tableOidMap, nil
 }
 
-func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.ExternalTableMetadata, error) {
+func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, checksMap map[tableKey][]*metadatapb.CheckConstraintMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.ExternalTableMetadata, error) {
 	query := getListForeignTableQuery()
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -873,6 +873,7 @@ func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMe
 			Columns:            columnMap[key],
 			Options:            facts.options,
 			SkipDump:           extensionDepend[facts.oid],
+			CheckConstraints:   checksMap[key],
 		})
 	}
 

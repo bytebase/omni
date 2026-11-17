@@ -670,6 +670,11 @@ message ExternalTableMetadata {
   // alone. A foreign table a user creates inside an extension-owned schema is
   // not skipped: the extension owns the schema, not every object made in it.
   bool skip_dump = 8;
+
+  // The check constraints the engine states on a foreign table. PostgreSQL does
+  // not enforce them locally but uses them for query optimization, so a dump
+  // writes them. Empty for an engine that states none.
+  repeated CheckConstraintMetadata check_constraints = 9;
 }
 
 // TablePartitionMetadata is the metadata for table partitions.

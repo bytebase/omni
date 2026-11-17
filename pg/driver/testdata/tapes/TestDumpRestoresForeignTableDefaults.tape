@@ -8,7 +8,8 @@
 | CREATE FUNCTION public.remote_token() RETURNS text LANGUAGE sql AS $$ SELECT 'x'::text $$;
 | CREATE FOREIGN TABLE public.remote_defaults (
 |     id bigint OPTIONS (column_name 'remote_id') DEFAULT nextval('public.remote_id'),
-|     token text DEFAULT public.remote_token()
+|     token text DEFAULT public.remote_token(),
+|     CONSTRAINT remote_positive CHECK (id > 0)
 | ) SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');
 < ok 0 -
 > query
@@ -385,6 +386,16 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| public
+: string
+| remote_defaults
+: string
+| remote_positive
+: string
+| CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -1115,7 +1126,8 @@
 |
 | CREATE FOREIGN TABLE "public"."remote_defaults" (
 |     "id" bigint OPTIONS (column_name 'remote_id') DEFAULT nextval('public.remote_id'::regclass),
-|     "token" text DEFAULT public.remote_token()
+|     "token" text DEFAULT public.remote_token(),
+|     CONSTRAINT "remote_positive" CHECK (id > 0)
 | ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'defaults');
 |
 |
@@ -1505,6 +1517,16 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| public
+: string
+| remote_defaults
+: string
+| remote_positive
+: string
+| CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
