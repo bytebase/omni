@@ -3,10 +3,12 @@
 // keyspaces and one keyspace's tables, indexes and columns into
 // omni/metadata, and runs interactive queries and change scripts.
 //
-// It implements Driver, Syncer, Querier and Executor. There is no Dumper: omni
-// has no cassandra/catalog for a dump to render, and Bytebase's Dump wrote
-// nothing. No row count or data size is read either, because Bytebase asked
-// Cassandra for neither, so a synced table carries no estimate.
+// It implements Driver, Syncer, Dumper, Querier and Executor. Dump writes
+// nothing: a synced keyspace carries its tables, columns, primary key and
+// secondary indexes, but not the keyspace's replication strategy, so a dump of
+// the metadata could not create the keyspace it describes, and Bytebase's Dump
+// wrote nothing either. No row count or data size is read either, because
+// Bytebase asked Cassandra for neither, so a synced table carries no estimate.
 //
 // Config.Host is one Cassandra contact point or a comma-separated list of
 // them, each optionally carrying its own port; Config.Port applies to a single
@@ -65,6 +67,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )
