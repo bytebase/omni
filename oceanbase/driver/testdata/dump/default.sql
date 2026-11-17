@@ -68,6 +68,7 @@ CREATE EXTERNAL TABLE `ext_feed` (
   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
 )
 LOCATION = 'file:///tmp'
+PATTERN = '.*[.]csv'
 FORMAT (TYPE = 'CSV', ENCODING = 'utf8mb4');
 
 --

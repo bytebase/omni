@@ -294,26 +294,32 @@ func TestExternalTableFacts(t *testing.T) {
 		"  TYPE = 'CSV',\n" +
 		"  ENCODING = 'utf8mb4'\n" +
 		") DEFAULT CHARSET = utf8mb4"
-	location, format := externalTableFacts(ddl)
+	location, pattern, format := externalTableFacts(ddl)
 	if location != "file:///tmp" {
 		t.Errorf("location = %q, want %q", location, "file:///tmp")
 	}
 	if format != "TYPE = 'CSV', ENCODING = 'utf8mb4'" {
 		t.Errorf("format = %q, want %q", format, "TYPE = 'CSV', ENCODING = 'utf8mb4'")
 	}
+	if pattern != "" {
+		t.Errorf("pattern = %q, want empty", pattern)
+	}
 
-	location, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp'")
-	if location != "file:///tmp" || format != "" {
-		t.Errorf("without FORMAT = %q, %q; want %q, empty", location, format, "file:///tmp")
+	location, pattern, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp' PATTERN='.*[.]csv'")
+	if location != "file:///tmp" || pattern != ".*[.]csv" || format != "" {
+		t.Errorf("without FORMAT = %q, %q, %q; want %q, %q, empty", location, pattern, format, "file:///tmp", ".*[.]csv")
 	}
 
 	// A MySQL backslash escape in a column comment must not end the quote
 	// before LOCATION and FORMAT.
 	ddl = "CREATE EXTERNAL TABLE `ext_t` (`c1` int COMMENT 'owner\\'s note') " +
 		"LOCATION='file:///tmp/it\\'s' FORMAT (TYPE = 'CSV')"
-	location, format = externalTableFacts(ddl)
+	location, pattern, format = externalTableFacts(ddl)
 	if location != "file:///tmp/it's" {
 		t.Errorf("escaped location = %q, want %q", location, "file:///tmp/it's")
+	}
+	if pattern != "" {
+		t.Errorf("escaped pattern = %q, want empty", pattern)
 	}
 	if format != "TYPE = 'CSV'" {
 		t.Errorf("escaped format = %q, want %q", format, "TYPE = 'CSV'")

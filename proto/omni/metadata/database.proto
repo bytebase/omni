@@ -675,6 +675,11 @@ message ExternalTableMetadata {
   // not enforce them locally but uses them for query optimization, so a dump
   // writes them. Empty for an engine that states none.
   repeated CheckConstraintMetadata check_constraints = 9;
+
+  // The file filter the engine states for an external table (OceanBase's
+  // PATTERN), such as ".*[.]csv". Empty when the engine states none; omitting
+  // it makes the table read every file under its location.
+  string pattern = 10;
 }
 
 // TablePartitionMetadata is the metadata for table partitions.

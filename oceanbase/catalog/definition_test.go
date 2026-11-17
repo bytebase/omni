@@ -1025,6 +1025,7 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 			ExternalTables: []*metadata.ExternalTableMetadata{{
 				Name:     "ext",
 				Location: `a\b`,
+				Pattern:  ".*[.]csv",
 				Format:   "TYPE = 'CSV'",
 			}},
 		}},
@@ -1032,4 +1033,5 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 	def, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 	require.Contains(t, def, `LOCATION = 'a\\b'`)
+	require.Contains(t, def, `PATTERN = '.*[.]csv'`)
 }

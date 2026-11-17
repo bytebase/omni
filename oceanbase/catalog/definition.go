@@ -573,9 +573,16 @@ func printExternalColumnClause(buf *strings.Builder, column *metadata.ColumnMeta
 	return nil
 }
 
-// writeExternalTable writes an external table: its columns and the LOCATION
-// and FORMAT clauses SHOW CREATE TABLE states for it. A table the sync read
-// without either still renders, so the columns are not lost.
+// quoteExternalTableString escapes a value for an OceanBase string literal,
+// which honors backslash escapes as well as doubled quotes.
+func quoteExternalTableString(s string) string {
+	s = strings.ReplaceAll(s, `\`, `\\`)
+	return strings.ReplaceAll(s, "'", "''")
+}
+
+// writeExternalTable writes an external table: its columns and the LOCATION,
+// PATTERN and FORMAT clauses SHOW CREATE TABLE states for it. A table the sync
+// read without any still renders, so the columns are not lost.
 func writeExternalTable(out *strings.Builder, table *metadata.ExternalTableMetadata) error {
 	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
 		return err
@@ -607,9 +614,12 @@ func writeExternalTable(out *strings.Builder, table *metadata.ExternalTableMetad
 		return err
 	}
 	if table.Location != "" {
-		location := strings.ReplaceAll(table.Location, `\`, `\\`)
-		location = strings.ReplaceAll(location, "'", "''")
-		if _, err := fmt.Fprintf(out, "\nLOCATION = '%s'", location); err != nil {
+		if _, err := fmt.Fprintf(out, "\nLOCATION = '%s'", quoteExternalTableString(table.Location)); err != nil {
+			return err
+		}
+	}
+	if table.Pattern != "" {
+		if _, err := fmt.Fprintf(out, "\nPATTERN = '%s'", quoteExternalTableString(table.Pattern)); err != nil {
 			return err
 		}
 	}

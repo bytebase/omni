@@ -863,3 +863,32 @@ func TestDatabaseDefinitionWritesColumnlessForeignTableCheck(t *testing.T) {
     CONSTRAINT "c" CHECK (true)
 ) SERVER "s";`)
 }
+
+// TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator checks that
+// a validator whose arguments keep their names still matches its signature.
+func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "validate",
+				Signature:  "validate(options text[], catalog oid)",
+				Definition: "CREATE FUNCTION app.validate(options text[], catalog oid) RETURNS void LANGUAGE internal AS 'fdw_validate'",
+			}},
+		}},
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:      "custom_fdw",
+			Validator: "app.validate",
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	function := "CREATE FUNCTION app.validate(options text[], catalog oid)"
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" VALIDATOR app.validate;`
+	assert.Contains(t, result, function)
+	assert.Contains(t, result, wrapper)
+	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the named validator must be written before its wrapper")
+}

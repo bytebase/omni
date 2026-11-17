@@ -571,11 +571,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	// An external table's location and format are in its own DDL, which
 	// information_schema does not carry.
 	for _, externalTable := range schemaMetadata.ExternalTables {
-		location, format, err := d.getExternalTableFacts(ctx, d.databaseName, externalTable.Name)
+		location, pattern, format, err := d.getExternalTableFacts(ctx, d.databaseName, externalTable.Name)
 		if err != nil {
 			return nil, err
 		}
 		externalTable.Location = location
+		externalTable.Pattern = pattern
 		externalTable.Format = format
 	}
 
@@ -1258,20 +1259,20 @@ func unquoteMySQLString(s string) string {
 
 // getExternalTableFacts reads the location and FORMAT clause SHOW CREATE TABLE
 // states for an external table.
-func (d *Driver) getExternalTableFacts(ctx context.Context, database, table string) (location, format string, err error) {
+func (d *Driver) getExternalTableFacts(ctx context.Context, database, table string) (location, pattern, format string, err error) {
 	var tableName, ddl string
 	query := "SHOW CREATE TABLE " + quoteBacktick(database) + "." + quoteBacktick(table)
 	if err := d.db.QueryRowContext(ctx, query).Scan(&tableName, &ddl); err != nil {
-		return "", "", fmt.Errorf("failed to execute query %q: %w", query, err)
+		return "", "", "", fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
-	location, format = externalTableFacts(ddl)
-	return location, format, nil
+	location, pattern, format = externalTableFacts(ddl)
+	return location, pattern, format, nil
 }
 
 // externalTableFacts reads LOCATION and FORMAT from the CREATE EXTERNAL TABLE
 // statement SHOW CREATE TABLE states. Both are top-level clauses, after the
 // column list, so the scan skips quoted text and parenthesized expressions.
-func externalTableFacts(ddl string) (location, format string) {
+func externalTableFacts(ddl string) (location, pattern, format string) {
 	depth := 0
 	for i := 0; i < len(ddl); {
 		switch ddl[i] {
@@ -1299,6 +1300,19 @@ func externalTableFacts(ddl string) (location, format string) {
 					continue
 				}
 			}
+			if keywordAt(ddl, i, "PATTERN") {
+				j := i + len("PATTERN")
+				j = skipSpace(ddl, j)
+				if j < len(ddl) && ddl[j] == '=' {
+					j = skipSpace(ddl, j+1)
+				}
+				if j < len(ddl) && ddl[j] == '\'' {
+					value, next := readQuotedText(ddl, j, '\'')
+					pattern = value
+					i = next
+					continue
+				}
+			}
 			if keywordAt(ddl, i, "FORMAT") {
 				j := i + len("FORMAT")
 				j = skipSpace(ddl, j)
@@ -1317,7 +1331,7 @@ func externalTableFacts(ddl string) (location, format string) {
 		}
 		i++
 	}
-	return location, format
+	return location, pattern, format
 }
 
 func keywordAt(text string, i int, keyword string) bool {

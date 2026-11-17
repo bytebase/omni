@@ -28,7 +28,7 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 < ok 0 0
 > exec
-| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');
+| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' PATTERN = '.*[.]csv' FORMAT = (TYPE = 'CSV');
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts; -- not restorable: TestDumpGaps
@@ -1311,6 +1311,7 @@
 |   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
 | ) 
 | LOCATION='file:///tmp'
+| PATTERN='.*[.]csv'
 | AUTO_REFRESH = OFF
 | FORMAT (
 |   TYPE = 'CSV',

@@ -2292,7 +2292,9 @@ func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []
 		return false
 	}
 	for i := range actual {
-		if normalizeSignatureType(actual[i]) != normalizeSignatureType(expected[i]) {
+		// pg_get_function_identity_arguments may keep an argument's name, so the
+		// argument need only end with the type the handler or validator requires.
+		if !strings.HasSuffix(normalizeSignatureType(actual[i]), normalizeSignatureType(expected[i])) {
 			return false
 		}
 	}

@@ -2691,8 +2691,12 @@ type ExternalTableMetadata struct {
 	// not enforce them locally but uses them for query optimization, so a dump
 	// writes them. Empty for an engine that states none.
 	CheckConstraints []*CheckConstraintMetadata `protobuf:"bytes,9,rep,name=check_constraints,json=checkConstraints,proto3" json:"check_constraints,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The file filter the engine states for an external table (OceanBase's
+	// PATTERN), such as ".*[.]csv". Empty when the engine states none; omitting
+	// it makes the table read every file under its location.
+	Pattern       string `protobuf:"bytes,10,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExternalTableMetadata) Reset() {
@@ -2786,6 +2790,13 @@ func (x *ExternalTableMetadata) GetCheckConstraints() []*CheckConstraintMetadata
 		return x.CheckConstraints
 	}
 	return nil
+}
+
+func (x *ExternalTableMetadata) GetPattern() string {
+	if x != nil {
+		return x.Pattern
+	}
+	return ""
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
@@ -5237,7 +5248,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
-	"expression\"\x8c\x03\n" +
+	"expression\"\xa6\x03\n" +
 	"\x15ExternalTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14external_server_name\x18\x02 \x01(\tR\x12externalServerName\x124\n" +
@@ -5247,7 +5258,9 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\blocation\x18\x06 \x01(\tR\blocation\x12\x16\n" +
 	"\x06format\x18\a \x01(\tR\x06format\x12\x1b\n" +
 	"\tskip_dump\x18\b \x01(\bR\bskipDump\x12S\n" +
-	"\x11check_constraints\x18\t \x03(\v2&.omni.metadata.CheckConstraintMetadataR\x10checkConstraints\"\xb7\x05\n" +
+	"\x11check_constraints\x18\t \x03(\v2&.omni.metadata.CheckConstraintMetadataR\x10checkConstraints\x12\x18\n" +
+	"\apattern\x18\n" +
+	" \x01(\tR\apattern\"\xb7\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
