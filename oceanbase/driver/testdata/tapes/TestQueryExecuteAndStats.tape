@@ -229,13 +229,13 @@
 | 		CAST('' AS BINARY) AS empty_bin,
 | 		NULL AS nul;
 < result
-< column "i" "BIGINT"
-< column "f" "DECIMAL"
-< column "s" "VARCHAR"
-< column "dt" "DATETIME"
-< column "bin" "VARBINARY"
-< column "empty_bin" "VARBINARY"
-< column "nul" "NULL"
+< column "i" "BIGINT" "int64"
+< column "f" "DECIMAL" "string" precision 2 scale 1
+< column "s" "VARCHAR" "string"
+< column "dt" "DATETIME" precision 6 scale 6
+< column "bin" "VARBINARY" "[]uint8"
+< column "empty_bin" "VARBINARY" "[]uint8"
+< column "nul" "NULL" "*interface {}"
 < row
 : int64 42
 : bytes
@@ -252,7 +252,7 @@
 > query
 | SELECT id FROM items ORDER BY id LIMIT 2;
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < row
 : int64 1
 < row
@@ -294,7 +294,7 @@
 > query
 | SELECT 1;
 < result
-< column "1" "BIGINT"
+< column "1" "BIGINT" "int64"
 < row
 : int64 1
 > query
@@ -305,7 +305,7 @@
 > query
 | SELECT id, repeat('x', 80) FROM items ORDER BY id;
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < column "repeat('x', 80)" "VARCHAR"
 < row
 : int64 1
@@ -327,6 +327,6 @@
 |
 | SELECT 7;
 < result
-< column "7" "BIGINT"
+< column "7" "BIGINT" "int64"
 < row
 : int64 7

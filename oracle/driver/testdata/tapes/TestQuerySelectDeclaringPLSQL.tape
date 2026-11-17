@@ -4,7 +4,7 @@
 > query
 | WITH FUNCTION f RETURN NUMBER IS BEGIN RETURN 1; END; SELECT f FROM dual
 < result
-< column "F" "NUMBER"
+< column "F" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | 1

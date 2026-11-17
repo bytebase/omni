@@ -4,7 +4,7 @@
 > query
 | SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
 < result
-< column "VERSION_FULL" "NCHAR"
+< column "VERSION_FULL" "NCHAR" "string"
 < row
 : string
 | 23.26.3.0.0

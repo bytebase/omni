@@ -23,10 +23,10 @@
 > query
 | SELECT ID, PARENT_ID, OPERATION, CARDINALITY FROM PLAN_TABLE WHERE STATEMENT_ID = 'omni_1' ORDER BY ID
 < result
-< column "ID" "NUMBER"
-< column "PARENT_ID" "NUMBER"
-< column "OPERATION" "NCHAR"
-< column "CARDINALITY" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 38 scale 0
+< column "PARENT_ID" "NUMBER" "float64" precision 38 scale 0
+< column "OPERATION" "NCHAR" "string"
+< column "CARDINALITY" "NUMBER" "float64" precision 38 scale 0
 < row
 : string
 | 0
@@ -61,10 +61,10 @@
 > query
 | SELECT ID, PARENT_ID, OPERATION, CARDINALITY FROM PLAN_TABLE WHERE STATEMENT_ID = 'omni_2' ORDER BY ID
 < result
-< column "ID" "NUMBER"
-< column "PARENT_ID" "NUMBER"
-< column "OPERATION" "NCHAR"
-< column "CARDINALITY" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 38 scale 0
+< column "PARENT_ID" "NUMBER" "float64" precision 38 scale 0
+< column "OPERATION" "NCHAR" "string"
+< column "CARDINALITY" "NUMBER" "float64" precision 38 scale 0
 < row
 : string
 | 0
@@ -125,10 +125,10 @@
 > query
 | SELECT ID, PARENT_ID, OPERATION, CARDINALITY FROM PLAN_TABLE WHERE STATEMENT_ID = 'omni_3' ORDER BY ID
 < result
-< column "ID" "NUMBER"
-< column "PARENT_ID" "NUMBER"
-< column "OPERATION" "NCHAR"
-< column "CARDINALITY" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 38 scale 0
+< column "PARENT_ID" "NUMBER" "float64" precision 38 scale 0
+< column "OPERATION" "NCHAR" "string"
+< column "CARDINALITY" "NUMBER" "float64" precision 38 scale 0
 < row
 : string
 | 0
@@ -179,10 +179,10 @@
 > query
 | SELECT ID, PARENT_ID, OPERATION, CARDINALITY FROM PLAN_TABLE WHERE STATEMENT_ID = 'omni_4' ORDER BY ID
 < result
-< column "ID" "NUMBER"
-< column "PARENT_ID" "NUMBER"
-< column "OPERATION" "NCHAR"
-< column "CARDINALITY" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 38 scale 0
+< column "PARENT_ID" "NUMBER" "float64" precision 38 scale 0
+< column "OPERATION" "NCHAR" "string"
+< column "CARDINALITY" "NUMBER" "float64" precision 38 scale 0
 < row
 : string
 | 0

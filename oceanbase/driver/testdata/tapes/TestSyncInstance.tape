@@ -11,7 +11,7 @@
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
 < column "Value" "VARCHAR"
 < row
 : bytes
@@ -29,8 +29,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "user" "VARCHAR"
-< column "host" "VARCHAR"
+< column "user" "VARCHAR" "string"
+< column "host" "VARCHAR" "string"
 < row
 : bytes
 | root
@@ -44,7 +44,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO 'root' WITH GRANT OPTION
@@ -69,7 +69,7 @@
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO 'sync_reader'
@@ -86,9 +86,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_inst_db
