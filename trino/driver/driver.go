@@ -25,9 +25,13 @@
 // A statement's update count reaches the caller only on the client's exec path,
 // so the driver sends a statement that returns no rows through Executor.
 // Querier decides which statements return rows from their leading keyword;
-// see session.Query. Result.AffectedRows is 0 for a statement that reports no
-// count, such as DDL: the client states the statement's update count as a
-// number, and 0 is what a statement with none reports.
+// see session.Query. Result.AffectedRows is set only for a statement Trino
+// states a count for: INSERT, UPDATE, DELETE, MERGE and CREATE TABLE AS answer
+// with updateCount, and a statement that reports none (DDL, SET, GRANT) leaves
+// it nil. The client cannot tell the two apart: it reads an absent updateCount
+// as 0 and RowsAffected returns 0 with no error either way, so the driver asks
+// the parser for the statement's kind. A statement the parser cannot read keeps
+// the client's 0.
 //
 // Config.TLS supplies the TLS settings for the one host the client dials and
 // selects https; nil selects http. Config.Dial, when set, becomes the

@@ -1,13 +1,37 @@
 // Package driver is Spanner's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it reaches a Spanner instance through the
 // cloud.google.com/go/spanner clients, syncs the instance's databases and one
-// database's INFORMATION_SCHEMA into omni/metadata, and runs GoogleSQL as
+// database's INFORMATION_SCHEMA into omni/metadata, and runs a script as
 // queries and change scripts.
 //
 // It implements Driver, Syncer, Dumper, Querier and Executor. The statements are
-// GoogleSQL, which omni's googlesql tree parses and analyses; this package is the
-// conversation with a Spanner service, so it lives in a tree of its own beside
-// googlesql, as dynamodb does beside partiql.
+// the database's dialect: GoogleSQL, which omni's googlesql tree parses and
+// analyses, or PostgreSQL, which omni's pg tree splits and lowers a LIMIT in.
+// This package is the conversation with a Spanner service, so it lives in a tree
+// of its own beside googlesql, as dynamodb does beside partiql; a service tree
+// consults the language tree of each dialect it serves.
+//
+// Dialects. A database's dialect is fixed when it is created, and the two answer
+// different SQL and different INFORMATION_SCHEMA spellings. SyncInstance lists
+// both kinds; SyncDatabase reads the database's dialect from the admin API and
+// asks the matching catalog — PostgreSQL names its system schemas in lower case
+// and states SPANNER_IS_MANAGED as text, where GoogleSQL upper-cases the schemas
+// and states a boolean. A script is split, and a query's LIMIT lowered, by the
+// dialect's own grammar: googlesql/parser for GoogleSQL and pg for PostgreSQL,
+// whose dollar-quoted strings hold semicolons and whose `#>` operator GoogleSQL
+// reads as a comment. A GoogleSQL database takes the queries and the split it
+// took before PostgreSQL was supported.
+//
+// Reading the dialect is the one way this driver departs from the contract's
+// "Open does not reach the server": Open asks the admin API for the database,
+// because every statement is split by the dialect's grammar and a query must not
+// wait for a schema sync to learn which. A database that is not there leaves the
+// dialect GoogleSQL instead of failing Open, so a caller can still open a
+// database to drop it; SyncDatabase reports it as driver.ErrNotFound. A
+// creation script that names its database in double quotes creates a PostgreSQL
+// database — the admin API requires the script to be written in the dialect it
+// creates — and anything else, including a backtick-quoted or unquoted name,
+// creates a GoogleSQL one.
 //
 // Config.Params carry the two parts of the resource name the contract has no
 // field for:
@@ -75,7 +99,11 @@
 // and DATE, STRING and JSON as their text. A Spanner ARRAY or STRUCT has no cell
 // kind of its own, so it crosses as its JSON document; a STRUCT column, or an
 // ARRAY of STRUCT, is refused before any row is read, as Bytebase refused it.
-// A NUMERIC and a PG_NUMERIC arrive as the text Spanner writes.
+// A NUMERIC and a PG_NUMERIC arrive as the text Spanner writes. A PostgreSQL
+// database states the same type codes for its own types — int8 as INT64, text
+// and varchar as STRING, numeric as NUMERIC annotated PG_NUMERIC, jsonb as JSON
+// annotated PG_JSONB, bytea as BYTES, timestamptz as TIMESTAMP, and an array as
+// ARRAY — so a result decodes as it does for GoogleSQL.
 //
 // Execute routes each statement by what it is: DDL — CREATE, ALTER, DROP, GRANT
 // and REVOKE — goes to the database admin API's UpdateDatabaseDdl, in order and
@@ -130,6 +158,10 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sync/atomic"
+
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -161,10 +193,25 @@ type Driver struct {
 	databaseName string
 	// instancePath is projects/<project>/instances/<instance>.
 	instancePath string
+	// dialect is the database's dialect. Open reads it, and a creation or a sync
+	// of the database refreshes it, so it is read atomically: a Driver is safe
+	// for concurrent use.
+	dialect atomic.Int32
 }
 
-// Open returns a driver for the instance and database cfg names. It does not
-// reach the server; Ping does.
+// getDialect returns the database's dialect.
+func (d *Driver) getDialect() dialect {
+	return dialect(d.dialect.Load())
+}
+
+// setDialect records the database's dialect.
+func (d *Driver) setDialect(value dialect) {
+	d.dialect.Store(int32(value))
+}
+
+// Open returns a driver for the instance and database cfg names. It reads the
+// database's dialect, which decides the catalog a sync reads and the grammar a
+// script is split by, and does not otherwise reach the server; Ping does.
 func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 	if cfg.Params[ParamProject] == "" {
 		return nil, errors.New("project ID cannot be empty")
@@ -176,11 +223,27 @@ func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Driver{
+	d := &Driver{
 		client:       c,
 		databaseName: cfg.Database,
 		instancePath: InstancePath(cfg.Params[ParamProject], cfg.Params[ParamInstance]),
-	}, nil
+	}
+	if cfg.Database != "" {
+		database, err := c.GetDatabase(ctx, d.databasePath(""))
+		switch {
+		case err == nil:
+			d.setDialect(dialectOf(database.Dialect))
+		case status.Code(err) == codes.NotFound:
+			// A database that is not there is not Open's error: a caller may open
+			// one to drop it, and SyncDatabase reports it as driver.ErrNotFound.
+			// Its dialect stays GoogleSQL until a creation or a sync of that
+			// database reads it.
+		default:
+			_ = c.Close()
+			return nil, fmt.Errorf("failed to read the dialect of database %q: %w", cfg.Database, err)
+		}
+	}
+	return d, nil
 }
 
 // Ping reads one database name as a connectivity check, which is what
