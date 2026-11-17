@@ -66,6 +66,9 @@ type Options struct {
 	MultiStatements bool
 	// ParseTime returns DATE and DATETIME values as time.Time.
 	ParseTime bool
+	// Loc is the location go-sql-driver parses a temporal value in when
+	// ParseTime is set. Nil is the default, UTC.
+	Loc *time.Location
 	// Session holds system variables set when the connection opens, such as
 	// max_statement_time, beside the timestamp every connection is given
 	// (see clock). The tape does not see them being set.
@@ -287,6 +290,9 @@ func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	t.Helper()
 	cfg := config(t, o.role(), pin)
 	cfg.DBName, cfg.MultiStatements, cfg.ParseTime = o.Database, o.MultiStatements, o.ParseTime
+	if o.Loc != nil {
+		cfg.Loc = o.Loc
+	}
 	cfg.Params = map[string]string{"timestamp": clock}
 	maps.Copy(cfg.Params, o.Session)
 	c, err := mysql.NewConnector(cfg)

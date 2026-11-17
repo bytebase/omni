@@ -232,13 +232,24 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any) driver
 func parseTimestampOrStringValue(raw string, scale int32) driver.Value {
 	var t time.Time
 	var err error
-	if strings.Contains(raw, ".") {
+	switch {
+	case strings.Contains(raw, "T"):
+		// A caller that sets the client's parseTime parameter is handed a
+		// time.Time, which database/sql renders as RFC 3339 into the string
+		// the column scans into.
+		t, err = time.Parse(time.RFC3339Nano, raw)
+	case strings.Contains(raw, "."):
 		t, err = time.Parse("2006-01-02 15:04:05.999999999", raw)
-	} else {
+	default:
 		t, err = time.Parse(time.DateTime, raw)
 	}
 	if err != nil || t.Year() < 1 || t.Year() > 9999 {
 		return driver.Value{Kind: driver.String, String: raw}
 	}
+	// The contract's Timestamp is a wall clock in UTC fields, so the calendar
+	// fields are rebuilt there rather than converted: a client that renders a
+	// value in another zone, as parseTime with loc does, then reports the same
+	// wall clock and the same instant everywhere.
+	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 	return driver.Value{Kind: driver.Timestamp, Time: t, Precision: scale}
 }
