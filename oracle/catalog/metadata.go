@@ -343,15 +343,22 @@ func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadat
 		column.Nullable = true
 	}
 
+	explicitNotNull := n.NotNull
 	for _, item := range listItems(n.Constraints) {
 		constraint, ok := item.(*ast.ColumnConstraint)
 		if !ok {
 			continue
 		}
+		if constraint.Type == ast.CONSTRAINT_NOT_NULL {
+			explicitNotNull = true
+		}
 		e.extractColumnConstraint(constraint, table, column)
 		if constraint.Type == ast.CONSTRAINT_NOT_NULL && constraint.Name != "" {
 			e.addNamedNotNull(table, constraint.Name, column.Name)
 		}
+	}
+	if explicitNotNull {
+		delete(e.primaryKeyNotNull, table.Name+"\x00"+column.Name)
 	}
 
 	table.Columns = append(table.Columns, column)
@@ -409,6 +416,9 @@ func (e *oracleMetadataExtractor) clearNamedNotNull(table *metadatapb.TableMetad
 }
 
 func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstraint, table *metadatapb.TableMetadata, column *metadatapb.ColumnMetadata) {
+	if e.constraintDisabled(n.Loc) {
+		return
+	}
 	switch n.Type {
 	case ast.CONSTRAINT_NOT_NULL:
 		column.Nullable = false
@@ -474,6 +484,9 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 }
 
 func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint, table *metadatapb.TableMetadata) {
+	if e.constraintDisabled(n.Loc) {
+		return
+	}
 	columns := stringList(n.Columns)
 	switch n.Type {
 	case ast.CONSTRAINT_PRIMARY:
@@ -596,17 +609,20 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				e.extractTableConstraint(action.Constraint, table)
 			}
 		case ast.AT_DROP_CONSTRAINT:
+			var droppedColumns []string
 			if action.Constraint != nil && action.Constraint.Name != "" {
+				droppedColumns = indexColumns(table, action.Constraint.Name)
 				e.dropConstraint(table, action.Constraint.Name)
 			} else {
 				var columns []string
 				if action.Constraint != nil {
 					columns = stringList(action.Constraint.Columns)
 				}
+				droppedColumns = columns
 				e.dropConstraintSubtype(table, action.Subtype, columns)
 			}
 			if slices.Contains(stringList(action.Options), "CASCADE") {
-				e.dropIncomingForeignKeys(table.Name)
+				e.dropIncomingForeignKeysForColumns(table.Name, droppedColumns)
 			}
 		case ast.AT_ENABLE_DISABLE:
 			if e.err == nil {
@@ -692,6 +708,12 @@ func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metada
 }
 
 func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, name string) {
+	delete(e.primaryKeyNotNull, table.Name+"\x00"+name)
+	for _, check := range table.CheckConstraints {
+		if e.namedNotNull[table.Name+"\x00"+check.Name] && expressionReferencesColumn(check.Expression, name) {
+			delete(e.namedNotNull, table.Name+"\x00"+check.Name)
+		}
+	}
 	var columns []*metadatapb.ColumnMetadata
 	for _, column := range table.Columns {
 		if column.Name != name {
@@ -1035,11 +1057,11 @@ func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetada
 func renameTriggerTarget(body, oldName, newName string) string {
 	upper := strings.ToUpper(body)
 	for offset := 0; ; {
-		index := strings.Index(upper[offset:], " ON ")
-		if index < 0 {
+		match := triggerOnClause.FindStringIndex(upper[offset:])
+		if match == nil {
 			return body
 		}
-		start := offset + index + len(" ON ")
+		start := offset + match[1]
 		first, firstStart, end := scanTriggerIdentifier(body, start)
 		relation, relationStart, relationEnd := first, firstStart, end
 		if end < len(body) && body[end] == '.' {
@@ -1051,6 +1073,8 @@ func renameTriggerTarget(body, oldName, newName string) string {
 		offset = end
 	}
 }
+
+var triggerOnClause = regexp.MustCompile(`(?i)\bON\s+`)
 
 func scanTriggerIdentifier(body string, start int) (string, int, int) {
 	if start >= len(body) {
@@ -1151,6 +1175,46 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 	}
 }
 
+func indexColumns(table *metadatapb.TableMetadata, name string) []string {
+	for _, index := range table.Indexes {
+		if index.Name == name {
+			return append([]string(nil), index.Expressions...)
+		}
+	}
+	return nil
+}
+
+func (e *oracleMetadataExtractor) dropIncomingForeignKeysForColumns(tableName string, columns []string) {
+	if len(columns) == 0 {
+		e.dropIncomingForeignKeys(tableName)
+		return
+	}
+	for _, table := range e.tables {
+		if table.Name == tableName {
+			continue
+		}
+		var foreignKeys []*metadatapb.ForeignKeyMetadata
+		for _, fk := range table.ForeignKeys {
+			matches := fk.ReferencedTable == tableName
+			if matches && len(fk.ReferencedColumns) > 0 {
+				matches = false
+				for i, column := range fk.ReferencedColumns {
+					if strings.Trim(column, `"`) != strings.Trim(columns[i%len(columns)], `"`) {
+						matches = false
+						break
+					}
+					matches = true
+				}
+			}
+			if matches && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				continue
+			}
+			foreignKeys = append(foreignKeys, fk)
+		}
+		table.ForeignKeys = foreignKeys
+	}
+}
+
 func (e *oracleMetadataExtractor) dropIncomingForeignKeys(tableName string) {
 	for _, table := range e.tables {
 		if table.Name == tableName {
@@ -1216,6 +1280,19 @@ func (e *oracleMetadataExtractor) dropTrigger(name string) {
 		}
 		view.Triggers = triggers
 	}
+}
+
+func (e *oracleMetadataExtractor) constraintDisabled(loc ast.Loc) bool {
+	if loc.Start < 0 || loc.End < loc.Start || loc.End > len(e.schemaText) {
+		return false
+	}
+	if regexp.MustCompile(`(?i)\bDISABLE\b`).MatchString(e.schemaText[loc.Start:loc.End]) {
+		if e.err == nil {
+			e.err = fmt.Errorf("disabled constraints are not supported by oracle/catalog")
+		}
+		return true
+	}
+	return false
 }
 
 func (e *oracleMetadataExtractor) appendCheckConstraint(table *metadatapb.TableMetadata, name string, expr ast.ExprNode) {

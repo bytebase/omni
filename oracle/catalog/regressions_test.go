@@ -1996,3 +1996,43 @@ func TestMaterializedViewKeepsRefreshSchedule(t *testing.T) {
 		t.Fatalf("refresh schedule missing:\n%s", definition)
 	}
 }
+
+func TestCascadeKeyDropOnlyRemovesThatKey(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE P (ID NUMBER PRIMARY KEY, CODE NUMBER UNIQUE); CREATE TABLE C (P_ID NUMBER REFERENCES P(ID)); ALTER TABLE P DROP CONSTRAINT SYS_C0000002 CASCADE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["C"].ForeignKeys) != 1 {
+		t.Fatal("unrelated foreign key removed by cascading unique drop")
+	}
+}
+
+func TestDropColumnClearsReusedProvenance(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY, D NUMBER); ALTER TABLE T DROP COLUMN ID; ALTER TABLE T ADD ID NUMBER NOT NULL PRIMARY KEY; ALTER TABLE T DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, column := range tableByName(c.Metadata().Schemas[0])["T"].Columns {
+		if column.Name == "ID" && column.Nullable {
+			t.Fatal("reused column inherited stale provenance")
+		}
+	}
+}
+
+func TestRenameTableHandlesTriggerOnNewline(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE TRIGGER TR BEFORE INSERT ON
+T BEGIN NULL; END; ALTER TABLE T RENAME TO U`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := tableByName(c.Metadata().Schemas[0])["U"].Triggers[0].Body
+	if strings.Contains(body, "ON\nT") || !strings.Contains(body, "ON\nU") {
+		t.Fatalf("trigger target = %q", body)
+	}
+}
+
+func TestDisabledConstraintCreationIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT CK CHECK(C > 0) DISABLE)`); err == nil {
+		t.Fatal("disabled constraint installed as enabled")
+	}
+}

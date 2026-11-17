@@ -214,6 +214,10 @@ replay tests exercise.
 - A column alteration needed by a new view runs before that view.
 - An early virtual-column alteration excludes dependents the diff already drops.
 - A materialized view keeps its refresh schedule (`START WITH`/`NEXT`).
+- A cascading key drop removes only foreign keys on the dropped key's columns.
+- Dropping a column clears its nullability provenance, including reused names.
+- Trigger-target scanning accepts whitespace after `ON`.
+- Disabled constraints are rejected at creation.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
