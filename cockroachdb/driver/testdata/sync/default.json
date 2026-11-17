@@ -272,7 +272,8 @@
       "functions": [
         {
           "name": "add",
-          "definition": "CREATE FUNCTION app.add(a INT8, b INT8)\n\tRETURNS INT8\n\tIMMUTABLE\n\tNOT LEAKPROOF\n\tCALLED ON NULL INPUT\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tSELECT a + b;\n$$"
+          "definition": "CREATE FUNCTION app.add(a INT8, b INT8)\n\tRETURNS INT8\n\tIMMUTABLE\n\tNOT LEAKPROOF\n\tCALLED ON NULL INPUT\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tSELECT a + b;\n$$",
+          "signature": "int8, int8"
         }
       ],
       "materializedViews": [
@@ -316,6 +317,16 @@
           "minValue": "-100",
           "maxValue": "1000",
           "increment": "5"
+        }
+      ],
+      "enumTypes": [
+        {
+          "name": "mood",
+          "values": [
+            "happy",
+            "sad",
+            "it's complicated"
+          ]
         }
       ]
     },

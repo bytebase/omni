@@ -737,6 +737,7 @@
 |
 | select n.nspname as function_schema,
 | 	p.proname as function_name,
+| 	pg_get_function_identity_arguments(p.oid) as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
@@ -749,6 +750,7 @@
 < result
 < column "function_schema" "NAME"
 < column "function_name" "NAME"
+< column "function_signature" "TEXT"
 < column "definition" "TEXT"
 > query
 |
@@ -764,6 +766,18 @@
 < column "maximum_value" "TEXT"
 < column "increment" "TEXT"
 < column "cycle_option" "TEXT"
+> query
+|
+| SELECT pn.nspname, pt.typname, pe.enumlabel
+| FROM pg_enum pe
+| JOIN pg_type pt ON pe.enumtypid = pt.oid
+| JOIN pg_namespace pn ON pt.typnamespace = pn.oid
+| WHERE pn.nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
+| ORDER BY pn.nspname, pt.typname, pe.enumsortorder;
+< result
+< column "nspname" "NAME"
+< column "typname" "NAME"
+< column "enumlabel" "TEXT"
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description

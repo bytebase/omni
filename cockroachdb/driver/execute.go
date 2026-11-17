@@ -18,6 +18,13 @@ import (
 	"github.com/bytebase/omni/driver"
 )
 
+// noRetryError marks a failure after the main transaction committed, where
+// rerunning the script would replay changes that are already durable.
+type noRetryError struct{ err error }
+
+func (e *noRetryError) Error() string { return e.err.Error() }
+func (e *noRetryError) Unwrap() error { return e.err }
+
 // Execute runs script under opts.Transaction, reporting each step to opts.Log
 // when non-nil and returning the total affected rows.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
@@ -87,7 +94,8 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		return d.executeInTransactionMode(ctx, owner, script, txCommands, nonTransactionAndSetRoleStmts, opts.Isolation, opts.Log, isPlsql)
 	}
 	affected, err := run()
-	if err == nil || !isLockTimeoutError(err) {
+	var noRetry *noRetryError
+	if opts.Transaction == driver.AutoCommit || errors.As(err, &noRetry) || !isLockTimeoutError(err) {
 		return affected, err
 	}
 	for i := 0; i < opts.MaxRetries; i++ {
@@ -95,7 +103,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 			opts.Log.Retry(err, i+1, opts.MaxRetries)
 		}
 		affected, err = run()
-		if err == nil || !isLockTimeoutError(err) {
+		if err == nil || errors.As(err, &noRetry) || !isLockTimeoutError(err) {
 			break
 		}
 	}
@@ -103,7 +111,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 }
 
 func isLockTimeoutError(err error) bool {
-	return strings.Contains(err.Error(), "canceling statement due to lock timeout")
+	return err != nil && strings.Contains(err.Error(), "canceling statement due to lock timeout")
 }
 
 func (d *Driver) executeInTransactionMode(
@@ -225,7 +233,7 @@ func (d *Driver) executeInTransactionMode(
 		_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE %s", quoteLiteral(owner))) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
 		return err
 	}); err != nil {
-		return 0, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
+		return 0, &noRetryError{err: fmt.Errorf("failed to set role to database owner %q: %w", owner, err)}
 	}
 	// Run non-transaction statements at the end.
 	for _, stmt := range nonTransactionAndSetRoleStmts {
@@ -235,7 +243,7 @@ func (d *Driver) executeInTransactionMode(
 			return err
 		}); err != nil {
 			logCommandResponse(log, 0, []int64{0}, err)
-			return 0, err
+			return 0, &noRetryError{err: err}
 		}
 		logCommandResponse(log, 0, []int64{0}, nil)
 	}

@@ -126,6 +126,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get sequences from database %q: %w", d.databaseName, err)
 	}
+	enumMap, err := getEnumTypes(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get enum types from database %q: %w", d.databaseName, err)
+	}
 
 	extensions, err := getExtensions(txn)
 	if err != nil {
@@ -151,6 +155,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			Functions:         functionMap[schemaName],
 			Sequences:         sequenceMap[schemaName],
 			MaterializedViews: materializedViewMap[schemaName],
+			EnumTypes:         enumMap[schemaName],
 		})
 	}
 	databaseMetadata.Extensions = extensions
@@ -902,6 +907,47 @@ func getChecks(txn *sql.Tx) (map[tableKey][]*metadatapb.CheckConstraintMetadata,
 	return checksMap, rows.Err()
 }
 
+var listEnumTypeQuery = `
+SELECT pn.nspname, pt.typname, pe.enumlabel
+FROM pg_enum pe
+JOIN pg_type pt ON pe.enumtypid = pt.oid
+JOIN pg_namespace pn ON pt.typnamespace = pn.oid` + fmt.Sprintf(`
+WHERE pn.nspname NOT IN (%s)
+ORDER BY pn.nspname, pt.typname, pe.enumsortorder;`, crrawanalysis.SystemSchemaWhereClause)
+
+func getEnumTypes(txn *sql.Tx) (map[string][]*metadatapb.EnumTypeMetadata, error) {
+	enumMap := make(map[string][]*metadatapb.EnumTypeMetadata)
+	rows, err := txn.Query(listEnumTypeQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var currentSchema, currentName string
+	var values []string
+	flush := func() {
+		if currentSchema == "" {
+			return
+		}
+		enumMap[currentSchema] = append(enumMap[currentSchema], &metadatapb.EnumTypeMetadata{Name: currentName, Values: values})
+	}
+	for rows.Next() {
+		var schemaName, typeName, value string
+		if err := rows.Scan(&schemaName, &typeName, &value); err != nil {
+			return nil, err
+		}
+		if currentSchema != schemaName || currentName != typeName {
+			flush()
+			currentSchema, currentName, values = schemaName, typeName, nil
+		}
+		values = append(values, value)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	flush()
+	return enumMap, nil
+}
+
 // getSequences gets all sequences of a database.
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
 	query := `
@@ -1031,6 +1077,7 @@ func getIndexMethodType(stmt string) string {
 var listFunctionQuery = `
 select n.nspname as function_schema,
 	p.proname as function_name,
+	pg_get_function_identity_arguments(p.oid) as function_signature,
 	case when l.lanname = 'internal' then p.prosrc
 			else pg_get_functiondef(p.oid)
 			end as definition
@@ -1053,7 +1100,7 @@ func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error
 	for rows.Next() {
 		function := &metadatapb.FunctionMetadata{}
 		var schemaName string
-		if err := rows.Scan(&schemaName, &function.Name, &function.Definition); err != nil {
+		if err := rows.Scan(&schemaName, &function.Name, &function.Signature, &function.Definition); err != nil {
 			return nil, err
 		}
 		functionMap[schemaName] = append(functionMap[schemaName], function)
