@@ -525,7 +525,7 @@ func indexEqual(a, b *metadatapb.IndexMetadata) bool {
 		return false
 	}
 	for i, expression := range a.GetExpressions() {
-		if normalizeExpression(expression) != normalizeExpression(b.GetExpressions()[i]) {
+		if !keyExpressionsEqual(expression, b.GetExpressions()[i]) {
 			return false
 		}
 	}
@@ -574,14 +574,40 @@ func compareForeignKeys(oldFKs, newFKs []*metadatapb.ForeignKeyMetadata) []*Fore
 	return changes
 }
 
+// keyExpressionsEqual compares two index expressions. A bare identifier,
+// quoted or not, is the same column only under its exact name: the sync quotes
+// a case-sensitive name, and a quoted name may hold significant spaces, so it
+// is not normalized. Anything else compares as normalized text.
+func keyExpressionsEqual(a, b string) bool {
+	if isKeyIdentifier(a) && isKeyIdentifier(b) {
+		return unquoteIdentifier(a) == unquoteIdentifier(b)
+	}
+	return normalizeExpression(a) == normalizeExpression(b)
+}
+
+func isKeyIdentifier(expression string) bool {
+	if strings.HasPrefix(expression, `"`) && strings.HasSuffix(expression, `"`) && len(expression) > 1 {
+		return !strings.Contains(expression[1:len(expression)-1], `"`)
+	}
+	return isSimpleIdentifier(expression)
+}
+
+func unquoteIdentifiers(identifiers []string) []string {
+	unquoted := make([]string, len(identifiers))
+	for i, identifier := range identifiers {
+		unquoted[i] = unquoteIdentifier(identifier)
+	}
+	return unquoted
+}
+
 func foreignKeyEqual(a, b *metadatapb.ForeignKeyMetadata) bool {
 	return a.GetReferencedSchema() == b.GetReferencedSchema() &&
 		a.GetReferencedTable() == b.GetReferencedTable() &&
 		a.GetOnDelete() == b.GetOnDelete() &&
 		a.GetOnUpdate() == b.GetOnUpdate() &&
 		a.GetMatchType() == b.GetMatchType() &&
-		slices.Equal(a.GetColumns(), b.GetColumns()) &&
-		slices.Equal(a.GetReferencedColumns(), b.GetReferencedColumns())
+		slices.Equal(unquoteIdentifiers(a.GetColumns()), unquoteIdentifiers(b.GetColumns())) &&
+		slices.Equal(unquoteIdentifiers(a.GetReferencedColumns()), unquoteIdentifiers(b.GetReferencedColumns()))
 }
 
 func compareCheckConstraints(oldChecks, newChecks []*metadatapb.CheckConstraintMetadata) []*CheckConstraintDiff {

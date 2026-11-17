@@ -463,7 +463,7 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 	}
 
 	for _, constraint := range table.Indexes {
-		if !constraint.IsConstraint {
+		if !constraint.IsConstraint || needsReusedIndexClause(constraint) {
 			continue
 		}
 		if err := writeSeparator(); err != nil {
@@ -483,8 +483,15 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 		}
 	}
 
+	var deferredForeignKeys []*metadatapb.ForeignKeyMetadata
 	if includeForeignKeys {
 		for _, fk := range table.ForeignKeys {
+			// A self reference to a key a reused index backs waits for the
+			// constraint, which is added after the table.
+			if selfReferenceTargetsReusedConstraint(table, fk) {
+				deferredForeignKeys = append(deferredForeignKeys, fk)
+				continue
+			}
 			if err := writeSeparator(); err != nil {
 				return err
 			}
@@ -507,6 +514,9 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 		if err := writeIndex(buf, table.Name, index); err != nil {
 			return err
 		}
+	}
+	if err := writeReusedIndexConstraints(buf, table, deferredForeignKeys); err != nil {
+		return err
 	}
 
 	if err := writeTriggers(buf, table.Triggers); err != nil {
@@ -659,13 +669,7 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 				return err
 			}
 		}
-		if _, err := buf.WriteString(`"`); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(column); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(`"`); err != nil {
+		if _, err := buf.WriteString(keyColumn(column)); err != nil {
 			return err
 		}
 	}
@@ -699,13 +703,7 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 				return err
 			}
 		}
-		if _, err := buf.WriteString(`"`); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(column); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(`"`); err != nil {
+		if _, err := buf.WriteString(keyColumn(column)); err != nil {
 			return err
 		}
 	}
@@ -764,6 +762,132 @@ func writeCheckConstraint(buf *strings.Builder, check *metadatapb.CheckConstrain
 	return err
 }
 
+// needsReusedIndexClause reports a constraint the snapshot says an existing
+// index backs, where that index is not the constraint's own: it is not unique,
+// or its keys are not the constraint's. The index must exist before the
+// constraint, which then names it with USING INDEX. The driver's sync states
+// this shape for ALTER TABLE ... ADD CONSTRAINT ... USING INDEX.
+func needsReusedIndexClause(index *metadatapb.IndexMetadata) bool {
+	constraints := index.GetConstraints()
+	if len(constraints) == 0 {
+		return false
+	}
+	if !index.GetUnique() {
+		return true
+	}
+	for _, constraint := range constraints {
+		// A constraint that reuses the index keeps its own name.
+		if constraint.GetName() != index.GetName() {
+			return true
+		}
+		columns := constraint.GetColumns()
+		if len(columns) == 0 {
+			columns = index.GetExpressions()
+		}
+		if len(columns) != len(index.GetExpressions()) {
+			return true
+		}
+		for i, column := range columns {
+			if unquoteIdentifier(column) != unquoteIdentifier(index.GetExpressions()[i]) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// writeReusedIndexConstraints writes a table's indexes whose constraint needs
+// the index clause: the index first, then the constraint naming it.
+func selfReferenceTargetsReusedConstraint(table *metadatapb.TableMetadata, fk *metadatapb.ForeignKeyMetadata) bool {
+	if fk.GetReferencedTable() != table.GetName() {
+		return false
+	}
+	for _, index := range table.GetIndexes() {
+		if !index.GetIsConstraint() || !needsReusedIndexClause(index) {
+			continue
+		}
+		for _, constraint := range index.GetConstraints() {
+			columns := constraint.GetColumns()
+			if len(columns) == 0 {
+				columns = index.GetExpressions()
+			}
+			if len(fk.GetReferencedColumns()) == 0 {
+				if constraint.GetPrimary() {
+					return true
+				}
+				continue
+			}
+			if len(fk.GetReferencedColumns()) != len(columns) {
+				continue
+			}
+			matches := true
+			for i, column := range fk.GetReferencedColumns() {
+				if unquoteIdentifier(column) != unquoteIdentifier(columns[i]) {
+					matches = false
+				}
+			}
+			if matches {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func writeReusedIndexConstraints(buf *strings.Builder, table *metadatapb.TableMetadata, deferredForeignKeys []*metadatapb.ForeignKeyMetadata) error {
+	for _, index := range table.Indexes {
+		if !index.GetIsConstraint() || !needsReusedIndexClause(index) {
+			continue
+		}
+		if err := writeIndex(buf, table.Name, index); err != nil {
+			return err
+		}
+		constraints := index.GetConstraints()
+		if len(constraints) == 0 {
+			constraints = []*metadatapb.IndexConstraintMetadata{{Name: index.GetName(), Columns: index.GetExpressions(), Primary: index.GetPrimary()}}
+		}
+		for _, constraint := range constraints {
+			if _, err := buf.WriteString(`ALTER TABLE "` + table.Name + `" ADD CONSTRAINT "` + constraint.GetName() + `"`); err != nil {
+				return err
+			}
+			if constraint.GetPrimary() {
+				if _, err := buf.WriteString(` PRIMARY KEY (`); err != nil {
+					return err
+				}
+			} else {
+				if _, err := buf.WriteString(` UNIQUE (`); err != nil {
+					return err
+				}
+			}
+			columns := constraint.GetColumns()
+			if len(columns) == 0 {
+				columns = index.GetExpressions()
+			}
+			for i, column := range columns {
+				if i != 0 {
+					if _, err := buf.WriteString(", "); err != nil {
+						return err
+					}
+				}
+				if _, err := buf.WriteString(keyColumn(column)); err != nil {
+					return err
+				}
+			}
+			if _, err := buf.WriteString(`) USING INDEX "` + index.GetName() + `";
+
+`); err != nil {
+				return err
+			}
+		}
+	}
+	for _, fk := range deferredForeignKeys {
+		if err := writeAddForeignKey(buf, table.Name, fk); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeConstraint(buf *strings.Builder, constraint *metadatapb.IndexMetadata) error {
 	if _, err := buf.WriteString(`CONSTRAINT "`); err != nil {
 		return err
@@ -786,13 +910,7 @@ func writeConstraint(buf *strings.Builder, constraint *metadatapb.IndexMetadata)
 					return err
 				}
 			}
-			if _, err := buf.WriteString(`"`); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(column); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(`"`); err != nil {
+			if _, err := buf.WriteString(keyColumn(column)); err != nil {
 				return err
 			}
 		}
@@ -809,13 +927,7 @@ func writeConstraint(buf *strings.Builder, constraint *metadatapb.IndexMetadata)
 					return err
 				}
 			}
-			if _, err := buf.WriteString(`"`); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(column); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(`"`); err != nil {
+			if _, err := buf.WriteString(keyColumn(column)); err != nil {
 				return err
 			}
 		}
@@ -1027,6 +1139,25 @@ func writeView(buf *strings.Builder, view *metadatapb.ViewMetadata) error {
 		return err
 	}
 	return writeDefinitionComment(buf, "TABLE", view.Name, view.Comment)
+}
+
+// keyColumn renders a key column the snapshot states. The driver's sync keeps a
+// case-sensitive name quoted, and an extracted one raw, so a quoted name is
+// written as it is and a raw one is quoted.
+func keyColumn(column string) string {
+	if strings.HasPrefix(column, `"`) && strings.HasSuffix(column, `"`) && len(column) > 1 {
+		return column
+	}
+	return `"` + column + `"`
+}
+
+// unquoteIdentifier strips the quotes from a bare quoted identifier, which the
+// sync states but an extracted snapshot does not. An expression is left alone.
+func unquoteIdentifier(identifier string) string {
+	if strings.HasPrefix(identifier, `"`) && strings.HasSuffix(identifier, `"`) && len(identifier) > 1 && !strings.Contains(identifier[1:len(identifier)-1], `"`) {
+		return identifier[1 : len(identifier)-1]
+	}
+	return identifier
 }
 
 // writeDefinitionComment writes the COMMENT statement a synced object carries.

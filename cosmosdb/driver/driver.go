@@ -4,12 +4,13 @@
 // omni/metadata, and runs the container query language for interactive
 // queries.
 //
-// It implements Driver, Syncer and Querier. There is no Dump: omni's cosmosdb
-// tree has no catalog, so nothing renders a synced schema as the engine's DDL,
-// and Bytebase's driver dumped nothing either. There is no Executor: the query
-// language has no statement that changes data, container items are written
-// through the container API, and Bytebase's driver answered Execute as
-// unimplemented.
+// It implements Driver, Syncer, Dumper and Querier. Dump writes nothing: a
+// synced container carries its name alone, not the partition key, indexing
+// policy, unique keys or default TTL that recreate it, so a dump of the
+// metadata could not create the container it describes, and Bytebase's driver
+// dumped nothing either. There is no Executor: the query language has no
+// statement that changes data, container items are written through the
+// container API, and Bytebase's driver answered Execute as unimplemented.
 //
 // Config.Host is the account endpoint as the portal and the emulator write it,
 // https://<account>.documents.azure.com:443/. Config.Database is the database a
@@ -89,6 +90,7 @@ import (
 var (
 	_ driver.Driver  = (*Driver)(nil)
 	_ driver.Syncer  = (*Driver)(nil)
+	_ driver.Dumper  = (*Driver)(nil)
 	_ driver.Querier = (*Driver)(nil)
 )
 

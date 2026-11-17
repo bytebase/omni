@@ -30,8 +30,27 @@ func TestSyncDatabase(t *testing.T) {
 
 	got, err := d.SyncDatabase(context.Background())
 	a.NoError(err)
+	syncGolden(t, got, filepath.Join("testdata", "sync", "fixture.json"))
+}
 
-	golden := filepath.Join("testdata", "sync", "fixture.json")
+// TestSyncDatabasePostgres syncs a database of the PostgreSQL dialect and holds
+// the result to testdata/sync/postgres.json: the PostgreSQL catalog's own
+// schema name, type names, default expression and match option.
+func TestSyncDatabasePostgres(t *testing.T) {
+	a := require.New(t)
+	instance, database := postgresSyncFixture(t)
+	d := openDriverWithDialect(t, instance, database, postgresSQL)
+	defer d.Close()
+
+	got, err := d.SyncDatabase(context.Background())
+	a.NoError(err)
+	syncGolden(t, got, filepath.Join("testdata", "sync", "postgres.json"))
+}
+
+// syncGolden holds a synced schema to a golden file, or writes it with -update.
+func syncGolden(t *testing.T, got *metadatapb.DatabaseSchemaMetadata, golden string) {
+	t.Helper()
+	a := require.New(t)
 	if *update {
 		b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(got)
 		a.NoError(err)
@@ -59,13 +78,13 @@ func TestSyncDatabaseMissing(t *testing.T) {
 }
 
 // TestSyncInstance reads the instance's databases with their names and no
-// schemas, and leaves out a database of the PostgreSQL dialect, whose SQL this
-// driver cannot run.
+// schemas, both dialects included: a database of the PostgreSQL dialect is a
+// database, and SyncDatabase reads its catalog.
 func TestSyncInstance(t *testing.T) {
 	a := require.New(t)
 	instance := "syncinstance"
 	testcontainer.Create(t, instance, "fixture", fixtureDDL, nil)
-	testcontainer.CreatePostgres(t, instance, "pgdialect")
+	testcontainer.CreatePostgres(t, instance, "pgdialect", nil, nil)
 	d := openDriver(t, instance, "fixture")
 	defer d.Close()
 
@@ -75,7 +94,7 @@ func TestSyncInstance(t *testing.T) {
 	for _, database := range got.Databases {
 		names = append(names, database.Name)
 	}
-	a.Equal([]string{"fixture"}, names)
+	a.ElementsMatch([]string{"fixture", "pgdialect"}, names)
 	a.Empty(got.Version)
 	a.Empty(got.Roles)
 }

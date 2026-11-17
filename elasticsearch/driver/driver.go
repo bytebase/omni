@@ -4,10 +4,11 @@
 // sizes, and its users, and runs Kibana Dev Console requests as interactive
 // queries and change scripts.
 //
-// It implements Driver, Syncer, Querier and Executor. There is no Dumper: omni
-// has no elasticsearch/catalog for a dump to render, and Bytebase's Dump wrote
-// nothing. A synced index does carry a row count and a data size, because
-// Elasticsearch reports them (_cat/indices' docs.count and store.size).
+// It implements Driver, Syncer, Dumper, Querier and Executor. Dump writes
+// nothing: a synced index carries the document count and data size _cat/indices
+// reports, not the mappings and settings that recreate it, so a dump of the
+// metadata could not create the index it describes, and Bytebase's Dump wrote
+// nothing either.
 //
 // Config.Host is the endpoint's host, optionally with its own scheme
 // (https://search.example.com) and port; Config.Port applies when the host
@@ -72,6 +73,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )

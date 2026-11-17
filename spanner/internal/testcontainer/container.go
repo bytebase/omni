@@ -22,6 +22,12 @@
 // on one address), and query plans (it has no optimizer). The driver's package
 // doc states each.
 //
+// Both dialects are recorded: Create creates a GoogleSQL database from a
+// backtick-quoted CREATE DATABASE, and CreatePostgres creates a PostgreSQL one
+// from a double-quoted statement with DatabaseDialect set, applying the fixture's
+// DDL in that dialect's SQL. The emulator answers a PostgreSQL database's own
+// INFORMATION_SCHEMA and a script's PostgreSQL dialect too.
+//
 // A database is created per fixture, through the admin API, before the first
 // request of a recording: a replay answers as if it were there, and the fixture
 // is not part of what the driver asked. The database's id is the caller's, so
@@ -188,25 +194,34 @@ func ensureDatabase(ctx context.Context, host, instance, database string, statem
 	}
 
 	if len(rows) > 0 {
-		client, err := spanner.NewClient(ctx, DatabasePath(instance, database), emulatorOptions(host)...)
-		if err != nil {
+		if err := writeRows(ctx, host, DatabasePath(instance, database), rows); err != nil {
 			return err
-		}
-		defer client.Close()
-		if _, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, rwt *spanner.ReadWriteTransaction) error {
-			for _, row := range rows {
-				if _, err := rwt.Update(ctx, spanner.NewStatement(row)); err != nil {
-					return fmt.Errorf("write a fixture row: %w", err)
-				}
-			}
-			return nil
-		}); err != nil {
-			return fmt.Errorf("write the fixture rows of %s: %w", database, err)
 		}
 	}
 	shared.Lock()
 	shared.databases[DatabasePath(instance, database)] = true
 	shared.Unlock()
+	return nil
+}
+
+// writeRows runs rows as one read-write transaction's DML, so a fixture's data
+// is there before the first recorded request reads it.
+func writeRows(ctx context.Context, host, databasePath string, rows []string) error {
+	client, err := spanner.NewClient(ctx, databasePath, emulatorOptions(host)...)
+	if err != nil {
+		return err
+	}
+	defer client.Close()
+	if _, err := client.ReadWriteTransaction(ctx, func(ctx context.Context, rwt *spanner.ReadWriteTransaction) error {
+		for _, row := range rows {
+			if _, err := rwt.Update(ctx, spanner.NewStatement(row)); err != nil {
+				return fmt.Errorf("write a fixture row: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
+		return fmt.Errorf("write the fixture rows of %s: %w", databasePath, err)
+	}
 	return nil
 }
 
@@ -357,9 +372,10 @@ func Terminate() {
 }
 
 // CreatePostgres returns the resource name of a database of the PostgreSQL
-// dialect named database on instance, creating the instance on first use and the
-// database empty, in a recording. A replay starts no server.
-func CreatePostgres(t testing.TB, instance, database string) string {
+// dialect named database on instance, creating the instance on first use, the
+// database with statements as its DDL and rows as the DML it then runs, in a
+// recording. A replay starts no server.
+func CreatePostgres(t testing.TB, instance, database string, statements, rows []string) string {
 	t.Helper()
 	if !enginetest.Recording(t) {
 		return DatabasePath(instance, database)
@@ -368,15 +384,15 @@ func CreatePostgres(t testing.TB, instance, database string) string {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
 
-	if err := ensurePostgresDatabase(ctx, host, instance, database); err != nil {
+	if err := ensurePostgresDatabase(ctx, host, instance, database, statements, rows); err != nil {
 		t.Fatalf("create the PostgreSQL database %s: %v", database, err)
 	}
 	return DatabasePath(instance, database)
 }
 
-// ensurePostgresDatabase creates a database of the PostgreSQL dialect, which a
-// sync must leave out: every statement this driver runs is GoogleSQL.
-func ensurePostgresDatabase(ctx context.Context, host, instance, database string) error {
+// ensurePostgresDatabase creates a database of the PostgreSQL dialect, with
+// statements as its DDL and rows as the DML it then runs.
+func ensurePostgresDatabase(ctx context.Context, host, instance, database string, statements, rows []string) error {
 	shared.Lock()
 	known := shared.databases[DatabasePath(instance, database)]
 	shared.Unlock()
@@ -391,17 +407,24 @@ func ensurePostgresDatabase(ctx context.Context, host, instance, database string
 		return err
 	}
 	defer func() { _ = admin.Close() }()
-	// A PostgreSQL database's creation statement is written in its own dialect.
+	// A PostgreSQL database's creation statement is written in its own dialect, as
+	// is every statement the fixture applies after it.
 	op, err := admin.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
 		Parent:          InstancePath(instance),
 		CreateStatement: fmt.Sprintf("CREATE DATABASE \"%s\"", database),
 		DatabaseDialect: databasepb.DatabaseDialect_POSTGRESQL,
+		ExtraStatements: statements,
 	})
 	if err != nil {
 		return err
 	}
 	if _, err := op.Wait(ctx); err != nil {
 		return err
+	}
+	if len(rows) > 0 {
+		if err := writeRows(ctx, host, DatabasePath(instance, database), rows); err != nil {
+			return err
+		}
 	}
 	shared.Lock()
 	shared.databases[DatabasePath(instance, database)] = true
