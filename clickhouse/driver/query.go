@@ -118,18 +118,13 @@ func (s *session) runQuery(ctx context.Context, statement string, maxResultBytes
 	return result, nil
 }
 
+// runExec runs a statement that returns no rows. Its Result states no affected
+// count, for the reason the package doc gives.
 func (s *session) runExec(ctx context.Context, statement string) (*driver.Result, error) {
-	sqlResult, err := s.conn.ExecContext(ctx, statement)
-	if err != nil {
+	if _, err := s.conn.ExecContext(ctx, statement); err != nil {
 		return nil, err
 	}
-	affectedRows, err := sqlResult.RowsAffected()
-	if err != nil {
-		// A DDL statement reports no count, which the client reports as an
-		// error; Bytebase ignored it and recorded zero.
-		affectedRows = 0
-	}
-	return &driver.Result{AffectedRows: &affectedRows}, nil
+	return &driver.Result{}, nil
 }
 
 // readRows reads one result set, stopping at maxResultBytes.

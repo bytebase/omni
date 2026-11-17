@@ -45,9 +45,20 @@
 // a no-op, so it may have no effect.
 //
 // A statement's error unwraps to *clickhouse.Exception, which carries the
-// server's error code and message. Result.AffectedRows is 0 for every statement
-// that runs on the exec path, a write included: the client reports no count, so
-// the driver has none to report.
+// server's error code and message.
+//
+// Result.AffectedRows is nil for every statement that returns no rows, and
+// Execute answers 0, because the client states no count on the path this driver
+// holds. ClickHouse does count what a statement wrote, and says so twice: the
+// native protocol's Progress packet carries written rows, which the HTTP
+// interface reports as X-ClickHouse-Summary's written_rows. Neither reaches this
+// driver's session: the packets go to a callback registered on the statement's
+// context, and database/sql's own result states RowsAffected() = 0 with no error
+// for every statement, INSERT included, so that 0 is not a count it has. Reading
+// the callback would also make an answer depend on whether a recording or a
+// replay was underneath, since a tape holds the statements and rows and not the
+// packets, and nil is the answer both give. A statement that states no count and
+// one whose count is unreachable therefore read the same here.
 package driver
 
 import (
