@@ -130,6 +130,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get enum types from database %q: %w", d.databaseName, err)
 	}
+	compositeMap, err := getCompositeTypes(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get composite types from database %q: %w", d.databaseName, err)
+	}
 
 	extensions, err := getExtensions(txn)
 	if err != nil {
@@ -156,6 +160,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			Sequences:         sequenceMap[schemaName],
 			MaterializedViews: materializedViewMap[schemaName],
 			EnumTypes:         enumMap[schemaName],
+			CompositeTypes:    compositeMap[schemaName],
 		})
 	}
 	databaseMetadata.Extensions = extensions
@@ -948,6 +953,42 @@ func getEnumTypes(txn *sql.Tx) (map[string][]*metadatapb.EnumTypeMetadata, error
 	return enumMap, nil
 }
 
+var listCompositeTypeQuery = `
+SELECT pn.nspname, pt.typname, a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod)
+FROM pg_type pt
+JOIN pg_class pc ON pc.oid = pt.typrelid AND pc.relkind = 'c'
+JOIN pg_namespace pn ON pn.oid = pt.typnamespace
+JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attnum > 0 AND NOT a.attisdropped` + fmt.Sprintf(`
+WHERE pn.nspname NOT IN (%s)
+ORDER BY pn.nspname, pt.typname, a.attnum;`, crrawanalysis.SystemSchemaWhereClause)
+
+func getCompositeTypes(txn *sql.Tx) (map[string][]*metadatapb.CompositeTypeMetadata, error) {
+	compositeMap := make(map[string][]*metadatapb.CompositeTypeMetadata)
+	rows, err := txn.Query(listCompositeTypeQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var currentSchema, currentName string
+	var current *metadatapb.CompositeTypeMetadata
+	for rows.Next() {
+		var schemaName, typeName, attributeName, attributeType string
+		if err := rows.Scan(&schemaName, &typeName, &attributeName, &attributeType); err != nil {
+			return nil, err
+		}
+		if current == nil || currentSchema != schemaName || currentName != typeName {
+			current = &metadatapb.CompositeTypeMetadata{Name: typeName}
+			compositeMap[schemaName] = append(compositeMap[schemaName], current)
+			currentSchema, currentName = schemaName, typeName
+		}
+		current.Attributes = append(current.Attributes, &metadatapb.CompositeTypeAttribute{Name: attributeName, Type: attributeType})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return compositeMap, nil
+}
+
 // getSequences gets all sequences of a database.
 func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error) {
 	query := `
@@ -1077,7 +1118,7 @@ func getIndexMethodType(stmt string) string {
 var listFunctionQuery = `
 select n.nspname as function_schema,
 	p.proname as function_name,
-	pg_get_function_identity_arguments(p.oid) as function_signature,
+	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 	case when l.lanname = 'internal' then p.prosrc
 			else pg_get_functiondef(p.oid)
 			end as definition

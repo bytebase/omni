@@ -737,7 +737,7 @@
 |
 | select n.nspname as function_schema,
 | 	p.proname as function_name,
-| 	pg_get_function_identity_arguments(p.oid) as function_signature,
+| 	p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' as function_signature,
 | 	case when l.lanname = 'internal' then p.prosrc
 | 			else pg_get_functiondef(p.oid)
 | 			end as definition
@@ -778,6 +778,20 @@
 < column "nspname" "NAME"
 < column "typname" "NAME"
 < column "enumlabel" "TEXT"
+> query
+|
+| SELECT pn.nspname, pt.typname, a.attname, pg_catalog.format_type(a.atttypid, a.atttypmod)
+| FROM pg_type pt
+| JOIN pg_class pc ON pc.oid = pt.typrelid AND pc.relkind = 'c'
+| JOIN pg_namespace pn ON pn.oid = pt.typnamespace
+| JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attnum > 0 AND NOT a.attisdropped
+| WHERE pn.nspname NOT IN ('crdb_internal','information_schema','pg_catalog','pg_extension')
+| ORDER BY pn.nspname, pt.typname, a.attnum;
+< result
+< column "nspname" "NAME"
+< column "typname" "NAME"
+< column "attname" "NAME"
+< column "format_type" "TEXT"
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description
