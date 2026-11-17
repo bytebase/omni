@@ -48,6 +48,13 @@
 | CREATE VIEW v_open_accounts AS
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
+> exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -546,6 +553,48 @@
 |
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -599,6 +648,16 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < row
 : bytes
 | v_open_accounts
@@ -889,6 +948,48 @@
 | CLUSTERED
 < row
 : bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
 | v_open_accounts
 : bytes
 | VIEW
@@ -941,6 +1042,14 @@
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
 < ok 0 0
 > exec
+| CREATE VIEW `v_named_cols` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
 | CREATE VIEW `v_open_accounts` AS SELECT
 |   1 AS `acct_id`,
 |   1 AS `acct_email`
@@ -986,6 +1095,18 @@
 |   KEY `idx_account` (`account_id`),
 |   CONSTRAINT `fk_events_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS `v_named_cols`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS `v_named_cols_ref`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < ok 0 0
 > exec
 | DROP VIEW IF EXISTS `v_open_accounts`
@@ -1497,6 +1618,48 @@
 |
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -1550,6 +1713,16 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < row
 : bytes
 | v_open_accounts
@@ -1838,6 +2011,48 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v_open_accounts

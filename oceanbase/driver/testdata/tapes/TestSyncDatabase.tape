@@ -41,6 +41,13 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
+< ok 0 0
+> exec
 | CREATE FUNCTION fn_format_tag(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT)
 | RETURNS VARCHAR(64) CHARSET utf8mb4 COLLATE utf8mb4_general_ci
 | DETERMINISTIC
@@ -90,17 +97,17 @@
 : string
 | omni_sync_corpus
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
-< column "COLLATION" "VARCHAR"
+< column "COLLATION" "VARCHAR" "string"
 < column "IFNULL(SUB_PART, -1)" "BIGINT"
-< column "" "VARCHAR"
-< column "SEQ_IN_INDEX" "UNSIGNED BIGINT"
+< column "" "VARCHAR" "string"
+< column "SEQ_IN_INDEX" "UNSIGNED BIGINT" "uint64"
 < column "INDEX_TYPE" "VARCHAR"
 < column "NON_UNIQUE" "BIGINT"
-< column "1" "BIGINT"
-< column "INDEX_COMMENT" "TEXT"
+< column "1" "BIGINT" "int64"
+< column "INDEX_COMMENT" "TEXT" "string"
 < row
 : bytes
 | accounts
@@ -245,9 +252,9 @@
 < column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
 < column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "VARBINARY"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "VARBINARY" "[]uint8"
 < column "EXTRA" "VARCHAR"
-< column "NULL" "NULL"
+< column "NULL" "NULL" "*interface {}"
 < row
 : bytes
 | accounts
@@ -655,6 +662,50 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: uint64 1
+: null
+: bytes
+| NO
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -752,20 +803,62 @@
 : string
 | omni_sync_corpus
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`
 < row
 : bytes
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
 > query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE VIEW `v_named_cols` AS select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE VIEW `v_named_cols_ref` AS select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
 | SHOW CREATE VIEW `omni_sync_corpus`.`v_open_accounts`
 < result
-< column "View" "VARCHAR"
-< column "Create View" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
 < row
 : bytes
 | v_open_accounts
@@ -793,14 +886,14 @@
 : string
 | omni_sync_corpus
 < result
-< column "TRIGGER_NAME" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
 < column "EVENT_MANIPULATION" "VARCHAR"
 < column "ACTION_TIMING" "VARCHAR"
-< column "ACTION_STATEMENT" "TEXT"
+< column "ACTION_STATEMENT" "TEXT" "string"
 < column "SQL_MODE" "TEXT"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 < row
 : bytes
 | trg_orders_bi
@@ -881,10 +974,10 @@
 : string
 | omni_sync_corpus
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
 < row
@@ -918,7 +1011,7 @@
 : string
 | omni_sync_corpus
 < result
-< column "ROUTINE_NAME" "VARCHAR"
+< column "ROUTINE_NAME" "VARCHAR" "string"
 < column "ROUTINE_TYPE" "VARCHAR"
 < column "SQL_MODE" "TEXT"
 < column "CHARACTER_SET_CLIENT" "VARCHAR"
@@ -958,12 +1051,12 @@
 > query
 | SHOW CREATE FUNCTION `omni_sync_corpus`.`fn_format_tag`
 < result
-< column "Function" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Function" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | fn_format_tag
@@ -986,12 +1079,12 @@
 > query
 | SHOW CREATE PROCEDURE `omni_sync_corpus`.`sp_touch_order`
 < result
-< column "Procedure" "VARCHAR"
-< column "sql_mode" "VARCHAR"
-< column "Create Procedure" "TEXT"
-< column "character_set_client" "VARCHAR"
-< column "collation_connection" "VARCHAR"
-< column "Database Collation" "VARCHAR"
+< column "Procedure" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Procedure" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
 < row
 : bytes
 | sp_touch_order
@@ -1033,13 +1126,13 @@
 | omni_sync_corpus
 < result
 < column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "VARCHAR"
+< column "TABLE_TYPE" "VARCHAR" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" precision 20 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" precision 20 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" precision 20 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "VARCHAR"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
@@ -1114,6 +1207,52 @@
 | utf8mb4
 < row
 : bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+| utf8mb4
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+| utf8mb4
+< row
+: bytes
 | v_open_accounts
 : bytes
 | VIEW
@@ -1167,9 +1306,9 @@
 : string
 | omni_sync_corpus
 < result
-< column "MVIEW_NAME" "VARCHAR"
-< column "CONTAINER_NAME" "VARCHAR"
-< column "QUERY" "TEXT"
+< column "MVIEW_NAME" "VARCHAR" "string"
+< column "CONTAINER_NAME" "VARCHAR" "string"
+< column "QUERY" "TEXT" "string"
 < row
 : bytes
 | mv_accounts
@@ -1187,8 +1326,8 @@
 : string
 | omni_sync_corpus
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | utf8mb4

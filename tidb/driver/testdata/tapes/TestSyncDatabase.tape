@@ -48,6 +48,13 @@
 | CREATE VIEW v_open_accounts AS
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
+> exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -546,6 +553,48 @@
 |
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -599,6 +648,16 @@
 < result
 < column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| SELECT `id` AS `id` FROM `omni_sync_corpus`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| SELECT `renamed_id` AS `renamed_id` FROM `omni_sync_corpus`.`v_named_cols`
 < row
 : bytes
 | v_open_accounts
@@ -887,6 +946,48 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v_open_accounts
