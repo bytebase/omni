@@ -176,20 +176,21 @@ func CollectCompletion(sql string, cursorOffset int) *CompletionContext {
 	if cursorOffset > len(sql) {
 		cursorOffset = len(sql)
 	}
-	prefix, collectOffset := completionPrefix(sql, cursorOffset)
 	// The reader works on the Split segment holding the cursor: a script with
 	// its own DELIMITER separates its statements the way the parser does, and
-	// the candidate collection already reads the same segment.
+	// the candidate collection already reads the same segment. The prefix is
+	// read there too, so an identifier cannot start in another statement.
 	text, base, local := completionSegment(sql, cursorOffset)
+	prefix, localStart := completionPrefix(text, local)
 	ctx := &CompletionContext{
-		Candidates:   Collect(sql, collectOffset),
+		Candidates:   Collect(sql, localStart+base),
 		Prefix:       prefix,
 		Scope:        shiftScope(collectCompletionScope(text, local), base),
 		StatementLoc: shiftLoc(completionStatementLoc(text, local), base),
 	}
 	ctx.CTEs = shiftReferences(collectCompletionCTEs(text, local), base)
 	ctx.SelectAliases = shiftSelectAliases(collectSelectAliases(text, local), base)
-	ctx.Intent = collectCompletionIntent(text, ctx.Candidates, collectOffset-base)
+	ctx.Intent = collectCompletionIntent(text, ctx.Candidates, localStart)
 	return ctx
 }
 
@@ -207,9 +208,11 @@ func completionSegment(sql string, cursorOffset int) (string, int, int) {
 		}
 	}
 	if len(segments) > 0 {
-		// Past the last segment: the text after it is what is being typed.
+		// Past the last statement: what follows its terminator is not part of
+		// it, so the cursor completes a new statement with no scope from the
+		// one before. A custom DELIMITER's own text sits there too.
 		if last := segments[len(segments)-1]; cursorOffset >= last.ByteEnd {
-			return sql[last.ByteEnd:], last.ByteEnd, cursorOffset - last.ByteEnd
+			return sql[cursorOffset:], cursorOffset, 0
 		}
 	}
 	return sql, 0, cursorOffset
@@ -602,7 +605,7 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 			}
 			break
 		}
-		refs := parseFromReferences(tokens, idx, collectClauseEnd(tokens, idx, tokens[first].depth), tokens[first].depth, ctes)
+		refs := parseFromReferences(tokens, idx, collectClauseEnd(tokens, idx, tokens[first].depth), tokens[first].depth, ctes, 0)
 		if len(refs) == 0 {
 			return nil, nil
 		}
@@ -714,17 +717,18 @@ func foreignKeyParentAt(tokens []completionScopeToken, first, depth, cursorOffse
 		}
 		ref, next, ok := parseRangeReference(tokens, i+1)
 		if !ok {
-			return RangeReference{}, false
+			continue
 		}
 		if next >= len(tokens) || tokens[next].Type != '(' {
-			return RangeReference{}, false
+			continue
 		}
 		closeIdx := matchingParen(tokens, next)
 		if closeIdx < 0 {
-			return RangeReference{}, false
+			continue
 		}
 		if cursorOffset < tokens[next].Loc || cursorOffset > tokens[closeIdx].End {
-			return RangeReference{}, false
+			// Another constraint's reference: the cursor is not in it.
+			continue
 		}
 		ref.Alias = ref.Table
 		ref.Loc = tokenLoc(tokens[i+1], tokens[closeIdx])
@@ -771,7 +775,7 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 	// DELETE t1, t2 FROM table_references: the list before FROM names what is
 	// deleted, and the FROM clause is the whole table list.
 	if fromIdx > idx {
-		targets := parseFromReferences(tokens, idx, fromIdx, depth, ctes)
+		targets := parseFromReferences(tokens, idx, fromIdx, depth, ctes, 0)
 		if len(targets) == 0 {
 			return nil, nil, false
 		}
@@ -779,7 +783,7 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 			targets[i].Kind = RangeReferenceDMLTarget
 		}
 		refs := append([]RangeReference{}, targets...)
-		refs = append(refs, parseFromReferences(tokens, fromIdx+1, len(tokens), depth, ctes)...)
+		refs = append(refs, parseFromReferences(tokens, fromIdx+1, len(tokens), depth, ctes, 0)...)
 		return &refs[0], refs, true
 	}
 	// DELETE FROM t1, t2 USING table_references: the list after FROM names
@@ -794,7 +798,7 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 	}
 	if next < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwUSING {
 		refs := append([]RangeReference{}, targets...)
-		refs = append(refs, parseFromReferences(tokens, next+1, len(tokens), depth, ctes)...)
+		refs = append(refs, parseFromReferences(tokens, next+1, len(tokens), depth, ctes, 0)...)
 		return &refs[0], refs, true
 	}
 	// The single-table form takes an alias, and names it in its clauses.
@@ -1001,7 +1005,7 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			}
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
 			frameCTEs := rangeReferenceMap(collectVisibleCTEs(tokens, tok.Loc))
-			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs)
+			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs, 0)
 			if onIdx := onPredicateToken(tokens, cursorOffset, depth); onIdx >= 0 {
 				// A join condition names only the operands before it: the
 				// sources after it are not in scope there.
@@ -1033,6 +1037,26 @@ func onPredicateToken(tokens []completionScopeToken, cursorOffset, depth int) in
 			kwINTO, kwUNION, kwINTERSECT, kwEXCEPT, kwJOIN, kwSTRAIGHT_JOIN,
 			kwLEFT, kwRIGHT, kwINNER, kwCROSS, kwNATURAL:
 			return -1
+		}
+	}
+	return -1
+}
+
+// matchingBrace returns the index of the '}' closing the '{' at openIdx, or -1.
+func matchingBrace(tokens []completionScopeToken, openIdx int) int {
+	if openIdx < 0 || openIdx >= len(tokens) || tokens[openIdx].Type != '{' {
+		return -1
+	}
+	depth := 0
+	for i := openIdx; i < len(tokens); i++ {
+		switch tokens[i].Type {
+		case '{':
+			depth++
+		case '}':
+			depth--
+			if depth == 0 {
+				return i
+			}
 		}
 	}
 	return -1
@@ -1112,7 +1136,10 @@ func collectClauseEnd(tokens []completionScopeToken, start, depth int) int {
 	return len(tokens)
 }
 
-func parseFromReferences(tokens []completionScopeToken, start, end, depth int, ctes map[string]RangeReference) []RangeReference {
+func parseFromReferences(tokens []completionScopeToken, start, end, depth int, ctes map[string]RangeReference, nesting int) []RangeReference {
+	if nesting >= maxNestingDepth {
+		return nil
+	}
 	var refs []RangeReference
 	expectSource := true
 	for i := start; i < end && i < len(tokens); {
@@ -1123,6 +1150,19 @@ func parseFromReferences(tokens []completionScopeToken, start, end, depth int, c
 		if tok.depth != depth {
 			i++
 			continue
+		}
+		if expectSource && tok.Type == '{' {
+			// ODBC's outer-join escape: { OJ table_references }.
+			if closeIdx := matchingBrace(tokens, i); closeIdx > i {
+				inner := i + 1
+				if inner < closeIdx && tokens[inner].Type == kwOJ {
+					inner++
+				}
+				refs = append(refs, parseFromReferences(tokens, inner, closeIdx, depth, ctes, nesting+1)...)
+				i = closeIdx + 1
+				expectSource = false
+				continue
+			}
 		}
 		if expectSource {
 			sources, next, ok := parseTableSource(tokens, i, ctes)
@@ -1226,8 +1266,13 @@ func skipIndexHints(tokens []completionScopeToken, idx, depth int) int {
 		next++
 		if next+1 < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwFOR {
 			switch tokens[next+1].Type {
-			case kwJOIN, kwGROUP:
+			case kwJOIN:
 				next += 2
+			case kwGROUP:
+				next += 2
+				if next < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwBY {
+					next++
+				}
 			case kwORDER:
 				next += 2
 				if next < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwBY {
@@ -1279,7 +1324,7 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 	depth := tokens[idx].depth
 	isQuery := parenOpensQuery(tokens, idx)
 	if !isQuery {
-		inner := parseFromReferences(tokens, idx+1, closeIdx, depth+1, ctes)
+		inner := parseFromReferences(tokens, idx+1, closeIdx, depth+1, ctes, 0)
 		alias, columns, next := parseAliasAndColumns(tokens, closeIdx+1, depth)
 		if alias == "" {
 			return inner, closeIdx + 1, len(inner) > 0

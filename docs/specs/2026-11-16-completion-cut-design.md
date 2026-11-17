@@ -172,7 +172,7 @@ truncation workarounds (`collectLeadingTableReferences`'s paren-level stack,
 
 ## The corpus
 
-`mysql/parser/complete_context_test.go` holds 93 cases over
+`mysql/parser/complete_context_test.go` holds 97 cases over
 `sql` × cursor positions: select list, `WHERE`, `ON`, joins with and without aliases,
 cross and `STRAIGHT_JOIN`, derived tables (with and without an alias column list, and
 unterminated), CTEs (with a column list, from the body's select list, `RECURSIVE`, two in a
@@ -187,13 +187,13 @@ name with a space and a non-ASCII name), index hints and `PARTITION` (which must
 as aliases), statement boundaries, `UNION` arms, a parenthesized join (with and without an
 alias), DDL positions (`type_name`, `index_ref`, `engine`, `charset`, `view_ref`,
 `database_ref`, `constraint_ref`), `DROP INDEX ... ON`, an `EXPLAIN` wrapper around a
-DML statement, a join condition's visible operands, a script with its own `DELIMITER`, and a
-cursor inside a text literal. A second test pins
+DML statement, a join condition's visible operands, an index hint's `FOR GROUP BY`, an ODBC
+`{ OJ ... }` escape, a script with its own `DELIMITER`, and a cursor inside a text literal. A second test pins
 the columns the reader reports for a reference — nested `WITH` bodies, a shadowing clause,
 expression items that name no column, qualified names, and `JSON_TABLE`. A third walks every
 cursor offset of eight scripts, including 200 nested parentheses and unterminated strings, and
-a fourth runs 10,002 nested parentheses, 10,002 nested `NESTED PATH ... COLUMNS (` clauses, and
-10,002 nested `WITH` bodies through the reader: each recursion stops at `maxNestingDepth`
+a fourth runs 10,002 nested parentheses, `{ OJ ... }` escapes, `NESTED PATH ... COLUMNS (`
+clauses, and `WITH` bodies through the reader: each recursion stops at `maxNestingDepth`
 instead of the process stack.
 
 Three positions the corpus pins as gaps in the *grammar*, not in the reader:

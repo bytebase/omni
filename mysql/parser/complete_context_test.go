@@ -170,6 +170,26 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "current_table"}}, dml: "->current_table"},
 		},
 		{
+			name: "second foreign key reference",
+			sql:  "ALTER TABLE child ADD FOREIGN KEY (a) REFERENCES p(a), ADD FOREIGN KEY (b) REFERENCES q(|)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "q", alias: "q"}}},
+		},
+		{
+			name: "index hint for group by",
+			sql:  "SELECT b.| FROM t1 a USE INDEX FOR GROUP BY (i) JOIN t2 b ON a.id = b.id",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"b"}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
+		},
+		{
+			name: "odbc outer join escape",
+			sql:  "SELECT a.| FROM { OJ t1 a LEFT JOIN t2 b ON a.id = b.id }",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"a"}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
+		},
+		{
+			name: "cursor at a custom terminator",
+			sql:  "DELIMITER $$\nSELECT 1$$|",
+			want: wantSignals{},
+		},
+		{
 			name: "joined aliases",
 			sql:  "SELECT * FROM t1 a JOIN t2 AS b ON a.id = b.id WHERE |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
@@ -829,8 +849,10 @@ func TestCollectCompletionNestingLimits(t *testing.T) {
 	withBodies := "SELECT * FROM (" +
 		strings.Repeat("WITH c AS (", maxNestingDepth+2) + "SELECT 1" +
 		strings.Repeat(") SELECT * FROM c", maxNestingDepth+2) + ") d WHERE "
+	braces := strings.Repeat("{ OJ ", maxNestingDepth+2) + "t" + strings.Repeat(" }", maxNestingDepth+2)
 	for name, sql := range map[string]string{
 		"parenthesized table sources": "SELECT * FROM " + parens + " WHERE ",
+		"odbc outer join escapes":     "SELECT * FROM " + braces + " WHERE ",
 		"json_table nested columns":   jsonColumns,
 		"nested with bodies":          withBodies,
 	} {
