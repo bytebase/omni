@@ -59,6 +59,20 @@ CREATE TABLE `orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Function structure for `fn_escaped`
+--
+SET character_set_client = utf8mb4;
+SET character_set_results = utf8mb4;
+SET collation_connection = utf8mb4_general_ci;
+SET sql_mode = 'NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER';
+DELIMITER ;;
+CREATE FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)
+    NO SQL
+    DETERMINISTIC
+RETURN CONCAT(p, '-escaped');;
+DELIMITER ;
+
+--
 -- Function structure for `fn_format_tag`
 --
 SET character_set_client = utf8mb4;
@@ -78,7 +92,8 @@ DELIMITER ;
 --
 -- Materialized view structure for `mv_accounts`
 --
-CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`;
+SET sql_mode = DEFAULT;
+CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'owners\' materialized accounts' AS select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`;
 
 CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`);
 
@@ -90,6 +105,7 @@ CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_sync_corpus`.`accounts`
 --
 -- Materialized view structure for `mv_open_accounts`
 --
+SET sql_mode = DEFAULT;
 CREATE MATERIALIZED VIEW `mv_open_accounts` AS select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`;
 
 --

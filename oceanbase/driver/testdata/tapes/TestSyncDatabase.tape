@@ -32,7 +32,7 @@
 | CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV'); -- not restorable: TestDumpGaps
 < ok 0 0
 > exec
-| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts;
+| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'owners'' materialized accounts' AS SELECT id, email FROM accounts;
 < ok 0 0
 > exec
 | CREATE INDEX idx_mv_email ON mv_accounts (email);
@@ -64,6 +64,9 @@
 | BEGIN
 | 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 | END;
+< ok 0 0
+> exec
+| SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'; CREATE FUNCTION fn_escaped(p VARCHAR(16)) RETURNS VARCHAR(32) CHARSET utf8mb4 DETERMINISTIC NO SQL RETURN CONCAT(p, '-escaped'); SET SESSION sql_mode = DEFAULT;
 < ok 0 0
 > exec
 | CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
@@ -1216,6 +1219,21 @@
 < column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
 < row
 : bytes
+| fn_escaped
+: bytes
+| FUNCTION
+: bytes
+| NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_general_ci
+: bytes
+|
+< row
+: bytes
 | fn_format_tag
 : bytes
 | FUNCTION
@@ -1244,6 +1262,31 @@
 | utf8mb4_general_ci
 : bytes
 | reads order total
+> query
+| SHOW CREATE FUNCTION `omni_sync_corpus`.`fn_escaped`
+< result
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| fn_escaped
+: bytes
+| NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
+: bytes
+| CREATE DEFINER = `root`@`%` FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)
+|     NO SQL
+|     DETERMINISTIC
+| RETURN CONCAT(p, '-escaped')
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE FUNCTION `omni_sync_corpus`.`fn_format_tag`
 < result
@@ -1513,7 +1556,7 @@
 : bytes
 |
 : bytes
-| 'materialized accounts'
+| 'owners\' materialized accounts'
 : bytes
 | utf8mb4
 < row

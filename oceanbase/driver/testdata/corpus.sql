@@ -25,7 +25,7 @@ CREATE TABLE orders (
 
 CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV'); -- not restorable: TestDumpGaps
 
-CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts;
+CREATE MATERIALIZED VIEW mv_accounts COMMENT 'owners'' materialized accounts' AS SELECT id, email FROM accounts;
 
 CREATE INDEX idx_mv_email ON mv_accounts (email);
 
@@ -51,6 +51,8 @@ COMMENT 'reads order total'
 BEGIN
 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 END;
+
+SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'; CREATE FUNCTION fn_escaped(p VARCHAR(16)) RETURNS VARCHAR(32) CHARSET utf8mb4 DETERMINISTIC NO SQL RETURN CONCAT(p, '-escaped'); SET SESSION sql_mode = DEFAULT;
 
 CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
 

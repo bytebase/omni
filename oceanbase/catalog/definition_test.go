@@ -1113,4 +1113,37 @@ func TestWriteViewsInDependencyOrderIsStable(t *testing.T) {
 	require.Less(t, strings.Index(first, "`z`"), strings.Index(first, "`a`"))
 	require.Less(t, strings.Index(first, "`y`"), strings.Index(first, "`z`"), "dependencies are written in name order")
 	require.Equal(t, 2, strings.Count(first, "CREATE OR REPLACE VIEW `mixed`")+strings.Count(first, "CREATE OR REPLACE VIEW `Mixed`"), "views that differ only in case are both written")
+
+	// A reference spelled exactly as one of two case-distinct views orders against that one
+	// only: resolving it to both would make the chain V -> a_mv -> v circular.
+	schema = &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			{Name: "V", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "v", Definition: "select `db`.`a_mv`.`id` AS `id` from `db`.`a_mv`"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			{Name: "a_mv", Definition: "select `db`.`V`.`id` AS `id` from `db`.`V`"},
+		},
+	}
+	buf := &strings.Builder{}
+	require.NoError(t, writeViewsInDependencyOrder(buf, "db", schema))
+	got := buf.String()
+	require.Less(t, strings.Index(got, "`V`"), strings.Index(got, "`a_mv`"), "the view a materialized view spells is written first")
+	require.Less(t, strings.Index(got, "`a_mv`"), strings.Index(got, "`v`"), "the materialized view a view reads is written first")
+}
+
+// TestWriteMaterializedViewStatesSQLMode pins the mode a materialized view's section needs:
+// its comment arrives QUOTE()-escaped from the container table, so a backslash in it is an
+// escape character, and a stored routine's section written before it may have left a mode
+// where it is not.
+func TestWriteMaterializedViewStatesSQLMode(t *testing.T) {
+	var buf strings.Builder
+	require.NoError(t, writeMaterializedView(&buf, &metadata.MaterializedViewMetadata{
+		Name:       "mv",
+		Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`",
+		Comment:    `owners\' materialized accounts`,
+	}))
+	got := buf.String()
+	require.Contains(t, got, "SET sql_mode = DEFAULT;\n")
+	require.Less(t, strings.Index(got, "SET sql_mode = DEFAULT;"), strings.Index(got, "CREATE MATERIALIZED VIEW"))
 }

@@ -198,6 +198,12 @@ func writeMaterializedView(out *strings.Builder, view *metadata.MaterializedView
 		return err
 	}
 
+	// The comment arrives QUOTE()-escaped, so a backslash in it is an escape character: say
+	// so, because a stored routine's section before this one may have left a mode where it is
+	// not.
+	if _, err := io.WriteString(out, "SET sql_mode = DEFAULT;\n"); err != nil {
+		return err
+	}
 	if _, err := fmt.Fprintf(out, "CREATE MATERIALIZED VIEW %s", quoteIdent(view.Name)); err != nil {
 		return err
 	}
@@ -1783,7 +1789,7 @@ func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *me
 	// lower_case_table_names=0 holds views that differ only in case, and both are written.
 	type viewDefinition struct {
 		name  string
-		refs  map[tableKey]bool
+		refs  []relationRef
 		write func(*strings.Builder) error
 	}
 	ownDB := toLower(dbName)
@@ -1791,7 +1797,7 @@ func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *me
 	for _, view := range schema.Views {
 		definitions = append(definitions, &viewDefinition{
 			name: view.Name,
-			refs: referencedRelations(view.Definition, ownDB),
+			refs: viewReferences(view.Definition, ownDB),
 			write: func(out *strings.Builder) error {
 				return writeView(out, view)
 			},
@@ -1803,18 +1809,21 @@ func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *me
 		}
 		definitions = append(definitions, &viewDefinition{
 			name: view.Name,
-			refs: referencedRelations(view.Definition, ownDB),
+			refs: viewReferences(view.Definition, ownDB),
 			write: func(out *strings.Builder) error {
 				return writeMaterializedView(out, view)
 			},
 		})
 	}
 	slices.SortFunc(definitions, func(a, b *viewDefinition) int { return cmp.Compare(a.name, b.name) })
-	// A reference names a relation as the server spells it in a definition, which is
-	// lower case on a case-insensitive server only; the folded index answers a reference
-	// whose case differs from the name the definition was synced under.
+	// An exact name wins, so two views that differ only in case keep their own edges. A
+	// reference whose case differs from the name the definition was synced under falls back
+	// to the folded name, and only where that names one view: choosing between two
+	// case-distinct views could order one against what it reads.
+	byName := make(map[string][]*viewDefinition, len(definitions))
 	byFoldedName := make(map[string][]*viewDefinition, len(definitions))
 	for _, definition := range definitions {
+		byName[definition.name] = append(byName[definition.name], definition)
 		folded := toLower(definition.name)
 		byFoldedName[folded] = append(byFoldedName[folded], definition)
 	}
@@ -1830,11 +1839,17 @@ func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *me
 		written[view.name] = true
 		var dependencies []*viewDefinition
 		seen := make(map[*viewDefinition]bool, len(view.refs))
-		for ref := range view.refs {
+		for _, ref := range view.refs {
 			if ref.db != ownDB {
 				continue
 			}
-			for _, dependency := range byFoldedName[ref.name] {
+			candidates := byName[ref.name]
+			if len(candidates) == 0 {
+				if folded := byFoldedName[toLower(ref.name)]; len(folded) == 1 {
+					candidates = folded
+				}
+			}
+			for _, dependency := range candidates {
 				if dependency != view && !seen[dependency] {
 					seen[dependency] = true
 					dependencies = append(dependencies, dependency)
@@ -1857,6 +1872,39 @@ func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *me
 		}
 	}
 	return nil
+}
+
+// relationRef is a relation a definition reads, with the case the definition spells.
+type relationRef struct {
+	db   string
+	name string
+}
+
+// viewReferences returns the relations a definition reads in ownDB, spelled as the
+// definition spells them. referencedRelations answers the same question for a diff, keyed by
+// folded name, which a dump cannot use: a tenant with lower_case_table_names=0 holds views
+// that differ only in case, and folding them together would order one against another.
+func viewReferences(definition, ownDB string) []relationRef {
+	list, err := obparser.Parse(definition)
+	if err != nil || list == nil || len(list.Items) == 0 {
+		return nil
+	}
+	stmt, ok := list.Items[0].(*nodes.SelectStmt)
+	if !ok {
+		return nil
+	}
+	var refs []relationRef
+	for _, ref := range selectTableRefs(stmt) {
+		if ref == nil || ref.Name == "" {
+			continue
+		}
+		db := ref.Schema
+		if db == "" {
+			db = ownDB
+		}
+		refs = append(refs, relationRef{db: toLower(db), name: ref.Name})
+	}
+	return refs
 }
 
 // writeViewSDL emits a single CREATE OR REPLACE VIEW statement. LoadSDL accepts
