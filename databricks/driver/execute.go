@@ -32,14 +32,15 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		if opts.Log != nil {
 			opts.Log.CommandExecute(command)
 		}
-		result, err := d.queryStatement(ctx, trimStatement(command.Text), driver.QueryOptions{})
+		statement := trimStatement(command.Text)
+		result, err := d.queryStatement(ctx, statement, driver.QueryOptions{})
 		if err != nil {
 			if opts.Log != nil {
 				opts.Log.CommandResponse(0, nil, err)
 			}
 			return 0, err
 		}
-		affected := affectedRows(result)
+		affected := affectedRows(statement, result)
 		total += affected
 		if opts.Log != nil {
 			opts.Log.CommandResponse(affected, []int64{affected}, nil)
@@ -50,9 +51,10 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 
 // affectedRows reads the count a writing statement states in its result set.
 // The Statement Execution API has no affected-row field, so a write states the
-// count as a num_affected_rows column instead.
-func affectedRows(result *driver.Result) int64 {
-	if result == nil {
+// count as a num_affected_rows column instead. A read states rows, not a count,
+// even when one of them is named num_affected_rows.
+func affectedRows(statement string, result *driver.Result) int64 {
+	if result == nil || classifyStatement(statement) {
 		return 0
 	}
 	for column, header := range result.Columns {
