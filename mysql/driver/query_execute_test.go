@@ -317,6 +317,12 @@ func TestQueryCorpus(t *testing.T) {
 				t.Fatalf("CHECK TABLE = %+v, %v", checked, err)
 			}
 
+			// An executable comment that holds no statement is nothing to run,
+			// not a panic.
+			if none, err := sess.Query(ctx, "/*! */;", driver.QueryOptions{}); err != nil || len(none) != 0 {
+				t.Fatalf("empty executable comment = %+v, %v", none, err)
+			}
+
 			// 9. A write that returns no rows reports its count, and masking
 			// asks this driver for nothing: the same rows come back either way.
 			updated, err := sess.Query(ctx, "UPDATE qitems SET note = 'z' WHERE id <= 2;", driver.QueryOptions{})

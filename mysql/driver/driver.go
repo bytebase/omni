@@ -163,8 +163,11 @@ func validateExtraParams(params map[string]string) error {
 	return nil
 }
 
+// sanitizeCommentToken makes s safe inside a /* */ comment. A terminator is
+// replaced by a separator rather than removed, because removing every "*/"
+// from "**//" leaves one.
 func sanitizeCommentToken(s string) string {
-	return strings.ReplaceAll(s, "*/", "")
+	return strings.ReplaceAll(s, "*/", "* /")
 }
 
 func (d *Driver) withAppComment(stmt string) string {

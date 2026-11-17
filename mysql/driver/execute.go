@@ -12,6 +12,7 @@ import (
 	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/driver"
+	"github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
@@ -97,10 +98,25 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		return 0, nil
 	}
 
-	run := func() (int64, error) {
+	// A retry repeats the whole script, so it is only safe when the failed
+	// attempt committed nothing: every command that ran before the failure must
+	// be undone by rolling the transaction back.
+	var rollbackSafe []bool
+	if opts.MaxRetries > 0 {
+		rollbackSafe = make([]bool, len(commands))
+		for i, cmd := range commands {
+			parsed, err := mysqlparser.Parse(cmd.Text)
+			if err != nil || parsed == nil || len(parsed.Items) != 1 {
+				continue
+			}
+			rollbackSafe[i] = rollsBack(parsed.Items[0])
+		}
+	}
+
+	run := func() (int64, bool, error) {
 		conn, err := d.db.Conn(ctx)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
 		// A script may select a database or set session variables, so the
 		// connection is not poolable afterwards either: see discardConn.
@@ -108,16 +124,16 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 
 		connID, err := d.readConnectionID(ctx, conn)
 		if err != nil {
-			return 0, err
+			return 0, false, err
 		}
 		if opts.Transaction == driver.AutoCommit || opts.CreateDatabase {
 			return d.executeInAutoCommitMode(ctx, conn, commands, opts.Log, connID)
 		}
-		return d.executeInTransactionMode(ctx, conn, commands, opts.Log, connID, isolation)
+		return d.executeInTransactionMode(ctx, conn, commands, rollbackSafe, opts.Log, connID, isolation)
 	}
 
-	affectedRows, err := run()
-	if err == nil || !isLockTimeout(err) {
+	affectedRows, retryable, err := run()
+	if err == nil || !retryable || !isLockTimeout(err) {
 		return affectedRows, err
 	}
 	for i := range opts.MaxRetries {
@@ -130,12 +146,25 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		if opts.Log != nil {
 			opts.Log.Retry(err, i+1, opts.MaxRetries)
 		}
-		affectedRows, err = run()
-		if err == nil || !isLockTimeout(err) {
+		affectedRows, retryable, err = run()
+		if err == nil || !retryable || !isLockTimeout(err) {
 			break
 		}
 	}
 	return affectedRows, err
+}
+
+// rollsBack reports whether a command that succeeded inside a transaction is
+// undone by rolling back. MySQL commits the open transaction implicitly around
+// DDL, LOCK TABLES, a SET that changes autocommit, and the administrative
+// statements, so anything outside this list keeps a retry from being safe.
+func rollsBack(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
+		*ast.DoStmt, *ast.ShowStmt, *ast.ExplainStmt:
+		return true
+	}
+	return false
 }
 
 // isLockTimeout reports whether err is MySQL's lock wait timeout (1205) or
@@ -158,11 +187,16 @@ func (d *Driver) executeInTransactionMode(
 	ctx context.Context,
 	conn *sql.Conn,
 	commands []driver.Command,
+	rollbackSafe []bool,
 	log driver.ExecuteLogger,
 	connID uint64,
 	isolation sqldriver.IsolationLevel,
-) (int64, error) {
+) (rowsAffected int64, retryable bool, err error) {
 	var totalRowsAffected int64
+	// Every command that ran before a failure is undone by the rollback, unless
+	// it committed on its own.
+	earlierSafe := true
+	retryable = true
 	if err := conn.Raw(func(driverConn any) error {
 		exer := driverConn.(sqldriver.ExecerContext)
 		txer := driverConn.(sqldriver.ConnBeginTx)
@@ -181,32 +215,40 @@ func (d *Driver) executeInTransactionMode(
 			}
 			rollbackErr := tx.Rollback()
 			logTransactionControl(log, driver.Rollback, rollbackErr)
+			if rollbackErr != nil {
+				retryable = false
+			}
 		}()
 
-		for _, cmd := range commands {
+		for i, cmd := range commands {
 			logCommandExecute(log, cmd)
-			sqlResult, err := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
-			if err != nil {
-				d.killQueryOnCancel(err, connID)
-				logCommandResponse(log, 0, nil, err)
-				return err
+			sqlResult, execErr := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
+			if execErr != nil {
+				d.killQueryOnCancel(execErr, connID)
+				logCommandResponse(log, 0, nil, execErr)
+				retryable = retryable && earlierSafe
+				return execErr
 			}
-			rowsAffected, perResult := extractAffectedRows(sqlResult)
-			totalRowsAffected += rowsAffected
-			logCommandResponse(log, rowsAffected, perResult, nil)
+			if rollbackSafe != nil && !rollbackSafe[i] {
+				earlierSafe = false
+			}
+			affected, perResult := extractAffectedRows(sqlResult)
+			totalRowsAffected += affected
+			logCommandResponse(log, affected, perResult, nil)
 		}
 
-		if err := tx.Commit(); err != nil {
-			logTransactionControl(log, driver.Commit, err)
-			return fmt.Errorf("failed to commit execute transaction: %w", err)
+		if commitErr := tx.Commit(); commitErr != nil {
+			logTransactionControl(log, driver.Commit, commitErr)
+			retryable = false
+			return fmt.Errorf("failed to commit execute transaction: %w", commitErr)
 		}
 		logTransactionControl(log, driver.Commit, nil)
 		committed = true
 		return nil
 	}); err != nil {
-		return 0, err
+		return 0, retryable, err
 	}
-	return totalRowsAffected, nil
+	return totalRowsAffected, retryable, nil
 }
 
 func (d *Driver) executeInAutoCommitMode(
@@ -215,27 +257,32 @@ func (d *Driver) executeInAutoCommitMode(
 	commands []driver.Command,
 	log driver.ExecuteLogger,
 	connID uint64,
-) (int64, error) {
+) (rowsAffected int64, retryable bool, err error) {
 	var totalRowsAffected int64
+	// Each command commits on its own, so only a script that failed before its
+	// first one ran leaves nothing to repeat.
+	succeeded := 0
 	if err := conn.Raw(func(driverConn any) error {
 		exer := driverConn.(sqldriver.ExecerContext)
 		for _, cmd := range commands {
 			logCommandExecute(log, cmd)
-			sqlResult, err := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
-			if err != nil {
-				d.killQueryOnCancel(err, connID)
-				logCommandResponse(log, 0, nil, err)
-				return err
+			sqlResult, execErr := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
+			if execErr != nil {
+				d.killQueryOnCancel(execErr, connID)
+				logCommandResponse(log, 0, nil, execErr)
+				retryable = succeeded == 0
+				return execErr
 			}
-			rowsAffected, perResult := extractAffectedRows(sqlResult)
-			totalRowsAffected += rowsAffected
-			logCommandResponse(log, rowsAffected, perResult, nil)
+			succeeded++
+			affected, perResult := extractAffectedRows(sqlResult)
+			totalRowsAffected += affected
+			logCommandResponse(log, affected, perResult, nil)
 		}
 		return nil
 	}); err != nil {
-		return 0, err
+		return 0, retryable, err
 	}
-	return totalRowsAffected, nil
+	return totalRowsAffected, retryable, nil
 }
 
 func extractAffectedRows(res sqldriver.Result) (int64, []int64) {

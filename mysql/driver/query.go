@@ -79,6 +79,11 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		if err != nil {
 			return nil, err
 		}
+		// An executable comment holding no statement, as in /*! */, parses to
+		// nothing: there is no statement to run.
+		if len(parsed.Items) == 0 {
+			continue
+		}
 		node := parsed.Items[0]
 		_, returnsData := mysqlanalysis.ValidateQuery(parsed.Items)
 
@@ -187,6 +192,13 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		res, err := readRows(rows, maxResultBytes)
 		if err != nil {
 			return nil, err
+		}
+		// Only the first result set is the statement's result. The rest are
+		// drained rather than closed, because a later set can carry the
+		// statement's error, as a procedure that selects and then signals does.
+		for rows.NextResultSet() {
+			for rows.Next() {
+			}
 		}
 		if err := rows.Err(); err != nil {
 			return nil, err
@@ -312,9 +324,15 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any) driver
 func parseTimestampOrStringValue(raw string, scale int32) driver.Value {
 	var t time.Time
 	var err error
-	if strings.Contains(raw, ".") {
+	switch {
+	case strings.Contains(raw, "T"):
+		// A caller that sets the client's parseTime parameter is handed a
+		// time.Time, which database/sql renders as RFC 3339 into the string
+		// the column scans into.
+		t, err = time.Parse(time.RFC3339Nano, raw)
+	case strings.Contains(raw, "."):
 		t, err = time.Parse("2006-01-02 15:04:05.999999999", raw)
-	} else {
+	default:
 		t, err = time.Parse(time.DateTime, raw)
 	}
 	if err != nil || t.Year() < 1 || t.Year() > 9999 {
