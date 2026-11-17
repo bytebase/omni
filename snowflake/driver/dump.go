@@ -47,8 +47,7 @@ func databaseDefinition(databaseName, definition string) string {
 // that states something else first is written as the server stated it.
 func dropCreateDatabase(databaseName, definition string) string {
 	lines := strings.Split(definition, "\n")
-	first := strings.ToLower(strings.TrimSpace(lines[0]))
-	if !strings.HasPrefix(first, "create or replace database ") && !strings.HasPrefix(first, "create database ") {
+	if !isCreateDatabaseStatement(lines[0]) {
 		return definition
 	}
 	// The statement, and the blank line after it when the server wrote one.
@@ -58,12 +57,46 @@ func dropCreateDatabase(databaseName, definition string) string {
 	return strings.Join(lines[2:], "\n")
 }
 
+// isCreateDatabaseStatement reports whether line opens with CREATE [OR REPLACE]
+// [TRANSIENT] DATABASE, which is what GET_DDL states for the database it
+// describes. TRANSIENT is the modifier a transient database is created with.
+func isCreateDatabaseStatement(line string) bool {
+	words := strings.Fields(strings.ToLower(line))
+	if len(words) == 0 || words[0] != "create" {
+		return false
+	}
+	words = words[1:]
+	if len(words) >= 2 && words[0] == "or" && words[1] == "replace" {
+		words = words[2:]
+	}
+	if len(words) >= 1 && words[0] == "transient" {
+		words = words[1:]
+	}
+	return len(words) >= 1 && words[0] == "database"
+}
+
 // dropPublicSchema removes the statement that creates the default PUBLIC schema,
-// which every database holds.
+// which every database holds whether or not it was created with one.
+//
+// The statement is recognised by what it creates rather than by its text: the
+// header may say OR REPLACE, and the database may be named as the quoted
+// identifier its DDL requires.
 func dropPublicSchema(databaseName, definition string) string {
-	schemaStatement := fmt.Sprintf("create or replace schema %s.PUBLIC;", databaseName)
-	definition = strings.ReplaceAll(definition, schemaStatement+"\n\n", "")
-	return strings.ReplaceAll(definition, schemaStatement, "")
+	lines := strings.Split(definition, "\n")
+	kept := make([]string, 0, len(lines))
+	for i := 0; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if strings.HasPrefix(strings.ToLower(line), "create ") && strings.EqualFold(keepCreateLine(databaseName, line), "create schema PUBLIC;") {
+			// The statement, and the blank line after it when the server wrote
+			// one.
+			if i+1 < len(lines) && strings.TrimSpace(lines[i+1]) == "" {
+				i++
+			}
+			continue
+		}
+		kept = append(kept, lines[i])
+	}
+	return strings.Join(kept, "\n")
 }
 
 // keepCreate takes the database qualifier off a CREATE statement and turns

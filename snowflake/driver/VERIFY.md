@@ -432,6 +432,7 @@ means the harness is comparing something narrower than the driver does.
 | a statement omni cannot parse is refused when the caller masks columns | the driver runs such a statement as a query, which is a hint about how to send it; a caller that masks has to know the answer's columns, and an unparsed statement has none it can withhold |
 | a revoked role grant is not one of a user's roles | `GRANTS_TO_USERS` keeps a revoked grant with `DELETED_ON` set, so the instance sync reports what the user holds now |
 | the LIMIT wrapper starts a new line before its closing parenthesis | a trailing line comment in the statement would otherwise swallow the parenthesis and the outer limit |
+| the dump recognises the database's own header with or without `TRANSIENT`, and the default `PUBLIC` schema under the quoted identifier its DDL requires | a transient database's header was written back as `create transient database`, and a quoted database's `PUBLIC` survived as `create schema PUBLIC` |
 | a cell carries the contract's kind; Bytebase wrote every cell as text | its scan table names MySQL's and PostgreSQL's type names, which the client never reports, so the text fallback caught every column; a decimal still stays exact text |
 | an empty `BINARY` value is `Bytes` with no bytes, not NULL | Bytebase's shared converter turned an empty `[]byte` into NULL, which drops a value that is there |
 | `Config.Port` is honored; Bytebase read the data source's port nowhere and always dialed 443 | the contract has a port field, and a proxy endpoint may answer on another one |

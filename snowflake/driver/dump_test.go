@@ -73,8 +73,16 @@ func TestDropCreateDatabase(t *testing.T) {
 	if got := dropCreateDatabase("DEMO_DB", withoutDatabase); got != withoutDatabase {
 		t.Errorf("dropCreateDatabase = %q, want the definition unchanged", got)
 	}
-	if got := dropCreateDatabase("DEMO_DB", "create or replace database DEMO_DB;"); got != "" {
-		t.Errorf("dropCreateDatabase = %q, want nothing", got)
+	// The header of a transient database states its modifier, and it is still
+	// the database's own statement.
+	for _, line := range []string{
+		"create or replace database DEMO_DB;",
+		"create transient database DEMO_DB;",
+		"create or replace transient database DEMO_DB;\n",
+	} {
+		if got := dropCreateDatabase("DEMO_DB", line); got != "" {
+			t.Errorf("dropCreateDatabase(%q) = %q, want nothing", line, got)
+		}
 	}
 }
 
@@ -92,6 +100,11 @@ func TestDropPublicSchema(t *testing.T) {
 		if !strings.Contains(got, "create or replace table") {
 			t.Errorf("the table was removed too:\n%s", got)
 		}
+	}
+	// The database is named as the quoted identifier its DDL requires.
+	const quoted = `create or replace schema "demo_db".PUBLIC;` + "\n" + `create or replace table "demo_db".PUBLIC.T (ID NUMBER);`
+	if got := dropPublicSchema("demo_db", quoted); strings.Contains(got, "PUBLIC;") {
+		t.Errorf("the quoted PUBLIC schema's CREATE is still there:\n%s", got)
 	}
 	// Another database's PUBLIC schema is not this database's.
 	const other = "create or replace schema OTHER_DB.PUBLIC;\n"
