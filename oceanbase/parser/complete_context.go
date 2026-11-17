@@ -237,7 +237,7 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
 		// are what its clauses name.
-		refs := append(dmlRefs, collectDDLScope(stmtTokens)...)
+		refs := append(append([]RangeReference{}, dmlRefs...), collectDDLScope(stmtTokens)...)
 		scope = &ScopeSnapshot{
 			LocalReferences: refs,
 			References:      append([]RangeReference{}, refs...),
@@ -1385,7 +1385,7 @@ func completionPrefix(sql string, cursorOffset int) (string, int) {
 		if tok.Loc > cursorOffset || tok.End < cursorOffset {
 			continue
 		}
-		if tok.Type != tokIDENT && tok.Type < 700 {
+		if !IsIdentTokenType(tok.Type) {
 			break
 		}
 		if tok.Loc == cursorOffset {
