@@ -79,3 +79,39 @@
         start: 0
         end: 16
       command: ""
+- input: |-
+    DECLARE @v INT = 1;
+    SELECT @v AS v;
+  description: A variable declaration and the statement that reads it stay in one batch.
+  batches:
+    - statements:
+        text: |-
+            DECLARE @v INT = 1;
+            SELECT @v AS v;
+        start: 0
+        end: 35
+      command: ""
+- input: SELECT * FROM dbo.t WHERE a = $(v);
+  description: A sqlcmd variable reference is neither substituted nor a batch boundary.
+  batches:
+    - statements:
+        text: SELECT * FROM dbo.t WHERE a = $(v);
+        start: 0
+        end: 35
+      command: ""
+- input: |-
+    DECLARE @v INT = 1;
+    GO
+    SELECT @v AS v;
+  description: GO ends the batch, and with it the variable's scope.
+  batches:
+    - statements:
+        text: DECLARE @v INT = 1;
+        start: 0
+        end: 19
+      command: GO 1
+    - statements:
+        text: SELECT @v AS v;
+        start: 23
+        end: 38
+      command: ""
