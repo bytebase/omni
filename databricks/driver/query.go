@@ -89,9 +89,17 @@ func (d *Driver) queryStatement(ctx context.Context, statement string, opts driv
 		return nil, fmt.Errorf("failed to execute statement: %w", err)
 	}
 	statementID := response.StatementId
+	result, err := resultMetadata(response, statement, classifyStatement(statement))
+	if err != nil {
+		return nil, err
+	}
+	totalBytes := driver.HeaderByteSize(result.Columns)
+	var rows [][]string
+	if response.Result != nil {
+		rows = response.Result.DataArray
+	}
 	for {
-		result, err := resultFromResponse(response, statement, classifyStatement(statement), opts.MaxResultBytes)
-		if err != nil {
+		if err := appendResultRows(result, rows, opts.MaxResultBytes, &totalBytes); err != nil {
 			return nil, err
 		}
 		if response.Result == nil || response.Result.NextChunkIndex == 0 || result.Truncated {
@@ -102,15 +110,17 @@ func (d *Driver) queryStatement(ctx context.Context, statement string, opts driv
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch result chunk %d: %w", next, err)
 		}
-		response.Result.DataArray = append(response.Result.DataArray, chunk.DataArray...)
+		if chunk == nil {
+			return nil, fmt.Errorf("no result chunk %d", next)
+		}
+		rows = chunk.DataArray
 		response.Result.NextChunkIndex = chunk.NextChunkIndex
 	}
 }
 
-// resultFromResponse turns the statement execution API's answer into the
-// contract's result. A query is expected to state its columns even when it
-// returned no rows; a command states neither columns nor an affected count.
-func resultFromResponse(response *dbsql.StatementResponse, statement string, returnsRows bool, maxResultBytes int64) (*driver.Result, error) {
+// resultMetadata reads the statement's columns and the server's truncation, and
+// leaves its rows for appendResultRows so each result chunk is decoded once.
+func resultMetadata(response *dbsql.StatementResponse, statement string, returnsRows bool) (*driver.Result, error) {
 	if response == nil {
 		return nil, fmt.Errorf("no response")
 	}
@@ -122,36 +132,54 @@ func resultFromResponse(response *dbsql.StatementResponse, statement string, ret
 	if returnsRows && len(result.Columns) == 0 {
 		return nil, fmt.Errorf("missing column info")
 	}
-
 	if response.Manifest != nil {
 		result.Truncated = response.Manifest.Truncated
 	}
-	var rows [][]string
-	if response.Result != nil {
-		rows = response.Result.DataArray
-	}
+	return result, nil
+}
 
-	totalBytes := driver.HeaderByteSize(result.Columns)
+// appendResultRows decodes one chunk's rows onto result and stops once the
+// result passes maxResultBytes.
+func appendResultRows(result *driver.Result, rows [][]string, maxResultBytes int64, totalBytes *int64) error {
 	for _, rowData := range rows {
 		if len(rowData) != len(result.Columns) {
-			return nil, fmt.Errorf("row has %d cells but the statement states %d columns", len(rowData), len(result.Columns))
+			return fmt.Errorf("row has %d cells but the statement states %d columns", len(rowData), len(result.Columns))
 		}
 		row := make([]driver.Value, len(result.Columns))
 		for i, value := range rowData {
 			converted, err := toValue(result.Columns[i].TypeName, value)
 			if err != nil {
-				return nil, fmt.Errorf("column %q: %w", result.Columns[i].Name, err)
+				return fmt.Errorf("column %q: %w", result.Columns[i].Name, err)
 			}
 			row[i] = converted
 		}
 		result.Rows = append(result.Rows, row)
 		if maxResultBytes > 0 {
-			totalBytes += driver.RowByteSize(row)
-			if totalBytes > maxResultBytes {
+			*totalBytes += driver.RowByteSize(row)
+			if *totalBytes > maxResultBytes {
 				result.Truncated = true
-				break
+				return nil
 			}
 		}
+	}
+	return nil
+}
+
+// resultFromResponse turns the statement execution API's answer into the
+// contract's result. A query is expected to state its columns even when it
+// returned no rows; a command states neither columns nor an affected count.
+func resultFromResponse(response *dbsql.StatementResponse, statement string, returnsRows bool, maxResultBytes int64) (*driver.Result, error) {
+	result, err := resultMetadata(response, statement, returnsRows)
+	if err != nil {
+		return nil, err
+	}
+	totalBytes := driver.HeaderByteSize(result.Columns)
+	var rows [][]string
+	if response.Result != nil {
+		rows = response.Result.DataArray
+	}
+	if err := appendResultRows(result, rows, maxResultBytes, &totalBytes); err != nil {
+		return nil, err
 	}
 	return result, nil
 }
