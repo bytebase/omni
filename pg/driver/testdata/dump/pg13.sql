@@ -329,6 +329,8 @@ CREATE TABLE "app"."measurement" (
 
 ALTER TABLE "app"."measurement" OWNER TO "postgres";
 
+COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+
 CREATE TABLE "app"."measurement_2025" (
     "city_id" integer NOT NULL,
     "logdate" date NOT NULL,
@@ -364,6 +366,8 @@ CREATE TABLE "app"."measurement_2026" (
     "peak" integer,
     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 );
+
+COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 
 ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 

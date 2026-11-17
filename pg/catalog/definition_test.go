@@ -473,6 +473,22 @@ func TestDatabaseDefinitionConstraintComments(t *testing.T) {
 						OnDelete: "NO ACTION", OnUpdate: "NO ACTION", Comment: "the parent of a child",
 					}},
 				},
+				{
+					Name: "events",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "id", Type: "integer", Nullable: false},
+						{Name: "at", Type: "date", Nullable: false},
+					},
+					Partitions: []*metadatapb.TablePartitionMetadata{{
+						Name:       "events_2026",
+						Type:       metadatapb.TablePartitionMetadata_RANGE,
+						Expression: "RANGE (at)",
+						Value:      "FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')",
+						CheckConstraints: []*metadatapb.CheckConstraintMetadata{
+							{Name: "events_2026_id_check", Expression: "(id > 0)", Comment: "a partition's rows are positive"},
+						},
+					}},
+				},
 			},
 		}},
 	}
@@ -481,15 +497,22 @@ func TestDatabaseDefinitionConstraintComments(t *testing.T) {
 	for _, want := range []string{
 		`COMMENT ON CONSTRAINT "child_id_check" ON "public"."child" IS 'a child has a positive id';`,
 		`COMMENT ON CONSTRAINT "child_parent_fk" ON "public"."child" IS 'the parent of a child';`,
+		`COMMENT ON CONSTRAINT "events_2026_id_check" ON "public"."events_2026" IS 'a partition''s rows are positive';`,
 	} {
 		assert.Contains(t, ddl, want)
 	}
 	// A constraint the engine states no comment beside writes none.
 	assert.NotContains(t, ddl, `COMMENT ON CONSTRAINT "child_id_cap"`)
+	// A partition's comment is a statement of its own: written into the
+	// CREATE TABLE before its PARTITION BY clause it would not parse.
+	assert.Greater(t, strings.Index(ddl, `COMMENT ON CONSTRAINT "events_2026_id_check"`), strings.Index(ddl, `CREATE TABLE "public"."events_2026"`))
 
 	c := New()
-	_, err = c.Exec(ddl, &ExecOptions{ContinueOnError: true})
+	results, err := c.Exec(ddl, &ExecOptions{ContinueOnError: true})
 	require.NoError(t, err)
+	for _, result := range results {
+		require.NoErrorf(t, result.Error, "statement %d (%s) failed", result.Index, result.SQL)
+	}
 	_, rel, err := c.findRelation("public", "child")
 	require.NoError(t, err)
 	for name, want := range map[string]string{

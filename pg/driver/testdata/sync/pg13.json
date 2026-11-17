@@ -1008,7 +1008,8 @@
               "checkConstraints":  [
                 {
                   "name":  "measurement_peak_check",
-                  "expression":  "(peak > '-100'::integer)"
+                  "expression":  "(peak > '-100'::integer)",
+                  "comment":  "this year's peaks"
                 }
               ]
             }
@@ -1016,7 +1017,8 @@
           "checkConstraints":  [
             {
               "name":  "measurement_peak_check",
-              "expression":  "(peak > '-100'::integer)"
+              "expression":  "(peak > '-100'::integer)",
+              "comment":  "a peak is above the floor"
             }
           ],
           "owner":  "postgres"

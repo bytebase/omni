@@ -2685,14 +2685,6 @@ func writePartitionTable(out io.Writer, schema string, columns []*metadatapb.Col
 		return err
 	}
 
-	for _, check := range partition.CheckConstraints {
-		if len(check.Comment) > 0 {
-			if err := writeConstraintComment(out, schema, partition.Name, check.Name, check.Comment); err != nil {
-				return err
-			}
-		}
-	}
-
 	if len(partition.Subpartitions) > 0 {
 		if err := writePartitionClause(out, partition.Subpartitions[0]); err != nil {
 			return err
@@ -2701,6 +2693,17 @@ func writePartitionTable(out io.Writer, schema string, columns []*metadatapb.Col
 
 	if _, err := io.WriteString(out, ";\n\n"); err != nil {
 		return err
+	}
+
+	// A partition's check constraint comment is a statement of its own: written
+	// into the CREATE TABLE before its optional PARTITION BY clause, it would
+	// not parse.
+	for _, check := range partition.CheckConstraints {
+		if len(check.Comment) > 0 {
+			if err := writeConstraintComment(out, schema, partition.Name, check.Name, check.Comment); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Construct subpartition tables.

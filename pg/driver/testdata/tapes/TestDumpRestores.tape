@@ -166,6 +166,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -175,6 +177,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -5068,7 +5071,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -5108,7 +5112,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -12195,6 +12200,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -12230,6 +12237,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -17324,7 +17333,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -17364,7 +17374,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -24285,6 +24296,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -24294,6 +24307,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -29139,7 +29153,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -29179,7 +29194,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -36246,6 +36262,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -36281,6 +36299,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -41327,7 +41347,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -41367,7 +41388,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -48268,6 +48290,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -48277,6 +48301,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -53124,7 +53149,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -53164,7 +53190,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -60247,6 +60274,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -60282,6 +60311,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -65330,7 +65361,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -65370,7 +65402,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -72287,6 +72320,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -72296,6 +72331,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -77147,7 +77183,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -77187,7 +77224,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -84118,6 +84156,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -84153,6 +84193,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -89205,7 +89247,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -89245,7 +89288,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -96010,6 +96054,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -96019,6 +96065,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -100894,7 +100941,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -100934,7 +100982,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -108021,6 +108070,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -108056,6 +108107,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -113132,7 +113185,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -113172,7 +113226,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -120093,6 +120148,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -120102,6 +120159,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -124977,7 +125035,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -125017,7 +125076,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -132104,6 +132164,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -132139,6 +132201,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -137215,7 +137279,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -137255,7 +137320,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -144176,6 +144242,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -144185,6 +144253,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -149126,7 +149195,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -149166,7 +149236,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -156651,6 +156722,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -156686,6 +156759,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -161828,7 +161903,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -161868,7 +161944,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
-: null
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
