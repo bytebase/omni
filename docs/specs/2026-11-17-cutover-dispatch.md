@@ -379,6 +379,17 @@ So the plan budgets **two** advisor seams and stops treating the advisor work as
 generic `Prober` arrives with pg, the `DriverHandle` with mysql/mariadb, and because both engines
 live in one package the MariaDB rules pay the same edit twice (29 of the 73 lines).
 
+**Superseded 2026-11-17 by [the advisor probe seam](2026-11-17-advisor-probe-seam.md).** Three
+proofs, not two, answered this question and each answered it differently (pg's `Prober`, mysql's
+`Prober` + `DriverHandle`, OceanBase's `DriverHandle` with a three-method interface), and the
+`DriverHandle` half is the shape that fails silently: its absence is `nil, nil`. The seam the
+sixteen rule files need is `db.Prober` — a statement's answer, with `PreExecutions` and
+`Autocommit` — plus the two capabilities the driver must answer itself: `db.RowEstimator`, which is
+`CountAffectedRows` given a name, and `db.ColumnExtraLookup`, the bound lookup the session contract
+cannot carry. It lands in wave 0 as one change; the proofs' per-engine rule deltas stand as the
+cost of the three shapes it replaces, and the mysql row's `DriverHandle` in §2/§3 and the "not
+budgeted, needed" bullet in §6 stay as that proof's measurement rather than this plan's seam.
+
 ### plancheck's assertions were hiding parser registration
 
 `runner/plancheck/statement_report_executor.go` type-asserted 7 concrete drivers covering 8 engine
@@ -576,17 +587,28 @@ parentheses are the §2 rows, kept so a reader can see which prediction moved an
 identical wherever it appears: `db/util/omnidriver.go` (120 lines, ~102 code), which trino, mysql
 and oracle each paid separately and which redis, spanner and elasticsearch each wrote again inside
 their adapter, so budget it once; `db.Driver` losing `GetDB` for `SQLDBProvider` + `db.SQLDB`
-(+25/−1); `advisor.Prober` + `Context.Prober` (+46 and +11/−1); and the MySQL-family config builder
-the prototype measured at 158 lines (82 of them the RDS CA bundle). About +202/−2 plus the builder.
+(+25/−1); the advisor probe seam, which is [its own note](2026-11-17-advisor-probe-seam.md) —
+one `db.Prober` and two capabilities (`db.RowEstimator`, `db.ColumnExtraLookup`), one
+`Context.Prober` field, +300/−190 — not the `Prober` + `DriverHandle` pair §5 measured; and the
+MySQL-family config builder the prototype measured at 158 lines (82 of them the RDS CA bundle).
+About +440/−190 plus the builder.
 None of it exists on Bytebase `345007290e`, and the proofs say that is survivable: every wave-1
 engine measured so far — cassandra, trino, redis, spanner, elasticsearch, dynamodb, clickhouse, hive
 and starrocks — needed **no** wave-0 seam and changed **zero** callers; all but trino and
 dynamodb changed no product file (trino's were the pin bump's dump fixtures, not the adapter;
 dynamodb's two are the shared test container). StarRocks wants a session seam before it lands, but
 that is not one of these. So wave 0 gates neither wave 1's first adapter nor its tenth. It gates mssql's `GetDB` retirement (8 files), not cockroachdb's +5 guard, and wave
-3, where pg's `Prober` and oracle's reuse of it verbatim are the whole point. Land it before the
-fifth wave-1 adapter if you want the conversion lines once instead of seven times; do not let it
-gate the first.
+3, where pg's `Probe` is the first adapter implementation of the seam and oracle's is the second
+(its dry run passes `Autocommit`). Land it before the fifth wave-1 adapter if you want the conversion
+lines once instead of seven times; do not let it gate the first.
+
+The seam is one change and it moves all sixteen probing rule files at once, so no rule keeps reading
+`Context.Driver` past it: the rules left on the old field are exactly the ones that then go quiet
+when the `*sql.DB` disappears. Its interfaces are `db.Prober` (a statement's answer, with
+`PreExecutions` and `Autocommit`) and the two capabilities a driver must answer itself:
+`db.RowEstimator` (`CountAffectedRows`, the method eight drivers on each side already have) and
+`db.ColumnExtraLookup` (the bound lookup `Session.Query` cannot carry). The note records the three
+shapes it replaces in §2 and their cost in §7.
 
 **Wave 1 — adapters with no forced product change (1-12).** `cassandra` first: 312 adapter lines, 0
 callers, 0 product files, 928 lines deleted, a live pass on `cassandra:5.0.9` — a driver swap plus a
@@ -632,21 +654,27 @@ rather than wave 1 because that is product code, not a zero-file swap. `mssql` f
 `db.SQLDB` lands: 8 caller files, +50/−16 (net +34), still the cheapest product side, and #1385's
 five driver fixes are already on main (`81b91221d`). Its TLS `ServerName` one is worth treating as
 its own defect rather than a cutover's leftover, since it breaks verified TLS for every instance
-today (§6). The plancheck interface is now nobody's precondition; keep it for a cleanup change (§5),
-not a wave gate. `cockroachdb` stays its own adapter rather than aliasing pg (§4).
+today (§6). The plancheck interface is now nobody's precondition; [the probe
+note](2026-11-17-advisor-probe-seam.md#3-the-decision) names it `db.RowEstimator`, so the cleanup is
+one interface assertion instead of the eight concrete driver types, plus the nine blank parser
+imports §5 records — keep it for a cleanup change (§5), not a wave gate. `cockroachdb` stays its own
+adapter rather than aliasing pg (§4).
 
 **Wave 3 — the SQL family with advisor coupling (15-20), in this order: `pg`, `oracle`, `tidb`,
 `oceanbase`, `mysql`/`mariadb`.** pg first: measured, 658 adapter lines, 14 product files, net +154,
-and its `Prober` seam is the one the other engines reuse. Oracle second because it is measured and
-nearly the same shape — 390 adapter lines, 12 files, net +207 — with two blockers gone (no version
-seam, no plancheck) and one gnarly call site (the private-link guard's signature), so it is the
-wave's cheap follow. tidb third: measured 404 lines and 0 production callers, but it owes the prober
-and the gh-ost guard, so it is not a wave-1 swap. OceanBase fourth: measured 512 lines and 10
-product files, with the `DriverHandle` seam and the live prober; reuse the MariaDB proof's shape and
-its five-fix dump table as the acceptance test. mysql and mariadb last because they are measured
-worst: 706 adapter lines, 17 files, net +259, the second advisor seam (`DriverHandle`), and gh-ost
-failing closed. Do not start mariadb before mysql: they are one package and pay the same rules
-twice.
+and its `Probe` is the first adapter implementation of wave 0's seam
+([note §6](2026-11-17-advisor-probe-seam.md#6-migration-order)); the rules themselves already moved
+in wave 0. Oracle second because it is measured and nearly the same shape — 390 adapter lines, 12
+files, net +207 — with two blockers gone (no version seam, no plancheck) and one gnarly call site
+(the private-link guard's signature), so it is the wave's cheap follow. tidb third: measured 404
+lines and 0 production callers, but it owes the prober and the gh-ost guard, so it is not a wave-1
+swap. OceanBase fourth: measured 512 lines and 10 product files; its four rules already moved in
+wave 0, so the adapter needs `Probe` only and the seam costs it nothing beyond that. Reuse the
+MariaDB proof's five-fix dump table as the acceptance test. mysql and mariadb last because they are
+measured worst: 706 adapter lines, 17 files, net +259, the row estimate as their own capability
+(`db.RowEstimator`, which their adapters already answer), and gh-ost failing closed. Do not start
+mariadb before mysql: they are one package and their rules already share one edit from wave 0, not
+two.
 
 **Wave 4 — the unverified drivers (21-24).** `redshift`, `snowflake`, `bigquery` and `databricks`
 have draft drivers on open branches, no tapes, no sync goldens and no pin rows. A cutover cannot be
@@ -718,8 +746,11 @@ them:
 - `db.SQLDB` / `SQLDBProvider` and plancheck's nine blank parser imports. Both are shape, not
   plumbing: one is how an engine that still has a `*sql.DB` answers, the other is how the assertion
   table keeps its parsers.
-- `advisor.Prober` and `advisor.DriverHandle`. Two seams, because a generic session probe answers
-  pg's question and not mysql's (§5).
+- `db.Prober`, `db.RowEstimator` and `db.ColumnExtraLookup`, the advisor probe seam
+  ([its note](2026-11-17-advisor-probe-seam.md)). Two seams, because a statement's answer covers
+  eleven of the sixteen probing rule files and the driver answers the other five itself — a row
+  estimate and one bound lookup; not the `advisor.Prober` + `advisor.DriverHandle` pair §5
+  measured, whose untyped half is where a missing capability becomes no advice.
 - gh-ost's binlog probe. The contract has no counterpart, so `component/ghost/validator.go` fails
   closed; a contract change that adds the probe is the only way to keep the feature.
 
