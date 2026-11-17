@@ -646,7 +646,7 @@ ORDER BY s.srvname;`
 // listForeignTableOptionsQuery reads the options a foreign table states itself,
 // apart from the server's; array_to_json has the same reason as above.
 var listForeignTableOptionsQuery = `
-SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 FROM pg_catalog.pg_foreign_table t
 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -690,24 +690,30 @@ func getForeignServers(txn *sql.Tx) ([]*metadatapb.ForeignServerMetadata, error)
 	return servers, nil
 }
 
-func getForeignTableOptions(txn *sql.Tx) (map[tableKey][]string, error) {
+type foreignTableOptions struct {
+	options []string
+	oid     int
+}
+
+func getForeignTableOptions(txn *sql.Tx) (map[tableKey]foreignTableOptions, error) {
 	rows, err := txn.Query(listForeignTableOptionsQuery)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	optionsMap := make(map[tableKey][]string)
+	optionsMap := make(map[tableKey]foreignTableOptions)
 	for rows.Next() {
 		var schemaName, tableName, optionsJSON string
-		if err := rows.Scan(&schemaName, &tableName, &optionsJSON); err != nil {
+		var oid int
+		if err := rows.Scan(&schemaName, &tableName, &optionsJSON, &oid); err != nil {
 			return nil, err
 		}
 		options, err := decodeOptionList(optionsJSON)
 		if err != nil {
 			return nil, fmt.Errorf("foreign table %q.%q options: %w", schemaName, tableName, err)
 		}
-		optionsMap[tableKey{Schema: schemaName, Table: tableName}] = options
+		optionsMap[tableKey{Schema: schemaName, Table: tableName}] = foreignTableOptions{options: options, oid: oid}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -764,7 +770,7 @@ func getTables(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign keys: %w", err)
 	}
-	foreignTablesMap, err := getForeignTables(txn, columnMap)
+	foreignTablesMap, err := getForeignTables(txn, columnMap, extensionDepend)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign tables: %w", err)
 	}
@@ -819,7 +825,7 @@ func getTables(
 	return tableMap, foreignTablesMap, tableOidMap, nil
 }
 
-func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ExternalTableMetadata, error) {
+func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.ExternalTableMetadata, error) {
 	query := getListForeignTableQuery()
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -855,11 +861,13 @@ func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMe
 	foreignTablesMap := make(map[string][]*metadatapb.ExternalTableMetadata)
 	for _, table := range foreignTables {
 		key := tableKey{Schema: table.schema, Table: table.table}
+		facts := optionsMap[key]
 		foreignTablesMap[table.schema] = append(foreignTablesMap[table.schema], &metadatapb.ExternalTableMetadata{
 			Name:               table.table,
 			ExternalServerName: table.server,
 			Columns:            columnMap[key],
-			Options:            optionsMap[key],
+			Options:            facts.options,
+			SkipDump:           extensionDepend[facts.oid],
 		})
 	}
 

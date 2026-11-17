@@ -206,7 +206,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 
 		for _, externalTable := range schema.ExternalTables {
-			if schema.SkipDump {
+			if externalTable.SkipDump {
 				continue
 			}
 			externalTableID := getObjectID(schema.Name, externalTable.Name)
@@ -2245,11 +2245,10 @@ func functionNameKeys(name string) []string {
 	if !ok {
 		return []string{name}
 	}
-	keys := []string{strings.Join(parts, ".")}
-	if len(parts) > 1 {
-		keys = append(keys, parts[len(parts)-1])
+	if len(parts) == 1 {
+		return parts
 	}
-	return keys
+	return []string{strings.Join(parts, ".")}
 }
 
 func splitQualifiedIdentifier(name string) ([]string, bool) {

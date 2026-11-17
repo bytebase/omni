@@ -2682,7 +2682,11 @@ type ExternalTableMetadata struct {
 	// without the FORMAT keyword and its enclosing parentheses: for example
 	// "TYPE = 'CSV', ENCODING = 'utf8mb4'". Empty when the engine states no
 	// format.
-	Format        string `protobuf:"bytes,7,opt,name=format,proto3" json:"format,omitempty"`
+	Format string `protobuf:"bytes,7,opt,name=format,proto3" json:"format,omitempty"`
+	// The table belongs to an extension, which creates it; a dump leaves it
+	// alone. A foreign table a user creates inside an extension-owned schema is
+	// not skipped: the extension owns the schema, not every object made in it.
+	SkipDump      bool `protobuf:"varint,8,opt,name=skip_dump,json=skipDump,proto3" json:"skip_dump,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2764,6 +2768,13 @@ func (x *ExternalTableMetadata) GetFormat() string {
 		return x.Format
 	}
 	return ""
+}
+
+func (x *ExternalTableMetadata) GetSkipDump() bool {
+	if x != nil {
+		return x.SkipDump
+	}
+	return false
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
@@ -5215,7 +5226,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
-	"expression\"\x9a\x02\n" +
+	"expression\"\xb7\x02\n" +
 	"\x15ExternalTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14external_server_name\x18\x02 \x01(\tR\x12externalServerName\x124\n" +
@@ -5223,7 +5234,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\acolumns\x18\x04 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\x12\x18\n" +
 	"\aoptions\x18\x05 \x03(\tR\aoptions\x12\x1a\n" +
 	"\blocation\x18\x06 \x01(\tR\blocation\x12\x16\n" +
-	"\x06format\x18\a \x01(\tR\x06format\"\xb7\x05\n" +
+	"\x06format\x18\a \x01(\tR\x06format\x12\x1b\n" +
+	"\tskip_dump\x18\b \x01(\bR\bskipDump\"\xb7\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +

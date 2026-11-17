@@ -5812,7 +5812,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -5822,6 +5822,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -5829,6 +5830,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967756
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -5854,7 +5856,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | Mixed Case
 : string
@@ -5866,7 +5868,7 @@
 : string
 | postgres
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -5878,7 +5880,7 @@
 : string
 | postgres
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -5890,7 +5892,7 @@
 : string
 | postgres
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -5902,7 +5904,7 @@
 : string
 | postgres
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -5914,7 +5916,7 @@
 : string
 | postgres
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -5926,7 +5928,7 @@
 : string
 | postgres
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -5939,7 +5941,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -5951,7 +5953,7 @@
 : string
 | postgres
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -5963,7 +5965,7 @@
 : string
 | postgres
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -5975,7 +5977,7 @@
 : string
 | postgres
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -5987,7 +5989,7 @@
 : string
 | postgres
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -5999,7 +6001,7 @@
 : string
 | postgres
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -6011,7 +6013,7 @@
 : string
 | postgres
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -6023,7 +6025,7 @@
 : string
 | postgres
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -6035,7 +6037,7 @@
 : string
 | postgres
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | audit
 : string
@@ -6047,7 +6049,7 @@
 : string
 | postgres
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | public
 : string
@@ -6059,7 +6061,7 @@
 : string
 | postgres
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | public
 : string
@@ -6301,7 +6303,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -6312,7 +6314,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -6327,7 +6329,7 @@
 : string
 | happy ones
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -6337,7 +6339,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -6347,7 +6349,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | public
 : string
@@ -6594,7 +6596,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -7130,12 +7132,6 @@
 : int64 4294967742
 : int64 0
 < row
-: int64 4294967780
-: int64 0
-< row
-: int64 4294967780
-: int64 0
-< row
 : int64 4294967781
 : int64 0
 < row
@@ -7154,9 +7150,6 @@
 : int64 4294967783
 : int64 0
 < row
-: int64 4294967783
-: int64 0
-< row
 : int64 4294967784
 : int64 0
 < row
@@ -7164,6 +7157,15 @@
 : int64 0
 < row
 : int64 4294967784
+: int64 0
+< row
+: int64 4294967785
+: int64 0
+< row
+: int64 4294967785
+: int64 0
+< row
+: int64 4294967785
 : int64 0
 > query
 |
@@ -7202,7 +7204,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -7219,7 +7221,7 @@
 : string
 | adds integers
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -7235,7 +7237,7 @@
 |
 : null
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -7251,7 +7253,7 @@
 |
 : null
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -7268,7 +7270,7 @@
 |
 : null
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -7287,7 +7289,7 @@
 |
 : null
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | app
 : string
@@ -7305,7 +7307,7 @@
 |
 : null
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -7325,7 +7327,7 @@
 |
 : null
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | audit
 : string
@@ -12083,28 +12085,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967793
-: int64 4294967762
+: int64 4294967794
+: int64 4294967763
 : int64 31
 < row
-: int64 4294967794
-: int64 4294967762
-: int64 1
-< row
 : int64 4294967795
-: int64 4294967762
-: int64 2
+: int64 4294967763
+: int64 1
 < row
 : int64 4294967796
-: int64 4294967766
-: int64 1
+: int64 4294967763
+: int64 2
 < row
 : int64 4294967797
-: int64 4294967772
+: int64 4294967767
 : int64 1
 < row
 : int64 4294967798
-: int64 4294967769
+: int64 4294967773
+: int64 1
+< row
+: int64 4294967799
+: int64 4294967770
 : int64 2
 > query
 |
@@ -12142,7 +12144,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | app
 : string
@@ -12159,7 +12161,7 @@
 : string
 | counts by five
 < row
-: int64 4294967795
+: int64 4294967796
 : string
 | app
 : string
@@ -12175,7 +12177,7 @@
 : null
 : null
 < row
-: int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -12191,7 +12193,7 @@
 : null
 : null
 < row
-: int64 4294967796
+: int64 4294967797
 : string
 | app
 : string
@@ -12207,7 +12209,7 @@
 : null
 : null
 < row
-: int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -12223,7 +12225,7 @@
 : null
 : null
 < row
-: int64 4294967798
+: int64 4294967799
 : string
 | app
 : string
@@ -12239,7 +12241,7 @@
 : null
 : null
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | audit
 : string
@@ -12255,7 +12257,7 @@
 : null
 : null
 < row
-: int64 4294967797
+: int64 4294967798
 : string
 | public
 : string
@@ -12341,7 +12343,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | app
 : string
@@ -12351,7 +12353,7 @@
 : string
 | how it feels
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | app
 : string
@@ -12361,7 +12363,7 @@
 : string
 | how it feels
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | app
 : string
@@ -12415,8 +12417,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967802
 : int64 4294967803
+: int64 4294967804
 : string
 | app
 : string
@@ -12432,8 +12434,8 @@
 : string
 | street line
 < row
-: int64 4294967802
 : int64 4294967803
+: int64 4294967804
 : string
 | app
 : string
@@ -12447,8 +12449,8 @@
 : null
 : null
 < row
-: int64 4294967802
 : int64 4294967803
+: int64 4294967804
 : string
 | app
 : string
@@ -12462,8 +12464,8 @@
 : null
 : null
 < row
-: int64 4294967804
 : int64 4294967805
+: int64 4294967806
 : string
 | app
 : string
@@ -12476,8 +12478,8 @@
 : null
 : null
 < row
-: int64 4294967804
 : int64 4294967805
+: int64 4294967806
 : string
 | app
 : string
@@ -12490,8 +12492,8 @@
 : null
 : null
 < row
-: int64 4294967806
 : int64 4294967807
+: int64 4294967808
 : string
 | app
 : string
@@ -12534,7 +12536,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967808
+: int64 4294967809
 : string
 | app
 : string
@@ -12586,7 +12588,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967809
+: int64 4294967810
 : string
 | app
 : string
@@ -12625,7 +12627,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967810
+: int64 4294967811
 : string
 | corpus_ddl
 : string
@@ -12641,7 +12643,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967811
+: int64 4294967812
 : string
 | corpus_drop
 : string
@@ -18454,7 +18456,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -18464,6 +18466,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -18471,6 +18474,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967732
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -18496,7 +18500,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967732
+: int64 4294967733
 : string
 | Mixed Case
 : string
@@ -18508,7 +18512,7 @@
 : string
 | postgres
 < row
-: int64 4294967733
+: int64 4294967734
 : string
 | app
 : string
@@ -18520,7 +18524,7 @@
 : string
 | postgres
 < row
-: int64 4294967734
+: int64 4294967735
 : string
 | app
 : string
@@ -18532,7 +18536,7 @@
 : string
 | postgres
 < row
-: int64 4294967735
+: int64 4294967736
 : string
 | app
 : string
@@ -18544,7 +18548,7 @@
 : string
 | postgres
 < row
-: int64 4294967736
+: int64 4294967737
 : string
 | app
 : string
@@ -18556,7 +18560,7 @@
 : string
 | postgres
 < row
-: int64 4294967737
+: int64 4294967738
 : string
 | app
 : string
@@ -18568,7 +18572,7 @@
 : string
 | postgres
 < row
-: int64 4294967738
+: int64 4294967739
 : string
 | app
 : string
@@ -18581,7 +18585,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967739
+: int64 4294967740
 : string
 | app
 : string
@@ -18593,7 +18597,7 @@
 : string
 | postgres
 < row
-: int64 4294967740
+: int64 4294967741
 : string
 | app
 : string
@@ -18605,7 +18609,7 @@
 : string
 | postgres
 < row
-: int64 4294967741
+: int64 4294967742
 : string
 | app
 : string
@@ -18617,7 +18621,7 @@
 : string
 | postgres
 < row
-: int64 4294967742
+: int64 4294967743
 : string
 | app
 : string
@@ -18629,7 +18633,7 @@
 : string
 | postgres
 < row
-: int64 4294967743
+: int64 4294967744
 : string
 | app
 : string
@@ -18641,7 +18645,7 @@
 : string
 | postgres
 < row
-: int64 4294967744
+: int64 4294967745
 : string
 | app
 : string
@@ -18653,7 +18657,7 @@
 : string
 | postgres
 < row
-: int64 4294967745
+: int64 4294967746
 : string
 | app
 : string
@@ -18665,7 +18669,7 @@
 : string
 | postgres
 < row
-: int64 4294967746
+: int64 4294967747
 : string
 | app
 : string
@@ -18677,7 +18681,7 @@
 : string
 | postgres
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | audit
 : string
@@ -18689,7 +18693,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | public
 : string
@@ -18701,7 +18705,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | public
 : string
@@ -18943,7 +18947,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | app
 : string
@@ -18954,7 +18958,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | app
 : string
@@ -18969,7 +18973,7 @@
 : string
 | happy ones
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -18979,7 +18983,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -18989,7 +18993,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | public
 : string
@@ -19236,7 +19240,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -19976,16 +19980,16 @@
 : int64 4294967721
 : int64 0
 < row
-: int64 4294967756
-: int64 0
-< row
-: int64 4294967756
-: int64 0
-< row
 : int64 4294967757
 : int64 0
 < row
 : int64 4294967757
+: int64 0
+< row
+: int64 4294967758
+: int64 0
+< row
+: int64 4294967758
 : int64 0
 > query
 |
@@ -20023,7 +20027,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -20040,7 +20044,7 @@
 : string
 | adds integers
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -20056,7 +20060,7 @@
 |
 : null
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -20072,7 +20076,7 @@
 |
 : null
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -20089,7 +20093,7 @@
 |
 : null
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -20108,7 +20112,7 @@
 |
 : null
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -20126,7 +20130,7 @@
 |
 : null
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -20146,7 +20150,7 @@
 |
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | audit
 : string
@@ -24680,28 +24684,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967766
-: int64 4294967738
+: int64 4294967767
+: int64 4294967739
 : int64 31
 < row
-: int64 4294967767
-: int64 4294967738
-: int64 1
-< row
 : int64 4294967768
-: int64 4294967738
-: int64 2
+: int64 4294967739
+: int64 1
 < row
 : int64 4294967769
-: int64 4294967742
-: int64 1
+: int64 4294967739
+: int64 2
 < row
 : int64 4294967770
-: int64 4294967748
+: int64 4294967743
 : int64 1
 < row
 : int64 4294967771
-: int64 4294967745
+: int64 4294967749
+: int64 1
+< row
+: int64 4294967772
+: int64 4294967746
 : int64 2
 > query
 |
@@ -24739,7 +24743,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -24756,7 +24760,7 @@
 : string
 | counts by five
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -24772,7 +24776,7 @@
 : null
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -24788,7 +24792,7 @@
 : null
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -24804,7 +24808,7 @@
 : null
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -24820,7 +24824,7 @@
 : null
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | app
 : string
@@ -24836,7 +24840,7 @@
 : null
 : null
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | audit
 : string
@@ -24852,7 +24856,7 @@
 : null
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | public
 : string
@@ -24938,7 +24942,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -24948,7 +24952,7 @@
 : string
 | how it feels
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -24958,7 +24962,7 @@
 : string
 | how it feels
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -25012,8 +25016,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967775
 : int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -25029,8 +25033,8 @@
 : string
 | street line
 < row
-: int64 4294967775
 : int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -25044,8 +25048,8 @@
 : null
 : null
 < row
-: int64 4294967775
 : int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -25059,8 +25063,8 @@
 : null
 : null
 < row
-: int64 4294967777
 : int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -25073,8 +25077,8 @@
 : null
 : null
 < row
-: int64 4294967777
 : int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -25087,8 +25091,8 @@
 : null
 : null
 < row
-: int64 4294967779
 : int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -25131,7 +25135,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -25185,7 +25189,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -25223,7 +25227,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | corpus_ddl
 : string
@@ -25239,7 +25243,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | corpus_drop
 : string
@@ -31054,7 +31058,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -31064,6 +31068,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -31071,6 +31076,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967733
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -31096,7 +31102,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967733
+: int64 4294967734
 : string
 | Mixed Case
 : string
@@ -31108,7 +31114,7 @@
 : string
 | postgres
 < row
-: int64 4294967734
+: int64 4294967735
 : string
 | app
 : string
@@ -31120,7 +31126,7 @@
 : string
 | postgres
 < row
-: int64 4294967735
+: int64 4294967736
 : string
 | app
 : string
@@ -31132,7 +31138,7 @@
 : string
 | postgres
 < row
-: int64 4294967736
+: int64 4294967737
 : string
 | app
 : string
@@ -31144,7 +31150,7 @@
 : string
 | postgres
 < row
-: int64 4294967737
+: int64 4294967738
 : string
 | app
 : string
@@ -31156,7 +31162,7 @@
 : string
 | postgres
 < row
-: int64 4294967738
+: int64 4294967739
 : string
 | app
 : string
@@ -31168,7 +31174,7 @@
 : string
 | postgres
 < row
-: int64 4294967739
+: int64 4294967740
 : string
 | app
 : string
@@ -31181,7 +31187,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967740
+: int64 4294967741
 : string
 | app
 : string
@@ -31193,7 +31199,7 @@
 : string
 | postgres
 < row
-: int64 4294967741
+: int64 4294967742
 : string
 | app
 : string
@@ -31205,7 +31211,7 @@
 : string
 | postgres
 < row
-: int64 4294967742
+: int64 4294967743
 : string
 | app
 : string
@@ -31217,7 +31223,7 @@
 : string
 | postgres
 < row
-: int64 4294967743
+: int64 4294967744
 : string
 | app
 : string
@@ -31229,7 +31235,7 @@
 : string
 | postgres
 < row
-: int64 4294967744
+: int64 4294967745
 : string
 | app
 : string
@@ -31241,7 +31247,7 @@
 : string
 | postgres
 < row
-: int64 4294967745
+: int64 4294967746
 : string
 | app
 : string
@@ -31253,7 +31259,7 @@
 : string
 | postgres
 < row
-: int64 4294967746
+: int64 4294967747
 : string
 | app
 : string
@@ -31265,7 +31271,7 @@
 : string
 | postgres
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | app
 : string
@@ -31277,7 +31283,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | audit
 : string
@@ -31289,7 +31295,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | public
 : string
@@ -31301,7 +31307,7 @@
 : string
 | postgres
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | public
 : string
@@ -31543,7 +31549,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | app
 : string
@@ -31554,7 +31560,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -31569,7 +31575,7 @@
 : string
 | happy ones
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -31579,7 +31585,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -31589,7 +31595,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | public
 : string
@@ -31836,7 +31842,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -32576,16 +32582,16 @@
 : int64 4294967722
 : int64 0
 < row
-: int64 4294967757
-: int64 0
-< row
-: int64 4294967757
-: int64 0
-< row
 : int64 4294967758
 : int64 0
 < row
 : int64 4294967758
+: int64 0
+< row
+: int64 4294967759
+: int64 0
+< row
+: int64 4294967759
 : int64 0
 > query
 |
@@ -32623,7 +32629,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -32640,7 +32646,7 @@
 : string
 | adds integers
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -32656,7 +32662,7 @@
 |
 : null
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -32672,7 +32678,7 @@
 |
 : null
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -32689,7 +32695,7 @@
 |
 : null
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -32708,7 +32714,7 @@
 |
 : null
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -32726,7 +32732,7 @@
 |
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -32746,7 +32752,7 @@
 |
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | audit
 : string
@@ -37296,28 +37302,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967767
-: int64 4294967739
+: int64 4294967768
+: int64 4294967740
 : int64 31
 < row
-: int64 4294967768
-: int64 4294967739
-: int64 1
-< row
 : int64 4294967769
-: int64 4294967739
-: int64 2
+: int64 4294967740
+: int64 1
 < row
 : int64 4294967770
-: int64 4294967743
-: int64 1
+: int64 4294967740
+: int64 2
 < row
 : int64 4294967771
-: int64 4294967749
+: int64 4294967744
 : int64 1
 < row
 : int64 4294967772
-: int64 4294967746
+: int64 4294967750
+: int64 1
+< row
+: int64 4294967773
+: int64 4294967747
 : int64 2
 > query
 |
@@ -37355,7 +37361,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -37372,7 +37378,7 @@
 : string
 | counts by five
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -37388,7 +37394,7 @@
 : null
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -37404,7 +37410,7 @@
 : null
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -37420,7 +37426,7 @@
 : null
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -37436,7 +37442,7 @@
 : null
 : null
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -37452,7 +37458,7 @@
 : null
 : null
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | audit
 : string
@@ -37468,7 +37474,7 @@
 : null
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | public
 : string
@@ -37554,7 +37560,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -37564,7 +37570,7 @@
 : string
 | how it feels
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -37574,7 +37580,7 @@
 : string
 | how it feels
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -37628,8 +37634,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967776
 : int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -37645,8 +37651,8 @@
 : string
 | street line
 < row
-: int64 4294967776
 : int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -37660,8 +37666,8 @@
 : null
 : null
 < row
-: int64 4294967776
 : int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -37675,8 +37681,8 @@
 : null
 : null
 < row
-: int64 4294967778
 : int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -37689,8 +37695,8 @@
 : null
 : null
 < row
-: int64 4294967778
 : int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -37703,8 +37709,8 @@
 : null
 : null
 < row
-: int64 4294967780
 : int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -37747,7 +37753,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -37801,7 +37807,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -37839,7 +37845,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | corpus_ddl
 : string
@@ -37855,7 +37861,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | corpus_drop
 : string
@@ -43674,7 +43680,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -43684,6 +43690,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -43691,6 +43698,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967735
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -43716,7 +43724,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967735
+: int64 4294967736
 : string
 | Mixed Case
 : string
@@ -43728,7 +43736,7 @@
 : string
 | postgres
 < row
-: int64 4294967736
+: int64 4294967737
 : string
 | app
 : string
@@ -43740,7 +43748,7 @@
 : string
 | postgres
 < row
-: int64 4294967737
+: int64 4294967738
 : string
 | app
 : string
@@ -43752,7 +43760,7 @@
 : string
 | postgres
 < row
-: int64 4294967738
+: int64 4294967739
 : string
 | app
 : string
@@ -43764,7 +43772,7 @@
 : string
 | postgres
 < row
-: int64 4294967739
+: int64 4294967740
 : string
 | app
 : string
@@ -43776,7 +43784,7 @@
 : string
 | postgres
 < row
-: int64 4294967740
+: int64 4294967741
 : string
 | app
 : string
@@ -43788,7 +43796,7 @@
 : string
 | postgres
 < row
-: int64 4294967741
+: int64 4294967742
 : string
 | app
 : string
@@ -43801,7 +43809,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967742
+: int64 4294967743
 : string
 | app
 : string
@@ -43813,7 +43821,7 @@
 : string
 | postgres
 < row
-: int64 4294967743
+: int64 4294967744
 : string
 | app
 : string
@@ -43825,7 +43833,7 @@
 : string
 | postgres
 < row
-: int64 4294967744
+: int64 4294967745
 : string
 | app
 : string
@@ -43837,7 +43845,7 @@
 : string
 | postgres
 < row
-: int64 4294967745
+: int64 4294967746
 : string
 | app
 : string
@@ -43849,7 +43857,7 @@
 : string
 | postgres
 < row
-: int64 4294967746
+: int64 4294967747
 : string
 | app
 : string
@@ -43861,7 +43869,7 @@
 : string
 | postgres
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | app
 : string
@@ -43873,7 +43881,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | app
 : string
@@ -43885,7 +43893,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | app
 : string
@@ -43897,7 +43905,7 @@
 : string
 | postgres
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | audit
 : string
@@ -43909,7 +43917,7 @@
 : string
 | postgres
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | public
 : string
@@ -43921,7 +43929,7 @@
 : string
 | postgres
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | public
 : string
@@ -44163,7 +44171,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -44174,7 +44182,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -44189,7 +44197,7 @@
 : string
 | happy ones
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -44199,7 +44207,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -44209,7 +44217,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | public
 : string
@@ -44456,7 +44464,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -44980,12 +44988,6 @@
 : int64 4294967721
 : int64 0
 < row
-: int64 4294967759
-: int64 0
-< row
-: int64 4294967759
-: int64 0
-< row
 : int64 4294967760
 : int64 0
 < row
@@ -45004,9 +45006,6 @@
 : int64 4294967762
 : int64 0
 < row
-: int64 4294967762
-: int64 0
-< row
 : int64 4294967763
 : int64 0
 < row
@@ -45014,6 +45013,15 @@
 : int64 0
 < row
 : int64 4294967763
+: int64 0
+< row
+: int64 4294967764
+: int64 0
+< row
+: int64 4294967764
+: int64 0
+< row
+: int64 4294967764
 : int64 0
 > query
 |
@@ -45052,7 +45060,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -45069,7 +45077,7 @@
 : string
 | adds integers
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -45085,7 +45093,7 @@
 |
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -45101,7 +45109,7 @@
 |
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -45118,7 +45126,7 @@
 |
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -45137,7 +45145,7 @@
 |
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -45155,7 +45163,7 @@
 |
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -45175,7 +45183,7 @@
 |
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | audit
 : string
@@ -49789,28 +49797,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967772
-: int64 4294967741
+: int64 4294967773
+: int64 4294967742
 : int64 31
 < row
-: int64 4294967773
-: int64 4294967741
-: int64 1
-< row
 : int64 4294967774
-: int64 4294967741
-: int64 2
+: int64 4294967742
+: int64 1
 < row
 : int64 4294967775
-: int64 4294967745
-: int64 1
+: int64 4294967742
+: int64 2
 < row
 : int64 4294967776
-: int64 4294967751
+: int64 4294967746
 : int64 1
 < row
 : int64 4294967777
-: int64 4294967748
+: int64 4294967752
+: int64 1
+< row
+: int64 4294967778
+: int64 4294967749
 : int64 2
 > query
 |
@@ -49848,7 +49856,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -49865,7 +49873,7 @@
 : string
 | counts by five
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -49881,7 +49889,7 @@
 : null
 : null
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -49897,7 +49905,7 @@
 : null
 : null
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -49913,7 +49921,7 @@
 : null
 : null
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -49929,7 +49937,7 @@
 : null
 : null
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -49945,7 +49953,7 @@
 : null
 : null
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | audit
 : string
@@ -49961,7 +49969,7 @@
 : null
 : null
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | public
 : string
@@ -50047,7 +50055,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -50057,7 +50065,7 @@
 : string
 | how it feels
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -50067,7 +50075,7 @@
 : string
 | how it feels
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -50121,8 +50129,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967781
 : int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -50138,8 +50146,8 @@
 : string
 | street line
 < row
-: int64 4294967781
 : int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -50153,8 +50161,8 @@
 : null
 : null
 < row
-: int64 4294967781
 : int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -50168,8 +50176,8 @@
 : null
 : null
 < row
-: int64 4294967783
 : int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -50182,8 +50190,8 @@
 : null
 : null
 < row
-: int64 4294967783
 : int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -50196,8 +50204,8 @@
 : null
 : null
 < row
-: int64 4294967785
 : int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -50240,7 +50248,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -50294,7 +50302,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -50333,7 +50341,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | corpus_ddl
 : string
@@ -50349,7 +50357,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | corpus_drop
 : string
@@ -56192,7 +56200,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -56202,6 +56210,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -56209,6 +56218,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967747
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -56234,7 +56244,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | Mixed Case
 : string
@@ -56246,7 +56256,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | app
 : string
@@ -56258,7 +56268,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | app
 : string
@@ -56270,7 +56280,7 @@
 : string
 | postgres
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | app
 : string
@@ -56282,7 +56292,7 @@
 : string
 | postgres
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | app
 : string
@@ -56294,7 +56304,7 @@
 : string
 | postgres
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -56306,7 +56316,7 @@
 : string
 | postgres
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -56319,7 +56329,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -56331,7 +56341,7 @@
 : string
 | postgres
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -56343,7 +56353,7 @@
 : string
 | postgres
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -56355,7 +56365,7 @@
 : string
 | postgres
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -56367,7 +56377,7 @@
 : string
 | postgres
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -56379,7 +56389,7 @@
 : string
 | postgres
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -56391,7 +56401,7 @@
 : string
 | postgres
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -56403,7 +56413,7 @@
 : string
 | postgres
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -56415,7 +56425,7 @@
 : string
 | postgres
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | audit
 : string
@@ -56427,7 +56437,7 @@
 : string
 | postgres
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | public
 : string
@@ -56439,7 +56449,7 @@
 : string
 | postgres
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | public
 : string
@@ -56681,7 +56691,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -56692,7 +56702,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -56707,7 +56717,7 @@
 : string
 | happy ones
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -56717,7 +56727,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -56727,7 +56737,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | public
 : string
@@ -56974,7 +56984,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -57510,12 +57520,6 @@
 : int64 4294967733
 : int64 0
 < row
-: int64 4294967771
-: int64 0
-< row
-: int64 4294967771
-: int64 0
-< row
 : int64 4294967772
 : int64 0
 < row
@@ -57534,9 +57538,6 @@
 : int64 4294967774
 : int64 0
 < row
-: int64 4294967774
-: int64 0
-< row
 : int64 4294967775
 : int64 0
 < row
@@ -57544,6 +57545,15 @@
 : int64 0
 < row
 : int64 4294967775
+: int64 0
+< row
+: int64 4294967776
+: int64 0
+< row
+: int64 4294967776
+: int64 0
+< row
+: int64 4294967776
 : int64 0
 > query
 |
@@ -57582,7 +57592,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -57599,7 +57609,7 @@
 : string
 | adds integers
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -57615,7 +57625,7 @@
 |
 : null
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -57631,7 +57641,7 @@
 |
 : null
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -57648,7 +57658,7 @@
 |
 : null
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -57667,7 +57677,7 @@
 |
 : null
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -57685,7 +57695,7 @@
 |
 : null
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -57705,7 +57715,7 @@
 |
 : null
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | audit
 : string
@@ -62463,28 +62473,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967784
-: int64 4294967753
+: int64 4294967785
+: int64 4294967754
 : int64 31
 < row
-: int64 4294967785
-: int64 4294967753
-: int64 1
-< row
 : int64 4294967786
-: int64 4294967753
-: int64 2
+: int64 4294967754
+: int64 1
 < row
 : int64 4294967787
-: int64 4294967757
-: int64 1
+: int64 4294967754
+: int64 2
 < row
 : int64 4294967788
-: int64 4294967763
+: int64 4294967758
 : int64 1
 < row
 : int64 4294967789
-: int64 4294967760
+: int64 4294967764
+: int64 1
+< row
+: int64 4294967790
+: int64 4294967761
 : int64 2
 > query
 |
@@ -62522,7 +62532,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | app
 : string
@@ -62539,7 +62549,7 @@
 : string
 | counts by five
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -62555,7 +62565,7 @@
 : null
 : null
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -62571,7 +62581,7 @@
 : null
 : null
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -62587,7 +62597,7 @@
 : null
 : null
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -62603,7 +62613,7 @@
 : null
 : null
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -62619,7 +62629,7 @@
 : null
 : null
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | audit
 : string
@@ -62635,7 +62645,7 @@
 : null
 : null
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | public
 : string
@@ -62721,7 +62731,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -62731,7 +62741,7 @@
 : string
 | how it feels
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -62741,7 +62751,7 @@
 : string
 | how it feels
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -62795,8 +62805,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967793
 : int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -62812,8 +62822,8 @@
 : string
 | street line
 < row
-: int64 4294967793
 : int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -62827,8 +62837,8 @@
 : null
 : null
 < row
-: int64 4294967793
 : int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -62842,8 +62852,8 @@
 : null
 : null
 < row
-: int64 4294967795
 : int64 4294967796
+: int64 4294967797
 : string
 | app
 : string
@@ -62856,8 +62866,8 @@
 : null
 : null
 < row
-: int64 4294967795
 : int64 4294967796
+: int64 4294967797
 : string
 | app
 : string
@@ -62870,8 +62880,8 @@
 : null
 : null
 < row
-: int64 4294967797
 : int64 4294967798
+: int64 4294967799
 : string
 | app
 : string
@@ -62914,7 +62924,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | app
 : string
@@ -62966,7 +62976,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -63005,7 +63015,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | corpus_ddl
 : string
@@ -63021,7 +63031,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967802
+: int64 4294967803
 : string
 | corpus_drop
 : string
@@ -68864,7 +68874,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -68874,6 +68884,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -68881,6 +68892,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967747
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -68906,7 +68918,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | Mixed Case
 : string
@@ -68918,7 +68930,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | app
 : string
@@ -68930,7 +68942,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | app
 : string
@@ -68942,7 +68954,7 @@
 : string
 | postgres
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | app
 : string
@@ -68954,7 +68966,7 @@
 : string
 | postgres
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | app
 : string
@@ -68966,7 +68978,7 @@
 : string
 | postgres
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -68978,7 +68990,7 @@
 : string
 | postgres
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -68991,7 +69003,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -69003,7 +69015,7 @@
 : string
 | postgres
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -69015,7 +69027,7 @@
 : string
 | postgres
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -69027,7 +69039,7 @@
 : string
 | postgres
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -69039,7 +69051,7 @@
 : string
 | postgres
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -69051,7 +69063,7 @@
 : string
 | postgres
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -69063,7 +69075,7 @@
 : string
 | postgres
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -69075,7 +69087,7 @@
 : string
 | postgres
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -69087,7 +69099,7 @@
 : string
 | postgres
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | audit
 : string
@@ -69099,7 +69111,7 @@
 : string
 | postgres
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | public
 : string
@@ -69111,7 +69123,7 @@
 : string
 | postgres
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | public
 : string
@@ -69353,7 +69365,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -69364,7 +69376,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -69379,7 +69391,7 @@
 : string
 | happy ones
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -69389,7 +69401,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -69399,7 +69411,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | public
 : string
@@ -69646,7 +69658,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -70182,12 +70194,6 @@
 : int64 4294967733
 : int64 0
 < row
-: int64 4294967771
-: int64 0
-< row
-: int64 4294967771
-: int64 0
-< row
 : int64 4294967772
 : int64 0
 < row
@@ -70206,9 +70212,6 @@
 : int64 4294967774
 : int64 0
 < row
-: int64 4294967774
-: int64 0
-< row
 : int64 4294967775
 : int64 0
 < row
@@ -70216,6 +70219,15 @@
 : int64 0
 < row
 : int64 4294967775
+: int64 0
+< row
+: int64 4294967776
+: int64 0
+< row
+: int64 4294967776
+: int64 0
+< row
+: int64 4294967776
 : int64 0
 > query
 |
@@ -70254,7 +70266,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -70271,7 +70283,7 @@
 : string
 | adds integers
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -70287,7 +70299,7 @@
 |
 : null
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -70303,7 +70315,7 @@
 |
 : null
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -70320,7 +70332,7 @@
 |
 : null
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -70339,7 +70351,7 @@
 |
 : null
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -70357,7 +70369,7 @@
 |
 : null
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -70377,7 +70389,7 @@
 |
 : null
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | audit
 : string
@@ -75135,28 +75147,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967784
-: int64 4294967753
+: int64 4294967785
+: int64 4294967754
 : int64 31
 < row
-: int64 4294967785
-: int64 4294967753
-: int64 1
-< row
 : int64 4294967786
-: int64 4294967753
-: int64 2
+: int64 4294967754
+: int64 1
 < row
 : int64 4294967787
-: int64 4294967757
-: int64 1
+: int64 4294967754
+: int64 2
 < row
 : int64 4294967788
-: int64 4294967763
+: int64 4294967758
 : int64 1
 < row
 : int64 4294967789
-: int64 4294967760
+: int64 4294967764
+: int64 1
+< row
+: int64 4294967790
+: int64 4294967761
 : int64 2
 > query
 |
@@ -75194,7 +75206,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | app
 : string
@@ -75211,7 +75223,7 @@
 : string
 | counts by five
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -75227,7 +75239,7 @@
 : null
 : null
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -75243,7 +75255,7 @@
 : null
 : null
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -75259,7 +75271,7 @@
 : null
 : null
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -75275,7 +75287,7 @@
 : null
 : null
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -75291,7 +75303,7 @@
 : null
 : null
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | audit
 : string
@@ -75307,7 +75319,7 @@
 : null
 : null
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | public
 : string
@@ -75393,7 +75405,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -75403,7 +75415,7 @@
 : string
 | how it feels
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -75413,7 +75425,7 @@
 : string
 | how it feels
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -75467,8 +75479,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967793
 : int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -75484,8 +75496,8 @@
 : string
 | street line
 < row
-: int64 4294967793
 : int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -75499,8 +75511,8 @@
 : null
 : null
 < row
-: int64 4294967793
 : int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -75514,8 +75526,8 @@
 : null
 : null
 < row
-: int64 4294967795
 : int64 4294967796
+: int64 4294967797
 : string
 | app
 : string
@@ -75528,8 +75540,8 @@
 : null
 : null
 < row
-: int64 4294967795
 : int64 4294967796
+: int64 4294967797
 : string
 | app
 : string
@@ -75542,8 +75554,8 @@
 : null
 : null
 < row
-: int64 4294967797
 : int64 4294967798
+: int64 4294967799
 : string
 | app
 : string
@@ -75586,7 +75598,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | app
 : string
@@ -75638,7 +75650,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -75677,7 +75689,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | corpus_ddl
 : string
@@ -75693,7 +75705,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967802
+: int64 4294967803
 : string
 | corpus_drop
 : string
@@ -81602,7 +81614,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -81612,6 +81624,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | audit
@@ -81619,6 +81632,7 @@
 | remote_orders
 : string
 | ["schema_name=public","table_name=orders"]
+: int64 4294967780
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -81644,7 +81658,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | Mixed Case
 : string
@@ -81656,7 +81670,7 @@
 : string
 | postgres
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -81668,7 +81682,7 @@
 : string
 | postgres
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -81680,7 +81694,7 @@
 : string
 | postgres
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -81692,7 +81706,7 @@
 : string
 | postgres
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -81704,7 +81718,7 @@
 : string
 | postgres
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -81716,7 +81730,7 @@
 : string
 | postgres
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -81729,7 +81743,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -81741,7 +81755,7 @@
 : string
 | postgres
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -81753,7 +81767,7 @@
 : string
 | postgres
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -81765,7 +81779,7 @@
 : string
 | postgres
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | app
 : string
@@ -81777,7 +81791,7 @@
 : string
 | postgres
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -81789,7 +81803,7 @@
 : string
 | postgres
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -81801,7 +81815,7 @@
 : string
 | postgres
 < row
-: int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -81813,7 +81827,7 @@
 : string
 | postgres
 < row
-: int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -81825,7 +81839,7 @@
 : string
 | postgres
 < row
-: int64 4294967795
+: int64 4294967796
 : string
 | audit
 : string
@@ -81837,7 +81851,7 @@
 : string
 | postgres
 < row
-: int64 4294967796
+: int64 4294967797
 : string
 | public
 : string
@@ -81849,7 +81863,7 @@
 : string
 | postgres
 < row
-: int64 4294967797
+: int64 4294967798
 : string
 | public
 : string
@@ -82091,7 +82105,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967798
+: int64 4294967799
 : string
 | app
 : string
@@ -82102,7 +82116,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | app
 : string
@@ -82117,7 +82131,7 @@
 : string
 | happy ones
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -82127,7 +82141,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | app
 : string
@@ -82137,7 +82151,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967802
+: int64 4294967803
 : string
 | public
 : string
@@ -82384,7 +82398,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967803
+: int64 4294967804
 : string
 | app
 : string
@@ -82962,12 +82976,6 @@
 : int64 4294967742
 : int64 0
 < row
-: int64 4294967804
-: int64 0
-< row
-: int64 4294967804
-: int64 0
-< row
 : int64 4294967805
 : int64 0
 < row
@@ -82986,9 +82994,6 @@
 : int64 4294967807
 : int64 0
 < row
-: int64 4294967807
-: int64 0
-< row
 : int64 4294967808
 : int64 0
 < row
@@ -82996,6 +83001,15 @@
 : int64 0
 < row
 : int64 4294967808
+: int64 0
+< row
+: int64 4294967809
+: int64 0
+< row
+: int64 4294967809
+: int64 0
+< row
+: int64 4294967809
 : int64 0
 > query
 |
@@ -83034,7 +83048,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967809
+: int64 4294967810
 : string
 | app
 : string
@@ -83051,7 +83065,7 @@
 : string
 | adds integers
 < row
-: int64 4294967810
+: int64 4294967811
 : string
 | app
 : string
@@ -83067,7 +83081,7 @@
 |
 : null
 < row
-: int64 4294967811
+: int64 4294967812
 : string
 | app
 : string
@@ -83083,7 +83097,7 @@
 |
 : null
 < row
-: int64 4294967812
+: int64 4294967813
 : string
 | app
 : string
@@ -83100,7 +83114,7 @@
 |
 : null
 < row
-: int64 4294967813
+: int64 4294967814
 : string
 | app
 : string
@@ -83119,7 +83133,7 @@
 |
 : null
 < row
-: int64 4294967814
+: int64 4294967815
 : string
 | app
 : string
@@ -83137,7 +83151,7 @@
 |
 : null
 < row
-: int64 4294967815
+: int64 4294967816
 : string
 | app
 : string
@@ -83157,7 +83171,7 @@
 |
 : null
 < row
-: int64 4294967816
+: int64 4294967817
 : string
 | audit
 : string
@@ -88271,28 +88285,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967817
-: int64 4294967786
+: int64 4294967818
+: int64 4294967787
 : int64 31
 < row
-: int64 4294967818
-: int64 4294967786
-: int64 1
-< row
 : int64 4294967819
-: int64 4294967786
-: int64 2
+: int64 4294967787
+: int64 1
 < row
 : int64 4294967820
-: int64 4294967790
-: int64 1
+: int64 4294967787
+: int64 2
 < row
 : int64 4294967821
-: int64 4294967796
+: int64 4294967791
 : int64 1
 < row
 : int64 4294967822
-: int64 4294967793
+: int64 4294967797
+: int64 1
+< row
+: int64 4294967823
+: int64 4294967794
 : int64 2
 > query
 |
@@ -88330,7 +88344,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967823
+: int64 4294967824
 : string
 | app
 : string
@@ -88347,7 +88361,7 @@
 : string
 | counts by five
 < row
-: int64 4294967819
+: int64 4294967820
 : string
 | app
 : string
@@ -88363,7 +88377,7 @@
 : null
 : null
 < row
-: int64 4294967818
+: int64 4294967819
 : string
 | app
 : string
@@ -88379,7 +88393,7 @@
 : null
 : null
 < row
-: int64 4294967820
+: int64 4294967821
 : string
 | app
 : string
@@ -88395,7 +88409,7 @@
 : null
 : null
 < row
-: int64 4294967817
+: int64 4294967818
 : string
 | app
 : string
@@ -88411,7 +88425,7 @@
 : null
 : null
 < row
-: int64 4294967822
+: int64 4294967823
 : string
 | app
 : string
@@ -88427,7 +88441,7 @@
 : null
 : null
 < row
-: int64 4294967824
+: int64 4294967825
 : string
 | audit
 : string
@@ -88443,7 +88457,7 @@
 : null
 : null
 < row
-: int64 4294967821
+: int64 4294967822
 : string
 | public
 : string
@@ -88529,7 +88543,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967825
+: int64 4294967826
 : string
 | app
 : string
@@ -88539,7 +88553,7 @@
 : string
 | how it feels
 < row
-: int64 4294967825
+: int64 4294967826
 : string
 | app
 : string
@@ -88549,7 +88563,7 @@
 : string
 | how it feels
 < row
-: int64 4294967825
+: int64 4294967826
 : string
 | app
 : string
@@ -88603,8 +88617,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967826
 : int64 4294967827
+: int64 4294967828
 : string
 | app
 : string
@@ -88620,8 +88634,8 @@
 : string
 | street line
 < row
-: int64 4294967826
 : int64 4294967827
+: int64 4294967828
 : string
 | app
 : string
@@ -88635,8 +88649,8 @@
 : null
 : null
 < row
-: int64 4294967826
 : int64 4294967827
+: int64 4294967828
 : string
 | app
 : string
@@ -88650,8 +88664,8 @@
 : null
 : null
 < row
-: int64 4294967828
 : int64 4294967829
+: int64 4294967830
 : string
 | app
 : string
@@ -88664,8 +88678,8 @@
 : null
 : null
 < row
-: int64 4294967828
 : int64 4294967829
+: int64 4294967830
 : string
 | app
 : string
@@ -88678,8 +88692,8 @@
 : null
 : null
 < row
-: int64 4294967830
 : int64 4294967831
+: int64 4294967832
 : string
 | app
 : string
@@ -88722,7 +88736,7 @@
 < column "rules" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967832
+: int64 4294967833
 : string
 | app
 : string
@@ -88774,7 +88788,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967833
+: int64 4294967834
 : string
 | app
 : string
@@ -88813,7 +88827,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967834
+: int64 4294967835
 : string
 | corpus_ddl
 : string
@@ -88829,7 +88843,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967835
+: int64 4294967836
 : string
 | corpus_drop
 : string

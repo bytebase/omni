@@ -688,3 +688,79 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedHandler(t *testing
 	assert.Contains(t, result, wrapper)
 	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the quoted handler must be written before its wrapper")
 }
+
+// TestDatabaseDefinitionKeepsForeignTableInExtensionSchema checks that a foreign
+// table the extension does not own is written even when its schema is
+// extension-owned, and one the extension owns is left to the extension.
+func TestDatabaseDefinitionKeepsForeignTableInExtensionSchema(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "loopback",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name:     "ext_schema",
+			SkipDump: true,
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{Name: "user_table", ExternalServerName: "loopback"},
+				{Name: "extension_table", ExternalServerName: "loopback", SkipDump: true},
+			},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	assert.Contains(t, result, `CREATE FOREIGN TABLE "ext_schema"."user_table"`)
+	assert.NotContains(t, result, `"ext_schema"."extension_table"`)
+}
+
+// TestDatabaseDefinitionScopesQualifiedHandlerToItsSchema checks that a
+// qualified handler does not also depend on a same-named function in another
+// schema. That false edge can close a cycle with the table the other function
+// reads, and the cycle fallback would then put the wrapper before its handler.
+func TestDatabaseDefinitionScopesQualifiedHandlerToItsSchema(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:    "custom_fdw",
+			Handler: "app.validate",
+		}},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{Name: "s", Fdw: "custom_fdw"}},
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "app",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:       "validate",
+					Definition: "CREATE FUNCTION app.validate() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+				}},
+			},
+			{
+				Name: "other",
+				Functions: []*metadatapb.FunctionMetadata{{
+					Name:             "validate",
+					Definition:       "CREATE FUNCTION other.validate(r public.pt) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "pt"}},
+				}},
+			},
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:       "pt",
+					Partitions: []*metadatapb.TablePartitionMetadata{{Name: "pt_remote", Schema: "public", Value: "FOR VALUES FROM (0) TO (10)"}},
+				}},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{Name: "pt_remote", ExternalServerName: "s"}},
+			},
+		},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	handler := "CREATE FUNCTION app.validate()"
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER app.validate;`
+	assert.Contains(t, result, handler)
+	assert.Contains(t, result, wrapper)
+	assert.Less(t, strings.Index(result, handler), strings.Index(result, wrapper), "the qualified handler must be written before its wrapper")
+}

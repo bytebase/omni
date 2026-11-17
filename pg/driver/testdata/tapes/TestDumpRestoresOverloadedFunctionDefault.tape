@@ -409,7 +409,7 @@
 < column "foreign_server_name" "NAME"
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -419,6 +419,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1375,7 +1376,7 @@
 < column "foreign_server_name" "NAME"
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -1385,6 +1386,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,

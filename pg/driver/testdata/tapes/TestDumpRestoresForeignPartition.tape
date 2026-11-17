@@ -484,7 +484,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -494,6 +494,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | public
@@ -501,6 +502,7 @@
 | pt_remote
 : string
 | ["schema_name=public","table_name=x"]
+: int64 4294967303
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -526,7 +528,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967303
+: int64 4294967304
 : string
 | public
 : string
@@ -1223,8 +1225,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967304
-< row
 : int64 4294967305
 < row
 : int64 4294967306
@@ -1234,6 +1234,8 @@
 : int64 4294967308
 < row
 : int64 4294967309
+< row
+: int64 4294967310
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1612,7 +1614,7 @@
 | loopback
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -1622,6 +1624,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | public
@@ -1629,6 +1632,7 @@
 | pt_remote
 : string
 | ["schema_name=public","table_name=x"]
+: int64 4294967311
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1654,7 +1658,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967310
+: int64 4294967312
 : string
 | public
 : string
@@ -1857,7 +1861,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967308
+: int64 4294967309
 : string
 | public
 : string
@@ -1873,7 +1877,7 @@
 |
 : null
 < row
-: int64 4294967309
+: int64 4294967310
 : string
 | public
 : string
@@ -1889,7 +1893,7 @@
 |
 : null
 < row
-: int64 4294967307
+: int64 4294967308
 : string
 | public
 : string
@@ -1905,7 +1909,7 @@
 |
 : null
 < row
-: int64 4294967304
+: int64 4294967305
 : string
 | public
 : string
@@ -1921,7 +1925,7 @@
 |
 : null
 < row
-: int64 4294967305
+: int64 4294967306
 : string
 | public
 : string

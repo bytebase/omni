@@ -434,7 +434,7 @@
 | handled_server
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -444,6 +444,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | public
@@ -451,6 +452,7 @@
 | handled_remote
 : string
 | ["schema_name=public","table_name=x"]
+: int64 4294967303
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1189,8 +1191,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967303
-< row
 : int64 4294967304
 < row
 : int64 4294967305
@@ -1200,6 +1200,8 @@
 : int64 4294967307
 < row
 : int64 4294967308
+< row
+: int64 4294967309
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1527,7 +1529,7 @@
 | handled_server
 > query
 |
-| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
 | FROM pg_catalog.pg_foreign_table t
 | 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -1537,6 +1539,7 @@
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "coalesce" "TEXT"
+< column "oid" "OID"
 < row
 : string
 | public
@@ -1544,6 +1547,7 @@
 | handled_remote
 : string
 | ["schema_name=public","table_name=x"]
+: int64 4294967310
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1743,7 +1747,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967307
+: int64 4294967308
 : string
 | public
 : string
@@ -1759,7 +1763,7 @@
 |
 : null
 < row
-: int64 4294967308
+: int64 4294967309
 : string
 | public
 : string
@@ -1775,7 +1779,7 @@
 |
 : null
 < row
-: int64 4294967306
+: int64 4294967307
 : string
 | public
 : string
@@ -1791,7 +1795,7 @@
 |
 : null
 < row
-: int64 4294967303
+: int64 4294967304
 : string
 | public
 : string
@@ -1807,7 +1811,7 @@
 |
 : null
 < row
-: int64 4294967304
+: int64 4294967305
 : string
 | public
 : string

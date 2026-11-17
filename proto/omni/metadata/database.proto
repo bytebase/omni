@@ -665,6 +665,11 @@ message ExternalTableMetadata {
   // "TYPE = 'CSV', ENCODING = 'utf8mb4'". Empty when the engine states no
   // format.
   string format = 7;
+
+  // The table belongs to an extension, which creates it; a dump leaves it
+  // alone. A foreign table a user creates inside an extension-owned schema is
+  // not skipped: the extension owns the schema, not every object made in it.
+  bool skip_dump = 8;
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
