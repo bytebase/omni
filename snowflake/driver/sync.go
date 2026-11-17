@@ -249,7 +249,10 @@ func (d *Driver) getColumnMap(ctx context.Context, database string) (map[tableKe
 			DATA_TYPE,
 			IFNULL(CHARACTER_SET_NAME, ''),
 			IFNULL(COLLATION_NAME, ''),
-			IFNULL(COMMENT, '')
+			IFNULL(COMMENT, ''),
+			CHARACTER_MAXIMUM_LENGTH,
+			NUMERIC_PRECISION,
+			NUMERIC_SCALE
 		FROM %s.COLUMNS
 		WHERE %s
 		ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION`, informationSchema(database), excludedSchemaPredicate("TABLE_SCHEMA"))
@@ -263,6 +266,7 @@ func (d *Driver) getColumnMap(ctx context.Context, database string) (map[tableKe
 	for columnRows.Next() {
 		var schemaName, tableName, nullable string
 		var defaultStr sql.NullString
+		var characterMaximum, numericPrecision, numericScale sql.NullInt64
 		column := &metadatapb.ColumnMetadata{}
 		if err := columnRows.Scan(
 			&schemaName,
@@ -275,9 +279,13 @@ func (d *Driver) getColumnMap(ctx context.Context, database string) (map[tableKe
 			&column.CharacterSet,
 			&column.Collation,
 			&column.Comment,
+			&characterMaximum,
+			&numericPrecision,
+			&numericScale,
 		); err != nil {
 			return nil, err
 		}
+		column.Type = columnType(column.Type, characterMaximum, numericPrecision, numericScale)
 		column.Default = defaultStr.String
 		isNullBool, err := convertYesNo(nullable)
 		if err != nil {
@@ -546,4 +554,21 @@ func convertYesNo(s string) (bool, error) {
 // not quote it twice.
 func informationSchema(database string) string {
 	return quoteIdent(database) + ".INFORMATION_SCHEMA"
+}
+
+// columnType spells the type INFORMATION_SCHEMA.COLUMNS reports, whose DATA_TYPE
+// names the base type and whose other columns carry its modifiers. Without them
+// a synced NUMBER(12,2) and NUMBER(38,0) read alike.
+func columnType(dataType string, characterMaximum, numericPrecision, numericScale sql.NullInt64) string {
+	switch strings.ToUpper(dataType) {
+	case "NUMBER", "DECIMAL", "NUMERIC":
+		if numericPrecision.Valid && numericScale.Valid {
+			return fmt.Sprintf("%s(%d,%d)", dataType, numericPrecision.Int64, numericScale.Int64)
+		}
+	case "TEXT", "VARCHAR", "CHAR", "CHARACTER", "STRING", "BINARY", "VARBINARY":
+		if characterMaximum.Valid {
+			return fmt.Sprintf("%s(%d)", dataType, characterMaximum.Int64)
+		}
+	}
+	return dataType
 }

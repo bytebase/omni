@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"database/sql"
 	"testing"
 
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -140,6 +141,28 @@ func TestInformationSchema(t *testing.T) {
 	} {
 		if got := informationSchema(tc.database); got != tc.want {
 			t.Errorf("informationSchema(%q) = %q, want %q", tc.database, got, tc.want)
+		}
+	}
+}
+
+// TestColumnType covers the modifiers INFORMATION_SCHEMA.COLUMNS states apart
+// from the base type, which are what tell NUMBER(12,2) from NUMBER(38,0).
+func TestColumnType(t *testing.T) {
+	for _, tc := range []struct {
+		dataType         string
+		characterMaximum sql.NullInt64
+		precision        sql.NullInt64
+		scale            sql.NullInt64
+		want             string
+	}{
+		{dataType: "NUMBER", precision: sql.NullInt64{Int64: 12, Valid: true}, scale: sql.NullInt64{Int64: 2, Valid: true}, want: "NUMBER(12,2)"},
+		{dataType: "NUMBER", want: "NUMBER"},
+		{dataType: "TEXT", characterMaximum: sql.NullInt64{Int64: 50, Valid: true}, want: "TEXT(50)"},
+		{dataType: "TIMESTAMP_NTZ", want: "TIMESTAMP_NTZ"},
+		{dataType: "VARIANT", want: "VARIANT"},
+	} {
+		if got := columnType(tc.dataType, tc.characterMaximum, tc.precision, tc.scale); got != tc.want {
+			t.Errorf("columnType(%q) = %q, want %q", tc.dataType, got, tc.want)
 		}
 	}
 }

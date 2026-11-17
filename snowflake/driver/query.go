@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"fmt"
 	"strconv"
 	"strings"
@@ -30,7 +31,20 @@ type session struct {
 }
 
 func (s *session) Close() error {
-	return s.conn.Close()
+	discardConn(s.conn)
+	return nil
+}
+
+// discardConn closes conn and drops its physical connection rather than
+// returning it to the pool. A Snowflake session carries the database, schema,
+// role, warehouse and transaction state its statements set, and the next
+// borrower of the same connection would inherit them: a script that ran USE
+// DATABASE would decide where another caller's unqualified write lands.
+func discardConn(conn *sql.Conn) {
+	// database/sql closes the physical connection when Raw's function reports
+	// that the connection is unusable.
+	_ = conn.Raw(func(any) error { return sqldriver.ErrBadConn })
+	_ = conn.Close()
 }
 
 // Query runs each statement of script in order on the session's connection,

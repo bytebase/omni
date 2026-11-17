@@ -44,7 +44,13 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 
 // executeInTransactionMode runs commands in one transaction and commits it.
 func (d *Driver) executeInTransactionMode(ctx context.Context, commands []driver.Command, log driver.ExecuteLogger) (int64, error) {
-	tx, err := d.db.BeginTx(ctx, nil)
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		logTransactionControl(log, driver.Begin, err)
+		return 0, err
+	}
+	defer discardConn(conn)
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		logTransactionControl(log, driver.Begin, err)
 		return 0, err
@@ -95,7 +101,7 @@ func (d *Driver) executeInAutoCommitMode(ctx context.Context, commands []driver.
 	if err != nil {
 		return 0, err
 	}
-	defer conn.Close()
+	defer discardConn(conn)
 
 	var totalRowsAffected int64
 	for _, command := range commands {
