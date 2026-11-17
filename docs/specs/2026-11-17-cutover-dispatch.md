@@ -88,7 +88,7 @@ estimate is all there is, and the row is a prediction, not a cost.
 | 10 | `CLICKHOUSE` | `db/clickhouse` | own; parser is `standard`/`mysql` | `clickhouse/driver` (tapes) | thin adapter; `Dumper` now exists | session, as trino's (per call, not a caller change) | unmeasured |
 | 11 | `DORIS` | `db/doris` | own; imports `db/mysql` helpers | `doris/driver` (tapes) | thin adapter + shared MySQL config builder | session; the shared builder is a precondition | unmeasured |
 | 12 | `STARROCKS` | `db/starrocks` | own; imports `db/mysql` helpers | `starrocks/driver` (tapes) | thin adapter + shared MySQL config builder | session; the shared builder is a precondition | unmeasured |
-| 13 | `MSSQL` | `db/mssql` | own | `mssql/driver` (tapes) | thin adapter + `CountAffectedRows` | session, plancheck, masking consumers | unmeasured (proof running) |
+| 13 | `MSSQL` | `db/mssql` | own | `mssql/driver` (tapes) | thin adapter + `CountAffectedRows` | measured: the shared `GetDB` retirement only. No advisor probe, no plancheck change; masking and batch delegate. Azure AD IAM is refused loudly | 497 / 8 files |
 | 14 | `COCKROACHDB` | `db/cockroachdb` | own; parser handlers are pg's, design says alias pg | `cockroachdb/driver` (tapes) | thin adapter; do not alias pg | plancheck only | unmeasured |
 | 15 | `POSTGRES` | `db/pg` | own; parser also serves CockroachDB | `pg/driver` (tapes) + `Options{TenantMode}` | thin adapter | measured: the advisor probe is forced and `GetDB` retires in 8 files. plancheck was **not** forced; `QueryConn`'s `*sql.Conn` is dead but tolerated | 658 / 16 files |
 | 16 | `MYSQL` | `db/mysql` | registers `MYSQL` and `MARIADB` | `mysql/driver` (tapes) | thin adapter; keep the shared MySQL config builder | measured: an engine-specific `DriverHandle` for the advisors, plancheck's 7 assertions plus 9 blank parser imports, `GetDB`, and gh-ost failing closed | 706 / 17 files |
@@ -129,22 +129,29 @@ Blockers:
 
 ## 3. Measured cost
 
-Five cutovers have been built end to end in scratch Bytebase trees, against live servers, with no
-Bytebase commit: trino at omni `bf1a3396e`, pg at `8664fa7b1`, cassandra at `b13c2e19b`, and
-mysql and oracle at `6dee22d57`. Each replaces `backend/plugin/db/<engine>` with an adapter, then
-makes the product-side change the adapter forces in the scratch tree only, so every failure is
-classified as an adapter bug, a product-side change, or an omni gap. **No proof found a contract
-gap**: every forced change was on Bytebase's side of the seam. pg was run against six majors, mysql
-against two pinned images and oracle against `gvenzl/oracle-free:23.26.3-slim-faststart`, one
-container at a time; each proof's per-file diff and verbatim failures are in its session's report,
-and this section keeps the totals and the decisions they force.
+Six cutovers have been built end to end in scratch Bytebase trees, against live servers, with no
+Bytebase commit: trino at omni `bf1a3396e`, pg at `8664fa7b1`, cassandra at `b13c2e19b`, and mysql,
+oracle and mssql at `6dee22d57` (mssql on top of the driver fixes in #1385). Each replaces
+`backend/plugin/db/<engine>` with an adapter, then makes the product-side change the adapter forces
+in the scratch tree only, so every failure is classified as an adapter bug, a product-side change,
+or an omni gap. **No caller change was omni's to make**: every product-side change landed on
+Bytebase's side of the seam. pg was run against six majors, mysql against two pinned images and
+oracle against `gvenzl/oracle-free:23.26.3-slim-faststart`, one container at a time; each proof's
+per-file diff and verbatim failures are in its session's report, and this section keeps the totals
+and the decisions they force.
 
-The one omni change any proof asked for is a package doc: `cassandra/driver`'s `SyncDatabase`
-promised an empty schema where the code returns `driver.ErrNotFound`. That proof fixed the doc on
-its own branch (`5fcf51383`), and it is not part of this note.
+The omni side did need work, none of it contract-shaped. `cassandra/driver`'s package doc promised
+an empty schema where the code returns `driver.ErrNotFound` (fixed on that proof's branch,
+`5fcf51383`). mssql's live suite found five driver defects — a statement with no result set losing
+its text, a procedure's later result sets landing after their batch, `Limit` unenforced for `EXEC`
+and a byte-cut set swallowing the rest of the batch, masking-withheld rows ending the script, and
+TLS `ServerName` left as `placeholder` — all fixed in #1385. One capability resisted:
+`mssql/driver` always builds the plain sqlserver connector, so a caller cannot hand it Azure AD's
+token-fetching connector, and the adapter refuses that mode loudly. That needs a contract decision,
+and it is the only shipped feature any proof could not carry.
 
-mssql is still being proved in a scratch tree, so its row stays `unmeasured`; so do rows 2-8,
-10-12, 14, 17-19 and 21-24, whose §2 estimate is the adapter prototype's, not a cutover's.
+The remaining rows stay `unmeasured`: rows 2-8, 10-12, 14, 17-19 and 21-24, whose §2 estimate is
+the adapter prototype's, not a cutover's.
 
 | Engine | Prototype adapter | Measured adapter, non-test | Deleted | Callers changed | Product-side diff |
 | --- | --- | --- | --- | --- | --- |
@@ -152,7 +159,7 @@ mssql is still being proved in a scratch tree, so its row stays `unmeasured`; so
 | pg | 226 | 658 (the delegation layer inside it is ~219) | package 5,376 → 1,741; `sync.go`, `role.go`, `stats.go` gone; 2,043 test lines across 3 files | 8 for `GetDB`, 7 for the advisor probe | +199 / −45 (net +154) across 14 product files and 4 test files |
 | mysql | 136 | 706 (450 core, 68 retained helpers, 155 legacy `*sql.DB` probe bridge, 33 synonyms) | 2,952 → 706 non-test; 5 driver files (2,196 lines); 3 test files, 2,163 lines, no longer compile | 17 files | +363 / −104 (net +259), plus 9 blank parser imports |
 | cassandra | 126 | 312 (one file) | 802 driver + 126 tests (928 lines, net −507) | **0** | **0 files.** `go.mod`'s pin replace and `ultimate.go`'s blank import are the only two lines outside the package |
-| mssql | 188 | unmeasured | unmeasured | unmeasured | unmeasured |
+| mssql | 188 | 497 (359 `mssql.go`, 124 `query.go`, 14 `dump.go`) | 2,952 non-test (5 files); 40 test lines deleted, `mssql_test.go` 535 → 500 | 8 files (all `GetDB`; 3 test files touched only to compile) | +50 / −16 (net +34). No advisor seam, no plancheck change |
 | oracle | 143 | 390 (212 `oracle.go`, 139 `query.go`, 26 `sync.go`, 13 `dump.go`) + the same 120 shared conversion | package 2,672 → 390; 2,526 lines deleted; tests 1,435 → 843 | 12 files (+ 6 test files touched only to compile) | +243 / −36 (net +207) |
 
 | Engine | Did the prototype's verdict hold? | Therefore, do this first |
@@ -161,7 +168,7 @@ mssql is still being proved in a scratch tree, so its row stays `unmeasured`; so
 | pg | Half. 226 was the delegation layer (measured ~219); the adapter is 658 because connection resolution Bytebase still owns (~99), `driver.Result` → `v1pb` conversion (~168) and the advisor probe (~75) are part of it. The forced interface was the **advisor probe**, not plancheck, contrary to the prototype's framing. | `advisor.Prober` and `Context.Prober` first (+77/−19 across the new `prober.go`, `advisor.go` and five pg rule files), and the rest of the cutover then compiles. `GetDB` retirement and the 3 `sql_service` sites follow; `rollout_service` (+63/−3) is the one rewrite, onto omni's `Activity()`. |
 | mysql | No. 136 → 706, a 5× miss, and the seam list held in kind but not in shape: a generic probe could not answer MySQL's rules (§5), and 2,163 lines of package tests stopped compiling — a cost no compile can show. | `DriverHandle` for the mysql/mariadb rules first, because the generic prober does not fit them; then gh-ost's fail-closed validator, the only silent feature loss in any proof. If wave 2 has not replaced plancheck's assertions by then, do it here (+24/−62 plus nine imports) — the mysql proof did, and would again, because it removes the pin that keeps `*mysqldriver.Driver` alive. |
 | cassandra | Yes on the claim that matters, no on size. Every wave-1 precondition held exactly — `GetDB` nil before and after, `QueryConn` ignoring its `*sql.Conn`, no product package naming `*cassandra.Driver` — and it is the only measured cutover with zero product files. 312 against 126, and it found four behavior deltas the plan does not name. | Land it first: this is the one cutover a reviewer can approve as a driver swap plus a deletion. Decide its four deltas as part of the change — a dropped keyspace is now `driver.ErrNotFound` instead of an empty schema, `Execute` now emits task-run logs, the adapter gains an SSH `Dial`, and the dead read-only branch is preserved. |
-| mssql | unmeasured | Budget the plancheck interface and its nine imports (wave 2's entry) as its structural blocker, plus whatever its masking consumers need, which is what its proof is measuring. |
+| mssql | Yes on cost, no on the seam list. The predicted blockers mostly were not: no `Prober` (mssql's advisors are static AST rules), no plancheck change (the `*mssql.Driver` assertion still holds), and all 8 caller files are the shared `GetDB` retirement, none mssql-specific. What broke was driver-side — five defects that only a live suite finds. 497 against 188. | Reuse wave 0's `db.SQLDB` and change nothing engine-specific on the caller side; land #1385's driver fixes first, since the adapter is correct only on top of them; record the Azure AD IAM refusal as a contract decision rather than an adapter shortcut. |
 | oracle | Mostly, in the opposite direction. 143 → 390 adapter lines, but the two blockers the plan named as product work mostly were not: `CountAffectedRows` needed **zero** product change, plancheck was never touched, and the `Version` seam disappeared because omni reads `version_full` itself, leaving an 8-line deletion. What did hold is the advisor `Prober`, reused verbatim from pg, and one blocker no one predicted: the private-link guard's interface loses its `*sql.Conn`. | Reuse pg's `prober.go` and `Context.Prober` without re-deriving them, delete the `*oracle.Driver` version assertion instead of porting it, and budget the private-link guard's signature change — it is the one oracle-specific caller edit. |
 
 Every measured row pays these, so every unmeasured row should budget them too:
@@ -177,6 +184,9 @@ Every measured row pays these, so every unmeasured row should budget them too:
   result shapes changed (DECIMAL as text, timestamp accuracy, `timestamp_tz`, no synthetic
   `Affected Rows 0`, `information_schema` gone from sync, no row cap where the engine cannot rewrite).
   Each engine needs its own fixture pass; none of it is visible from `go build`.
+- **The driver, not the adapter, is where behavior breaks.** mssql's live suite found five driver
+  defects, and oracle's found that the private-link guard's interface changes; no compile and no
+  adapter review sees either. Budget a live run per engine, or the cutover ships on a build.
 - **The session change is not a caller change.** trino changed 0 callers because `db.SQLDB` returns nil
   and the three `sql_service` sites already guard it; pg keeps a session per driver through omni's own
   `Activity()`. The behavior that changes is one session per call, not a compile error.
@@ -303,7 +313,7 @@ layer: no engine measured so far needed it — mysql and oracle both landed with
 never tidy those blank imports: they are load-bearing, and omni's own imports cannot replace them,
 because the assertion table is over Bytebase's parser registry.
 
-### Three smaller corrections
+### Four smaller corrections
 
 - **The session blocker is not a wave gate.** trino changed zero callers and pg's `*sql.Conn`
   parameter is dead but tolerated, because `QueryConn` keys its own omni session per driver. What
@@ -349,12 +359,12 @@ but needs `Params` auth/tenantId/emulator, the emulator TLS path and `QueryOptio
 container; `redis` (521) needs topology `Options` and the `AllNodesQuerier` probe. So the order does
 not change and the reason does: cassandra is first because it is clean, not because it is small.
 
-**Wave 2 — plancheck-only engines (13, 14).** `mssql` and `cockroachdb`: the plancheck interface is
-their entry cost, and it is the only place the nine blank parser imports appear (+24/−62 plus the
-imports). No measured engine has needed it, so it is wave 2's work rather than shared-layer work.
-mssql also carries its masking consumers, which its proof is measuring; `cockroachdb` stays its own
-adapter rather than aliasing pg (§4). Both are unmeasured, so budget below pg's 658 adapter lines
-and above trino's 234.
+**Wave 2 — the `GetDB`-retirement engines (13, 14).** `mssql` first: measured at 8 caller files
++50/−16 (net +34), no advisor seam and no plancheck change — the cheapest product side any proof has
+produced, and it needs only wave 0's `db.SQLDB` plus #1385's driver fixes. Then `cockroachdb`,
+unmeasured: it is the engine most likely to need the plancheck interface, and if it does, that
+change carries the nine blank parser imports (§5). `cockroachdb` stays its own adapter rather than
+aliasing pg (§4).
 
 **Wave 3 — the SQL family with advisor coupling (15-20), in this order: `pg`, `oracle`,
 `tidb`/`oceanbase`, `mysql`/`mariadb`.** pg first: measured, 658 adapter lines, 14 product files,
