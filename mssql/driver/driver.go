@@ -29,6 +29,12 @@
 // reads from a path, so a caller that has one passes it in
 // Params["certificate"] the way the client expects. Config.ReadOnly is
 // ignored: the driver does not open a read-only session.
+//
+// Config.TokenProvider opens the client's security-token connector: the token
+// is an Entra ID access token for Azure SQL, requested for the server's
+// audience (https://database.windows.net/.default for Azure SQL). User may be
+// empty for a token login and Password is unused. With no provider, User and
+// Password authenticate as SQL Server logins.
 package driver
 
 import (
@@ -62,6 +68,10 @@ var (
 // defaultPort is the port a Config with none connects to.
 const defaultPort = "1433"
 
+// newSecurityTokenConnector is the client constructor a test replaces to see
+// the token provider it receives.
+var newSecurityTokenConnector = gomssqldb.NewSecurityTokenConnector
+
 // Driver is an open SQL Server driver: a pool of connections to one database.
 type Driver struct {
 	db            *sql.DB
@@ -85,7 +95,12 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 		d.closeDialer()
 		return nil, err
 	}
-	db := sql.OpenDB(gomssqldb.NewConnectorConfig(config))
+	connector, err := newConnector(cfg, config)
+	if err != nil {
+		d.closeDialer()
+		return nil, err
+	}
+	db := sql.OpenDB(connector)
 	db.SetConnMaxLifetime(2 * time.Hour)
 	db.SetMaxOpenConns(50)
 	db.SetMaxIdleConns(15)
@@ -93,12 +108,22 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 	return d, nil
 }
 
+// newConnector builds the client connector. A token login uses the client's
+// security-token connector, which keeps Config.TLS and Config.Dial in effect;
+// otherwise the plain connector takes User and Password.
+func newConnector(cfg driver.Config, config msdsn.Config) (*gomssqldb.Connector, error) {
+	if cfg.TokenProvider != nil {
+		return newSecurityTokenConnector(config, cfg.TokenProvider)
+	}
+	return gomssqldb.NewConnectorConfig(config), nil
+}
+
 // mssqlConfig builds the client's configuration from cfg. The credentials and
 // the endpoint are set on the parsed configuration rather than written into the
 // DSN, so a value holding a query separator or a payload cannot name another
 // setting.
 func (d *Driver) mssqlConfig(cfg driver.Config) (msdsn.Config, error) {
-	if cfg.User == "" {
+	if cfg.User == "" && cfg.TokenProvider == nil {
 		return msdsn.Config{}, errors.New("user must be set")
 	}
 	host := strings.TrimSpace(cfg.Host)
@@ -151,6 +176,12 @@ func (d *Driver) mssqlConfig(cfg driver.Config) (msdsn.Config, error) {
 			return msdsn.Config{}, fmt.Errorf("invalid port %q", port)
 		}
 		mssqlConfig.Port = value
+	}
+	// The client read the rest of the DSN from a placeholder host, so the name
+	// it verifies the server's certificate against is the one dialed, unless
+	// the caller named the certificate's host itself.
+	if mssqlConfig.TLSConfig != nil && host != "" && !mssqlConfig.HostInCertificateProvided {
+		mssqlConfig.TLSConfig.ServerName = host
 	}
 	mssqlConfig.User = cfg.User
 	mssqlConfig.Password = cfg.Password

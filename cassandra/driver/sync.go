@@ -104,9 +104,11 @@ type columnOrderInfo struct {
 
 // SyncDatabase reads the full schema of Config.Database: its tables with their
 // columns in the order Cassandra reads them, the primary key and any secondary
-// indexes. A keyspace the server does not have answers an empty schema, as
-// Bytebase's did: Cassandra's catalog queries report no rows rather than an
-// error, and this driver does not ask whether the keyspace exists first.
+// indexes. A keyspace the server no longer has is driver.ErrNotFound: the
+// driver asks the catalog whether the keyspace exists before reading it, so a
+// keyspace dropped after the driver opened is reported as gone rather than as
+// an empty schema. A driver opened on a keyspace the server never had fails
+// earlier, when gocql builds the session.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	c, err := d.conn()
 	if err != nil {
