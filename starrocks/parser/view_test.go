@@ -87,6 +87,32 @@ func TestCreateView_Basic(t *testing.T) {
 	}
 }
 
+// A view body is a queryStatement (StarRocks.g4:607), not a bare SELECT, so a set
+// operation, a WITH clause and a parenthesized query are the forms a SELECT
+// statement takes anywhere else.
+func TestCreateView_QueryForms(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want ast.NodeTag
+	}{
+		{"set operation", "CREATE VIEW v AS SELECT 1 AS k UNION ALL SELECT 2 AS k", ast.T_SetOpStmt},
+		{"with clause", "CREATE VIEW v AS WITH c AS (SELECT 1 AS k) SELECT k FROM c", ast.T_SelectStmt},
+		{"parenthesized", "CREATE VIEW v AS (SELECT 1 AS k)", ast.T_ParenSelect},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stmt := parseCreateViewStmt(t, test.sql)
+			if stmt.Query == nil {
+				t.Fatal("Query is nil")
+			}
+			if stmt.Query.Tag() != test.want {
+				t.Errorf("Query.Tag() = %v, want %v", stmt.Query.Tag(), test.want)
+			}
+		})
+	}
+}
+
 func TestCreateView_OrReplace(t *testing.T) {
 	stmt := parseCreateViewStmt(t, "CREATE OR REPLACE VIEW v AS SELECT * FROM t")
 	if !stmt.OrReplace {
@@ -211,6 +237,29 @@ func TestAlterView_Basic(t *testing.T) {
 	}
 	if stmt.Query.Tag() != ast.T_SelectStmt {
 		t.Errorf("Query.Tag() = %v, want T_SelectStmt", stmt.Query.Tag())
+	}
+}
+
+// StarRocks.g4:611's alterView states queryStatement too.
+func TestAlterView_QueryForms(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want ast.NodeTag
+	}{
+		{"set operation", "ALTER VIEW v AS SELECT 1 AS k UNION ALL SELECT 2 AS k", ast.T_SetOpStmt},
+		{"with clause", "ALTER VIEW v AS WITH c AS (SELECT 1 AS k) SELECT k FROM c", ast.T_SelectStmt},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stmt := parseAlterViewStmt(t, test.sql)
+			if stmt.Query == nil {
+				t.Fatal("Query is nil")
+			}
+			if stmt.Query.Tag() != test.want {
+				t.Errorf("Query.Tag() = %v, want %v", stmt.Query.Tag(), test.want)
+			}
+		})
 	}
 }
 

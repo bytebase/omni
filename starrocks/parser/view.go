@@ -69,8 +69,8 @@ func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, er
 		return nil, err
 	}
 
-	// Query — parse the SELECT statement
-	query, err := p.parseSelectStmt()
+	// Query
+	query, err := p.parseViewQuery()
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 	}
 
 	// Query
-	query, err := p.parseSelectStmt()
+	query, err := p.parseViewQuery()
 	if err != nil {
 		return nil, err
 	}
@@ -142,6 +142,33 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(query))
 	return stmt, nil
+}
+
+// parseViewQuery parses a view body. StarRocks.g4:607 createView and :611
+// alterView state `queryStatement`, not a bare SELECT, so a set operation, a WITH
+// clause or a parenthesized query parses here as it does in a statement of its
+// own.
+func (p *Parser) parseViewQuery() (ast.Node, error) {
+	switch p.cur.Kind {
+	case kwWITH:
+		with, err := p.parseWithSelect()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseSetOpTail(with)
+	case int('('):
+		paren, err := p.parseParenSelect()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseSetOpTail(paren)
+	default:
+		query, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseSetOpTail(query)
+	}
 }
 
 // parseDropView parses a DROP VIEW statement.
