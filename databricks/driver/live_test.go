@@ -239,6 +239,28 @@ func TestLiveExecute(t *testing.T) {
 	}
 }
 
+// TestLivePing asks the workspace for its root folder, which is the connectivity
+// check this driver offers: Databricks has no SQL-level ping.
+//
+// It opens the driver itself rather than through openLive, so the request its
+// tape holds is the ping and nothing else.
+func TestLivePing(t *testing.T) {
+	ctx := context.Background()
+	cfg := liveConfig(t)
+	if cfg.Database == "" {
+		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because the pin is the workspace and catalog the other tapes record", dsnVariable)
+	}
+	d, err := Open(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	defer func() { _ = d.Close() }()
+
+	if err := d.Ping(ctx); err != nil {
+		t.Fatalf("Ping: %v (VERIFY.md step 1: the host, the token and the warehouse are what Ping reaches)", err)
+	}
+}
+
 // TestLiveDump asks the workspace to state the configured catalog's objects.
 func TestLiveDump(t *testing.T) {
 	d := openLive(t)
