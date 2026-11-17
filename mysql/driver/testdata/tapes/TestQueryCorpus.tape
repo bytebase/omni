@@ -3,7 +3,7 @@
 
 == TestQueryCorpus/lctn1 lctn1#1
 > exec
-| CREATE TABLE qitems (
+| /*app=bytebase*/ CREATE TABLE qitems (
 |   id BIGINT PRIMARY KEY,
 |   note VARCHAR(64),
 |   amount DECIMAL(10,2),
@@ -16,14 +16,14 @@
 | );
 < ok 0 0
 > exec
-|
+| /*app=bytebase*/ 
 | INSERT INTO qitems VALUES
 |   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615, 0x00ff00),
 |   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10, 0x10),
 |   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 < ok 3 0
 > exec
-|
+| /*app=bytebase*/ 
 | CREATE PROCEDURE qcount()
 | BEGIN
 |   SELECT COUNT(*) AS n FROM qitems;
@@ -229,7 +229,7 @@
 < row
 : int64 3
 > exec
-| CALL qcount();
+| /*app=bytebase*/ CALL qcount();
 < ok 0 0
 > query
 | /*app=bytebase*/ CHECK TABLE qitems;
@@ -248,7 +248,10 @@
 : bytes
 | OK
 > exec
-| UPDATE qitems SET note = 'z' WHERE id <= 2;
+| /*app=bytebase*/ UPDATE qitems SET note = 'app' WHERE id = 3;
+< ok 1 0
+> exec
+| /*app=bytebase*/ UPDATE qitems SET note = 'z' WHERE id <= 2;
 < ok 2 0
 > query
 | /*app=bytebase*/ SELECT id, note FROM qitems ORDER BY id;
@@ -266,7 +269,7 @@
 < row
 : int64 3
 : bytes
-| c
+| app
 > query ^
 < result
 < column "id" "BIGINT" "int64"
@@ -282,11 +285,11 @@
 < row
 : int64 3
 : bytes
-| c
+| app
 
 == TestQueryCorpus/mysql84 mysql84#1
 > exec
-| CREATE TABLE qitems (
+| /*app=bytebase*/ CREATE TABLE qitems (
 |   id BIGINT PRIMARY KEY,
 |   note VARCHAR(64),
 |   amount DECIMAL(10,2),
@@ -299,14 +302,14 @@
 | );
 < ok 0 0
 > exec
-|
+| /*app=bytebase*/ 
 | INSERT INTO qitems VALUES
 |   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615, 0x00ff00),
 |   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10, 0x10),
 |   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 < ok 3 0
 > exec
-|
+| /*app=bytebase*/ 
 | CREATE PROCEDURE qcount()
 | BEGIN
 |   SELECT COUNT(*) AS n FROM qitems;
@@ -512,7 +515,7 @@
 < row
 : int64 3
 > exec
-| CALL qcount();
+| /*app=bytebase*/ CALL qcount();
 < ok 0 0
 > query
 | /*app=bytebase*/ CHECK TABLE qitems;
@@ -531,7 +534,10 @@
 : bytes
 | OK
 > exec
-| UPDATE qitems SET note = 'z' WHERE id <= 2;
+| /*app=bytebase*/ UPDATE qitems SET note = 'app' WHERE id = 3;
+< ok 1 0
+> exec
+| /*app=bytebase*/ UPDATE qitems SET note = 'z' WHERE id <= 2;
 < ok 2 0
 > query
 | /*app=bytebase*/ SELECT id, note FROM qitems ORDER BY id;
@@ -549,7 +555,7 @@
 < row
 : int64 3
 : bytes
-| c
+| app
 > query ^
 < result
 < column "id" "BIGINT" "int64"
@@ -565,4 +571,4 @@
 < row
 : int64 3
 : bytes
-| c
+| app

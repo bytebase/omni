@@ -330,6 +330,13 @@ func TestQueryCorpus(t *testing.T) {
 				t.Fatalf("empty executable comment = %+v, %v", none, err)
 			}
 
+			// A write carries the application comment as a query does, which the
+			// tape pins: it replays only the request text it recorded.
+			execComment, err := sess.Query(ctx, "UPDATE qitems SET note = 'app' WHERE id = 3;", driver.QueryOptions{})
+			if err != nil || len(execComment) != 1 || execComment[0].AffectedRows == nil || *execComment[0].AffectedRows != 1 {
+				t.Fatalf("commented write = %+v, %v", execComment, err)
+			}
+
 			// 9. A write that returns no rows reports its count, and masking
 			// asks this driver for nothing: the same rows come back either way.
 			updated, err := sess.Query(ctx, "UPDATE qitems SET note = 'z' WHERE id <= 2;", driver.QueryOptions{})

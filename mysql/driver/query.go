@@ -219,9 +219,10 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		return res, nil
 	}
 
-	// A statement that returns no rows is sent without the application
-	// comment, which is what Bytebase's MySQL driver does.
-	sqlResult, err := s.conn.ExecContext(ctx, statement)
+	// A statement that returns no rows carries the application comment too, so
+	// that a write from the query editor is attributable to the caller in the
+	// server's log as a query is. Bytebase's MySQL driver sends it bare.
+	sqlResult, err := s.conn.ExecContext(ctx, s.driver.withAppComment(statement))
 	if err != nil {
 		return nil, err
 	}
