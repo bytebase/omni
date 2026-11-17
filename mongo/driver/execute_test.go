@@ -4,7 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/bytebase/gomongo"
+	"github.com/bytebase/gomongo/types"
 	"github.com/stretchr/testify/require"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -100,4 +103,29 @@ func TestExecute(t *testing.T) {
 	require.NoError(t, err)
 	require.Zero(t, affected)
 	require.Equal(t, []int64{0}, read.responses[0].perResult)
+}
+
+// TestAffectedRowsCountsALiveInsertMany holds a multi-document insert to the
+// documents it inserted. gomongo answers with the Go driver's own
+// InsertManyResult.InsertedIDs, a []any, while a tape has already carried the
+// same field through Extended JSON, which decodes an array into a bson.A; a
+// count that reads only one of the two reports nothing on a live server.
+func TestAffectedRowsCountsALiveInsertMany(t *testing.T) {
+	live := &gomongo.Result{
+		Operation: types.OpInsertMany,
+		Value: []any{bson.D{
+			{Key: "acknowledged", Value: true},
+			{Key: "insertedIds", Value: []any{int32(1), int32(2)}},
+		}},
+	}
+	require.Equal(t, int64(2), affectedRows(live))
+
+	replayed := &gomongo.Result{
+		Operation: types.OpInsertMany,
+		Value: []any{bson.D{
+			{Key: "acknowledged", Value: true},
+			{Key: "insertedIds", Value: bson.A{int32(1), int32(2)}},
+		}},
+	}
+	require.Equal(t, int64(2), affectedRows(replayed))
 }

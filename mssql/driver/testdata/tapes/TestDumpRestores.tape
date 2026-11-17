@@ -43,6 +43,11 @@
 | CREATE INDEX [IX_children_status_note] ON [dump].[children] ([status]) INCLUDE ([note]);
 < ok 0 -
 > exec
+| -- A filtered index renders its own predicate after its INCLUDE list, and the
+| -- predicate is the text SQL Server reports, brackets and term order kept.
+| CREATE INDEX [IX_children_open] ON [dump].[children] ([parent_id]) INCLUDE ([status]) WHERE [parent_id] > 0 AND [note] IS NOT NULL;
+< ok 0 -
+> exec
 | -- A partitioned rowstore index reports the partitioning column it does not
 | -- key at key_ordinal 0 with is_included_column 0. The dump carries no
 | -- partition scheme to restore it with, so the index must be dumped with its
@@ -803,6 +808,48 @@
 : string
 | dump
 : string
+| children
+: int64 1013578649
+: int64 6
+: string
+| IX_children_open
+: string
+| NONCLUSTERED
+: bool false
+: string
+| ([parent_id]>(0) AND [note] IS NOT NULL)
+: null
+: null
+: string
+| status
+: int64 0
+: bool true
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1013578649
+: int64 6
+: string
+| IX_children_open
+: string
+| NONCLUSTERED
+: bool false
+: string
+| ([parent_id]>(0) AND [note] IS NOT NULL)
+: null
+: null
+: string
+| parent_id
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
 | events
 : int64 1061578820
 : int64 1
@@ -1532,6 +1579,12 @@
 |     CONSTRAINT [FK_children_parents] FOREIGN KEY ([parent_id]) REFERENCES [dump].[parents] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION
 | );
 |
+| CREATE NONCLUSTERED INDEX [IX_children_open] ON
+| [dump].[children] (
+|     [parent_id] ASC
+| ) INCLUDE ([status])
+| WHERE ([parent_id]>(0) AND [note] IS NOT NULL);
+|
 | CREATE NONCLUSTERED INDEX [IX_children_status] ON
 | [dump].[children] (
 |     [status] DESC,
@@ -2183,6 +2236,48 @@
 : int64 1333579789
 : int64 3
 : string
+| IX_children_open
+: string
+| NONCLUSTERED
+: bool false
+: string
+| ([parent_id]>(0) AND [note] IS NOT NULL)
+: null
+: null
+: string
+| status
+: int64 0
+: bool true
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1333579789
+: int64 3
+: string
+| IX_children_open
+: string
+| NONCLUSTERED
+: bool false
+: string
+| ([parent_id]>(0) AND [note] IS NOT NULL)
+: null
+: null
+: string
+| parent_id
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1333579789
+: int64 4
+: string
 | IX_children_status
 : string
 | NONCLUSTERED
@@ -2201,7 +2296,7 @@
 : string
 | children
 : int64 1333579789
-: int64 3
+: int64 4
 : string
 | IX_children_status
 : string
@@ -2221,7 +2316,7 @@
 : string
 | children
 : int64 1333579789
-: int64 4
+: int64 5
 : string
 | IX_children_status_note
 : string
@@ -2241,7 +2336,7 @@
 : string
 | children
 : int64 1333579789
-: int64 4
+: int64 5
 : string
 | IX_children_status_note
 : string
@@ -2261,7 +2356,7 @@
 : string
 | children
 : int64 1333579789
-: int64 5
+: int64 6
 : string
 | UX_children_note
 : string

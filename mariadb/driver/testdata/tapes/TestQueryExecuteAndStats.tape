@@ -179,9 +179,13 @@
 |     ]
 |   }
 | }
-> exec
+> query
 | DELETE FROM items WHERE id = 10 RETURNING note;
-< ok 0 0
+< result
+< column "note" "VARCHAR"
+< row
+: bytes
+| kept
 > query
 | SELECT COUNT(*) FROM items WHERE id = 99;
 < result
@@ -389,9 +393,13 @@
 |     }
 |   }
 | }
-> exec
+> query
 | DELETE FROM items WHERE id = 10 RETURNING note;
-< ok 0 0
+< result
+< column "note" "VARCHAR"
+< row
+: bytes
+| kept
 > query
 | SELECT COUNT(*) FROM items WHERE id = 99;
 < result

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	gomssqldb "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/bytebase/omni/driver"
@@ -107,6 +108,48 @@ func TestMSSQLConfigTLS(t *testing.T) {
 	}
 }
 
+// A connection that lets the client build its TLS configuration from the
+// parameters must verify the host it dials, not the placeholder the client
+// reads the rest of the DSN from.
+func TestMSSQLConfigTLSVerifiesTheHost(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Params = map[string]string{"encrypt": "true"}
+	config, err := (&Driver{}).mssqlConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.TLSConfig == nil {
+		t.Fatal("no TLS configuration")
+	}
+	if config.TLSConfig.ServerName != "db.example.com" {
+		t.Fatalf("TLS verifies %q, want db.example.com", config.TLSConfig.ServerName)
+	}
+
+	instance := baseConfig()
+	instance.Host = `db.example.com\SQLEXPRESS`
+	instance.Params = map[string]string{"encrypt": "true"}
+	config, err = (&Driver{}).mssqlConfig(instance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.TLSConfig == nil || config.TLSConfig.ServerName != "db.example.com" {
+		t.Fatalf("named-instance TLS verifies %+v, want db.example.com", config.TLSConfig)
+	}
+
+	// A caller that names the certificate's host keeps it: an alias or an IP
+	// address dialed to a server whose certificate names another DNS host
+	// still verifies.
+	named := baseConfig()
+	named.Params = map[string]string{"encrypt": "true", "hostnameincertificate": "sql.example.com"}
+	config, err = (&Driver{}).mssqlConfig(named)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.TLSConfig == nil || config.TLSConfig.ServerName != "sql.example.com" {
+		t.Fatalf("TLS verifies %+v, want the caller's sql.example.com", config.TLSConfig)
+	}
+}
+
 func TestMSSQLConfigValidation(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -157,5 +200,39 @@ func TestOpenDoesNotConnect(t *testing.T) {
 	}
 	if err := d.Close(); err != nil {
 		t.Error(err)
+	}
+}
+
+// A token login needs no user, and its provider must reach the client's
+// security-token connector rather than stay in this package.
+func TestOpenUsesTokenProvider(t *testing.T) {
+	cfg := baseConfig()
+	cfg.User = ""
+	wantToken := "token-for-azure-sql"
+	cfg.TokenProvider = func(context.Context) (string, error) { return wantToken, nil }
+
+	original := newSecurityTokenConnector
+	defer func() { newSecurityTokenConnector = original }()
+	var gotConfig msdsn.Config
+	var gotProvider func(context.Context) (string, error)
+	newSecurityTokenConnector = func(config msdsn.Config, provider func(context.Context) (string, error)) (*gomssqldb.Connector, error) {
+		gotConfig, gotProvider = config, provider
+		return gomssqldb.NewConnectorConfig(config), nil
+	}
+
+	d, err := Open(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	if gotProvider == nil {
+		t.Fatal("the token provider did not reach the client's connector")
+	}
+	token, err := gotProvider(context.Background())
+	if err != nil || token != wantToken {
+		t.Fatalf("token %q, err %v, want %q", token, err, wantToken)
+	}
+	if gotConfig.Host != "db.example.com" || gotConfig.User != "" {
+		t.Fatalf("connector host %q user %q, want db.example.com and no user", gotConfig.Host, gotConfig.User)
 	}
 }

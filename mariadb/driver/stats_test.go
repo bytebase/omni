@@ -36,3 +36,16 @@ func TestDMLStatement(t *testing.T) {
 		})
 	}
 }
+
+func TestRequireOneStatement(t *testing.T) {
+	if err := requireOneStatement("DELETE FROM t WHERE id = 1"); err != nil {
+		t.Fatalf("one statement = %v", err)
+	}
+	// The probe prefixes EXPLAIN, and the connection sends every statement of a
+	// request, so a second one would run.
+	for _, statement := range []string{"DELETE FROM t; DROP TABLE t", "", "DELETE FROM"} {
+		if err := requireOneStatement(statement); err == nil {
+			t.Errorf("requireOneStatement(%q) = nil", statement)
+		}
+	}
+}

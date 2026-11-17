@@ -479,3 +479,36 @@ func TestValidateSQLForEditor(t *testing.T) {
 		}
 	}
 }
+
+// TestStatementReadsRows holds the one place the driver's own routing differs
+// from the editor's read-only classification: EXPLAIN ANALYZE is a write to the
+// editor because it runs what it plans, and still a statement whose rows are
+// the plan.
+func TestStatementReadsRows(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		rows      bool
+	}{
+		{"SELECT 1", true},
+		{"SHOW TABLES", true},
+		{"EXPLAIN SELECT 1", true},
+		{"EXPLAIN ANALYZE SELECT 1", true},
+		{"-- c\nEXPLAIN ANALYZE SELECT 1", true},
+		{"EXPLAIN ANALYZE json = 1 SELECT 1", true},
+		{"INSERT INTO t VALUES (1)", false},
+		{"WITH x AS (SELECT 1) DELETE FROM t", false},
+		{"SELECT 1; DROP TABLE t", false},
+	} {
+		got, err := statementReadsRows(tc.statement)
+		if err != nil {
+			t.Errorf("%q: %v", tc.statement, err)
+			continue
+		}
+		if got != tc.rows {
+			t.Errorf("statementReadsRows(%q) = %v, want %v", tc.statement, got, tc.rows)
+		}
+	}
+	if _, err := statementReadsRows("SELECT 'unterminated"); err == nil {
+		t.Error("statementReadsRows of an unterminated literal returned no error")
+	}
+}

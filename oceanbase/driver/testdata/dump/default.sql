@@ -59,6 +59,18 @@ CREATE TABLE `orders` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
+-- Table structure for `ext_feed`
+--
+CREATE EXTERNAL TABLE `ext_feed` (
+  `c1` int GENERATED ALWAYS AS (metadata$filecol1),
+  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2) COMMENT 'owner\'s note'
+)
+LOCATION = 'file:///tmp'
+PATTERN = '.*[.]csv'
+AUTO_REFRESH = IMMEDIATE
+FORMAT (TYPE = 'CSV', ENCODING = 'utf8mb4');
+
+--
 -- Function structure for `fn_escaped`
 --
 SET character_set_client = utf8mb4;

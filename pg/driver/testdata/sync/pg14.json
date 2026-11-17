@@ -1662,7 +1662,6 @@
         {
           "name":  "remote_orders",
           "externalServerName":  "loopback",
-          "externalDatabaseName":  "omni_testsyncdatabase",
           "columns":  [
             {
               "name":  "id",
@@ -1675,6 +1674,10 @@
               "nullable":  true,
               "type":  "character varying(30)"
             }
+          ],
+          "options":  [
+            "schema_name=public",
+            "table_name=orders"
           ]
         }
       ],
@@ -3490,6 +3493,16 @@
       "functionSchema":  "audit",
       "functionName":  "on_ddl",
       "definition":  "CREATE EVENT TRIGGER \"corpus_drop\" ON sql_drop\n  EXECUTE FUNCTION \"audit\".\"on_ddl\"()"
+    }
+  ],
+  "foreignServers":  [
+    {
+      "name":  "loopback",
+      "fdw":  "postgres_fdw",
+      "options":  [
+        "host=localhost",
+        "dbname=postgres"
+      ]
     }
   ]
 }

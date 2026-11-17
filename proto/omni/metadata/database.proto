@@ -51,6 +51,63 @@ message DatabaseSchemaMetadata {
   // SCHEMA_NAME()): where an unqualified name is created, and where it is
   // looked up before dbo. A sysadmin's is dbo.
   string default_schema = 13;
+
+  // The foreign servers of a database (PostgreSQL CREATE SERVER). A foreign
+  // table names one through ExternalTableMetadata.external_server_name, so a
+  // dump writes the server before the table. An engine that holds no foreign
+  // server leaves it empty.
+  repeated ForeignServerMetadata foreign_servers = 14;
+
+  // The foreign data wrappers the database declares itself (PostgreSQL CREATE
+  // FOREIGN DATA WRAPPER). A wrapper an extension provides is not in the list:
+  // the extension creates it. An engine that holds no foreign data wrapper
+  // leaves it empty.
+  repeated ForeignDataWrapperMetadata foreign_data_wrappers = 15;
+}
+
+// ForeignDataWrapperMetadata is a foreign data wrapper the database declares
+// itself: what a foreign server names as the code that reaches its data.
+message ForeignDataWrapperMetadata {
+  // The name of the foreign data wrapper.
+  string name = 1;
+
+  // The handler function the wrapper states, as PostgreSQL's
+  // pg_foreign_data_wrapper.fdwhandler names it. Empty when it declares none.
+  string handler = 2;
+
+  // The validator function the wrapper states, as PostgreSQL's
+  // pg_foreign_data_wrapper.fdwvalidator names it. Empty when it declares none.
+  string validator = 3;
+
+  // The wrapper's options as pg_foreign_data_wrapper.fdwoptions states them:
+  // each entry is "key=value", with the value unquoted. Empty when it declares
+  // none.
+  repeated string options = 4;
+}
+
+// ForeignServerMetadata is a foreign server (PostgreSQL CREATE SERVER): the
+// connection a foreign table that names it reaches its data through.
+message ForeignServerMetadata {
+  // The name of the server.
+  string name = 1;
+
+  // The foreign data wrapper the server uses, such as "postgres_fdw".
+  string fdw = 2;
+
+  // The server's options as PostgreSQL's pg_foreign_server.srvoptions states
+  // them: each entry is "key=value", with the value unquoted. Empty when the
+  // server declares none.
+  repeated string options = 3;
+
+  // The server's TYPE clause. Unset when the server declares none; set to ""
+  // when it declares an empty type, which pg_foreign_server.srvtype keeps
+  // apart from NULL.
+  optional string type = 4;
+
+  // The server's VERSION clause. Unset when the server declares none; set to
+  // "" when it declares an empty version, which pg_foreign_server.srvversion
+  // keeps apart from NULL.
+  optional string version = 5;
 }
 
 message LinkedDatabaseMetadata {
@@ -592,6 +649,46 @@ message ExternalTableMetadata {
 
   // The columns is the ordered list of columns in a foreign table.
   repeated ColumnMetadata columns = 4;
+
+  // The table's options as PostgreSQL's pg_foreign_table.ftoptions states
+  // them: each entry is "key=value", with the value unquoted. Empty when the
+  // table declares none.
+  repeated string options = 5;
+
+  // The location the engine states for an external table (OceanBase's
+  // LOCATION, which SHOW CREATE TABLE states). Empty when the engine states
+  // no location.
+  string location = 6;
+
+  // The FORMAT clause the engine states for an external table (OceanBase),
+  // without the FORMAT keyword and its enclosing parentheses: for example
+  // "TYPE = 'CSV', ENCODING = 'utf8mb4'". Empty when the engine states no
+  // format.
+  string format = 7;
+
+  // The table belongs to an extension, which creates it; a dump leaves it
+  // alone. A foreign table a user creates inside an extension-owned schema is
+  // not skipped: the extension owns the schema, not every object made in it.
+  bool skip_dump = 8;
+
+  // The check constraints the engine states on a foreign table. PostgreSQL does
+  // not enforce them locally but uses them for query optimization, so a dump
+  // writes them. Empty for an engine that states none.
+  repeated CheckConstraintMetadata check_constraints = 9;
+
+  // The file filter the engine states for an external table (OceanBase's
+  // PATTERN), such as ".*[.]csv". Empty when the engine states none; omitting
+  // it makes the table read every file under its location.
+  string pattern = 10;
+
+  // The triggers the engine states on a foreign table. Empty for an engine that
+  // states none.
+  repeated TriggerMetadata triggers = 11;
+
+  // The automatic refresh policy an external table states (OceanBase's
+  // AUTO_REFRESH), such as "OFF", "IMMEDIATE" or an interval. Empty when the
+  // engine states none.
+  string auto_refresh = 12;
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
@@ -724,6 +821,12 @@ message ColumnMetadata {
 
   // The identity_increment is for identity columns, MSSQL only.
   int64 identity_increment = 19;
+
+  // The options the engine states on a foreign table's column, as PostgreSQL's
+  // pg_attribute.attfdwoptions does: each entry is "key=value", with the value
+  // unquoted. Empty for a column that declares none, and for an engine that
+  // states no column options.
+  repeated string options = 24;
 
   // The default_constraint_name is the name of the default constraint, MSSQL only.
   // In MSSQL, default values are implemented as named constraints. When modifying or

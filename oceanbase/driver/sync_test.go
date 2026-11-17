@@ -3,10 +3,12 @@ package driver
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -362,5 +364,120 @@ func TestEscapeEventComment(t *testing.T) {
 		if got := escapeEventComment(tc.comment, tc.sqlMode); got != tc.want {
 			t.Errorf("escapeEventComment(%q, %q) = %q, want %q", tc.comment, tc.sqlMode, got, tc.want)
 		}
+	}
+}
+
+// eventRowsDriver answers the event query with the rows a test sets, so the
+// recreated-database case needs no server.
+type eventRowsDriver struct{ rows [][]sqldriver.Value }
+
+func (eventRowsDriver) Open(string) (sqldriver.Conn, error) { return eventRowsConn{}, nil }
+
+type eventRowsConn struct{}
+
+func (eventRowsConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (eventRowsConn) Close() error                           { return nil }
+func (eventRowsConn) Begin() (sqldriver.Tx, error)           { return nil, sqldriver.ErrSkip }
+
+func (eventRowsConn) QueryContext(context.Context, string, []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	return &eventRows{d: testEventRows}, nil
+}
+
+// eventRows returns the duplicate rows a dropped database's event and the
+// database created again under its name both list.
+type eventRows struct {
+	d    [][]sqldriver.Value
+	idx  int
+	done bool
+}
+
+func (r *eventRows) Columns() []string {
+	return []string{"EVENT_NAME", "EVENT_TYPE", "EXECUTE_AT", "INTERVAL_VALUE", "INTERVAL_FIELD", "STARTS", "ENDS", "STATUS", "ON_COMPLETION", "EVENT_COMMENT", "TIME_ZONE", "SQL_MODE", "EVENT_DEFINITION"}
+}
+func (r *eventRows) Close() error { return nil }
+func (r *eventRows) Next(dest []sqldriver.Value) error {
+	if r.idx >= len(r.d) {
+		return io.EOF
+	}
+	copy(dest, r.d[r.idx])
+	r.idx++
+	return nil
+}
+
+var testEventRows = [][]sqldriver.Value{
+	{"e", "RECURRING", "", "1", "DAY", "2030-01-01 00:00:00", "", "DISABLED", "PRESERVE", "", "SYSTEM", "ONLY_FULL_GROUP_BY", "INSERT INTO t VALUES (1)"},
+	{"e", "RECURRING", "", "1", "DAY", "2030-01-01 00:00:00", "", "DISABLED", "PRESERVE", "", "SYSTEM", "ONLY_FULL_GROUP_BY", "INSERT INTO t VALUES (1)"},
+}
+
+// TestGetEventListDeduplicatesRecreatedDatabaseEvents pins the case
+// information_schema.EVENTS cannot state: a database created again under a
+// dropped one's name lists that database's event until OceanBase forgets it,
+// and the sync must list the name once.
+func TestGetEventListDeduplicatesRecreatedDatabaseEvents(t *testing.T) {
+	sql.Register("test_oceanbase_event_rows", eventRowsDriver{})
+	db, err := sql.Open("test_oceanbase_event_rows", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	d := &Driver{db: db, databaseName: "db"}
+	events, err := d.getEventList(context.Background(), "db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("getEventList returned %d events, want 1: %+v", len(events), events)
+	}
+}
+
+// TestExternalTableFacts reads the LOCATION, PATTERN and FORMAT clauses SHOW
+// CREATE TABLE states, and leaves them empty when the statement has none.
+func TestExternalTableFacts(t *testing.T) {
+	ddl := "CREATE EXTERNAL TABLE `ext_t` (\n" +
+		"  `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),\n" +
+		"  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)\n" +
+		") \n" +
+		"LOCATION='file:///tmp'\n" +
+		"AUTO_REFRESH = OFF\n" +
+		"FORMAT (\n" +
+		"  TYPE = 'CSV',\n" +
+		"  ENCODING = 'utf8mb4'\n" +
+		") DEFAULT CHARSET = utf8mb4"
+	location, pattern, autoRefresh, format := externalTableFacts(ddl)
+	if location != "file:///tmp" {
+		t.Errorf("location = %q, want %q", location, "file:///tmp")
+	}
+	if format != "TYPE = 'CSV', ENCODING = 'utf8mb4'" {
+		t.Errorf("format = %q, want %q", format, "TYPE = 'CSV', ENCODING = 'utf8mb4'")
+	}
+	if pattern != "" {
+		t.Errorf("pattern = %q, want empty", pattern)
+	}
+	if autoRefresh != "OFF" {
+		t.Errorf("auto refresh = %q, want %q", autoRefresh, "OFF")
+	}
+
+	location, pattern, autoRefresh, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp' PATTERN='.*[.]csv' AUTO_REFRESH = IMMEDIATE")
+	if location != "file:///tmp" || pattern != ".*[.]csv" || autoRefresh != "IMMEDIATE" || format != "" {
+		t.Errorf("without FORMAT = %q, %q, %q, %q; want %q, %q, %q, empty", location, pattern, autoRefresh, format, "file:///tmp", ".*[.]csv", "IMMEDIATE")
+	}
+
+	// A MySQL backslash escape in a column comment must not end the quote
+	// before LOCATION and FORMAT.
+	ddl = "CREATE EXTERNAL TABLE `ext_t` (`c1` int COMMENT 'owner\\'s note') " +
+		"LOCATION='file:///tmp/it\\'s' FORMAT (TYPE = 'CSV')"
+	location, pattern, autoRefresh, format = externalTableFacts(ddl)
+	if location != "file:///tmp/it's" {
+		t.Errorf("escaped location = %q, want %q", location, "file:///tmp/it's")
+	}
+	if pattern != "" {
+		t.Errorf("escaped pattern = %q, want empty", pattern)
+	}
+	if autoRefresh != "" {
+		t.Errorf("escaped auto refresh = %q, want empty", autoRefresh)
+	}
+	if format != "TYPE = 'CSV'" {
+		t.Errorf("escaped format = %q, want %q", format, "TYPE = 'CSV'")
 	}
 }

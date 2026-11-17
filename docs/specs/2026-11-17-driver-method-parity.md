@@ -85,6 +85,14 @@ session, on the session `Querier.Session` returns where it does.
 Two engines accept an empty `Config.Host` when `Dial` names the endpoint itself, as a cloud
 connector does: oracle, and redis with no topology set.
 
+**mssql's Azure AD login is `Config.TokenProvider`.** Bytebase's `AZURE_IAM` data source
+authenticates with an Entra ID access token, either through its client-secret credential or the
+default credential chain. The cutover passes a `TokenProvider` that returns a token for
+`https://database.windows.net/.default`; its shape is `func(ctx context.Context) (string, error)`.
+`mssql/driver` hands it to go-mssqldb's security-token connector, so `Config.TLS` and
+`Config.Dial` still apply. `User` may be empty, `Password` is unused, and `Params["fedauth"]` is
+not needed. The Azure SDK and the client's connector stay on Bytebase's side of the contract.
+
 **hive is the one engine a tunnel cannot reach through this contract.** gohive v2 keeps its dialer
 in an unexported connect configuration that `HiveConnector` fills from a fixed list of exported
 fields, and `gohive.Config` has no field for a dialer, so `hive/driver` opens the socket itself.

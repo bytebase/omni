@@ -70,6 +70,11 @@ func (d *Driver) EstimateAffectedRows(ctx context.Context, stmt mariadbast.Node,
 // ExplainTabularEstimate reads the row product and joined-table count of the
 // first query block from EXPLAIN FORMAT=TRADITIONAL.
 func (d *Driver) ExplainTabularEstimate(ctx context.Context, query string) (float64, int, bool) {
+	// The connection sends every statement in one request (see connConfig),
+	// so the probe plans exactly the one statement it was given.
+	if err := requireOneStatement(query); err != nil {
+		return 0, 0, false
+	}
 	rows, err := d.db.QueryContext(ctx, "EXPLAIN FORMAT=TRADITIONAL "+query)
 	if err != nil {
 		return 0, 0, false
@@ -115,6 +120,9 @@ func (d *Driver) ExplainTabularEstimate(ctx context.Context, query string) (floa
 
 // ExplainJSON returns the EXPLAIN FORMAT=JSON output for statement.
 func (d *Driver) ExplainJSON(ctx context.Context, statement string) (string, error) {
+	if err := requireOneStatement(statement); err != nil {
+		return "", err
+	}
 	conn, err := d.db.Conn(ctx)
 	if err != nil {
 		return "", err
@@ -155,6 +163,20 @@ func (d *Driver) Explain(ctx context.Context, statement string) error {
 	for rows.Next() {
 	}
 	return rows.Err()
+}
+
+// requireOneStatement refuses text that holds anything but one statement: these
+// probes prefix EXPLAIN to what they are given, and the connection sends every
+// statement of a request, so a second one would run.
+func requireOneStatement(statement string) error {
+	list, err := mariadbparser.Parse(statement)
+	if err != nil {
+		return fmt.Errorf("failed to parse statement: %w", err)
+	}
+	if list == nil || len(list.Items) != 1 {
+		return errors.New("expected exactly one statement")
+	}
+	return nil
 }
 
 func readExplainJSON(rows *sql.Rows) (string, error) {
