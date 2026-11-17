@@ -1130,9 +1130,15 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 		}
 	}
 	droppedTables := make(map[string]bool)
+	droppedColumns := make(map[string]bool)
 	for _, tableDiff := range diff.Tables {
 		if tableDiff.Action == DiffDrop {
 			droppedTables[tableDiff.SchemaName+"."+tableDiff.TableName] = true
+		}
+		for _, colDiff := range tableDiff.Columns {
+			if colDiff.Action == DiffDrop && colDiff.OldColumn != nil {
+				droppedColumns[tableDiff.SchemaName+"."+tableDiff.TableName+"."+colDiff.OldColumn.Name] = true
+			}
 		}
 	}
 	for _, schema := range from.Metadata().Schemas {
@@ -1141,7 +1147,7 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 				continue
 			}
 			for _, column := range table.Columns {
-				if column.Default == "" || column.DefaultConstraintName == "" {
+				if column.Default == "" || column.DefaultConstraintName == "" || droppedColumns[schema.Name+"."+table.Name+"."+column.Name] {
 					continue
 				}
 				for name := range droppedFunctions {

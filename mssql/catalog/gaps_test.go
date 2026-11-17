@@ -28,6 +28,34 @@ CREATE UNIQUE CLUSTERED INDEX [UX_v_id] ON [dbo].[v] ([id]);
 		require.Contains(t, err.Error(), "indexes on views are not supported")
 	})
 
+	t.Run("transitive early function dependency", func(t *testing.T) {
+		// Only the function a table default names is hoisted; the function it
+		// calls is left for later, so the earlier CREATE FUNCTION refers to a
+		// function that does not exist yet.
+		meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+			Name: "dbo",
+			Tables: []*metadata.TableMetadata{{
+				Name: "t",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "int", Nullable: false},
+					{Name: "v", Type: "int", Nullable: false, Default: "([dbo].[outer_value]())"},
+				},
+				Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+			}},
+			Functions: []*metadata.FunctionMetadata{
+				{Name: "outer_value", Definition: "CREATE FUNCTION [dbo].[outer_value]() RETURNS int AS BEGIN RETURN [dbo].[inner_value]() END"},
+				{Name: "inner_value", Definition: "CREATE FUNCTION [dbo].[inner_value]() RETURNS int AS BEGIN RETURN 1 END"},
+			},
+		}}}
+		def, err := DatabaseDefinition(meta, DefinitionOptions{})
+		require.NoError(t, err)
+		outerAt := strings.Index(def, "CREATE FUNCTION [dbo].[outer_value]")
+		innerAt := strings.Index(def, "CREATE FUNCTION [dbo].[inner_value]")
+		require.GreaterOrEqual(t, outerAt, 0)
+		require.GreaterOrEqual(t, innerAt, 0)
+		require.Less(t, outerAt, innerAt, "gap closed: hoist transitive function dependencies")
+	})
+
 	t.Run("schema-bound function before its prerequisite table", func(t *testing.T) {
 		// A table default needs the function, and a schema-bound function needs
 		// the table it reads. The definition hoists every function a table

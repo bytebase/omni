@@ -759,3 +759,21 @@ func TestMigrationRebuildsComputedColumnForNullability(t *testing.T) {
 	require.Contains(t, sql, "ADD [c] AS ([a] + 1) PERSISTED NOT NULL")
 	require.NotContains(t, sql, "ALTER COLUMN [c] AS")
 }
+
+func TestMigrationDropsFunctionDefaultOnceForRemovedColumn(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [dbo].[t] (
+	[id] int NOT NULL,
+	[v] int NOT NULL CONSTRAINT [DF_v] DEFAULT ([dbo].[f]()),
+	CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [DF_v]"), sql)
+	require.Contains(t, sql, "DROP COLUMN [v]")
+}
