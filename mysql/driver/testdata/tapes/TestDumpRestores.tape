@@ -67,6 +67,13 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
+< ok 0 0
+> exec
 | CREATE VIEW v_order_totals AS
 | 	SELECT a.acct_id, COUNT(o.id) AS order_count
 | 	FROM v_open_accounts a
@@ -1036,6 +1043,52 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -1166,6 +1219,16 @@
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
+| v_named_cols
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
@@ -1174,6 +1237,38 @@
 | v_order_totals
 : bytes
 | select `omni_dump_roundtrip`.`a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`omni_dump_roundtrip`.`v_open_accounts` `a` left join `omni_dump_roundtrip`.`orders` `o` on((`o`.`account_id` = `omni_dump_roundtrip`.`a`.`acct_id`))) group by `omni_dump_roundtrip`.`a`.`acct_id`
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
@@ -1723,10 +1818,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -1824,6 +1919,52 @@
 | utf8mb4
 < row
 : bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | VIEW
@@ -1887,7 +2028,7 @@
 | utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE `omni_dump_roundtrip`
-< ok 6 0
+< ok 8 0
 > exec
 | CREATE DATABASE `omni_dump_roundtrip`
 < ok 1 0
@@ -1899,6 +2040,14 @@
 < ok 0 0
 > exec
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT
+|   1 AS `renamed_id`
 < ok 0 0
 > exec
 | CREATE VIEW `v_open_accounts` AS SELECT
@@ -1996,6 +2145,12 @@
 | BEGIN
 | 	RETURN CONCAT(p_prefix, '-', p_id);
 | END
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
@@ -2996,6 +3151,52 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -3126,6 +3327,16 @@
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
+| v_named_cols
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
@@ -3134,6 +3345,38 @@
 | v_order_totals
 : bytes
 | select `omni_dump_roundtrip`.`a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`omni_dump_roundtrip`.`v_open_accounts` `a` left join `omni_dump_roundtrip`.`orders` `o` on((`o`.`account_id` = `omni_dump_roundtrip`.`a`.`acct_id`))) group by `omni_dump_roundtrip`.`a`.`acct_id`
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
@@ -3683,10 +3926,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -3782,6 +4025,52 @@
 | ''
 : bytes
 | utf8mb4
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
 < row
 : bytes
 | v_open_accounts
@@ -3911,6 +4200,13 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
+< ok 0 0
+> exec
 | CREATE VIEW v_order_totals AS
 | 	SELECT a.acct_id, COUNT(o.id) AS order_count
 | 	FROM v_open_accounts a
@@ -4880,6 +5176,52 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -5010,6 +5352,16 @@
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
+| v_named_cols
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
@@ -5018,6 +5370,38 @@
 | v_order_totals
 : bytes
 | select `omni_dump_roundtrip`.`a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`omni_dump_roundtrip`.`v_open_accounts` `a` left join `omni_dump_roundtrip`.`orders` `o` on((`o`.`account_id` = `omni_dump_roundtrip`.`a`.`acct_id`))) group by `omni_dump_roundtrip`.`a`.`acct_id`
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
@@ -5567,10 +5951,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -5668,6 +6052,52 @@
 | utf8mb4
 < row
 : bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | VIEW
@@ -5731,7 +6161,7 @@
 | utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE `omni_dump_roundtrip`
-< ok 6 0
+< ok 8 0
 > exec
 | CREATE DATABASE `omni_dump_roundtrip`
 < ok 1 0
@@ -5743,6 +6173,14 @@
 < ok 0 0
 > exec
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT
+|   1 AS `renamed_id`
 < ok 0 0
 > exec
 | CREATE VIEW `v_open_accounts` AS SELECT
@@ -5840,6 +6278,12 @@
 | BEGIN
 | 	RETURN CONCAT(p_prefix, '-', p_id);
 | END
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
@@ -6840,6 +7284,52 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -6970,6 +7460,16 @@
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
+| v_named_cols
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
@@ -6978,6 +7478,38 @@
 | v_order_totals
 : bytes
 | select `omni_dump_roundtrip`.`a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`omni_dump_roundtrip`.`v_open_accounts` `a` left join `omni_dump_roundtrip`.`orders` `o` on((`o`.`account_id` = `omni_dump_roundtrip`.`a`.`acct_id`))) group by `omni_dump_roundtrip`.`a`.`acct_id`
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
@@ -7527,10 +8059,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -7626,6 +8158,52 @@
 | ''
 : bytes
 | utf8mb4
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
 < row
 : bytes
 | v_open_accounts
@@ -7755,6 +8333,13 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
+< ok 0 0
+> exec
 | CREATE VIEW v_order_totals AS
 | 	SELECT a.acct_id, COUNT(o.id) AS order_count
 | 	FROM v_open_accounts a
@@ -8724,6 +9309,52 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -8854,6 +9485,16 @@
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
+| v_named_cols
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
@@ -8862,6 +9503,38 @@
 | v_order_totals
 : bytes
 | select `omni_dump_roundtrip`.`a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`omni_dump_roundtrip`.`v_open_accounts` `a` left join `omni_dump_roundtrip`.`orders` `o` on((`o`.`account_id` = `omni_dump_roundtrip`.`a`.`acct_id`))) group by `omni_dump_roundtrip`.`a`.`acct_id`
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
@@ -9411,10 +10084,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -9512,6 +10185,52 @@
 | utf8mb4
 < row
 : bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | VIEW
@@ -9575,7 +10294,7 @@
 | utf8mb4_0900_ai_ci
 > exec
 | DROP DATABASE `omni_dump_roundtrip`
-< ok 6 0
+< ok 8 0
 > exec
 | CREATE DATABASE `omni_dump_roundtrip`
 < ok 1 0
@@ -9587,6 +10306,14 @@
 < ok 0 0
 > exec
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT
+|   1 AS `renamed_id`
 < ok 0 0
 > exec
 | CREATE VIEW `v_open_accounts` AS SELECT
@@ -9684,6 +10411,12 @@
 | BEGIN
 | 	RETURN CONCAT(p_prefix, '-', p_id);
 | END
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `v_open_accounts` AS select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')
@@ -10684,6 +11417,52 @@
 : null
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -10814,6 +11593,16 @@
 < column "VIEW_DEFINITION" "TEXT"
 < row
 : bytes
+| v_named_cols
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| select `omni_dump_roundtrip`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
@@ -10822,6 +11611,38 @@
 | v_order_totals
 : bytes
 | select `omni_dump_roundtrip`.`a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`omni_dump_roundtrip`.`v_open_accounts` `a` left join `omni_dump_roundtrip`.`orders` `o` on((`o`.`account_id` = `omni_dump_roundtrip`.`a`.`acct_id`))) group by `omni_dump_roundtrip`.`a`.`acct_id`
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_open_accounts`
 < result
@@ -11371,10 +12192,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -11470,6 +12291,52 @@
 | ''
 : bytes
 | utf8mb4
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
 < row
 : bytes
 | v_open_accounts

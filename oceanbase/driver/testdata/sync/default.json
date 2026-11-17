@@ -310,6 +310,28 @@
       ],
       "views": [
         {
+          "name": "v_named_cols",
+          "definition": "select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`",
+          "columns": [
+            {
+              "name": "renamed_id",
+              "position": 1,
+              "type": "bigint"
+            }
+          ]
+        },
+        {
+          "name": "v_named_cols_ref",
+          "definition": "select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`",
+          "columns": [
+            {
+              "name": "renamed_id",
+              "position": 1,
+              "type": "bigint"
+            }
+          ]
+        },
+        {
           "name": "v_open_accounts",
           "definition": "select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')",
           "columns": [

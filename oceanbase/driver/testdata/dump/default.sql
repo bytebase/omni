@@ -1,6 +1,18 @@
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 --
+-- Temporary view structure for `v_named_cols`
+--
+CREATE VIEW `v_named_cols` AS SELECT
+  1 AS `renamed_id`;
+
+--
+-- Temporary view structure for `v_named_cols_ref`
+--
+CREATE VIEW `v_named_cols_ref` AS SELECT
+  1 AS `renamed_id`;
+
+--
 -- Temporary view structure for `v_open_accounts`
 --
 CREATE VIEW `v_open_accounts` AS SELECT
@@ -64,6 +76,16 @@ BEGIN
 	RETURN CONCAT(p_prefix, '-', p_id);
 END;;
 DELIMITER ;
+
+--
+-- View structure for `v_named_cols`
+--
+CREATE OR REPLACE VIEW `v_named_cols` AS select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`;
+
+--
+-- View structure for `v_named_cols_ref`
+--
+CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`;
 
 --
 -- View structure for `v_open_accounts`

@@ -30,6 +30,9 @@
 | EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'owner''s note', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'COLUMN', @level2name = N'bio';
 < ok 2 -
 > exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'balance never negative', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'CONSTRAINT', @level2name = N'chk_accounts_balance';
+< ok 2 -
+> exec
 | CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 < ok 0 -
 > exec
@@ -43,6 +46,9 @@
 | 	note NVARCHAR(100) NULL
 | );
 < ok 0 -
+> exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'an order belongs to an account', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'orders', @level2type = N'CONSTRAINT', @level2name = N'fk_orders_account';
+< ok 2 -
 > exec
 | CREATE TABLE app.metrics (
 | 	ts INT NOT NULL,
@@ -845,11 +851,15 @@
 | 		i.name,
 | 		i.type_desc,
 | 		i.is_unique,
+| 		xi.secondary_type_desc,
+| 		pi.name AS using_index_name,
 | 		col.name AS column_name,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
 | 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
 | 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+| 	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
 | 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
@@ -867,6 +877,8 @@
 < column "name" "NVARCHAR"
 < column "type_desc" "NVARCHAR"
 < column "is_unique" "BIT"
+< column "secondary_type_desc" "NVARCHAR"
+< column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
 < column "is_descending_key" "BIT"
 < row
@@ -881,6 +893,8 @@
 : string
 | NONCLUSTERED
 : bool false
+: null
+: null
 : string
 | status
 : bool false
@@ -896,6 +910,8 @@
 : string
 | XML
 : bool false
+: null
+: null
 : string
 | xml_doc
 : bool false
@@ -911,6 +927,8 @@
 : string
 | NONCLUSTERED COLUMNSTORE
 : bool false
+: null
+: null
 : string
 | ts
 : bool false
@@ -926,6 +944,8 @@
 : string
 | NONCLUSTERED COLUMNSTORE
 : bool false
+: null
+: null
 : string
 | val
 : bool false
@@ -1025,6 +1045,10 @@
 < result
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
+< row
+: int64 1061578820
+: string
+| an order belongs to an account
 > query
 |
 | 	SELECT
@@ -1087,6 +1111,10 @@
 < result
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
+< row
+: int64 997578592
+: string
+| balance never negative
 > query
 |
 | 	SELECT o.object_id, s.name AS schema_name, o.name AS table_name
@@ -1189,6 +1217,14 @@
 : int64 901578250
 : string
 | customer accounts
+< row
+: int64 997578592
+: string
+| balance never negative
+< row
+: int64 1061578820
+: string
+| an order belongs to an account
 < row
 : int64 1109578991
 : string
@@ -1300,7 +1336,7 @@
 : int64 0
 < row
 : int64 49
-: int64 3
+: int64 5
 < row
 : int64 50
 : int64 35
@@ -1309,10 +1345,10 @@
 : int64 0
 < row
 : int64 54
-: int64 228
+: int64 229
 < row
 : int64 55
-: int64 457
+: int64 458
 < row
 : int64 56
 : int64 0
@@ -1327,7 +1363,7 @@
 : int64 0
 < row
 : int64 60
-: int64 287
+: int64 288
 < row
 : int64 62
 : int64 0

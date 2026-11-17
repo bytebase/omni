@@ -133,14 +133,16 @@
               "descending":  [
                 false
               ],
-              "type":  "XML"
+              "type":  "XML",
+              "definition":  "PRIMARY"
             }
           ],
           "comment":  "customer accounts",
           "checkConstraints":  [
             {
               "name":  "chk_accounts_balance",
-              "expression":  "([balance]>=(0))"
+              "expression":  "([balance]>=(0))",
+              "comment":  "balance never negative"
             }
           ]
         },
@@ -242,7 +244,8 @@
                 "id"
               ],
               "onDelete":  "CASCADE",
-              "onUpdate":  "NO ACTION"
+              "onUpdate":  "NO ACTION",
+              "comment":  "an order belongs to an account"
             }
           ],
           "triggers":  [

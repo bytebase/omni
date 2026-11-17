@@ -67,7 +67,11 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
-| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts; -- not restorable: TestDumpGaps
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
 < ok 0 0
 > exec
 | CREATE VIEW v_order_totals AS
@@ -1062,6 +1066,29 @@
 : null
 < row
 : bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -1197,6 +1224,11 @@
 | select `omni_sync_corpus`.`accounts`.`id` AS `id` from `omni_sync_corpus`.`accounts`
 < row
 : bytes
+| v_named_cols_ref
+: bytes
+| select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
@@ -1217,6 +1249,22 @@
 | v_named_cols
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 : bytes
 | utf8mb4
 : bytes
@@ -1770,10 +1818,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -1872,6 +1920,29 @@
 < row
 : bytes
 | v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
 : bytes
 | VIEW
 : bytes
@@ -2021,7 +2092,11 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
-| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts; -- not restorable: TestDumpGaps
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
 < ok 0 0
 > exec
 | CREATE VIEW v_order_totals AS
@@ -3016,6 +3091,29 @@
 : null
 < row
 : bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -3151,6 +3249,11 @@
 | select `omni_sync_corpus`.`accounts`.`id` AS `id` from `omni_sync_corpus`.`accounts`
 < row
 : bytes
+| v_named_cols_ref
+: bytes
+| select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
@@ -3171,6 +3274,22 @@
 | v_named_cols
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 : bytes
 | utf8mb4
 : bytes
@@ -3724,10 +3843,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -3826,6 +3945,29 @@
 < row
 : bytes
 | v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
 : bytes
 | VIEW
 : bytes
@@ -3975,7 +4117,11 @@
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
 > exec
-| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts; -- not restorable: TestDumpGaps
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
 < ok 0 0
 > exec
 | CREATE VIEW v_order_totals AS
@@ -4970,6 +5116,29 @@
 : null
 < row
 : bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: bytes
+| '0'
+: bytes
+| NO
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -5105,6 +5274,11 @@
 | select `omni_sync_corpus`.`accounts`.`id` AS `id` from `omni_sync_corpus`.`accounts`
 < row
 : bytes
+| v_named_cols_ref
+: bytes
+| select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`
+< row
+: bytes
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
@@ -5125,6 +5299,22 @@
 | v_named_cols
 : bytes
 | CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+> query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols_ref`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "VARCHAR" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`%` SQL SECURITY DEFINER VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`
 : bytes
 | utf8mb4
 : bytes
@@ -5678,10 +5868,10 @@
 < column "TABLE_TYPE" "ENUM" "string"
 < column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
 < column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
 < column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
 < column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
@@ -5780,6 +5970,29 @@
 < row
 : bytes
 | v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
 : bytes
 | VIEW
 : bytes
