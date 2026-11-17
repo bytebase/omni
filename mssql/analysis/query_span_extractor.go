@@ -106,16 +106,27 @@ func (q *querySpanExtractor) untracedError(root ast.Node) *UntracedError {
 // A variable's value was assigned by a statement of the same batch, from any
 // column, and ResolveQuerySpan sees one statement. A @@ name is a system
 // function, whose value is the server's state rather than a column.
+//
+// A variable method call (the XML receiver of @x.nodes('/r')) names its
+// variable in the node, not in a child, so the walk reads it there.
 func localVariables(root ast.Node) []string {
 	seen := map[string]bool{}
 	var variables []string
-	ast.Inspect(root, func(node ast.Node) bool {
-		ref, ok := node.(*ast.VariableRef)
-		if !ok || strings.HasPrefix(ref.Name, "@@") || seen[ref.Name] {
-			return true
+	add := func(name string) {
+		if name == "" || strings.HasPrefix(name, "@@") || seen[name] {
+			return
 		}
-		seen[ref.Name] = true
-		variables = append(variables, ref.Name)
+		seen[name] = true
+		variables = append(variables, name)
+	}
+	ast.Inspect(root, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.VariableRef:
+			add(n.Name)
+		case *ast.TableVarMethodCallRef:
+			add(n.Var)
+		default:
+		}
 		return true
 	})
 	return variables
@@ -560,10 +571,17 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 	// reasons; those have no result columns. Return early if the root isn't a
 	// real SELECT.
 	if queryType != Select || !isSelect {
+		var untraced *UntracedError
+		if returnsRows(root) {
+			// A SELECT of the system's own metadata still returns the values it
+			// names, so an untraced one has to say so.
+			untraced = q.untracedError(root)
+		}
 		return &ResolvedSpan{
 			Type:          queryType,
 			SourceColumns: accessTables,
 			Results:       []QuerySpanResult{},
+			Untraced:      untraced,
 		}, nil
 	}
 
@@ -588,6 +606,14 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 		PredicateColumns: q.predicateColumns,
 		Untraced:         q.untracedError(root),
 	}, nil
+}
+
+// returnsRows reports whether the statement answers with a result set: a
+// SELECT that writes no table of its own, whether it reads user tables or only
+// the system's.
+func returnsRows(root ast.Node) bool {
+	sel, ok := root.(*ast.SelectStmt)
+	return ok && selectIntoTarget(sel) == nil
 }
 
 // -------------------- SELECT processing --------------------

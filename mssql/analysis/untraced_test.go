@@ -205,6 +205,10 @@ func TestResolveQuerySpanVariableUntraced(t *testing.T) {
 		// A rowset function's argument is read like any other value.
 		{"SELECT * FROM OPENJSON(@json)", []string{"@json"}},
 		{"SELECT * FROM STRING_SPLIT(@list, ',')", []string{"@list"}},
+		// A variable's XML method names the variable in the node, not in a
+		// child, and its node columns come from that document.
+		{"SELECT c FROM @x.nodes('/r') AS n(c)", []string{"@x"}},
+		{"SELECT COUNT(*) FROM @x.nodes('/r') AS n(c)", []string{"@x"}},
 		// A system function's value is the server's state, not a column.
 		{"SELECT @@VERSION AS v", nil},
 		{"SELECT a FROM t WHERE a = @@SPID", nil},
@@ -212,6 +216,8 @@ func TestResolveQuerySpanVariableUntraced(t *testing.T) {
 		{"DECLARE @v INT = (SELECT a FROM t)", nil},
 		{"SET @v = (SELECT a FROM t)", nil},
 		{"SELECT @v = a FROM t", nil},
+		// A statement that writes a table has no result set to withhold.
+		{"SELECT a INTO #t FROM t", nil},
 		// A literal is not a variable.
 		{"SELECT a FROM t", nil},
 	}
@@ -220,6 +226,39 @@ func TestResolveQuerySpanVariableUntraced(t *testing.T) {
 		if err != nil {
 			t.Errorf("%q: %v", tc.statement, err)
 			continue
+		}
+		var got []string
+		if span.Untraced != nil {
+			got = span.Untraced.Variables
+		}
+		if strings.Join(got, ",") != strings.Join(tc.variables, ",") {
+			t.Errorf("%q: untraced variables %v, want %v", tc.statement, got, tc.variables)
+		}
+	}
+}
+
+// TestResolveQuerySpanSystemMetadata pins the answer for a query of the
+// server's own metadata, which classifies SelectInfoSchema and so returns
+// before the result columns are extracted: what it reads from a variable still
+// has no lineage.
+func TestResolveQuerySpanSystemMetadata(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		variables []string
+	}{
+		{"SELECT @v FROM sys.objects", []string{"@v"}},
+		{"SELECT * FROM sys.objects WHERE name = @v", []string{"@v"}},
+		{"SELECT @v FROM master.dbo.spt_values", []string{"@v"}},
+		{"SELECT * FROM sys.objects", nil},
+		{"SELECT name FROM master.dbo.spt_values", nil},
+	} {
+		span, err := ResolveQuerySpan(tc.statement, ResolveOptions{DefaultDatabase: "db", IgnoreCaseSensitive: true, Catalog: testCatalog()})
+		if err != nil {
+			t.Errorf("%q: %v", tc.statement, err)
+			continue
+		}
+		if span.Type != SelectInfoSchema {
+			t.Errorf("%q: type %v, want SelectInfoSchema", tc.statement, span.Type)
 		}
 		var got []string
 		if span.Untraced != nil {
