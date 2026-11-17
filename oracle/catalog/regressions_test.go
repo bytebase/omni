@@ -2088,3 +2088,45 @@ func TestViewDependencyUsesEffectiveSchema(t *testing.T) {
 		t.Fatalf("view precedes its table:\n%s", sql)
 	}
 }
+
+func TestMaterializedViewSkipsSystemGeneratedIndex(t *testing.T) {
+	// Oracle names a materialized view's container indexes
+	// SYS_C_SNAP$_<object id>, and the id differs between two snapshots of the
+	// same view. A definition must not write one (the view creates it again),
+	// and a diff must not treat it as a change.
+	view := func(objectID string) *metadatapb.MaterializedViewMetadata {
+		return &metadatapb.MaterializedViewMetadata{
+			Name:       "MV",
+			Definition: "SELECT ID, NAME FROM T\n",
+			Indexes: []*metadatapb.IndexMetadata{
+				{Name: "SYS_C_SNAP$_" + objectID + "MV", Expressions: []string{"ID"}, Unique: true},
+				{Name: "MV_NAME_IDX", Expressions: []string{"NAME"}},
+			},
+		}
+	}
+	from := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", MaterializedViews: []*metadatapb.MaterializedViewMetadata{view("9000013")}})
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", MaterializedViews: []*metadatapb.MaterializedViewMetadata{view("9000099")}})
+
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(definition, "SYS_C_SNAP$") {
+		t.Fatalf("a definition wrote the view's system-generated index:\n%s", definition)
+	}
+	if !strings.Contains(definition, `"MV_NAME_IDX"`) {
+		t.Fatalf("a definition dropped the view's own index:\n%s", definition)
+	}
+
+	if !Diff(from, to).IsEmpty() {
+		t.Fatalf("a generated index's object id changed the diff:\n%s", migrationFor(t, from, to))
+	}
+
+	sql := migrationFor(t, New(), to)
+	if strings.Contains(sql, "SYS_C_SNAP$") {
+		t.Fatalf("a migration wrote the view's system-generated index:\n%s", sql)
+	}
+	if !strings.Contains(sql, `"MV_NAME_IDX"`) {
+		t.Fatalf("a migration dropped the view's own index:\n%s", sql)
+	}
+}

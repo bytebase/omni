@@ -1003,12 +1003,27 @@ func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedVi
 	if err := writeTriggers(buf, view.Triggers); err != nil {
 		return err
 	}
-	for _, index := range view.Indexes {
+	for _, index := range materializedViewIndexes(view.Indexes) {
 		if err := writeIndex(buf, view.Name, index); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// materializedViewIndexes drops the indexes Oracle creates on a materialized
+// view's container. Their name is SYS_C_SNAP$_<object id>, and the id differs
+// between snapshots, so neither a definition nor a diff may carry them: the
+// view makes Oracle create one again.
+func materializedViewIndexes(indexes []*metadatapb.IndexMetadata) []*metadatapb.IndexMetadata {
+	kept := make([]*metadatapb.IndexMetadata, 0, len(indexes))
+	for _, index := range indexes {
+		if strings.HasPrefix(index.GetName(), "SYS_C_SNAP$") {
+			continue
+		}
+		kept = append(kept, index)
+	}
+	return kept
 }
 
 // writeFunction writes a CREATE FUNCTION statement

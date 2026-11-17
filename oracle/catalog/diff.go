@@ -704,7 +704,7 @@ func materializedViewChanged(a, b *metadatapb.MaterializedViewMetadata) bool {
 }
 
 func materializedViewNeedsRecreate(a, b *metadatapb.MaterializedViewMetadata) bool {
-	return a.GetDefinition() != b.GetDefinition() || normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers()) || len(compareIndexes(a.GetIndexes(), b.GetIndexes())) > 0
+	return a.GetDefinition() != b.GetDefinition() || normalizeTriggers(a.GetTriggers()) != normalizeTriggers(b.GetTriggers()) || len(compareIndexes(materializedViewIndexes(a.GetIndexes()), materializedViewIndexes(b.GetIndexes()))) > 0
 }
 
 func normalizeTriggers(triggers []*metadatapb.TriggerMetadata) string {

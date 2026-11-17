@@ -2172,7 +2172,7 @@ func writeMigrationMaterializedView(out *strings.Builder, schema string, view *m
 	for _, trigger := range view.Triggers {
 		writeMigrationTrigger(out, trigger)
 	}
-	for _, index := range view.Indexes {
+	for _, index := range materializedViewIndexes(view.Indexes) {
 		writeMigrationIndex(out, schema, view.Name, index)
 	}
 }

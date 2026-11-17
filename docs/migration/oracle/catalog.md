@@ -90,7 +90,9 @@ replay tests exercise.
 - Expression comparison recognizes Oracle's alternative-quoted literals.
 - `Exec` applies `DROP IDENTITY`, and `NOCACHE` keeps its explicit state through
   extraction, definitions and migrations.
-- A materialized-view definition renders its indexes.
+- A materialized-view definition renders its indexes, except Oracle's
+  `SYS_C_SNAP$` container index, which the view recreates and whose object id
+  differs between snapshots.
 - Replacing a key detaches and restores the unchanged incoming foreign keys.
 - Catalog snapshots are copied with a standard-library helper, so production
   catalog code imports no protobuf runtime.
@@ -232,8 +234,10 @@ replay tests exercise.
 It restores, from a synced snapshot:
 
 - Sequences, with `START WITH`, `INCREMENT BY`, `MINVALUE`, `MAXVALUE`,
-  `CACHE` and `CYCLE`, and their comments, created before the tables whose
-  defaults call them.
+  `CACHE` and `CYCLE`, created before the tables whose defaults call them. The
+  options render when the snapshot carries them, as the extractor and the
+  Bytebase fixtures do; `oracle/driver`'s sync fills only the name and comment,
+  so a dump of its snapshot restores a default sequence.
 - Tables, with columns, declared lengths, defaults (including `DEFAULT ON
   NULL`), nullability, identity generation with seed and increment, virtual
   columns, table and column comments, primary keys, unique and check
@@ -242,7 +246,11 @@ It restores, from a synced snapshot:
   each other are created first and their foreign keys added afterwards.
 - Views, with `WITH READ ONLY` and `WITH CHECK OPTION`, their comments and
   triggers, ordered after the relations they read and the functions they call;
-  and materialized views with their `BUILD`/`REFRESH` policy and indexes.
+  and materialized views, with the `BUILD`/`REFRESH` policy a snapshot carries
+  and their own indexes. Oracle's `SYS_C_SNAP$` container index is not written:
+  the view makes Oracle create it again, and its object id differs between
+  snapshots. `oracle/driver`'s sync reads `ALL_MVIEWS.QUERY` only, so a dump of
+  its snapshot restores the view without the policy.
 - Functions, procedures and triggers, whose bodies are written as stored text.
 - Changes, as a migration: a key recreated under a new name becomes `RENAME
   CONSTRAINT`, so incoming foreign keys stay attached; a renamed table moves
@@ -293,8 +301,8 @@ closes:
 - `regressions_test.go` pins sequence alterations, `DEFAULT ON NULL`,
   cross-schema foreign keys, national character lengths, view triggers, bitmap
   indexes, case-sensitive key columns and constraint renames.
-- `gaps_test.go` pins each gap below, one subtest per gap. A subtest fails when
-  its gap closes, so the case moves into the fidelity tests instead.
+- `gaps_test.go` pins each gap listed here, one subtest per gap. A subtest
+  fails when its gap closes, so the case moves into the fidelity tests instead.
 - `oracle_test.go` executes every definition and a quoted, case-sensitive
   fixture on the pinned Oracle in `oracle/internal/testcontainer` and reads the
   objects back. It is a tape test; record it with `OMNI_RECORD=1`.
