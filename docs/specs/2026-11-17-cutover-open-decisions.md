@@ -273,10 +273,10 @@ wraps the error (`backend/runner/schemasync/syncer.go:575-578`), so the database
 sync whose message names the keyspace; the old driver recorded an empty success and overwrote the
 stored schema with nothing.
 
-The omni doc on main has not caught up: `cassandra/driver/sync.go` still says a missing keyspace
-"answers an empty schema, as Bytebase's did", while the code returns `ErrNotFound`. The proof fixed
-the comment in commit `5fcf51383` on the unmerged `cassandra-cutover` branch, so main still carries
-the false claim.
+The omni doc had not caught up: `cassandra/driver/sync.go` said a missing keyspace "answers an empty
+schema, as Bytebase's did", while the code returns `ErrNotFound`. The proof fixed the comment in
+`5fcf51383` on the unmerged `cassandra-cutover` branch; it landed on its own before the pin bump, so
+the driver's promise matches what the adapter receives.
 
 ### Options
 
@@ -292,9 +292,9 @@ the false claim.
 
 Keep `ErrNotFound`; cost zero adapter lines and one release note. A user sees `failed to sync
 database schema for database X: not found: keyspace X does not exist` instead of a silently empty
-schema. Land the one-line doc fix (`5fcf51383`'s change) in a small docs change before the pin bump
-so the driver's promise matches what the adapter receives. Map the error only if the product wants
-the old silence, and record that a vanished keyspace will then look like an empty database.
+schema. The one-line doc fix (`5fcf51383`'s change) landed before the pin bump, so the driver's
+promise matches what the adapter receives. Map the error only if the product wants the old silence,
+and record that a vanished keyspace will then look like an empty database.
 
 ### If nobody decides
 
