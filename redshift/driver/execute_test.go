@@ -3,27 +3,31 @@ package driver
 import (
 	"strings"
 	"testing"
-
-	"github.com/bytebase/omni/driver"
 )
 
-// TestInitConfig pins the configuration the statements after CREATE DATABASE run
-// with: the new database, and a dbname Params that would override it removed
-// without changing the caller's map.
-func TestInitConfig(t *testing.T) {
-	params := map[string]string{"dbname": "dev", "search_path": "app"}
-	cfg := initConfig(driver.Config{Database: "dev", Params: params}, "newdb")
-	if cfg.Database != "newdb" {
-		t.Errorf("Database = %q, want newdb", cfg.Database)
+// TestCreationStatements pins what a database-creation step accepts: the
+// CREATE DATABASE statement, and nothing after it, because a statement that
+// followed could not be retried safely.
+func TestCreationStatements(t *testing.T) {
+	statements, name, err := creationStatements("CREATE DATABASE newdb;")
+	if err != nil {
+		t.Fatalf("creationStatements: %v", err)
 	}
-	if _, ok := cfg.Params["dbname"]; ok {
-		t.Error("the dbname parameter survived, so the initialization would run in dev")
+	if name != "newdb" || len(statements) != 1 {
+		t.Errorf("statements = %q, name = %q, want one statement creating newdb", statements, name)
 	}
-	if cfg.Params["search_path"] != "app" {
-		t.Errorf("search_path = %q, want it kept", cfg.Params["search_path"])
+
+	for _, script := range []string{
+		"",
+		"SELECT 1",
+		"CREATE DATABASE newdb; CREATE SCHEMA app;",
+	} {
+		if _, _, err := creationStatements(script); err == nil {
+			t.Errorf("creationStatements(%q) accepted a script that is not one creation", script)
+		}
 	}
-	if params["dbname"] != "dev" {
-		t.Error("the caller's Params map was changed")
+	if _, _, err := creationStatements("CREATE DATABASE newdb; CREATE SCHEMA app;"); err != nil && !strings.Contains(err.Error(), "script of its own") {
+		t.Errorf("the refusal does not say where initialization belongs: %v", err)
 	}
 }
 

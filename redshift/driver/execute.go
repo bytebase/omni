@@ -162,17 +162,7 @@ func (d *Driver) executeInAutoCommitMode(ctx context.Context, commands []driver.
 // and runs the rest of the script in it. A database the server already lists is
 // not created again, so the step can run twice.
 func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error {
-	var statements []string
-	for _, segment := range redshift.Split(script) {
-		if !segment.Empty() {
-			statements = append(statements, segment.Text)
-		}
-	}
-	if len(statements) == 0 {
-		return errors.New("database name not found")
-	}
-
-	databaseName, err := getDatabaseInCreateDatabaseStatement(statements[0])
+	statements, databaseName, err := creationStatements(script)
 	if err != nil {
 		return err
 	}
@@ -185,44 +175,33 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error
 			return nil
 		}
 	}
-	if _, err := d.db.ExecContext(ctx, statements[0]); err != nil {
-		return err
-	}
-	if len(statements) == 1 {
-		return nil
-	}
-	// The statements after CREATE DATABASE initialize it, so they run on a
-	// connection to it; this driver is open on the database the step started
-	// from, and would otherwise create them there.
-	created, err := Open(ctx, initConfig(d.config, databaseName))
-	if err != nil {
-		return err
-	}
-	defer created.Close()
-	for _, statement := range statements[1:] {
-		if _, err := created.db.ExecContext(ctx, statement); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, err = d.db.ExecContext(ctx, statements[0])
+	return err
 }
 
-// initConfig is the configuration the statements after CREATE DATABASE run
-// with: the database just created, and no dbname Params that would send them
-// elsewhere. The caller's Params are copied rather than changed.
-func initConfig(cfg driver.Config, databaseName string) driver.Config {
-	cfg.Database = databaseName
-	if _, ok := cfg.Params["dbname"]; !ok {
-		return cfg
-	}
-	params := make(map[string]string, len(cfg.Params))
-	for key, value := range cfg.Params {
-		if key != "dbname" {
-			params[key] = value
+// creationStatements reads the statement a database-creation step runs, and the
+// database it creates. A script that also holds initialization is refused: the
+// statements after CREATE DATABASE would have to run in the database it creates,
+// and a retry cannot tell a database that was initialized from one that was
+// created and left empty.
+func creationStatements(script string) ([]string, string, error) {
+	var statements []string
+	for _, segment := range redshift.Split(script) {
+		if !segment.Empty() {
+			statements = append(statements, segment.Text)
 		}
 	}
-	cfg.Params = params
-	return cfg
+	if len(statements) == 0 {
+		return nil, "", errors.New("database name not found")
+	}
+	databaseName, err := getDatabaseInCreateDatabaseStatement(statements[0])
+	if err != nil {
+		return nil, "", err
+	}
+	if len(statements) > 1 {
+		return nil, "", fmt.Errorf("the script holds %d statement(s) after CREATE DATABASE %s: the step creates the database, and what initializes it runs as a script of its own", len(statements)-1, databaseName)
+	}
+	return statements, databaseName, nil
 }
 
 // getDatabaseInCreateDatabaseStatement reads the name a CREATE DATABASE

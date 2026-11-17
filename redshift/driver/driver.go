@@ -122,7 +122,6 @@ const defaultDatabase = "dev"
 // Driver is an open Redshift driver: a pool of connections to one database.
 type Driver struct {
 	db           *sql.DB
-	config       driver.Config
 	databaseName string
 	datashare    bool
 }
@@ -136,7 +135,6 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 	}
 	return &Driver{
 		db:           stdlib.OpenDB(*connConfig),
-		config:       cfg,
 		databaseName: connConfig.Database,
 		datashare:    isDatashare(cfg),
 	}, nil
