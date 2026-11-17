@@ -251,6 +251,9 @@ honestly instead of stopping at the first `CREATE TABLE`.
 - Step 4's seam and the tapes it would allow: not built, so CI still runs none of
   this. It is the one piece of the plan a project is not needed for, and the run
   left the answers it would hold in this file.
+- Two of step 8's seven mutations: the service states no plan stage for the queries
+  asked, and states the text `NULL` rather than an absent default, so neither is
+  observable on this project.
 - A plan with more than one stage, so an `inputStages` list and the ratio fields
   the port leaves out: unverified, and public tables did not state one.
 - A RECORD's field names, which the client does not hand over with its values: a
@@ -495,6 +498,46 @@ test), and require a failure; then `git checkout -- bigquery/`:
 5. report the plan's last stage instead of the first, or `Executed: false`;
 6. return the API's 404 unchanged instead of `driver.ErrNotFound`;
 7. stop sorting the dataset listing.
+
+### What the harness of 2026-11-17 showed
+
+The harness ran on `bytebase-dev:omni_record` and on a dataset it created for the
+sync comparison (`omni_parity_sync`, without the partitioned table), and passed:
+the dataset names as a set and in name order, the whole synced schema, the rows,
+columns and type names of every statement, the rewritten limit statement, the
+affected rows of a `CREATE` and an `INSERT`, `Execute`'s count and its error on a
+failing script, `Dump`'s zero bytes, and the not-found mapping. The differences it
+found are exactly the ones listed above as expected, plus a fifth:
+
+- a NUMERIC arrives as `12.5` here and `25/2` there, and a TIMESTAMP as the
+  contract's `TimestampTZ` rather than a Go time string — the fixes of step 10
+  against the driver this replaces.
+
+Its two findings a tape could not have made:
+
+- **Bytebase cannot sync a dataset holding an ingestion-time partitioned table.**
+  `INFORMATION_SCHEMA.COLUMNS` states no ordinal position for `_PARTITIONTIME`,
+  and Bytebase's `int32` cannot take the NULL: `bigquery: NULL cannot be assigned
+  to field OrdinalPosition of type int32`. The whole dataset fails. The port's
+  nullable position is what makes `omni_record` syncable, so the parity comparison
+  runs on a dataset without that table and the difference is recorded here.
+- **No query asked in this run stated a plan stage**, on either driver, so the plan
+  mapping was not exercised against the service: `SELECT 1` and a public-data
+  aggregate both stated none, and Bytebase sends an empty plan where this package
+  sends none.
+
+Two of the seven mutations are therefore unobservable, and the rest fail the
+harness as they must:
+
+| mutation | harness |
+| --- | --- |
+| invert `is_nullable` | fails, `synced schema` differs |
+| drop the `"NULL"` default | **invisible**: the service states the text `NULL` for a column with no default, so both sides report `NULL` whatever the struct starts as |
+| classify `INSERT` as returning rows | fails, `INSERT affected rows` differs |
+| a bare `LIMIT` instead of the CTE wrap | fails, `limited statement` differs |
+| the plan's last stage, or `Executed: false` | **invisible**: no plan stages were stated, so `queryPlan` returns nothing to mutate |
+| return the 404 unchanged | fails, `driver.ErrNotFound` is not `Is` |
+| stop sorting the dataset listing | fails, the listing is out of order |
 
 ## Step 9 — what a failure means
 

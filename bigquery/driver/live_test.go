@@ -412,6 +412,22 @@ func TestLiveQuery(t *testing.T) {
 		t.Errorf("capped results = %+v, want Truncated", capped)
 	}
 
+	// A statement the analysis cannot read that answered no rows still reports the
+	// columns it declares, which is what a command-path result must not drop.
+	emptyPipe, err := session.Query(ctx, "SELECT 1 AS n |> WHERE n = 2", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query of an empty pipe statement: %v", err)
+	}
+	if len(emptyPipe) != 1 || emptyPipe[0].Err != nil {
+		t.Fatalf("empty pipe results = %+v", emptyPipe)
+	}
+	if len(emptyPipe[0].Columns) != 1 || emptyPipe[0].Columns[0].Name != "n" {
+		t.Errorf("Columns = %+v, want the column the empty pipe query declares", emptyPipe[0].Columns)
+	}
+	if len(emptyPipe[0].Rows) != 0 || emptyPipe[0].AffectedRows != nil {
+		t.Errorf("rows = %d affected = %v, want no rows and no affected count", len(emptyPipe[0].Rows), emptyPipe[0].AffectedRows)
+	}
+
 	requireValidated(t, ctx, session, "SELECT COUNT(*) AS n FROM UNNEST([1, 2, 3])")
 
 	// The service refuses the statement, and the refusal is its own error on the
