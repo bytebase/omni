@@ -7,6 +7,8 @@
 | CREATE SERVER bare_server FOREIGN DATA WRAPPER bare_fdw;
 | CREATE FOREIGN DATA WRAPPER handled_fdw HANDLER postgres_fdw_handler VALIDATOR postgres_fdw_validator;
 | CREATE SERVER handled_server FOREIGN DATA WRAPPER handled_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE SERVER typed_server TYPE 'foo' VERSION '1' FOREIGN DATA WRAPPER bare_fdw;
+| CREATE SERVER empty_server TYPE '' VERSION '' FOREIGN DATA WRAPPER bare_fdw;
 | CREATE FOREIGN TABLE public.handled_remote (id integer) SERVER handled_server OPTIONS (schema_name 'public', table_name 'x');
 < ok 0 -
 > query
@@ -998,7 +1000,7 @@
 | []
 > query
 |
-| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 | ORDER BY s.srvname;
@@ -1006,6 +1008,8 @@
 < column "srvname" "NAME"
 < column "fdwname" "NAME"
 < column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 < row
 : string
 | bare_server
@@ -1013,6 +1017,19 @@
 | bare_fdw
 : string
 | []
+: null
+: null
+< row
+: string
+| empty_server
+: string
+| bare_fdw
+: string
+| []
+: string
+|
+: string
+|
 < row
 : string
 | handled_server
@@ -1020,6 +1037,19 @@
 | handled_fdw
 : string
 | ["host=localhost","dbname=postgres"]
+: null
+: null
+< row
+: string
+| typed_server
+: string
+| bare_fdw
+: string
+| []
+: string
+| foo
+: string
+| 1
 > commit
 < ok
 
@@ -1050,6 +1080,10 @@
 | CREATE FOREIGN DATA WRAPPER "handled_fdw" HANDLER public.postgres_fdw_handler VALIDATOR public.postgres_fdw_validator;
 |
 | CREATE SERVER "bare_server" FOREIGN DATA WRAPPER "bare_fdw";
+|
+| CREATE SERVER "empty_server" TYPE '' VERSION '' FOREIGN DATA WRAPPER "bare_fdw";
+|
+| CREATE SERVER "typed_server" TYPE 'foo' VERSION '1' FOREIGN DATA WRAPPER "bare_fdw";
 |
 | CREATE SERVER "handled_server" FOREIGN DATA WRAPPER "handled_fdw" OPTIONS (host 'localhost', dbname 'postgres');
 |
@@ -2059,7 +2093,7 @@
 | []
 > query
 |
-| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 | ORDER BY s.srvname;
@@ -2067,6 +2101,8 @@
 < column "srvname" "NAME"
 < column "fdwname" "NAME"
 < column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 < row
 : string
 | bare_server
@@ -2074,6 +2110,19 @@
 | bare_fdw
 : string
 | []
+: null
+: null
+< row
+: string
+| empty_server
+: string
+| bare_fdw
+: string
+| []
+: string
+|
+: string
+|
 < row
 : string
 | handled_server
@@ -2081,5 +2130,18 @@
 | handled_fdw
 : string
 | ["host=localhost","dbname=postgres"]
+: null
+: null
+< row
+: string
+| typed_server
+: string
+| bare_fdw
+: string
+| []
+: string
+| foo
+: string
+| 1
 > commit
 < ok

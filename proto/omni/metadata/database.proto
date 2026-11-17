@@ -98,6 +98,16 @@ message ForeignServerMetadata {
   // them: each entry is "key=value", with the value unquoted. Empty when the
   // server declares none.
   repeated string options = 3;
+
+  // The server's TYPE clause. Unset when the server declares none; set to ""
+  // when it declares an empty type, which pg_foreign_server.srvtype keeps
+  // apart from NULL.
+  optional string type = 4;
+
+  // The server's VERSION clause. Unset when the server declares none; set to
+  // "" when it declares an empty version, which pg_foreign_server.srvversion
+  // keeps apart from NULL.
+  optional string version = 5;
 }
 
 message LinkedDatabaseMetadata {

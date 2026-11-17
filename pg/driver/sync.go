@@ -638,7 +638,7 @@ func getForeignDataWrappers(txn *sql.Tx) ([]*metadatapb.ForeignDataWrapperMetada
 // value that holds either still arrives as one entry; pg_foreign_server.srvoptions
 // is already ordered as the server writes it.
 var listForeignServerQuery = `
-SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 FROM pg_catalog.pg_foreign_server s
 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 ORDER BY s.srvname;`
@@ -663,18 +663,26 @@ func getForeignServers(txn *sql.Tx) ([]*metadatapb.ForeignServerMetadata, error)
 	var servers []*metadatapb.ForeignServerMetadata
 	for rows.Next() {
 		var name, fdw, optionsJSON string
-		if err := rows.Scan(&name, &fdw, &optionsJSON); err != nil {
+		var serverType, serverVersion sql.NullString
+		if err := rows.Scan(&name, &fdw, &optionsJSON, &serverType, &serverVersion); err != nil {
 			return nil, err
 		}
 		options, err := decodeOptionList(optionsJSON)
 		if err != nil {
 			return nil, fmt.Errorf("server %q options: %w", name, err)
 		}
-		servers = append(servers, &metadatapb.ForeignServerMetadata{
+		server := &metadatapb.ForeignServerMetadata{
 			Name:    name,
 			Fdw:     fdw,
 			Options: options,
-		})
+		}
+		if serverType.Valid {
+			server.Type = &serverType.String
+		}
+		if serverVersion.Valid {
+			server.Version = &serverVersion.String
+		}
+		servers = append(servers, server)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err

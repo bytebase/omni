@@ -1507,8 +1507,20 @@ func writeForeignDataWrapper(out io.Writer, wrapper *metadatapb.ForeignDataWrapp
 // It is written after extensions, which provide the wrapper, and before every
 // foreign table that names it.
 func writeForeignServer(out io.Writer, server *metadatapb.ForeignServerMetadata) error {
-	if _, err := fmt.Fprintf(out, "CREATE SERVER \"%s\" FOREIGN DATA WRAPPER \"%s\"",
-		escapeIdentifier(server.Name), escapeIdentifier(server.Fdw)); err != nil {
+	if _, err := fmt.Fprintf(out, "CREATE SERVER \"%s\"", escapeIdentifier(server.Name)); err != nil {
+		return err
+	}
+	if server.Type != nil {
+		if _, err := fmt.Fprintf(out, " TYPE '%s'", escapeSingleQuote(*server.Type)); err != nil {
+			return err
+		}
+	}
+	if server.Version != nil {
+		if _, err := fmt.Fprintf(out, " VERSION '%s'", escapeSingleQuote(*server.Version)); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(out, " FOREIGN DATA WRAPPER \"%s\"", escapeIdentifier(server.Fdw)); err != nil {
 		return err
 	}
 	if err := writeForeignOptions(out, server.Options); err != nil {
@@ -1590,10 +1602,6 @@ func writeForeignOptions(out io.Writer, options []string) error {
 }
 
 func writeForeignOptionName(out io.Writer, name string) error {
-	if strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) {
-		_, err := io.WriteString(out, name)
-		return err
-	}
 	// An unquoted PostgreSQL identifier folds to lower case, so an upper-case
 	// character in an option name has to be quoted to keep its spelling.
 	simple := name != ""
@@ -2726,6 +2734,9 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 			if err := writeForeignTable(out, partitionSchema, externalTable, partition.CheckConstraints); err != nil {
 				return err
 			}
+			if err := writeForeignPartitionComments(out, partitionSchema, partition); err != nil {
+				return err
+			}
 			continue
 		}
 		if err := writePartitionTable(out, schema, table.Columns, partition, externalTables); err != nil {
@@ -3294,6 +3305,46 @@ func writeTableComment(out io.Writer, schema string, table *metadatapb.TableMeta
 	return writeRelationComment(out, schema, table.Name, table.Comment)
 }
 
+// writeForeignPartitionComments writes the comments a foreign partition and its
+// check constraints carry, which the ordinary partition path writes after its
+// CREATE TABLE.
+func writeForeignPartitionComments(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+	for _, check := range partition.CheckConstraints {
+		if len(check.Comment) > 0 {
+			if err := writeConstraintComment(out, schema, partition.Name, check.Name, check.Comment); err != nil {
+				return err
+			}
+		}
+	}
+	if len(partition.Comment) > 0 {
+		return writeForeignPartitionComment(out, schema, partition)
+	}
+	return nil
+}
+
+func writeForeignPartitionComment(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+	if _, err := io.WriteString(out, `COMMENT ON FOREIGN TABLE "`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, schema); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, `"."`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, partition.Name); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, `" IS '`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, escapeSingleQuote(partition.Comment)); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, "';\n\n")
+	return err
+}
+
 func writePartitionComment(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
 	return writeRelationComment(out, schema, partition.Name, partition.Comment)
 }
@@ -3403,6 +3454,9 @@ func writePartitionTable(out io.Writer, parentSchema string, columns []*metadata
 		subpartitionSchema := partitionSchemaName(schema, subpartition)
 		if externalTable, ok := externalTables[getObjectID(subpartitionSchema, subpartition.Name)]; ok {
 			if err := writeForeignTable(out, subpartitionSchema, externalTable, subpartition.CheckConstraints); err != nil {
+				return err
+			}
+			if err := writeForeignPartitionComments(out, subpartitionSchema, subpartition); err != nil {
 				return err
 			}
 			continue

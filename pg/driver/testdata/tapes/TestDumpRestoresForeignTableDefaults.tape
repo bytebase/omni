@@ -1045,7 +1045,7 @@
 < column "coalesce" "TEXT"
 > query
 |
-| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 | ORDER BY s.srvname;
@@ -1053,6 +1053,8 @@
 < column "srvname" "NAME"
 < column "fdwname" "NAME"
 < column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 < row
 : string
 | loopback
@@ -1060,6 +1062,8 @@
 | postgres_fdw
 : string
 | ["host=localhost","dbname=postgres"]
+: null
+: null
 > commit
 < ok
 
@@ -2154,7 +2158,7 @@
 < column "coalesce" "TEXT"
 > query
 |
-| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 | ORDER BY s.srvname;
@@ -2162,6 +2166,8 @@
 < column "srvname" "NAME"
 < column "fdwname" "NAME"
 < column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 < row
 : string
 | loopback
@@ -2169,5 +2175,7 @@
 | postgres_fdw
 : string
 | ["host=localhost","dbname=postgres"]
+: null
+: null
 > commit
 < ok

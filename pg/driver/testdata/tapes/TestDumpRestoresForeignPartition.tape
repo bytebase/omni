@@ -7,6 +7,8 @@
 | CREATE TABLE public.pt (id integer CHECK (id > 0)) PARTITION BY RANGE (id);
 | CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)
 |     SERVER loopback OPTIONS (schema_name 'public', table_name 'x');
+| COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';
+| COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
@@ -399,7 +401,8 @@
 | pt_id_check
 : string
 | CHECK (id > 0)
-: null
+: string
+| remote check
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -585,7 +588,8 @@
 | FOR VALUES FROM (0) TO (10)
 : string
 | RANGE (id)
-: null
+: string
+| remote partition
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -1057,7 +1061,7 @@
 < column "coalesce" "TEXT"
 > query
 |
-| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 | ORDER BY s.srvname;
@@ -1065,6 +1069,8 @@
 < column "srvname" "NAME"
 < column "fdwname" "NAME"
 < column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 < row
 : string
 | loopback
@@ -1072,6 +1078,8 @@
 | postgres_fdw
 : string
 | ["host=localhost","dbname=postgres"]
+: null
+: null
 > commit
 < ok
 
@@ -1110,6 +1118,10 @@
 |     "id" integer,
 |     CONSTRAINT "pt_id_check" CHECK (id > 0)
 | ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'x');
+|
+| COMMENT ON CONSTRAINT "pt_id_check" ON "public"."pt_remote" IS 'remote check';
+|
+| COMMENT ON FOREIGN TABLE "public"."pt_remote" IS 'remote partition';
 |
 | ALTER TABLE ONLY "public"."pt" ATTACH PARTITION "public"."pt_remote" FOR VALUES FROM (0) TO (10);
 |
@@ -1517,7 +1529,8 @@
 | pt_id_check
 : string
 | CHECK (id > 0)
-: null
+: string
+| remote check
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -1703,7 +1716,8 @@
 | FOR VALUES FROM (0) TO (10)
 : string
 | RANGE (id)
-: null
+: string
+| remote partition
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -2175,7 +2189,7 @@
 < column "coalesce" "TEXT"
 > query
 |
-| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
 | ORDER BY s.srvname;
@@ -2183,6 +2197,8 @@
 < column "srvname" "NAME"
 < column "fdwname" "NAME"
 < column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 < row
 : string
 | loopback
@@ -2190,5 +2206,7 @@
 | postgres_fdw
 : string
 | ["host=localhost","dbname=postgres"]
+: null
+: null
 > commit
 < ok

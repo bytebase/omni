@@ -600,17 +600,20 @@ func TestDatabaseDefinitionWritesForeignServerBeforeForeignTable(t *testing.T) {
 // wrapper the database declares itself, with its handler, validator and
 // options, is written before the server that names it.
 func TestDatabaseDefinitionWritesForeignDataWrapperBeforeServer(t *testing.T) {
+	serverType, serverVersion := "foo", "1"
 	meta := &metadatapb.DatabaseSchemaMetadata{
 		Name: "db",
 		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
 			Name:      "custom_fdw",
 			Handler:   "custom_handler",
 			Validator: "custom_validator",
-			Options:   []string{"debug=true", "ApiKey=secret"},
+			Options:   []string{"debug=true", "ApiKey=secret", `"lit"=v`},
 		}},
 		ForeignServers: []*metadatapb.ForeignServerMetadata{{
-			Name: "custom_server",
-			Fdw:  "custom_fdw",
+			Name:    "custom_server",
+			Fdw:     "custom_fdw",
+			Type:    &serverType,
+			Version: &serverVersion,
 		}},
 		Schemas: []*metadatapb.SchemaMetadata{{Name: "public"}},
 	}
@@ -618,8 +621,8 @@ func TestDatabaseDefinitionWritesForeignDataWrapperBeforeServer(t *testing.T) {
 	result, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 
-	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER custom_handler VALIDATOR custom_validator OPTIONS (debug 'true', "ApiKey" 'secret');`
-	server := `CREATE SERVER "custom_server" FOREIGN DATA WRAPPER "custom_fdw";`
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER custom_handler VALIDATOR custom_validator OPTIONS (debug 'true', "ApiKey" 'secret', """lit""" 'v');`
+	server := `CREATE SERVER "custom_server" TYPE 'foo' VERSION '1' FOREIGN DATA WRAPPER "custom_fdw";`
 	assert.Contains(t, result, wrapper)
 	assert.Contains(t, result, server)
 	assert.Less(t, strings.Index(result, wrapper), strings.Index(result, server), "the wrapper must be written before its server")

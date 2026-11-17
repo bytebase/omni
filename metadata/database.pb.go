@@ -615,7 +615,15 @@ type ForeignServerMetadata struct {
 	// The server's options as PostgreSQL's pg_foreign_server.srvoptions states
 	// them: each entry is "key=value", with the value unquoted. Empty when the
 	// server declares none.
-	Options       []string `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
+	Options []string `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
+	// The server's TYPE clause. Unset when the server declares none; set to ""
+	// when it declares an empty type, which pg_foreign_server.srvtype keeps
+	// apart from NULL.
+	Type *string `protobuf:"bytes,4,opt,name=type,proto3,oneof" json:"type,omitempty"`
+	// The server's VERSION clause. Unset when the server declares none; set to
+	// "" when it declares an empty version, which pg_foreign_server.srvversion
+	// keeps apart from NULL.
+	Version       *string `protobuf:"bytes,5,opt,name=version,proto3,oneof" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -669,6 +677,20 @@ func (x *ForeignServerMetadata) GetOptions() []string {
 		return x.Options
 	}
 	return nil
+}
+
+func (x *ForeignServerMetadata) GetType() string {
+	if x != nil && x.Type != nil {
+		return *x.Type
+	}
+	return ""
+}
+
+func (x *ForeignServerMetadata) GetVersion() string {
+	if x != nil && x.Version != nil {
+		return *x.Version
+	}
+	return ""
 }
 
 type LinkedDatabaseMetadata struct {
@@ -4970,11 +4992,16 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\ahandler\x18\x02 \x01(\tR\ahandler\x12\x1c\n" +
 	"\tvalidator\x18\x03 \x01(\tR\tvalidator\x12\x18\n" +
-	"\aoptions\x18\x04 \x03(\tR\aoptions\"W\n" +
+	"\aoptions\x18\x04 \x03(\tR\aoptions\"\xa4\x01\n" +
 	"\x15ForeignServerMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
 	"\x03fdw\x18\x02 \x01(\tR\x03fdw\x12\x18\n" +
-	"\aoptions\x18\x03 \x03(\tR\aoptions\"\\\n" +
+	"\aoptions\x18\x03 \x03(\tR\aoptions\x12\x17\n" +
+	"\x04type\x18\x04 \x01(\tH\x00R\x04type\x88\x01\x01\x12\x1d\n" +
+	"\aversion\x18\x05 \x01(\tH\x01R\aversion\x88\x01\x01B\a\n" +
+	"\x05_typeB\n" +
+	"\n" +
+	"\b_version\"\\\n" +
 	"\x16LinkedDatabaseMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
@@ -5572,6 +5599,7 @@ func file_omni_metadata_database_proto_init() {
 	if File_omni_metadata_database_proto != nil {
 		return
 	}
+	file_omni_metadata_database_proto_msgTypes[2].OneofWrappers = []any{}
 	file_omni_metadata_database_proto_msgTypes[6].OneofWrappers = []any{}
 	file_omni_metadata_database_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}

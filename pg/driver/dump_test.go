@@ -153,7 +153,9 @@ func TestDumpRestoresForeignPartition(t *testing.T) {
 		"CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
 		"CREATE TABLE public.pt (id integer CHECK (id > 0)) PARTITION BY RANGE (id);\n" +
 		"CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)\n" +
-		"    SERVER loopback OPTIONS (schema_name 'public', table_name 'x');"
+		"    SERVER loopback OPTIONS (schema_name 'public', table_name 'x');\n" +
+		"COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';\n" +
+		"COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_partition", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
@@ -169,6 +171,8 @@ func TestDumpRestoresForeignDataWrapper(t *testing.T) {
 		"CREATE SERVER bare_server FOREIGN DATA WRAPPER bare_fdw;\n" +
 		"CREATE FOREIGN DATA WRAPPER handled_fdw HANDLER postgres_fdw_handler VALIDATOR postgres_fdw_validator;\n" +
 		"CREATE SERVER handled_server FOREIGN DATA WRAPPER handled_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE SERVER typed_server TYPE 'foo' VERSION '1' FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE SERVER empty_server TYPE '' VERSION '' FOREIGN DATA WRAPPER bare_fdw;\n" +
 		"CREATE FOREIGN TABLE public.handled_remote (id integer) SERVER handled_server OPTIONS (schema_name 'public', table_name 'x');"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_wrapper", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
