@@ -1,10 +1,10 @@
-# Pin bump: omni `8851de182729` → `ad3d0f433`
+# Pin bump: omni `8851de182729` → `9bda507ad`
 
-2026-11-17 · PR body for Bytebase · written for Bytebase `345007290e` and omni `ad3d0f433`
+2026-11-17 · PR body for Bytebase · written for Bytebase `345007290e` and omni `9bda507ad`
 
 This is the body of the Bytebase pull request that moves `github.com/bytebase/omni` from the current
-pin (`8851de182729`, 2026-11-15) to omni `ad3d0f433` (2026-11-17): 143 commits, 1,314 files,
-+3,744,722/−23,225. It says what the range brings, what this PR (or one before it) must carry, what a
+pin (`8851de182729`, 2026-11-15) to omni `9bda507ad` (2026-11-17): 144 commits, 1,314 files,
++3,744,796/−23,225. It says what the range brings, what this PR (or one before it) must carry, what a
 user will see differently, what is deliberately outside the range, and how the range was audited.
 
 Everything below is measured at the named SHAs. Where a number comes from a cutover proof, the proof's
@@ -161,15 +161,19 @@ Three more fixture classes move, from the release note's action list ([cutover-c
 - Result-shape expectations: trino `DECIMAL` as text and real timestamp precision, tidb/mysql
   `uint64` and `[]byte`, clickhouse/doris/trino no synthetic `Affected Rows 0`.
 
-**The pg schema goldens are a blocker until they are adjudicated.** At the same measurement,
-`backend/plugin/schema/pg` fails as a block: 14 `TestGetDatabaseDefinition` subtests plus
-`TestGetMultiFileDatabaseDefinition_LegacyIndexExpressionsParse`. The dump text gained
-`COMMENT ON SCHEMA "public" IS …`, `CACHE 1` on sequences and `ALTER TABLE … OWNER TO`, because omni's
-pg catalog now renders a dump that restores to the metadata it was synced from (omni #1232) — accept
-those goldens, they are a fidelity fix. The second failure is not a fixture: the SDL renders
-`) PARTITION BY ;` when the snapshot carries a partition with no expression, so omni emits DDL omni's
-own parser rejects. That needs the omni side (open PR **#1398**, "render no partition clause a
-snapshot does not report"); do not pin the broken text.
+**The pg schema goldens move too, and only for one reason.** At the same measurement,
+`backend/plugin/schema/pg` fails as a block: 14 `TestGetDatabaseDefinition` subtests, whose diffs are
+exactly three line classes — `COMMENT ON SCHEMA "public" IS 'standard public schema'`,
+`CACHE 1` on every sequence, and one `ALTER TABLE "public"."<t>" OWNER TO "<role>"` per table. That is
+omni's pg catalog rendering a dump that restores to the metadata it was synced from (omni #1232):
+accept the goldens, it is a fidelity fix, and it also means a stored pg `raw_dump` changes on the next
+sync.
+
+The same measurement found a second failure that was **not** a fixture:
+`TestGetMultiFileDatabaseDefinition_LegacyIndexExpressionsParse` failed because the SDL rendered
+`) PARTITION BY ;` for a snapshot that carries a partition with no expression — DDL omni's own parser
+rejects. omni #1398 (`9bda507ad`) fixed it before this body was finished, and with it the test passes
+against this SHA. Recheck it if you pin an older SHA than `9bda507ad`.
 
 ### 2.2 The duplicated corpora to delete
 
@@ -330,10 +334,11 @@ So that nobody infers it from a neighbouring engine:
   `completion-tidb` (10) are not merged, and the Mongo completion cut
   ([design](../specs/2026-11-17-mongo-completion-cut-design.md)) is design only. Bytebase's
   `backend/plugin/parser/mongodb/completion.go` keeps working exactly as it does today.
-- **Open omni work at writing.** #1398 (pg partition clause), #1386 (hive managed-table restore),
-  #1376 (foreign servers and external table locations — a metadata-proto change), #1264 (GoogleSQL
-  predicate columns, a parked draft). If any of them merges first, the body of this PR should name the
-  new SHA and re-run §2.1.
+- **Open omni work at writing.** #1386 (hive managed-table restore), #1376 (foreign servers and
+  external table locations — a metadata-proto change), #1264 (GoogleSQL predicate columns, a parked
+  draft). If any of them merges first, name the new SHA in this PR and re-run §2.1; #1398 is the case
+  that already happened — it merged while this body was being written, which is why the range here is
+  144 commits and not 143.
 - **Everything the proofs left unpinned.** The release note marks each row `Proof only` where no test
   in the repository holds the behaviour: most of doris, clickhouse, hive, tidb, elasticsearch,
   dynamodb, redis, spanner and cassandra's user-visible deltas, including the pg truncation row count.
@@ -344,10 +349,10 @@ So that nobody infers it from a neighbouring engine:
 ## 5. How this bump was audited
 
 **Range.** `8851de182729` (2026-11-15 01:04 −0800, `feat(pg): move Bytebase's SDL style … #1226`) →
-`ad3d0f433` (2026-11-17 05:13 −0800, `fix(mysql,mariadb): answer the queries the MySQL driver already
-answers correctly #1392`), 143 commits. Every commit is a reviewable PR; nothing was pushed directly.
+`9bda507ad` (2026-11-17 05:17 −0800, `fix(pg): render no partition clause a snapshot does not
+report #1398`), 144 commits. Every commit is a reviewable PR; nothing was pushed directly.
 
-**Gates at `ad3d0f433`**, in a worktree of omni's `origin/main`, Docker pointed at a nonexistent socket
+**Gates at `9bda507ad`**, in a worktree of omni's `origin/main`, Docker pointed at a nonexistent socket
 so a container attempt fails rather than starts, `OMNI_RECORD` unset, CI's sweep values
 (`SPLITTEST_N=1000000`, `WALK_SWEEP_N=500`):
 
@@ -355,18 +360,18 @@ so a container attempt fails rather than starts, `OMNI_RECORD` unset, CI's sweep
 | --- | --- |
 | `go build ./...` | pass |
 | `go vet ./...` | pass |
-| `go test ./... -count=1` (replay-only, everything) | **pass**, 182 packages ok, 29 with no test files, 0 fail, 79 s |
+| `go test ./... -count=1` (replay-only, everything) | **pass**, 181 packages ok, 29 with no test files, 0 fail, 84 s |
 | `go generate` over the 10 AST walkers, `git diff --exit-code` | clean, no generated change |
-| `go test ./enginetest/ -run '^TestDocumentedRecordingCommands$'` (the `VERIFY.md` lint) | pass |
+| the `VERIFY.md` lint (`enginetest`'s `TestDocumentedRecordingCommands`, a package test) | pass |
 | `go run ./enginetest/cmd/compatcheck origin/main` | pass — commits change engineered answers only by re-recording |
 | `scripts/affected-packages.sh origin/main` | empty, as expected at main |
-| proto `format`/`lint`/`generate`/`breaking` | last measured at `46dc54bfd`; `git log 46dc54bfd..ad3d0f433 -- proto/` is empty, so the measured tree and this one are byte-identical under `proto/` |
+| proto `format`/`lint`/`generate`/`breaking` | last measured at `46dc54bfd`; `git log 46dc54bfd..9bda507ad -- proto/` is empty, so the measured tree and this one are byte-identical under `proto/` |
 
 An earlier full protocol at `bf1a3396e` — the same gates plus `go vet`, two consecutive full runs
 (211 packages, 178,241 tests, 18 skips, 0 fail, identical outcomes), the nested `googlesql/spanner-oracle`
 module, and a flake report that found no flakes — is the reason `go vet` is on this list at all: it was
-red with four `unreachable code` findings in `oracle/parser` until #1369. The 17 commits between that
-measurement and `ad3d0f433` are 8 docs, 3 test-only, 5 engine fixes and one contract feature (#1389),
+red with four `unreachable code` findings in `oracle/parser` until #1369. The 18 commits between that
+measurement and `9bda507ad` are 8 docs, 3 test-only, 6 engine fixes and one contract feature (#1389),
 each merged on the usual gate (CI green plus a Codex review with no unresolved thread). The table
 above is the first measurement that covers the exact SHA this PR names.
 
@@ -391,7 +396,7 @@ open omni PRs in §4 were not exercised at all.
 
 ## 6. Reviewer's checklist
 
-- [ ] The pin in `go.mod` is `ad3d0f433…` (full SHA), `go mod tidy` run, no `replace` left behind.
+- [ ] The pin in `go.mod` is `9bda507ad…` (full SHA), `go mod tidy` run, no `replace` left behind.
 - [ ] §2.1's five parser expectations move, and the pg schema goldens move with #1398's fix in place.
 - [ ] §2.2's corpora are deleted; the conversion-layer assertions stay.
 - [ ] Every decision in §2.7 either lands or is named in the PR body as deferred, with the reason.
