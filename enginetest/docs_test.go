@@ -295,11 +295,14 @@ func templateName(pattern string) bool {
 // `./<engine>/driver/` a guide writes, has none.
 func packageDirs(root, arg string) []string {
 	dir := strings.TrimSuffix(strings.TrimPrefix(arg, "./"), "/")
-	subtree := strings.HasSuffix(dir, "/...")
+	subtree := dir == "..." || strings.HasSuffix(dir, "/...")
+	if dir == "..." {
+		dir = "."
+	}
 	if subtree {
 		dir = strings.TrimSuffix(dir, "/...")
 	}
-	if dir == "" || dir == "." || dir == "..." {
+	if dir == "" || dir == "." {
 		dir = "."
 	}
 	if _, err := os.Stat(filepath.Join(root, dir)); err != nil {
@@ -574,6 +577,8 @@ func Testlower(t *testing.T) {}
 		{doc: "x/close-name.md", body: "go test ./x/ -run '^TestExist$'\n", want: "closest: TestExists"},
 		{doc: "x/subtree.md", body: "go test ./x/... -run '^TestExists$'\n"},
 		{doc: "x/subtree-missing.md", body: "go test ./x/... -run '^TestGone$'\n", want: "names no test in ./x/"},
+		{doc: "root-subtree.md", body: "go test ./... -run '^TestExists$'\n"},
+		{doc: "root-subtree-missing.md", body: "go test ./... -run '^TestGone$'\n", want: "names no test in ./ "},
 		{doc: "x/placeholder.md", body: "go test ./x/ -run '^TestName$'\n"},
 		{doc: "x/unresolved-package.md", body: "go test ./<engine>/driver/ -run '^TestGone$'\n"},
 		{doc: "x/testmain.md", body: "go test ./x/ -run '^TestMain$'\n", want: "names no test"},
