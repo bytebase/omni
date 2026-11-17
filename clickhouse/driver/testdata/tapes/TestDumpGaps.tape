@@ -16,26 +16,20 @@
 > query
 |
 | 		SELECT
-| 			name,
-| 			engine
+| 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND name NOT LIKE '.%'
+| 		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
 | 		ORDER BY name
 : string
 | omni_gap_mv
 < result
 < column "name" "String" "string"
-< column "engine" "String" "string"
 < row
 : string
 | mv
-: string
-| MaterializedView
 < row
 : string
 | src
-: string
-| MergeTree
 > query
 | SHOW CREATE TABLE omni_gap_mv.mv
 < result
@@ -132,21 +126,17 @@
 > query
 |
 | 		SELECT
-| 			name,
-| 			engine
+| 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND name NOT LIKE '.%'
+| 		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
 | 		ORDER BY name
 : string
 | omni_gap_database
 < result
 < column "name" "String" "string"
-< column "engine" "String" "string"
 < row
 : string
 | t
-: string
-| MergeTree
 > query
 | SHOW CREATE TABLE omni_gap_database.t
 < result

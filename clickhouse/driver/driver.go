@@ -5,18 +5,20 @@
 // server states it, runs interactive queries, and executes change scripts.
 //
 // It implements Driver, Syncer, Dumper, Querier and Executor. Dump asks the
-// server to state each object — SHOW CREATE TABLE, and SHOW CREATE DICTIONARY
-// for a dictionary — because omni's clickhouse tree has no catalog, so nothing
-// renders a synced schema as ClickHouse DDL. The metadata it is given is not
-// read: a caller that edits a synced schema changes nothing in the dump, and a
-// caller that leaves part of the schema out narrows nothing either. The
-// statements are the server's own, so each names its object in the database it
-// was read from and a dump restores into a database of that name; the database
-// itself is the caller's to create, since only SHOW CREATE DATABASE states its
-// engine and comment. There is no clickhouse/parser or clickhouse/analysis
-// yet, so the statement handling the driver needs — splitting, limit and
-// explain rewriting, and the read-only check — lives in this package until
-// that tree holds it.
+// server to state each object with SHOW CREATE TABLE, which answers a
+// dictionary's CREATE DICTIONARY and a view's or a materialized view's own
+// statement, because omni's clickhouse tree has no catalog, so nothing renders
+// a synced schema as ClickHouse DDL. The metadata it is given is not read: a
+// caller that edits a synced schema changes nothing in the dump, and a caller
+// that leaves part of the schema out narrows nothing either. The statements are
+// the server's own, so each names its object in the database it was read from
+// and a dump restores into a database of that name; the database itself is the
+// caller's to create, since only SHOW CREATE DATABASE states its engine and
+// comment. A definition whose secrets the server hides — ClickHouse writes
+// [HIDDEN] for a credential the session may not see — is written as the server
+// states it. There is no clickhouse/parser or clickhouse/analysis yet, so the
+// statement handling the driver needs — splitting, limit and explain rewriting,
+// and the read-only check — lives in this package until that tree holds it.
 //
 // Config.Host and Config.Port name the native endpoint, port 9000. Config.Database
 // is the database a sync reads and a query runs in. Config.User and

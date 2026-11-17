@@ -14,17 +14,18 @@ import (
 
 var _ driver.Dumper = (*Driver)(nil)
 
-// The object kinds a dump carries.
+// The object kinds a dump names in its headers.
 const (
-	dumpTable            = "table"
 	dumpDictionary       = "dictionary"
+	dumpDictionaryTable  = "dictionary table"
+	dumpTable            = "table"
 	dumpView             = "view"
 	dumpMaterializedView = "materialized view"
 )
 
-// dumpObject is one object a dump writes: the kind the server reports for it,
-// its name, the statement the server states, and the definitions in the same
-// database that statement reads, which orders the definitions.
+// dumpObject is one object a dump writes: the kind its statement makes it, the
+// name the server lists, the statement the server states, and the materialized
+// views in the same database that statement reads, which orders them.
 type dumpObject struct {
 	kind  string
 	name  string
@@ -48,7 +49,7 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 		return wrapDatabaseNotFound(err)
 	}
 	for _, o := range orderDumpObjects(objects) {
-		if err := writeDumpObject(out, o); err != nil {
+		if _, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n%s;\n\n", dumpKindLabel(o.kind), dumpLabel(o.name), o.stmt); err != nil {
 			return err
 		}
 	}
@@ -59,15 +60,14 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 // states for it.
 func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObject, error) {
 	// A materialized view with its own engine has a table the server named
-	// itself, ".inner_id.<uuid>"; it is the view's storage, not an object of
-	// the database, and a dump that wrote it would create a second one beside
-	// the view's.
+	// itself, ".inner_id.<uuid>" (".inner.<name>" before 21.4). It is the
+	// view's storage, not an object of the database, and a dump that wrote it
+	// would create a second one beside the view's.
 	const query = `
 		SELECT
-			name,
-			engine
+			name
 		FROM system.tables
-		WHERE database = ? AND name NOT LIKE '.%'
+		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
 		ORDER BY name`
 	rows, err := d.db.QueryContext(ctx, query, database)
 	if err != nil {
@@ -76,11 +76,11 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 	defer rows.Close()
 	var objects []*dumpObject
 	for rows.Next() {
-		var name, engine string
-		if err := rows.Scan(&name, &engine); err != nil {
+		var o dumpObject
+		if err := rows.Scan(&o.name); err != nil {
 			return nil, err
 		}
-		objects = append(objects, &dumpObject{kind: dumpKind(engine), name: name})
+		objects = append(objects, &o)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, formatErrorWithQuery(err, query)
@@ -89,48 +89,56 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 		return nil, err
 	}
 
-	definitions := make(map[string]bool, len(objects))
-	for _, o := range objects {
-		if o.kind == dumpView || o.kind == dumpMaterializedView {
-			definitions[o.name] = true
-		}
-	}
 	// The statement queries go in name order, which is the order the rows
 	// arrived in, so a recording of them does not depend on a map.
 	for _, o := range objects {
-		if o.stmt, err = d.dumpStatement(ctx, database, o); err != nil {
+		if o.stmt, err = d.dumpStatement(ctx, database, o.name); err != nil {
 			return nil, err
 		}
-		if definitions[o.name] {
-			o.reads = dumpReads(o, database, definitions)
+		o.kind = dumpKind(o.stmt)
+	}
+	materializedViews := make(map[string]bool, len(objects))
+	for _, o := range objects {
+		if o.kind == dumpMaterializedView {
+			materializedViews[o.name] = true
+		}
+	}
+	for _, o := range objects {
+		if o.kind == dumpMaterializedView {
+			o.reads = dumpReads(o, database, materializedViews)
 		}
 	}
 	return objects, nil
 }
 
-// dumpKind names the kind of object a table's engine makes it.
-func dumpKind(engine string) string {
-	switch engine {
-	case "View":
-		return dumpView
-	case "MaterializedView":
-		return dumpMaterializedView
-	case "Dictionary":
+// dumpKind names the object a statement creates. SHOW CREATE TABLE states a
+// dictionary as CREATE DICTIONARY, a view and a materialized view as their own
+// statements, and everything else as CREATE TABLE — a table on the Dictionary
+// engine included, which is a table that reads a dictionary and is stated as
+// one.
+func dumpKind(stmt string) string {
+	switch {
+	case strings.HasPrefix(stmt, "CREATE DICTIONARY "):
 		return dumpDictionary
-	default:
+	case strings.HasPrefix(stmt, "CREATE MATERIALIZED VIEW "):
+		return dumpMaterializedView
+	case strings.HasPrefix(stmt, "CREATE TABLE ") && strings.Contains(stmt, "ENGINE = Dictionary("):
+		return dumpDictionaryTable
+	case strings.HasPrefix(stmt, "CREATE TABLE "):
 		return dumpTable
+	default:
+		// A view states CREATE VIEW, and a release that adds another kind of
+		// view states it as a CREATE of its own; either way it is a definition
+		// rather than a table.
+		return dumpView
 	}
 }
 
 // dumpStatement returns the statement the server states for one object, without
-// its terminating semicolon. Both SHOW CREATE forms answer one row in one
-// column.
-func (d *Driver) dumpStatement(ctx context.Context, database string, o *dumpObject) (string, error) {
-	qualified := dumpIdentifier(database) + "." + dumpIdentifier(o.name)
-	query := "SHOW CREATE TABLE " + qualified
-	if o.kind == dumpDictionary {
-		query = "SHOW CREATE DICTIONARY " + qualified
-	}
+// its terminating semicolon. SHOW CREATE TABLE answers one row in one column
+// for every kind of object, a dictionary included.
+func (d *Driver) dumpStatement(ctx context.Context, database, name string) (string, error) {
+	query := "SHOW CREATE TABLE " + dumpIdentifier(database) + "." + dumpIdentifier(name)
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
 		return "", formatErrorWithQuery(err, query)
@@ -149,38 +157,47 @@ func (d *Driver) dumpStatement(ctx context.Context, database string, o *dumpObje
 	return strings.TrimSuffix(strings.TrimSpace(stmt), ";"), nil
 }
 
-// orderDumpObjects puts the objects in the order a restore replays: tables,
-// then dictionaries, whose creation resolves no source, then views and
-// materialized views, each after the definitions in its database it reads.
-// Only a materialized view has to be ordered: it resolves its source and its TO
-// target when it is created, while a view states its columns, and ClickHouse
-// creates a view that states them without resolving what it reads. Neither the
-// server nor the metadata states what a materialized view reads, so the order
-// comes from the statements.
+// orderDumpObjects puts the objects in the order a restore replays them:
+//
+//   - tables, whose creation resolves nothing;
+//   - dictionaries, whose creation resolves nothing either, so they follow the
+//     tables their sources usually are;
+//   - tables on the Dictionary engine, which load their dictionary when they
+//     are created, and with it the dictionary's source;
+//   - views, whose creation does not resolve the query they hold, so their own
+//     order does not matter;
+//   - materialized views, which do resolve their source and their TO target
+//     when they are created, each after the materialized views it reads.
 func orderDumpObjects(objects []*dumpObject) []*dumpObject {
-	var tables, dictionaries, definitions []*dumpObject
+	var tables, dictionaries, dictionaryTables, views, materializedViews []*dumpObject
 	for _, o := range objects {
 		switch o.kind {
 		case dumpTable:
 			tables = append(tables, o)
 		case dumpDictionary:
 			dictionaries = append(dictionaries, o)
+		case dumpDictionaryTable:
+			dictionaryTables = append(dictionaryTables, o)
+		case dumpMaterializedView:
+			materializedViews = append(materializedViews, o)
 		default:
-			definitions = append(definitions, o)
+			views = append(views, o)
 		}
 	}
-	ordered := append(sortDumpObjects(tables), sortDumpObjects(dictionaries)...)
-	return append(ordered, orderDumpDefinitions(definitions)...)
+	ordered := sortDumpObjects(tables)
+	ordered = append(ordered, sortDumpObjects(dictionaries)...)
+	ordered = append(ordered, sortDumpObjects(dictionaryTables)...)
+	ordered = append(ordered, sortDumpObjects(views)...)
+	return append(ordered, orderDumpMaterializedViews(materializedViews)...)
 }
 
-// orderDumpDefinitions orders views and materialized views so that a definition
-// follows every definition in its database that it reads, names breaking ties
-// so the dump is deterministic. A reference cycle cannot exist on the server,
-// which refuses the creation that would close it; were one found anyway, the
-// remaining definitions are written in name order so the dump still carries
-// them.
-func orderDumpDefinitions(definitions []*dumpObject) []*dumpObject {
-	pending := sortDumpObjects(definitions)
+// orderDumpMaterializedViews orders materialized views so that one follows every
+// materialized view it reads, names breaking ties so the dump is deterministic.
+// A reference cycle cannot exist on the server, which refuses the creation that
+// would close it; were one found anyway, the remaining views are written in name
+// order so the dump still carries them.
+func orderDumpMaterializedViews(materializedViews []*dumpObject) []*dumpObject {
+	pending := sortDumpObjects(materializedViews)
 	names := make(map[string]bool, len(pending))
 	for _, o := range pending {
 		names[o.name] = true
@@ -222,12 +239,10 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 	return sorted
 }
 
-// dumpReads returns the other definitions in names that o reads. ClickHouse's
-// rendering names every table a materialized view reads with its database, so a
-// definition is found by the qualified spelling the dump would use for it, and
-// o's own name in its CREATE statement is not a read. A reference inside a
-// string literal adds an edge that is not there, which only moves a definition
-// later.
+// dumpReads returns the other materialized views in names that o reads.
+// ClickHouse's rendering names every table a materialized view reads with its
+// database, so one is found by the qualified spelling the dump would use for it,
+// and o's own name in its CREATE statement is not a read.
 func dumpReads(o *dumpObject, database string, names map[string]bool) []string {
 	var reads []string
 	for name := range names {
@@ -239,8 +254,10 @@ func dumpReads(o *dumpObject, database string, names map[string]bool) []string {
 	return reads
 }
 
-// dumpReferences reports whether stmt names database.name, and not the tail of
-// a longer identifier.
+// dumpReferences reports whether stmt names database.name outside a string
+// literal, and not as the tail of a longer identifier. A reference inside a
+// literal is not a read: an edge it added could close a cycle and make the order
+// fall back to names.
 func dumpReferences(stmt, database, name string) bool {
 	reference := dumpIdentifier(database) + "." + dumpIdentifier(name)
 	for offset := 0; offset < len(stmt); {
@@ -250,7 +267,7 @@ func dumpReferences(stmt, database, name string) bool {
 		}
 		start += offset
 		end := start + len(reference)
-		if !dumpReferenceRune(stmt, start-1) && !dumpReferenceRune(stmt, end) {
+		if !dumpReferenceRune(stmt, start-1) && !dumpReferenceRune(stmt, end) && !dumpInString(stmt, start) {
 			return true
 		}
 		offset = end
@@ -269,6 +286,24 @@ func dumpReferenceRune(s string, i int) bool {
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
+// dumpInString reports whether the byte at want is inside a string literal.
+// ClickHouse's rendering escapes a quote inside a string with a backslash, and
+// writes a name in backquotes or double quotes, where a quote needs none.
+func dumpInString(stmt string, want int) bool {
+	quote := byte(0)
+	for i := 0; i < want && i < len(stmt); i++ {
+		switch c := stmt[i]; {
+		case quote == 0 && (c == '\'' || c == '`' || c == '"'):
+			quote = c
+		case quote != 0 && c == '\\':
+			i++
+		case quote != 0 && c == quote:
+			quote = 0
+		}
+	}
+	return quote == '\''
+}
+
 var plainIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
 
 // dumpIdentifier writes name the way ClickHouse's own rendering writes it: bare
@@ -281,17 +316,23 @@ func dumpIdentifier(name string) string {
 	return "`" + strings.NewReplacer(`\`, `\\`, "`", "\\`").Replace(name) + "`"
 }
 
-// writeDumpObject writes one object's statement under a header naming it.
-func writeDumpObject(out io.Writer, o *dumpObject) error {
-	label := "Table"
-	switch o.kind {
+// dumpLabel writes an object's name for the header of its statement. An
+// identifier may hold a line break, which a -- comment would not survive, so it
+// is escaped here.
+func dumpLabel(name string) string {
+	return strings.NewReplacer("\n", `\n`, "\r", `\r`, "\t", `\t`).Replace(dumpIdentifier(name))
+}
+
+// dumpKindLabel names a kind of object for the header of its statement.
+func dumpKindLabel(kind string) string {
+	switch kind {
 	case dumpDictionary:
-		label = "Dictionary"
+		return "Dictionary"
 	case dumpView:
-		label = "View"
+		return "View"
 	case dumpMaterializedView:
-		label = "Materialized view"
+		return "Materialized view"
+	default:
+		return "Table"
 	}
-	_, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n%s;\n\n", label, dumpIdentifier(o.name), o.stmt)
-	return err
 }

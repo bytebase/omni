@@ -1,8 +1,14 @@
 -- The schema the dump tests read: a MergeTree table with an index, a primary
--- key, a setting and a comment; a table the materialized views write to; a view,
--- and a view over it under a name that sorts first; a materialized view, and one
--- over that under a name that sorts first; a dictionary; and a materialized view
--- with its own engine, whose inner table only the server names.
+-- key, a setting and a comment; a table the materialized views write to; a name
+-- that needs backquotes; a user table whose name starts with the dot ClickHouse
+-- uses for a materialized view's storage; a name that holds a line break; a
+-- dictionary, and a table that reads it; a view, and a view over it under a name
+-- that sorts first; two materialized views, the first holding the other's name
+-- in a literal; and a materialized view with its own engine, whose inner table
+-- only the server names.
+--
+-- $database stands for the database the test created, which the dictionary's
+-- source and the materialized view's literal name.
 CREATE TABLE src (
   id UInt64,
   name String,
@@ -21,27 +27,24 @@ CREATE TABLE target (
 ENGINE = MergeTree
 ORDER BY id;
 
--- A name ClickHouse writes in backquotes, so the dump quotes it back.
 CREATE TABLE `odd-name` (
   id UInt64
 )
 ENGINE = MergeTree
 ORDER BY id;
 
-CREATE VIEW v_names AS SELECT id, name FROM src;
+CREATE TABLE `.events` (
+  id UInt64
+)
+ENGINE = MergeTree
+ORDER BY id;
 
--- A view states its columns, which ClickHouse creates without resolving its
--- query, so this one replays before the view it reads.
-CREATE VIEW a_first AS SELECT id FROM v_names;
-
-CREATE MATERIALIZED VIEW mv_to TO target AS SELECT id, name FROM src;
-
--- A materialized view, and one over it under a name that sorts first: a
--- materialized view resolves its source when it is created, so the dump has to
--- write mv_base before a_top whatever their names say.
-CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id FROM src;
-
-CREATE MATERIALIZED VIEW a_top TO target AS SELECT id FROM mv_base;
+CREATE TABLE `line
+break` (
+  id UInt64
+)
+ENGINE = MergeTree
+ORDER BY id;
 
 CREATE DICTIONARY dict (
   id UInt64,
@@ -51,5 +54,23 @@ PRIMARY KEY id
 SOURCE(CLICKHOUSE(TABLE 'src'))
 LAYOUT(FLAT())
 LIFETIME(300);
+
+CREATE TABLE dict_table (
+  id UInt64
+)
+ENGINE = Dictionary('$database.dict');
+
+CREATE VIEW v_names AS SELECT id, name FROM src;
+
+-- A view states its columns, which ClickHouse creates without resolving its
+-- query, so this one replays before the view it reads.
+CREATE VIEW a_first AS SELECT id FROM v_names;
+
+CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id, '$database.a_top' AS name FROM src;
+
+-- A materialized view resolves its source when it is created, so the dump has to
+-- write mv_base first whatever the names say; the literal above names a_top and
+-- is not a read.
+CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM mv_base;
 
 CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps

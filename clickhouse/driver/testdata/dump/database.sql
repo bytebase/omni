@@ -1,4 +1,26 @@
 --
+-- Table structure for `.events`
+--
+CREATE TABLE omni_testdump.`.events`
+(
+    `id` UInt64
+)
+ENGINE = MergeTree
+ORDER BY id
+SETTINGS index_granularity = 8192;
+
+--
+-- Table structure for `line\nbreak`
+--
+CREATE TABLE omni_testdump.`line\nbreak`
+(
+    `id` UInt64
+)
+ENGINE = MergeTree
+ORDER BY id
+SETTINGS index_granularity = 8192;
+
+--
 -- Table structure for `odd-name`
 --
 CREATE TABLE omni_testdump.`odd-name`
@@ -50,13 +72,48 @@ LIFETIME(MIN 0 MAX 300)
 LAYOUT(FLAT());
 
 --
--- Materialized view structure for mv_base
+-- Table structure for dict_table
 --
-CREATE MATERIALIZED VIEW omni_testdump.mv_base TO omni_testdump.target
+CREATE TABLE omni_testdump.dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.dict');
+
+--
+-- View structure for a_first
+--
+CREATE VIEW omni_testdump.a_first
 (
     `id` UInt64
 )
 AS SELECT id
+FROM omni_testdump.v_names;
+
+--
+-- View structure for v_names
+--
+CREATE VIEW omni_testdump.v_names
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    name
+FROM omni_testdump.src;
+
+--
+-- Materialized view structure for mv_base
+--
+CREATE MATERIALIZED VIEW omni_testdump.mv_base TO omni_testdump.target
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    'omni_testdump.a_top' AS name
 FROM omni_testdump.src;
 
 --
@@ -73,48 +130,15 @@ AS SELECT id
 FROM omni_testdump.src;
 
 --
--- Materialized view structure for mv_to
---
-CREATE MATERIALIZED VIEW omni_testdump.mv_to TO omni_testdump.target
-(
-    `id` UInt64,
-    `name` String
-)
-AS SELECT
-    id,
-    name
-FROM omni_testdump.src;
-
---
--- View structure for v_names
---
-CREATE VIEW omni_testdump.v_names
-(
-    `id` UInt64,
-    `name` String
-)
-AS SELECT
-    id,
-    name
-FROM omni_testdump.src;
-
---
--- View structure for a_first
---
-CREATE VIEW omni_testdump.a_first
-(
-    `id` UInt64
-)
-AS SELECT id
-FROM omni_testdump.v_names;
-
---
 -- Materialized view structure for a_top
 --
 CREATE MATERIALIZED VIEW omni_testdump.a_top TO omni_testdump.target
 (
-    `id` UInt64
+    `id` UInt64,
+    `name` String
 )
-AS SELECT id
+AS SELECT
+    id,
+    name
 FROM omni_testdump.mv_base;
 

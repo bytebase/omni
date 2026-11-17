@@ -22,11 +22,14 @@ import (
 // why.
 const gapMarker = "-- not restorable: TestDumpGaps"
 
+// dumpCorpus is testdata/dump/corpus.sql, with the database the test created put
+// where the fixture names it: a dictionary's engine argument and a materialized
+// view's literal hold a qualified name.
 func dumpCorpus(t *testing.T) string {
 	t.Helper()
 	corpus, err := os.ReadFile(filepath.Join("testdata", "dump", "corpus.sql"))
 	require.NoError(t, err)
-	return string(corpus)
+	return strings.ReplaceAll(string(corpus), "$database", testcontainer.Database(t))
 }
 
 // restorable is the corpus without its gapMarker lines.
