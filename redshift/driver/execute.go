@@ -190,9 +190,7 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error
 	// The statements after CREATE DATABASE initialize it, so they run on a
 	// connection to it; this driver is open on the database the step started
 	// from, and would otherwise create them there.
-	cfg := d.config
-	cfg.Database = databaseName
-	created, err := Open(ctx, cfg)
+	created, err := Open(ctx, initConfig(d.config, databaseName))
 	if err != nil {
 		return err
 	}
@@ -203,6 +201,24 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error
 		}
 	}
 	return nil
+}
+
+// initConfig is the configuration the statements after CREATE DATABASE run
+// with: the database just created, and no dbname Params that would send them
+// elsewhere. The caller's Params are copied rather than changed.
+func initConfig(cfg driver.Config, databaseName string) driver.Config {
+	cfg.Database = databaseName
+	if _, ok := cfg.Params["dbname"]; !ok {
+		return cfg
+	}
+	params := make(map[string]string, len(cfg.Params))
+	for key, value := range cfg.Params {
+		if key != "dbname" {
+			params[key] = value
+		}
+	}
+	cfg.Params = params
+	return cfg
 }
 
 // getDatabaseInCreateDatabaseStatement reads the name a CREATE DATABASE

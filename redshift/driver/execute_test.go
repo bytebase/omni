@@ -3,7 +3,29 @@ package driver
 import (
 	"strings"
 	"testing"
+
+	"github.com/bytebase/omni/driver"
 )
+
+// TestInitConfig pins the configuration the statements after CREATE DATABASE run
+// with: the new database, and a dbname Params that would override it removed
+// without changing the caller's map.
+func TestInitConfig(t *testing.T) {
+	params := map[string]string{"dbname": "dev", "search_path": "app"}
+	cfg := initConfig(driver.Config{Database: "dev", Params: params}, "newdb")
+	if cfg.Database != "newdb" {
+		t.Errorf("Database = %q, want newdb", cfg.Database)
+	}
+	if _, ok := cfg.Params["dbname"]; ok {
+		t.Error("the dbname parameter survived, so the initialization would run in dev")
+	}
+	if cfg.Params["search_path"] != "app" {
+		t.Errorf("search_path = %q, want it kept", cfg.Params["search_path"])
+	}
+	if params["dbname"] != "dev" {
+		t.Error("the caller's Params map was changed")
+	}
+}
 
 // TestRefuseImplicitCommit pins which statements a transactional script may not
 // hold: the ones Redshift commits on its own, so a rollback would not undo them.

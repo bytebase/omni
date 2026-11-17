@@ -330,6 +330,8 @@ Every one is a decision the recording settles.
 | a transactional script refuses TRUNCATE, VACUUM and a database statement | Redshift commits those on their own, so a script holding one cannot be rolled back as a whole; the caller runs it in autocommit mode |
 | a `dbname` in Params is the database the connection uses | Params are applied last, so their value overrides Config.Database and Redshift's default |
 | a derived table's alias is collected like a base table's | the alias after a subquery names the derived table, so a reference beginning with it is a column, not the database |
+| the initialization connection drops a `dbname` in Params | the statements after CREATE DATABASE run in the database just created, and a Params override would send them to the one the step started from |
+| a `dbname` in Params is read as pgx parsed it, quotes included in the libpq value | the parameter is connection-string text, so `'analytics'` names `analytics` |
 
 ## What would unblock it
 

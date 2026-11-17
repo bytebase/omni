@@ -140,6 +140,21 @@ func TestConnConfigBuildsTheConnection(t *testing.T) {
 			},
 		},
 		{
+			name: "a quoted dbname in Params is read as pgx reads it",
+			cfg: driver.Config{
+				User:     "dba",
+				Host:     "redshift.example.com",
+				Port:     "5439",
+				Database: "dev",
+				Params:   map[string]string{"dbname": "'analytics'"},
+			},
+			want: func(t *testing.T, got *pgx.ConnConfig) {
+				if got.Database != "analytics" {
+					t.Errorf("Database = %q, want analytics: the libpq value is quoted, and pgx decodes it", got.Database)
+				}
+			},
+		},
+		{
 			name: "a datashare flag is not a server setting",
 			cfg: driver.Config{
 				User:     "dba",
