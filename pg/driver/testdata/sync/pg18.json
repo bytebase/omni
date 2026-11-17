@@ -631,7 +631,8 @@
             },
             {
               "name":  "customer_name_check",
-              "expression":  "(length(name) > 0)"
+              "expression":  "(length(name) > 0)",
+              "comment":  "the name a customer is known by"
             }
           ],
           "owner":  "corpus_owner",
@@ -1007,7 +1008,8 @@
               "checkConstraints":  [
                 {
                   "name":  "measurement_peak_check",
-                  "expression":  "(peak > '-100'::integer)"
+                  "expression":  "(peak > '-100'::integer)",
+                  "comment":  "this year's peaks"
                 }
               ]
             }
@@ -1015,7 +1017,8 @@
           "checkConstraints":  [
             {
               "name":  "measurement_peak_check",
-              "expression":  "(peak > '-100'::integer)"
+              "expression":  "(peak > '-100'::integer)",
+              "comment":  "a peak is above the floor"
             }
           ],
           "owner":  "postgres"
@@ -1117,7 +1120,8 @@
               ],
               "onDelete":  "CASCADE",
               "onUpdate":  "SET NULL",
-              "matchType":  "SIMPLE"
+              "matchType":  "SIMPLE",
+              "comment":  "an order belongs to a customer"
             }
           ],
           "owner":  "postgres"
