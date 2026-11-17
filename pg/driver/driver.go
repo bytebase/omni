@@ -2,6 +2,10 @@
 // github.com/bytebase/omni/driver: it connects through pgx, syncs a
 // server's metadata into omni/metadata, dumps it as DDL, and runs interactive
 // queries and change scripts.
+//
+// Result.AffectedRows is 0 for a statement that reports no count, such as DDL
+// or SET: database/sql states a count for every statement and cannot tell a
+// statement that has none from one that changed no rows.
 package driver
 
 import (

@@ -111,7 +111,8 @@ func firstTwoKeywords(text string) [2]string {
 // statement run. A statement that fails ends the script with its error on its
 // own Result; the error returned is nil, since the script ran as far as it
 // could. An error of a statement's answer is the Spanner client's own, as the
-// client returned it.
+// client returned it: a failure the server reported is a gRPC status, which
+// status.FromError reads.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	if opts.Explain {
 		return s.explainStatement(ctx, script, opts)

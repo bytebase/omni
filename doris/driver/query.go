@@ -59,7 +59,10 @@ func (s *session) Close() error {
 }
 
 // Query runs each non-empty statement of script in order on the session's
-// connection. Errors returned by Doris unwrap to *mysql.MySQLError.
+// connection. Errors returned by Doris unwrap to *mysql.MySQLError. An
+// explain request the rewriter cannot read is the call's error; a statement
+// the parser cannot read still runs, as a query, and the server's answer
+// decides.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	commands := splitCommands(script)
 	if len(commands) == 0 {

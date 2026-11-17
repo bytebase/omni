@@ -43,6 +43,11 @@
 // Bytebase ignored them. ExecuteOptions.Isolation is passed to the client when
 // it is set; ClickHouse's transactions are limited and clickhouse-go's begin is
 // a no-op, so it may have no effect.
+//
+// A statement's error unwraps to *clickhouse.Exception, which carries the
+// server's error code and message. Result.AffectedRows is 0 for every statement
+// that runs on the exec path, a write included: the client reports no count, so
+// the driver has none to report.
 package driver
 
 import (

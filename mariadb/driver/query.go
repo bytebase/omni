@@ -37,7 +37,9 @@ func (s *session) Close() error {
 }
 
 // Query runs each non-empty statement of script in order on the session's
-// connection. Errors returned by MariaDB unwrap to *mysql.MySQLError.
+// connection. Errors returned by MariaDB unwrap to *mysql.MySQLError. A
+// script the parser cannot read is the call's error and no statement of it
+// runs: every statement is parsed before the first is sent.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	rawStmts := splitCommands(script)
 	if len(rawStmts) == 0 {
