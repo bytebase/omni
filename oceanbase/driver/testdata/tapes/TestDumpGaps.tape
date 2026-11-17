@@ -325,6 +325,20 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+> query
+|
+| 		SELECT m.MVIEW_NAME, c.COLUMN_NAME, c.COLUMN_TYPE
+| 		FROM oceanbase.DBA_MVIEWS m
+| 		JOIN information_schema.COLUMNS c
+| 		ON c.TABLE_SCHEMA = m.OWNER AND c.TABLE_NAME = m.CONTAINER_NAME
+| 		WHERE m.OWNER = ?
+| 		ORDER BY m.MVIEW_NAME, c.ORDINAL_POSITION
+: string
+| omni_gap_ext
+< result
+< column "MVIEW_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT"
 > exec
 | USE `omni_gap_ext_restored`
 < ok 0 0
@@ -615,3 +629,17 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+> query
+|
+| 		SELECT m.MVIEW_NAME, c.COLUMN_NAME, c.COLUMN_TYPE
+| 		FROM oceanbase.DBA_MVIEWS m
+| 		JOIN information_schema.COLUMNS c
+| 		ON c.TABLE_SCHEMA = m.OWNER AND c.TABLE_NAME = m.CONTAINER_NAME
+| 		WHERE m.OWNER = ?
+| 		ORDER BY m.MVIEW_NAME, c.ORDINAL_POSITION
+: string
+| omni_gap_ext_restored
+< result
+< column "MVIEW_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT"

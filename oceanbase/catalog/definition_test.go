@@ -1047,3 +1047,40 @@ func TestWriteEventSessionSettings(t *testing.T) {
 	require.Contains(t, got, "SET sql_mode = 'STRICT_ALL_TABLES';\n")
 	require.Contains(t, got, "SET time_zone = '+08:00';\n")
 }
+
+// TestWriteViewsInDependencyOrder pins the order a snapshot's views and materialized views
+// are written in. A view and a materialized view may read each other, and a materialized view
+// written before a view it reads is created against the temporary placeholder that stands in
+// for the view, which carries the placeholder's literal column types.
+func TestWriteViewsInDependencyOrder(t *testing.T) {
+	schema := &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			// Alphabetically first, and read by nothing.
+			{Name: "a_plain", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			// Reads the materialized view below.
+			{Name: "b_over_mv", Definition: "select `db`.`mv`.`id` AS `id` from `db`.`mv` `mv`"},
+			// Reads the view above it in the list.
+			{Name: "z_base", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			// Reads a view: must follow it.
+			{Name: "amv_over_view", Definition: "select `db`.`z_base`.`id` AS `id` from `db`.`z_base`"},
+			// Read by b_over_mv: must precede it.
+			{Name: "mv", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+		},
+	}
+	var buf strings.Builder
+	require.NoError(t, writeViewsInDependencyOrder(&buf, "db", schema))
+
+	var order []string
+	for _, name := range []string{"mv", "amv_over_view", "b_over_mv", "a_plain", "z_base"} {
+		order = append(order, fmt.Sprintf("%d:%s", strings.Index(buf.String(), "`"+name+"`"), name))
+	}
+	slices.Sort(order)
+	t.Logf("emitted in order %v", order)
+
+	position := func(name string) int { return strings.Index(buf.String(), "`"+name+"`") }
+	require.Less(t, position("z_base"), position("amv_over_view"), "a view is written before the materialized view that reads it")
+	require.Less(t, position("mv"), position("b_over_mv"), "a materialized view is written before the view that reads it")
+	require.Less(t, position("a_plain"), position("b_over_mv"))
+}

@@ -138,6 +138,7 @@ func dumpAndRestore(t *testing.T, dbName, setup string) (*metadatapb.DatabaseSch
 	if err != nil {
 		t.Fatal(err)
 	}
+	sourceColumns := materializedViewColumnTypes(t, db, dbName)
 	var dumpBuf strings.Builder
 	if err := src.Dump(ctx, &dumpBuf, source); err != nil {
 		t.Fatal(err)
@@ -166,7 +167,44 @@ func dumpAndRestore(t *testing.T, dbName, setup string) (*metadatapb.DatabaseSch
 	for _, v := range restored.Schemas[0].MaterializedViews {
 		v.Definition = strings.ReplaceAll(v.Definition, quoteBacktick(restoredName)+".", quoteBacktick(dbName)+".")
 	}
+	// The snapshot carries no materialized view's columns, so the restored container's own
+	// are compared here: a view materialized from a temporary placeholder takes the
+	// placeholder's literal types instead of the real view's.
+	if diff := cmp.Diff(sourceColumns, materializedViewColumnTypes(t, db, restoredName)); diff != "" {
+		t.Errorf("restored materialized view columns differ from source (-source +restored):\n%s", diff)
+	}
 	return source, restored, nil
+}
+
+// materializedViewColumnTypes reads the column type of every materialized view's container
+// table in dbName, keyed by view and column, so a container's storage is compared across a
+// round trip that the snapshot cannot compare.
+func materializedViewColumnTypes(t *testing.T, db *sql.DB, dbName string) map[string]string {
+	t.Helper()
+	const query = `
+		SELECT m.MVIEW_NAME, c.COLUMN_NAME, c.COLUMN_TYPE
+		FROM oceanbase.DBA_MVIEWS m
+		JOIN information_schema.COLUMNS c
+		ON c.TABLE_SCHEMA = m.OWNER AND c.TABLE_NAME = m.CONTAINER_NAME
+		WHERE m.OWNER = ?
+		ORDER BY m.MVIEW_NAME, c.ORDINAL_POSITION`
+	rows, err := db.QueryContext(context.Background(), query, dbName)
+	if err != nil {
+		t.Fatalf("materialized view columns of %s: %v", dbName, err)
+	}
+	defer rows.Close()
+	columns := make(map[string]string)
+	for rows.Next() {
+		var view, column, columnType string
+		if err := rows.Scan(&view, &column, &columnType); err != nil {
+			t.Fatal(err)
+		}
+		columns[view+"."+column] = columnType
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return columns
 }
 
 func splitLikeMySQLClient(script string) []string {

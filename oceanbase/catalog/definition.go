@@ -122,20 +122,9 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
-	// Construct materialized views before the views, after the temporary placeholders above:
-	// a view may read a materialized view, and a materialized view may read a view, which a
-	// placeholder satisfies until its own definition is written.
-	for _, view := range schema.MaterializedViews {
-		if err := writeMaterializedView(&buf, view); err != nil {
-			return "", err
-		}
-	}
-
-	// Construct views.
-	for _, view := range schema.Views {
-		if err := writeView(&buf, view); err != nil {
-			return "", err
-		}
+	// Construct views and materialized views, each after the ones it reads.
+	if err := writeViewsInDependencyOrder(&buf, meta.Name, schema); err != nil {
+		return "", err
 	}
 
 	// Construct procedures.
@@ -1782,6 +1771,72 @@ func filterCreateOptions(createOptions string) string {
 		kept = append(kept, tok)
 	}
 	return strings.Join(kept, " ")
+}
+
+// writeViewsInDependencyOrder writes the regular views and the materialized views, each
+// after the ones it reads. A view may read a materialized view and a materialized view may
+// read a view, and a materialized view must not be created while the temporary placeholder
+// stands in for a view it reads: the view it would materialize has the placeholder's column
+// types, `1` for a `varchar` column among them.
+func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *metadata.SchemaMetadata) error {
+	type definition struct {
+		key   tableKey
+		refs  map[tableKey]bool
+		write func(*strings.Builder) error
+	}
+	ownDB := toLower(dbName)
+	definitions := make([]*definition, 0, len(schema.Views)+len(schema.MaterializedViews))
+	for _, view := range schema.Views {
+		definitions = append(definitions, &definition{
+			key:  tableKey{db: ownDB, name: toLower(view.Name)},
+			refs: referencedRelations(view.Definition, ownDB),
+			write: func(out *strings.Builder) error {
+				return writeView(out, view)
+			},
+		})
+	}
+	for _, view := range schema.MaterializedViews {
+		if view.SkipDump {
+			continue
+		}
+		definitions = append(definitions, &definition{
+			key:  tableKey{db: ownDB, name: toLower(view.Name)},
+			refs: referencedRelations(view.Definition, ownDB),
+			write: func(out *strings.Builder) error {
+				return writeMaterializedView(out, view)
+			},
+		})
+	}
+	slices.SortFunc(definitions, func(a, b *definition) int { return cmp.Compare(a.key.name, b.key.name) })
+	byKey := make(map[tableKey]*definition, len(definitions))
+	for _, definition := range definitions {
+		byKey[definition.key] = definition
+	}
+
+	written := make(map[tableKey]bool, len(definitions))
+	var write func(definition *definition) error
+	write = func(definition *definition) error {
+		if written[definition.key] {
+			return nil
+		}
+		// Marked before the walk so a cycle ends it; OceanBase refuses one, and the mark
+		// only keeps a malformed snapshot from recursing.
+		written[definition.key] = true
+		for ref := range definition.refs {
+			if dependency, ok := byKey[ref]; ok && dependency != definition {
+				if err := write(dependency); err != nil {
+					return err
+				}
+			}
+		}
+		return definition.write(buf)
+	}
+	for _, definition := range definitions {
+		if err := write(definition); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // writeViewSDL emits a single CREATE OR REPLACE VIEW statement. LoadSDL accepts

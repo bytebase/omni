@@ -83,6 +83,11 @@ CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select
 CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`);
 
 --
+-- View structure for `v_open_accounts`
+--
+CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open');
+
+--
 -- Materialized view structure for `mv_open_accounts`
 --
 CREATE MATERIALIZED VIEW `mv_open_accounts` AS select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`;
@@ -101,11 +106,6 @@ CREATE OR REPLACE VIEW `v_named_cols` AS select `omni_sync_corpus`.`accounts`.`i
 -- View structure for `v_named_cols_ref`
 --
 CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`;
-
---
--- View structure for `v_open_accounts`
---
-CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open');
 
 --
 -- Procedure structure for `sp_touch_order`

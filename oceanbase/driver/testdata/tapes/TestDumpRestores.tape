@@ -1510,6 +1510,41 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+> query
+|
+| 		SELECT m.MVIEW_NAME, c.COLUMN_NAME, c.COLUMN_TYPE
+| 		FROM oceanbase.DBA_MVIEWS m
+| 		JOIN information_schema.COLUMNS c
+| 		ON c.TABLE_SCHEMA = m.OWNER AND c.TABLE_NAME = m.CONTAINER_NAME
+| 		WHERE m.OWNER = ?
+| 		ORDER BY m.MVIEW_NAME, c.ORDINAL_POSITION
+: string
+| omni_dump_roundtrip
+< result
+< column "MVIEW_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT"
+< row
+: bytes
+| mv_accounts
+: bytes
+| id
+: bytes
+| bigint(20)
+< row
+: bytes
+| mv_accounts
+: bytes
+| email
+: bytes
+| varchar(190)
+< row
+: bytes
+| mv_open_accounts
+: bytes
+| acct_id
+: bytes
+| bigint(20)
 > exec
 | USE `omni_dump_roundtrip_restored`
 < ok 0 0
@@ -1593,6 +1628,9 @@
 | CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`)
 < ok 0 0
 > exec
+| CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip_restored`.`accounts` where (`omni_dump_roundtrip_restored`.`accounts`.`status` = 'open')
+< ok 0 0
+> exec
 | CREATE MATERIALIZED VIEW `mv_open_accounts` AS select `omni_dump_roundtrip_restored`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_dump_roundtrip_restored`.`v_open_accounts`
 < ok 0 0
 > exec
@@ -1603,9 +1641,6 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `omni_dump_roundtrip_restored`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_dump_roundtrip_restored`.`v_named_cols`
-< ok 0 0
-> exec
-| CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip_restored`.`accounts` where (`omni_dump_roundtrip_restored`.`accounts`.`status` = 'open')
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -2179,7 +2214,7 @@
 : bytes
 | YES
 : bytes
-| bigint(1)
+| bigint(20)
 : bytes
 |
 : bytes
@@ -2421,7 +2456,7 @@
 : bytes
 | YES
 : bytes
-| bigint(1)
+| bigint(20)
 : bytes
 |
 : bytes
@@ -3103,3 +3138,38 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+> query
+|
+| 		SELECT m.MVIEW_NAME, c.COLUMN_NAME, c.COLUMN_TYPE
+| 		FROM oceanbase.DBA_MVIEWS m
+| 		JOIN information_schema.COLUMNS c
+| 		ON c.TABLE_SCHEMA = m.OWNER AND c.TABLE_NAME = m.CONTAINER_NAME
+| 		WHERE m.OWNER = ?
+| 		ORDER BY m.MVIEW_NAME, c.ORDINAL_POSITION
+: string
+| omni_dump_roundtrip_restored
+< result
+< column "MVIEW_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT"
+< row
+: bytes
+| mv_accounts
+: bytes
+| id
+: bytes
+| bigint(20)
+< row
+: bytes
+| mv_accounts
+: bytes
+| email
+: bytes
+| varchar(190)
+< row
+: bytes
+| mv_open_accounts
+: bytes
+| acct_id
+: bytes
+| bigint(20)
