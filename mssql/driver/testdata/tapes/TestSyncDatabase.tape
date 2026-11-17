@@ -30,6 +30,9 @@
 | EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'owner''s note', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'COLUMN', @level2name = N'bio';
 < ok 2 -
 > exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'balance never negative', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'CONSTRAINT', @level2name = N'chk_accounts_balance';
+< ok 2 -
+> exec
 | CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 < ok 0 -
 > exec
@@ -43,6 +46,9 @@
 | 	note NVARCHAR(100) NULL
 | );
 < ok 0 -
+> exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'an order belongs to an account', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'orders', @level2type = N'CONSTRAINT', @level2name = N'fk_orders_account';
+< ok 2 -
 > exec
 | CREATE TABLE app.metrics (
 | 	ts INT NOT NULL,
@@ -1025,6 +1031,10 @@
 < result
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
+< row
+: int64 1061578820
+: string
+| an order belongs to an account
 > query
 |
 | 	SELECT
@@ -1087,6 +1097,10 @@
 < result
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
+< row
+: int64 997578592
+: string
+| balance never negative
 > query
 |
 | 	SELECT o.object_id, s.name AS schema_name, o.name AS table_name
@@ -1189,6 +1203,14 @@
 : int64 901578250
 : string
 | customer accounts
+< row
+: int64 997578592
+: string
+| balance never negative
+< row
+: int64 1061578820
+: string
+| an order belongs to an account
 < row
 : int64 1109578991
 : string
@@ -1300,7 +1322,7 @@
 : int64 0
 < row
 : int64 49
-: int64 3
+: int64 5
 < row
 : int64 50
 : int64 35

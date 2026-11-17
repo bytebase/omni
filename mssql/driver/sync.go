@@ -398,14 +398,9 @@ func getChecks(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.CheckC
 			Name:       checkName.String,
 			Expression: definition.String,
 		}
-		// TODO: Join with comments when CheckConstraintMetadata supports it
-		// Currently the proto doesn't support comments for check constraints
-		// When support is added, use:
-		// if objectID.Valid {
-		//     if comment, ok := checkCommentsMap[int(objectID.Int32)]; ok {
-		//         check.Comment = comment
-		//     }
-		// }
+		if objectID.Valid {
+			check.Comment = checkCommentsMap[int(objectID.Int32)]
+		}
 		checkMap[key] = append(checkMap[key], check)
 	}
 	if err := rows.Err(); err != nil {
@@ -507,14 +502,9 @@ func getForeignKeys(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.F
 				ReferencedSchema: referencedSchemaName.String,
 				ReferencedTable:  referencedTableName.String,
 			}
-			// TODO: Join with comments when ForeignKeyMetadata supports it
-			// Currently the proto doesn't support comments for foreign keys
-			// When support is added, use:
-			// if objectID.Valid {
-			//     if comment, ok := fkCommentsMap[int(objectID.Int32)]; ok {
-			//         fk.Comment = comment
-			//     }
-			// }
+			if objectID.Valid {
+				fk.Comment = fkCommentsMap[int(objectID.Int32)]
+			}
 
 			if onDelete.Valid {
 				fk.OnDelete = referentialAction(int(onDelete.Int32))

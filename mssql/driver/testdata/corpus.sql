@@ -26,6 +26,9 @@ GO
 EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'owner''s note', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'COLUMN', @level2name = N'bio';
 GO
 
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'balance never negative', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'CONSTRAINT', @level2name = N'chk_accounts_balance';
+GO
+
 CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 GO
 
@@ -39,6 +42,9 @@ CREATE TABLE app.orders (
 	total INT NOT NULL,
 	note NVARCHAR(100) NULL
 );
+GO
+
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'an order belongs to an account', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'orders', @level2type = N'CONSTRAINT', @level2name = N'fk_orders_account';
 GO
 
 CREATE TABLE app.metrics (
