@@ -82,20 +82,18 @@ func TestDumpRestores(t *testing.T) {
 }
 
 // awaitSyncMaterializedView waits, on a connection a recording does not keep,
-// for the table's synchronous materialized view to be added and its schema
-// change to finish: the statement returns before either is true, so a dump
-// taken immediately would miss the view, and a DROP DATABASE would be refused
-// while the change runs.
+// for the table's synchronous materialized views to appear: the statement
+// returns before the asynchronous schema change adds them.
 func awaitSyncMaterializedView(t *testing.T, dbName, table string, want ...string) {
 	t.Helper()
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
 		deadline := time.Now().Add(3 * time.Minute)
 		for {
-			settled, err := rollupJobsSettled(ctx, db, dbName, table)
+			pending, err := rollupChangePending(ctx, db, dbName, table)
 			if err != nil {
 				return err
 			}
-			if settled {
+			if !pending {
 				names, err := dumpIndexNames(ctx, db, "DESC "+quoteBacktick(dbName)+"."+quoteBacktick(table)+" ALL")
 				if err != nil {
 					return err
@@ -120,53 +118,6 @@ func awaitSyncMaterializedView(t *testing.T, dbName, table string, want ...strin
 			time.Sleep(time.Second)
 		}
 	})
-}
-
-// rollupJobsSettled reports whether no schema change for table is still
-// running. A synchronous materialized view created with the table has no job at
-// all, so none listed means settled.
-func rollupJobsSettled(ctx context.Context, db *sql.DB, dbName, table string) (bool, error) {
-	query := "SHOW ALTER TABLE ROLLUP FROM " + quoteBacktick(dbName)
-	rows, err := db.QueryContext(ctx, query)
-	if err != nil {
-		return false, err
-	}
-	defer rows.Close()
-	columns, err := rows.Columns()
-	if err != nil {
-		return false, err
-	}
-	tableColumn, stateColumn := -1, -1
-	for i, column := range columns {
-		switch {
-		case strings.EqualFold(column, "TableName"):
-			tableColumn = i
-		case strings.EqualFold(column, "State"):
-			stateColumn = i
-		}
-	}
-	if tableColumn < 0 || stateColumn < 0 {
-		return false, fmt.Errorf("%s states %v", query, columns)
-	}
-	for rows.Next() {
-		values := make([]sql.NullString, len(columns))
-		dest := make([]any, len(columns))
-		for i := range values {
-			dest[i] = &values[i]
-		}
-		if err := rows.Scan(dest...); err != nil {
-			return false, err
-		}
-		if !strings.EqualFold(values[tableColumn].String, table) {
-			continue
-		}
-		switch strings.ToUpper(values[stateColumn].String) {
-		case "FINISHED", "CANCELLED":
-		default:
-			return false, nil
-		}
-	}
-	return true, rows.Err()
 }
 
 // TestDumpMissing holds a database the connection names but the server does not
@@ -390,6 +341,53 @@ func execDumpScript(t *testing.T, db *sql.DB, script string) {
 			t.Fatalf("%s:\n%v", command.Text, err)
 		}
 	}
+}
+
+// rollupChangePending reports whether the table has a rollup schema change that
+// has not finished: a synchronous materialized view is one, and Doris refuses
+// another ALTER on the table until it does.
+func rollupChangePending(ctx context.Context, db *sql.DB, dbName, table string) (bool, error) {
+	query := "SHOW ALTER TABLE ROLLUP FROM " + quoteBacktick(dbName)
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return false, err
+	}
+	tableColumn, stateColumn := -1, -1
+	for i, column := range columns {
+		switch column {
+		case "TableName":
+			tableColumn = i
+		case "State":
+			stateColumn = i
+		}
+	}
+	if tableColumn < 0 || stateColumn < 0 {
+		return false, fmt.Errorf("%s states %v", query, columns)
+	}
+	for rows.Next() {
+		values := make([]sql.NullString, len(columns))
+		dest := make([]any, len(columns))
+		for i := range values {
+			dest[i] = &values[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
+			return false, err
+		}
+		if values[tableColumn].String != table {
+			continue
+		}
+		switch values[stateColumn].String {
+		case "FINISHED", "CANCELLED":
+		default:
+			return true, nil
+		}
+	}
+	return false, rows.Err()
 }
 
 // dumpShowCreate returns the statement of a two-column SHOW CREATE form.

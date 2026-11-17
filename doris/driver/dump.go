@@ -79,7 +79,10 @@ type dumpObject struct {
 
 // Dump writes the database's DDL as the server states it: tables, their
 // synchronous materialized views, functions, views, materialized views and
-// procedures, in an order that replays. The
+// procedures, in an order that replays. Doris takes a synchronous materialized
+// view's creation as an asynchronous schema change and refuses the next one on
+// the same table until it finishes, so applying a script with several on one
+// table means waiting between them; no statement the dump can carry waits. The
 // metadata is not rendered and does not narrow the dump, because a Doris table's
 // definition is more than its columns and information_schema states none of the
 // rest, so the server's own SHOW CREATE statements are the only complete
