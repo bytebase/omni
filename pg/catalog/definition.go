@@ -363,7 +363,11 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			continue
 		}
 		if table, ok := tableMap[objectID]; ok {
-			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID], externalTables); err != nil {
+			schemaName := getSchemaNameFromID(objectID)
+			if err := writeTable(&buf, schemaName, table, sequenceOwnershipMap[objectID], externalTables); err != nil {
+				return "", err
+			}
+			if err := writeForeignPartitionSequences(&buf, schemaName, table, externalTables, sequenceOwnershipMap); err != nil {
 				return "", err
 			}
 		}
@@ -3667,6 +3671,30 @@ func writeColumnComment(out io.Writer, schema string, table string, column *meta
 
 func writeTableComment(out io.Writer, schema string, table *metadatapb.TableMetadata) error {
 	return writeRelationComment(out, schema, table.Name, table.Comment)
+}
+
+// writeForeignPartitionSequences writes the ALTER SEQUENCE ... OWNED BY for a
+// sequence owned by a foreign partition's column, including subpartitions.
+func writeForeignPartitionSequences(out io.Writer, schema string, table *metadatapb.TableMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata, sequenceOwnershipMap map[string][]*metadatapb.SequenceMetadata) error {
+	var walk func(string, []*metadatapb.TablePartitionMetadata) error
+	walk = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) error {
+		for _, partition := range partitions {
+			partitionSchema := partitionSchemaName(parentSchema, partition)
+			id := getObjectID(partitionSchema, partition.Name)
+			if externalTables[id] != nil {
+				for _, sequence := range sequenceOwnershipMap[id] {
+					if err := writeAlterSequenceOwnedBy(out, partitionSchema, sequence); err != nil {
+						return err
+					}
+				}
+			}
+			if err := walk(partitionSchema, partition.Subpartitions); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return walk(schema, table.Partitions)
 }
 
 // writeForeignPartitionComments writes the comments a foreign partition and its

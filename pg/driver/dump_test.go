@@ -164,7 +164,8 @@ func TestDumpRestoresForeignPartition(t *testing.T) {
 		"COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';\n" +
 		"COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';\n" +
 		"CREATE FUNCTION public.pt_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\n" +
-		"CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();"
+		"CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();\n" +
+		"CREATE SEQUENCE public.pt_remote_seq OWNED BY public.pt_remote.id;"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_partition", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)

@@ -11,6 +11,7 @@
 | COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';
 | CREATE FUNCTION public.pt_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
 | CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();
+| CREATE SEQUENCE public.pt_remote_seq OWNED BY public.pt_remote.id;
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
@@ -856,6 +857,10 @@
 < column "oid" "OID"
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
+< row
+: int64 4294967307
+: int64 4294967304
+: int64 1
 > query
 |
 | 	SELECT
@@ -891,6 +896,22 @@
 < column "cache_size" "INT8"
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
+< row
+: int64 4294967307
+: string
+| public
+: string
+| pt_remote_seq
+: string
+| bigint
+: int64 1
+: int64 1
+: int64 9223372036854775807
+: int64 1
+: bool false
+: int64 1
+: null
+: null
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description
@@ -1138,6 +1159,15 @@
 |
 | COMMENT ON EXTENSION "postgres_fdw" IS 'foreign-data wrapper for remote PostgreSQL servers';
 |
+| CREATE SEQUENCE "public"."pt_remote_seq"
+|     AS bigint
+| 	START WITH 1
+| 	INCREMENT BY 1
+| 	MINVALUE 1
+| 	MAXVALUE 9223372036854775807
+| 	CACHE 1
+| 	NO CYCLE;
+|
 | SET default_tablespace = '';
 |
 | CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
@@ -1165,6 +1195,8 @@
 | COMMENT ON FOREIGN TABLE "public"."pt_remote" IS 'remote partition';
 |
 | ALTER TABLE ONLY "public"."pt" ATTACH PARTITION "public"."pt_remote" FOR VALUES FROM (0) TO (10);
+|
+| ALTER SEQUENCE "public"."pt_remote_seq" OWNED BY "public"."pt_remote"."id";
 |
 | CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();
 |
@@ -1266,8 +1298,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967307
-< row
 : int64 4294967308
 < row
 : int64 4294967309
@@ -1277,6 +1307,8 @@
 : int64 4294967311
 < row
 : int64 4294967312
+< row
+: int64 4294967313
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1537,7 +1569,7 @@
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
 < row
-: int64 4294967313
+: int64 4294967314
 : string
 | public
 : string
@@ -1684,7 +1716,7 @@
 | pt_remote
 : string
 | ["schema_name=public","table_name=x"]
-: int64 4294967314
+: int64 4294967315
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1710,7 +1742,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967315
+: int64 4294967316
 : string
 | public
 : string
@@ -1913,7 +1945,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967311
+: int64 4294967312
 : string
 | public
 : string
@@ -1929,7 +1961,7 @@
 |
 : null
 < row
-: int64 4294967312
+: int64 4294967313
 : string
 | public
 : string
@@ -1945,7 +1977,7 @@
 |
 : null
 < row
-: int64 4294967310
+: int64 4294967311
 : string
 | public
 : string
@@ -1961,7 +1993,7 @@
 |
 : null
 < row
-: int64 4294967307
+: int64 4294967308
 : string
 | public
 : string
@@ -1977,7 +2009,7 @@
 |
 : null
 < row
-: int64 4294967308
+: int64 4294967309
 : string
 | public
 : string
@@ -1993,7 +2025,7 @@
 |
 : null
 < row
-: int64 4294967316
+: int64 4294967317
 : string
 | public
 : string
@@ -2025,6 +2057,10 @@
 < column "oid" "OID"
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
+< row
+: int64 4294967318
+: int64 4294967315
+: int64 1
 > query
 |
 | 	SELECT
@@ -2060,6 +2096,22 @@
 < column "cache_size" "INT8"
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
+< row
+: int64 4294967318
+: string
+| public
+: string
+| pt_remote_seq
+: string
+| bigint
+: int64 1
+: int64 1
+: int64 9223372036854775807
+: int64 1
+: bool false
+: int64 1
+: null
+: null
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description
