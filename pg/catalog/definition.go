@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -92,38 +93,10 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 	}
 
-	// Construct enums.
-	for _, schema := range metadata.Schemas {
-		for _, enum := range schema.EnumTypes {
-			if enum.SkipDump {
-				continue
-			}
-			if err := writeEnum(&buf, schema.Name, enum); err != nil {
-				return "", err
-			}
-			if _, err := buf.WriteString(";\n\n"); err != nil {
-				return "", err
-			}
-			// Write enum comment if present
-			if len(enum.Comment) > 0 {
-				if err := writeEnumComment(&buf, schema.Name, enum); err != nil {
-					return "", err
-				}
-			}
-		}
-	}
-
-	// Construct composite types.
-	if err := writeCompositeTypesSection(&buf, collectCompositeTypes(metadata.Schemas)); err != nil {
+	// Construct enums, composite types and range types, each after the types it
+	// is declared over.
+	if err := writeTypesSection(&buf, collectTypes(metadata.Schemas)); err != nil {
 		return "", err
-	}
-
-	// Construct range types, before the objects whose types are ranges. A range
-	// over another range needs that one first.
-	for _, t := range sortRangeTypesTopologically(collectRangeTypes(metadata.Schemas)) {
-		if err := writeRangeType(&buf, t.Schema, t.RangeType); err != nil {
-			return "", err
-		}
 	}
 
 	// Build the graph for topological sort.
@@ -349,52 +322,11 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 		}
 	}
 
-	// Construct enums.
-	for _, enum := range schema.EnumTypes {
-		if enum.SkipDump {
-			continue
-		}
-		if err := writeEnum(&buf, schema.Name, enum); err != nil {
-			return "", err
-		}
-		if _, err := buf.WriteString(";\n\n"); err != nil {
-			return "", err
-		}
-		// Write enum comment if present
-		if len(enum.Comment) > 0 {
-			if err := writeEnumComment(&buf, schema.Name, enum); err != nil {
-				return "", err
-			}
-		}
-	}
-
-	// Construct composite types. The schema-level SkipDump filter does not
-	// apply here: the caller asked for this specific schema's definition.
-	var compositeTypes []qualifiedCompositeType
-	for _, composite := range schema.CompositeTypes {
-		if composite.SkipDump {
-			continue
-		}
-		compositeTypes = append(compositeTypes, qualifiedCompositeType{Schema: schema.Name, Composite: composite})
-	}
-	if err := writeCompositeTypesSection(&buf, compositeTypes); err != nil {
+	// Construct enums, composite types and range types, each after the types it
+	// is declared over. The schema-level SkipDump filter does not apply here:
+	// the caller asked for this specific schema's definition.
+	if err := writeTypesSection(&buf, collectTypes([]*metadatapb.SchemaMetadata{schema})); err != nil {
 		return "", err
-	}
-
-	// Construct range types, before the objects whose types are ranges. A range
-	// over another range needs that one first; the schema's own list cannot
-	// name a range outside it, so this sorts only what it holds.
-	var ownRangeTypes []qualifiedRangeType
-	for _, rangeType := range schema.RangeTypes {
-		if rangeType.SkipDump {
-			continue
-		}
-		ownRangeTypes = append(ownRangeTypes, qualifiedRangeType{Schema: schema.Name, RangeType: rangeType})
-	}
-	for _, t := range sortRangeTypesTopologically(ownRangeTypes) {
-		if err := writeRangeType(&buf, t.Schema, t.RangeType); err != nil {
-			return "", err
-		}
 	}
 
 	// Build the graph for topological sort.
@@ -987,69 +919,158 @@ type qualifiedCompositeType struct {
 // collectCompositeTypes gathers the dumpable composite types of the given
 // schemas. Schemas with SkipDump never get a CREATE SCHEMA statement, so
 // their types must not be emitted either.
-// qualifiedRangeType pairs a range type with the schema it lives in, so a
-// subtype that names another one can be resolved.
-type qualifiedRangeType struct {
+// qualifiedType is one enum, composite type or range type of the dumpable
+// snapshot, with the schema it lives in so the types it names can be resolved.
+type qualifiedType struct {
 	Schema    string
+	Enum      *metadatapb.EnumTypeMetadata
+	Composite *metadatapb.CompositeTypeMetadata
 	RangeType *metadatapb.RangeTypeMetadata
 }
 
-func collectRangeTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedRangeType {
-	var rangeTypes []qualifiedRangeType
+const (
+	typeKindEnum = iota
+	typeKindComposite
+	typeKindRange
+)
+
+func (t qualifiedType) kind() int {
+	switch {
+	case t.Enum != nil:
+		return typeKindEnum
+	case t.Composite != nil:
+		return typeKindComposite
+	default:
+		return typeKindRange
+	}
+}
+
+// name is the type's own name in its schema.
+func (t qualifiedType) name() string {
+	switch {
+	case t.Enum != nil:
+		return t.Enum.Name
+	case t.Composite != nil:
+		return t.Composite.Name
+	default:
+		return t.RangeType.Name
+	}
+}
+
+// skipDump reports whether creating the type is another statement's work: an
+// extension's, or a schema's the dump never creates.
+func (t qualifiedType) skipDump() bool {
+	switch {
+	case t.Enum != nil:
+		return t.Enum.SkipDump
+	case t.Composite != nil:
+		return t.Composite.SkipDump
+	default:
+		return t.RangeType.SkipDump
+	}
+}
+
+// collectTypes gathers the dumpable enums, composite types and range types of
+// the given schemas. Schemas with SkipDump never get a CREATE SCHEMA statement,
+// so their types must not be emitted either.
+func collectTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedType {
+	var types []qualifiedType
 	for _, schema := range schemas {
 		if schema.SkipDump {
 			continue
 		}
+		for _, enum := range schema.EnumTypes {
+			types = append(types, qualifiedType{Schema: schema.Name, Enum: enum})
+		}
+		for _, composite := range schema.CompositeTypes {
+			types = append(types, qualifiedType{Schema: schema.Name, Composite: composite})
+		}
 		for _, rangeType := range schema.RangeTypes {
-			if rangeType.SkipDump {
-				continue
-			}
-			rangeTypes = append(rangeTypes, qualifiedRangeType{Schema: schema.Name, RangeType: rangeType})
+			types = append(types, qualifiedType{Schema: schema.Name, RangeType: rangeType})
 		}
 	}
-	return rangeTypes
+	kept := types[:0]
+	for _, t := range types {
+		if !t.skipDump() {
+			kept = append(kept, t)
+		}
+	}
+	return kept
 }
 
-// sortRangeTypesTopologically orders range types so that one declared over
-// another comes after it. A subtype the list does not hold adds no edge, since
-// a pg_catalog type needs no statement. A cycle cannot reach the server, and the
-// rest of the list follows in name order if one did.
-func sortRangeTypesTopologically(rangeTypes []qualifiedRangeType) []qualifiedRangeType {
+// orderTypes orders the types so that each comes after the types it is declared
+// over: a composite attribute's type, and a range's subtype, which may be
+// another range's multirange type. A type the list does not hold adds no edge,
+// since a pg_catalog type needs no statement. Ties go to enums, then composite
+// types, then range types, in name order, so the section reads the way it did
+// before the types could depend on each other. A cycle cannot reach the server;
+// the rest of the list follows in that order if one did.
+func orderTypes(types []qualifiedType) []qualifiedType {
 	key := func(schema, name string) string { return schema + "\x00" + name }
-	nodes := make(map[string]qualifiedRangeType, len(rangeTypes))
-	for _, t := range rangeTypes {
-		nodes[key(t.Schema, t.RangeType.Name)] = t
+	nodes := make(map[string]qualifiedType, len(types))
+	for _, t := range types {
+		nodes[key(t.Schema, t.name())] = t
+	}
+	// A range's multirange type is made by the range's own CREATE, so a subtype
+	// that names it depends on that range.
+	multiranges := make(map[string]string, len(nodes))
+	for k, t := range nodes {
+		if t.RangeType == nil || t.RangeType.MultirangeName == "" {
+			continue
+		}
+		schema, name, ok := parseQualifiedTypeIdent(t.RangeType.MultirangeName)
+		if !ok {
+			schema, name = t.Schema, t.RangeType.MultirangeName
+		}
+		multiranges[key(schema, name)] = k
 	}
 	inDegree := make(map[string]int, len(nodes))
 	dependents := make(map[string][]string, len(nodes))
 	for k := range nodes {
 		inDegree[k] = 0
 	}
+	addEdges := func(k string, references []string) {
+		for _, reference := range references {
+			depSchema, depName, ok := parseQualifiedTypeIdent(reference)
+			if !ok {
+				continue
+			}
+			depKey := key(depSchema, depName)
+			if owner, isMultirange := multiranges[depKey]; isMultirange {
+				depKey = owner
+			}
+			if depKey == k {
+				continue
+			}
+			if _, exists := nodes[depKey]; !exists {
+				continue
+			}
+			dependents[depKey] = append(dependents[depKey], k)
+			inDegree[k]++
+		}
+	}
 	for k, t := range nodes {
-		depSchema, depName, ok := parseQualifiedTypeIdent(t.RangeType.Subtype)
-		if !ok {
-			continue
+		switch {
+		case t.Composite != nil:
+			var attributes []string
+			for _, attribute := range t.Composite.Attributes {
+				attributes = append(attributes, attribute.Type)
+			}
+			addEdges(k, attributes)
+		case t.RangeType != nil:
+			addEdges(k, []string{t.RangeType.Subtype})
 		}
-		depKey := key(depSchema, depName)
-		if depKey == k {
-			continue
-		}
-		if _, exists := nodes[depKey]; !exists {
-			continue
-		}
-		dependents[depKey] = append(dependents[depKey], k)
-		inDegree[k]++
 	}
 
-	var ready []string
+	ready := make([]string, 0, len(nodes))
 	for k, d := range inDegree {
 		if d == 0 {
 			ready = append(ready, k)
 		}
 	}
-	slices.Sort(ready)
+	sortTypeKeys(ready, nodes)
 
-	ordered := make([]qualifiedRangeType, 0, len(nodes))
+	ordered := make([]qualifiedType, 0, len(nodes))
 	for len(ready) > 0 {
 		k := ready[0]
 		ready = ready[1:]
@@ -1064,7 +1085,7 @@ func sortRangeTypesTopologically(rangeTypes []qualifiedRangeType) []qualifiedRan
 				ready = append(ready, dependent)
 			}
 		}
-		slices.Sort(ready)
+		sortTypeKeys(ready, nodes)
 	}
 
 	if len(ordered) < len(nodes) {
@@ -1072,13 +1093,62 @@ func sortRangeTypesTopologically(rangeTypes []qualifiedRangeType) []qualifiedRan
 		for k := range inDegree {
 			rest = append(rest, k)
 		}
-		slices.Sort(rest)
+		sortTypeKeys(rest, nodes)
 		for _, k := range rest {
 			ordered = append(ordered, nodes[k])
 		}
 	}
 
 	return ordered
+}
+
+// sortTypeKeys orders type keys by kind, then name, so independent types keep a
+// stable order across runs.
+func sortTypeKeys(keys []string, nodes map[string]qualifiedType) {
+	slices.SortFunc(keys, func(a, b string) int {
+		if c := cmp.Compare(nodes[a].kind(), nodes[b].kind()); c != 0 {
+			return c
+		}
+		return strings.Compare(a, b)
+	})
+}
+
+// writeTypesSection emits the enums, composite types and range types in
+// dependency order, each with its comments.
+func writeTypesSection(out io.Writer, types []qualifiedType) error {
+	for _, t := range orderTypes(types) {
+		switch {
+		case t.Enum != nil:
+			if err := writeEnum(out, t.Schema, t.Enum); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(out, ";\n\n"); err != nil {
+				return err
+			}
+			if t.Enum.Comment != "" {
+				if err := writeEnumComment(out, t.Schema, t.Enum); err != nil {
+					return err
+				}
+			}
+		case t.Composite != nil:
+			if err := writeCompositeType(out, t.Schema, t.Composite); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(out, ";\n\n"); err != nil {
+				return err
+			}
+			if compositeTypeHasComments(t.Composite) {
+				if err := writeCompositeTypeComments(out, t.Schema, t.Composite); err != nil {
+					return err
+				}
+			}
+		default:
+			if err := writeRangeType(out, t.Schema, t.RangeType); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func collectCompositeTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedCompositeType {

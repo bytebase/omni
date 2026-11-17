@@ -87,11 +87,15 @@ func TestDumpRestoresCollationRules(t *testing.T) {
 	}
 }
 
-// TestDumpRestoresRangeOverRange checks that a range type declared over another
-// range type restores: the dump must create the subtype's range first.
+// TestDumpRestoresRangeOverRange checks that the dump orders a type after the
+// types it is declared over: a range over a range, a range over another range's
+// multirange type, and a composite type whose attribute is a range. The names
+// sort the other way round on purpose.
 func TestDumpRestoresRangeOverRange(t *testing.T) {
-	setup := "CREATE TYPE public.z_range AS RANGE (subtype = integer);\n" +
-		"CREATE TYPE public.a_range AS RANGE (subtype = public.z_range);"
+	setup := "CREATE TYPE public.z_range AS RANGE (subtype = integer, multirange_type_name = public.z_multi);\n" +
+		"CREATE TYPE public.a_range AS RANGE (subtype = public.z_range);\n" +
+		"CREATE TYPE public.b_range AS RANGE (subtype = public.z_multi);\n" +
+		"CREATE TYPE public.a_composite AS (v public.z_range);"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_range_over_range", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)

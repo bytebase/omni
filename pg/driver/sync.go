@@ -1344,7 +1344,7 @@ SELECT
 	c.collcollate AS lc_collate,
 	c.collctype AS lc_ctype,
 	%s AS locale,
-	c.collisdeterministic AS deterministic,
+	%s AS deterministic,
 	%s AS rules,
 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
 FROM pg_catalog.pg_collation c
@@ -1358,7 +1358,8 @@ ORDER BY n.nspname, c.collname;`
 
 // getCollations reads the schema's user-defined collations. PostgreSQL states
 // an ICU provider's locale in colliculocale from 15, renamed colllocale in 17,
-// and in collcollate before 15; ICU rules arrive as collicurules in 16.
+// and in collcollate before 15; ICU rules arrive as collicurules in 16, and
+// collisdeterministic in 12.
 func getCollations(txn *sql.Tx, engineVersion string, extensionDepend map[int]bool) (map[string][]*metadatapb.CollationMetadata, error) {
 	locale := "CASE WHEN c.collprovider = 'i' THEN c.collcollate END"
 	if isAtLeastMajorVersion(engineVersion, 15) {
@@ -1371,7 +1372,13 @@ func getCollations(txn *sql.Tx, engineVersion string, extensionDepend map[int]bo
 	if isAtLeastMajorVersion(engineVersion, 16) {
 		rules = "c.collicurules"
 	}
-	rows, err := txn.Query(fmt.Sprintf(listCollationQuery, locale, rules, pganalysis.SystemSchemaWhereClause))
+	// collisdeterministic arrived in 12; before that every collation is
+	// deterministic, and the field stays unset.
+	deterministic := "NULL"
+	if isAtLeastMajorVersion(engineVersion, 12) {
+		deterministic = "c.collisdeterministic"
+	}
+	rows, err := txn.Query(fmt.Sprintf(listCollationQuery, locale, deterministic, rules, pganalysis.SystemSchemaWhereClause))
 	if err != nil {
 		return nil, err
 	}

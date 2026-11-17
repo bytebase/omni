@@ -2,8 +2,10 @@
 
 == TestDumpRestoresRangeOverRange default#1
 > exec
-| CREATE TYPE public.z_range AS RANGE (subtype = integer);
+| CREATE TYPE public.z_range AS RANGE (subtype = integer, multirange_type_name = public.z_multi);
 | CREATE TYPE public.a_range AS RANGE (subtype = public.z_range);
+| CREATE TYPE public.b_range AS RANGE (subtype = public.z_multi);
+| CREATE TYPE public.a_composite AS (v public.z_range);
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
@@ -613,6 +615,48 @@
 < row
 : int64 4294967306
 : int64 0
+< row
+: int64 4294967307
+: int64 0
+< row
+: int64 4294967307
+: int64 0
+< row
+: int64 4294967307
+: int64 0
+< row
+: int64 4294967308
+: int64 0
+< row
+: int64 4294967308
+: int64 0
+< row
+: int64 4294967308
+: int64 0
+< row
+: int64 4294967309
+: int64 0
+< row
+: int64 4294967309
+: int64 0
+< row
+: int64 4294967310
+: int64 0
+< row
+: int64 4294967310
+: int64 0
+< row
+: int64 4294967310
+: int64 0
+< row
+: int64 4294967311
+: int64 0
+< row
+: int64 4294967311
+: int64 0
+< row
+: int64 4294967311
+: int64 0
 > query
 |
 | select p.oid, n.nspname as function_schema,
@@ -780,6 +824,20 @@
 < column "attribute_type" "TEXT"
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
+< row
+: int64 4294967312
+: int64 4294967313
+: string
+| public
+: string
+| a_composite
+: null
+: string
+| v
+: string
+| public.z_range
+: null
+: null
 > query
 |
 | SELECT
@@ -850,7 +908,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967307
+: int64 4294967314
 : string
 | public
 : string
@@ -865,7 +923,22 @@
 | public.a_multirange
 : null
 < row
-: int64 4294967308
+: int64 4294967315
+: string
+| public
+: string
+| b_range
+: string
+| public.z_multi
+: null
+: null
+: null
+: null
+: string
+| public.b_multirange
+: null
+< row
+: int64 4294967316
 : string
 | public
 : string
@@ -877,7 +950,7 @@
 : null
 : null
 : string
-| public.z_multirange
+| public.z_multi
 : null
 > query
 |
@@ -924,12 +997,21 @@
 |
 | CREATE TYPE "public"."z_range" AS RANGE (
 |     subtype = integer,
-|     multirange_type_name = public.z_multirange
+|     multirange_type_name = public.z_multi
+| );
+|
+| CREATE TYPE "public"."a_composite" AS (
+|     "v" public.z_range
 | );
 |
 | CREATE TYPE "public"."a_range" AS RANGE (
 |     subtype = public.z_range,
 |     multirange_type_name = public.a_multirange
+| );
+|
+| CREATE TYPE "public"."b_range" AS RANGE (
+|     subtype = public.z_multi,
+|     multirange_type_name = public.b_multirange
 | );
 |
 | SET default_tablespace = '';
@@ -1478,69 +1560,6 @@
 < column "function_oid" "OID"
 < column "table_oid" "OID"
 < row
-: int64 4294967309
-: int64 0
-< row
-: int64 4294967309
-: int64 0
-< row
-: int64 4294967310
-: int64 0
-< row
-: int64 4294967310
-: int64 0
-< row
-: int64 4294967311
-: int64 0
-< row
-: int64 4294967311
-: int64 0
-< row
-: int64 4294967312
-: int64 0
-< row
-: int64 4294967312
-: int64 0
-< row
-: int64 4294967312
-: int64 0
-< row
-: int64 4294967313
-: int64 0
-< row
-: int64 4294967313
-: int64 0
-< row
-: int64 4294967313
-: int64 0
-< row
-: int64 4294967314
-: int64 0
-< row
-: int64 4294967314
-: int64 0
-< row
-: int64 4294967314
-: int64 0
-< row
-: int64 4294967315
-: int64 0
-< row
-: int64 4294967315
-: int64 0
-< row
-: int64 4294967315
-: int64 0
-< row
-: int64 4294967316
-: int64 0
-< row
-: int64 4294967316
-: int64 0
-< row
-: int64 4294967317
-: int64 0
-< row
 : int64 4294967317
 : int64 0
 < row
@@ -1553,7 +1572,112 @@
 : int64 4294967318
 : int64 0
 < row
-: int64 4294967318
+: int64 4294967319
+: int64 0
+< row
+: int64 4294967319
+: int64 0
+< row
+: int64 4294967320
+: int64 0
+< row
+: int64 4294967320
+: int64 0
+< row
+: int64 4294967320
+: int64 0
+< row
+: int64 4294967321
+: int64 0
+< row
+: int64 4294967321
+: int64 0
+< row
+: int64 4294967321
+: int64 0
+< row
+: int64 4294967322
+: int64 0
+< row
+: int64 4294967322
+: int64 0
+< row
+: int64 4294967322
+: int64 0
+< row
+: int64 4294967323
+: int64 0
+< row
+: int64 4294967323
+: int64 0
+< row
+: int64 4294967323
+: int64 0
+< row
+: int64 4294967324
+: int64 0
+< row
+: int64 4294967324
+: int64 0
+< row
+: int64 4294967325
+: int64 0
+< row
+: int64 4294967325
+: int64 0
+< row
+: int64 4294967325
+: int64 0
+< row
+: int64 4294967326
+: int64 0
+< row
+: int64 4294967326
+: int64 0
+< row
+: int64 4294967326
+: int64 0
+< row
+: int64 4294967327
+: int64 0
+< row
+: int64 4294967327
+: int64 0
+< row
+: int64 4294967327
+: int64 0
+< row
+: int64 4294967328
+: int64 0
+< row
+: int64 4294967328
+: int64 0
+< row
+: int64 4294967328
+: int64 0
+< row
+: int64 4294967329
+: int64 0
+< row
+: int64 4294967329
+: int64 0
+< row
+: int64 4294967330
+: int64 0
+< row
+: int64 4294967330
+: int64 0
+< row
+: int64 4294967330
+: int64 0
+< row
+: int64 4294967331
+: int64 0
+< row
+: int64 4294967331
+: int64 0
+< row
+: int64 4294967331
 : int64 0
 > query
 |
@@ -1722,6 +1846,20 @@
 < column "attribute_type" "TEXT"
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
+< row
+: int64 4294967332
+: int64 4294967333
+: string
+| public
+: string
+| a_composite
+: null
+: string
+| v
+: string
+| public.z_range
+: null
+: null
 > query
 |
 | SELECT
@@ -1792,7 +1930,7 @@
 < column "multirange_name" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967319
+: int64 4294967334
 : string
 | public
 : string
@@ -1807,7 +1945,22 @@
 | public.a_multirange
 : null
 < row
-: int64 4294967320
+: int64 4294967335
+: string
+| public
+: string
+| b_range
+: string
+| public.z_multi
+: null
+: null
+: null
+: null
+: string
+| public.b_multirange
+: null
+< row
+: int64 4294967336
 : string
 | public
 : string
@@ -1819,7 +1972,7 @@
 : null
 : null
 : string
-| public.z_multirange
+| public.z_multi
 : null
 > query
 |
