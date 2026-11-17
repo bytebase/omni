@@ -157,6 +157,19 @@ func OpenDatabaseNumberingOIDs(t testing.TB, role, name string) *sql.DB {
 	return tape.Open(t, s, role)
 }
 
+// OpenMissingDatabase returns t's connection to a database the pinned server
+// does not have: the server refuses the connection, and a recording holds what it
+// answered. name must be one no test creates; the emptying below drops every
+// database the image did not start with and creates none.
+func OpenMissingDatabase(t testing.TB, role, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		return liveMissingDatabase(t, pin, name)
+	}}
+	return tape.Open(t, s, role)
+}
+
 // Reset runs fn on the default server before a test opens its connection,
 // in a recording only: it puts what databases share (roles, tablespaces)
 // into the state the test's tape starts from, so a replay needs nothing.
@@ -276,6 +289,28 @@ func liveDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connecto
 			}
 		}
 		in.created[top+"\x00"+name] = true
+	}
+	return connector{Connector: stdlib.GetConnector(*in.config(name))}
+}
+
+// liveMissingDatabase is liveDatabase without the database's creation: it
+// empties the server as a test's first connection does, then connects to a name
+// the emptying has left absent.
+func liveMissingDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connector {
+	t.Helper()
+	in := started(t, pin)
+	top := enginetest.TopName(t.Name())
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	if !in.emptied[top] {
+		db := sql.OpenDB(stdlib.GetConnector(*in.config("postgres")))
+		defer db.Close()
+		for _, stmt := range in.emptying(t, db) {
+			if _, err := db.ExecContext(context.Background(), stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
+		}
+		in.emptied[top] = true
 	}
 	return connector{Connector: stdlib.GetConnector(*in.config(name))}
 }
