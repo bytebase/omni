@@ -1998,7 +1998,7 @@ func TestMaterializedViewKeepsRefreshSchedule(t *testing.T) {
 }
 
 func TestCascadeKeyDropOnlyRemovesThatKey(t *testing.T) {
-	c, err := LoadSQL(`CREATE TABLE P (ID NUMBER PRIMARY KEY, CODE NUMBER UNIQUE); CREATE TABLE C (P_ID NUMBER REFERENCES P(ID)); ALTER TABLE P DROP CONSTRAINT SYS_C0000002 CASCADE`)
+	c, err := LoadSQL(`CREATE TABLE P (ID NUMBER, CODE NUMBER, CONSTRAINT PK PRIMARY KEY(ID), CONSTRAINT UK UNIQUE(CODE)); CREATE TABLE C (P_ID NUMBER REFERENCES P(ID)); ALTER TABLE P DROP CONSTRAINT UK CASCADE`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2034,5 +2034,32 @@ T BEGIN NULL; END; ALTER TABLE T RENAME TO U`)
 func TestDisabledConstraintCreationIsRejected(t *testing.T) {
 	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT CK CHECK(C > 0) DISABLE)`); err == nil {
 		t.Fatal("disabled constraint installed as enabled")
+	}
+}
+
+func TestDisabledLiteralDoesNotRejectConstraint(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (STATUS VARCHAR2(20), CONSTRAINT CK CHECK (STATUS <> 'DISABLE'))`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCascadeKeyDropRemovesSelfForeignKey(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER, PARENT_ID NUMBER, CONSTRAINT PK PRIMARY KEY(ID), CONSTRAINT FK FOREIGN KEY(PARENT_ID) REFERENCES T(ID)); ALTER TABLE T DROP CONSTRAINT PK CASCADE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["T"].ForeignKeys) != 0 {
+		t.Fatal("self foreign key survived cascading key drop")
+	}
+}
+
+func TestRenameDisabledTriggerUpdatesMarker(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON T BEGIN NULL; END; ALTER TRIGGER TR DISABLE; ALTER TRIGGER TR RENAME TO TR2`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := tableByName(c.Metadata().Schemas[0])["T"].Triggers[0].Body
+	if !strings.Contains(body, `ALTER TRIGGER "TR2" DISABLE;`) {
+		t.Fatalf("disable marker = %q", body)
 	}
 }

@@ -217,7 +217,10 @@ replay tests exercise.
 - A cascading key drop removes only foreign keys on the dropped key's columns.
 - Dropping a column clears its nullability provenance, including reused names.
 - Trigger-target scanning accepts whitespace after `ON`.
-- Disabled constraints are rejected at creation.
+- Disabled constraints are rejected at creation, but literal text containing
+  `DISABLE` does not count.
+- A cascading key drop includes self-referencing foreign keys.
+- Renaming a disabled trigger moves its stored disable statement.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

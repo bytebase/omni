@@ -1189,21 +1189,20 @@ func (e *oracleMetadataExtractor) dropIncomingForeignKeysForColumns(tableName st
 		e.dropIncomingForeignKeys(tableName)
 		return
 	}
+	columnSet := map[string]bool{}
+	for _, column := range columns {
+		columnSet[strings.Trim(column, `"`)] = true
+	}
 	for _, table := range e.tables {
-		if table.Name == tableName {
-			continue
-		}
 		var foreignKeys []*metadatapb.ForeignKeyMetadata
 		for _, fk := range table.ForeignKeys {
 			matches := fk.ReferencedTable == tableName
 			if matches && len(fk.ReferencedColumns) > 0 {
 				matches = false
-				for i, column := range fk.ReferencedColumns {
-					if strings.Trim(column, `"`) != strings.Trim(columns[i%len(columns)], `"`) {
-						matches = false
-						break
+				for _, column := range fk.ReferencedColumns {
+					if columnSet[strings.Trim(column, `"`)] {
+						matches = true
 					}
-					matches = true
 				}
 			}
 			if matches && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
@@ -1286,11 +1285,36 @@ func (e *oracleMetadataExtractor) constraintDisabled(loc ast.Loc) bool {
 	if loc.Start < 0 || loc.End < loc.Start || loc.End > len(e.schemaText) {
 		return false
 	}
-	if regexp.MustCompile(`(?i)\bDISABLE\b`).MatchString(e.schemaText[loc.Start:loc.End]) {
+	if keywordOutsideQuotes(e.schemaText[loc.Start:loc.End], "DISABLE") {
 		if e.err == nil {
 			e.err = fmt.Errorf("disabled constraints are not supported by oracle/catalog")
 		}
 		return true
+	}
+	return false
+}
+
+func keywordOutsideQuotes(text, keyword string) bool {
+	var quote byte
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '\'' || c == '"' {
+			quote = c
+			continue
+		}
+		if i > 0 && isIdentifierByte(text[i-1]) {
+			continue
+		}
+		if len(text)-i >= len(keyword) && strings.EqualFold(text[i:i+len(keyword)], keyword) &&
+			(i+len(keyword) == len(text) || !isIdentifierByte(text[i+len(keyword)])) {
+			return true
+		}
 	}
 	return false
 }
@@ -1725,7 +1749,9 @@ func renameTriggerName(body, oldName, newName string) string {
 	if !strings.EqualFold(token, oldName) {
 		return body
 	}
-	return body[:tokenStart] + renderRenamedIdentifier(newName) + body[tokenEnd:]
+	body = body[:tokenStart] + renderRenamedIdentifier(newName) + body[tokenEnd:]
+	body = strings.ReplaceAll(body, "ALTER TRIGGER \""+oldName+"\" DISABLE;", "ALTER TRIGGER \""+newName+"\" DISABLE;")
+	return body
 }
 
 func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {

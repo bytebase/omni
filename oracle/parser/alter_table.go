@@ -811,11 +811,17 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if name, err = p.parseATNameString(); err != nil {
 			return nil, err
 		}
+		cascade := false
 		if p.cur.Type == kwCASCADE {
+			cascade = true
 			p.advance()
 		}
 		if p.cur.Type == kwONLINE {
 			p.advance()
+		}
+		var options *nodes.List
+		if cascade {
+			options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "CASCADE"}}}
 		}
 		return &nodes.AlterTableCmd{
 			Action: nodes.AT_DROP_CONSTRAINT,
@@ -823,7 +829,8 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 				Name: name,
 				Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			},
-			Loc: nodes.Loc{Start: start, End: p.prev.End},
+			Options: options,
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
 	case p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE:
