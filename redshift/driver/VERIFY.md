@@ -120,7 +120,10 @@ modeled on `pg/internal/testcontainer` and owned by this engine (omni keeps no
 helper shared across engines):
 
 - `container.go`: `var server = &tape.Server{Pins: Pins, Live: live, Codec: Codec{}}`;
-  `Open(t)` returns `tape.Open(t, server, RoleDriver)`;
+  `Pins` is `redshift/testdata/pins.tsv` resolved from `runtime.Caller(0)`, a
+  `const Driver = "driver"` names the pin row (`cassandra`, `elasticsearch` and
+  `redis` each keep that const in their helper), and `Open(t)` returns
+  `tape.Open(t, server, Driver)`;
   `Codec` encodes and decodes `*pgconn.PgError` (error fields, not the message
   alone) so a replayed test's `errors.As` finds the same type;
   `live` connects to `REDSHIFT_DSN` and **fails** when it is unset — a recording
@@ -144,19 +147,29 @@ the reads, then the writes, then the estimate.
 | 1 | `TestSyncDatabase` | the catalog and `pg_catalog` queries and the metadata they build: schemas, tables, columns, indexes, foreign keys, views, comments, row estimates |
 | 2 | `TestSyncInstance` | `SELECT version()`, `pg_user`, `pg_database`, `SVV_DATASHARES`; the excluded databases |
 | 3 | `TestQuery` | statement classification (SELECT/SHOW/EXPLAIN vs commands), every value kind, the LIMIT rewrite, the EXPLAIN text, `MaxResultBytes` truncation, `QueryOptions.Schema`'s search path, error-halting |
-| 4 | `TestExecute` | one transaction with its BEGIN/COMMIT, the rollback of a failing script, autocommit leaving earlier statements committed, `CreateDatabase` idempotence |
+| 4 | `TestExecute` | one transaction with its BEGIN/COMMIT, the rollback of a failing script, autocommit leaving earlier statements committed |
 | 5 | `TestExecuteCreateDatabase` | `CREATE DATABASE` and the second run's no-op |
 | 6 | `TestCountAffectedRows` | `EXPLAIN` after `ANALYZE`, and a statement with no estimate |
 | 7 | `TestSyncDatabaseDatashare` | the `SVV_ALL_*` branch, on a shared-in database |
 
-Recording commands, one test at a time so a failure is attributable:
+The table names each test by what it records, which is the name it takes once it
+replays a tape. `live_test.go` holds `TestLiveSyncDatabase`,
+`TestLiveSyncInstance`, `TestLiveQuery`, `TestLiveExecute` and
+`TestLiveCountAffectedRows` today, so the commands below name those, and step 4's
+conversion renames them. Two rows have no test at all and must be written:
+`TestExecuteCreateDatabase` (one `ExecuteOptions{CreateDatabase: true}` run and
+its second no-op) and `TestSyncDatabaseDatashare`.
+
+Recording commands, one test at a time so a failure is attributable. They name
+the tests that exist today: a `-run` pattern that matches nothing exits 0 and
+records nothing, which reads as a pass:
 
 ```bash
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestSyncDatabase$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestSyncInstance$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestQuery$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestExecute$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestCountAffectedRows$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveQuery$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveExecute$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveCountAffectedRows$' -count=1 -v
 ```
 
 Then record everything twice and require byte-identical tapes. Two runs of one

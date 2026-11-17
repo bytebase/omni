@@ -19,10 +19,9 @@
 // Its tests therefore cover only what needs no server: the connection
 // configuration, statement classification, the value conversions, the row
 // estimate's plan reading and the pure helpers. Everything else is behind an
-// environment gate and skips with the variable's name: REDSHIFT_DSN reaches a
-// cluster for this package's own live tests, and REDSHIFT_COMPAT_DSN asks a
-// dedicated scratch cluster whether omni reads and writes what Redshift does,
-// the judge redshift/compat already names.
+// environment gate and skips naming it: the live tests read REDSHIFT_DSN,
+// falling back to the REDSHIFT_COMPAT_DSN the compat suite already names, and
+// both must point at one dedicated scratch cluster, because those tests write.
 //
 // # What it implements
 //
