@@ -109,17 +109,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_0' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_0' AND TABLE_OWNER = 'OMNI_GAP_0' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -154,7 +143,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_0'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -166,6 +157,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -297,22 +290,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_0' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_0'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -322,17 +366,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_0' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -63636,17 +63669,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_0' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_0' AND TABLE_OWNER = 'OMNI_GAP_0' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -63681,7 +63703,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_0'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -63693,6 +63717,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -63824,22 +63850,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_0' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_0'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -63849,17 +63926,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_0' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -127158,17 +127224,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_1' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_1' AND TABLE_OWNER = 'OMNI_GAP_1' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -127203,7 +127258,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_1'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -127215,6 +127272,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -127346,22 +127405,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_1' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_1'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -127371,17 +127481,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_1' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -190688,17 +190787,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_1' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_1' AND TABLE_OWNER = 'OMNI_GAP_1' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -190733,7 +190821,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_1'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -190745,6 +190835,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -190876,22 +190968,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_1' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_1'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -190901,17 +191044,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_1' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -254210,17 +254342,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_2' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_2' AND TABLE_OWNER = 'OMNI_GAP_2' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -254255,7 +254376,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_2'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -254267,6 +254390,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -254398,22 +254523,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_2' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_2'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -254423,17 +254599,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_2' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -317736,17 +317901,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_2' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_2' AND TABLE_OWNER = 'OMNI_GAP_2' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -317781,7 +317935,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_2'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -317793,6 +317949,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -317924,22 +318082,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_2' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_2'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -317949,17 +318158,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_2' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -381252,17 +381450,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_3' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_3' AND TABLE_OWNER = 'OMNI_GAP_3' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -381297,7 +381484,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_3'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -381309,6 +381498,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -381440,22 +381631,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_3' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_3'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -381472,17 +381714,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_3' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -444778,17 +445009,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_3' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_3' AND TABLE_OWNER = 'OMNI_GAP_3' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -444823,7 +445043,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_3'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -444835,6 +445057,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -444966,22 +445190,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_3' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_3'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -444998,17 +445273,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_3' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -508338,17 +508602,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_4' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_4' AND TABLE_OWNER = 'OMNI_GAP_4' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -508390,7 +508643,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_4'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -508402,6 +508657,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | OT
@@ -508413,6 +508670,10 @@
 : null
 : null
 : null
+: string
+| OMNI_GAP_4
+: string
+| SYS_C9000001
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -508574,22 +508835,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_4' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_4'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -508606,17 +508918,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_4' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -571912,17 +572213,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_4' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_4' AND TABLE_OWNER = 'OMNI_GAP_4' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -571957,7 +572247,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_4'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -571969,6 +572261,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -572100,22 +572394,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_4' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_4'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -572132,17 +572477,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_4' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -635469,17 +635803,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_5' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_5' AND TABLE_OWNER = 'OMNI_GAP_5' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -635521,7 +635844,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_5'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -635533,6 +635858,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | XT
@@ -635544,6 +635871,10 @@
 : null
 : null
 : null
+: string
+| OMNI_GAP_5
+: string
+| SYS_C9000002
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -635705,22 +636036,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_5' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_5'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -635737,17 +636119,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_5' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -699043,17 +699414,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_5' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_5' AND TABLE_OWNER = 'OMNI_GAP_5' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -699088,7 +699448,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_5'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -699100,6 +699462,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -699231,22 +699595,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_5' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_5'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -699263,17 +699678,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_5' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -762656,17 +763060,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_6' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_6' AND TABLE_OWNER = 'OMNI_GAP_6' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -762701,7 +763094,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_6'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -762713,6 +763108,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -762860,22 +763257,73 @@
 | *
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_6' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_6'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -762892,17 +763340,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_6' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -826288,17 +826725,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_6' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_6' AND TABLE_OWNER = 'OMNI_GAP_6' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -826333,7 +826759,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_6'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -826345,6 +826773,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -826492,22 +826922,73 @@
 | *
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_6' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_6'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -826524,17 +827005,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_6' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -889830,17 +890300,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_7' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_7' AND TABLE_OWNER = 'OMNI_GAP_7' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -889875,7 +890334,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_7'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -889887,6 +890348,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -890018,22 +890481,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_7' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_7'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -890050,17 +890564,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_7' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -953363,17 +953866,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_7' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_7' AND TABLE_OWNER = 'OMNI_GAP_7' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -953408,7 +953900,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_7'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -953420,6 +953914,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -953551,22 +954047,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_7' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_7'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -953583,17 +954130,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_7' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1016899,17 +1017435,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_8' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_8' AND TABLE_OWNER = 'OMNI_GAP_8' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1016944,7 +1017469,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_8'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1016956,6 +1017483,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1017087,22 +1017616,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_8' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_8'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1017119,17 +1017699,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_8' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1080432,17 +1081001,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_8' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_8' AND TABLE_OWNER = 'OMNI_GAP_8' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1080477,7 +1081035,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_8'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1080489,6 +1081049,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1080620,22 +1081182,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_8' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_8'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1080652,17 +1081265,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_8' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1143968,17 +1144570,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_9' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_9' AND TABLE_OWNER = 'OMNI_GAP_9' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1144013,7 +1144604,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_9'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1144025,6 +1144618,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1144156,22 +1144751,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_9' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_9'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1144188,17 +1144834,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_9' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1207501,17 +1208136,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_9' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_9' AND TABLE_OWNER = 'OMNI_GAP_9' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1207546,7 +1208170,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_9'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1207558,6 +1208184,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1207689,22 +1208317,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_9' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_9'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1207721,17 +1208400,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_9' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1270944,7 +1271612,7 @@
 | ALTER SESSION SET CURRENT_SCHEMA = OMNI_GAP_10
 < ok 0 0
 > exec
-| CREATE SEQUENCE S START WITH 10 INCREMENT BY 2 CACHE 20
+| CREATE SEQUENCE S START WITH 10 INCREMENT BY 2 CACHE 20 MAXVALUE 1000
 < ok 0 0
 > query
 | SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
@@ -1271006,17 +1271674,6 @@
 < column "IDENTITY_COLUMN" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_10' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_10' AND TABLE_OWNER = 'OMNI_GAP_10' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1271051,7 +1271708,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_10'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1271063,6 +1271722,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1271188,25 +1271849,100 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_10' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_10'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | S
+: string
+| 1
+: string
+| 1000
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 10
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1271223,17 +1271959,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_10' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1334425,12 +1335150,12 @@
 > commit
 < ok
 > query
-| SELECT increment_by || '/' || cache_size FROM all_sequences WHERE sequence_owner = 'OMNI_GAP_10' AND sequence_name = 'S'
+| SELECT last_number FROM all_sequences WHERE sequence_owner = 'OMNI_GAP_10' AND sequence_name = 'S'
 < result
-< column "INCREMENT_BY||'/'||CACHE_SIZE" "NCHAR" "string"
+< column "LAST_NUMBER" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
-| 2/20
+| 10
 > exec
 | DROP USER OMNI_GAP_10 CASCADE
 < ok 0 0
@@ -1334444,7 +1335169,7 @@
 | ALTER SESSION SET CURRENT_SCHEMA = OMNI_GAP_10
 < ok 0 0
 > exec
-| CREATE SEQUENCE "S"
+| CREATE SEQUENCE "S" INCREMENT BY 2 MAXVALUE 1000 MINVALUE 1 CACHE 20
 < ok 0 0
 > query
 | SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
@@ -1334506,17 +1335231,6 @@
 < column "IDENTITY_COLUMN" "NCHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_10' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_10' AND TABLE_OWNER = 'OMNI_GAP_10' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1334551,7 +1335265,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_10'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1334563,6 +1335279,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1334688,25 +1335406,100 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_10' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_10'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | S
+: string
+| 1
+: string
+| 1000
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1334723,17 +1335516,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_10' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1397925,12 +1398707,12 @@
 > commit
 < ok
 > query
-| SELECT increment_by || '/' || cache_size FROM all_sequences WHERE sequence_owner = 'OMNI_GAP_10' AND sequence_name = 'S'
+| SELECT last_number FROM all_sequences WHERE sequence_owner = 'OMNI_GAP_10' AND sequence_name = 'S'
 < result
-< column "INCREMENT_BY||'/'||CACHE_SIZE" "NCHAR" "string"
+< column "LAST_NUMBER" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
-| 1/20
+| 1
 > exec
 | DROP USER OMNI_GAP_11 CASCADE
 < error
@@ -1398046,17 +1398828,6 @@
 | YES
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_11' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_11' AND TABLE_OWNER = 'OMNI_GAP_11' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1398098,7 +1398869,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_11'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1398110,6 +1398883,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | I
@@ -1398119,6 +1398894,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1398253,25 +1399030,100 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_11' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_11'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | ISEQ$$_9000003
+: string
+| 1
+: string
+| 100000
+: string
+| 2
+: string
+| Y
+: string
+| N
+: string
+| 100
+: string
+| 5
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1398288,17 +1399140,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_11' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1461611,17 +1462452,6 @@
 | YES
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_11' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_11' AND TABLE_OWNER = 'OMNI_GAP_11' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1461663,7 +1462493,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_11'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1461675,6 +1462507,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | I
@@ -1461684,6 +1462518,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1461818,25 +1462654,100 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_11' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_11'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | ISEQ$$_9000005
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 5
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1461853,17 +1462764,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_11' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1525197,17 +1526097,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_12' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_12' AND TABLE_OWNER = 'OMNI_GAP_12' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1525242,7 +1526131,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_12'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1525254,6 +1526145,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1525385,22 +1526278,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_12' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_12'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1525417,17 +1526361,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_12' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -1588801,17 +1589734,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_12' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_GAP_12' AND TABLE_OWNER = 'OMNI_GAP_12' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1588846,7 +1589768,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_GAP_12'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1588858,6 +1589782,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1588989,22 +1589915,73 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_12' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_GAP_12'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1589021,17 +1589998,6 @@
 | example.com:1521/x
 : string
 | U
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_GAP_12' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT

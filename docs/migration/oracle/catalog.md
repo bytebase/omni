@@ -285,10 +285,10 @@ replay tests exercise.
 It restores, from a synced snapshot:
 
 - Sequences, with `START WITH`, `INCREMENT BY`, `MINVALUE`, `MAXVALUE`,
-  `CACHE` and `CYCLE`, created before the tables whose defaults call them. The
-  options render when the snapshot carries them, as the extractor and the
-  Bytebase fixtures do; `oracle/driver`'s sync fills only the name and comment,
-  so a dump of its snapshot restores a default sequence.
+  `CACHE` and `CYCLE`, created before the tables whose defaults call them.
+  Oracle's dictionary does not carry the declared `START WITH`;
+  `oracle/driver`'s sync reads every other option, so a dump of its snapshot
+  restarts a sequence at its minimum value.
 - Tables, with columns, declared lengths, defaults (including `DEFAULT ON
   NULL`), nullability, identity generation with seed and increment, virtual
   columns, table and column comments, primary keys, unique and check
@@ -333,9 +333,11 @@ closes:
   (ORA-01730).
 - **Collation** is not emitted. Oracle's `USING_NLS_COMP` is the column default
   and writing it back fails on sessions with a different string-size setting.
-- **Identity sequence options the metadata cannot represent.** A column carries
-  its generation, seed and increment; its backing sequence's `CACHE`, `CYCLE`
-  and bounds have no field, so a definition drops them.
+- **Sequence options the metadata cannot represent.** A column carries an
+  identity's generation, seed and increment; its backing sequence's `CACHE`,
+  `CYCLE` and bounds have no field, so a definition drops them. A standalone
+  sequence's declared `START WITH` is not in the dictionary at all, so a dump
+  restarts it at `MINVALUE`.
 - **Packages, synonyms, public synonyms and database links** are kept in the
   snapshot but not rendered, so a restored schema is missing them.
 - **A named `NOT NULL` constraint's name.** `ALTER TABLE ... MODIFY (...

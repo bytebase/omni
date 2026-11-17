@@ -525,7 +525,9 @@ func indexEqual(a, b *metadatapb.IndexMetadata) bool {
 		return false
 	}
 	for i, expression := range a.GetExpressions() {
-		if normalizeExpression(expression) != normalizeExpression(b.GetExpressions()[i]) {
+		// The sync keeps a case-sensitive name quoted; an extracted snapshot
+		// states it raw. The same column is not a change.
+		if normalizeExpression(unquoteIdentifier(expression)) != normalizeExpression(unquoteIdentifier(b.GetExpressions()[i])) {
 			return false
 		}
 	}
@@ -574,14 +576,22 @@ func compareForeignKeys(oldFKs, newFKs []*metadatapb.ForeignKeyMetadata) []*Fore
 	return changes
 }
 
+func unquoteIdentifiers(identifiers []string) []string {
+	unquoted := make([]string, len(identifiers))
+	for i, identifier := range identifiers {
+		unquoted[i] = unquoteIdentifier(identifier)
+	}
+	return unquoted
+}
+
 func foreignKeyEqual(a, b *metadatapb.ForeignKeyMetadata) bool {
 	return a.GetReferencedSchema() == b.GetReferencedSchema() &&
 		a.GetReferencedTable() == b.GetReferencedTable() &&
 		a.GetOnDelete() == b.GetOnDelete() &&
 		a.GetOnUpdate() == b.GetOnUpdate() &&
 		a.GetMatchType() == b.GetMatchType() &&
-		slices.Equal(a.GetColumns(), b.GetColumns()) &&
-		slices.Equal(a.GetReferencedColumns(), b.GetReferencedColumns())
+		slices.Equal(unquoteIdentifiers(a.GetColumns()), unquoteIdentifiers(b.GetColumns())) &&
+		slices.Equal(unquoteIdentifiers(a.GetReferencedColumns()), unquoteIdentifiers(b.GetReferencedColumns()))
 }
 
 func compareCheckConstraints(oldChecks, newChecks []*metadatapb.CheckConstraintMetadata) []*CheckConstraintDiff {

@@ -24,6 +24,10 @@
 < ok 0 0
 > exec
 |
+| CREATE SEQUENCE OPTION_SEQ INCREMENT BY 2 MAXVALUE 100000 MINVALUE 1 CACHE 20
+< ok 0 0
+> exec
+|
 |
 | CREATE TABLE TYPES (
 |   ID NUMBER(10) NOT NULL,
@@ -850,17 +854,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_DUMP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_DUMP' AND TABLE_OWNER = 'OMNI_DUMP' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -1068,7 +1061,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -1080,6 +1075,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | CHILD
@@ -1094,6 +1091,8 @@
 | PARENT_PK
 : string
 | CASCADE
+: null
+: null
 < row
 : string
 | CHILD
@@ -1105,6 +1104,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| CHILD_PK
 < row
 : string
 | CHILD
@@ -1114,6 +1117,8 @@
 | C
 : string
 | QTY > 0
+: null
+: null
 : null
 : null
 : null
@@ -1129,6 +1134,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | CHILD
@@ -1138,6 +1145,8 @@
 | C
 : string
 | "PARENT_ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1152,6 +1161,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| IDENT_PK
 < row
 : string
 | IDENT
@@ -1161,6 +1174,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1175,6 +1190,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| PARENT_NAME_UK
 < row
 : string
 | PARENT
@@ -1186,6 +1205,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| PARENT_PK
 < row
 : string
 | PARENT
@@ -1195,6 +1218,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1210,6 +1235,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | PARENT_MV
@@ -1219,6 +1246,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1234,6 +1263,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | PARENT_MV
@@ -1245,6 +1276,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| SYS_C_SNAP$_9000009PARENT_PK
 < row
 : string
 | TYPES
@@ -1254,6 +1289,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1269,6 +1306,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | TYPES
@@ -1278,6 +1317,8 @@
 | C
 : string
 | "LABEL" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1293,6 +1334,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | TYPES
@@ -1304,6 +1347,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| TYPES_LABEL_UK
 < row
 : string
 | TYPES
@@ -1315,6 +1362,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| TYPES_PK
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1801,28 +1852,154 @@
 | *
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_DUMP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_DUMP'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | ISEQ$$_9000001
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 5
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+< row
+: string
+| OPTION_SEQ
+: string
+| 1
+: string
+| 100000
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 < row
 : string
 | PLAIN_SEQ
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -1832,17 +2009,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_DUMP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -65092,7 +65258,12 @@
 | ALTER SESSION SET CURRENT_SCHEMA = OMNI_DUMP
 < ok 0 0
 > exec
-| CREATE SEQUENCE "PLAIN_SEQ"
+| CREATE SEQUENCE "OPTION_SEQ" INCREMENT BY 2 MAXVALUE 100000 MINVALUE 1 CACHE 20
+< ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE "PLAIN_SEQ" MAXVALUE 9999999999999999999999999999 MINVALUE 1 CACHE 20
 < ok 0 0
 > exec
 |
@@ -65933,17 +66104,6 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_DUMP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'OMNI_DUMP' AND TABLE_OWNER = 'OMNI_DUMP' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
@@ -66151,7 +66311,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_DUMP'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -66163,6 +66325,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | CHILD
@@ -66177,6 +66341,8 @@
 | PARENT_PK
 : string
 | CASCADE
+: null
+: null
 < row
 : string
 | CHILD
@@ -66188,6 +66354,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| CHILD_PK
 < row
 : string
 | CHILD
@@ -66197,6 +66367,8 @@
 | C
 : string
 | QTY > 0
+: null
+: null
 : null
 : null
 : null
@@ -66212,6 +66384,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | CHILD
@@ -66221,6 +66395,8 @@
 | C
 : string
 | "PARENT_ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -66235,6 +66411,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| IDENT_PK
 < row
 : string
 | IDENT
@@ -66244,6 +66424,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -66258,6 +66440,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| PARENT_NAME_UK
 < row
 : string
 | PARENT
@@ -66269,6 +66455,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| PARENT_PK
 < row
 : string
 | PARENT
@@ -66278,6 +66468,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -66293,6 +66485,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | PARENT_MV
@@ -66302,6 +66496,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -66317,6 +66513,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | PARENT_MV
@@ -66328,6 +66526,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| SYS_C_SNAP$_9000021PARENT_PK
 < row
 : string
 | TYPES
@@ -66337,6 +66539,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -66352,6 +66556,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | TYPES
@@ -66361,6 +66567,8 @@
 | C
 : string
 | "LABEL" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -66376,6 +66584,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | TYPES
@@ -66387,6 +66597,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| TYPES_LABEL_UK
 < row
 : string
 | TYPES
@@ -66398,6 +66612,10 @@
 : null
 : null
 : null
+: string
+| OMNI_DUMP
+: string
+| TYPES_PK
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -66884,28 +67102,154 @@
 | *
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_DUMP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_DUMP'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | ISEQ$$_9000013
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 5
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+< row
+: string
+| OPTION_SEQ
+: string
+| 1
+: string
+| 100000
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 < row
 : string
 | PLAIN_SEQ
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
@@ -66915,17 +67259,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_DUMP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR" "string"
-< column "TABLE_NAME" "NCHAR" "string"
-< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT

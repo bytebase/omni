@@ -229,9 +229,11 @@ func TestDumpGaps(t *testing.T) {
 			query: `SELECT COUNT(*) FROM all_external_tables WHERE owner = '%s' AND table_name = 'EXT'`,
 		},
 		{
-			name:  "sequence options",
-			setup: `CREATE SEQUENCE S START WITH 10 INCREMENT BY 2 CACHE 20;`,
-			query: `SELECT increment_by || '/' || cache_size FROM all_sequences WHERE sequence_owner = '%s' AND sequence_name = 'S'`,
+			// The dictionary does not carry a sequence's declared START WITH,
+			// so the dump has none to write and the restore starts at MINVALUE.
+			name:  "sequence start",
+			setup: `CREATE SEQUENCE S START WITH 10 INCREMENT BY 2 CACHE 20 MAXVALUE 1000;`,
+			query: `SELECT last_number FROM all_sequences WHERE sequence_owner = '%s' AND sequence_name = 'S'`,
 		},
 		{
 			name:  "identity sequence options",

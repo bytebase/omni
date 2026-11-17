@@ -659,13 +659,7 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 				return err
 			}
 		}
-		if _, err := buf.WriteString(`"`); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(column); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(`"`); err != nil {
+		if _, err := buf.WriteString(keyColumn(column)); err != nil {
 			return err
 		}
 	}
@@ -699,13 +693,7 @@ func writeForeignKey(buf *strings.Builder, fk *metadatapb.ForeignKeyMetadata) er
 				return err
 			}
 		}
-		if _, err := buf.WriteString(`"`); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(column); err != nil {
-			return err
-		}
-		if _, err := buf.WriteString(`"`); err != nil {
+		if _, err := buf.WriteString(keyColumn(column)); err != nil {
 			return err
 		}
 	}
@@ -786,13 +774,7 @@ func writeConstraint(buf *strings.Builder, constraint *metadatapb.IndexMetadata)
 					return err
 				}
 			}
-			if _, err := buf.WriteString(`"`); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(column); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(`"`); err != nil {
+			if _, err := buf.WriteString(keyColumn(column)); err != nil {
 				return err
 			}
 		}
@@ -809,13 +791,7 @@ func writeConstraint(buf *strings.Builder, constraint *metadatapb.IndexMetadata)
 					return err
 				}
 			}
-			if _, err := buf.WriteString(`"`); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(column); err != nil {
-				return err
-			}
-			if _, err := buf.WriteString(`"`); err != nil {
+			if _, err := buf.WriteString(keyColumn(column)); err != nil {
 				return err
 			}
 		}
@@ -1027,6 +1003,25 @@ func writeView(buf *strings.Builder, view *metadatapb.ViewMetadata) error {
 		return err
 	}
 	return writeDefinitionComment(buf, "TABLE", view.Name, view.Comment)
+}
+
+// keyColumn renders a key column the snapshot states. The driver's sync keeps a
+// case-sensitive name quoted, and an extracted one raw, so a quoted name is
+// written as it is and a raw one is quoted.
+func keyColumn(column string) string {
+	if strings.HasPrefix(column, `"`) && strings.HasSuffix(column, `"`) && len(column) > 1 {
+		return column
+	}
+	return `"` + column + `"`
+}
+
+// unquoteIdentifier strips the quotes from a bare quoted identifier, which the
+// sync states but an extracted snapshot does not. An expression is left alone.
+func unquoteIdentifier(identifier string) string {
+	if strings.HasPrefix(identifier, `"`) && strings.HasSuffix(identifier, `"`) && len(identifier) > 1 && !strings.Contains(identifier[1:len(identifier)-1], `"`) {
+		return identifier[1 : len(identifier)-1]
+	}
+	return identifier
 }
 
 // writeDefinitionComment writes the COMMENT statement a synced object carries.

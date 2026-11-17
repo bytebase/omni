@@ -1456,7 +1456,11 @@ func referencesColumns(fk *metadatapb.ForeignKeyMetadata, schemaName, databaseNa
 	if fk.ReferencedTable != tableName || (fk.ReferencedSchema != "" && fk.ReferencedSchema != schemaName && fk.ReferencedSchema != databaseName) {
 		return false
 	}
-	return slices.ContainsFunc(fk.ReferencedColumns, func(column string) bool { return slices.Contains(columns, column) })
+	targets := make([]string, len(columns))
+	for i, column := range columns {
+		targets[i] = unquoteIdentifier(column)
+	}
+	return slices.ContainsFunc(fk.ReferencedColumns, func(column string) bool { return slices.Contains(targets, unquoteIdentifier(column)) })
 }
 
 // rebuildsColumn reports whether Oracle must drop and add the column again, or
@@ -2562,9 +2566,7 @@ func writeMigrationForeignKey(out *strings.Builder, schema, table string, fk *me
 		if i > 0 {
 			_, _ = out.WriteString(`, `)
 		}
-		_, _ = out.WriteString(`"`)
-		_, _ = out.WriteString(col)
-		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(keyColumn(col))
 	}
 
 	_, _ = out.WriteString(`) REFERENCES `)
@@ -2582,9 +2584,7 @@ func writeMigrationForeignKey(out *strings.Builder, schema, table string, fk *me
 			if i > 0 {
 				_, _ = out.WriteString(`, `)
 			}
-			_, _ = out.WriteString(`"`)
-			_, _ = out.WriteString(col)
-			_, _ = out.WriteString(`"`)
+			_, _ = out.WriteString(keyColumn(col))
 		}
 		_, _ = out.WriteString(`)`)
 	}

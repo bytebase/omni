@@ -2732,3 +2732,65 @@ func TestCycleFallbackWritesFunctionBeforeView(t *testing.T) {
 		t.Fatalf("the migration's cycle fallback writes the view before the function it calls (function=%d view=%d):\n%s", function, view, sql)
 	}
 }
+
+func TestSyncedQuotedKeysMatchExtractedOnes(t *testing.T) {
+	// The driver's sync quotes a key column to keep a case-sensitive name; an
+	// extracted snapshot states it raw. The same column is not a change, and it
+	// is rendered with one pair of quotes either way.
+	quoted := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		Tables: []*metadatapb.TableMetadata{{
+			Name: "T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true},
+				{Name: "REF", Type: "NUMBER", Position: 2, Nullable: true},
+			},
+			Indexes: []*metadatapb.IndexMetadata{
+				{Name: "T_PK", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{`"ID"`}},
+				{Name: "T_REF_IDX", Type: "NORMAL", Expressions: []string{`"REF"`}, Descending: []bool{false}},
+			},
+			ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+				Name:              "T_FK",
+				Columns:           []string{`"REF"`},
+				ReferencedTable:   "T",
+				ReferencedColumns: []string{`"ID"`},
+			}},
+		}},
+	})
+	definition, err := DatabaseDefinition(quoted.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`PRIMARY KEY ("ID")`, `CREATE INDEX "T_REF_IDX" ON "T" ("REF" ASC)`, `FOREIGN KEY ("REF") REFERENCES "T" ("ID")`} {
+		if !strings.Contains(definition, want) {
+			t.Fatalf("the definition does not state %s:\n%s", want, definition)
+		}
+	}
+	if strings.Contains(definition, `""`) {
+		t.Fatalf("a quoted key column was quoted twice:\n%s", definition)
+	}
+
+	raw := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		Tables: []*metadatapb.TableMetadata{{
+			Name: "T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true},
+				{Name: "REF", Type: "NUMBER", Position: 2, Nullable: true},
+			},
+			Indexes: []*metadatapb.IndexMetadata{
+				{Name: "T_PK", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}},
+				{Name: "T_REF_IDX", Type: "NORMAL", Expressions: []string{"REF"}, Descending: []bool{false}},
+			},
+			ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+				Name:              "T_FK",
+				Columns:           []string{"REF"},
+				ReferencedTable:   "T",
+				ReferencedColumns: []string{"ID"},
+			}},
+		}},
+	})
+	if !Diff(raw, quoted).IsEmpty() {
+		t.Fatalf("a quoted key column read as a change:\n%s", migrationFor(t, raw, quoted))
+	}
+}
