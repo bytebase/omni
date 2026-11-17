@@ -223,11 +223,18 @@ END;
 		t.Fatalf("columnless batch = %+v, %v", batchy, err)
 	}
 
-	// A limit bounds a result set, so it leaves a SELECT ... INTO materialising
-	// every row as it would.
-	if _, err := sess.Query(ctx, "CREATE TABLE q_archive (id INT, note NVARCHAR(100));", driver.QueryOptions{}); err != nil {
+	// A statement that reports no count is not a write of zero rows: DDL, SET and
+	// SELECT @v = ... report nothing, so the result carries no count at all.
+	created, err := sess.Query(ctx, "CREATE TABLE q_archive (id INT, note NVARCHAR(100));", driver.QueryOptions{})
+	if err != nil {
 		t.Fatal(err)
 	}
+	if len(created) != 1 || created[0].AffectedRows != nil {
+		t.Fatalf("DDL result = %+v, want no affected count", created)
+	}
+
+	// A limit bounds a result set, so it leaves a SELECT ... INTO materialising
+	// every row as it would.
 	into, err := sess.Query(ctx, "SELECT id, note INTO q_archive2 FROM q_items;", driver.QueryOptions{Limit: 1})
 	if err != nil || len(into) != 1 || into[0].Err != nil {
 		t.Fatalf("SELECT INTO = %+v, %v", into, err)
