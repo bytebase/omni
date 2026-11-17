@@ -32,6 +32,13 @@ type Pin struct {
 	Judge string
 }
 
+// ImageRef is the reference a testcontainer starts: the image and the
+// pinned digest. A recording pulls this reference rather than the tag, so a
+// registry moving the tag cannot select another image. A testcontainer still
+// checks the running container's digest (checkDigest) because the reference
+// says what Docker was asked for, not what it ran.
+func (p Pin) ImageRef() string { return p.Image + "@" + p.Digest }
+
 // String renders the pin as committed files name it in their header.
 func (p Pin) String() string {
 	s := strings.Join([]string{p.Role, p.Image, p.Digest, p.Tag}, " ")
