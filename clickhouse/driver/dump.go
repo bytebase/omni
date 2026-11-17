@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -313,8 +314,8 @@ func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database string,
 
 // dumpASTNames reports whether the AST names reference as a node of its own: the
 // marker starts a line once its indentation is skipped — so a string literal that
-// spells it out, which is escaped and mid-line, is not one — and ends with a line
-// break or with the space before an alias.
+// spells it out, which is escaped and mid-line, is not one — and the name ends
+// the node, at a line break or before the alias the rendering appends.
 func dumpASTNames(ast, reference string) bool {
 	indentation := func(start int) bool {
 		for i := start - 1; i >= 0 && ast[i] != '\n'; i-- {
@@ -331,7 +332,7 @@ func dumpASTNames(ast, reference string) bool {
 		}
 		start += offset
 		end := start + len(reference)
-		if indentation(start) && (end == len(ast) || ast[end] == '\n' || ast[end] == ' ') {
+		if indentation(start) && (end == len(ast) || ast[end] == '\n' || strings.HasPrefix(ast[end:], " (alias ")) {
 			return true
 		}
 		offset = end
@@ -339,22 +340,34 @@ func dumpASTNames(ast, reference string) bool {
 	return false
 }
 
+// The clauses that state what a table on the Dictionary engine reads: the ENGINE
+// argument names the dictionary, and the dictionary's SOURCE names the table and
+// database it reads, as string literals.
+var (
+	dumpDictionaryEngine = regexp.MustCompile(`ENGINE = Dictionary\('([^']*)'\)`)
+	dumpDictionarySource = regexp.MustCompile(`(?i)(?:TABLE|DB) '([^']*)'`)
+)
+
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
 // reads: creating the table loads the dictionary, and the dictionary reads its
 // source, which may be a table, a view or a materialized view of this database.
-// The server states the dictionary in the table's ENGINE clause and the source in
-// the dictionary's SOURCE, both as string literals.
+// Only those clauses are read; a comment or a default that happens to spell an
+// object's name does not make one.
 func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]*dumpObject) []string {
+	engine := dumpDictionaryEngine.FindStringSubmatch(o.stmt)
+	if engine == nil {
+		return nil
+	}
+	dictionary, _ := dumpLiteralObject(engine[1], database, byName)
+	if dictionary == nil {
+		return nil
+	}
 	seen := make(map[string]bool, len(byName))
-	for _, name := range dumpNamedLiterals(o.stmt, database, byName) {
-		seen[name] = true
-		if dictionary := byName[name]; dictionary != nil {
-			for _, source := range dumpNamedLiterals(dictionary.stmt, database, byName) {
-				seen[source] = true
-			}
+	for _, source := range dumpDictionarySource.FindAllStringSubmatch(dictionary.stmt, -1) {
+		if read, name := dumpLiteralObject(source[1], database, byName); read != nil && name != o.name {
+			seen[name] = true
 		}
 	}
-	delete(seen, o.name)
 	reads := make([]string, 0, len(seen))
 	for name := range seen {
 		reads = append(reads, name)
@@ -363,48 +376,21 @@ func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]
 	return reads
 }
 
-// dumpNamedLiterals returns the objects of byName that stmt names as a string
-// literal. The server writes the name as it was given, so it may be qualified
-// with its database and may hold a dot of its own: the literal is tried whole,
-// then without its database, and only then by its last part.
-func dumpNamedLiterals(stmt, database string, byName map[string]*dumpObject) []string {
-	var names []string
-	for _, literal := range dumpLiterals(stmt) {
-		for _, name := range []string{
-			literal,
-			strings.TrimPrefix(literal, database+"."),
-			literal[strings.LastIndex(literal, ".")+1:],
-		} {
-			if byName[name] != nil {
-				names = append(names, name)
-				break
-			}
+// dumpLiteralObject returns the object of byName that literal names. The server
+// writes a literal as it was given, so it may be qualified with its database and
+// may hold a dot of its own: the literal is tried whole, then without the
+// database, and only then by its last part.
+func dumpLiteralObject(literal, database string, byName map[string]*dumpObject) (*dumpObject, string) {
+	for _, name := range []string{
+		literal,
+		strings.TrimPrefix(literal, database+"."),
+		literal[strings.LastIndex(literal, ".")+1:],
+	} {
+		if object := byName[name]; object != nil {
+			return object, name
 		}
 	}
-	return names
-}
-
-// dumpLiterals returns the contents of the single-quoted strings in stmt, with a
-// backslash escape resolved.
-func dumpLiterals(stmt string) []string {
-	var literals []string
-	var text strings.Builder
-	inString := false
-	for i := 0; i < len(stmt); i++ {
-		switch c := stmt[i]; {
-		case !inString && c == '\'':
-			inString, text = true, strings.Builder{}
-		case inString && c == '\\' && i+1 < len(stmt):
-			i++
-			text.WriteByte(stmt[i])
-		case inString && c == '\'':
-			inString = false
-			literals = append(literals, text.String())
-		case inString:
-			text.WriteByte(c)
-		}
-	}
-	return literals
+	return nil, ""
 }
 
 // dumpExpandedReads returns every definition o reads, directly or through a view:

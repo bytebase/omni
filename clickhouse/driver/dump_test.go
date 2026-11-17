@@ -230,3 +230,43 @@ func TestDumpStorageTablePattern(t *testing.T) {
 		require.Equal(t, table.owned, pattern.MatchString(table.name), table.name)
 	}
 }
+
+// TestDumpASTNames holds the AST node shapes the order reads: a relation node
+// ends with a line break or before the alias the rendering appends, and a name
+// that only looks like a relation — a literal's text, a longer name with a space
+// in it — is not one.
+func TestDumpASTNames(t *testing.T) {
+	const ast = "\n CreateQuery db a_top (children 2)\n" +
+		"  Literal \\'TableIdentifier db.mv_base \\'\n" +
+		"  Literal TableIdentifier db.mv_base\n" +
+		"  TableIdentifier db.mv_base\n" +
+		"  TableIdentifier db.a_top extra\n" +
+		"  TableIdentifier db.z (alias zz)\n"
+	for _, node := range []struct {
+		name string
+		read bool
+	}{
+		{"mv_base", true},
+		{"a_top", false},
+		{"a_top extra", true},
+		{"z", true},
+		{"zz", false},
+		{"a_top (children 2)", false},
+	} {
+		require.Equal(t, node.read, dumpASTNames(ast, "TableIdentifier db."+node.name), node.name)
+	}
+}
+
+// TestDumpDictionaryTableReads holds what a table on the Dictionary engine reads:
+// the clauses that state it, and not a comment that spells an object's name.
+func TestDumpDictionaryTableReads(t *testing.T) {
+	byName := map[string]*dumpObject{
+		"d":       {name: "d", stmt: "CREATE DICTIONARY db.d\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(CLICKHOUSE(TABLE 'v_src' DB 'db'))\nLIFETIME(MIN 0 MAX 300)\nLAYOUT(FLAT())"},
+		"dt":      {name: "dt", stmt: "CREATE TABLE db.dt\n(\n    `id` UInt64\n)\nCOMMENT 'a_mv'\nENGINE = Dictionary('db.d')"},
+		"v_src":   {name: "v_src"},
+		"a_mv":    {name: "a_mv"},
+		"dt_user": {name: "dt_user", stmt: "CREATE TABLE db.dt_user\n(\n    `id` UInt64\n)\nENGINE = MergeTree ORDER BY id"},
+	}
+	require.Equal(t, []string{"v_src"}, dumpDictionaryTableReads(byName["dt"], "db", byName))
+	require.Empty(t, dumpDictionaryTableReads(byName["dt_user"], "db", byName))
+}
