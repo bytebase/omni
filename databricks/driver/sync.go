@@ -14,12 +14,13 @@ import (
 
 // tableUnion is one object a sync found, with the metadata kind it becomes.
 type tableUnion struct {
-	externalTable *metadatapb.ExternalTableMetadata
-	table         *metadatapb.TableMetadata
-	view          *metadatapb.ViewMetadata
-	materialView  *metadatapb.MaterializedViewMetadata
-	typeName      catalogapi.TableType
-	name          string
+	externalTable    *metadatapb.ExternalTableMetadata
+	table            *metadatapb.TableMetadata
+	view             *metadatapb.ViewMetadata
+	materialView     *metadatapb.MaterializedViewMetadata
+	typeName         catalogapi.TableType
+	name             string
+	viewDependencies []string
 }
 
 type databricksSchemaMap = map[string][]*tableUnion
@@ -139,6 +140,13 @@ func appendSchemaTables(catalogMap databricksCatalogMap, tablesInfo []catalogapi
 		table := tableUnion{
 			typeName: tableInfo.TableType,
 			name:     tableInfo.Name,
+		}
+		if tableInfo.ViewDependencies != nil {
+			for _, dependency := range tableInfo.ViewDependencies.Dependencies {
+				if dependency.Table != nil {
+					table.viewDependencies = append(table.viewDependencies, dependency.Table.TableFullName)
+				}
+			}
 		}
 
 		switch tableInfo.TableType {

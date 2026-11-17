@@ -169,6 +169,9 @@ func workspaceConfig(cfg driver.Config) (*databricks.Config, string, error) {
 	if host == "" {
 		return nil, "", errors.New("host must be set: Config.Host names the Databricks workspace URL")
 	}
+	if cfg.TLS != nil && strings.HasPrefix(strings.ToLower(host), "http://") {
+		return nil, "", errors.New("TLS is required, so Config.Host must not use http://")
+	}
 	token := strings.TrimSpace(cfg.Password)
 	if token == "" {
 		return nil, "", errors.New("token must be set: Config.Password carries the personal access token")

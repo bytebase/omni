@@ -87,6 +87,20 @@ func TestWorkspaceConfig(t *testing.T) {
 		}
 	})
 
+	t.Run("TLS refuses a plaintext host", func(t *testing.T) {
+		_, _, err := workspaceConfig(driver.Config{
+			Host:     "http://dbc.example.com",
+			Password: "token",
+			Params:   map[string]string{ParamWarehouseID: "warehouse-1"},
+			TLS: func(string) (*tls.Config, error) {
+				return &tls.Config{}, nil
+			},
+		})
+		if err == nil || !strings.Contains(err.Error(), "must not use http://") {
+			t.Errorf("workspaceConfig error = %v, want the plaintext host refused", err)
+		}
+	})
+
 	t.Run("the caller's dialer reaches the SDK", func(t *testing.T) {
 		cfg, _, err := workspaceConfig(driver.Config{
 			Host:     "dbc.example.com",

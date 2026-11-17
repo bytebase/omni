@@ -52,95 +52,191 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 		if _, err := fmt.Fprintf(writer, "CREATE CATALOG %s;\n", quoteBacktick(catalogName)); err != nil {
 			return err
 		}
+	}
 
-		schemaMap := catalogMap[catalogName]
-		schemaNames := make([]string, 0, len(schemaMap))
-		for schemaName := range schemaMap {
-			schemaNames = append(schemaNames, schemaName)
+	for _, catalogName := range catalogNames {
+		if catalogName == sysCatalog {
+			continue
 		}
-		sort.Strings(schemaNames)
-
-		for _, schemaName := range schemaNames {
-			if schemaName == infoSchema {
+		for _, schemaName := range sortedSchemas(catalogMap[catalogName]) {
+			if schemaName == infoSchema || schemaName == dftSchema {
 				continue
 			}
-			if schemaName != dftSchema {
-				if _, err := fmt.Fprintf(writer, "CREATE SCHEMA %s.%s;\n", quoteBacktick(catalogName), quoteBacktick(schemaName)); err != nil {
-					return err
-				}
-			}
-
-			viewDDL := strings.Builder{}
-			mtViewDDL := strings.Builder{}
-			extTblDDL := strings.Builder{}
-			mngTblDDL := strings.Builder{}
-			tables := append([]*tableUnion(nil), schemaMap[schemaName]...)
-			sort.Slice(tables, func(i, j int) bool { return tables[i].name < tables[j].name })
-			for _, tblUnion := range tables {
-				qualifiedName, err := getQualifiedTblName(catalogName, schemaName, tblUnion.name)
-				if err != nil {
-					return err
-				}
-
-				switch tblUnion.typeName {
-				case catalogapi.TableTypeView:
-					ddl, err := d.showCreateTable(ctx, qualifiedName)
-					if err != nil {
-						return err
-					}
-					ddl = qualifyViewDDL(ddl, qualifiedName)
-					formatDDL := fmt.Sprintf(schemaStmtFmt, "VIEW", qualifiedName, ddl)
-					if _, err := viewDDL.WriteString(formatDDL); err != nil {
-						return err
-					}
-				case catalogapi.TableTypeMaterializedView:
-					ddl, err := d.showCreateTable(ctx, qualifiedName)
-					if err != nil {
-						return err
-					}
-					formatDDL := fmt.Sprintf(schemaStmtFmt, "MATERIALIZED VIEW", qualifiedName, ddl)
-					if _, err := mtViewDDL.WriteString(formatDDL); err != nil {
-						return err
-					}
-				case catalogapi.TableTypeExternal:
-					ddl, err := d.showCreateTable(ctx, qualifiedName)
-					if err != nil {
-						return err
-					}
-					formatDDL := fmt.Sprintf(schemaStmtFmt, "EXTERNAL TABLE", qualifiedName, ddl)
-					if _, err := extTblDDL.WriteString(formatDDL); err != nil {
-						return err
-					}
-				case catalogapi.TableTypeManaged:
-					ddl, err := d.showCreateTable(ctx, qualifiedName)
-					if err != nil {
-						return err
-					}
-					formatDDL := fmt.Sprintf(schemaStmtFmt, "MANAGED TABLE", qualifiedName, ddl)
-					if _, err := mngTblDDL.WriteString(formatDDL); err != nil {
-						return err
-					}
-				default:
-					// A streaming table, and any type added later, is not synced.
-					continue
-				}
-			}
-			if _, err := writer.Write([]byte(mngTblDDL.String())); err != nil {
-				return err
-			}
-			if _, err := writer.Write([]byte(extTblDDL.String())); err != nil {
-				return err
-			}
-			if _, err := writer.Write([]byte(viewDDL.String())); err != nil {
-				return err
-			}
-			if _, err := writer.Write([]byte(mtViewDDL.String())); err != nil {
+			if _, err := fmt.Fprintf(writer, "CREATE SCHEMA %s.%s;\n", quoteBacktick(catalogName), quoteBacktick(schemaName)); err != nil {
 				return err
 			}
 		}
 	}
 
+	// Base tables first, across every schema, so a view may name one in a
+	// schema the dump has not reached yet.
+	for _, catalogName := range catalogNames {
+		if catalogName == sysCatalog {
+			continue
+		}
+		schemaMap := catalogMap[catalogName]
+		for _, schemaName := range sortedSchemas(schemaMap) {
+			for _, tblUnion := range sortedTables(schemaMap[schemaName]) {
+				if tblUnion.typeName != catalogapi.TableTypeManaged && tblUnion.typeName != catalogapi.TableTypeExternal {
+					continue
+				}
+				qualifiedName, err := getQualifiedTblName(catalogName, schemaName, tblUnion.name)
+				if err != nil {
+					return err
+				}
+				ddl, err := d.showCreateTable(ctx, qualifiedName)
+				if err != nil {
+					return err
+				}
+				label := "MANAGED TABLE"
+				if tblUnion.typeName == catalogapi.TableTypeExternal {
+					label = "EXTERNAL TABLE"
+				}
+				if _, err := fmt.Fprintf(writer, schemaStmtFmt, label, qualifiedName, ddl); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	// Views and materialized views after the objects they may read, in
+	// dependency order across schemas.
+	var objectViews []dumpObject
+	dependencies := map[string][]string{}
+	for _, catalogName := range catalogNames {
+		if catalogName == sysCatalog {
+			continue
+		}
+		schemaMap := catalogMap[catalogName]
+		for _, schemaName := range sortedSchemas(schemaMap) {
+			if schemaName == infoSchema {
+				continue
+			}
+			for _, tblUnion := range sortedTables(schemaMap[schemaName]) {
+				if tblUnion.typeName != catalogapi.TableTypeView && tblUnion.typeName != catalogapi.TableTypeMaterializedView {
+					continue
+				}
+				object := dumpObject{catalog: catalogName, schema: schemaName, name: tblUnion.name, kind: tblUnion.typeName}
+				objectViews = append(objectViews, object)
+				dependencies[object.key()] = tblUnion.viewDependencies
+			}
+		}
+	}
+
+	for _, object := range orderViewObjects(objectViews, dependencies) {
+		qualifiedName, err := getQualifiedTblName(object.catalog, object.schema, object.name)
+		if err != nil {
+			return err
+		}
+		ddl, err := d.showCreateTable(ctx, qualifiedName)
+		if err != nil {
+			return err
+		}
+		label := "MATERIALIZED VIEW"
+		if object.kind == catalogapi.TableTypeView {
+			label = "VIEW"
+			ddl = qualifyViewDDL(ddl, qualifiedName)
+		}
+		if _, err := fmt.Fprintf(writer, schemaStmtFmt, label, qualifiedName, ddl); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// dumpObject is one view or materialized view in the order the dump writes it.
+type dumpObject struct {
+	catalog, schema, name string
+	kind                  catalogapi.TableType
+}
+
+func (o dumpObject) key() string { return o.catalog + "." + o.schema + "." + o.name }
+
+func sortedSchemas(schemaMap databricksSchemaMap) []string {
+	names := make([]string, 0, len(schemaMap))
+	for name := range schemaMap {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func sortedTables(tables []*tableUnion) []*tableUnion {
+	out := append([]*tableUnion(nil), tables...)
+	sort.Slice(out, func(i, j int) bool { return out[i].name < out[j].name })
+	return out
+}
+
+// orderViewObjects puts a view after every view it reads. The service states a
+// view's dependencies by full table name; a dependency on a base table is
+// already created and does not affect the order.
+func orderViewObjects(objects []dumpObject, dependencies map[string][]string) []dumpObject {
+	byKey := make(map[string]dumpObject, len(objects))
+	indegree := make(map[string]int, len(objects))
+	children := map[string][]string{}
+	for _, object := range objects {
+		key := object.key()
+		byKey[key] = object
+		indegree[key] = 0
+	}
+	for key, list := range dependencies {
+		if _, ok := byKey[key]; !ok {
+			continue
+		}
+		seen := map[string]bool{}
+		for _, dependency := range list {
+			if dependency == key || seen[dependency] {
+				continue
+			}
+			if _, ok := byKey[dependency]; !ok {
+				continue
+			}
+			seen[dependency] = true
+			children[dependency] = append(children[dependency], key)
+			indegree[key]++
+		}
+	}
+	for key := range children {
+		sort.Strings(children[key])
+	}
+
+	ready := make([]string, 0, len(objects))
+	for key, degree := range indegree {
+		if degree == 0 {
+			ready = append(ready, key)
+		}
+	}
+	sort.Strings(ready)
+
+	ordered := make([]dumpObject, 0, len(objects))
+	for len(ready) > 0 {
+		key := ready[0]
+		ready = ready[1:]
+		ordered = append(ordered, byKey[key])
+		for _, child := range children[key] {
+			indegree[child]--
+			if indegree[child] == 0 {
+				ready = append(ready, child)
+			}
+		}
+		sort.Strings(ready)
+	}
+	if len(ordered) != len(objects) {
+		// The service should not state a cycle. Keep the rest in name order
+		// rather than dropping it.
+		remaining := make([]string, 0, len(objects)-len(ordered))
+		for key := range byKey {
+			if indegree[key] > 0 {
+				remaining = append(remaining, key)
+			}
+		}
+		sort.Strings(remaining)
+		for _, key := range remaining {
+			ordered = append(ordered, byKey[key])
+		}
+	}
+	return ordered
 }
 
 // qualifyViewDDL replaces a view statement's target with the catalog-qualified

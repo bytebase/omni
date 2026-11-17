@@ -399,13 +399,22 @@ func narrowTables(body []byte) ([]byte, bool) {
 }
 
 type table struct {
-	Name           string   `json:"name"`
-	CatalogName    string   `json:"catalog_name,omitempty"`
-	SchemaName     string   `json:"schema_name,omitempty"`
-	TableType      string   `json:"table_type,omitempty"`
-	ViewDefinition string   `json:"view_definition,omitempty"`
-	Comment        string   `json:"comment,omitempty"`
-	Columns        []column `json:"columns,omitempty"`
+	Name             string            `json:"name"`
+	CatalogName      string            `json:"catalog_name,omitempty"`
+	SchemaName       string            `json:"schema_name,omitempty"`
+	TableType        string            `json:"table_type,omitempty"`
+	ViewDefinition   string            `json:"view_definition,omitempty"`
+	Comment          string            `json:"comment,omitempty"`
+	Columns          []column          `json:"columns,omitempty"`
+	ViewDependencies *viewDependencies `json:"view_dependencies,omitempty"`
+}
+
+type viewDependencies struct {
+	Dependencies []struct {
+		Table *struct {
+			TableFullName string `json:"table_full_name"`
+		} `json:"table,omitempty"`
+	} `json:"dependencies,omitempty"`
 }
 
 func narrowWorkspaceList(body []byte) ([]byte, bool) {

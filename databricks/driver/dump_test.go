@@ -76,3 +76,35 @@ func TestQualifyViewDDL(t *testing.T) {
 		})
 	}
 }
+
+func TestOrderViewObjects(t *testing.T) {
+	objects := []dumpObject{
+		{catalog: "cat", schema: "a", name: "v", kind: "VIEW"},
+		{catalog: "cat", schema: "z", name: "t", kind: "VIEW"},
+		{catalog: "cat", schema: "b", name: "mid", kind: "VIEW"},
+		{catalog: "cat", schema: "c", name: "base", kind: "VIEW"},
+	}
+	got := orderViewObjects(objects, map[string][]string{
+		"cat.a.v":   {"cat.z.t", "cat.other.table"},
+		"cat.z.t":   {"cat.b.mid"},
+		"cat.b.mid": {"cat.c.base"},
+	})
+	want := []string{"cat.c.base", "cat.b.mid", "cat.z.t", "cat.a.v"}
+	for i, object := range got {
+		if object.key() != want[i] {
+			t.Errorf("object %d = %q, want %q", i, object.key(), want[i])
+		}
+	}
+
+	cycle := []dumpObject{
+		{catalog: "cat", schema: "a", name: "one", kind: "VIEW"},
+		{catalog: "cat", schema: "a", name: "two", kind: "VIEW"},
+	}
+	got = orderViewObjects(cycle, map[string][]string{
+		"cat.a.one": {"cat.a.two"},
+		"cat.a.two": {"cat.a.one"},
+	})
+	if len(got) != 2 || got[0].name != "one" || got[1].name != "two" {
+		t.Errorf("cycle order = %v, want both views in name order", got)
+	}
+}
