@@ -132,11 +132,11 @@
 | 		CAST('2026-03-04 05:06:07.123456' AS DATETIME(6)) AS dt,
 | 		NULL AS nul;
 < result
-< column "i" "BIGINT"
-< column "f" "DECIMAL"
-< column "s" "VARCHAR"
-< column "dt" "DATETIME"
-< column "nul" "NULL"
+< column "i" "BIGINT" "int64"
+< column "f" "DECIMAL" "string" precision 4 scale 1
+< column "s" "VARCHAR" "string"
+< column "dt" "DATETIME" precision 6 scale 6
+< column "nul" "NULL" "*interface {}"
 < row
 : int64 42
 : bytes
@@ -149,7 +149,7 @@
 > query
 | SELECT `id` FROM `items` ORDER BY `id` LIMIT 2
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < row
 : int64 1
 < row
@@ -189,13 +189,13 @@
 > query
 | SELECT COUNT(*) FROM items WHERE id = 99;
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
 > query
 | SELECT 1;
 < result
-< column "1" "BIGINT"
+< column "1" "BIGINT" "int64"
 < row
 : int64 1
 > query
@@ -206,8 +206,8 @@
 > query
 | SELECT id, repeat('x', 80) FROM items ORDER BY id;
 < result
-< column "id" "INT"
-< column "repeat('x', 80)" "TEXT"
+< column "id" "INT" "int32"
+< column "repeat('x', 80)" "TEXT" "string"
 < row
 : int64 1
 : bytes
@@ -228,6 +228,6 @@
 |
 | SELECT 7;
 < result
-< column "7" "BIGINT"
+< column "7" "BIGINT" "int64"
 < row
 : int64 7

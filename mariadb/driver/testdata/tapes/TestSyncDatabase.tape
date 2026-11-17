@@ -56,8 +56,8 @@
 | 	PRIMARY KEY (ts)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 | PARTITION BY RANGE (ts) (
-| 	PARTITION p_low VALUES LESS THAN (100),
-| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| 	PARTITION p_low VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -1754,7 +1754,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -1770,6 +1771,7 @@
 < column "PARTITION_EXPRESSION" "TEXT"
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -1783,6 +1785,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -1796,6 +1800,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -1809,6 +1815,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -1822,6 +1830,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -1836,6 +1846,8 @@
 : null
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -1850,6 +1862,8 @@
 : null
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
 < result
@@ -1881,8 +1895,8 @@
 |   PRIMARY KEY (`ts`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 |  PARTITION BY RANGE (`ts`)
-| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB)
 > query
 |
 | 		SELECT
@@ -2420,8 +2434,8 @@
 | 	PRIMARY KEY (ts)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 | PARTITION BY RANGE (ts) (
-| 	PARTITION p_low VALUES LESS THAN (100),
-| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| 	PARTITION p_low VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -3955,7 +3969,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -3971,6 +3986,7 @@
 < column "PARTITION_EXPRESSION" "TEXT"
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -3984,6 +4000,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -3997,6 +4015,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -4010,6 +4030,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -4023,6 +4045,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -4037,6 +4061,8 @@
 : null
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -4051,6 +4077,8 @@
 : null
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
 < result
@@ -4082,8 +4110,8 @@
 |   PRIMARY KEY (`ts`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 |  PARTITION BY RANGE (`ts`)
-| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB)
 > query
 |
 | 		SELECT
@@ -4582,8 +4610,8 @@
 | 	PRIMARY KEY (ts)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 | PARTITION BY RANGE (ts) (
-| 	PARTITION p_low VALUES LESS THAN (100),
-| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| 	PARTITION p_low VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -6117,7 +6145,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -6133,6 +6162,7 @@
 < column "PARTITION_EXPRESSION" "TEXT"
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -6146,6 +6176,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -6159,6 +6191,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -6172,6 +6206,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -6185,6 +6221,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -6199,6 +6237,8 @@
 : null
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -6213,6 +6253,8 @@
 : null
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
 < result
@@ -6244,8 +6286,8 @@
 |   PRIMARY KEY (`ts`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 |  PARTITION BY RANGE (`ts`)
-| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB)
 > query
 |
 | 		SELECT
@@ -6744,8 +6786,8 @@
 | 	PRIMARY KEY (ts)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 | PARTITION BY RANGE (ts) (
-| 	PARTITION p_low VALUES LESS THAN (100),
-| 	PARTITION p_high VALUES LESS THAN MAXVALUE
+| 	PARTITION p_low VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p_high VALUES LESS THAN MAXVALUE COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -8279,7 +8321,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -8295,6 +8338,7 @@
 < column "PARTITION_EXPRESSION" "TEXT"
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "VARCHAR" "string"
 < row
 : bytes
 | metrics_hash
@@ -8308,6 +8352,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -8321,6 +8367,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -8334,6 +8382,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -8347,6 +8397,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -8361,6 +8413,8 @@
 : null
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -8375,6 +8429,8 @@
 : null
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_sync_corpus`.`metrics_hash`
 < result
@@ -8406,8 +8462,8 @@
 |   PRIMARY KEY (`ts`)
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 |  PARTITION BY RANGE (`ts`)
-| (PARTITION `p_low` VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION `p_high` VALUES LESS THAN MAXVALUE ENGINE = InnoDB)
+| (PARTITION `p_low` VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION `p_high` VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB)
 > query
 |
 | 		SELECT

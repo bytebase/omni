@@ -110,7 +110,8 @@
                     true
                   ]
                 }
-              ]
+              ],
+              "schema":  "app"
             }
           ],
           "owner":  "postgres"
@@ -185,7 +186,8 @@
                   "name":  "attached_x_positive",
                   "expression":  "(id > 0)"
                 }
-              ]
+              ],
+              "schema":  "app"
             }
           ],
           "owner":  "postgres"
@@ -239,6 +241,32 @@
               "expression":  "EXCLUDE USING gist (room WITH =, during WITH &&)"
             }
           ]
+        },
+        {
+          "name":  "cross_schema",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "v",
+              "position":  2,
+              "type":  "text"
+            }
+          ],
+          "partitions":  [
+            {
+              "name":  "cross_schema_a",
+              "type":  "LIST",
+              "expression":  "LIST (v)",
+              "value":  "FOR VALUES IN ('a')",
+              "schema":  "audit",
+              "comment":  "remote"
+            }
+          ],
+          "owner":  "postgres"
         },
         {
           "name":  "customer",
@@ -819,7 +847,8 @@
                       "name":  "measurement_peak_check",
                       "expression":  "(peak > '-100'::integer)"
                     }
-                  ]
+                  ],
+                  "schema":  "app"
                 },
                 {
                   "name":  "measurement_2025_other",
@@ -884,7 +913,8 @@
                       "name":  "measurement_peak_check",
                       "expression":  "(peak > '-100'::integer)"
                     }
-                  ]
+                  ],
+                  "schema":  "app"
                 }
               ],
               "indexes":  [
@@ -945,7 +975,8 @@
                   "name":  "measurement_peak_check",
                   "expression":  "(peak > '-100'::integer)"
                 }
-              ]
+              ],
+              "schema":  "app"
             },
             {
               "name":  "measurement_2026",
@@ -1011,7 +1042,9 @@
                   "expression":  "(peak > '-100'::integer)",
                   "comment":  "this year's peaks"
                 }
-              ]
+              ],
+              "schema":  "app",
+              "comment":  "this year"
             }
           ],
           "checkConstraints":  [
@@ -1042,13 +1075,15 @@
               "name":  "multi_bound_low",
               "type":  "RANGE",
               "expression":  "RANGE (a, b)",
-              "value":  "FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)"
+              "value":  "FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)",
+              "schema":  "app"
             },
             {
               "name":  "multi_bound_high",
               "type":  "RANGE",
               "expression":  "RANGE (a, b)",
-              "value":  "FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)"
+              "value":  "FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)",
+              "schema":  "app"
             }
           ],
           "owner":  "postgres"
@@ -1246,13 +1281,15 @@
               "name":  "sharded_0",
               "type":  "HASH",
               "expression":  "HASH (id)",
-              "value":  "FOR VALUES WITH (modulus 2, remainder 0)"
+              "value":  "FOR VALUES WITH (modulus 2, remainder 0)",
+              "schema":  "app"
             },
             {
               "name":  "sharded_1",
               "type":  "HASH",
               "expression":  "HASH (id)",
-              "value":  "FOR VALUES WITH (modulus 2, remainder 1)"
+              "value":  "FOR VALUES WITH (modulus 2, remainder 1)",
+              "schema":  "app"
             }
           ],
           "owner":  "postgres"

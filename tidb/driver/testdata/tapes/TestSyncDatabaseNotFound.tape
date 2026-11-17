@@ -4,7 +4,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.11-TiDB-v8.5.5
@@ -54,15 +54,15 @@
 | omni_no_such_database
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 > query
 |
@@ -75,8 +75,8 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -101,16 +101,16 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -130,8 +130,8 @@
 | omni_no_such_database
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -149,14 +149,14 @@
 : string
 | omni_no_such_database
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -167,7 +167,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -183,6 +184,7 @@
 < column "PARTITION_EXPRESSION" "TEXT"
 < column "SUBPARTITION_EXPRESSION" "TEXT"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "VARCHAR"
 > query
 |
 | 		SELECT
@@ -206,16 +208,16 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLE_ROWS, 0)" "BIGINT"
-< column "IFNULL(DATA_LENGTH, 0)" "BIGINT"
-< column "IFNULL(INDEX_LENGTH, 0)" "BIGINT"
-< column "IFNULL(DATA_FREE, 0)" "BIGINT"
-< column "IFNULL(CREATE_OPTIONS, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_ROWS, 0)" "BIGINT" "int64"
+< column "IFNULL(DATA_LENGTH, 0)" "BIGINT" "int64"
+< column "IFNULL(INDEX_LENGTH, 0)" "BIGINT" "int64"
+< column "IFNULL(DATA_FREE, 0)" "BIGINT" "int64"
+< column "IFNULL(CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT

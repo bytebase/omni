@@ -979,9 +979,13 @@ func TestLoadMetadataInstallsPartitions(t *testing.T) {
 					}},
 				},
 				{Name: "orders_other", Type: metadata.TablePartitionMetadata_RANGE, Expression: "RANGE (created_at)", Value: "DEFAULT"},
+				{
+					Name: "orders_2023", Schema: "archive", Type: metadata.TablePartitionMetadata_RANGE,
+					Expression: "RANGE (created_at)", Value: "FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')",
+				},
 			},
 		}},
-	})
+	}, &metadata.SchemaMetadata{Name: "archive"})
 	requireCleanReport(t, report)
 
 	orders := requireRelation(t, c, "public", "orders")
@@ -989,15 +993,16 @@ func TestLoadMetadataInstallsPartitions(t *testing.T) {
 		t.Fatalf("orders: relkind %c, partition info %+v; want a table partitioned by range", orders.RelKind, orders.PartitionInfo)
 	}
 	for _, tt := range []struct {
-		name, parent string
-		relkind      byte
+		name, schema, parent, parentSchema string
+		relkind                            byte
 	}{
-		{"orders_2024", "orders", 'p'},
-		{"orders_2024_eu", "orders_2024", 'r'},
-		{"orders_other", "orders", 'r'},
+		{"orders_2024", "public", "orders", "public", 'p'},
+		{"orders_2024_eu", "public", "orders_2024", "public", 'r'},
+		{"orders_other", "public", "orders", "public", 'r'},
+		{"orders_2023", "archive", "orders", "public", 'r'},
 	} {
-		rel := requireRelation(t, c, "public", tt.name)
-		parent := requireRelation(t, c, "public", tt.parent)
+		rel := requireRelation(t, c, tt.schema, tt.name)
+		parent := requireRelation(t, c, tt.parentSchema, tt.parent)
 		if rel.PartitionOf != parent.OID || rel.PartitionBound == nil || rel.RelKind != tt.relkind {
 			t.Errorf("%s: relkind %c, partition of %d with bound %+v; want relkind %c, a partition of %s", tt.name, rel.RelKind, rel.PartitionOf, rel.PartitionBound, tt.relkind, tt.parent)
 		}
@@ -1054,20 +1059,36 @@ func TestLoadMetadataInstallsComments(t *testing.T) {
 		}},
 		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "mood", Values: []string{"ok"}, Comment: "enum note"}},
 		Sequences: []*metadata.SequenceMetadata{{Name: "s", DataType: "bigint", Comment: "sequence note"}},
-		Tables: []*metadata.TableMetadata{{
-			Name: "t", Comment: "table note",
-			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer", Comment: "column note"}},
-			Indexes: []*metadata.IndexMetadata{
-				{Name: "t_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree", Comment: "key note"},
-				{Name: "t_id_idx", Expressions: []string{"id"}, Type: "btree", Comment: "index note"},
+		Tables: []*metadata.TableMetadata{
+			{
+				Name: "t", Comment: "table note",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer", Comment: "column note"}},
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "t_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree", Comment: "key note"},
+					{Name: "t_id_idx", Expressions: []string{"id"}, Type: "btree", Comment: "index note"},
+				},
 			},
-		}},
+			{
+				Name: "pt", Comment: "partitioned table note",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}, {Name: "v", Type: "text"}},
+				Partitions: []*metadata.TablePartitionMetadata{{
+					Name: "pt_archive", Schema: "archive", Comment: "partition note",
+					Type: metadata.TablePartitionMetadata_RANGE, Expression: "RANGE (id)",
+					Value: "FOR VALUES FROM (1) TO (2)",
+					Subpartitions: []*metadata.TablePartitionMetadata{{
+						Name: "pt_archive_x", Comment: "subpartition note",
+						Type: metadata.TablePartitionMetadata_LIST, Expression: "LIST (v)",
+						Value: "FOR VALUES IN ('x')",
+					}},
+				}},
+			},
+		},
 		Views: []*metadata.ViewMetadata{{Name: "v", Definition: "SELECT t.id FROM public.t", Comment: "view note"}},
 		Functions: []*metadata.FunctionMetadata{{
 			Name: "f", Signature: "f(integer)", Comment: "function note",
 			Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$",
 		}},
-	})
+	}, &metadata.SchemaMetadata{Name: "archive"})
 	requireCleanReport(t, report)
 
 	var got []string
@@ -1075,7 +1096,7 @@ func TestLoadMetadataInstallsComments(t *testing.T) {
 		got = append(got, e)
 	}
 	slices.Sort(got)
-	want := []string{"attribute note", "column note", "enum note", "function note", "index note", "key note", "schema note", "sequence note", "table note", "type note", "view note"}
+	want := []string{"attribute note", "column note", "enum note", "function note", "index note", "key note", "partition note", "partitioned table note", "schema note", "sequence note", "subpartition note", "table note", "type note", "view note"}
 	if !slices.Equal(got, want) {
 		t.Errorf("comments = %q, want %q", got, want)
 	}
