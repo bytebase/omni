@@ -49,8 +49,14 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "CHILD_PK"
+              "constraints":  [
+                {
+                  "name":  "CHILD_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ],
@@ -108,8 +114,13 @@
               "unique":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "COMPOSITE_C_UK"
+              "constraints":  [
+                {
+                  "name":  "COMPOSITE_C_UK",
+                  "columns":  [
+                    "\"C\""
+                  ]
+                }
               ]
             },
             {
@@ -127,8 +138,15 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "COMPOSITE_PK"
+              "constraints":  [
+                {
+                  "name":  "COMPOSITE_PK",
+                  "columns":  [
+                    "\"A\"",
+                    "\"B\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ]
@@ -152,8 +170,14 @@
               "unique":  true,
               "primary":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "DISABLED_PK"
+              "constraints":  [
+                {
+                  "name":  "DISABLED_PK",
+                  "columns":  [
+                    "\"A\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ]
@@ -179,8 +203,14 @@
               "type":  "NORMAL",
               "primary":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "HIDDEN_IDX_PK"
+              "constraints":  [
+                {
+                  "name":  "HIDDEN_IDX_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ]
@@ -241,8 +271,14 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "IDENT_PK"
+              "constraints":  [
+                {
+                  "name":  "IDENT_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ]
@@ -316,8 +352,13 @@
               "unique":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "PARENT_NAME_UK"
+              "constraints":  [
+                {
+                  "name":  "PARENT_NAME_UK",
+                  "columns":  [
+                    "\"NAME\""
+                  ]
+                }
               ]
             },
             {
@@ -333,8 +374,14 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "PARENT_PK"
+              "constraints":  [
+                {
+                  "name":  "PARENT_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             },
             {
@@ -386,8 +433,13 @@
               "type":  "NORMAL",
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "REUSED_CODE_UK"
+              "constraints":  [
+                {
+                  "name":  "REUSED_CODE_UK",
+                  "columns":  [
+                    "\"CODE\""
+                  ]
+                }
               ]
             },
             {
@@ -402,8 +454,14 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "REUSED_PK"
+              "constraints":  [
+                {
+                  "name":  "REUSED_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ]
@@ -545,8 +603,14 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "TYPES_PK"
+              "constraints":  [
+                {
+                  "name":  "TYPES_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ],
@@ -575,8 +639,13 @@
               "unique":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "SYS_C9000019"
+              "constraints":  [
+                {
+                  "name":  "SYS_C9000019",
+                  "columns":  [
+                    "\"A\""
+                  ]
+                }
               ]
             }
           ]
@@ -615,8 +684,13 @@
               "unique":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "VIRTUAL_UK_UK"
+              "constraints":  [
+                {
+                  "name":  "VIRTUAL_UK_UK",
+                  "columns":  [
+                    "\"UPPER_EMAIL\""
+                  ]
+                }
               ]
             }
           ]
@@ -686,8 +760,14 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintNames":  [
-                "SYS_C_SNAP$_9000014PARENT_PK"
+              "constraints":  [
+                {
+                  "name":  "SYS_C_SNAP$_9000014PARENT_PK",
+                  "columns":  [
+                    "\"ID\""
+                  ],
+                  "primary":  true
+                }
               ]
             }
           ]

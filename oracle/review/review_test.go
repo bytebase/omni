@@ -97,10 +97,9 @@ func shop() *metadata.DatabaseSchemaMetadata {
 						// A unique constraint the schema reuses its own index for:
 						// the constraint's name is not the index's, and the index
 						// stays non-unique.
-						{Name: "IX_REUSED", IsConstraint: true, ConstraintNames: []string{"UK_REUSED"}},
-						// An index that enforces two constraints, the primary key's
-						// name first.
-						{Name: "IX_SHARED", IsConstraint: true, Primary: true, ConstraintNames: []string{"PK_SHARED", "UK_SHARED"}},
+						{Name: "IX_REUSED", IsConstraint: true, Constraints: []*metadata.IndexConstraintMetadata{{Name: "UK_REUSED"}}},
+						// An index that enforces two constraints.
+						{Name: "IX_SHARED", IsConstraint: true, Primary: true, Constraints: []*metadata.IndexConstraintMetadata{{Name: "PK_SHARED", Primary: true}, {Name: "UK_SHARED"}}},
 					},
 					ForeignKeys:      []*metadata.ForeignKeyMetadata{{Name: "FK_P", ReferencedTable: "P"}},
 					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_N"}, {Name: "NN_CODE", Expression: `"CODE" IS NOT NULL`}},

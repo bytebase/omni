@@ -116,15 +116,15 @@ func (x schemaIndex) lacksRelation(k tableKey) bool {
 	return true
 }
 
-// constraintNames returns the names of the constraints the index backs: what
-// the sync recorded, which is several names when one index enforces several
-// constraints, or the index's own when the engine records none, as PostgreSQL
+// indexConstraints returns the constraints the index enforces: the ones the
+// sync listed, or the index itself when the engine records none, as PostgreSQL
 // does, and as Oracle's is when it made the index for the constraint.
-func constraintNames(idx *metadata.IndexMetadata) []string {
-	if names := idx.GetConstraintNames(); len(names) > 0 {
-		return names
+func indexConstraints(idx *metadata.IndexMetadata) []*metadata.IndexConstraintMetadata {
+	constraints := idx.GetConstraints()
+	if len(constraints) == 0 {
+		return []*metadata.IndexConstraintMetadata{{Name: idx.GetName(), Primary: idx.GetPrimary()}}
 	}
-	return []string{idx.GetName()}
+	return constraints
 }
 
 // constraintKind returns the kind of the synced table's constraint of the
@@ -137,13 +137,11 @@ func constraintKind(t *metadata.TableMetadata, name string) (ast.ConstraintType,
 		if !idx.GetIsConstraint() {
 			continue
 		}
-		for i, constraint := range constraintNames(idx) {
-			if constraint != name {
+		for _, constraint := range indexConstraints(idx) {
+			if constraint.GetName() != name {
 				continue
 			}
-			// A name alone does not say which constraint of a shared index is
-			// the primary key's: the sync writes that one first.
-			if idx.GetPrimary() && i == 0 {
+			if constraint.GetPrimary() {
 				return ast.CONSTRAINT_PRIMARY, true
 			}
 			return ast.CONSTRAINT_UNIQUE, true
@@ -178,7 +176,9 @@ func (x schemaIndex) constraintNames() map[string]syncedConstraint {
 		k := tableKey{schema: db, name: t.GetName()}
 		names := make([]string, 0, len(t.GetIndexes())+len(t.GetForeignKeys())+len(t.GetCheckConstraints()))
 		for _, idx := range t.GetIndexes() {
-			names = append(names, constraintNames(idx)...)
+			for _, constraint := range indexConstraints(idx) {
+				names = append(names, constraint.GetName())
+			}
 		}
 		for _, fk := range t.GetForeignKeys() {
 			names = append(names, fk.GetName())

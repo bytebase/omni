@@ -1081,15 +1081,25 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 	return outerRTableMap[constraintKey], outerRColumnMap[constraintKey], nil
 }
 
+// quoteOracleColumns writes column names as the quoted identifiers an index's
+// expressions hold, which is how the index path writes them too.
+func quoteOracleColumns(columns []string) []string {
+	quoted := make([]string, len(columns))
+	for i, column := range columns {
+		quoted[i] = fmt.Sprintf(`"%s"`, column)
+	}
+	return quoted
+}
+
 // constraintIndex is what a schema's index enforces: the constraints that draw
-// on it, and whether one of them is the primary key. Oracle keeps a constraint
-// and its index as two objects with two names — a constraint may reuse an index
-// the schema already had, and the index's own name is what the dictionary, and
-// so the DDL, calls it — and one index may enforce several constraints.
+// on it. Oracle keeps a constraint and its index as two objects with two names —
+// a constraint may reuse an index the schema already had, and the index's own
+// name is what the dictionary, and so the DDL, calls it — and one index may
+// enforce several constraints, each on keys of its own.
 type constraintIndex struct {
-	// Constraints are the names of the constraints the index enforces, the
-	// primary key's first.
-	Constraints []string
+	// Constraints are the constraints the index enforces, the primary key's
+	// first, each with the keys it declares.
+	Constraints []*metadatapb.IndexConstraintMetadata
 	// Primary is whether one of them is the primary key.
 	Primary bool
 }
@@ -1179,30 +1189,31 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 			// constraint it is: a disabled one has none at all (INDEX_NAME is
 			// null), and one whose index another schema owns has no index in the
 			// schema being synced.
+			constraint := &metadatapb.IndexConstraintMetadata{
+				Name:    constraintName,
+				Columns: quoteOracleColumns(constraintColumnMap[constraintKey]),
+				Primary: constraintType == "P",
+			}
 			if indexName.Valid && indexOwner.Valid && indexOwner.String == schemaName {
 				index := indexKey{Schema: indexOwner.String, Table: tableName, Index: indexName.String}
 				enforced := isConstraint[index]
-				if constraintType == "P" {
-					enforced.Constraints = append([]string{constraintName}, enforced.Constraints...)
+				if constraint.Primary {
+					enforced.Constraints = append([]*metadatapb.IndexConstraintMetadata{constraint}, enforced.Constraints...)
 					enforced.Primary = true
 				} else {
-					enforced.Constraints = append(enforced.Constraints, constraintName)
+					enforced.Constraints = append(enforced.Constraints, constraint)
 				}
 				isConstraint[index] = enforced
 				break
 			}
 			metadata := &metadatapb.IndexMetadata{
-				Name:            constraintName,
-				Primary:         constraintType == "P",
-				Unique:          true,
-				IsConstraint:    true,
-				ConstraintNames: []string{constraintName},
+				Name:         constraintName,
+				Primary:      constraint.Primary,
+				Unique:       true,
+				IsConstraint: true,
+				Constraints:  []*metadatapb.IndexConstraintMetadata{constraint},
 			}
-			// Quoted, as the index path writes a key column, so both shapes of a
-			// constraint's metadata read alike.
-			for _, column := range constraintColumnMap[constraintKey] {
-				metadata.Expressions = append(metadata.Expressions, fmt.Sprintf(`"%s"`, column))
-			}
+			metadata.Expressions = constraint.Columns
 			indexMap[key] = append(indexMap[key], metadata)
 		case "C":
 			// Oracle records NOT NULL as a check constraint it named SYS_C<n>
@@ -1365,7 +1376,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		if isConstraintIndex {
 			index.Primary = constraint.Primary
 			index.IsConstraint = true
-			index.ConstraintNames = constraint.Constraints
+			index.Constraints = constraint.Constraints
 		}
 		columns := indexColumnMap[key]
 		expressions := indexExpressionMap[key]

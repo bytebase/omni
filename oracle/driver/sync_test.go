@@ -585,21 +585,24 @@ CREATE UNIQUE INDEX OMNI_APP.UK_EXPRESSION_IDX ON OMNI_APP.UK_EXPRESSION (UPPER(
 		t.Fatal(err)
 	}
 	schema := onlySchema(t, metadata)
+	constraint := func(name string, primary bool, columns ...string) *metadatapb.IndexConstraintMetadata {
+		return &metadatapb.IndexConstraintMetadata{Name: name, Columns: columns, Primary: primary}
+	}
 	want := map[string][]*metadatapb.IndexMetadata{
 		// Oracle made the index for the constraint, so the two names are one.
-		"PK_AUTO": {{Name: "PK_AUTO_PK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Primary: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"PK_AUTO_PK"}}},
-		"UK_AUTO": {{Name: "UK_AUTO_UK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"UK_AUTO_UK"}}},
+		"PK_AUTO": {{Name: "PK_AUTO_PK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Primary: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_AUTO_PK", true, `"ID"`)}}},
+		"UK_AUTO": {{Name: "UK_AUTO_UK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("UK_AUTO_UK", false, `"ID"`)}}},
 		// A reused index keeps its own name, its own non-uniqueness, and is what
 		// the table's indexes list; the constraint is named on it.
-		"PK_REUSED":    {{Name: "PK_REUSED_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"PK_REUSED_PK"}}},
-		"UK_REUSED":    {{Name: "UK_REUSED_IDX", Expressions: []string{`"NAME"`}, Descending: []bool{false}, Type: "NORMAL", Visible: true, IsConstraint: true, ConstraintNames: []string{"UK_REUSED_UK"}}},
-		"PK_INVISIBLE": {{Name: "PK_INVISIBLE_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, IsConstraint: true, ConstraintNames: []string{"PK_INVISIBLE_PK"}}},
-		"UK_VIRTUAL":   {{Name: "UK_VIRTUAL_IDX", Expressions: []string{`"UPPER_EMAIL"`}, Descending: []bool{false}, Type: "FUNCTION-BASED NORMAL", Unique: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"UK_VIRTUAL_UK"}}},
+		"PK_REUSED":    {{Name: "PK_REUSED_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_REUSED_PK", true, `"ID"`)}}},
+		"UK_REUSED":    {{Name: "UK_REUSED_IDX", Expressions: []string{`"NAME"`}, Descending: []bool{false}, Type: "NORMAL", Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("UK_REUSED_UK", false, `"NAME"`)}}},
+		"PK_INVISIBLE": {{Name: "PK_INVISIBLE_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_INVISIBLE_PK", true, `"ID"`)}}},
+		"UK_VIRTUAL":   {{Name: "UK_VIRTUAL_IDX", Expressions: []string{`"UPPER_EMAIL"`}, Descending: []bool{false}, Type: "FUNCTION-BASED NORMAL", Unique: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("UK_VIRTUAL_UK", false, `"UPPER_EMAIL"`)}}},
 		// A disabled constraint has no index: the constraint is what is left.
-		"PK_DISABLED": {{Name: "PK_DISABLED_PK", Expressions: []string{`"A"`}, Unique: true, Primary: true, IsConstraint: true, ConstraintNames: []string{"PK_DISABLED_PK"}}},
-		// One index enforces two constraints of two shapes, which Oracle shares
-		// between them: the primary key's name comes first.
-		"SHARED": {{Name: "SHARED_IDX", Expressions: []string{`"A"`, `"B"`}, Descending: []bool{false, false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"SHARED_PK", "SHARED_UK"}}},
+		"PK_DISABLED": {{Name: "PK_DISABLED_PK", Expressions: []string{`"A"`}, Unique: true, Primary: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_DISABLED_PK", true, `"A"`)}}},
+		// One index enforces two constraints, which Oracle shares between them:
+		// the unique constraint's keys are a subset of the index's.
+		"SHARED": {{Name: "SHARED_IDX", Expressions: []string{`"A"`, `"B"`}, Descending: []bool{false, false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("SHARED_PK", true, `"A"`, `"B"`), constraint("SHARED_UK", false, `"A"`)}}},
 		// Neither index is a constraint's, so both stay the schema's own. A DESC
 		// index is FUNCTION-BASED NORMAL because Oracle stores the DESC key in a
 		// hidden column, which is why no constraint can use one.
@@ -617,7 +620,7 @@ CREATE UNIQUE INDEX OMNI_APP.UK_EXPRESSION_IDX ON OMNI_APP.UK_EXPRESSION (UPPER(
 	if len(unnamed) != 1 {
 		t.Fatalf("UK_UNNAMED indexes = %v, want the constraint's one", unnamed)
 	}
-	if index := unnamed[0]; !strings.HasPrefix(index.GetName(), "SYS_C") || !index.GetIsConstraint() || index.GetPrimary() || !cmp.Equal(index.GetConstraintNames(), []string{index.GetName()}) || !cmp.Equal(index.GetExpressions(), []string{`"A"`}) {
+	if index := unnamed[0]; !strings.HasPrefix(index.GetName(), "SYS_C") || !index.GetIsConstraint() || index.GetPrimary() || len(index.GetConstraints()) != 1 || index.GetConstraints()[0].GetName() != index.GetName() || index.GetConstraints()[0].GetPrimary() || !cmp.Equal(index.GetConstraints()[0].GetColumns(), []string{`"A"`}) {
 		t.Errorf("UK_UNNAMED index = %v, want the unnamed constraint's index", index)
 	}
 	// The phantom the sync used to report: no index anywhere is named after

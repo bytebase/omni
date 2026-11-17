@@ -85,6 +85,29 @@ func TestRestoreSQL(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, got, `ON( t."ID" = b."ID")`)
 
+	// An index two constraints share offers each constraint's keys: the unique
+	// constraint's are a subset of the index's, so they can be disjoint where
+	// the index's are not.
+	table = &metadata.TableMetadata{
+		Name:    "T",
+		Columns: []*metadata.ColumnMetadata{{Name: "A"}, {Name: "B"}},
+		Indexes: []*metadata.IndexMetadata{{
+			Name:         "IX",
+			IsConstraint: true,
+			Primary:      true,
+			Expressions:  []string{`"A"`, `"B"`},
+			Constraints: []*metadata.IndexConstraintMetadata{
+				{Name: "PK", Primary: true, Columns: []string{`"A"`, `"B"`}},
+				{Name: "UK", Columns: []string{`"A"`}},
+			},
+		}},
+	}
+	node, err = FindFirstDML("UPDATE t SET b = 1")
+	require.NoError(t, err)
+	got, err = RestoreSQL("UPDATE t SET b = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	require.NoError(t, err)
+	require.Contains(t, got, `ON( t."A" = b."A")`)
+
 	// SET VALUE (t) replaces whole rows, whose columns the restore cannot
 	// list.
 	_, err = restore(t, "UPDATE t x SET VALUE(x) = typ(1, 2)")
