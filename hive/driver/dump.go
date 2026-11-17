@@ -219,11 +219,10 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 }
 
 // dumpReads returns the views in views that creating o resolves, as the server
-// states them. EXPLAIN DEPENDENCY names every table a query reads and the table
-// whose query reads it, so the entry whose parent is o is a view o reads. The
-// statement Hive renders cannot be read for this: a qualified column of a table
-// aliased with the database's name is spelled like a reference to another view,
-// and so is a name inside a string literal.
+// states them: the views of this database that the query reaches, which is what
+// EXPLAIN DEPENDENCY names. The statement Hive renders cannot be read for this:
+// a qualified column of a table aliased with the database's name is spelled like
+// a reference to another view, and so is a name inside a string literal.
 func (d *Driver) dumpReads(ctx context.Context, database, name string, views map[string]bool) ([]string, error) {
 	query := "EXPLAIN DEPENDENCY SELECT * FROM " + quoteBacktick(database) + "." + quoteBacktick(name)
 	rows, err := d.db.QueryContext(ctx, query)
@@ -245,18 +244,14 @@ func (d *Driver) dumpReads(ctx context.Context, database, name string, views map
 		return nil, fmt.Errorf("%s: %w", query, err)
 	}
 
-	// Hive states each table as database@table and the table whose query reads
-	// it as [database@table], in whatever case they were created. Only the views
-	// of this database order the dump, so a dependency in another database is
-	// not a read of anything here.
+	// Hive states each table as database@table, in whatever case it was created,
+	// and the list holds everything the query reaches, through a view in another
+	// database included. Only the views of this database order the dump, and
+	// every one the query reaches has to be there before it.
 	var reads []string
 	for _, table := range dependencies.InputTables {
-		parent := strings.TrimSuffix(strings.TrimPrefix(table.Parents, "["), "]")
-		if !strings.EqualFold(parent, database+"@"+name) {
-			continue
-		}
 		readDatabase, readName, ok := strings.Cut(table.Name, "@")
-		if !ok || !strings.EqualFold(readDatabase, database) || !views[readName] {
+		if !ok || !strings.EqualFold(readDatabase, database) || readName == name || !views[readName] {
 			continue
 		}
 		reads = append(reads, readName)
@@ -265,11 +260,10 @@ func (d *Driver) dumpReads(ctx context.Context, database, name string, views map
 	return reads, nil
 }
 
-// dumpDependencies is what EXPLAIN DEPENDENCY answers: the tables a query reads,
-// each with the table whose query reads it.
+// dumpDependencies is what EXPLAIN DEPENDENCY answers: every table a query
+// reaches, as database@table.
 type dumpDependencies struct {
 	InputTables []struct {
-		Name    string `json:"tablename"`
-		Parents string `json:"tableParents"`
+		Name string `json:"tablename"`
 	} `json:"input_tables"`
 }

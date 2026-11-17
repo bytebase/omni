@@ -14,8 +14,8 @@
 | CREATE TABLE omni_dump.events__ (id INT) STORED AS PARQUET
 < ok - -
 > exec
-| -- A view in another database named as a_top is, which z_base reads: a
-| -- dependency outside the database dumped is not one of its views.
+| -- Another database, with a view named as this one's a_top is and one reading
+| -- this database's z_base.
 | DROP DATABASE IF EXISTS omni_other CASCADE
 < ok - -
 > exec
@@ -28,14 +28,21 @@
 | CREATE VIEW omni_other.a_top AS SELECT id FROM omni_other.t
 < ok - -
 > exec
-| -- A view holding the other's qualified name in a literal, which is not a read:
-| -- counting it would close a cycle with a_top's and leave the order to names.
+| -- A view of this database reading the other database's a_top — a name a_top has
+| -- here too, which is not a read of this database's — and holding its reader's
+| -- qualified name in a literal, which is not a read either: counting it would
+| -- close a cycle with a_top's and leave the order to names.
 | CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_other.a_top
 < ok - -
 > exec
-| -- Only the order of the views, not their names, can replay this one, and the
-| -- backquoted alias holds a quote the scanner has to leave alone.
-| CREATE VIEW omni_dump.a_top AS SELECT id AS `it's` FROM omni_dump.z_base
+| -- A view of the other database reading z_base, and this database's a_top reading
+| -- that view: creating a_top resolves the other database's view, so z_base has to
+| -- be there first even though it is not a_top's stated parent. The backquoted
+| -- alias holds a quote.
+| CREATE VIEW omni_other.middle AS SELECT id FROM omni_dump.z_base
+< ok - -
+> exec
+| CREATE VIEW omni_dump.a_top AS SELECT id AS `it's` FROM omni_other.middle
 < ok - -
 > query
 | SHOW TABLES FROM `OMNI_DUMP`
@@ -203,13 +210,13 @@
 : string
 | Original Query:     
 : string
-| SELECT id AS it's FROM omni_dump.z_base
+| SELECT id AS it's FROM omni_other.middle
 : null
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
+| SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`
 : null
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
@@ -608,7 +615,7 @@
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`
 > query
 | SHOW CREATE TABLE `OMNI_DUMP`.`events__`
 < result
@@ -726,7 +733,7 @@
 < column "Explain" "STRING"
 < row
 : string
-| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
+| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_other@middle","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_other@middle]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
 > query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`z_base`
 < result
@@ -801,7 +808,7 @@
 | --
 | -- View structure for `a_top`
 | --
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`
 < ok - -
 > query
 | SHOW TABLES FROM `OMNI_DUMP`
@@ -969,13 +976,13 @@
 : string
 | Original Query:     
 : string
-| SELECT z_base.id AS it's FROM omni_dump.z_base
+| SELECT middle.id AS it's FROM omni_other.middle
 : null
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
+| SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`
 : null
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
@@ -1374,7 +1381,7 @@
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`
 > query
 | SHOW CREATE TABLE `OMNI_DUMP`.`events__`
 < result
@@ -1492,7 +1499,7 @@
 < column "Explain" "STRING"
 < row
 : string
-| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
+| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_other@middle","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_other@middle]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
 > query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`z_base`
 < result

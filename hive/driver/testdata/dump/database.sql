@@ -93,5 +93,5 @@ CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' A
 --
 -- View structure for `a_top`
 --
-CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`;
+CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`;
 
