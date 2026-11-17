@@ -591,42 +591,66 @@ func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {
 	if n.Name == nil || !strings.EqualFold(n.Name.Object, "sp_addextendedproperty") {
 		return
 	}
-	if n.Args == nil || len(n.Args.Items) < 6 {
+	if n.Args == nil {
 		return
 	}
-
-	var args []string
+	named := make(map[string]string)
+	var positional []string
 	for _, item := range n.Args.Items {
 		arg, ok := item.(*ast.ExecArg)
 		if !ok || arg.Value == nil {
 			continue
 		}
+		var value string
 		switch v := arg.Value.(type) {
 		case *ast.Literal:
-			args = append(args, v.Str)
+			value = v.Str
 		default:
-			args = append(args, nodeText(v, source))
+			value = nodeText(v, source)
+		}
+		if arg.Name != "" {
+			named[strings.ToLower(strings.TrimPrefix(arg.Name, "@"))] = value
+			continue
+		}
+		positional = append(positional, value)
+	}
+	var name, comment, schemaName, tableName, columnName string
+	if len(named) > 0 {
+		name = named["name"]
+		comment = named["value"]
+		schemaName = named["schema"]
+		if schemaName == "" {
+			schemaName = named["level0name"]
+		}
+		tableName = named["table"]
+		if tableName == "" {
+			tableName = named["level1name"]
+		}
+		columnName = named["column"]
+		if columnName == "" {
+			columnName = named["level2name"]
+		}
+	} else {
+		if len(positional) < 6 {
+			return
+		}
+		name = positional[0]
+		comment = positional[1]
+		for i := 2; i < len(positional)-1; i += 2 {
+			switch strings.ToUpper(positional[i]) {
+			case "SCHEMA":
+				schemaName = positional[i+1]
+			case "TABLE":
+				tableName = positional[i+1]
+			case "COLUMN":
+				columnName = positional[i+1]
+			}
 		}
 	}
-	if len(args) < 6 || !strings.EqualFold(args[0], "MS_Description") {
+	if !strings.EqualFold(name, "MS_Description") || schemaName == "" || tableName == "" {
 		return
 	}
-
-	comment := args[1]
-	var schemaName, tableName, columnName string
-	for i := 2; i < len(args)-1; i += 2 {
-		switch strings.ToUpper(args[i]) {
-		case "SCHEMA":
-			schemaName = args[i+1]
-		case "TABLE":
-			tableName = args[i+1]
-		case "COLUMN":
-			columnName = args[i+1]
-		}
-	}
-	if schemaName != "" && tableName != "" {
-		c.applyComment(schemaName, tableName, columnName, comment)
-	}
+	c.applyComment(schemaName, tableName, columnName, comment)
 }
 
 func (c *Catalog) applyComment(schemaName, tableName, columnName, comment string) {
@@ -887,7 +911,7 @@ func indexDefinition(includeCols *ast.List, whereClause ast.ExprNode, source str
 		}
 	}
 	if len(include) > 0 {
-		parts = append(parts, "INCLUDE:"+strings.Join(include, ","))
+		parts = append(parts, "INCLUDE:"+strings.Join(include, "\x00"))
 	}
 	if whereClause != nil {
 		parts = append(parts, "WHERE "+strings.TrimSpace(nodeText(whereClause, source)))
@@ -904,7 +928,7 @@ func indexIncludeColumns(definition string) []string {
 		after = after[:index]
 	}
 	var columns []string
-	for _, column := range strings.Split(after, ",") {
+	for _, column := range strings.Split(after, "\x00") {
 		if column = strings.TrimSpace(column); column != "" {
 			columns = append(columns, column)
 		}

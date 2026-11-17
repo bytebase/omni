@@ -694,3 +694,21 @@ func TestCaseDistinctTableNamesCoexist(t *testing.T) {
 	require.Contains(t, def, "[Foo]")
 	require.Contains(t, def, "[foo]")
 }
+
+func TestIndexIncludeColumnWithComma(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [a,b] int NULL); CREATE INDEX [ix] ON [dbo].[t] ([id]) INCLUDE ([a,b]);`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, "INCLUDE ([a,b])")
+	require.NotContains(t, def, "INCLUDE ([a], [b])")
+}
+
+func TestExtendedPropertyNamedArguments(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL);
+EXEC sp_addextendedproperty @value=N'a description', @name=N'MS_Description', @level0type=N'SCHEMA', @level0name=N'dbo', @level1type=N'TABLE', @level1name=N't';
+`)
+	require.NoError(t, err)
+	require.Equal(t, "a description", c.GetTable("dbo", "t").Comment)
+}

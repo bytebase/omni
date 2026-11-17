@@ -53,7 +53,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		text := fmt.Sprintf("-- UNSUPPORTED: replacing view %s under schema-bound dependent view %s; rebuild the dependent view manually.\n", view, view)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
-	if function := blockingFunctionCheck(diff); function != "" {
+	if function := blockingFunctionCheck(from, to, diff); function != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: function %s is used by a CHECK constraint; rebuild the constraint manually.\n", function)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
@@ -476,6 +476,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 	}
 
+	restoredDefault := false
 	for _, ref := range restoreFunctionDefaults {
 		created := false
 		for _, funcDiff := range diff.Functions {
@@ -488,6 +489,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		}
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ADD CONSTRAINT %s DEFAULT %s FOR %s;\n",
 			quote(ref.schema), quote(ref.table), quote(ref.constraint), ref.expression, quote(ref.column))
+		restoredDefault = true
+	}
+	if restoredDefault {
+		buf.WriteString("GO\n")
 	}
 
 	for _, procDiff := range diff.Procedures {
@@ -911,7 +916,7 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 	return buf.String()
 }
 
-func blockingFunctionCheck(diff *SchemaDiff) string {
+func blockingFunctionCheck(from, to *Catalog, diff *SchemaDiff) string {
 	replaced := make(map[string]bool)
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action == DiffDrop || funcDiff.Action == DiffAlter {
@@ -920,6 +925,23 @@ func blockingFunctionCheck(diff *SchemaDiff) string {
 	}
 	if len(replaced) == 0 {
 		return ""
+	}
+	for _, catalog := range []*Catalog{from, to} {
+		if catalog == nil {
+			continue
+		}
+		for _, schema := range catalog.Metadata().Schemas {
+			for _, function := range schema.Functions {
+				if !strings.Contains(strings.ToUpper(function.Definition), "SCHEMABINDING") {
+					continue
+				}
+				for name := range replaced {
+					if strings.Contains(strings.ToLower(function.Definition), name) {
+						return quote(schema.Name) + "." + quote(function.Name)
+					}
+				}
+			}
+		}
 	}
 	for _, tableDiff := range diff.Tables {
 		table := tableDiff.OldTable
