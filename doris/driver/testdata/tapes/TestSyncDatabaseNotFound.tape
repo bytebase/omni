@@ -7,6 +7,7 @@
 | 			TABLE_NAME,
 | 			IFNULL(COLUMN_NAME, ''),
 | 			ORDINAL_POSITION,
+| 			IFNULL(COLUMN_KEY, ''),
 | 			COLUMN_DEFAULT,
 | 			IS_NULLABLE,
 | 			COLUMN_TYPE,
@@ -21,6 +22,7 @@
 < column "TABLE_NAME" "CHAR"
 < column "IFNULL(COLUMN_NAME, '')" "CHAR"
 < column "ORDINAL_POSITION" "BIGINT"
+< column "IFNULL(COLUMN_KEY, '')" "CHAR"
 < column "COLUMN_DEFAULT" "CHAR"
 < column "IS_NULLABLE" "CHAR"
 < column "COLUMN_TYPE" "CHAR"
@@ -39,7 +41,7 @@
 < column "TABLE_NAME" "CHAR"
 < column "VIEW_DEFINITION" "CHAR"
 > query
-| SELECT Name, QuerySql FROM mv_infos("database"="omni_no_such_database")
+| SELECT Name, RefreshInfo, QuerySql FROM mv_infos("database"="omni_no_such_database") ORDER BY Name
 < error
 | 1105 HY000 errCode = 2, detailMessage = omni_trace_1[INTERNAL_ERROR]TStatus: errCode = 2, detailMessage = Unknown database 'omni_no_such_database'
 > query
@@ -47,8 +49,6 @@
 | 		SELECT
 | 			TABLE_NAME,
 | 			TABLE_TYPE,
-| 			IFNULL(ENGINE, ''),
-| 			IFNULL(TABLE_COLLATION, ''),
 | 			IFNULL(TABLE_ROWS, 0),
 | 			IFNULL(DATA_LENGTH, 0),
 | 			IFNULL(INDEX_LENGTH, 0),
@@ -61,14 +61,20 @@
 < result
 < column "TABLE_NAME" "CHAR"
 < column "TABLE_TYPE" "CHAR"
-< column "IFNULL(ENGINE, '')" "CHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "CHAR"
 < column "IFNULL(TABLE_ROWS, 0)" "BIGINT"
 < column "IFNULL(DATA_LENGTH, 0)" "BIGINT"
 < column "IFNULL(INDEX_LENGTH, 0)" "BIGINT"
 < column "IFNULL(DATA_FREE, 0)" "BIGINT"
 < column "IFNULL(CREATE_OPTIONS, '')" "CHAR"
 < column "IFNULL(TABLE_COMMENT, '')" "CHAR"
+> query
+|
+| 		SELECT ROUTINE_NAME
+| 		FROM information_schema.ROUTINES
+| 		WHERE ROUTINE_SCHEMA = 'omni_no_such_database' AND ROUTINE_TYPE = 'PROCEDURE'
+| 		ORDER BY ROUTINE_NAME
+< result
+< column "ROUTINE_NAME" "CHAR"
 > query
 |
 | 		SELECT

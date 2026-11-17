@@ -75,6 +75,10 @@ type ColumnDef struct {
 	Generated Node   // GENERATED ALWAYS AS (expr) -- the expression
 	OnUpdate  string // ON UPDATE CURRENT_TIMESTAMP
 	Loc       Loc
+
+	// AutoIncStart is the start value AUTO_INCREMENT(n) states, nil when the
+	// definition writes AUTO_INCREMENT without one. Doris accepts 0.
+	AutoIncStart *int64
 }
 
 // Tag implements Node.

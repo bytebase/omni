@@ -270,11 +270,20 @@ func (p *Parser) parseColumnDef() (*ast.ColumnDef, error) {
 			// (LEFT_PAREN number RIGHT_PAREN)?
 			if p.cur.Kind == int('(') {
 				p.advance()
+				negative := false
 				if p.cur.Kind == int('-') {
+					negative = true
 					p.advance()
 				}
 				if p.cur.Kind != tokInt && p.cur.Kind != tokFloat {
 					return nil, p.syntaxErrorAtCur()
+				}
+				if p.cur.Kind == tokInt {
+					start := p.cur.Ival
+					if negative {
+						start = -start
+					}
+					col.AutoIncStart = &start
 				}
 				p.advance()
 				if _, err := p.expect(int(')')); err != nil {

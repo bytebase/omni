@@ -1,160 +1,505 @@
 {
-  "name":  "omni_sync_corpus",
-  "schemas":  [
+  "name": "omni_sync_corpus",
+  "schemas": [
     {
-      "tables":  [
+      "tables": [
         {
-          "name":  "accounts",
-          "columns":  [
+          "name": "accounts",
+          "columns": [
             {
-              "name":  "id",
-              "position":  1,
-              "type":  "bigint(20)"
+              "name": "id",
+              "position": 1,
+              "type": "bigint(20)"
             },
             {
-              "name":  "email",
-              "position":  2,
-              "type":  "varchar(190)",
-              "comment":  "login email"
+              "name": "email",
+              "position": 2,
+              "type": "varchar(190)",
+              "comment": "login email"
             },
             {
-              "name":  "bio",
-              "position":  3,
-              "default":  "NULL",
-              "nullable":  true,
-              "type":  "string"
+              "name": "bio",
+              "position": 3,
+              "default": "NULL",
+              "nullable": true,
+              "type": "string"
             },
             {
-              "name":  "status",
-              "position":  4,
-              "default":  "open",
-              "type":  "varchar(16)"
+              "name": "status",
+              "position": 4,
+              "default": "open",
+              "type": "varchar(16)"
             },
             {
-              "name":  "balance",
-              "position":  5,
-              "default":  "0.0000",
-              "type":  "decimalv3(12, 4)"
+              "name": "balance",
+              "position": 5,
+              "default": "0.0000",
+              "type": "decimalv3(12, 4)"
             },
             {
-              "name":  "flag",
-              "position":  6,
-              "default":  "1",
-              "type":  "tinyint(4)"
+              "name": "flag",
+              "position": 6,
+              "default": "1",
+              "type": "tinyint(4)"
             },
             {
-              "name":  "created_at",
-              "position":  7,
-              "default":  "CURRENT_TIMESTAMP",
-              "type":  "datetime"
+              "name": "created_at",
+              "position": 7,
+              "default": "CURRENT_TIMESTAMP",
+              "type": "datetime"
             },
             {
-              "name":  "updated_at",
-              "position":  8,
-              "default":  "CURRENT_TIMESTAMP(6)",
-              "nullable":  true,
-              "type":  "datetime(6)"
+              "name": "updated_at",
+              "position": 8,
+              "default": "CURRENT_TIMESTAMP(6)",
+              "nullable": true,
+              "type": "datetime(6)"
             },
             {
-              "name":  "note",
-              "position":  9,
-              "default":  "NULL",
-              "nullable":  true,
-              "type":  "varchar(100)",
-              "comment":  "owner''s note"
+              "name": "note",
+              "position": 9,
+              "default": "NULL",
+              "nullable": true,
+              "type": "varchar(100)",
+              "comment": "owner''s note"
             },
             {
-              "name":  "dt",
-              "position":  10,
-              "default":  "NULL",
-              "nullable":  true,
-              "type":  "date"
+              "name": "dt",
+              "position": 10,
+              "default": "NULL",
+              "nullable": true,
+              "type": "date"
             },
             {
-              "name":  "payload",
-              "position":  11,
-              "default":  "NULL",
-              "nullable":  true,
-              "type":  "json"
+              "name": "payload",
+              "position": 11,
+              "default": "NULL",
+              "nullable": true,
+              "type": "json"
             }
           ],
-          "engine":  "Doris",
-          "collation":  "utf-8",
-          "comment":  "customer accounts"
+          "comment": "customer accounts",
+          "key": {
+            "model": "MODEL_DUPLICATE",
+            "columns": [
+              "id",
+              "email"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_HASH",
+            "columns": [
+              "id"
+            ],
+            "buckets": 1
+          },
+          "properties": {
+            "disable_auto_compaction": "false",
+            "enable_single_replica_compaction": "false",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
         },
         {
-          "name":  "metrics",
-          "columns":  [
+          "name": "daily_rollup",
+          "columns": [
             {
-              "name":  "ts",
-              "position":  1,
-              "type":  "datetime"
+              "name": "day",
+              "position": 1,
+              "type": "date"
             },
             {
-              "name":  "val",
-              "position":  2,
-              "default":  "NULL",
-              "nullable":  true,
-              "type":  "bigint(20)"
+              "name": "region",
+              "position": 2,
+              "type": "varchar(16)"
+            },
+            {
+              "name": "amount",
+              "position": 3,
+              "default": "NULL",
+              "nullable": true,
+              "type": "decimalv3(12, 2)",
+              "aggregateFunction": "SUM"
+            },
+            {
+              "name": "peak",
+              "position": 4,
+              "default": "NULL",
+              "nullable": true,
+              "type": "int(11)",
+              "aggregateFunction": "MAX"
+            },
+            {
+              "name": "label",
+              "position": 5,
+              "default": "NULL",
+              "nullable": true,
+              "type": "varchar(32)",
+              "aggregateFunction": "REPLACE"
+            },
+            {
+              "name": "visitors",
+              "position": 6,
+              "type": "hll",
+              "aggregateFunction": "HLL_UNION"
+            },
+            {
+              "name": "seen",
+              "position": 7,
+              "type": "bitmap",
+              "aggregateFunction": "BITMAP_UNION"
             }
           ],
-          "engine":  "Doris",
-          "collation":  "utf-8"
+          "key": {
+            "model": "MODEL_AGGREGATE",
+            "columns": [
+              "day",
+              "region"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_HASH",
+            "columns": [
+              "day"
+            ],
+            "buckets": 2
+          },
+          "properties": {
+            "disable_auto_compaction": "false",
+            "enable_single_replica_compaction": "false",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
         },
         {
-          "name":  "orders",
-          "columns":  [
+          "name": "events",
+          "columns": [
             {
-              "name":  "id",
-              "position":  1,
-              "type":  "bigint(20)"
+              "name": "id",
+              "position": 1,
+              "type": "bigint(20)"
             },
             {
-              "name":  "account_id",
-              "position":  2,
-              "type":  "bigint(20)"
+              "name": "name",
+              "position": 2,
+              "type": "varchar(64)",
+              "comment": "event name"
             },
             {
-              "name":  "total",
-              "position":  3,
-              "default":  "0",
-              "nullable":  true,
-              "type":  "int(11)"
+              "name": "payload",
+              "position": 3,
+              "default": "NULL",
+              "nullable": true,
+              "type": "string"
             },
             {
-              "name":  "created_on",
-              "position":  4,
-              "default":  "NULL",
-              "nullable":  true,
-              "type":  "date"
+              "name": "slug",
+              "position": 4,
+              "default": "NULL",
+              "nullable": true,
+              "type": "varchar(96)",
+              "generation": {
+                "expression": "concat(`name`, '-evt')"
+              }
             }
           ],
-          "engine":  "Doris",
-          "collation":  "utf-8"
+          "indexes": [
+            {
+              "name": "idx_name",
+              "expressions": [
+                "name"
+              ],
+              "type": "INVERTED"
+            },
+            {
+              "name": "idx_payload",
+              "expressions": [
+                "payload"
+              ],
+              "type": "INVERTED",
+              "properties": {
+                "lower_case": "true",
+                "parser": "english",
+                "support_phrase": "true"
+              }
+            }
+          ],
+          "key": {
+            "model": "MODEL_DUPLICATE",
+            "columns": [
+              "id"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_RANDOM",
+            "buckets": 3
+          },
+          "properties": {
+            "disable_auto_compaction": "true",
+            "enable_single_replica_compaction": "false",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
+        },
+        {
+          "name": "metrics",
+          "columns": [
+            {
+              "name": "ts",
+              "position": 1,
+              "type": "datetime"
+            },
+            {
+              "name": "val",
+              "position": 2,
+              "default": "NULL",
+              "nullable": true,
+              "type": "bigint(20)"
+            }
+          ],
+          "key": {
+            "model": "MODEL_DUPLICATE",
+            "columns": [
+              "ts"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_HASH",
+            "columns": [
+              "ts"
+            ],
+            "buckets": 1
+          },
+          "properties": {
+            "disable_auto_compaction": "false",
+            "enable_single_replica_compaction": "false",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
+        },
+        {
+          "name": "orders",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint(20)"
+            },
+            {
+              "name": "account_id",
+              "position": 2,
+              "type": "bigint(20)"
+            },
+            {
+              "name": "total",
+              "position": 3,
+              "default": "0",
+              "nullable": true,
+              "type": "int(11)"
+            },
+            {
+              "name": "created_on",
+              "position": 4,
+              "default": "NULL",
+              "nullable": true,
+              "type": "date"
+            }
+          ],
+          "key": {
+            "model": "MODEL_DUPLICATE",
+            "columns": [
+              "id"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_HASH",
+            "columns": [
+              "id"
+            ],
+            "buckets": 1
+          },
+          "properties": {
+            "disable_auto_compaction": "false",
+            "enable_single_replica_compaction": "false",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
+        },
+        {
+          "name": "samples",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint(20)"
+            },
+            {
+              "name": "value",
+              "position": 2,
+              "default": "NULL",
+              "nullable": true,
+              "type": "int(11)"
+            }
+          ],
+          "key": {
+            "model": "MODEL_UNIQUE",
+            "columns": [
+              "id"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_HASH",
+            "columns": [
+              "id"
+            ],
+            "bucketsAuto": true
+          },
+          "properties": {
+            "disable_auto_compaction": "false",
+            "enable_mow_light_delete": "false",
+            "enable_single_replica_compaction": "false",
+            "enable_unique_key_merge_on_write": "true",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
+        },
+        {
+          "name": "tickets",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint(20)",
+              "autoIncrement": {
+                "start": "1000"
+              }
+            },
+            {
+              "name": "title",
+              "position": 2,
+              "default": "NULL",
+              "nullable": true,
+              "type": "varchar(100)"
+            },
+            {
+              "name": "slug",
+              "position": 3,
+              "default": "NULL",
+              "nullable": true,
+              "type": "varchar(120)",
+              "generation": {
+                "expression": "concat(`title`, '-t')"
+              }
+            },
+            {
+              "name": "status",
+              "position": 4,
+              "default": "open",
+              "type": "varchar(16)"
+            }
+          ],
+          "key": {
+            "model": "MODEL_UNIQUE",
+            "columns": [
+              "id"
+            ]
+          },
+          "distribution": {
+            "method": "METHOD_HASH",
+            "columns": [
+              "id"
+            ],
+            "buckets": 2
+          },
+          "properties": {
+            "disable_auto_compaction": "false",
+            "enable_mow_light_delete": "false",
+            "enable_single_replica_compaction": "false",
+            "enable_unique_key_merge_on_write": "true",
+            "group_commit_data_bytes": "134217728",
+            "group_commit_interval_ms": "10000",
+            "inverted_index_storage_format": "V2",
+            "is_being_synced": "false",
+            "light_schema_change": "true",
+            "min_load_replica_num": "-1",
+            "replication_allocation": "tag.location.default: 1",
+            "storage_format": "V2",
+            "storage_medium": "hdd"
+          }
         }
       ],
-      "views":  [
+      "views": [
         {
-          "name":  "v_open_accounts",
-          "definition":  "SELECT `internal`.`omni_sync_corpus`.`accounts`.`id` AS `acct_id`, `internal`.`omni_sync_corpus`.`accounts`.`email` AS `acct_email` FROM `internal`.`omni_sync_corpus`.`accounts` WHERE `internal`.`omni_sync_corpus`.`accounts`.`status` = 'open'",
-          "columns":  [
+          "name": "v_open_accounts",
+          "definition": "SELECT `internal`.`omni_sync_corpus`.`accounts`.`id` AS `acct_id`, `internal`.`omni_sync_corpus`.`accounts`.`email` AS `acct_email` FROM `internal`.`omni_sync_corpus`.`accounts` WHERE `internal`.`omni_sync_corpus`.`accounts`.`status` = 'open'",
+          "columns": [
             {
-              "name":  "acct_id",
-              "position":  1,
-              "type":  "bigint(20)"
+              "name": "acct_id",
+              "position": 1,
+              "type": "bigint(20)"
             },
             {
-              "name":  "acct_email",
-              "position":  2,
-              "type":  "varchar(190)"
+              "name": "acct_email",
+              "position": 2,
+              "type": "varchar(190)"
             }
           ]
         }
       ],
-      "materializedViews":  [
+      "procedures": [
         {
-          "name":  "mv_account_status",
-          "definition":  "SELECT `internal`.`omni_sync_corpus`.`accounts`.`id`, `internal`.`omni_sync_corpus`.`accounts`.`status` FROM `internal`.`omni_sync_corpus`.`accounts`"
+          "name": "bump_total",
+          "definition": "CREATE PROCEDURE bump_total(IN p_id BIGINT, IN delta INT) COMMENT 'add to an order total' BEGIN UPDATE samples SET value = value + delta WHERE id = p_id; END",
+          "comment": "add to an order total"
+        }
+      ],
+      "materializedViews": [
+        {
+          "name": "mv_account_status",
+          "definition": "SELECT `internal`.`omni_sync_corpus`.`accounts`.`id`, `internal`.`omni_sync_corpus`.`accounts`.`status` FROM `internal`.`omni_sync_corpus`.`accounts`",
+          "refreshInfo": "BUILD IMMEDIATE REFRESH AUTO ON MANUAL"
         }
       ]
     }

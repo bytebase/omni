@@ -331,6 +331,24 @@ func TestCreateTable_ColumnGenerated(t *testing.T) {
 	}
 }
 
+func TestCreateTable_ColumnAutoIncrementStart(t *testing.T) {
+	stmt := parseCreateTableStmt(t, "CREATE TABLE t (id BIGINT NOT NULL AUTO_INCREMENT(1000))")
+	if !stmt.Columns[0].AutoInc {
+		t.Fatal("Columns[0].AutoInc = false, want true")
+	}
+	if start := stmt.Columns[0].AutoIncStart; start == nil || *start != 1000 {
+		t.Errorf("Columns[0].AutoIncStart = %v, want 1000", start)
+	}
+
+	stmt = parseCreateTableStmt(t, "CREATE TABLE t (id BIGINT NOT NULL AUTO_INCREMENT)")
+	if !stmt.Columns[0].AutoInc {
+		t.Fatal("Columns[0].AutoInc = false, want true")
+	}
+	if start := stmt.Columns[0].AutoIncStart; start != nil {
+		t.Errorf("Columns[0].AutoIncStart = %v, want nil", *start)
+	}
+}
+
 func TestCreateTable_EmptyColumnComment(t *testing.T) {
 	stmt := parseCreateTableStmt(t, `CREATE TABLE t (id INT COMMENT "")`)
 	if stmt.Columns[0].Comment != "" {

@@ -459,6 +459,79 @@ message TableMetadata {
 
   // The exclude_constraints is the list of EXCLUDE constraints in a table (PostgreSQL specific).
   repeated ExcludeConstraintMetadata exclude_constraints = 25;
+
+  // The key is the key model the table declares and its key columns. Doris and
+  // StarRocks only: a table they store is DUPLICATE, UNIQUE or AGGREGATE keyed.
+  // Absent for an engine whose tables declare no such key.
+  TableKeyMetadata key = 26;
+
+  // The distribution is how the table shards its rows into buckets. Doris and
+  // StarRocks only.
+  TableDistributionMetadata distribution = 27;
+
+  // The properties are the table properties the engine states in its
+  // PROPERTIES(...) clause, which CREATE_OPTIONS does not carry: Doris's
+  // replication_allocation, storage_medium, storage_format,
+  // light_schema_change, enable_unique_key_merge_on_write, dynamic_partition.*
+  // and the like. Doris reports CREATE_OPTIONS empty.
+  map<string, string> properties = 28;
+}
+
+// TableKeyMetadata is the key a table declares. Doris and StarRocks store a
+// table as DUPLICATE, UNIQUE or AGGREGATE keyed, and the key columns are a
+// leading prefix of the table's columns.
+message TableKeyMetadata {
+  enum Model {
+    MODEL_UNSPECIFIED = 0;
+
+    // DUPLICATE KEY: rows sharing a key are all kept.
+    MODEL_DUPLICATE = 1;
+
+    // UNIQUE KEY: rows sharing a key are merged.
+    MODEL_UNIQUE = 2;
+
+    // AGGREGATE KEY: rows sharing a key are aggregated with the aggregate
+    // function each value column declares.
+    MODEL_AGGREGATE = 3;
+  }
+
+  Model model = 1;
+
+  // The key columns, in the order the table declares them.
+  repeated string columns = 2;
+}
+
+// TableDistributionMetadata is how a table shards its rows into buckets. Doris
+// and StarRocks state it in DISTRIBUTED BY HASH(cols)|RANDOM [BUCKETS n|AUTO].
+message TableDistributionMetadata {
+  enum Method {
+    METHOD_UNSPECIFIED = 0;
+
+    // DISTRIBUTED BY HASH(cols): a row's bucket is its columns' hash.
+    METHOD_HASH = 1;
+
+    // DISTRIBUTED BY RANDOM: a row's bucket is chosen at random.
+    METHOD_RANDOM = 2;
+  }
+
+  Method method = 1;
+
+  // The columns whose hash selects a bucket. Empty for METHOD_RANDOM.
+  repeated string columns = 2;
+
+  // The bucket count the engine states. 0 when it states BUCKETS AUTO, or no
+  // count at all.
+  int32 buckets = 3;
+
+  // Whether the engine states BUCKETS AUTO, which lets it choose the count.
+  bool buckets_auto = 4;
+}
+
+// AutoIncrementMetadata is the start value of an auto-increment column.
+message AutoIncrementMetadata {
+  // The start value the engine states. Doris states it in AUTO_INCREMENT(n)
+  // and accepts 0.
+  int64 start = 1;
 }
 
 message CheckConstraintMetadata {
@@ -652,6 +725,17 @@ message ColumnMetadata {
   // Captured from information_schema.COLUMNS.EXTRA containing INVISIBLE and
   // rendered as the `/*!80023 INVISIBLE */` column attribute.
   bool is_invisible = 22;
+
+  // The aggregate_function is the aggregate function a value column of an
+  // AGGREGATE KEY table declares: SUM, MAX, MIN, REPLACE, REPLACE_IF_NOT_NULL,
+  // HLL_UNION, BITMAP_UNION or QUANTILE_UNION, as Doris and StarRocks state it
+  // in the column definition. Empty for a column that declares none.
+  string aggregate_function = 23;
+
+  // The auto_increment is the start value of an auto-increment column, as
+  // Doris states it in AUTO_INCREMENT(n). Absent when the column does not
+  // auto-increment.
+  AutoIncrementMetadata auto_increment = 24;
 }
 
 message GenerationMetadata {
@@ -724,6 +808,11 @@ message MaterializedViewMetadata {
   repeated IndexMetadata indexes = 6;
 
   bool skip_dump = 7;
+
+  // The refresh_info is the refresh clause the engine states for the
+  // materialized view, Doris's BUILD IMMEDIATE|DEFERRED REFRESH
+  // AUTO|COMPLETE|... ON MANUAL|COMMIT|SCHEDULE ..., from mv_infos().
+  string refresh_info = 8;
 }
 
 message DependencyTable {
@@ -874,6 +963,11 @@ message IndexMetadata {
   repeated string opclass_names = 16;
   // True if the operator class is the default. (PostgreSQL specific).
   repeated bool opclass_defaults = 17;
+
+  // The properties are the index properties the engine states in its
+  // PROPERTIES(...) clause: Doris's INVERTED index options (parser,
+  // parser_mode, lower_case, support_phrase) as SHOW INDEX reports them.
+  map<string, string> properties = 19;
 }
 
 // IndexConstraintMetadata is a constraint an index enforces.
