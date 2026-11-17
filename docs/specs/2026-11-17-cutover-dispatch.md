@@ -13,7 +13,8 @@ Revised after seventeen cutovers were built: §3 replaces the adapter prediction
 records the two places a prototype could not see the shape of the work, §6 separates what a live
 server found from what a compile found, and §7 reorders the waves. The twenty-four rows in §2 keep
 the order the prototypes proposed, so a reader can see what moved; each row carries a measured value
-or says it has none.
+or says it has none. This revision records #1406: Databricks' `Execute` now returns the service's
+affected rows, its driver is verified, and a parser is parked in §9.
 
 The short answer: the registry does not move. A cutover replaces the body of one
 `backend/plugin/db/<engine>` package and the caller-side conversions around it. There is no driver
@@ -100,7 +101,7 @@ estimate is all there is, and the row is a prediction, not a cost.
 | 21 | `REDSHIFT` | `db/redshift` | own | `redshift/driver` draft, PR #1371 | thin adapter after recording; `Dump` stays a no-op like Bytebase's | session, plancheck, unverified | unmeasured (draft driver) |
 | 22 | `SNOWFLAKE` | `db/snowflake` | own | `snowflake/driver` draft, PR #1378 | thin adapter after recording | session, unverified | unmeasured (draft driver) |
 | 23 | `BIGQUERY` | `db/bigquery` | own; parser handled by `googlesql` | `bigquery/driver` draft, PR #1377 | thin adapter over `bigquery/driver`, not the `googlesql` alias | unverified; no tape seam yet | unmeasured (draft driver) |
-| 24 | `DATABRICKS` | `db/databricks` | own; parser is `standard` | `databricks/driver` draft, PR #1379 | thin adapter after recording | unverified; no `catalog`, so its `Dump` is server DDL | unmeasured (draft driver) |
+| 24 | `DATABRICKS` | `db/databricks` | own; parser is `standard` | `databricks/driver` (tapes; verified on the pinned workspace) | thin adapter; parser stays `standard` | no `catalog`, so its `Dump` is server DDL; no parser in the tree, so the driver keeps the lexical splitter and `EXPLAIN` rewrite; `Execute` returns the service's `num_affected_rows` where Bytebase returned 0 (#1406) | unmeasured (driver verified) |
 
 Blockers:
 
@@ -537,6 +538,15 @@ exercised (the pinned container is plaintext and there is no jump host), and `Ge
 safe for every caller it could reach rather than proven equivalent — a request's statements now
 share a pool connection by luck, not contract.
 
+**databricks' re-run corrected its `Execute` count.** The driver answered 0 for every write because
+it discarded the statement's result; the service states `num_affected_rows` in that result set, and
+`testdata/tapes/TestExecute.tape` already held a `2` for its `INSERT`. #1406 (`0ea3fadb9`) sums the
+column, gated on `classifyStatement` so a read is not counted, and asserts the count in the replay
+and live Execute checks. The same run replayed the six tapes, passed all six live tests, matched the
+materialized view's `SHOW CREATE TABLE` to its stored query and replayed it, kept view dependency
+order and catalog qualification, read a 6000-row result across chunks, and passed `Ping` with the
+warehouse warm and stopped. No tape was re-recorded.
+
 The same category, smaller, from the earlier proofs: cassandra's dropped keyspace answering
 `driver.ErrNotFound` where the package doc promised an empty schema; redis's context deadline only
 beginning to interrupt a command once it is inside the client (5.0 s against a 200 ms deadline, now
@@ -676,13 +686,17 @@ measured worst: 706 adapter lines, 17 files, net +259, the row estimate as their
 mariadb before mysql: they are one package and their rules already share one edit from wave 0, not
 two.
 
-**Wave 4 — the unverified drivers (21-24).** `redshift`, `snowflake`, `bigquery` and `databricks`
-have draft drivers on open branches, no tapes, no sync goldens and no pin rows. A cutover cannot be
-validated by compiling. Redshift has no `Dump`, but Bytebase's wrote nothing either, so the adapter
-keeps returning nil; Snowflake has no `CountAffectedRows`, which Bytebase never answered; BigQuery's
-`Dump` is deliberately a no-op, as Bytebase's was, and its client has no tape seam; Databricks has
-no `catalog`, so its dump writes server DDL. Record each on a scratch account or cluster, land its
-pin, then cut over. None of these should be the first cutover.
+**Wave 4 — the remaining service drivers (21-24).** `redshift`, `snowflake`, `bigquery` and
+`databricks` have driver packages on main. `databricks` is recorded and verified end to end; the
+other three have no tapes, sync golden or server pin; redshift's and snowflake's pins judge the
+docs, not a server. A cutover cannot be validated by compiling. Redshift has no `Dump`, but
+Bytebase's wrote nothing either, so the adapter keeps returning nil; Snowflake has no
+`CountAffectedRows`, which Bytebase never answered; BigQuery's `Dump` is deliberately a no-op, as
+Bytebase's was, and its client has no tape seam; Databricks has no `catalog`, so its dump writes
+server DDL, and its parser stays `standard`, so the driver keeps the lexical splitter and `EXPLAIN`
+rewrite. Databricks' `Execute` returns the service's `num_affected_rows` (#1406), which Bytebase did
+not. Record the other three on a scratch account or cluster, land a server pin, then cut over;
+Databricks needs only the adapter. None of these should be the first cutover.
 
 The contract's own order — pg sync and dump, then pg query and execute, to settle the interfaces —
 is not this order. That order is about proving the omni contract; this one is about not breaking a
@@ -757,3 +771,22 @@ them:
 The shared MySQL-family config builder (the prototype measures 158 lines, 82 of them the RDS CA
 bundle) stays in Bytebase, because six adapters reach it and no engine owns it. Put it in one
 package beside the adapters rather than copying it six times; wave 0 is where that happens.
+
+### Parked: a Databricks parser
+
+`DATABRICKS` dispatches through Bytebase's `parser/standard` today, so the cutover does not need an
+omni parser; a parser is a fidelity improvement, not a cutover prerequisite. It is a new engine
+tree, not a patch: the candidate source is Apache Spark's `SqlBaseParser.g4` and `SqlBaseLexer.g4`,
+measured at Spark `v4.0.1` as 2,298 and 640 lines with about 241 parser rules, and omni's parsers
+are hand-written. A partial parser that overstates compatibility is worse than none, so the work is
+parked in this order:
+
+1. Statement reader: split and classify, moving the driver's lexical `splitCommands`,
+   `classifyStatement` and `explainStatement` into the tree with the same tests.
+2. DDL subset: `CREATE TABLE`, `CREATE VIEW` and `CREATE MATERIALIZED VIEW`, enough for a future
+   catalog to render.
+3. `catalog`/renderer, so `Dump` can render synced metadata instead of stating server DDL.
+4. `analysis`, for statement type, changed resources and review.
+
+Record the parser against the pinned Databricks SQL release, not the Spark version alone, and pin
+the grammar when the first phase lands.
