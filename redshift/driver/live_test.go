@@ -372,7 +372,7 @@ func TestLiveCountAffectedRows(t *testing.T) {
 	if _, err := d.Execute(ctx, `
 		CREATE TEMP TABLE omni_stats_probe (a int);
 		INSERT INTO omni_stats_probe
-			WITH RECURSIVE numbers AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM numbers WHERE n < 100)
+			WITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM numbers WHERE n < 100)
 			SELECT 1 FROM numbers;
 		ANALYZE omni_stats_probe;
 	`, driver.ExecuteOptions{}); err != nil {
