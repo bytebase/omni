@@ -172,7 +172,7 @@ truncation workarounds (`collectLeadingTableReferences`'s paren-level stack,
 
 ## The corpus
 
-`mysql/parser/complete_context_test.go` holds 65 cases over
+`mysql/parser/complete_context_test.go` holds 79 cases over
 `sql` × cursor positions: select list, `WHERE`, `ON`, joins with and without aliases,
 cross and `STRAIGHT_JOIN`, derived tables (with and without an alias column list, and
 unterminated), CTEs (with a column list, from the body's select list, `RECURSIVE`, two in a
@@ -181,13 +181,17 @@ statement's), correlated and `LATERAL` subqueries, sibling subqueries at the sam
 `UPDATE` (single and join), `DELETE` (single, target list with a join `USING`, and the
 `FROM ... USING` form), `INSERT` (target, `INSERT ... SELECT`), `JSON_TABLE` (with a plain
 and a nested `COLUMNS` clause), `ORDER BY`/`GROUP BY` aliases versus `WHERE` (including
-`WHERE` after a closed subquery), prefixes with and without backticks (including a quoted
+`WHERE` after a closed subquery), a set operation's global `ORDER BY` against its first
+arm, `TABLE t` as a query primary, prefixes with and without backticks (including a quoted
 name with a space and a non-ASCII name), index hints and `PARTITION` (which must not read
-as aliases), statement boundaries, `UNION` arms, a parenthesized join, DDL positions
-(`type_name`, `index_ref`, `engine`, `charset`, `view_ref`, `database_ref`), and a cursor
-inside a text literal. A second test walks every cursor offset of eight scripts — including
-200 nested parentheses and unterminated strings — to hold the reader to the no-panic rule,
-and a third pins a group nested past `maxNestingDepth` as skipped, not descended into.
+as aliases), statement boundaries, `UNION` arms, a parenthesized join (with and without an
+alias), DDL positions (`type_name`, `index_ref`, `engine`, `charset`, `view_ref`,
+`database_ref`), `DROP INDEX ... ON`, and a cursor inside a text literal. A second test pins
+the columns the reader reports for a reference — nested `WITH` bodies, a shadowing clause,
+expression items that name no column, qualified names, and `JSON_TABLE`. A third walks every
+cursor offset of eight scripts, including 200 nested parentheses and unterminated strings, and
+a fourth runs 10,002 nested parentheses and 10,002 nested `NESTED PATH ... COLUMNS (` clauses
+through the reader: both recursions stop at `maxNestingDepth` instead of the process stack.
 
 Three positions the corpus pins as gaps in the *grammar*, not in the reader:
 
