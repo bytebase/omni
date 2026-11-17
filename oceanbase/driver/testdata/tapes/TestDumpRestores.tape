@@ -71,6 +71,12 @@
 > exec
 | CREATE EVENT ev_once ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'owner''s \\new once' DO DELETE FROM orders;
 < ok 0 0
+> exec
+| CREATE VIEW v_mv_emails AS SELECT email FROM mv_accounts;
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW mv_open_accounts AS SELECT acct_id FROM v_open_accounts;
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -574,6 +580,28 @@
 : null
 < row
 : bytes
+| mv_open_accounts
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | orders
 : bytes
 | id
@@ -631,6 +659,28 @@
 |
 : bytes
 |
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_mv_emails
+: bytes
+| email
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 : bytes
 | ''
 : bytes
@@ -770,6 +820,28 @@
 : bytes
 |
 : null
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 > query
 |
 | 		SELECT
@@ -785,6 +857,11 @@
 < column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
+| v_mv_emails
+: bytes
+| select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip`.`mv_accounts` `mv_accounts`
+< row
+: bytes
 | v_named_cols
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `renamed_id` from `omni_dump_roundtrip`.`accounts`
@@ -798,6 +875,22 @@
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip`.`accounts` where (`omni_dump_roundtrip`.`accounts`.`status` = 'open')
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip`.`v_mv_emails`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_mv_emails
+: bytes
+| CREATE VIEW `v_mv_emails` AS select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip`.`mv_accounts` `mv_accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip`.`v_named_cols`
 < result
@@ -1238,6 +1331,29 @@
 | utf8mb4
 < row
 : bytes
+| v_mv_emails
+: bytes
+| VIEW
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+| utf8mb4
+< row
+: bytes
 | v_named_cols
 : bytes
 | VIEW
@@ -1328,6 +1444,29 @@
 | 'materialized accounts'
 : bytes
 | utf8mb4
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
@@ -1347,6 +1486,13 @@
 | __mv_container_0000000000000001
 : bytes
 | select `omni_dump_roundtrip`.`accounts`.`id` AS `id`,`omni_dump_roundtrip`.`accounts`.`email` AS `email` from `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| mv_open_accounts
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| select `omni_dump_roundtrip`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_dump_roundtrip`.`v_open_accounts`
 > query
 |
 | 		SELECT
@@ -1372,6 +1518,10 @@
 < ok 0 0
 > exec
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
+< ok 0 0
+> exec
+| CREATE VIEW `v_mv_emails` AS SELECT
+|   1 AS `email`
 < ok 0 0
 > exec
 | CREATE VIEW `v_named_cols` AS SELECT
@@ -1437,6 +1587,18 @@
 | END
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`accounts`
+< ok 0 0
+> exec
+| CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`)
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW `mv_open_accounts` AS select `omni_dump_roundtrip_restored`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_dump_roundtrip_restored`.`v_open_accounts`
+< ok 0 0
+> exec
+| CREATE OR REPLACE VIEW `v_mv_emails` AS select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`mv_accounts` `mv_accounts`
+< ok 0 0
+> exec
 | CREATE OR REPLACE VIEW `v_named_cols` AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `renamed_id` from `omni_dump_roundtrip_restored`.`accounts`
 < ok 0 0
 > exec
@@ -1444,12 +1606,6 @@
 < ok 0 0
 > exec
 | CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip_restored`.`accounts` where (`omni_dump_roundtrip_restored`.`accounts`.`status` = 'open')
-< ok 0 0
-> exec
-| CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`accounts`
-< ok 0 0
-> exec
-| CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`)
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -1647,7 +1803,7 @@
 |
 < row
 : bytes
-| __mv_container_0000000000000002
+| __mv_container_0000000000000003
 : bytes
 | idx_mv_email
 : bytes
@@ -2015,6 +2171,28 @@
 : null
 < row
 : bytes
+| mv_open_accounts
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(1)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | orders
 : bytes
 | id
@@ -2072,6 +2250,28 @@
 |
 : bytes
 |
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_mv_emails
+: bytes
+| email
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 : bytes
 | ''
 : bytes
@@ -2169,7 +2369,7 @@
 : null
 < row
 : bytes
-| __mv_container_0000000000000002
+| __mv_container_0000000000000003
 : bytes
 | id
 : uint64 1
@@ -2191,7 +2391,7 @@
 : null
 < row
 : bytes
-| __mv_container_0000000000000002
+| __mv_container_0000000000000003
 : bytes
 | email
 : uint64 2
@@ -2204,6 +2404,28 @@
 | utf8mb4
 : bytes
 | utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| __mv_container_0000000000000004
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(1)
+: bytes
+|
+: bytes
+|
 : bytes
 | ''
 : bytes
@@ -2226,6 +2448,11 @@
 < column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
+| v_mv_emails
+: bytes
+| select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`mv_accounts` `mv_accounts`
+< row
+: bytes
 | v_named_cols
 : bytes
 | select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `renamed_id` from `omni_dump_roundtrip_restored`.`accounts`
@@ -2239,6 +2466,22 @@
 | v_open_accounts
 : bytes
 | select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip_restored`.`accounts` where (`omni_dump_roundtrip_restored`.`accounts`.`status` = 'open')
+> query
+| SHOW CREATE VIEW `omni_dump_roundtrip_restored`.`v_mv_emails`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_mv_emails
+: bytes
+| CREATE VIEW `v_mv_emails` AS select `mv_accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`mv_accounts` `mv_accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_dump_roundtrip_restored`.`v_named_cols`
 < result
@@ -2681,6 +2924,29 @@
 | utf8mb4
 < row
 : bytes
+| v_mv_emails
+: bytes
+| VIEW
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+| utf8mb4
+< row
+: bytes
 | v_named_cols
 : bytes
 | VIEW
@@ -2750,7 +3016,7 @@
 | utf8mb4
 < row
 : bytes
-| __mv_container_0000000000000002
+| __mv_container_0000000000000003
 : bytes
 | BASE TABLE
 : bytes
@@ -2771,6 +3037,29 @@
 | 'materialized accounts'
 : bytes
 | utf8mb4
+< row
+: bytes
+| __mv_container_0000000000000004
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
@@ -2787,9 +3076,16 @@
 : bytes
 | mv_accounts
 : bytes
-| __mv_container_0000000000000002
+| __mv_container_0000000000000003
 : bytes
 | select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`accounts`
+< row
+: bytes
+| mv_open_accounts
+: bytes
+| __mv_container_0000000000000004
+: bytes
+| select `omni_dump_roundtrip_restored`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_dump_roundtrip_restored`.`v_open_accounts`
 > query
 |
 | 		SELECT

@@ -74,6 +74,12 @@
 > exec
 | CREATE EVENT ev_once ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'owner''s \\new once' DO DELETE FROM orders;
 < ok 0 0
+> exec
+| CREATE VIEW v_mv_emails AS SELECT email FROM mv_accounts;
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW mv_open_accounts AS SELECT acct_id FROM v_open_accounts;
+< ok 0 0
 > query
 | SELECT VERSION()
 < result
@@ -623,6 +629,28 @@
 : null
 < row
 : bytes
+| mv_open_accounts
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | orders
 : bytes
 | id
@@ -680,6 +708,28 @@
 |
 : bytes
 |
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_mv_emails
+: bytes
+| email
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 : bytes
 | ''
 : bytes
@@ -819,6 +869,28 @@
 : bytes
 |
 : null
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 > query
 |
 | 		SELECT
@@ -834,6 +906,11 @@
 < column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
+| v_mv_emails
+: bytes
+| select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`
+< row
+: bytes
 | v_named_cols
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`
@@ -847,6 +924,22 @@
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
+> query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_mv_emails`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_mv_emails
+: bytes
+| CREATE VIEW `v_mv_emails` AS select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols`
 < result
@@ -1310,6 +1403,29 @@
 | utf8mb4
 < row
 : bytes
+| v_mv_emails
+: bytes
+| VIEW
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+| utf8mb4
+< row
+: bytes
 | v_named_cols
 : bytes
 | VIEW
@@ -1400,6 +1516,29 @@
 | 'materialized accounts'
 : bytes
 | utf8mb4
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
@@ -1419,6 +1558,13 @@
 | __mv_container_0000000000000001
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`
+< row
+: bytes
+| mv_open_accounts
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`
 > query
 |
 | 		SELECT

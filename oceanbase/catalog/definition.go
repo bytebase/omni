@@ -122,17 +122,18 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
-	// Construct views.
-	for _, view := range schema.Views {
-		if err := writeView(&buf, view); err != nil {
+	// Construct materialized views before the views, after the temporary placeholders above:
+	// a view may read a materialized view, and a materialized view may read a view, which a
+	// placeholder satisfies until its own definition is written.
+	for _, view := range schema.MaterializedViews {
+		if err := writeMaterializedView(&buf, view); err != nil {
 			return "", err
 		}
 	}
 
-	// Construct materialized views: their queries read the tables above, and OceanBase holds
-	// a materialized view's rows in a container table of its own.
-	for _, view := range schema.MaterializedViews {
-		if err := writeMaterializedView(&buf, view); err != nil {
+	// Construct views.
+	for _, view := range schema.Views {
+		if err := writeView(&buf, view); err != nil {
 			return "", err
 		}
 	}

@@ -271,6 +271,21 @@
       ],
       "views": [
         {
+          "name": "v_mv_emails",
+          "definition": "select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`",
+          "columns": [
+            {
+              "name": "email",
+              "position": 1,
+              "default": "NULL",
+              "nullable": true,
+              "type": "varchar(190)",
+              "characterSet": "utf8mb4",
+              "collation": "utf8mb4_general_ci"
+            }
+          ]
+        },
+        {
           "name": "v_named_cols",
           "definition": "select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`",
           "columns": [
@@ -354,6 +369,10 @@
               "visible": true
             }
           ]
+        },
+        {
+          "name": "mv_open_accounts",
+          "definition": "select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`"
         }
       ],
       "events": [

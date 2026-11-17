@@ -1,6 +1,12 @@
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 --
+-- Temporary view structure for `v_mv_emails`
+--
+CREATE VIEW `v_mv_emails` AS SELECT
+  1 AS `email`;
+
+--
 -- Temporary view structure for `v_named_cols`
 --
 CREATE VIEW `v_named_cols` AS SELECT
@@ -70,6 +76,23 @@ END;;
 DELIMITER ;
 
 --
+-- Materialized view structure for `mv_accounts`
+--
+CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`;
+
+CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`);
+
+--
+-- Materialized view structure for `mv_open_accounts`
+--
+CREATE MATERIALIZED VIEW `mv_open_accounts` AS select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`;
+
+--
+-- View structure for `v_mv_emails`
+--
+CREATE OR REPLACE VIEW `v_mv_emails` AS select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`;
+
+--
 -- View structure for `v_named_cols`
 --
 CREATE OR REPLACE VIEW `v_named_cols` AS select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`;
@@ -83,13 +106,6 @@ CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `omni_sync_corpus`.`v_named_
 -- View structure for `v_open_accounts`
 --
 CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open');
-
---
--- Materialized view structure for `mv_accounts`
---
-CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`;
-
-CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`);
 
 --
 -- Procedure structure for `sp_touch_order`
