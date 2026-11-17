@@ -255,8 +255,10 @@ func checkExecute(t *testing.T, d *Driver, schema string) {
 	if _, err := d.Execute(ctx, "CREATE TABLE "+qualified+".`probe` (id INT)", driver.ExecuteOptions{}); err != nil {
 		t.Fatalf("Execute CREATE TABLE: %v", err)
 	}
-	if _, err := d.Execute(ctx, "INSERT INTO "+qualified+".`probe` VALUES (1), (2)", driver.ExecuteOptions{}); err != nil {
+	if affected, err := d.Execute(ctx, "INSERT INTO "+qualified+".`probe` VALUES (1), (2)", driver.ExecuteOptions{}); err != nil {
 		t.Fatalf("Execute INSERT: %v", err)
+	} else if affected != 2 {
+		t.Errorf("Execute INSERT affected = %d, want 2", affected)
 	}
 
 	session, err := d.Session(ctx)
