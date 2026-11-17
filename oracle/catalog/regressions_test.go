@@ -2548,3 +2548,112 @@ func TestTriggerDisableClauseSurvivesWhitespace(t *testing.T) {
 		t.Fatalf("an enabled trigger kept the declaration's DISABLE clause:\n%s", definition)
 	}
 }
+
+func TestVirtualColumnExpressionChangeDetaches(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE T (C NUMBER, V AS (C + 1))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE T (C BINARY_DOUBLE, V AS (C + 2))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, from, to)
+	drop := strings.Index(sql, `DROP COLUMN "V"`)
+	modify := strings.Index(sql, `MODIFY "C" BINARY_DOUBLE`)
+	add := strings.Index(sql, `GENERATED ALWAYS AS (C + 2) VIRTUAL`)
+	if drop < 0 || modify < 0 || add < 0 || !(drop < modify && modify < add) {
+		t.Fatalf("a changed virtual column does not detach around its source (drop=%d modify=%d add=%d):\n%s", drop, modify, add, sql)
+	}
+	if mod := strings.Index(sql, `MODIFY "V"`); mod >= 0 {
+		t.Fatalf("the virtual column was modified instead of recreated:\n%s", sql)
+	}
+}
+
+func TestNewForeignKeyWaitsForDetachedVirtualKey(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE P (C NUMBER, V AS (CAST(C AS NUMBER)), CONSTRAINT P_V_UK UNIQUE (V))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE P (C BINARY_DOUBLE, V AS (CAST(C AS NUMBER)), CONSTRAINT P_V_UK UNIQUE (V));
+CREATE TABLE CH (V NUMBER, CONSTRAINT CH_FK FOREIGN KEY (V) REFERENCES P (V))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, from, to)
+	key := strings.Index(sql, `ADD CONSTRAINT "P_V_UK" UNIQUE`)
+	fk := strings.Index(sql, `ADD CONSTRAINT "CH_FK"`)
+	if key < 0 || fk < 0 || key > fk {
+		t.Fatalf("the new foreign key precedes the key it references (key=%d fk=%d):\n%s", key, fk, sql)
+	}
+}
+
+func TestDetachedVirtualColumnKeepsComment(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE T (C NUMBER, V AS (C + 1));
+COMMENT ON COLUMN T.V IS 'v'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE T (C BINARY_DOUBLE, V AS (C + 1));
+COMMENT ON COLUMN T.V IS 'v'`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if sql := migrationFor(t, from, to); !strings.Contains(sql, `COMMENT ON COLUMN "T"."V" IS 'v'`) {
+		t.Fatalf("a recreated virtual column lost its comment:\n%s", sql)
+	}
+}
+
+func TestFunctionReplacementRebuildsItsIndexes(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE T (C NUMBER);
+CREATE FUNCTION F (X NUMBER) RETURN NUMBER AS BEGIN RETURN X + 1; END;
+CREATE INDEX I ON T (F(C))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE T (C NUMBER);
+CREATE FUNCTION F (X NUMBER) RETURN NUMBER AS BEGIN RETURN X + 2; END;
+CREATE INDEX I ON T (F(C))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, from, to)
+	function := strings.Index(sql, `RETURN X + 2`)
+	rebuild := strings.Index(sql, `ALTER INDEX "I" REBUILD`)
+	if function < 0 || rebuild < 0 || function > rebuild {
+		t.Fatalf("a replaced function's index is not rebuilt after it (function=%d rebuild=%d):\n%s", function, rebuild, sql)
+	}
+}
+
+func TestProcedureCreatePrefixAcrossWhitespace(t *testing.T) {
+	from := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name:       "APP",
+		Procedures: []*metadatapb.ProcedureMetadata{{Name: "P", Definition: "CREATE\nPROCEDURE P IS BEGIN NULL; END;"}},
+	})
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name:       "APP",
+		Procedures: []*metadatapb.ProcedureMetadata{{Name: "P", Definition: "CREATE\nPROCEDURE P IS BEGIN NULL; NULL; END;"}},
+	})
+	sql := migrationFor(t, from, to)
+	if strings.Count(strings.ToUpper(sql), "CREATE OR REPLACE") != 1 || strings.Contains(strings.ToUpper(sql), "CREATE\nPROCEDURE") {
+		t.Fatalf("a procedure whose declaration puts a newline after CREATE:\n%s", sql)
+	}
+}
+
+func TestFunctionIndexDetachesBeforeOrdinaryTypeChange(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE INDEX I ON T (ABS(C))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE T (C BINARY_DOUBLE); CREATE INDEX I ON T (ABS(C))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, from, to)
+	drop := strings.Index(sql, `DROP INDEX "I"`)
+	modify := strings.Index(sql, `MODIFY "C" BINARY_DOUBLE`)
+	create := strings.Index(sql, `CREATE INDEX "I"`)
+	if drop < 0 || modify < 0 || create < 0 || !(drop < modify && modify < create) {
+		t.Fatalf("a function-based index does not detach around a datatype change (drop=%d modify=%d create=%d):\n%s", drop, modify, create, sql)
+	}
+}

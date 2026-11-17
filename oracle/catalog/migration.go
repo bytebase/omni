@@ -930,6 +930,8 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
+	rebuildFunctionBasedIndexes(buf, diff)
+
 	// Handle comment changes for other object types
 	generateViewCommentChanges(buf, diff)
 	generateMaterializedViewCommentChanges(buf, diff)
@@ -1127,56 +1129,42 @@ func mergeColumnDependents(into *columnDependents, from columnDependents) {
 // changes and made again once all have, each once: a constraint shared by two
 // rebuilt columns is checked only against the finished table.
 func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, detached incomingForeignKeySet) {
-	var oldColumns, newColumns []string
-	for _, colDiff := range tableDiff.ColumnChanges {
-		if diff.preAltered[colDiff] {
-			continue
-		}
-		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
-			oldColumns = append(oldColumns, colDiff.OldColumn.Name)
-			newColumns = append(newColumns, colDiff.NewColumn.Name)
-		}
-	}
 	schemaName, tableName := tableDiff.SchemaName, tableDiff.TableName
 	created := diffObjectNames(tableDiff, DiffActionCreate)
-	var virtualDependents []*metadatapb.ColumnMetadata
-	var virtualColumns []string
-	var allVirtualDependents columnDependents
 	typeChanged := map[string]bool{}
+	ordinaryTypeChanged := map[string]bool{}
 	for _, colDiff := range tableDiff.ColumnChanges {
 		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
 			typeChanged[colDiff.OldColumn.GetName()] = true
+			if !rebuildsColumn(colDiff) {
+				ordinaryTypeChanged[colDiff.OldColumn.GetName()] = true
+			}
 		}
 	}
-	if len(typeChanged) > 0 {
+	// A virtual column that reads a column whose datatype changes is dropped
+	// with that column's dependents and added again with its target expression
+	// and comment: Oracle refuses the source change while the virtual column is
+	// attached (ORA-54033), whether or not its own expression changes.
+	var virtualDependents []*metadatapb.ColumnMetadata
+	var virtualColumns []string
+	var allVirtualDependents columnDependents
+	if rebuilt := virtualColumnsRebuiltByTypeChanges(tableDiff); len(rebuilt) > 0 {
 		handled := diffObjectNames(tableDiff, DiffActionDrop)
 		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
 			handled[name] = true
 		}
-		handledVirtually := map[string]bool{}
-		for _, colDiff := range tableDiff.ColumnChanges {
-			if colDiff.Action == DiffActionDrop || colDiff.Action == DiffActionCreate || (colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff)) {
-				handledVirtually[colDiff.OldColumn.GetName()] = true
-				handledVirtually[colDiff.NewColumn.GetName()] = true
-			}
-		}
-		for _, column := range tableDiff.NewTable.GetColumns() {
-			if column.GetGeneration() == nil || handledVirtually[column.GetName()] {
-				continue
-			}
-			depends := false
-			for changed := range typeChanged {
-				if expressionReferencesColumn(column.GetGeneration().GetExpression(), changed) {
-					depends = true
+		for _, column := range rebuilt {
+			if column.diff != nil {
+				if diff.preAltered[column.diff] {
+					// An earlier pass already detached it for a column drop.
+					continue
 				}
+				diff.preAltered[column.diff] = true
 			}
-			if !depends {
-				continue
-			}
-			dependents := findColumnDependents(tableDiff.OldTable, []string{column.GetName()}, handled)
+			dependents := findColumnDependents(tableDiff.OldTable, []string{column.column.GetName()}, handled)
 			mergeColumnDependents(&allVirtualDependents, dependents)
-			virtualDependents = append(virtualDependents, column)
-			virtualColumns = append(virtualColumns, column.GetName())
+			virtualDependents = append(virtualDependents, column.column)
+			virtualColumns = append(virtualColumns, column.column.GetName())
 		}
 		// Another table's foreign key on a key of a detached virtual column
 		// goes first, or Oracle refuses to drop that key (ORA-02273), and comes
@@ -1192,6 +1180,39 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 			writeDropColumn(buf, schemaName, tableName, column.GetName())
 		}
 	}
+
+	var oldColumns, newColumns []string
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if diff.preAltered[colDiff] {
+			continue
+		}
+		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
+			oldColumns = append(oldColumns, colDiff.OldColumn.Name)
+			newColumns = append(newColumns, colDiff.NewColumn.Name)
+		}
+	}
+
+	// Oracle refuses a datatype change under a function-based index (ORA-30556)
+	// but rebuilds the ordinary indexes itself, so only those detach around it.
+	var rebuiltFunctionIndexes []*metadatapb.IndexMetadata
+	if len(ordinaryTypeChanged) > 0 {
+		handled := diffObjectNames(tableDiff, DiffActionDrop)
+		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
+			handled[name] = true
+		}
+		for _, index := range tableDiff.OldTable.GetIndexes() {
+			if index.GetIsConstraint() || handled[index.GetName()] || !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+				continue
+			}
+			if indexReferencesColumns(index, ordinaryTypeChanged) {
+				rebuiltFunctionIndexes = append(rebuiltFunctionIndexes, index)
+			}
+		}
+		for _, index := range rebuiltFunctionIndexes {
+			writeDropIndex(buf, schemaName, index.GetName())
+		}
+	}
+
 	// Other tables' foreign keys on a rebuilt key go first, or dropping the key
 	// fails (ORA-02273), and come back after it.
 	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldColumns, DiffActionDrop) {
@@ -1216,8 +1237,20 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	findColumnDependents(tableDiff.NewTable, newColumns, created).writeCreates(buf, schemaName, tableName)
 	for _, column := range virtualDependents {
 		writeAddColumn(buf, schemaName, tableName, column)
+		if column.GetComment() != "" {
+			writeColumnComment(buf, schemaName, tableName, column.GetName(), column.GetComment())
+		}
 	}
 	allVirtualDependents.writeCreates(buf, schemaName, tableName)
+	for _, index := range rebuiltFunctionIndexes {
+		definition := index
+		for _, candidate := range tableDiff.NewTable.GetIndexes() {
+			if candidate.GetName() == index.GetName() {
+				definition = candidate
+			}
+		}
+		writeMigrationIndex(buf, schemaName, tableName, definition)
+	}
 	restoredColumns := append(append([]string(nil), newColumns...), virtualColumns...)
 	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, restoredColumns, DiffActionCreate) {
 		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
@@ -1225,6 +1258,65 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		}
 		writeMigrationForeignKey(buf, schemaName, incoming.table, incoming.foreignKey)
 	}
+}
+
+// virtualRebuild is a virtual column a datatype change detaches: the column to
+// add again, and its diff when it has one.
+type virtualRebuild struct {
+	column *metadatapb.ColumnMetadata
+	diff   *ColumnDiff
+}
+
+// virtualColumnsRebuiltByTypeChanges lists the virtual columns of tableDiff that
+// read a column whose datatype changes. A virtual column the diff creates needs
+// no detachment, and a virtual one the diff drops is already gone.
+func virtualColumnsRebuiltByTypeChanges(tableDiff *TableDiff) []virtualRebuild {
+	typeChanged := map[string]bool{}
+	diffs := map[string]*ColumnDiff{}
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
+			typeChanged[colDiff.OldColumn.GetName()] = true
+		}
+		if colDiff.Action == DiffActionDrop || colDiff.Action == DiffActionCreate {
+			continue
+		}
+		diffs[colDiff.NewColumn.GetName()] = colDiff
+	}
+	if len(typeChanged) == 0 {
+		return nil
+	}
+	var result []virtualRebuild
+	for _, column := range tableDiff.NewTable.GetColumns() {
+		if column.GetGeneration() == nil {
+			continue
+		}
+		if colDiff := diffs[column.GetName()]; colDiff != nil && colDiff.Action == DiffActionDrop {
+			continue
+		}
+		if !indexReferencesColumnsInExpression(column.GetGeneration().GetExpression(), typeChanged) {
+			continue
+		}
+		result = append(result, virtualRebuild{column: column, diff: diffs[column.GetName()]})
+	}
+	return result
+}
+
+func indexReferencesColumns(index *metadatapb.IndexMetadata, columns map[string]bool) bool {
+	for _, expression := range index.GetExpressions() {
+		if indexReferencesColumnsInExpression(expression, columns) {
+			return true
+		}
+	}
+	return false
+}
+
+func indexReferencesColumnsInExpression(expression string, columns map[string]bool) bool {
+	for column := range columns {
+		if expressionReferencesColumn(expression, column) {
+			return true
+		}
+	}
+	return false
 }
 
 // incomingForeignKey is another table's foreign key on a rebuilt column.
@@ -1302,6 +1394,11 @@ func waitsForRebuild(diff *MetadataDiff, schemaName string, fk *metadatapb.Forei
 		for _, colDiff := range tableDiff.ColumnChanges {
 			if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) &&
 				referencesColumns(fk, schemaName, diff.DatabaseName, tableDiff.TableName, []string{colDiff.NewColumn.Name}) {
+				return true
+			}
+		}
+		for _, rebuilt := range virtualColumnsRebuiltByTypeChanges(tableDiff) {
+			if referencesColumns(fk, schemaName, diff.DatabaseName, tableDiff.TableName, []string{rebuilt.column.GetName()}) {
 				return true
 			}
 		}
@@ -2147,6 +2244,87 @@ func writeMigrationCreateSequence(out *strings.Builder, schema string, seq *meta
 	if seq.Comment != "" {
 		writeSequenceComment(out, schema, seq.Name, seq.Comment)
 	}
+}
+
+// rebuildFunctionBasedIndexes rebuilds the retained function-based indexes of
+// a function this migration replaces. Oracle disables them with the function,
+// and a disabled index fails every write until it is rebuilt.
+func rebuildFunctionBasedIndexes(out *strings.Builder, diff *MetadataDiff) {
+	replaced := map[string]bool{}
+	for _, funcDiff := range diff.FunctionChanges {
+		if funcDiff.Action == DiffActionAlter && funcDiff.NewFunction != nil {
+			replaced[funcDiff.NewFunction.GetName()] = true
+		}
+	}
+	if len(replaced) == 0 {
+		return
+	}
+	recreated := map[string]bool{}
+	for _, tableDiff := range diff.TableChanges {
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action == DiffActionCreate && indexDiff.NewIndex != nil {
+				recreated[indexDiff.NewIndex.GetName()] = true
+			}
+		}
+	}
+	recreatedViews := map[string]bool{}
+	for _, viewDiff := range diff.MaterializedViewChanges {
+		if viewDiff.NewMaterializedView == nil {
+			continue
+		}
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
+			recreatedViews[viewDiff.NewMaterializedView.GetName()] = true
+		}
+	}
+	for _, schema := range diff.NewDatabase.GetSchemas() {
+		for _, table := range schema.GetTables() {
+			for _, index := range table.GetIndexes() {
+				if index.GetIsConstraint() || recreated[index.GetName()] || !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+					continue
+				}
+				if indexReferencesFunction(index, replaced) {
+					writeAlterIndexRebuild(out, schema.GetName(), index.GetName())
+				}
+			}
+		}
+		for _, view := range schema.GetMaterializedViews() {
+			if recreatedViews[view.GetName()] {
+				continue
+			}
+			for _, index := range materializedViewIndexes(view.GetIndexes()) {
+				if !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+					continue
+				}
+				if indexReferencesFunction(index, replaced) {
+					writeAlterIndexRebuild(out, schema.GetName(), index.GetName())
+				}
+			}
+		}
+	}
+}
+
+func indexReferencesFunction(index *metadatapb.IndexMetadata, functions map[string]bool) bool {
+	for _, expression := range index.GetExpressions() {
+		for function := range functions {
+			if expressionReferencesFunction(expression, function) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func writeAlterIndexRebuild(out *strings.Builder, schema, index string) {
+	_, _ = out.WriteString(`ALTER INDEX `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(index)
+	_, _ = out.WriteString(`" REBUILD;`)
+	_, _ = out.WriteString("\n")
 }
 
 func writeProcedureDiff(out *strings.Builder, procDiff *ProcedureDiff) {
@@ -3138,14 +3316,38 @@ func isSimpleIdentifier(expression string) bool {
 // REPLACE, which is what ALTERing an existing routine needs.
 func alterRoutineDefinition(definition string) string {
 	trimmed := strings.TrimSpace(definition)
-	upper := strings.ToUpper(trimmed)
-	if strings.HasPrefix(upper, "CREATE OR REPLACE ") {
+	words, ends := leadingWords(trimmed, 3)
+	if len(words) >= 3 && words[0] == "CREATE" && words[1] == "OR" && words[2] == "REPLACE" {
 		return definition
 	}
-	if strings.HasPrefix(upper, "CREATE ") {
-		return "CREATE OR REPLACE " + trimmed[len("CREATE "):]
+	if len(words) >= 1 && words[0] == "CREATE" {
+		// The declaration may put any SQL whitespace, a newline included,
+		// between CREATE and the object kind.
+		return trimmed[:ends[0]] + " OR REPLACE" + trimmed[ends[0]:]
 	}
 	return definition
+}
+
+// leadingWords reads the first count words of a declaration, uppercased, with
+// the offset just past each one.
+func leadingWords(declaration string, count int) ([]string, []int) {
+	var words []string
+	var ends []int
+	for i := 0; i < len(declaration) && len(words) < count; {
+		for i < len(declaration) && (declaration[i] == ' ' || declaration[i] == '\t' || declaration[i] == '\n' || declaration[i] == '\r') {
+			i++
+		}
+		start := i
+		for i < len(declaration) && isIdentifierByte(declaration[i]) {
+			i++
+		}
+		if i == start {
+			break
+		}
+		words = append(words, strings.ToUpper(declaration[start:i]))
+		ends = append(ends, i)
+	}
+	return words, ends
 }
 
 // waitsForKeyAddition reports whether a new table's foreign key references a

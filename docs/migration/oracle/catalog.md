@@ -242,6 +242,14 @@ replay tests exercise.
 - A materialized view's function-based index is written after the functions it
   calls, and a child foreign key detaches and returns around a rebuilt virtual
   column's key.
+- A virtual column rebuilt for a source datatype change is dropped and added
+  again with its target expression, comment and dependents, whether or not its
+  own expression changed.
+- A function-based index detaches around an ordinary datatype change, and a
+  retained function-based index is rebuilt after this migration replaces its
+  function, which Oracle disables with it.
+- A procedure whose declaration splits `CREATE` from `OR REPLACE` with any SQL
+  whitespace is still altered, not created again.
 - A trigger declaration's `DISABLE` clause is removed with whatever whitespace
   precedes it, so a later enable leaves no stale keyword.
 - A constraint backed by an index the statement names (`USING INDEX
