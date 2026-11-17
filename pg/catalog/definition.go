@@ -1255,7 +1255,12 @@ func writeCollation(out io.Writer, schema string, collation *metadatapb.Collatio
 // writeRangeType writes CREATE TYPE ... AS RANGE and its comment. The subtype
 // is written as the server states it; the clauses it left out are the ones the
 // server derives, so writing only what pg_range filled keeps the restore to
-// what the source declared.
+// what the source declared. canonical and subtype_diff are not written: a range
+// that declares one is created from a shell type, then the function, then the
+// full type, and that function's definition is a C symbol in a LANGUAGE
+// internal function, which a dump cannot write. The metadata carries both, so a
+// range that declares one shows the loss in the restored snapshot rather than
+// restoring a type that compares differently.
 func writeRangeType(out io.Writer, schema string, rangeType *metadatapb.RangeTypeMetadata) error {
 	var b strings.Builder
 	fmt.Fprintf(&b, "CREATE TYPE \"%s\".\"%s\" AS RANGE (\n    subtype = %s",
@@ -1263,8 +1268,6 @@ func writeRangeType(out io.Writer, schema string, rangeType *metadatapb.RangeTyp
 	for _, clause := range []struct{ key, value string }{
 		{"subtype_opclass", rangeType.SubtypeOpclass},
 		{"collation", rangeType.Collation},
-		{"canonical", rangeType.Canonical},
-		{"subtype_diff", rangeType.SubtypeDiff},
 		{"multirange_type_name", rangeType.MultirangeName},
 	} {
 		if clause.value == "" {

@@ -803,11 +803,12 @@ type RangeTypeMetadata struct {
 	Collation string `protobuf:"bytes,4,opt,name=collation,proto3" json:"collation,omitempty"`
 	// The function that turns a range into its canonical form, when the range
 	// declares one. PostgreSQL creates such a range from a shell type, the
-	// function, then the full type, so a dump that writes only the full type does
-	// not restore it.
+	// function, then the full type, and the function's definition is a C symbol,
+	// so a dump that writes the type alone cannot restore it; the field is here
+	// so the loss shows in a restored snapshot instead of hiding.
 	Canonical string `protobuf:"bytes,5,opt,name=canonical,proto3" json:"canonical,omitempty"`
 	// The function that subtracts two subtype values to size a range's gap, when
-	// the range declares one. It carries canonical's ordering constraint.
+	// the range declares one. It carries canonical's constraint.
 	SubtypeDiff string `protobuf:"bytes,6,opt,name=subtype_diff,json=subtypeDiff,proto3" json:"subtype_diff,omitempty"`
 	// The multirange type the server made beside the range type, as an
 	// emit-ready type name. Empty before PostgreSQL 14, which has no multirange

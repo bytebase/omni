@@ -2449,7 +2449,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -5024,7 +5024,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -7523,7 +7523,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -10097,7 +10097,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -12596,7 +12596,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -15170,7 +15170,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -17670,7 +17670,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -20245,7 +20245,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -22745,7 +22745,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -25320,7 +25320,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -27820,7 +27820,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -30395,7 +30395,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -32895,7 +32895,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
@@ -35470,7 +35470,7 @@
 | 	n.nspname AS schema_name,
 | 	t.typname AS type_name,
 | 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
-| 	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
 | 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
 | 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
 | 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
