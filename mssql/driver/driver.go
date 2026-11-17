@@ -8,9 +8,13 @@
 // rendering; Dump passes synced metadata through it.
 //
 // A batch is sent as one request, so what SQL Server scopes to it holds across
-// its statements. The server reports a batch's per-statement row counts only
-// through a collector on the request, which a recorded exchange cannot hold, so
-// only a lone statement's count is read.
+// its statements. SQL Server reports a batch's per-statement row counts only
+// through the *sqlexp.ReturnMessage message loop: MsgRowsAffected arrives
+// interleaved with MsgNext and MsgNextResultSet. A tape holds a request's
+// result sets in order and one affected count for an exec, and it can carry
+// neither the message object the counts are delivered on nor their order
+// beside the result sets, so only a lone statement's count is read. A batch's
+// row-count statements therefore carry no AffectedRows.
 //
 // A statement that reports no count at all (DDL, SET, SELECT @v = ...) has a
 // Result with no AffectedRows, rather than a count of zero.
