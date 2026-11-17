@@ -30,6 +30,37 @@ func TestDefinitionRendersSequenceOptions(t *testing.T) {
 	}
 }
 
+func TestDefinitionRendersNonTableComments(t *testing.T) {
+	c, err := LoadSQL(`
+CREATE SEQUENCE [dbo].[s] AS INT;
+GO
+EXEC sp_addextendedproperty 'MS_Description', N'sequence note', 'SCHEMA', 'dbo', 'SEQUENCE', 's';
+GO
+CREATE VIEW [dbo].[v] AS SELECT 1 AS n;
+GO
+EXEC sp_addextendedproperty 'MS_Description', N'view note', 'SCHEMA', 'dbo', 'VIEW', 'v';
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+EXEC sp_addextendedproperty 'MS_Description', N'function note', 'SCHEMA', 'dbo', 'FUNCTION', 'f';
+GO
+CREATE PROCEDURE [dbo].[p] AS SELECT 1;
+GO
+EXEC sp_addextendedproperty 'MS_Description', N'procedure note', 'SCHEMA', 'dbo', 'PROCEDURE', 'p';
+`)
+	require.NoError(t, err)
+	def, err := c.Definition(DefinitionOptions{})
+	require.NoError(t, err)
+	for _, want := range []string{
+		"sp_addextendedproperty 'MS_Description', N'sequence note', 'SCHEMA', 'dbo', 'SEQUENCE', 's'",
+		"sp_addextendedproperty 'MS_Description', N'view note', 'SCHEMA', 'dbo', 'VIEW', 'v'",
+		"sp_addextendedproperty 'MS_Description', N'function note', 'SCHEMA', 'dbo', 'FUNCTION', 'f'",
+		"sp_addextendedproperty 'MS_Description', N'procedure note', 'SCHEMA', 'dbo', 'PROCEDURE', 'p'",
+	} {
+		require.Contains(t, def, want)
+	}
+}
+
 func TestDefinitionDefersCyclicForeignKeys(t *testing.T) {
 	c, err := LoadSQL(`
 CREATE TABLE [dbo].[a] (

@@ -37,9 +37,18 @@
 | CREATE NONCLUSTERED INDEX [IX_children_status] ON [dump].[children] ([status] DESC, [id] ASC);
 < ok 0 -
 > exec
+| CREATE UNIQUE INDEX [UX_children_note] ON [dump].[children] ([note]) WHERE [note] IS NOT NULL;
+< ok 0 -
+> exec
+| CREATE INDEX [IX_children_status_note] ON [dump].[children] ([status]) INCLUDE ([note]);
+< ok 0 -
+> exec
 | CREATE VIEW [dump].[v_parents] AS
 | 	SELECT [id], [name] FROM [dump].[parents];
 < ok 0 -
+> exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'view note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'VIEW', @level1name = N'v_parents';
+< ok 2 -
 > exec
 | CREATE FUNCTION [dump].[fn_name] (@id INT) RETURNS NVARCHAR(100) AS
 | BEGIN
@@ -47,11 +56,17 @@
 | END;
 < ok 0 -
 > exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'function note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'FUNCTION', @level1name = N'fn_name';
+< ok 2 -
+> exec
 | CREATE PROCEDURE [dump].[sp_parents] AS
 | BEGIN
 | 	SELECT [id], [name] FROM [dump].[parents];
 | END;
 < ok 0 -
+> exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'procedure note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'PROCEDURE', @level1name = N'sp_parents';
+< ok 2 -
 > exec
 | CREATE TRIGGER [dump].[trg_parents] ON [dump].[parents] AFTER INSERT AS
 | BEGIN
@@ -59,8 +74,11 @@
 | END
 < ok 0 -
 > exec
-| CREATE SEQUENCE [dump].[s] AS INT;
+| CREATE SEQUENCE [dump].[s] AS INT START WITH 10 INCREMENT BY 5 MINVALUE 1 MAXVALUE 1000 CACHE 20;
 < ok 0 -
+> exec
+| EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'sequence note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'SEQUENCE', @level1name = N's';
+< ok 2 -
 > begin
 < ok
 > query
@@ -553,9 +571,11 @@
 | 		i.name,
 | 		i.type_desc,
 | 		i.is_unique,
+| 		i.filter_definition,
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
 | 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
@@ -566,9 +586,6 @@
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 | 		AND s.name in (N'dbo',N'dump') AND o.type IN ('U', 'S', 'V')
-| 		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
-| 		-- key; a columnstore or XML index states every one of its columns that way.
-| 		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
 | 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 | 	
 < result
@@ -579,9 +596,11 @@
 < column "name" "NVARCHAR"
 < column "type_desc" "NVARCHAR"
 < column "is_unique" "BIT"
+< column "filter_definition" "NVARCHAR"
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
 : string
@@ -597,8 +616,10 @@
 : bool false
 : null
 : null
+: null
 : string
 | status
+: bool false
 : bool true
 < row
 : string
@@ -614,8 +635,68 @@
 : bool false
 : null
 : null
+: null
 : string
 | id
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1013578649
+: int64 4
+: string
+| UX_children_note
+: string
+| NONCLUSTERED
+: bool true
+: string
+| ([note] IS NOT NULL)
+: null
+: null
+: string
+| note
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1013578649
+: int64 5
+: string
+| IX_children_status_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| note
+: bool true
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1013578649
+: int64 5
+: string
+| IX_children_status_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| status
+: bool false
 : bool false
 > query
 |
@@ -865,6 +946,22 @@
 : int64 901578250
 : string
 | parent rows
+< row
+: int64 1061578820
+: string
+| view note
+< row
+: int64 1077578877
+: string
+| function note
+< row
+: int64 1093578934
+: string
+| procedure note
+< row
+: int64 1125579048
+: string
+| sequence note
 > query
 |
 | 		SELECT object_id, SUM(row_count) AS total_rows
@@ -876,16 +973,16 @@
 < column "total_rows" "BIGINT"
 < row
 : int64 3
-: int64 1504
+: int64 1509
 < row
 : int64 5
-: int64 191
+: int64 193
 < row
 : int64 6
 : int64 0
 < row
 : int64 7
-: int64 224
+: int64 226
 < row
 : int64 8
 : int64 2
@@ -972,7 +1069,7 @@
 : int64 0
 < row
 : int64 49
-: int64 2
+: int64 6
 < row
 : int64 50
 : int64 34
@@ -981,10 +1078,10 @@
 : int64 0
 < row
 : int64 54
-: int64 226
+: int64 227
 < row
 : int64 55
-: int64 452
+: int64 454
 < row
 : int64 56
 : int64 0
@@ -999,7 +1096,7 @@
 : int64 0
 < row
 : int64 60
-: int64 276
+: int64 278
 < row
 : int64 62
 : int64 0
@@ -1035,7 +1132,7 @@
 : int64 205
 < row
 : int64 75
-: int64 115
+: int64 116
 < row
 : int64 78
 : int64 0
@@ -1230,6 +1327,10 @@
 < result
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
+< row
+: int64 1061578820
+: string
+| view note
 > query
 |
 | 		SELECT
@@ -1260,6 +1361,12 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+| 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+| 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+| 		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+| 		seq.is_cycling,
+| 		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
 | 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM
 | 		sys.sequences seq
@@ -1276,6 +1383,12 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "start_value" "NVARCHAR"
+< column "increment" "NVARCHAR"
+< column "minimum_value" "NVARCHAR"
+< column "maximum_value" "NVARCHAR"
+< column "is_cycling" "BIT"
+< column "cache_size" "NVARCHAR"
 < column "comment" "NVARCHAR"
 < row
 : string
@@ -1284,7 +1397,19 @@
 | s
 : string
 | int
-: null
+: string
+| 10
+: string
+| 5
+: string
+| 1
+: string
+| 1000
+: bool false
+: string
+| 20
+: string
+| sequence note
 > query
 |
 | 	SELECT
@@ -1324,15 +1449,21 @@
 | BEGIN
 | 	RETURN (SELECT [name] FROM [dump].[parents] WHERE [id] = @id);
 | END;
-: null
+: string
+| function note
 > query
 |
 | 	SELECT
 | 		SCHEMA_NAME(ao.schema_id) AS schema_name,
 | 		ao.name AS procedure_name,
-| 		asm.definition
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM sys.all_objects ao
 |         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+| 			AND ep.minor_id = 0
+| 			AND ep.class = 1
+| 			AND ep.name = 'MS_Description'
 | 	WHERE ao.type IN ('P', 'RF')
 | 		AND ao.is_ms_shipped = 0 AND
 | 		(
@@ -1348,6 +1479,7 @@
 < column "schema_name" "NVARCHAR"
 < column "procedure_name" "NVARCHAR"
 < column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
 < row
 : string
 | dump
@@ -1358,6 +1490,8 @@
 | BEGIN
 | 	SELECT [id], [name] FROM [dump].[parents];
 | END;
+: string
+| procedure note
 > query
 |
 | 	SELECT 
@@ -1466,8 +1600,16 @@
 < ok 0 -
 > exec
 | CREATE SEQUENCE [dump].[s]
-|     AS int;
+|     AS int
+|     START WITH 10
+|     INCREMENT BY 5
+|     MINVALUE 1
+|     MAXVALUE 1000
+|     CACHE 20;
 |
+| EXEC sp_addextendedproperty 'MS_Description', N'sequence note', 'SCHEMA', 'dump', 'SEQUENCE', 's';
+< ok 2 -
+> exec
 | CREATE TABLE [dump].[parents] (
 |     [id] int IDENTITY(1,1) NOT NULL,
 |     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
@@ -1500,11 +1642,25 @@
 |     [status] DESC,
 |     [id] ASC
 | );
+|
+| CREATE NONCLUSTERED INDEX [IX_children_status_note] ON
+| [dump].[children] (
+|     [status] ASC
+| ) INCLUDE ([note]);
+|
+| CREATE UNIQUE NONCLUSTERED INDEX [UX_children_note] ON
+| [dump].[children] (
+|     [note] ASC
+| )
+| WHERE ([note] IS NOT NULL);
 < ok 0 -
 > exec
 | CREATE VIEW [dump].[v_parents] AS
 | 	SELECT [id], [name] FROM [dump].[parents];
 < ok 0 -
+> exec
+| EXEC sp_addextendedproperty 'MS_Description', N'view note', 'SCHEMA', 'dump', 'VIEW', 'v_parents';
+< ok 2 -
 > exec
 | CREATE TRIGGER [dump].[trg_parents] ON [dump].[parents] AFTER INSERT AS
 | BEGIN
@@ -1518,11 +1674,17 @@
 | END;
 < ok 0 -
 > exec
+| EXEC sp_addextendedproperty 'MS_Description', N'function note', 'SCHEMA', 'dump', 'FUNCTION', 'fn_name';
+< ok 2 -
+> exec
 | CREATE PROCEDURE [dump].[sp_parents] AS
 | BEGIN
 | 	SELECT [id], [name] FROM [dump].[parents];
 | END;
 < ok 0 -
+> exec
+| EXEC sp_addextendedproperty 'MS_Description', N'procedure note', 'SCHEMA', 'dump', 'PROCEDURE', 'sp_parents';
+< ok 2 -
 > begin
 < ok
 > query
@@ -2015,9 +2177,11 @@
 | 		i.name,
 | 		i.type_desc,
 | 		i.is_unique,
+| 		i.filter_definition,
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
 | 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
@@ -2028,9 +2192,6 @@
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 | 		AND s.name in (N'dbo',N'dump') AND o.type IN ('U', 'S', 'V')
-| 		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
-| 		-- key; a columnstore or XML index states every one of its columns that way.
-| 		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
 | 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 | 	
 < result
@@ -2041,9 +2202,11 @@
 < column "name" "NVARCHAR"
 < column "type_desc" "NVARCHAR"
 < column "is_unique" "BIT"
+< column "filter_definition" "NVARCHAR"
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
 : string
@@ -2059,8 +2222,10 @@
 : bool false
 : null
 : null
+: null
 : string
 | status
+: bool false
 : bool true
 < row
 : string
@@ -2076,8 +2241,68 @@
 : bool false
 : null
 : null
+: null
 : string
 | id
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1269579561
+: int64 4
+: string
+| IX_children_status_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| note
+: bool true
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1269579561
+: int64 4
+: string
+| IX_children_status_note
+: string
+| NONCLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| status
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| children
+: int64 1269579561
+: int64 5
+: string
+| UX_children_note
+: string
+| NONCLUSTERED
+: bool true
+: string
+| ([note] IS NOT NULL)
+: null
+: null
+: string
+| note
+: bool false
 : bool false
 > query
 |
@@ -2324,9 +2549,25 @@
 < column "major_id" "INT"
 < column "value" "SQL_VARIANT"
 < row
+: int64 1141579105
+: string
+| sequence note
+< row
 : int64 1157579162
 : string
 | parent rows
+< row
+: int64 1317579732
+: string
+| view note
+< row
+: int64 1349579846
+: string
+| function note
+< row
+: int64 1365579903
+: string
+| procedure note
 > query
 |
 | 		SELECT object_id, SUM(row_count) AS total_rows
@@ -2338,16 +2579,16 @@
 < column "total_rows" "BIGINT"
 < row
 : int64 3
-: int64 1504
+: int64 1509
 < row
 : int64 5
-: int64 191
+: int64 193
 < row
 : int64 6
 : int64 0
 < row
 : int64 7
-: int64 224
+: int64 226
 < row
 : int64 8
 : int64 2
@@ -2434,7 +2675,7 @@
 : int64 0
 < row
 : int64 49
-: int64 2
+: int64 6
 < row
 : int64 50
 : int64 34
@@ -2443,10 +2684,10 @@
 : int64 0
 < row
 : int64 54
-: int64 228
+: int64 229
 < row
 : int64 55
-: int64 454
+: int64 456
 < row
 : int64 56
 : int64 0
@@ -2461,7 +2702,7 @@
 : int64 0
 < row
 : int64 60
-: int64 278
+: int64 280
 < row
 : int64 62
 : int64 0
@@ -2497,7 +2738,7 @@
 : int64 205
 < row
 : int64 75
-: int64 115
+: int64 116
 < row
 : int64 78
 : int64 0
@@ -2692,6 +2933,10 @@
 < result
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
+< row
+: int64 1317579732
+: string
+| view note
 > query
 |
 | 		SELECT
@@ -2722,6 +2967,12 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+| 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+| 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+| 		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+| 		seq.is_cycling,
+| 		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
 | 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM
 | 		sys.sequences seq
@@ -2738,6 +2989,12 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "start_value" "NVARCHAR"
+< column "increment" "NVARCHAR"
+< column "minimum_value" "NVARCHAR"
+< column "maximum_value" "NVARCHAR"
+< column "is_cycling" "BIT"
+< column "cache_size" "NVARCHAR"
 < column "comment" "NVARCHAR"
 < row
 : string
@@ -2746,7 +3003,19 @@
 | s
 : string
 | int
-: null
+: string
+| 10
+: string
+| 5
+: string
+| 1
+: string
+| 1000
+: bool false
+: string
+| 20
+: string
+| sequence note
 > query
 |
 | 	SELECT
@@ -2786,15 +3055,21 @@
 | BEGIN
 | 	RETURN (SELECT [name] FROM [dump].[parents] WHERE [id] = @id);
 | END;
-: null
+: string
+| function note
 > query
 |
 | 	SELECT
 | 		SCHEMA_NAME(ao.schema_id) AS schema_name,
 | 		ao.name AS procedure_name,
-| 		asm.definition
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM sys.all_objects ao
 |         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+| 			AND ep.minor_id = 0
+| 			AND ep.class = 1
+| 			AND ep.name = 'MS_Description'
 | 	WHERE ao.type IN ('P', 'RF')
 | 		AND ao.is_ms_shipped = 0 AND
 | 		(
@@ -2810,6 +3085,7 @@
 < column "schema_name" "NVARCHAR"
 < column "procedure_name" "NVARCHAR"
 < column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
 < row
 : string
 | dump
@@ -2820,6 +3096,8 @@
 | BEGIN
 | 	SELECT [id], [name] FROM [dump].[parents];
 | END;
+: string
+| procedure note
 > query
 |
 | 	SELECT 

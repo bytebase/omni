@@ -123,7 +123,8 @@
               "descending":  [
                 false
               ],
-              "type":  "NONCLUSTERED"
+              "type":  "NONCLUSTERED",
+              "definition":  "INCLUDE:email WHERE ([status]='open')"
             },
             {
               "name":  "pxml_accounts_doc",
@@ -308,11 +309,21 @@
       "sequences":  [
         {
           "name":  "seq_alias",
-          "dataType":  "big_id"
+          "dataType":  "big_id",
+          "start":  "1",
+          "minValue":  "-9223372036854775808",
+          "maxValue":  "9223372036854775807",
+          "increment":  "1"
         },
         {
           "name":  "seq_orders",
           "dataType":  "bigint",
+          "start":  "10",
+          "minValue":  "1",
+          "maxValue":  "10000",
+          "increment":  "2",
+          "cycle":  true,
+          "cacheSize":  "50",
           "comment":  "order sequence"
         }
       ],

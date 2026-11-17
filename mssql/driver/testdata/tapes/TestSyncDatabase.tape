@@ -851,9 +851,11 @@
 | 		i.name,
 | 		i.type_desc,
 | 		i.is_unique,
+| 		i.filter_definition,
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
 | 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
@@ -864,9 +866,6 @@
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 | 		AND s.name in (N'app',N'dbo') AND o.type IN ('U', 'S', 'V')
-| 		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
-| 		-- key; a columnstore or XML index states every one of its columns that way.
-| 		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
 | 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 | 	
 < result
@@ -877,9 +876,11 @@
 < column "name" "NVARCHAR"
 < column "type_desc" "NVARCHAR"
 < column "is_unique" "BIT"
+< column "filter_definition" "NVARCHAR"
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
 : string
@@ -893,10 +894,33 @@
 : string
 | NONCLUSTERED
 : bool false
+: string
+| ([status]='open')
+: null
+: null
+: string
+| email
+: bool true
+: bool false
+< row
+: string
+| app
+: string
+| accounts
+: int64 901578250
+: int64 3
+: string
+| idx_accounts_status
+: string
+| NONCLUSTERED
+: bool false
+: string
+| ([status]='open')
 : null
 : null
 : string
 | status
+: bool false
 : bool false
 < row
 : string
@@ -912,8 +936,10 @@
 : bool false
 : null
 : null
+: null
 : string
 | xml_doc
+: bool false
 : bool false
 < row
 : string
@@ -927,10 +953,12 @@
 : string
 | NONCLUSTERED COLUMNSTORE
 : bool false
+: null
 : null
 : null
 : string
 | ts
+: bool true
 : bool false
 < row
 : string
@@ -946,8 +974,10 @@
 : bool false
 : null
 : null
+: null
 : string
 | val
+: bool true
 : bool false
 > query
 |
@@ -1345,10 +1375,10 @@
 : int64 0
 < row
 : int64 54
-: int64 229
+: int64 228
 < row
 : int64 55
-: int64 458
+: int64 457
 < row
 : int64 56
 : int64 0
@@ -1363,7 +1393,7 @@
 : int64 0
 < row
 : int64 60
-: int64 288
+: int64 287
 < row
 : int64 62
 : int64 0
@@ -1636,6 +1666,12 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+| 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+| 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+| 		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+| 		seq.is_cycling,
+| 		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
 | 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM
 | 		sys.sequences seq
@@ -1652,6 +1688,12 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "start_value" "NVARCHAR"
+< column "increment" "NVARCHAR"
+< column "minimum_value" "NVARCHAR"
+< column "maximum_value" "NVARCHAR"
+< column "is_cycling" "BIT"
+< column "cache_size" "NVARCHAR"
 < column "comment" "NVARCHAR"
 < row
 : string
@@ -1660,6 +1702,16 @@
 | seq_alias
 : string
 | big_id
+: string
+| 1
+: string
+| 1
+: string
+| -9223372036854775808
+: string
+| 9223372036854775807
+: bool false
+: null
 : null
 < row
 : string
@@ -1668,6 +1720,17 @@
 | seq_orders
 : string
 | bigint
+: string
+| 10
+: string
+| 2
+: string
+| 1
+: string
+| 10000
+: bool true
+: string
+| 50
 : string
 | order sequence
 > query
@@ -1724,9 +1787,14 @@
 | 	SELECT
 | 		SCHEMA_NAME(ao.schema_id) AS schema_name,
 | 		ao.name AS procedure_name,
-| 		asm.definition
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM sys.all_objects ao
 |         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+| 			AND ep.minor_id = 0
+| 			AND ep.class = 1
+| 			AND ep.name = 'MS_Description'
 | 	WHERE ao.type IN ('P', 'RF')
 | 		AND ao.is_ms_shipped = 0 AND
 | 		(
@@ -1742,6 +1810,7 @@
 < column "schema_name" "NVARCHAR"
 < column "procedure_name" "NVARCHAR"
 < column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
 < row
 : string
 | app
@@ -1753,6 +1822,7 @@
 | 	SELECT id, total FROM app.orders WHERE account_id = @account;
 | 	SELECT COUNT(*) AS n FROM app.orders WHERE account_id = @account;
 | END;
+: null
 < row
 : string
 | app
@@ -1763,6 +1833,7 @@
 | BEGIN
 | 	SELECT @total = total FROM app.orders WHERE id = @id;
 | END;
+: null
 > query
 |
 | 	SELECT 
