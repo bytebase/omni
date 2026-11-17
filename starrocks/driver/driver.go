@@ -1,11 +1,15 @@
 // Package driver is StarRocks's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it connects through go-sql-driver/mysql,
-// syncs a server's metadata into omni/metadata, and runs interactive queries
-// and change scripts.
+// syncs a server's metadata into omni/metadata, runs interactive queries and
+// change scripts, and dumps a database's DDL.
 //
-// There is no Dump: omni has no starrocks/catalog to render a synced schema as
-// DDL. StarRocks has no read-only session parameter, so driver.Config.ReadOnly
-// is ignored.
+// There is no starrocks/catalog: a table's key model, distribution, properties
+// and partitions are not in information_schema, so Dump writes the statements
+// the server states (SHOW CREATE) instead of rendering a synced schema. Two
+// object kinds no statement states are left out: a rollup, whose catalogue
+// definition restores a rollup of another key model, and a user-defined
+// function, which has no SHOW CREATE form. StarRocks has no read-only session
+// parameter, so driver.Config.ReadOnly is ignored.
 package driver
 
 import (
@@ -28,6 +32,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )

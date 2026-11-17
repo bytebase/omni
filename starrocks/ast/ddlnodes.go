@@ -393,6 +393,7 @@ type CreateViewStmt struct {
 	IfNotExists bool
 	Columns     []*ViewColumn // optional column list
 	Comment     string        // view-level COMMENT
+	Security    string        // "NONE" or "INVOKER"; empty when the statement names neither
 	Query       Node          // SELECT statement (*SelectStmt)
 	Loc         Loc
 }
