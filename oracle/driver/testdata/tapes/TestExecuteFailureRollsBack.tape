@@ -55,7 +55,7 @@
 > query
 | SELECT COUNT(*) FROM OMNI_APP.Q WHERE ID = 5
 < result
-< column "COUNT(*)" "NUMBER"
+< column "COUNT(*)" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | 0

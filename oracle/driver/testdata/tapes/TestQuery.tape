@@ -40,12 +40,12 @@
 > query
 | SELECT ID, LABEL, AMOUNT, FLAG, CREATED, AT, DOC FROM OMNI_APP.Q ORDER BY ID
 < result
-< column "ID" "NUMBER"
-< column "LABEL" "NCHAR"
-< column "AMOUNT" "NUMBER"
-< column "FLAG" "NUMBER"
-< column "CREATED" "DATE"
-< column "AT" "TimeStampDTY"
+< column "ID" "NUMBER" "float64" precision 4 scale 0
+< column "LABEL" "NCHAR" "string"
+< column "AMOUNT" "NUMBER" "float64" precision 8 scale 2
+< column "FLAG" "NUMBER" "float64" precision 1 scale 0
+< column "CREATED" "DATE" "time.Time"
+< column "AT" "TimeStampDTY" "time.Time"
 < column "DOC" "LongVarChar"
 < row
 : string

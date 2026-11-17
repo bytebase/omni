@@ -51,7 +51,7 @@
 > query
 | SELECT ID FROM OMNI_APP.Q WHERE ID >= 6 ORDER BY ID
 < result
-< column "ID" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 4 scale 0
 < row
 : string
 | 6

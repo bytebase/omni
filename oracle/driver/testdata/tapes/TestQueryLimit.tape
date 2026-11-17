@@ -40,7 +40,7 @@
 > query
 | SELECT ID FROM OMNI_APP.Q ORDER BY ID FETCH NEXT 2 ROWS ONLY
 < result
-< column "ID" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 4 scale 0
 < row
 : string
 | 1
@@ -51,7 +51,7 @@
 | -- the rows in order
 | SELECT ID FROM OMNI_APP.Q ORDER BY ID FETCH NEXT 2 ROWS ONLY
 < result
-< column "ID" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 4 scale 0
 < row
 : string
 | 1
@@ -61,8 +61,8 @@
 > query
 | SELECT ID, LABEL FROM OMNI_APP.Q ORDER BY ID
 < result
-< column "ID" "NUMBER"
-< column "LABEL" "NCHAR"
+< column "ID" "NUMBER" "float64" precision 4 scale 0
+< column "LABEL" "NCHAR" "string"
 < row
 : string
 | 1

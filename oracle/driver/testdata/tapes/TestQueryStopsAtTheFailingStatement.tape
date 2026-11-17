@@ -40,7 +40,7 @@
 > query
 | SELECT ID FROM OMNI_APP.Q WHERE ID = 1
 < result
-< column "ID" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 4 scale 0
 < row
 : string
 | 1
