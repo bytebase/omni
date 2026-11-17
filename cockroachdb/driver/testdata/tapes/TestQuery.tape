@@ -175,6 +175,19 @@
 : string
 | UTC
 > query
+| WITH d AS (DELETE FROM app.people WHERE id = 3 RETURNING id) SELECT count(*) FROM d;
+< result
+< column "count" "INT8"
+< row
+: int64 1
+> query
+| SHOW timezone
+< result
+< column "timezone" "TEXT"
+< row
+: string
+| UTC
+> query
 | SELECT 1;
 < result
 < column "?column?" "INT8"

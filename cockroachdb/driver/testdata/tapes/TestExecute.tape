@@ -246,6 +246,63 @@
 < row
 : int64 1
 > query
+| SELECT datname, pg_encoding_to_char(encoding), datcollate FROM pg_database ORDER BY datname;
+< result
+< column "datname" "NAME"
+< column "pg_encoding_to_char" "TEXT"
+< column "datcollate" "TEXT"
+< row
+: string
+| defaultdb
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| omni_execute_created
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| omni_execute_created_multiline
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| omni_testexecute
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| postgres
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| system
+: string
+| UTF8
+: string
+| en_US.utf8
+> exec
+| create database "team data";
+< ok 0 -
+> query
+| SELECT count(*) FROM pg_database WHERE datname = 'team data';
+< result
+< column "count" "INT8"
+< row
+: int64 1
+> query
 |
 | 		SELECT
 | 			u.rolname

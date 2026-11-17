@@ -448,15 +448,16 @@ func classifyStatement(stmt string) (nonTransactional, sessionRole, superuser bo
 }
 
 func getDatabaseInCreateDatabaseStatement(createDatabaseStatement string) (string, error) {
-	raw := strings.TrimRight(createDatabaseStatement, ";")
-	raw = strings.TrimPrefix(raw, "CREATE DATABASE")
-	tokens := strings.Fields(raw)
-	if len(tokens) == 0 {
-		return "", fmt.Errorf("database name not found")
+	parsed, err := crrawparser.Parse(createDatabaseStatement)
+	if err != nil {
+		return "", err
 	}
-	databaseName := strings.TrimLeft(tokens[0], `"`)
-	databaseName = strings.TrimRight(databaseName, `"`)
-	return databaseName, nil
+	for _, stmt := range parsed {
+		if create, ok := stmt.AST.(*crrawparsertree.CreateDatabase); ok && create.Name != "" {
+			return string(create.Name), nil
+		}
+	}
+	return "", fmt.Errorf("database name not found")
 }
 
 // GetCurrentDatabaseOwner gets the role of the current database.

@@ -166,6 +166,8 @@ func validateQuery(statement string) (readOnly, returnsData bool, err error) {
 	if !returnsData {
 		for _, node := range nodes {
 			switch n := node.(type) {
+			case *ast.SelectStmt:
+				returnsData = true
 			case *ast.InsertStmt:
 				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
 			case *ast.UpdateStmt:

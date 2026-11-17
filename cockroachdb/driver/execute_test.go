@@ -98,6 +98,15 @@ INSERT INTO app.account VALUES (1, 99);`, driver.ExecuteOptions{Transaction: dri
 		if count != 1 {
 			t.Errorf("multiline database count = %d, want 1", count)
 		}
+		if _, err := d.Execute(ctx, `create database "team data";`, driver.ExecuteOptions{CreateDatabase: true}); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.db.QueryRowContext(ctx, `SELECT count(*) FROM pg_database WHERE datname = 'team data';`).Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Errorf("quoted database count = %d, want 1", count)
+		}
 	})
 
 	t.Run("auto commit keeps script order", func(t *testing.T) {
@@ -134,6 +143,7 @@ func TestGetDatabaseInCreateDatabaseStatement(t *testing.T) {
 		{`CREATE DATABASE "hello";`, "hello", false},
 		{`CREATE DATABASE hello;`, "hello", false},
 		{`CREATE DATABASE hello ENCODING "UTF8";`, "hello", false},
+		{`create database "team data";`, "team data", false},
 		{`CREATE DATABASE;`, "", true},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {

@@ -173,6 +173,22 @@ INSERT INTO other.thing VALUES (7);`)
 		}
 	})
 
+	t.Run("mutating CTE", func(t *testing.T) {
+		results, err := session.Query(ctx, "WITH d AS (DELETE FROM app.people WHERE id = 3 RETURNING id) SELECT count(*) FROM d;", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		if len(results[0].Columns) != 1 || len(results[0].Rows) != 1 {
+			t.Fatalf("columns/rows = %+v/%+v, want one of each", results[0].Columns, results[0].Rows)
+		}
+		if got := results[0].Rows[0][0]; got.Kind != driver.Int64 || got.Int64 != 1 {
+			t.Errorf("count = %+v, want int64 1", got)
+		}
+	})
+
 	t.Run("error stops the script", func(t *testing.T) {
 		results, err := session.Query(ctx, "SELECT 1; SELECT * FROM app.missing; SELECT 3;", driver.QueryOptions{})
 		if err != nil {
