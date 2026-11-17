@@ -1876,3 +1876,41 @@ func TestSetUnusedIsRejected(t *testing.T) {
 		t.Fatal("SET UNUSED silently accepted")
 	}
 }
+
+func TestFunctionReferenceContinuesAfterAlias(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Views:     []*metadatapb.ViewMetadata{{Name: "A", Definition: "SELECT 1 AS Z, Z() AS C FROM DUAL"}},
+		Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z RETURN NUMBER IS BEGIN RETURN 1; END;"}},
+	}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, "CREATE OR REPLACE FUNCTION Z")
+	view := strings.Index(definition, `CREATE VIEW "A"`)
+	if function < 0 || view < 0 || function > view {
+		t.Fatalf("view precedes function after alias:\n%s", definition)
+	}
+}
+
+func TestDropColumnSkipsBlockComment(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER, D NUMBER, CONSTRAINT CK CHECK(D /* C */ > 0)); ALTER TABLE T DROP COLUMN C`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["T"].CheckConstraints) != 1 {
+		t.Fatal("check removed because of a comment")
+	}
+}
+
+func TestPreAlterVirtualColumnDetachesIndex(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "D", Type: "NUMBER", Position: 2}, {Name: "V", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}}, Indexes: []*metadatapb.IndexMetadata{{Name: "I", Expressions: []string{"V"}, Visible: true}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "D", Type: "NUMBER", Position: 2}, {Name: "V", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "D+1"}}}, Indexes: oldTable.Indexes}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	dropIndex := strings.Index(sql, `DROP INDEX "I"`)
+	alter := strings.Index(sql, `MODIFY ("V"`)
+	createIndex := strings.Index(sql, `CREATE INDEX "I"`)
+	if dropIndex < 0 || alter < 0 || createIndex < 0 || !(dropIndex < alter && alter < createIndex) {
+		t.Fatalf("index not detached around virtual alteration:\n%s", sql)
+	}
+}

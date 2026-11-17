@@ -962,7 +962,10 @@ func preAlterDependentVirtualColumns(buf *strings.Builder, diff *MetadataDiff, t
 					}
 				}
 			}
+			dependents := findColumnDependents(tableDiff.OldTable, []string{change.OldColumn.GetName()}, nil)
+			dependents.writeDrops(buf, tableDiff.SchemaName, tableDiff.TableName)
 			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, change, columnNotNull{}))
+			dependents.writeCreates(buf, tableDiff.SchemaName, tableDiff.TableName)
 			diff.preAltered[change] = true
 			break
 		}
@@ -1390,6 +1393,22 @@ func expressionReferencesColumn(expression, column string) bool {
 	for i := 0; i < len(expression); {
 		if end, ok := alternativeQuoteEnd(expression, i); ok {
 			i = end
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '-' && expression[i+1] == '-' {
+			if end := strings.IndexByte(expression[i:], '\n'); end >= 0 {
+				i += end + 1
+			} else {
+				return false
+			}
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '/' && expression[i+1] == '*' {
+			if end := strings.Index(expression[i+2:], "*/"); end >= 0 {
+				i += end + 4
+			} else {
+				return false
+			}
 			continue
 		}
 		switch c := expression[i]; {

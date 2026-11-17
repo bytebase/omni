@@ -203,6 +203,10 @@ replay tests exercise.
 - Dropping a table clears its provenance, `ALTER TRIGGER ... RENAME` moves the
   trigger, and `SET UNUSED` is rejected.
 - A qualified statement establishes the owner for later validation.
+- Function references keep scanning after a non-call occurrence of the name.
+- Dependency scanning skips line and block comments.
+- An early virtual-column alteration detaches and restores its dependent
+  indexes and constraints.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps

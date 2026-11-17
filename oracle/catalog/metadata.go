@@ -907,7 +907,10 @@ func expressionReferencesFunction(expression, function string) bool {
 		for end < len(expression) && (expression[end] == ' ' || expression[end] == '\t' || expression[end] == '\n' || expression[end] == '\r') {
 			end++
 		}
-		return end < len(expression) && expression[end] == '('
+		if end < len(expression) && expression[end] == '(' {
+			return true
+		}
+		offset = end
 	}
 }
 
