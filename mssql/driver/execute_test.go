@@ -64,29 +64,62 @@ func TestExecuteNamesTheFailingStatementOfABatch(t *testing.T) {
 	}
 }
 
-// TestExecuteKeepsTheBatchWordingWithoutALine holds a batch whose error names
-// no line to the batch's wording: there is no statement to point at.
-func TestExecuteKeepsTheBatchWordingWithoutALine(t *testing.T) {
-	noLine := gomssqldb.Error{Number: 50000, Class: 16, State: 1, Message: "statement failed"}
-	batch := driver.Command{Text: "INSERT INTO b_items VALUES (3, N'c');\nINSERT INTO b_items VALUES (4, N'd');"}
-	failing := func(context.Context, string, ...any) (sql.Result, error) { return nil, noLine }
-
-	_, err := executeStatement(context.Background(), failing, batch)
-	if err == nil {
-		t.Fatal("expected an error")
+// TestExecuteKeepsTheBatchWordingWithoutAStatement holds the fallback: a batch
+// whose error names no line, names a routine's line, or names a line that more
+// than one statement covers keeps the wording it had.
+func TestExecuteKeepsTheBatchWordingWithoutAStatement(t *testing.T) {
+	twoLines := "INSERT INTO b_items VALUES (3, N'c');\nINSERT INTO b_items VALUES (4, N'd');"
+	cases := []struct {
+		name  string
+		batch string
+		err   error
+		want  string
+	}{
+		{
+			name:  "no line",
+			batch: twoLines,
+			err:   gomssqldb.Error{Number: 50000, Class: 16, State: 1, Message: "statement failed"},
+			want:  "Msg 50000, Level 16, State 1, Server , Line 0\nstatement failed",
+		},
+		{
+			name:  "a routine's line counts from the routine",
+			batch: twoLines,
+			err:   gomssqldb.Error{Number: 50000, Class: 16, State: 1, LineNo: 2, ProcName: "p_items", Message: "routine failed"},
+			want:  "Msg 50000, Level 16, State 1, Server , Procedure p_items, Line 2\nroutine failed",
+		},
+		{
+			name:  "two statements on the line",
+			batch: "INSERT INTO b_items VALUES (3, N'c'); INSERT INTO b_items VALUES (4, N'd');",
+			err:   gomssqldb.Error{Number: 2627, Class: 14, State: 1, LineNo: 1, Message: "duplicate key"},
+			want:  "Msg 2627, Level 14, State 1, Server , Line 1\nduplicate key",
+		},
+		{
+			name:  "a statement ends on the line the next one starts at",
+			batch: "INSERT INTO b_items\nVALUES (3, N'c'); INSERT INTO b_items VALUES (4, N'd');",
+			err:   gomssqldb.Error{Number: 2627, Class: 14, State: 1, LineNo: 2, Message: "duplicate key"},
+			want:  "Msg 2627, Level 14, State 1, Server , Line 2\nduplicate key",
+		},
+		{
+			name:  "not the server's error",
+			batch: twoLines,
+			err:   errors.New("connection lost"),
+			want:  "failed to execute statement: connection lost",
+		},
 	}
-	if err.Error() != "Msg 50000, Level 16, State 1, Server , Line 0\nstatement failed" {
-		t.Fatalf("error = %v, want the server's messages alone", err)
-	}
-	if strings.Contains(err.Error(), "INSERT INTO") {
-		t.Fatalf("error = %v, want no statement named", err)
-	}
-	// An error that is not the server's names no line either.
-	_, err = executeStatement(context.Background(), func(context.Context, string, ...any) (sql.Result, error) {
-		return nil, errors.New("connection lost")
-	}, batch)
-	if err == nil || err.Error() != "failed to execute statement: connection lost" {
-		t.Fatalf("error = %v, want the batch's wording", err)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			failing := func(context.Context, string, ...any) (sql.Result, error) { return nil, c.err }
+			_, err := executeStatement(context.Background(), failing, driver.Command{Text: c.batch})
+			if err == nil {
+				t.Fatal("expected an error")
+			}
+			if err.Error() != c.want {
+				t.Fatalf("error = %q, want %q", err, c.want)
+			}
+			if strings.Contains(err.Error(), "failed to execute statement \"") {
+				t.Fatalf("error = %v, want no statement named", err)
+			}
+		})
 	}
 }
 

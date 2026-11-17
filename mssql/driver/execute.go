@@ -160,9 +160,10 @@ func executeStatement(ctx context.Context, exec execFunc, command driver.Command
 }
 
 // failingStatement returns the text of the statement of batch the server
-// reported err at, which is the statement that starts at or before the error's
-// line. ok is false when the server named no line, or when the batch holds no
-// statement that starts at or before it: the error then names the batch alone.
+// reported err at, which is the statement that covers the error's line. ok is
+// false when the server named no line, or named a line that no one statement
+// covers: several statements can share a line, and a statement can end on the
+// line the next one starts at, so an ambiguous line names none of them.
 func failingStatement(batch string, err error) (string, bool) {
 	line := errorLine(err)
 	if line == 0 {
@@ -173,6 +174,7 @@ func failingStatement(batch string, err error) (string, bool) {
 		return "", false
 	}
 	failing := ""
+	covering := 0
 	for _, statement := range statements {
 		if statement.Empty() {
 			continue
@@ -180,25 +182,33 @@ func failingStatement(batch string, err error) (string, bool) {
 		if statement.Start.Line > line {
 			break
 		}
+		if statement.End.Line < line {
+			continue
+		}
+		covering++
 		failing = strings.TrimSpace(statement.Text)
 	}
-	return failing, failing != ""
+	if covering != 1 {
+		return "", false
+	}
+	return failing, true
 }
 
 // errorLine returns the line of the batch the server reported err at, and 0
 // when it named none. The first message that names a line is the one that
-// failed: the messages after it are often its cascade.
+// failed: the messages after it are often its cascade. A message a routine
+// sent counts its line from the routine, not from the batch, so it names none.
 func errorLine(err error) int {
 	var e gomssqldb.Error
 	if !errors.As(err, &e) {
 		return 0
 	}
 	for _, message := range e.All {
-		if message.LineNo > 0 {
+		if message.LineNo > 0 && message.ProcName == "" {
 			return int(message.LineNo)
 		}
 	}
-	if e.LineNo > 0 {
+	if e.LineNo > 0 && e.ProcName == "" {
 		return int(e.LineNo)
 	}
 	return 0
