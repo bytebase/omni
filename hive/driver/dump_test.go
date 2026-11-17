@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"database/sql"
 	"os"
 	"path/filepath"
 	"strings"
@@ -588,4 +589,62 @@ func TestDumpUnescapeDescribed(t *testing.T) {
 	}
 	// A comment the dump states reads back as the one the server stored.
 	require.Equal(t, "'a\\\\b'", dumpString(dumpUnescapeDescribed(`a\\b`)))
+}
+
+// TestDumpQueryRow holds how a query the server states over several rows reads
+// back: each row is a line, a line the query holds empty is one, and the rows
+// that end the section state none.
+func TestDumpQueryRow(t *testing.T) {
+	null := sql.NullString{}
+	for _, row := range []struct {
+		name              string
+		label             string
+		dataType, comment sql.NullString
+		want              string
+		wantOK            bool
+	}{
+		{
+			name:     "the line a row states",
+			dataType: sql.NullString{String: "SELECT 1bad         ", Valid: true},
+			want:     "SELECT 1bad",
+			wantOK:   true,
+		},
+		{
+			name:     "the line that falls in the cell beside it",
+			dataType: sql.NullString{String: strings.Repeat(" ", 21), Valid: true},
+			comment:  sql.NullString{String: "FROM omni_dump.z_users", Valid: true},
+			want:     "FROM omni_dump.z_users",
+			wantOK:   true,
+		},
+		{
+			name:     "a line the query holds empty",
+			dataType: sql.NullString{String: strings.Repeat(" ", 21), Valid: true},
+			want:     "",
+			wantOK:   true,
+		},
+		{
+			name:     "a line holding an indent",
+			dataType: sql.NullString{String: "    b", Valid: true},
+			want:     "    b",
+			wantOK:   true,
+		},
+		{
+			name:     "the row that ends the section",
+			dataType: null,
+			comment:  null,
+			want:     "",
+			wantOK:   false,
+		},
+		{
+			name:     "a row stating another field",
+			label:    "Rewrite Enabled:",
+			dataType: sql.NullString{String: "No", Valid: true},
+			want:     "",
+			wantOK:   false,
+		},
+	} {
+		line, ok := dumpQueryRow(row.label, row.dataType, row.comment)
+		require.Equal(t, row.wantOK, ok, row.name)
+		require.Equal(t, row.want, line, row.name)
+	}
 }

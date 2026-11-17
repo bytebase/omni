@@ -348,13 +348,12 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			case strings.HasPrefix(colNameValue, "Expanded Query:"):
 				tableInfo.expandedViewDef = trimField(dataTypeValue)
 				reading = &tableInfo.expandedViewDef
-			case trimField(colNameValue) == "" && reading != nil:
-				// A query the server states over more than one line continues
-				// in rows of its own, whose line falls in whichever cell the
-				// layout reaches past the padding.
-				if line := trimField(trimField(dataTypeValue) + trimField(commentValue)); line != "" {
-					*reading += "\n" + line
+			case reading != nil:
+				line, ok := dumpQueryRow(colNameValue, dataType, comment)
+				if !ok {
+					continue
 				}
+				*reading += "\n" + line
 			default:
 				// No action needed for other view fields
 			}
@@ -369,6 +368,21 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	tableInfo.storage = storageReader.storage
 
 	return tableInfo, nil
+}
+
+// dumpQueryRow reads one row of a DESCRIBE FORMATTED view section as a line of
+// the query being read, and false for a row that states none of it: the query
+// continues in rows whose label is empty, and the rows that end the section
+// leave every cell absent where a line the query holds empty states blank ones.
+// The layout pads a line on the right, so the line's own indent stands.
+func dumpQueryRow(label string, dataType, comment sql.NullString) (string, bool) {
+	if trimField(label) != "" {
+		return "", false
+	}
+	if !dataType.Valid && !comment.Valid {
+		return "", false
+	}
+	return strings.TrimRight(dataType.String, " ") + strings.TrimRight(comment.String, " "), true
 }
 
 func trimField(field string) string {
