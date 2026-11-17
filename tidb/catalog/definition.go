@@ -18,6 +18,7 @@ const (
 	tempViewHeader        = "-- Temporary view structure for "
 	tableHeader           = "-- Table structure for "
 	viewHeader            = "-- View structure for "
+	sequenceHeader        = "-- Sequence structure for "
 	functionHeader        = "-- Function structure for "
 	procedureHeader       = "-- Procedure structure for "
 	triggerHeader         = "-- Trigger structure for "
@@ -93,6 +94,13 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
+	// Sequences come before tables: a default may read one.
+	for _, sequence := range schema.Sequences {
+		if err := writeSequence(&buf, sequence); err != nil {
+			return "", err
+		}
+	}
+
 	// Construct tables.
 	for _, table := range schema.Tables {
 		if err := writeTable(&buf, table); err != nil {
@@ -144,6 +152,58 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 	}
 
 	return buf.String(), nil
+}
+
+// SequenceDefinition renders one sequence as its mysqldump-style section.
+func SequenceDefinition(sequence *metadata.SequenceMetadata) (string, error) {
+	var buf strings.Builder
+	if err := writeSequence(&buf, sequence); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
+}
+
+// writeSequence writes sequence as TiDB's own SHOW CREATE SEQUENCE does: every
+// option, the engine, and the comment.
+func writeSequence(out *strings.Builder, sequence *metadata.SequenceMetadata) error {
+	for _, s := range []string{emptyCommentLine, sequenceHeader, quoteIdent(sequence.Name) + "\n", emptyCommentLine} {
+		if _, err := io.WriteString(out, s); err != nil {
+			return err
+		}
+	}
+	return writeCreateSequence(out, sequence)
+}
+
+func writeCreateSequence(out *strings.Builder, sequence *metadata.SequenceMetadata) error {
+	fmt.Fprintf(out, "CREATE SEQUENCE %s", quoteIdent(sequence.Name))
+	for _, opt := range []struct{ name, value string }{
+		{"start with", sequence.Start},
+		{"minvalue", sequence.MinValue},
+		{"maxvalue", sequence.MaxValue},
+		{"increment by", sequence.Increment},
+	} {
+		if opt.value != "" {
+			fmt.Fprintf(out, " %s %s", opt.name, opt.value)
+		}
+	}
+	switch sequence.CacheSize {
+	case "0":
+		out.WriteString(" nocache")
+	case "":
+	default:
+		fmt.Fprintf(out, " cache %s", sequence.CacheSize)
+	}
+	if sequence.Cycle {
+		out.WriteString(" cycle")
+	} else {
+		out.WriteString(" nocycle")
+	}
+	out.WriteString(" ENGINE=InnoDB")
+	if sequence.Comment != "" {
+		fmt.Fprintf(out, " COMMENT='%s'", outputFormat(sequence.Comment))
+	}
+	_, err := out.WriteString(";\n\n")
+	return err
 }
 
 // TableDefinition renders one table as its mysqldump-style section.
@@ -1024,6 +1084,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata) error
 
 	if _, err := fmt.Fprint(buf, ")"); err != nil {
 		return err
+	}
+
+	if index.Comment != "" {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+			return err
+		}
 	}
 
 	return nil

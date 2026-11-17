@@ -249,6 +249,34 @@ func TestPrintIndexClauseFunctionalExprNormalized(t *testing.T) {
 	require.NotContains(t, buf.String(), `\'`)
 }
 
+// TestPrintIndexClauseWritesComment pins the index COMMENT a sync reads from
+// INDEX_COMMENT: without it the dump loses the comment on every secondary index.
+func TestPrintIndexClauseWritesComment(t *testing.T) {
+	var buf strings.Builder
+	index := &metadata.IndexMetadata{
+		Name:        "idx_v",
+		Type:        "BTREE",
+		Visible:     true,
+		Expressions: []string{"v"},
+		KeyLength:   []int64{-1},
+		Comment:     "owner's note",
+	}
+	require.NoError(t, printIndexClause(&buf, index, "InnoDB"))
+	require.Equal(t, ",\n  KEY `idx_v` (`v`) COMMENT 'owner''s note'", buf.String())
+}
+
+// TestTableDefinitionWritesPrimaryKeyComment pins the PRIMARY KEY COMMENT a
+// sync reads from INDEX_COMMENT, which SHOW CREATE TABLE writes after the key.
+func TestTableDefinitionWritesPrimaryKeyComment(t *testing.T) {
+	got, err := TableDefinition(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}, Comment: "identity", Visible: true}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, "PRIMARY KEY (`id`) COMMENT 'identity'")
+}
+
 // TestStripViewBodyDatabaseQualifier pins the token-scanner rewrite (X6). The failure
 // shapes were live-verified: (a) `db`.`db`.`col` (a table named like the database, the
 // 5.7 three-part form) was double-stripped down to `col`; (b) a backtick alias

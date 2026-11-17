@@ -129,11 +129,6 @@ func TestDumpGaps(t *testing.T) {
 				"CREATE VIEW v2 AS SELECT renamed_id FROM v1;",
 			wantErr: "Unknown column",
 		},
-		{
-			name:  "index comment",
-			db:    "omni_gap_idx_comment",
-			setup: "CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY idx_v (v) COMMENT 'note');",
-		},
 	} {
 		t.Run(gap.name, func(t *testing.T) {
 			source, restored, err := dumpAndRestore(t, testcontainer.Default, gap.db, gap.setup)

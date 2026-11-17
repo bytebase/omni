@@ -139,9 +139,14 @@ func DatabasePath(instance, database string) string {
 
 // Create returns the resource name of database on instance, creating the
 // instance on first use and the database with statements as its DDL and rows as
-// the DML it then runs. It reaches the server, so only a recording calls it.
+// the DML it then runs, in a recording. A replay starts no server: the database
+// is not there, and the tape answers as if it were, so the name alone is what
+// the test needs.
 func Create(t testing.TB, instance, database string, statements []string, rows []string) string {
 	t.Helper()
+	if !enginetest.Recording(t) {
+		return DatabasePath(instance, database)
+	}
 	host := Host(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
@@ -351,9 +356,12 @@ func Terminate() {
 
 // CreatePostgres returns the resource name of a database of the PostgreSQL
 // dialect named database on instance, creating the instance on first use and the
-// database empty. It reaches the server, so only a recording calls it.
+// database empty, in a recording. A replay starts no server.
 func CreatePostgres(t testing.TB, instance, database string) string {
 	t.Helper()
+	if !enginetest.Recording(t) {
+		return DatabasePath(instance, database)
+	}
 	host := Host(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()

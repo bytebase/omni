@@ -956,6 +956,12 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 		return err
 	}
 
+	if index.Comment != "" {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+			return err
+		}
+	}
+
 	// INVISIBLE secondary index (MySQL 8.0). The version-gated executable comment is parsed
 	// back by omni's loader, so the dumped `from` carries invisibility and the diff against
 	// an INVISIBLE user `to` is a no-op instead of a DROP+ADD.
@@ -1161,6 +1167,11 @@ func printPrimaryKeyClause(buf *strings.Builder, indexes []*metadata.IndexMetada
 			}
 			if _, err := fmt.Fprint(buf, ")", indexUsingClause(index.Type, engine)); err != nil {
 				return err
+			}
+			if index.Comment != "" {
+				if _, err := fmt.Fprintf(buf, " COMMENT '%s'", escapeComment(index.Comment)); err != nil {
+					return err
+				}
 			}
 			return nil
 		}

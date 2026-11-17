@@ -67,13 +67,6 @@ func TestDumpRestores(t *testing.T) {
 	}
 }
 
-func TestDumpGaps(t *testing.T) {
-	source, restored := dumpAndRestore(t, "omni_gap_seq", "CREATE SEQUENCE seq_gap START WITH 10 INCREMENT BY 2;")
-	if restoreDiff(source, restored) == "" {
-		t.Fatal("sequence gap closed; move CREATE SEQUENCE back into TestDumpRestores")
-	}
-}
-
 func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {
 	return cmp.Diff(source, restored, protocmp.Transform(),
 		protocmp.IgnoreFields(&metadatapb.TableMetadata{}, "data_size", "index_size", "data_free", "row_count"),
