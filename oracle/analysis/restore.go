@@ -193,11 +193,15 @@ func disjoint(a []string, b map[string]bool) bool {
 }
 
 // indexKeys returns the key column lists an index offers a MERGE: one per
-// constraint it enforces, since a constraint's keys may be a subset of the
-// index's, or the index's own keys when it enforces no constraint the sync
-// listed.
+// constraint it enforces, since a constraint's keys are its own columns — a
+// virtual column's too, which is how a function-based index enforces a unique
+// constraint — or the index's own keys when it enforces no constraint the sync
+// listed, which a function-based index's expressions are no columns of.
 func indexKeys(index *metadata.IndexMetadata) [][]string {
 	if len(index.GetConstraints()) == 0 {
+		if strings.Contains(index.Type, "FUNCTION-BASED") {
+			return nil
+		}
 		return [][]string{keyColumns(index.GetExpressions())}
 	}
 	keys := make([][]string, 0, len(index.GetConstraints()))
@@ -229,9 +233,6 @@ func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 		// same, which is what the metadata says of the index the constraint
 		// reuses: the index is not unique, and the constraint is.
 		if !index.Unique && !index.IsConstraint {
-			continue
-		}
-		if strings.Contains(index.Type, "FUNCTION-BASED") {
 			continue
 		}
 		for _, key := range indexKeys(index) {
