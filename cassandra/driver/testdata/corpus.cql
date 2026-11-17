@@ -70,3 +70,45 @@ INSERT INTO omni_events (group_id, bucket, event_id, payload) VALUES (1, 1, 4, '
 INSERT INTO omni_events (group_id, bucket, event_id, payload, note) VALUES (2, 9, 1, 'p3', 'second group');
 
 CREATE INDEX omni_events_payload_idx ON omni_events (payload);
+
+-- One row of every CQL type holding NULL, and one holding the type's zero
+-- value: the contract's Null and a zero value must not read alike. A collection
+-- is the exception: Cassandra stores an empty list, set or map as NULL, so those
+-- three stay NULL in the zero row and Null is what the driver reads.
+CREATE TABLE omni_nulls (
+    id int PRIMARY KEY,
+    n int,
+    txt text,
+    ascii_col ascii,
+    vc varchar,
+    flag boolean,
+    bi bigint,
+    ti tinyint,
+    si smallint,
+    dbl double,
+    flt float,
+    dec decimal,
+    vi varint,
+    ts timestamp,
+    dt date,
+    tm time,
+    uid uuid,
+    tuid timeuuid,
+    bl blob,
+    dur duration,
+    lst list<int>,
+    st set<text>,
+    mp map<text,int>,
+    addr inet,
+    tup tuple<int, text>
+);
+
+INSERT INTO omni_nulls (id) VALUES (1);
+
+INSERT INTO omni_nulls (
+    id, n, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup
+) VALUES (
+    2, 0, '', '', '', false, 0, 0, 0, 0, 0, 0, 0, 0, '1970-01-01', 0,
+    00000000-0000-0000-0000-000000000000, 00000000-0000-1000-0000-000000000000,
+    0x, 0s, NULL, NULL, NULL, '0.0.0.0', (0, '')
+);

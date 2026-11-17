@@ -59,6 +59,149 @@
           ]
         },
         {
+          "name":  "omni_nulls",
+          "columns":  [
+            {
+              "name":  "id",
+              "nullable": true,
+              "type":  "int"
+            },
+            {
+              "name":  "addr",
+              "nullable": true,
+              "type":  "inet"
+            },
+            {
+              "name":  "ascii_col",
+              "nullable": true,
+              "type":  "ascii"
+            },
+            {
+              "name":  "bi",
+              "nullable": true,
+              "type":  "bigint"
+            },
+            {
+              "name":  "bl",
+              "nullable": true,
+              "type":  "blob"
+            },
+            {
+              "name":  "dbl",
+              "nullable": true,
+              "type":  "double"
+            },
+            {
+              "name":  "dec",
+              "nullable": true,
+              "type":  "decimal"
+            },
+            {
+              "name":  "dt",
+              "nullable": true,
+              "type":  "date"
+            },
+            {
+              "name":  "dur",
+              "nullable": true,
+              "type":  "duration"
+            },
+            {
+              "name":  "flag",
+              "nullable": true,
+              "type":  "boolean"
+            },
+            {
+              "name":  "flt",
+              "nullable": true,
+              "type":  "float"
+            },
+            {
+              "name":  "lst",
+              "nullable": true,
+              "type":  "list<int>"
+            },
+            {
+              "name":  "mp",
+              "nullable": true,
+              "type":  "map<text, int>"
+            },
+            {
+              "name":  "n",
+              "nullable": true,
+              "type":  "int"
+            },
+            {
+              "name":  "si",
+              "nullable": true,
+              "type":  "smallint"
+            },
+            {
+              "name":  "st",
+              "nullable": true,
+              "type":  "set<text>"
+            },
+            {
+              "name":  "ti",
+              "nullable": true,
+              "type":  "tinyint"
+            },
+            {
+              "name":  "tm",
+              "nullable": true,
+              "type":  "time"
+            },
+            {
+              "name":  "ts",
+              "nullable": true,
+              "type":  "timestamp"
+            },
+            {
+              "name":  "tuid",
+              "nullable": true,
+              "type":  "timeuuid"
+            },
+            {
+              "name":  "tup",
+              "nullable": true,
+              "type":  "frozen<tuple<int, text>>"
+            },
+            {
+              "name":  "txt",
+              "nullable": true,
+              "type":  "text"
+            },
+            {
+              "name":  "uid",
+              "nullable": true,
+              "type":  "uuid"
+            },
+            {
+              "name":  "vc",
+              "nullable": true,
+              "type":  "text"
+            },
+            {
+              "name":  "vi",
+              "nullable": true,
+              "type":  "varint"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "PRIMARY KEY",
+              "expressions":  [
+                "id"
+              ],
+              "descending":  [
+                false
+              ],
+              "primary": true,
+              "definition":  "(id)"
+            }
+          ]
+        },
+        {
           "name":  "omni_rows",
           "columns":  [
             {
