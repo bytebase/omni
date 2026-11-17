@@ -771,6 +771,67 @@ func TestReproducesAllowsANewScanType(t *testing.T) {
 	}
 }
 
+// A recording that adds the optional precision to a tape that predates it
+// still records: the metadata is not an engine answer that changed.
+func TestReproducesAllowsANewPrecision(t *testing.T) {
+	f := &fakeT{TB: t, name: "TestFake"}
+	req := request{kind: "query", text: "SELECT a"}
+	old := answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a", typ: "DECIMAL"}}, rows: [][]value{{{kind: "string", text: "1.25"}}}}}}
+	now := answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a", typ: "DECIMAL", precision: "5", scale: "2"}}, rows: [][]value{{{kind: "string", text: "1.25"}}}}}}
+	s := &session{t: f, name: "TestFake", want: []exchange{{req, old}}, got: []exchange{{req, now}}}
+	s.reproduces()
+	if len(f.errs) != 0 {
+		t.Fatalf("reproduces reported %q", f.errs)
+	}
+	if got := s.want[0].ans.sets[0].cols[0].precision; got != "" {
+		t.Errorf("reproduces changed the committed answer's precision to %q", got)
+	}
+	if got := s.got[0].ans.sets[0].cols[0].precision; got != "5" {
+		t.Errorf("reproduces changed the recording's precision to %q", got)
+	}
+	if got := s.got[0].ans.sets[0].cols[0].scale; got != "2" {
+		t.Errorf("reproduces changed the recording's scale to %q", got)
+	}
+}
+
+// The precision a live driver reports is written down and replayed.
+func TestColumnPrecisionReplays(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT precision")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		types, _ := rows.ColumnTypes()
+		if len(types) != 1 {
+			return []string{fmt.Sprintf("%d columns", len(types))}
+		}
+		precision, scale, ok := types[0].DecimalSize()
+		return []string{fmt.Sprintf("%d %d %v", precision, scale, ok)}
+	}
+	const want = "5 2 true"
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(recorded) != 1 || recorded[0] != want {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := "< column \"d\" \"DECIMAL\" precision 5 scale 2\n"; !strings.Contains(string(b), line) {
+		t.Errorf("the tape lacks %q:\n%s", line, b)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(replayed) != 1 || replayed[0] != want {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
@@ -797,7 +858,7 @@ func TestFormatRoundTrips(t *testing.T) {
 		name: "TestX/sub name default#1",
 		exchanges: []exchange{
 			{request{kind: "query", text: "", args: []value{{kind: "string", text: ""}, {kind: "float64", text: "1.5"}, {kind: "bool", text: "true"}, {kind: "time", text: "2026-11-12T00:00:00Z"}}},
-				answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a \"b\"", typ: "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
+				answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a \"b\"", typ: "UNSIGNED BIGINT", precision: "3", scale: "1"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
 			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
 			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
@@ -868,6 +929,8 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 			[]string{"INT", "INT8", "INT16", "INT32", "INT64", "UINT", "UINT8", "UINT16", "UINT32", "UINT64", "FLOAT32", "FLOAT64"},
 			[][]driver.Value{{int(-1), int8(-8), int16(-16), int32(-32), int64(-64), uint(1), uint8(8), uint16(16), uint32(32), uint64(64), float32(1.5), float64(2.5)}},
 		}}}, nil
+	case "SELECT precision":
+		return &fakeRows{sets: []fakeSet{{[]string{"d"}, []string{"DECIMAL"}, [][]driver.Value{{"1.25"}}}}}, nil
 	case "SELECT now":
 		c.e.now++
 		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil
@@ -900,8 +963,14 @@ type fakeRows struct {
 
 func (r *fakeRows) Columns() []string                       { return r.sets[r.set].cols }
 func (r *fakeRows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].types[i] }
-func (r *fakeRows) Close() error                            { return nil }
-func (r *fakeRows) HasNextResultSet() bool                  { return r.set+1 < len(r.sets) }
+func (r *fakeRows) ColumnTypePrecisionScale(i int) (int64, int64, bool) {
+	if r.sets[r.set].types[i] == "DECIMAL" {
+		return 5, 2, true
+	}
+	return 0, 0, false
+}
+func (r *fakeRows) Close() error           { return nil }
+func (r *fakeRows) HasNextResultSet() bool { return r.set+1 < len(r.sets) }
 func (r *fakeRows) NextResultSet() error {
 	if !r.HasNextResultSet() {
 		return io.EOF

@@ -652,3 +652,124 @@ func TestSequenceDefinitionWritesTheSyncedComment(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "owner's counter", c.GetDatabase("d").Sequences["s"].Comment)
 }
+
+// TestViewDefinitionStatesColumnList pins where a dump states a view's explicit
+// column list: the engine stores the body under the select's own names and keeps
+// the list beside it, so only the list makes the restored body yield the view's
+// columns. A body that names them itself needs none.
+func TestViewDefinitionStatesColumnList(t *testing.T) {
+	for _, tt := range []struct {
+		name       string
+		definition string
+		columns    []string
+		want       string
+	}{
+		{
+			name:       "other columns",
+			definition: "select `t`.`id` AS `id` from `t`",
+			columns:    []string{"renamed_id"},
+			want:       " (`renamed_id`)",
+		},
+		{
+			name:       "the same columns",
+			definition: "select `t`.`id` AS `id`,`t`.`v` AS `v` from `t`",
+			columns:    []string{"id", "v"},
+		},
+		{
+			name:       "an unaliased column",
+			definition: "SELECT id FROM t",
+			columns:    []string{"id"},
+		},
+		{
+			name:       "a name's case",
+			definition: "select `t`.`id` AS `id` from `t`",
+			columns:    []string{"ID"},
+			want:       " (`ID`)",
+		},
+		{
+			name:       "an unnamed expression",
+			definition: "select (`t`.`id` + 1) AS `id + 1` from `t`",
+			columns:    []string{"total"},
+			want:       " (`total`)",
+		},
+		{
+			name:       "a set operation",
+			definition: "select `t`.`id` AS `id` from `t` union all select `u`.`id` AS `id` from `u`",
+			columns:    []string{"a"},
+			want:       " (`a`)",
+		},
+		{
+			name:       "a star",
+			definition: "SELECT * FROM t",
+			columns:    []string{"a", "b"},
+			want:       " (`a`,`b`)",
+		},
+		{
+			name:       "WITH CHECK OPTION",
+			definition: "select `t`.`id` AS `id` from `t` where (`t`.`id` > 0) WITH CASCADED CHECK OPTION",
+			columns:    []string{"c"},
+			want:       " (`c`)",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			view := &metadata.ViewMetadata{Name: "v", Definition: tt.definition}
+			for _, name := range tt.columns {
+				view.Columns = append(view.Columns, &metadata.ColumnMetadata{Name: name})
+			}
+			got, err := ViewDefinition(view)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tt.want == "" {
+				if strings.Contains(got, "`v` (") {
+					t.Errorf("a body that names its own columns states no list:\n%s", got)
+				}
+				return
+			}
+			if !strings.Contains(got, "`v`"+tt.want+" AS ") {
+				t.Errorf("the list %q is missing:\n%s", tt.want, got)
+			}
+		})
+	}
+}
+
+// TestSDLViewStatesColumnList loads the SDL form of a synced view. The engine
+// stores a declared column list as the body's aliases, so a snapshot names its
+// columns in the body and the SDL states none: were it to state one, the two
+// would disagree on every load.
+func TestSDLViewStatesColumnList(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "d",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "d",
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: true}},
+				Engine:  "InnoDB", Charset: "utf8mb4", Collation: "utf8mb4_0900_ai_ci",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v",
+				Definition: "select `t`.`id` AS `renamed_id` from `t`",
+				Columns:    []*metadata.ColumnMetadata{{Name: "renamed_id", Type: "int", Nullable: true}},
+			}},
+		}},
+	}
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(sdl, "`v` (") {
+		t.Fatalf("the body names the columns, so the SDL states no list:\n%s", sdl)
+	}
+	loaded, err := LoadSDL("CREATE DATABASE `d`;\nUSE `d`;\n" + sdl)
+	if err != nil {
+		t.Fatal(err)
+	}
+	source := New()
+	if _, err := source.LoadMetadata(context.Background(), meta); err != nil {
+		t.Fatal(err)
+	}
+	if diff := Diff(source, loaded); !diff.IsEmpty() {
+		t.Fatalf("SDL round trip differs: %+v", diff.Views)
+	}
+}

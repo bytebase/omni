@@ -76,10 +76,11 @@
 // ARRAY of STRUCT, is refused before any row is read, as Bytebase refused it.
 // A NUMERIC and a PG_NUMERIC arrive as the text Spanner writes.
 //
-// Execute routes each statement by what it is: DDL goes to the database admin
-// API's UpdateDatabaseDdl, in order and outside any transaction, because Spanner
-// DDL is not transactional with DML; a query runs as QueryOptions does; and the
-// rest is DML, which runs through the data client. ExecuteOptions.Transaction
+// Execute routes each statement by what it is: DDL — CREATE, ALTER, DROP, GRANT
+// and REVOKE — goes to the database admin API's UpdateDatabaseDdl, in order and
+// outside any transaction, because Spanner DDL is not transactional with DML; a
+// query runs as QueryOptions does; and the rest is DML, which runs through the
+// data client. ExecuteOptions.Transaction
 // ON (and an empty value, which is Bytebase's default) runs a script's DML as one
 // read-write transaction, and OFF runs each statement as a partitioned update,
 // whose row count is Spanner's lower bound. DDL in a script takes the DDL path

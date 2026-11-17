@@ -19,7 +19,7 @@ CREATE TABLE accounts (
 	note VARCHAR(100) COMMENT 'owner''s note \\ path',
 	UNIQUE KEY uk_email (email),
 	KEY idx_bio_prefix (bio(32)),
-	KEY idx_created_desc (created_at DESC) COMMENT 'newest first', -- not restorable: TestDumpGaps
+	KEY idx_created_desc (created_at DESC) COMMENT 'newest first',
 	KEY idx_invisible (status) INVISIBLE,
 	KEY idx_expr ((LOWER(status))),
 	FULLTEXT KEY ft_bio (bio),
@@ -56,7 +56,10 @@ CREATE TABLE metrics_hash (
 CREATE VIEW v_open_accounts AS
 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 
-CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts; -- not restorable: TestDumpGaps
+CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+
+CREATE VIEW v_named_cols_ref AS
+	SELECT renamed_id FROM v_named_cols;
 
 CREATE VIEW v_order_totals AS
 	SELECT a.acct_id, COUNT(o.id) AS order_count

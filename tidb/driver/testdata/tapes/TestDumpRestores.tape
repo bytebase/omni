@@ -42,13 +42,23 @@
 | );
 < ok 0 0
 > exec
+| CREATE SEQUENCE seq_orders START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CACHE 50 CYCLE COMMENT='order seq';
+< ok 0 0
+> exec
 | CREATE VIEW v_open_accounts AS
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+< ok 0 0
+> exec
+| CREATE VIEW v_named_cols_ref AS
+| 	SELECT renamed_id FROM v_named_cols;
 < ok 0 0
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.11-TiDB-v8.5.5
@@ -190,15 +200,15 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -543,6 +553,48 @@
 |
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -594,8 +646,18 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < row
 : bytes
 | v_open_accounts
@@ -625,16 +687,16 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | omni_dump_roundtrip
@@ -675,8 +737,8 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -694,14 +756,25 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
+< row
+: bytes
+| seq_orders
+: int64 10
+: int64 1
+: int64 10000
+: int64 2
+: int64 1
+: int64 50
+: bytes
+| order seq
 > query
 |
 | 		SELECT
@@ -779,16 +852,16 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLE_ROWS, 0)" "BIGINT"
-< column "IFNULL(DATA_LENGTH, 0)" "BIGINT"
-< column "IFNULL(INDEX_LENGTH, 0)" "BIGINT"
-< column "IFNULL(DATA_FREE, 0)" "BIGINT"
-< column "IFNULL(CREATE_OPTIONS, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_ROWS, 0)" "BIGINT" "int64"
+< column "IFNULL(DATA_LENGTH, 0)" "BIGINT" "int64"
+< column "IFNULL(INDEX_LENGTH, 0)" "BIGINT" "int64"
+< column "IFNULL(DATA_FREE, 0)" "BIGINT" "int64"
+< column "IFNULL(CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -833,6 +906,27 @@
 | CLUSTERED
 < row
 : bytes
+| seq_orders
+: bytes
+| SEQUENCE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 1
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+< row
+: bytes
 | sharded_events
 : bytes
 | BASE TABLE
@@ -852,6 +946,48 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v_open_accounts
@@ -906,9 +1042,20 @@
 | SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0
 < ok 0 0
 > exec
+| CREATE VIEW `v_named_cols` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT
+|   1 AS `renamed_id`
+< ok 0 0
+> exec
 | CREATE VIEW `v_open_accounts` AS SELECT
 |   1 AS `acct_id`,
 |   1 AS `acct_email`
+< ok 0 0
+> exec
+| CREATE SEQUENCE `seq_orders` start with 10 minvalue 1 maxvalue 10000 increment by 2 cache 50 cycle ENGINE=InnoDB COMMENT='order seq'
 < ok 0 0
 > exec
 | CREATE TABLE `accounts` (
@@ -950,6 +1097,18 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 < ok 0 0
 > exec
+| DROP VIEW IF EXISTS `v_named_cols`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS `v_named_cols_ref`
+< ok 0 0
+> exec
+| CREATE VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
+< ok 0 0
+> exec
 | DROP VIEW IF EXISTS `v_open_accounts`
 < ok 0 0
 > exec
@@ -964,7 +1123,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.11-TiDB-v8.5.5
@@ -1106,15 +1265,15 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
 < column "ORDINAL_POSITION" "BIGINT"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
 < column "IS_NULLABLE" "VARCHAR"
 < column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "VARCHAR"
-< column "GENERATION_EXPRESSION" "TEXT"
+< column "GENERATION_EXPRESSION" "TEXT" "string"
 < column "EXTRA" "VARCHAR"
 < row
 : bytes
@@ -1459,6 +1618,48 @@
 |
 < row
 : bytes
+| v_named_cols
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| renamed_id
+: int64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+< row
+: bytes
 | v_open_accounts
 : bytes
 | acct_id
@@ -1510,8 +1711,18 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "VIEW_DEFINITION" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "VIEW_DEFINITION" "TEXT" "string"
+< row
+: bytes
+| v_named_cols
+: bytes
+| SELECT `id` AS `id` FROM `omni_dump_roundtrip`.`accounts`
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| SELECT `renamed_id` AS `renamed_id` FROM `omni_dump_roundtrip`.`v_named_cols`
 < row
 : bytes
 | v_open_accounts
@@ -1541,16 +1752,16 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
-< column "DELETE_RULE" "VARCHAR"
-< column "UPDATE_RULE" "VARCHAR"
-< column "MATCH_OPTION" "VARCHAR"
+< column "DELETE_RULE" "VARCHAR" "string"
+< column "UPDATE_RULE" "VARCHAR" "string"
+< column "MATCH_OPTION" "VARCHAR" "string"
 < row
 : bytes
 | omni_dump_roundtrip
@@ -1591,8 +1802,8 @@
 | omni_dump_roundtrip
 < result
 < column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -1610,14 +1821,25 @@
 : string
 | omni_dump_roundtrip
 < result
-< column "SEQUENCE_NAME" "VARCHAR"
+< column "SEQUENCE_NAME" "VARCHAR" "string"
 < column "START" "BIGINT"
 < column "MIN_VALUE" "BIGINT"
 < column "MAX_VALUE" "BIGINT"
-< column "INCREMENT" "BIGINT"
-< column "CYCLE" "TINYINT"
+< column "INCREMENT" "BIGINT" "int64"
+< column "CYCLE" "TINYINT" "int8"
 < column "CACHE_VALUE" "BIGINT"
-< column "IFNULL(COMMENT, '')" "VARCHAR"
+< column "IFNULL(COMMENT, '')" "VARCHAR" "string"
+< row
+: bytes
+| seq_orders
+: int64 10
+: int64 1
+: int64 10000
+: int64 2
+: int64 1
+: int64 50
+: bytes
+| order seq
 > query
 |
 | 		SELECT
@@ -1695,16 +1917,16 @@
 < result
 < column "TABLE_NAME" "VARCHAR"
 < column "TABLE_TYPE" "VARCHAR"
-< column "IFNULL(ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLE_ROWS, 0)" "BIGINT"
-< column "IFNULL(DATA_LENGTH, 0)" "BIGINT"
-< column "IFNULL(INDEX_LENGTH, 0)" "BIGINT"
-< column "IFNULL(DATA_FREE, 0)" "BIGINT"
-< column "IFNULL(CREATE_OPTIONS, '')" "VARCHAR"
+< column "IFNULL(ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLE_ROWS, 0)" "BIGINT" "int64"
+< column "IFNULL(DATA_LENGTH, 0)" "BIGINT" "int64"
+< column "IFNULL(INDEX_LENGTH, 0)" "BIGINT" "int64"
+< column "IFNULL(DATA_FREE, 0)" "BIGINT" "int64"
+< column "IFNULL(CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLE_COMMENT, ''))" "VARCHAR"
-< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR"
-< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR"
+< column "IFNULL(TIDB_ROW_ID_SHARDING_INFO, '')" "VARCHAR" "string"
+< column "IFNULL(TIDB_PK_TYPE, '')" "VARCHAR" "string"
 < row
 : bytes
 | accounts
@@ -1749,6 +1971,27 @@
 | CLUSTERED
 < row
 : bytes
+| seq_orders
+: bytes
+| SEQUENCE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_bin
+: int64 1
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| NOT_SHARDED
+: bytes
+| NONCLUSTERED
+< row
+: bytes
 | sharded_events
 : bytes
 | BASE TABLE
@@ -1768,6 +2011,48 @@
 | PK_AUTO_RANDOM_BITS=5
 : bytes
 | CLUSTERED
+< row
+: bytes
+| v_named_cols
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
+< row
+: bytes
+| v_named_cols_ref
+: bytes
+| VIEW
+: bytes
+|
+: bytes
+|
+: int64 0
+: int64 0
+: int64 0
+: int64 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+|
+: bytes
+| NONCLUSTERED
 < row
 : bytes
 | v_open_accounts
