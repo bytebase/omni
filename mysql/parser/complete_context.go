@@ -945,6 +945,15 @@ func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeRef
 			}
 			break
 		}
+		if idx < len(tokens) && tokens[idx].depth == depth && tokens[idx].Type == kwDEFINER {
+			// CREATE DEFINER = user TRIGGER ...: the clause sits between the
+			// verb and the object type.
+			idx++
+			for n := 0; n < 6 && idx < len(tokens) && tokens[idx].depth == depth &&
+				tokens[idx].Type != kwTRIGGER && tokens[idx].Type != kwINDEX; n++ {
+				idx++
+			}
+		}
 		if idx < len(tokens) && tokens[idx].Type == kwTRIGGER {
 			return triggerRowScope(tokens, idx+1, depth)
 		}
@@ -989,7 +998,11 @@ func foreignKeyParentAt(tokens []completionScopeToken, first, depth, cursorOffse
 		}
 		closeIdx := matchingParen(tokens, next)
 		if closeIdx < 0 {
-			// The column list is still being typed and runs to the end.
+			// The column list is still being typed and runs to the end; only
+			// a cursor inside it changes the scope.
+			if cursorOffset < tokens[next].Loc {
+				continue
+			}
 			ref.Alias = ref.Table
 			ref.Loc = tokenLoc(tokens[i+1], tokens[len(tokens)-1])
 			return ref, true
@@ -1262,6 +1275,37 @@ func (f completionSelectFrame) refsVisibleFrom(cursorOffset int) []RangeReferenc
 	return f.localRefs
 }
 
+// nearestOnPredicate returns the last ON or USING condition before the cursor,
+// at any expression depth: ordinary parentheses around a condition do not hide
+// the join it belongs to. A completed subquery's condition is not this frame's,
+// which onBelongsToFrame decides.
+func nearestOnPredicate(tokens []completionScopeToken, cursorOffset int) int {
+	for i := len(tokens) - 1; i >= 0; i-- {
+		if tokens[i].Loc >= cursorOffset {
+			continue
+		}
+		switch tokens[i].Type {
+		case kwON, kwUSING:
+			return i
+		case ';':
+			return -1
+		}
+	}
+	return -1
+}
+
+// onInsideReference reports whether the position at is inside a reference the
+// frame already collapsed into one name, such as an aliased parenthesized join:
+// that reference's own condition does not narrow the frame.
+func onInsideReference(refs []RangeReference, at int) bool {
+	for _, ref := range refs {
+		if ref.Loc.Start >= 0 && ref.Loc.Start <= at && at <= ref.Loc.End {
+			return true
+		}
+	}
+	return false
+}
+
 // onBelongsToFrame reports whether the ON condition at onIdx belongs to the
 // FROM clause of the frame whose SELECT is at selectIdx: a query block between
 // them owns it instead.
@@ -1400,7 +1444,7 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			}
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
 			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs, 0)
-			if onIdx := onPredicateToken(tokens, cursorOffset, cursorDepth); onIdx >= 0 && onBelongsToFrame(tokens, i, onIdx) {
+			if onIdx := nearestOnPredicate(tokens, cursorOffset); onIdx > i && onBelongsToFrame(tokens, i, onIdx) && !onInsideReference(local, tokens[onIdx].Loc) {
 				// A join condition names its own join's operands: a comma
 				// before the join starts an unrelated list item, and a
 				// parenthesized operand contributes all its members. The
@@ -2178,7 +2222,11 @@ func collectSelectAliases(sql string, cursorOffset int) []SelectAlias {
 			depth = tokens[idx].depth
 		}
 		if inSetOperationGlobalClause(tokens, cursorOffset, depth) {
-			selectIdx = firstSetOperationArm(tokens, start, cursorOffset, depth)
+			armStart := start
+			if _, main := collectCTEs(tokens[start:end]); main > 0 {
+				armStart = start + main
+			}
+			selectIdx = firstSetOperationArm(tokens, armStart, cursorOffset, depth)
 		}
 	}
 	if selectIdx < 0 {
@@ -2304,6 +2352,9 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 	if end-start < 2 {
 		return SelectAlias{}, false
 	}
+	if last.Type == kwEND && closesCaseExpression(tokens, start, end, depth) {
+		return SelectAlias{}, false
+	}
 	prev := tokens[end-2]
 	if prev.Type != kwAS {
 		if !endsSelectExpression(prev) {
@@ -2320,6 +2371,24 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 		}
 	}
 	return SelectAlias{Name: last.Str, Loc: tokenLoc(last, last)}, true
+}
+
+// closesCaseExpression reports whether the item's final END closes the CASE
+// expression the item opened: the terminator is not an alias.
+func closesCaseExpression(tokens []completionScopeToken, start, end, depth int) bool {
+	cases, ends := 0, 0
+	for i := start; i < end; i++ {
+		if tokens[i].depth != depth {
+			continue
+		}
+		switch tokens[i].Type {
+		case kwCASE:
+			cases++
+		case kwEND:
+			ends++
+		}
+	}
+	return cases > 0 && cases == ends
 }
 
 // intervalUnitAt reports whether last, the trailing identifier of a select

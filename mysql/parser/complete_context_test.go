@@ -725,6 +725,31 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"column_0", "column_1"}}, cols: map[string][]string{"c": {"column_0", "column_1"}}},
 		},
 		{
+			name: "definer clause before the trigger object",
+			sql:  "CREATE DEFINER = 'root'@'localhost' TRIGGER tr BEFORE INSERT ON db.t FOR EACH ROW SET NEW.a = NEW.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"NEW"}, local: []ref{{database: "db", table: "t", alias: "NEW"}}},
+		},
+		{
+			name: "set operation after a cte names its arm",
+			sql:  "WITH z AS (SELECT 1 AS wrong) (SELECT a AS actual FROM t) UNION (SELECT b FROM u) ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, ctes: map[string][]string{"z": {"wrong"}}, aliases: []string{"actual"}},
+		},
+		{
+			name: "on condition through expression parentheses",
+			sql:  "SELECT * FROM t1 a JOIN t2 b ON (c.|) JOIN t3 c ON b.x = c.x",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
+		},
+		{
+			name: "cursor before an unfinished references list",
+			sql:  "ALTER TABLE child ADD FOREIGN KEY (|) REFERENCES parent (a",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "child", alias: "child"}}},
+		},
+		{
+			name: "case terminator is not an implicit alias",
+			sql:  "SELECT * FROM (SELECT CASE WHEN a = 1 THEN b ELSE c END FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},
