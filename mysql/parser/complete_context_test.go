@@ -428,6 +428,51 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "名", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}},
 		},
 		{
+			name: "expression operand is not an implicit alias",
+			sql:  "SELECT * FROM (SELECT a + b FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
+			name: "expression operand is not a select alias",
+			sql:  "SELECT a + b FROM t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}},
+		},
+		{
+			name: "order by after a from-less select list",
+			sql:  "SELECT 1 AS total ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, aliases: []string{"total"}},
+		},
+		{
+			name: "update subquery sees the update target",
+			sql:  "UPDATE t SET x = (SELECT a FROM u WHERE |)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "u"}}, outer: [][]ref{{{table: "t"}}}, dml: "->t"},
+		},
+		{
+			name: "delete subquery sees the delete target",
+			sql:  "DELETE FROM t WHERE id IN (SELECT a FROM u WHERE |)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "u"}}, outer: [][]ref{{{table: "t"}}}, dml: "->t"},
+		},
+		{
+			name: "insert select subquery does not see the write target",
+			sql:  "INSERT INTO t1 SELECT (SELECT a FROM u WHERE |) FROM t2",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "u"}}, outer: [][]ref{{{table: "t2"}}}, dml: "->t1"},
+		},
+		{
+			name: "scoped index hint keeps the join after it",
+			sql:  "SELECT b.| FROM t1 a USE INDEX FOR JOIN (i) JOIN t2 b ON a.id = b.id",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"b"}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
+		},
+		{
+			name: "partition selection before the alias",
+			sql:  "SELECT a.| FROM t PARTITION (p0) AS a",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"a"}, local: []ref{{table: "t", alias: "a"}}},
+		},
+		{
+			name: "update modifiers before the target",
+			sql:  "UPDATE LOW_PRIORITY IGNORE t SET x = |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},

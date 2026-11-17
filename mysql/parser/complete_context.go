@@ -209,8 +209,18 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	// The whole statement, not just its main clause: the WITH clause holds
 	// query blocks the cursor may be in.
 	cteMap := rangeReferenceMap(collectVisibleCTEs(stmtTokens, cursorOffset))
-	scope := collectSelectScope(stmtTokens, cursorOffset, cteMap)
 	target, dmlRefs := collectDMLScope(stmtTokens[mainStart:], cteMap)
+	var enclosing []RangeReference
+	if first := firstNonTerminator(stmtTokens[mainStart:]); first >= 0 {
+		switch stmtTokens[mainStart+first].Type {
+		case kwUPDATE, kwDELETE:
+			// A subquery in an UPDATE or DELETE can name the statement's
+			// own tables, so they are its outermost scope level. An INSERT
+			// or REPLACE target is not readable from its SELECT.
+			enclosing = dmlRefs
+		}
+	}
+	scope := collectSelectScope(stmtTokens, cursorOffset, cteMap, enclosing)
 	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
 		// are what its clauses name.
@@ -436,9 +446,18 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 	}
 	switch tokens[first].Type {
 	case kwUPDATE:
-		// UPDATE t1 [AS a] [, t2] SET ... — the table list reads like a FROM
-		// clause.
-		refs := parseFromReferences(tokens, first+1, collectClauseEnd(tokens, first+1, tokens[first].depth), tokens[first].depth, ctes)
+		// UPDATE [LOW_PRIORITY] [IGNORE] t1 [AS a] [, t2] SET ... — the
+		// table list reads like a FROM clause.
+		idx := first + 1
+		for idx < len(tokens) && tokens[idx].depth == tokens[first].depth {
+			switch tokens[idx].Type {
+			case kwLOW_PRIORITY, kwIGNORE:
+				idx++
+				continue
+			}
+			break
+		}
+		refs := parseFromReferences(tokens, idx, collectClauseEnd(tokens, idx, tokens[first].depth), tokens[first].depth, ctes)
 		if len(refs) == 0 {
 			return nil, nil
 		}
@@ -573,8 +592,9 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 // collectSelectScope returns the scope of the query block holding the cursor,
 // or nil when the cursor is in no query block. An empty block keeps its outer
 // references: only a statement with no query block at all falls back to its
-// DML or DDL tables.
-func collectSelectScope(tokens []completionScopeToken, cursorOffset int, ctes map[string]RangeReference) *ScopeSnapshot {
+// DML or DDL tables. enclosing holds the references of an UPDATE or DELETE the
+// cursor's block is nested in; they are visible only from a nested block.
+func collectSelectScope(tokens []completionScopeToken, cursorOffset int, ctes map[string]RangeReference, enclosing []RangeReference) *ScopeSnapshot {
 	frames := selectFramesForCursor(tokens, cursorOffset, ctes)
 	if len(frames) == 0 {
 		return nil
@@ -583,6 +603,11 @@ func collectSelectScope(tokens []completionScopeToken, cursorOffset int, ctes ma
 	var outerRefs [][]RangeReference
 	for i := len(frames) - 2; i >= 0; i-- {
 		if refs := frames[i].refsVisibleFrom(cursorOffset); len(refs) > 0 {
+			outerRefs = append(outerRefs, refs)
+		}
+	}
+	if len(enclosing) > 0 && innermost.depth > 0 {
+		if refs := enclosingScopeRefs(enclosing); len(refs) > 0 {
 			outerRefs = append(outerRefs, refs)
 		}
 	}
@@ -595,6 +620,25 @@ func collectSelectScope(tokens []completionScopeToken, cursorOffset int, ctes ma
 		LocalReferences: innermost.localRefs,
 		OuterReferences: outerRefs,
 	}
+}
+
+// enclosingScopeRefs names the references of the enclosing DML statement once:
+// the write target travels in Scope.DMLTarget, not as an outer reference.
+func enclosingScopeRefs(refs []RangeReference) []RangeReference {
+	out := make([]RangeReference, 0, len(refs))
+	seen := make(map[string]bool, len(refs))
+	for _, ref := range refs {
+		if ref.Kind == RangeReferenceDMLTarget {
+			ref.Kind = RangeReferenceRelation
+		}
+		key := foldName(ref.Database) + "." + foldName(ref.Table) + "|" + foldName(ref.Alias)
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, ref)
+	}
+	return out
 }
 
 type completionSelectFrame struct {
@@ -787,14 +831,74 @@ func parseTableSource(tokens []completionScopeToken, idx int, ctes map[string]Ra
 			ref.Columns = append([]string{}, cte.Columns...)
 		}
 	}
+	next = skipPartitionClause(tokens, next, tokens[idx].depth)
 	ref.Alias, ref.AliasColumns, next = parseAliasAndColumns(tokens, next, tokens[idx].depth)
 	if len(ref.AliasColumns) > 0 {
 		ref.Columns = append([]string{}, ref.AliasColumns...)
 	}
+	next = skipIndexHints(tokens, next, tokens[idx].depth)
 	if next > idx && next <= len(tokens) {
 		ref.Loc = tokenLoc(tokens[idx], tokens[next-1])
 	}
 	return []RangeReference{ref}, next, true
+}
+
+// skipPartitionClause consumes the PARTITION (p0, ...) selection that may
+// follow a table name, before its alias.
+func skipPartitionClause(tokens []completionScopeToken, idx, depth int) int {
+	if idx >= len(tokens) || tokens[idx].depth != depth || tokens[idx].Type != kwPARTITION || idx+1 >= len(tokens) || tokens[idx+1].Type != '(' {
+		return idx
+	}
+	closeIdx := matchingParen(tokens, idx+1)
+	if closeIdx < 0 {
+		return idx
+	}
+	return closeIdx + 1
+}
+
+// skipIndexHints consumes the USE/FORCE/IGNORE index hints that may follow a
+// table reference's alias. A hint's FOR JOIN must not end the FROM clause the
+// way a locking clause's FOR does.
+func skipIndexHints(tokens []completionScopeToken, idx, depth int) int {
+	for idx < len(tokens) && tokens[idx].depth == depth {
+		switch tokens[idx].Type {
+		case kwUSE, kwFORCE, kwIGNORE:
+		default:
+			return idx
+		}
+		next := idx + 1
+		if next >= len(tokens) || tokens[next].depth != depth || (tokens[next].Type != kwINDEX && tokens[next].Type != kwKEY) {
+			return idx
+		}
+		next++
+		if next+1 < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwFOR {
+			switch tokens[next+1].Type {
+			case kwJOIN, kwGROUP:
+				next += 2
+			case kwORDER:
+				next += 2
+				if next < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwBY {
+					next++
+				}
+			}
+		}
+		if next >= len(tokens) || tokens[next].depth != depth || tokens[next].Type != '(' {
+			return idx
+		}
+		closeIdx := matchingParen(tokens, next)
+		if closeIdx < 0 {
+			return idx
+		}
+		idx = closeIdx + 1
+		// One hint list may hold several hints, comma-separated.
+		if idx+1 < len(tokens) && tokens[idx].depth == depth && tokens[idx].Type == ',' && tokens[idx+1].depth == depth {
+			switch tokens[idx+1].Type {
+			case kwUSE, kwFORCE, kwIGNORE:
+				idx++
+			}
+		}
+	}
+	return idx
 }
 
 // parseParenthesizedTableSource reads a parenthesized source at the '(' at idx:
@@ -1056,15 +1160,18 @@ func selectListColumns(tokens []completionScopeToken, lo, hi int) []string {
 	return names
 }
 
-// selectListEnd returns where the select list starting at start ends: the FROM
-// clause at its depth, or the set operator that ends its arm.
+// selectListEnd returns where the select list starting at start ends: the next
+// clause of the same query block — FROM, WHERE, GROUP BY, HAVING, WINDOW, ORDER
+// BY, LIMIT, INTO, FOR, LOCK, PROCEDURE —, the ')' closing the block, or the set
+// operator that ends its arm.
 func selectListEnd(tokens []completionScopeToken, start, hi, depth int) int {
 	for i := start; i < hi && i < len(tokens); i++ {
 		if tokens[i].depth != depth {
 			continue
 		}
 		switch tokens[i].Type {
-		case kwFROM, kwUNION, kwINTERSECT, kwEXCEPT:
+		case kwFROM, kwUNION, kwINTERSECT, kwEXCEPT, ')', kwWHERE, kwGROUP,
+			kwHAVING, kwWINDOW, kwORDER, kwLIMIT, kwINTO, kwFOR, kwLOCK, kwPROCEDURE:
 			return i
 		}
 	}
@@ -1142,8 +1249,10 @@ func collectSelectAliases(sql string, cursorOffset int) []SelectAlias {
 }
 
 // selectItemAlias returns the alias the select item tokens[start:end] declares:
-// the name after AS, a string literal, or a bare identifier that follows the
-// expression. A qualified name's last part is the column, not an alias.
+// the name after AS, a string literal, or a bare identifier that follows a
+// complete expression. A qualified name's last part is the column, not an
+// alias, and the trailing operand of an expression such as a + b is not one
+// either.
 func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (SelectAlias, bool) {
 	if end <= start || end > len(tokens) {
 		return SelectAlias{}, false
@@ -1162,7 +1271,23 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 	if end-start < 2 {
 		return SelectAlias{}, false
 	}
+	if prev := tokens[end-2]; prev.Type != kwAS && !endsSelectExpression(prev) {
+		return SelectAlias{}, false
+	}
 	return SelectAlias{Name: last.Str, Loc: tokenLoc(last, last)}, true
+}
+
+// endsSelectExpression reports whether tok can end a select item's expression,
+// so that the identifier after it is an implicit alias rather than the next
+// operand.
+func endsSelectExpression(tok completionScopeToken) bool {
+	switch tok.Type {
+	case tokIDENT, ')', '*', tokSCONST, tokICONST, tokFCONST, tokXCONST, tokBCONST:
+		return true
+	case kwNULL, kwTRUE, kwFALSE, kwEND:
+		return true
+	}
+	return tok.Type >= 700 && !isReserved(tok.Type)
 }
 
 func identNames(tokens []completionScopeToken, lo, hi int) []string {
