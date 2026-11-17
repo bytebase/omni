@@ -211,29 +211,45 @@ func TestSyncForeignKeyQuotedSchema(t *testing.T) {
 	mustExec(t, d.db, `
 CREATE SCHEMA "sales.eu";
 CREATE TABLE "sales.eu".parent (id INT8 PRIMARY KEY);
-CREATE TABLE "sales.eu".child (id INT8 PRIMARY KEY, parent_id INT8 REFERENCES "sales.eu".parent(id));`)
+CREATE TABLE "sales.eu".child (id INT8 PRIMARY KEY, parent_id INT8 REFERENCES "sales.eu".parent(id));
+CREATE SCHEMA app;
+CREATE TABLE app.parent_comma ("last,first" INT8 PRIMARY KEY);
+CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("last,first"));`)
 
 	got, err := d.SyncDatabase(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
 	for _, schema := range got.Schemas {
-		if schema.Name != "sales.eu" {
-			continue
+		switch schema.Name {
+		case "sales.eu":
+			for _, table := range schema.Tables {
+				if table.Name != "child" {
+					continue
+				}
+				if len(table.ForeignKeys) != 1 {
+					t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
+				}
+				if table.ForeignKeys[0].ReferencedTable != "parent" {
+					t.Errorf("referenced table = %q, want parent", table.ForeignKeys[0].ReferencedTable)
+				}
+			}
+		case "app":
+			for _, table := range schema.Tables {
+				if table.Name != "child_comma" {
+					continue
+				}
+				if len(table.ForeignKeys) != 1 {
+					t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
+				}
+				fk := table.ForeignKeys[0]
+				if len(fk.Columns) != 1 || fk.Columns[0] != "last,first" {
+					t.Errorf("columns = %+v, want last,first", fk.Columns)
+				}
+				if len(fk.ReferencedColumns) != 1 || fk.ReferencedColumns[0] != "last,first" {
+					t.Errorf("referenced columns = %+v, want last,first", fk.ReferencedColumns)
+				}
+			}
 		}
-		for _, table := range schema.Tables {
-			if table.Name != "child" {
-				continue
-			}
-			if len(table.ForeignKeys) != 1 {
-				t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
-			}
-			if table.ForeignKeys[0].ReferencedTable != "parent" {
-				t.Errorf("referenced table = %q, want parent", table.ForeignKeys[0].ReferencedTable)
-			}
-			return
-		}
-		t.Fatal("table child is missing")
 	}
-	t.Fatal("schema sales.eu is missing")
 }

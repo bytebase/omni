@@ -88,6 +88,9 @@
               "expressions": [
                 "alt_id"
               ],
+              "descending": [
+                false
+              ],
               "type": "btree",
               "unique": true,
               "definition": "CREATE UNIQUE INDEX customer_alt_id_key ON omni_testsyncdatabase.app.customer USING btree (alt_id ASC)"
@@ -97,14 +100,20 @@
               "expressions": [
                 "name"
               ],
+              "descending": [
+                true
+              ],
               "type": "btree",
               "comment": "names",
-              "definition": "CREATE INDEX customer_name_idx ON omni_testsyncdatabase.app.customer USING btree (name ASC) STORING (balance)"
+              "definition": "CREATE INDEX customer_name_idx ON omni_testsyncdatabase.app.customer USING btree (name DESC) STORING (balance)"
             },
             {
               "name": "customer_pkey",
               "expressions": [
                 "id"
+              ],
+              "descending": [
+                false
               ],
               "type": "btree",
               "unique": true,
@@ -145,6 +154,9 @@
               "expressions": [
                 "customer_id"
               ],
+              "descending": [
+                false
+              ],
               "type": "btree",
               "definition": "CREATE INDEX orders_customer_idx ON omni_testsyncdatabase.app.orders USING btree (customer_id ASC)"
             },
@@ -152,6 +164,9 @@
               "name": "orders_pkey",
               "expressions": [
                 "id"
+              ],
+              "descending": [
+                false
               ],
               "type": "btree",
               "unique": true,

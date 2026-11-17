@@ -32,7 +32,7 @@ CREATE TABLE app.customer (
 );
 COMMENT ON TABLE app.customer IS 'a customer';
 COMMENT ON COLUMN app.customer.email IS 'login';
-CREATE INDEX customer_name_idx ON app.customer (name) STORING (balance);
+CREATE INDEX customer_name_idx ON app.customer (name DESC) STORING (balance);
 COMMENT ON INDEX app.customer@customer_name_idx IS 'names';
 
 CREATE TABLE app.orders (

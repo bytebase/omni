@@ -276,15 +276,42 @@ func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []st
 }
 
 func getColumnList(definition string) ([]string, error) {
-	list := strings.Split(definition, ",")
-	if len(list) == 0 {
-		return nil, fmt.Errorf("invalid column list definition: %q", definition)
-	}
 	var result []string
-	for _, name := range list {
-		name = strings.TrimSpace(name)
-		name = strings.Trim(name, `"`)
-		result = append(result, name)
+	for i := 0; i < len(definition); {
+		for i < len(definition) && (definition[i] == ',' || definition[i] == ' ' || definition[i] == '\t' || definition[i] == '\n' || definition[i] == '\r') {
+			i++
+		}
+		if i >= len(definition) {
+			break
+		}
+		if definition[i] == '"' {
+			i++
+			var name strings.Builder
+			for i < len(definition) {
+				if definition[i] != '"' {
+					name.WriteByte(definition[i])
+					i++
+					continue
+				}
+				if i+1 < len(definition) && definition[i+1] == '"' {
+					name.WriteByte('"')
+					i += 2
+					continue
+				}
+				i++
+				break
+			}
+			result = append(result, name.String())
+			continue
+		}
+		start := i
+		for i < len(definition) && definition[i] != ',' {
+			i++
+		}
+		result = append(result, strings.TrimSpace(definition[start:i]))
+	}
+	if len(result) == 0 {
+		return nil, fmt.Errorf("invalid column list definition: %q", definition)
 	}
 	return result, nil
 }
@@ -834,18 +861,17 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 			return nil, fmt.Errorf("invalid statement type %T, expecting CreateIndex", nodes[0].AST)
 		}
 		for _, indexElem := range node.Columns {
-			if indexElem.Column != "" {
+			switch {
+			case indexElem.Column != "":
 				index.Expressions = append(index.Expressions, indexElem.Column.String())
-				continue
-			}
-			if indexElem.Expr != nil {
+			case indexElem.Expr != nil:
 				index.Expressions = append(index.Expressions, indexElem.Expr.String())
-				continue
-			}
-			if indexElem.OpClass != "" {
+			case indexElem.OpClass != "":
 				index.Expressions = append(index.Expressions, indexElem.OpClass.String())
+			default:
 				continue
 			}
+			index.Descending = append(index.Descending, indexElem.Direction == crrawparsertree.Descending)
 		}
 
 		index.Definition = statement

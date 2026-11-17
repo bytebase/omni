@@ -6,6 +6,9 @@
 | CREATE SCHEMA "sales.eu";
 | CREATE TABLE "sales.eu".parent (id INT8 PRIMARY KEY);
 | CREATE TABLE "sales.eu".child (id INT8 PRIMARY KEY, parent_id INT8 REFERENCES "sales.eu".parent(id));
+| CREATE SCHEMA app;
+| CREATE TABLE app.parent_comma ("last,first" INT8 PRIMARY KEY);
+| CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("last,first"));
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate FROM pg_database ORDER BY datname;
@@ -61,6 +64,9 @@
 < column "nspname" "NAME"
 < row
 : string
+| app
+< row
+: string
 | public
 < row
 : string
@@ -98,6 +104,67 @@
 < column "udt_schema" "TEXT"
 < column "udt_name" "TEXT"
 < column "column_comment" "TEXT"
+< row
+: string
+| app
+: string
+| child_comma
+: string
+| last,first
+: string
+| bigint
+: null
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app
+: string
+| child_comma
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app
+: string
+| parent_comma
+: string
+| last,first
+: string
+| bigint
+: null
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
 < row
 : string
 | sales.eu
@@ -182,6 +249,30 @@
 < column "comment" "TEXT"
 < row
 : string
+| app
+: string
+| child_comma
+: string
+| child_comma_pkey
+: string
+| CREATE UNIQUE INDEX child_comma_pkey ON omni_testsyncforeignkeyquotedschema.app.child_comma USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| app
+: string
+| parent_comma
+: string
+| parent_comma_pkey
+: string
+| CREATE UNIQUE INDEX parent_comma_pkey ON omni_testsyncforeignkeyquotedschema.app.parent_comma USING btree ("last,first" ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
 | sales.eu
 : string
 | child
@@ -239,6 +330,25 @@
 < column "fk_def" "TEXT"
 < row
 : string
+| app
+: string
+| child_comma
+: string
+| child_comma_last,first_fkey
+: string
+| app
+: string
+| parent_comma
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY ("last,first") REFERENCES app.parent_comma("last,first")
+< row
+: string
 | sales.eu
 : string
 | child
@@ -284,6 +394,20 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| app
+: string
+| child_comma
+: int64 0
+: null
+< row
+: string
+| app
+: string
+| parent_comma
+: int64 0
+: null
 < row
 : string
 | sales.eu
