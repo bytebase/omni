@@ -9,10 +9,11 @@
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
-| 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL, -- not restorable: TestDumpGaps
-| 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED, -- not restorable: TestDumpGaps
+| 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
+| 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-| 	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), -- not restorable: TestDumpGaps
+| 	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+| 	reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 | 	note VARCHAR(100) COMMENT 'owner''s note',
 | 	UNIQUE KEY uk_email (email),
 | 	KEY idx_bio_prefix (bio(32))
@@ -31,10 +32,10 @@
 | CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV'); -- not restorable: TestDumpGaps
 < ok 0 0
 > exec
-| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts; -- not restorable: TestDumpGaps
+| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts;
 < ok 0 0
 > exec
-| CREATE INDEX idx_mv_email ON mv_accounts (email); -- not restorable: TestDumpGaps
+| CREATE INDEX idx_mv_email ON mv_accounts (email);
 < ok 0 0
 > exec
 | CREATE VIEW v_open_accounts AS
@@ -65,10 +66,13 @@
 | END;
 < ok 0 0
 > exec
-| CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END; -- not restorable: TestDumpGaps
+| CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
 < ok 0 0
 > exec
-| CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0; -- not restorable: TestDumpGaps
+| CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0;
+< ok 0 0
+> exec
+| CREATE EVENT ev_once ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'owner''s \\new once' DO DELETE FROM orders;
 < ok 0 0
 > query
 | SELECT VERSION()
@@ -486,8 +490,31 @@
 : bytes
 | accounts
 : bytes
-| note
+| reviewed_at
 : uint64 11
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| datetime(3)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
+| note
+: uint64 12
 : null
 : bytes
 | YES
@@ -913,7 +940,20 @@
 | utf8mb4_general_ci
 > query
 |
-| 		SELECT DISTINCT EVENT_NAME
+| 		SELECT
+| 			EVENT_NAME,
+| 			EVENT_TYPE,
+| 			IFNULL(CAST(EXECUTE_AT AS CHAR), ''),
+| 			IFNULL(INTERVAL_VALUE, ''),
+| 			IFNULL(INTERVAL_FIELD, ''),
+| 			IFNULL(CAST(STARTS AS CHAR), ''),
+| 			IFNULL(CAST(ENDS AS CHAR), ''),
+| 			IFNULL(STATUS, ''),
+| 			IFNULL(ON_COMPLETION, ''),
+| 			IFNULL(EVENT_COMMENT, ''),
+| 			IFNULL(TIME_ZONE, ''),
+| 			IFNULL(SQL_MODE, ''),
+| 			IFNULL(EVENT_DEFINITION, '')
 | 		FROM information_schema.EVENTS
 | 		WHERE EVENT_SCHEMA = ?
 | 		ORDER BY EVENT_NAME
@@ -921,9 +961,72 @@
 | omni_sync_corpus
 < result
 < column "EVENT_NAME" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "IFNULL(CAST(EXECUTE_AT AS CHAR), '')" "VARCHAR"
+< column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
+< column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
+< column "IFNULL(CAST(STARTS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(CAST(ENDS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(STATUS, '')" "VARCHAR"
+< column "IFNULL(ON_COMPLETION, '')" "VARCHAR"
+< column "IFNULL(EVENT_COMMENT, '')" "TEXT"
+< column "IFNULL(TIME_ZONE, '')" "VARCHAR"
+< column "IFNULL(SQL_MODE, '')" "TEXT"
+< column "IFNULL(EVENT_DEFINITION, '')" "TEXT"
 < row
 : bytes
 | ev_daily_check
+: bytes
+| RECURRING
+: bytes
+|
+: bytes
+| 1
+: bytes
+| DAY
+: bytes
+| 2030-01-01 00:00:00
+: bytes
+|
+: bytes
+| DISABLED
+: bytes
+| NOT PRESERVE
+: bytes
+|
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders WHERE total < 0;
+< row
+: bytes
+| ev_once
+: bytes
+| ONE TIME
+: bytes
+| 2030-06-01 12:00:00
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+| ENABLED
+: bytes
+| PRESERVE
+: bytes
+| owner's \new once
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders;
 > query
 |
 | 		SELECT

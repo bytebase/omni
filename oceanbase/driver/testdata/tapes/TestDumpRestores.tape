@@ -9,7 +9,11 @@
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
+| 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
+| 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+| 	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+| 	reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 | 	note VARCHAR(100) COMMENT 'owner''s note',
 | 	UNIQUE KEY uk_email (email),
 | 	KEY idx_bio_prefix (bio(32))
@@ -23,6 +27,12 @@
 | 	KEY idx_account (account_id),
 | 	CONSTRAINT fk_orders_account FOREIGN KEY (account_id) REFERENCES accounts (id) ON DELETE CASCADE ON UPDATE RESTRICT
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts;
+< ok 0 0
+> exec
+| CREATE INDEX idx_mv_email ON mv_accounts (email);
 < ok 0 0
 > exec
 | CREATE VIEW v_open_accounts AS
@@ -51,6 +61,15 @@
 | BEGIN
 | 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 | END;
+< ok 0 0
+> exec
+| CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
+< ok 0 0
+> exec
+| CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0;
+< ok 0 0
+> exec
+| CREATE EVENT ev_once ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'owner''s \\new once' DO DELETE FROM orders;
 < ok 0 0
 > query
 | SELECT VERSION()
@@ -182,6 +201,25 @@
 : bytes
 | BTREE
 : int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| __mv_container_0000000000000001
+: bytes
+| idx_mv_email
+: bytes
+| email
+: bytes
+| A
+: int64 -1
+: bytes
+|
+: uint64 1
+: bytes
+| BTREE
+: int64 1
 : int64 1
 : bytes
 |
@@ -357,8 +395,54 @@
 : bytes
 | accounts
 : bytes
-| created_at
+| email_lower
 : uint64 7
+: bytes
+| 'LOWER(`email`)'
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+| LOWER(`email`)
+: bytes
+| VIRTUAL GENERATED
+: null
+< row
+: bytes
+| accounts
+: bytes
+| display_tag
+: uint64 8
+: bytes
+| 'CONCAT(`email`,\':\',\'v1\')'
+: bytes
+| YES
+: bytes
+| varchar(220)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+| CONCAT(`email`,':','v1')
+: bytes
+| STORED GENERATED
+: null
+< row
+: bytes
+| accounts
+: bytes
+| created_at
+: uint64 9
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -380,8 +464,54 @@
 : bytes
 | accounts
 : bytes
+| updated_at
+: uint64 10
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| datetime(6)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+| on update current_timestamp(6)
+: null
+< row
+: bytes
+| accounts
+: bytes
+| reviewed_at
+: uint64 11
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| datetime(3)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
 | note
-: uint64 8
+: uint64 12
 : null
 : bytes
 | YES
@@ -393,6 +523,50 @@
 | utf8mb4_general_ci
 : bytes
 | 'owner\'s note'
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| mv_accounts
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| mv_accounts
+: bytes
+| email
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
 : bytes
 |
 : bytes
@@ -552,6 +726,50 @@
 : bytes
 |
 : null
+< row
+: bytes
+| __mv_container_0000000000000001
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| __mv_container_0000000000000001
+: bytes
+| email
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 > query
 |
 | 		SELECT
@@ -654,9 +872,39 @@
 < column "SQL_MODE" "TEXT"
 < column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
 < column "COLLATION_CONNECTION" "VARCHAR" "string"
+< row
+: bytes
+| trg_orders_bi
+: bytes
+| orders
+: bytes
+| INSERT
+: bytes
+| BEFORE
+: bytes
+| TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END
+: bytes
+| STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 |
-| 		SELECT DISTINCT EVENT_NAME
+| 		SELECT
+| 			EVENT_NAME,
+| 			EVENT_TYPE,
+| 			IFNULL(CAST(EXECUTE_AT AS CHAR), ''),
+| 			IFNULL(INTERVAL_VALUE, ''),
+| 			IFNULL(INTERVAL_FIELD, ''),
+| 			IFNULL(CAST(STARTS AS CHAR), ''),
+| 			IFNULL(CAST(ENDS AS CHAR), ''),
+| 			IFNULL(STATUS, ''),
+| 			IFNULL(ON_COMPLETION, ''),
+| 			IFNULL(EVENT_COMMENT, ''),
+| 			IFNULL(TIME_ZONE, ''),
+| 			IFNULL(SQL_MODE, ''),
+| 			IFNULL(EVENT_DEFINITION, '')
 | 		FROM information_schema.EVENTS
 | 		WHERE EVENT_SCHEMA = ?
 | 		ORDER BY EVENT_NAME
@@ -664,6 +912,72 @@
 | omni_dump_roundtrip
 < result
 < column "EVENT_NAME" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "IFNULL(CAST(EXECUTE_AT AS CHAR), '')" "VARCHAR"
+< column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
+< column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
+< column "IFNULL(CAST(STARTS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(CAST(ENDS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(STATUS, '')" "VARCHAR"
+< column "IFNULL(ON_COMPLETION, '')" "VARCHAR"
+< column "IFNULL(EVENT_COMMENT, '')" "TEXT"
+< column "IFNULL(TIME_ZONE, '')" "VARCHAR"
+< column "IFNULL(SQL_MODE, '')" "TEXT"
+< column "IFNULL(EVENT_DEFINITION, '')" "TEXT"
+< row
+: bytes
+| ev_daily_check
+: bytes
+| RECURRING
+: bytes
+|
+: bytes
+| 1
+: bytes
+| DAY
+: bytes
+| 2030-01-01 00:00:00
+: bytes
+|
+: bytes
+| DISABLED
+: bytes
+| NOT PRESERVE
+: bytes
+|
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders WHERE total < 0;
+< row
+: bytes
+| ev_once
+: bytes
+| ONE TIME
+: bytes
+| 2030-06-01 12:00:00
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+| ENABLED
+: bytes
+| PRESERVE
+: bytes
+| owner's \new once
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders;
 > query
 |
 | 		SELECT
@@ -991,6 +1305,29 @@
 | 'VIEW'
 : bytes
 | utf8mb4
+< row
+: bytes
+| __mv_container_0000000000000001
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'materialized accounts'
+: bytes
+| utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
@@ -1003,6 +1340,13 @@
 < column "MVIEW_NAME" "VARCHAR" "string"
 < column "CONTAINER_NAME" "VARCHAR" "string"
 < column "QUERY" "TEXT" "string"
+< row
+: bytes
+| mv_accounts
+: bytes
+| __mv_container_0000000000000001
+: bytes
+| select `omni_dump_roundtrip`.`accounts`.`id` AS `id`,`omni_dump_roundtrip`.`accounts`.`email` AS `email` from `omni_dump_roundtrip`.`accounts`
 > query
 |
 | 		SELECT
@@ -1050,7 +1394,11 @@
 |   `status` enum('open','closed') NOT NULL DEFAULT 'open',
 |   `literal_ts` varchar(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 |   `balance` decimal(12,4) NOT NULL DEFAULT '0.0000',
+|   `email_lower` varchar(190) GENERATED ALWAYS AS (LOWER(`email`)) VIRTUAL,
+|   `display_tag` varchar(220) GENERATED ALWAYS AS (CONCAT(`email`,':','v1')) STORED,
 |   `created_at` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+|   `updated_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+|   `reviewed_at` datetime(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 |   `note` varchar(100) DEFAULT NULL COMMENT 'owner\'s note',
 |   PRIMARY KEY (`id`),
 |   KEY `idx_bio_prefix` (`bio`(32)),
@@ -1098,6 +1446,12 @@
 | CREATE OR REPLACE VIEW `v_open_accounts` AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `acct_id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `acct_email` from `omni_dump_roundtrip_restored`.`accounts` where (`omni_dump_roundtrip_restored`.`accounts`.`status` = 'open')
 < ok 0 0
 > exec
+| CREATE MATERIALIZED VIEW `mv_accounts` COMMENT 'materialized accounts' AS select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`accounts`
+< ok 0 0
+> exec
+| CREATE INDEX `idx_mv_email` ON `mv_accounts` (`email`)
+< ok 0 0
+> exec
 | SET character_set_client = utf8mb4
 < ok 0 0
 > exec
@@ -1116,6 +1470,41 @@
 | BEGIN
 | 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 | END
+< ok 0 0
+> exec
+| SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET time_zone = DEFAULT
+< ok 0 0
+> exec
+| CREATE EVENT `ev_daily_check` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE DO DELETE FROM orders WHERE total < 0
+< ok 0 0
+> exec
+| SET sql_mode = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION'
+< ok 0 0
+> exec
+| SET time_zone = DEFAULT
+< ok 0 0
+> exec
+| CREATE EVENT `ev_once` ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE COMMENT 'owner''s \\new once' DO DELETE FROM orders
+< ok 0 0
+> exec
+| SET character_set_client = utf8mb4
+< ok 0 0
+> exec
+| SET character_set_results = utf8mb4
+< ok 0 0
+> exec
+| SET collation_connection = utf8mb4_general_ci
+< ok 0 0
+> exec
+| SET sql_mode = 'STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'
+< ok 0 0
+> exec
+| CREATE TRIGGER `trg_orders_bi`
+| BEFORE INSERT ON `orders` FOR EACH ROW
+| BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END
 < ok 0 0
 > exec
 | SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS
@@ -1253,6 +1642,25 @@
 : bytes
 | BTREE
 : int64 0
+: int64 1
+: bytes
+|
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| idx_mv_email
+: bytes
+| email
+: bytes
+| A
+: int64 -1
+: bytes
+|
+: uint64 1
+: bytes
+| BTREE
+: int64 1
 : int64 1
 : bytes
 |
@@ -1428,8 +1836,54 @@
 : bytes
 | accounts
 : bytes
-| created_at
+| email_lower
 : uint64 7
+: bytes
+| 'LOWER(`email`)'
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+| LOWER(`email`)
+: bytes
+| VIRTUAL GENERATED
+: null
+< row
+: bytes
+| accounts
+: bytes
+| display_tag
+: uint64 8
+: bytes
+| 'CONCAT(`email`,\':\',\'v1\')'
+: bytes
+| YES
+: bytes
+| varchar(220)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+| CONCAT(`email`,':','v1')
+: bytes
+| STORED GENERATED
+: null
+< row
+: bytes
+| accounts
+: bytes
+| created_at
+: uint64 9
 : bytes
 | 'CURRENT_TIMESTAMP'
 : bytes
@@ -1451,8 +1905,54 @@
 : bytes
 | accounts
 : bytes
+| updated_at
+: uint64 10
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| datetime(6)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+| on update current_timestamp(6)
+: null
+< row
+: bytes
+| accounts
+: bytes
+| reviewed_at
+: uint64 11
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| datetime(3)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
 | note
-: uint64 8
+: uint64 12
 : null
 : bytes
 | YES
@@ -1464,6 +1964,50 @@
 | utf8mb4_general_ci
 : bytes
 | 'owner\'s note'
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| mv_accounts
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| mv_accounts
+: bytes
+| email
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
 : bytes
 |
 : bytes
@@ -1623,6 +2167,50 @@
 : bytes
 |
 : null
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| email
+: uint64 2
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 > query
 |
 | 		SELECT
@@ -1725,9 +2313,41 @@
 < column "SQL_MODE" "TEXT"
 < column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
 < column "COLLATION_CONNECTION" "VARCHAR" "string"
+< row
+: bytes
+| trg_orders_bi
+: bytes
+| orders
+: bytes
+| INSERT
+: bytes
+| BEFORE
+: bytes
+| TRIGGER `trg_orders_bi`
+| BEFORE INSERT ON `orders` FOR EACH ROW
+| BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END
+: bytes
+| STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 |
-| 		SELECT DISTINCT EVENT_NAME
+| 		SELECT
+| 			EVENT_NAME,
+| 			EVENT_TYPE,
+| 			IFNULL(CAST(EXECUTE_AT AS CHAR), ''),
+| 			IFNULL(INTERVAL_VALUE, ''),
+| 			IFNULL(INTERVAL_FIELD, ''),
+| 			IFNULL(CAST(STARTS AS CHAR), ''),
+| 			IFNULL(CAST(ENDS AS CHAR), ''),
+| 			IFNULL(STATUS, ''),
+| 			IFNULL(ON_COMPLETION, ''),
+| 			IFNULL(EVENT_COMMENT, ''),
+| 			IFNULL(TIME_ZONE, ''),
+| 			IFNULL(SQL_MODE, ''),
+| 			IFNULL(EVENT_DEFINITION, '')
 | 		FROM information_schema.EVENTS
 | 		WHERE EVENT_SCHEMA = ?
 | 		ORDER BY EVENT_NAME
@@ -1735,6 +2355,72 @@
 | omni_dump_roundtrip_restored
 < result
 < column "EVENT_NAME" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "IFNULL(CAST(EXECUTE_AT AS CHAR), '')" "VARCHAR"
+< column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
+< column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
+< column "IFNULL(CAST(STARTS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(CAST(ENDS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(STATUS, '')" "VARCHAR"
+< column "IFNULL(ON_COMPLETION, '')" "VARCHAR"
+< column "IFNULL(EVENT_COMMENT, '')" "TEXT"
+< column "IFNULL(TIME_ZONE, '')" "VARCHAR"
+< column "IFNULL(SQL_MODE, '')" "TEXT"
+< column "IFNULL(EVENT_DEFINITION, '')" "TEXT"
+< row
+: bytes
+| ev_daily_check
+: bytes
+| RECURRING
+: bytes
+|
+: bytes
+| 1
+: bytes
+| DAY
+: bytes
+| 2030-01-01 00:00:00
+: bytes
+|
+: bytes
+| DISABLED
+: bytes
+| NOT PRESERVE
+: bytes
+|
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders WHERE total < 0;
+< row
+: bytes
+| ev_once
+: bytes
+| ONE TIME
+: bytes
+| 2030-06-01 12:00:00
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+| ENABLED
+: bytes
+| PRESERVE
+: bytes
+| owner's \new once
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders;
 > query
 |
 | 		SELECT
@@ -2062,6 +2748,29 @@
 | 'VIEW'
 : bytes
 | utf8mb4
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'materialized accounts'
+: bytes
+| utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
@@ -2074,6 +2783,13 @@
 < column "MVIEW_NAME" "VARCHAR" "string"
 < column "CONTAINER_NAME" "VARCHAR" "string"
 < column "QUERY" "TEXT" "string"
+< row
+: bytes
+| mv_accounts
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| select `omni_dump_roundtrip_restored`.`accounts`.`id` AS `id`,`omni_dump_roundtrip_restored`.`accounts`.`email` AS `email` from `omni_dump_roundtrip_restored`.`accounts`
 > query
 |
 | 		SELECT

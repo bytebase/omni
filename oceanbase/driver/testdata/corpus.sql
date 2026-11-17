@@ -5,10 +5,11 @@ CREATE TABLE accounts (
 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
-	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL, -- not restorable: TestDumpGaps
-	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED, -- not restorable: TestDumpGaps
+	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
+	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), -- not restorable: TestDumpGaps
+	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+	reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 	note VARCHAR(100) COMMENT 'owner''s note',
 	UNIQUE KEY uk_email (email),
 	KEY idx_bio_prefix (bio(32))
@@ -24,9 +25,9 @@ CREATE TABLE orders (
 
 CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV'); -- not restorable: TestDumpGaps
 
-CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts; -- not restorable: TestDumpGaps
+CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts;
 
-CREATE INDEX idx_mv_email ON mv_accounts (email); -- not restorable: TestDumpGaps
+CREATE INDEX idx_mv_email ON mv_accounts (email);
 
 CREATE VIEW v_open_accounts AS
 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
@@ -51,6 +52,8 @@ BEGIN
 	SELECT total INTO p_total FROM orders WHERE id = p_id;
 END;
 
-CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END; -- not restorable: TestDumpGaps
+CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
 
-CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0; -- not restorable: TestDumpGaps
+CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0;
+
+CREATE EVENT ev_once ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'owner''s \\new once' DO DELETE FROM orders;

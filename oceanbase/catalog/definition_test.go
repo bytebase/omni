@@ -1014,3 +1014,36 @@ func TestSDLViewStatesColumnList(t *testing.T) {
 		t.Fatalf("SDL round trip differs: %+v", diff.Views)
 	}
 }
+
+// TestWriteEventSessionSettings pins what an event's own section carries before its
+// CREATE. OceanBase states no character set or collation for an event, so those lines
+// would be syntax errors; an empty sql_mode is a stored value and is written as one; and
+// SYSTEM is the zone the session starts in, which OceanBase refuses to name literally.
+func TestWriteEventSessionSettings(t *testing.T) {
+	var buf strings.Builder
+	require.NoError(t, writeEvent(&buf, &metadata.EventMetadata{
+		Name:       "ev",
+		Definition: "CREATE EVENT `ev` ON SCHEDULE EVERY 1 DAY DO DELETE FROM t",
+		TimeZone:   "SYSTEM",
+	}))
+	got := buf.String()
+	require.NotContains(t, got, "SET character_set_client")
+	require.NotContains(t, got, "SET collation_connection")
+	require.Contains(t, got, "SET sql_mode = '';\n")
+	require.Contains(t, got, "SET time_zone = DEFAULT;\n")
+
+	buf.Reset()
+	require.NoError(t, writeEvent(&buf, &metadata.EventMetadata{
+		Name:                "ev",
+		Definition:          "CREATE EVENT `ev` ON SCHEDULE EVERY 1 DAY DO DELETE FROM t",
+		TimeZone:            "+08:00",
+		SqlMode:             "STRICT_ALL_TABLES",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_general_ci",
+	}))
+	got = buf.String()
+	require.Contains(t, got, "SET character_set_client = utf8mb4;\n")
+	require.Contains(t, got, "SET collation_connection = utf8mb4_general_ci;\n")
+	require.Contains(t, got, "SET sql_mode = 'STRICT_ALL_TABLES';\n")
+	require.Contains(t, got, "SET time_zone = '+08:00';\n")
+}

@@ -19,21 +19,22 @@ const (
 	disableUniqueAndForeignKeyCheckStmt = "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\nSET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;\n"
 	restoreUniqueAndForeignKeyCheckStmt = "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\nSET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
 
-	emptyCommentLine      = "--\n"
-	tempViewHeader        = "-- Temporary view structure for "
-	tableHeader           = "-- Table structure for "
-	viewHeader            = "-- View structure for "
-	functionHeader        = "-- Function structure for "
-	procedureHeader       = "-- Procedure structure for "
-	triggerHeader         = "-- Trigger structure for "
-	eventHeader           = "-- Event structure for "
-	setCharacterSetClient = "SET character_set_client = "
-	setCharacterSetResult = "SET character_set_results = "
-	setCollation          = "SET collation_connection = "
-	setSQLMode            = "SET sql_mode = "
-	setTimezone           = "SET time_zone = "
-	delimiterDoubleSemi   = "DELIMITER ;;\n"
-	delimiterSemi         = "DELIMITER ;\n"
+	emptyCommentLine       = "--\n"
+	tempViewHeader         = "-- Temporary view structure for "
+	tableHeader            = "-- Table structure for "
+	viewHeader             = "-- View structure for "
+	materializedViewHeader = "-- Materialized view structure for "
+	functionHeader         = "-- Function structure for "
+	procedureHeader        = "-- Procedure structure for "
+	triggerHeader          = "-- Trigger structure for "
+	eventHeader            = "-- Event structure for "
+	setCharacterSetClient  = "SET character_set_client = "
+	setCharacterSetResult  = "SET character_set_results = "
+	setCollation           = "SET collation_connection = "
+	setSQLMode             = "SET sql_mode = "
+	setTimezone            = "SET time_zone = "
+	delimiterDoubleSemi    = "DELIMITER ;;\n"
+	delimiterSemi          = "DELIMITER ;\n"
 
 	mysqlTypeBlob       = "blob"
 	mysqlTypeTinyBob    = "tinyblob"
@@ -128,6 +129,14 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
+	// Construct materialized views: their queries read the tables above, and OceanBase holds
+	// a materialized view's rows in a container table of its own.
+	for _, view := range schema.MaterializedViews {
+		if err := writeMaterializedView(&buf, view); err != nil {
+			return "", err
+		}
+	}
+
 	// Construct procedures.
 	for _, procedure := range schema.Procedures {
 		if err := writeProcedure(&buf, procedure); err != nil {
@@ -178,6 +187,65 @@ func ViewDefinition(view *metadata.ViewMetadata) (string, error) {
 	return buf.String(), nil
 }
 
+// writeMaterializedView writes a materialized view and the indexes its container table
+// carries. OceanBase answers no SHOW CREATE MATERIALIZED VIEW, so the synced query and the
+// container table's indexes are the only statements of the view; a refresh policy has no
+// field in the metadata, and a plain CREATE gives the server's own default.
+func writeMaterializedView(out *strings.Builder, view *metadata.MaterializedViewMetadata) error {
+	if view.SkipDump || strings.TrimSpace(view.Definition) == "" {
+		return nil
+	}
+	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, materializedViewHeader); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, quoteIdent(view.Name)+"\n"); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(out, "CREATE MATERIALIZED VIEW %s", quoteIdent(view.Name)); err != nil {
+		return err
+	}
+	if view.Comment != "" {
+		if _, err := fmt.Fprintf(out, " COMMENT '%s'", view.Comment); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(out, " AS %s;\n", strings.TrimSpace(view.Definition)); err != nil {
+		return err
+	}
+
+	for _, index := range view.Indexes {
+		if err := writeIndex(out, view.Name, index); err != nil {
+			return err
+		}
+	}
+
+	_, err := io.WriteString(out, "\n")
+	return err
+}
+
+// writeIndex writes one standalone CREATE INDEX statement, which a materialized view needs
+// for an index its container table carries: a view has no CREATE TABLE to hold it.
+func writeIndex(out *strings.Builder, tableName string, index *metadata.IndexMetadata) error {
+	if index.Primary {
+		return nil
+	}
+	if _, err := fmt.Fprintf(out, "\nCREATE %sINDEX %s ON %s (", indexQualifier(index), quoteIdent(index.Name), quoteIdent(tableName)); err != nil {
+		return err
+	}
+	if err := printIndexKeyParts(out, index, ""); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n")
+	return err
+}
+
 // FunctionDefinition renders one stored function as its mysqldump-style section.
 func FunctionDefinition(function *metadata.FunctionMetadata) (string, error) {
 	var buf strings.Builder
@@ -197,7 +265,7 @@ func ProcedureDefinition(procedure *metadata.ProcedureMetadata) (string, error) 
 }
 
 func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
-	// An event synced without its CREATE EVENT, as on OceanBase, has nothing faithful to write.
+	// An event synced without its CREATE EVENT has nothing faithful to write.
 	if event.Definition == "" {
 		return nil
 	}
@@ -215,57 +283,26 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 		return err
 	}
 
-	// Set charset, collation, sql mode and timezone.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
+	// Set charset, collation, sql mode and timezone. OceanBase states no character set or
+	// collation for an event, so those lines are written only when the metadata carries
+	// them; an empty sql_mode is a value the server states and is written as one.
+	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, ""); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
+	if _, err := io.WriteString(out, setSQLMode+"'"+event.SqlMode+"';\n"); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setTimezone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.TimeZone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
-		return err
+	// OceanBase refuses the literal SYSTEM as a session zone, and SYSTEM is the zone the
+	// session starts in: give it back what an earlier event's explicit zone may have changed.
+	switch {
+	case strings.EqualFold(event.TimeZone, "SYSTEM"):
+		if _, err := io.WriteString(out, setTimezone+"DEFAULT;\n"); err != nil {
+			return err
+		}
+	case event.TimeZone != "":
+		if _, err := io.WriteString(out, setTimezone+"'"+event.TimeZone+"';\n"); err != nil {
+			return err
+		}
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
 		return err
@@ -966,25 +1003,31 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 		return err
 	}
 
-	isFullText := strings.EqualFold(index.Type, mysqlIndexFullText)
-	isSpatial := strings.EqualFold(index.Type, mysqlIndexSpatial)
-	if index.Unique {
-		if _, err := fmt.Fprint(buf, "UNIQUE "); err != nil {
-			return err
-		}
-	} else if isFullText {
-		if _, err := fmt.Fprint(buf, "FULLTEXT "); err != nil {
-			return err
-		}
-	} else if isSpatial {
-		if _, err := fmt.Fprint(buf, "SPATIAL "); err != nil {
-			return err
-		}
-	}
-
-	if _, err := fmt.Fprintf(buf, "KEY %s (", quoteIdent(index.Name)); err != nil {
+	if _, err := fmt.Fprintf(buf, "%sKEY %s (", indexQualifier(index), quoteIdent(index.Name)); err != nil {
 		return err
 	}
+	return printIndexKeyParts(buf, index, engine)
+}
+
+// indexQualifier is the keyword that opens an index, in a CREATE TABLE clause and in a
+// standalone CREATE INDEX alike.
+func indexQualifier(index *metadata.IndexMetadata) string {
+	switch {
+	case index.Unique:
+		return "UNIQUE "
+	case strings.EqualFold(index.Type, mysqlIndexFullText):
+		return "FULLTEXT "
+	case strings.EqualFold(index.Type, mysqlIndexSpatial):
+		return "SPATIAL "
+	}
+	return ""
+}
+
+// printIndexKeyParts writes the key parts, type and options of an index, from its name and
+// opening parenthesis to the end of its clause.
+func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, engine string) error {
+	isFullText := strings.EqualFold(index.Type, mysqlIndexFullText)
+	isSpatial := strings.EqualFold(index.Type, mysqlIndexSpatial)
 
 	for i, expr := range index.Expressions {
 		if i != 0 {
