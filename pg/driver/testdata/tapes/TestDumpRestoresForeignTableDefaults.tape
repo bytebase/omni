@@ -11,6 +11,7 @@
 |     token text DEFAULT public.remote_token(),
 |     CONSTRAINT remote_positive CHECK (id > 0)
 | ) SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');
+| CREATE SEQUENCE public.remote_owned_seq OWNED BY public.remote_defaults.id;
 | CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 < ok 0 -
 > query
@@ -826,6 +827,10 @@
 < column "oid" "OID"
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
+< row
+: int64 4294967306
+: int64 4294967303
+: int64 1
 > query
 |
 | 	SELECT
@@ -862,11 +867,27 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967306
+: int64 4294967307
 : string
 | public
 : string
 | remote_id
+: string
+| bigint
+: int64 1
+: int64 1
+: int64 9223372036854775807
+: int64 1
+: bool false
+: int64 1
+: null
+: null
+< row
+: int64 4294967306
+: string
+| public
+: string
+| remote_owned_seq
 : string
 | bigint
 : int64 1
@@ -1133,6 +1154,15 @@
 | 	CACHE 1
 | 	NO CYCLE;
 |
+| CREATE SEQUENCE "public"."remote_owned_seq"
+|     AS bigint
+| 	START WITH 1
+| 	INCREMENT BY 1
+| 	MINVALUE 1
+| 	MAXVALUE 9223372036854775807
+| 	CACHE 1
+| 	NO CYCLE;
+|
 | SET default_tablespace = '';
 |
 | CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
@@ -1148,6 +1178,8 @@
 |     "token" text DEFAULT public.remote_token(),
 |     CONSTRAINT "remote_positive" CHECK (id > 0)
 | ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'defaults');
+|
+| ALTER SEQUENCE "public"."remote_owned_seq" OWNED BY "public"."remote_defaults"."id";
 |
 | CREATE OR REPLACE FUNCTION public.read_remote(r public.remote_defaults)
 |  RETURNS integer
@@ -1253,8 +1285,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967307
-< row
 : int64 4294967308
 < row
 : int64 4294967309
@@ -1264,6 +1294,8 @@
 : int64 4294967311
 < row
 : int64 4294967312
+< row
+: int64 4294967313
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1651,7 +1683,7 @@
 | remote_defaults
 : string
 | ["schema_name=public","table_name=defaults"]
-: int64 4294967313
+: int64 4294967314
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1815,8 +1847,8 @@
 < column "function_oid" "OID"
 < column "table_oid" "OID"
 < row
+: int64 4294967315
 : int64 4294967314
-: int64 4294967313
 > query
 |
 | select p.oid, n.nspname as function_schema,
@@ -1854,7 +1886,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967311
+: int64 4294967312
 : string
 | public
 : string
@@ -1870,7 +1902,7 @@
 |
 : null
 < row
-: int64 4294967312
+: int64 4294967313
 : string
 | public
 : string
@@ -1886,7 +1918,7 @@
 |
 : null
 < row
-: int64 4294967310
+: int64 4294967311
 : string
 | public
 : string
@@ -1902,7 +1934,7 @@
 |
 : null
 < row
-: int64 4294967307
+: int64 4294967308
 : string
 | public
 : string
@@ -1918,7 +1950,7 @@
 |
 : null
 < row
-: int64 4294967308
+: int64 4294967309
 : string
 | public
 : string
@@ -1934,7 +1966,7 @@
 |
 : null
 < row
-: int64 4294967314
+: int64 4294967315
 : string
 | public
 : string
@@ -1949,7 +1981,7 @@
 |
 : null
 < row
-: int64 4294967315
+: int64 4294967316
 : string
 | public
 : string
@@ -1981,6 +2013,10 @@
 < column "oid" "OID"
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
+< row
+: int64 4294967317
+: int64 4294967314
+: int64 1
 > query
 |
 | 	SELECT
@@ -2017,11 +2053,27 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967316
+: int64 4294967318
 : string
 | public
 : string
 | remote_id
+: string
+| bigint
+: int64 1
+: int64 1
+: int64 9223372036854775807
+: int64 1
+: bool false
+: int64 1
+: null
+: null
+< row
+: int64 4294967317
+: string
+| public
+: string
+| remote_owned_seq
 : string
 | bigint
 : int64 1

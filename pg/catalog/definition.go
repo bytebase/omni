@@ -354,6 +354,11 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable, externalTable.CheckConstraints); err != nil {
 				return "", err
 			}
+			for _, sequence := range sequenceOwnershipMap[objectID] {
+				if err := writeAlterSequenceOwnedBy(&buf, getSchemaNameFromID(objectID), sequence); err != nil {
+					return "", err
+				}
+			}
 		}
 		if view, ok := viewMap[objectID]; ok {
 			if err := writeView(&buf, getSchemaNameFromID(objectID), view); err != nil {
