@@ -22,10 +22,10 @@ restated here.
 | 2 | `db.SQLDB` optional handle | open, one shape to pick | the first pin bump that removes `GetDB` |
 | 3 | Truncation cut point | settled by the contract | nobody; note the row change |
 | 4 | NUL byte in the username | settled: accept | nobody; do not "fix" |
-| 5 | plancheck's concrete assertions | open, timing only | the first wave-2 cutover (mssql or cockroachdb) |
+| 5 | plancheck's concrete assertions | open, timing only | the first cutover that lets a concrete driver type go (cockroachdb, since mssql did not need it) |
 | 6 | Cassandra sync on a missing keyspace | open, one behavior to own | the cassandra pin bump |
 | 7 | Cassandra's new task-run log entries | settled: keep | nobody |
-| 8 | Cassandra's SSH, no-op `Dump`, dead read-only branch | settled: recorded in §8 | nobody |
+| 8 | Cassandra's SSH, no-op `Dump`, dead read-only branch | settled: recorded in §9 | nobody |
 | 9 | Oracle's private-link guard | open, must land before the oracle pin | the oracle cutover |
 | 10 | Oracle's `GetVersion` | settled: the metadata is the fallback | nobody |
 
@@ -335,9 +335,9 @@ record.
 | SSH through `Config.Dial` | A gain, not parity: the old driver had no SSH path. A tunnel-backed Cassandra source is intended; do not read it as a regression. |
 | The no-op `Dump` | Delegated, not synthesized: both sides write nothing (`cassandra/driver/dump.go`, `TestDumpWritesNothing`). The contract's `Dumper` wording does not promise text, so an engine whose schema cannot be restored keeps returning nil. |
 | The ignored read-only boolean | Knowingly preserved. The old `QueryConn` called `ValidateSQLForEditor` and ignored its read-only result, so the `"support Cassandra SELECT statement only"` branch is dead; the adapter keeps it. The real gate is `requiresAdminDataSource` (`backend/api/v1/sql_service.go:2464`, `:2502`), which routes a non-read-only statement to the admin data source. A fix belongs to that product gate, not to the adapter. |
-| Wave order | Cassandra is the cleanest engine, not the smallest diff: 312 adapter lines, −490 non-test, zero product files, and zero engine-specific `Open` options (no `Params`, no `Options`, nil `GetDB`, ignored conn, no-op `Dump` on both sides) — while deleting the most code of any wave-1 engine, because it carried its own sync. It needed none of the wave-0 seams, which is why wave 0 does not gate wave 1 (dispatch §6). Wave 1 orders by fewest engine-specific decisions, not by adapter line count, so it stays first. |
+| Wave order | Cassandra is the cleanest engine, not the smallest diff: 312 adapter lines, −490 non-test, zero product files, and zero engine-specific `Open` options (no `Params`, no `Options`, nil `GetDB`, ignored conn, no-op `Dump` on both sides) — while deleting the most code of any wave-1 engine, because it carried its own sync. It needed none of the wave-0 seams, which is why wave 0 does not gate wave 1 (dispatch §7). Wave 1 orders by fewest engine-specific decisions, not by adapter line count, so it stays first. |
 | Verification | Bytebase's cassandra package had no server-backed test; the proof's live exercise was temporary and is not in the measured test lines. A cassandra pin bump should add one server-backed test at Bytebase's seam, or say that omni's tape suite is the only coverage. |
-| The shared conversion helper | The first cutover inlined it, as pg did. Three proofs then wrote the same 120 lines, which is why the revised plan makes `db/util/omnidriver.go` wave 0; cassandra's inline copy is the fallback if wave 0 has not landed (dispatch §6, §7). A second adapter copying it is what measured the extraction. |
+| The shared conversion helper | The first cutover inlined it, as pg did. Three proofs then wrote the same 120 lines, which is why the revised plan makes `db/util/omnidriver.go` wave 0; cassandra's inline copy is the fallback if wave 0 has not landed (dispatch §7, §8). A second adapter copying it is what measured the extraction. |
 
 ## 9. Oracle's private-link guard fails closed without a connection
 
