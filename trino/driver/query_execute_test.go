@@ -163,6 +163,37 @@ func TestQuery(t *testing.T) {
 		}
 	})
 
+	t.Run("a count only where the statement states one", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, `CREATE SCHEMA memory.omni_query_count;
+CREATE TABLE memory.omni_query_count.plain (id integer);
+CREATE TABLE memory.omni_query_count.ctas AS SELECT x FROM UNNEST(SEQUENCE(1, 3)) AS t(x);
+SET SESSION query_max_run_time = '1m';`, driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 4 {
+			t.Fatalf("results = %d, want 4", len(results))
+		}
+		for _, i := range []int{0, 1, 3} {
+			if results[i].Err != nil {
+				t.Fatalf("statement %d: %v", i, results[i].Err)
+			}
+			if results[i].AffectedRows != nil {
+				t.Errorf("statement %d affected %d, want none: %s", i, *results[i].AffectedRows, results[i].Statement)
+			}
+		}
+		// CREATE TABLE AS copies rows, and Trino states that count even though
+		// the statement is DDL.
+		if results[2].Err != nil {
+			t.Fatal(results[2].Err)
+		}
+		if results[2].AffectedRows == nil || *results[2].AffectedRows != 3 {
+			t.Errorf("CREATE TABLE AS affected %v, want 3", results[2].AffectedRows)
+		}
+	})
+
 	t.Run("failure stops the script", func(t *testing.T) {
 		d := openDriver(t)
 		session := openSession(t, d)

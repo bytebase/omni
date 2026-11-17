@@ -116,12 +116,38 @@ func (s *session) runStatement(ctx context.Context, statement string, opts drive
 	if err != nil {
 		return &driver.Result{Statement: statement}, err
 	}
+	if !reportsCount(statement) {
+		return &driver.Result{Statement: statement}, nil
+	}
 	affectedRows, err := execResult.RowsAffected()
 	if err != nil {
 		// Trino does not always report a count, especially for DDL.
 		affectedRows = 0
 	}
 	return &driver.Result{Statement: statement, AffectedRows: &affectedRows}, nil
+}
+
+// reportsCount reports whether Trino states an update count for statement.
+// Trino answers INSERT, UPDATE, DELETE, MERGE and CREATE TABLE AS with an
+// updateCount, which may be 0, and every other statement without one. The
+// client reads an absent count as 0 and returns it with no error, so the
+// statement's kind, which the parser already holds, is what tells them apart.
+// A statement the parser cannot read keeps the client's count: it may be one
+// the server accepts and reports.
+func reportsCount(statement string) bool {
+	file, err := parser.Parse(statement)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return true
+	}
+	switch file.Stmts[0].(type) {
+	case *parser.InsertStmt, *parser.UpdateStmt, *parser.DeleteStmt, *parser.MergeStmt,
+		*parser.CreateTableAsStmt:
+		return true
+	case *parser.ExecuteStmt, *parser.ExecuteImmediateStmt, *parser.CallStmt:
+		// The count depends on what these run, which the text does not state.
+		return true
+	}
+	return false
 }
 
 // readRows reads a result set into a Result, stopping at maxResultBytes when
