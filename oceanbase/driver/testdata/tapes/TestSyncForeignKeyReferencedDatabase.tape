@@ -92,10 +92,10 @@
 : string
 | omni_fk_local
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "COLUMN_NAME" "VARCHAR"
+< column "COLUMN_NAME" "VARCHAR" "string"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
 < column "REFERENCED_COLUMN_NAME" "VARCHAR"
 < row
