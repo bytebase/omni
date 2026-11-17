@@ -438,7 +438,10 @@ func columnsEqual(a, b *metadata.ColumnMetadata) bool {
 	if !expressionsEqual(a.Default, b.Default) {
 		return false
 	}
-	if a.Comment != b.Comment || a.CharacterSet != b.CharacterSet || a.Collation != b.Collation {
+	if a.Comment != b.Comment || a.CharacterSet != b.CharacterSet {
+		return false
+	}
+	if a.Collation != b.Collation && a.Collation != "" && b.Collation != "" {
 		return false
 	}
 	if a.OnUpdate != b.OnUpdate || a.DefaultOnNull != b.DefaultOnNull {

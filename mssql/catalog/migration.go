@@ -53,6 +53,10 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 		text := fmt.Sprintf("-- UNSUPPORTED: replacing view %s under schema-bound dependent view %s; rebuild the dependent view manually.\n", view, view)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
 	}
+	if function := blockingSchemaBoundDrop(from, diff); function != "" {
+		text := fmt.Sprintf("-- UNSUPPORTED: schema-bound function %s reads a table being dropped; drop the function first manually.\n", function)
+		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
+	}
 	if function := blockingFunctionCheck(from, to, diff); function != "" {
 		text := fmt.Sprintf("-- UNSUPPORTED: function %s is used by a CHECK constraint; rebuild the constraint manually.\n", function)
 		return &MigrationPlan{Ops: []MigrationOp{{Type: OpScript, SQL: text}}}
@@ -488,7 +492,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	for _, ref := range restoreFunctionDefaults {
 		created := false
 		for _, funcDiff := range diff.Functions {
-			if funcDiff.Action == DiffCreate && strings.EqualFold(funcDiff.FunctionName, ref.functionName) {
+			if funcDiff.Action == DiffCreate && strings.EqualFold(funcDiff.SchemaName+"."+funcDiff.FunctionName, ref.functionName) {
 				created = true
 			}
 		}
@@ -924,6 +928,34 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 	return buf.String()
 }
 
+func blockingSchemaBoundDrop(from *Catalog, diff *SchemaDiff) string {
+	if from == nil {
+		return ""
+	}
+	droppedTables := make(map[string]bool)
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.Action == DiffDrop {
+			droppedTables[strings.ToLower(tableDiff.TableName)] = true
+		}
+	}
+	if len(droppedTables) == 0 {
+		return ""
+	}
+	for _, schema := range from.Metadata().Schemas {
+		for _, function := range schema.Functions {
+			if !strings.Contains(strings.ToUpper(function.Definition), "SCHEMABINDING") {
+				continue
+			}
+			for name := range droppedTables {
+				if strings.Contains(strings.ToLower(function.Definition), name) {
+					return quote(schema.Name) + "." + quote(function.Name)
+				}
+			}
+		}
+	}
+	return ""
+}
+
 func blockingFunctionCheck(from, to *Catalog, diff *SchemaDiff) string {
 	replaced := make(map[string]bool)
 	created := make(map[string]bool)
@@ -1147,10 +1179,11 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 	if from == nil {
 		return removed, restore
 	}
-	droppedFunctions := make(map[string]bool)
+	droppedFunctions := make(map[string]string)
 	for _, funcDiff := range diff.Functions {
 		if funcDiff.Action == DiffDrop {
-			droppedFunctions[strings.ToLower(funcDiff.FunctionName)] = true
+			key := strings.ToLower(funcDiff.SchemaName + "." + funcDiff.FunctionName)
+			droppedFunctions[key] = funcDiff.FunctionName
 		}
 	}
 	droppedTables := make(map[string]bool)
@@ -1174,14 +1207,18 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 				if column.Default == "" || column.DefaultConstraintName == "" || droppedColumns[schema.Name+"."+table.Name+"."+column.Name] {
 					continue
 				}
-				for name := range droppedFunctions {
-					if defaultReferencesFunction(column.Default, name) {
+				for key, name := range droppedFunctions {
+					parts := strings.SplitN(key, ".", 2)
+					if len(parts) != 2 {
+						continue
+					}
+					if defaultReferencesFunction(column.Default, parts[0], name) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
 						removed[schema.Name+"."+column.DefaultConstraintName] = true
 						restore = append(restore, functionDefaultRef{
 							schema: schema.Name, table: table.Name, column: column.Name,
 							constraint: column.DefaultConstraintName, expression: column.Default,
-							functionName: name,
+							functionName: key,
 						})
 						break
 					}
@@ -1192,7 +1229,7 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 	return removed, restore
 }
 
-func defaultReferencesFunction(expression, functionName string) bool {
+func defaultReferencesFunction(expression, schemaName, functionName string) bool {
 	code := stripLiteralsAndComments(expression)
 	matches := functionCall.FindAllStringSubmatch(code, -1)
 	for _, match := range matches {
@@ -1200,7 +1237,16 @@ func defaultReferencesFunction(expression, functionName string) bool {
 		for i := range parts {
 			parts[i] = strings.Trim(parts[i], "[]")
 		}
-		if len(parts) > 0 && strings.EqualFold(parts[len(parts)-1], functionName) {
+		if len(parts) == 0 || !strings.EqualFold(parts[len(parts)-1], functionName) {
+			continue
+		}
+		if len(parts) == 1 {
+			if strings.EqualFold(schemaName, "dbo") {
+				return true
+			}
+			continue
+		}
+		if strings.EqualFold(parts[len(parts)-2], schemaName) {
 			return true
 		}
 	}
@@ -2021,6 +2067,15 @@ func createViewsInOrder(diff *SchemaDiff, buf *strings.Builder) {
 func hasCreateOrAlterTables(diff *SchemaDiff) bool {
 	for _, tableDiff := range diff.Tables {
 		if tableDiff.Action == DiffCreate || tableDiff.Action == DiffAlter {
+			return true
+		}
+	}
+	return false
+}
+
+func hasTableDrops(diff *SchemaDiff) bool {
+	for _, tableDiff := range diff.Tables {
+		if tableDiff.Action == DiffDrop {
 			return true
 		}
 	}
