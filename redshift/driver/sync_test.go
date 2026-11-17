@@ -167,6 +167,8 @@ func TestColumnListSplit(t *testing.T) {
 		{definition: `"a,b", c`, want: []string{"a,b", "c"}},
 		{definition: `"a""b"`, want: []string{`a"b`}},
 		{definition: `"B b"`, want: []string{"B b"}},
+		// A quoted name's space is part of the name, not a separator.
+		{definition: ` " id " , key `, want: []string{" id ", "key"}},
 	} {
 		got, err := getColumnList(tc.definition)
 		if err != nil {

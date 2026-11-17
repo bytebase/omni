@@ -98,7 +98,10 @@ an index here is looking at another engine.
 
 The datashare branch (`Params["datashare"]`) is the one path this corpus cannot
 reach: it needs a second account or namespace that shares a database in, which
-`SVV_DATASHARES` then reports. Record it last, on its own, and skip it if
+`SVV_DATASHARES` then reports. `SVV_ALL_TABLES` lists a shared view with
+`table_type` `VIEW`, and the sync leaves it out: a datashare has no view
+definition to report, so the recording is what decides whether a shared view
+should be a view with a definition here or not synced at all. Record it last, on its own, and skip it if
 provisioning one is unattractive — say so in the PR that records, rather than
 leaving a tape that pretends. `TestLiveSyncDatabaseDatashare` reads the share
 out of the cluster instead of being told its name: it skips, naming this

@@ -276,9 +276,11 @@ func (d *Driver) getDatashareTables(txn *sql.Tx) (map[string][]*metadatapb.Table
 	const query = `
 	SELECT
 		schema_name,
-		table_name
+		table_name,
+		table_type
 	FROM SVV_ALL_TABLES
-	WHERE database_name = $1;`
+	WHERE database_name = $1
+	ORDER BY schema_name, table_name;`
 	rows, err := txn.Query(query, d.databaseName)
 	if err != nil {
 		return nil, err
@@ -287,9 +289,15 @@ func (d *Driver) getDatashareTables(txn *sql.Tx) (map[string][]*metadatapb.Table
 
 	for rows.Next() {
 		table := &metadatapb.TableMetadata{}
-		var schemaName string
-		if err := rows.Scan(&schemaName, &table.Name); err != nil {
+		var schemaName, tableType string
+		if err := rows.Scan(&schemaName, &table.Name, &tableType); err != nil {
 			return nil, err
+		}
+		if strings.EqualFold(tableType, "VIEW") {
+			// A shared view is listed here too, and it is not a table: the sync
+			// has no view definition for a datashare, so VERIFY.md says what a
+			// recording has to settle before one is reported.
+			continue
 		}
 		key := tableKey{Schema: schemaName, Table: table.Name}
 		table.Columns = columnMap[key]
@@ -721,8 +729,11 @@ func getColumnList(definition string) ([]string, error) {
 			}
 			quoted = !quoted
 		case c == ',' && !quoted:
-			result = append(result, strings.TrimSpace(name.String()))
+			result = append(result, name.String())
 			name.Reset()
+		case !quoted && isSpaceByte(c):
+			// The spaces between names are separators; a space inside a quoted
+			// name is part of it.
 		default:
 			name.WriteByte(c)
 		}
@@ -730,8 +741,13 @@ func getColumnList(definition string) ([]string, error) {
 	if quoted {
 		return nil, fmt.Errorf("invalid column list definition: %q", definition)
 	}
-	result = append(result, strings.TrimSpace(name.String()))
+	result = append(result, name.String())
 	return result, nil
+}
+
+// isSpaceByte reports whether c separates one name from another.
+func isSpaceByte(c byte) bool {
+	return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v'
 }
 
 // convertYesNo reads the is_nullable answers Redshift's INFORMATION_SCHEMA and

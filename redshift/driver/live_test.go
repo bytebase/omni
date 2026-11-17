@@ -367,9 +367,13 @@ func TestLiveCountAffectedRows(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
+	// Redshift has no generate_series, so a recursive CTE makes the rows the
+	// planner measures.
 	if _, err := d.Execute(ctx, `
 		CREATE TEMP TABLE omni_stats_probe (a int);
-		INSERT INTO omni_stats_probe SELECT 1 FROM generate_series(1, 100);
+		INSERT INTO omni_stats_probe
+			WITH RECURSIVE numbers AS (SELECT 1 AS n UNION ALL SELECT n + 1 FROM numbers WHERE n < 100)
+			SELECT 1 FROM numbers;
 		ANALYZE omni_stats_probe;
 	`, driver.ExecuteOptions{}); err != nil {
 		t.Fatalf("Execute: %v", err)
