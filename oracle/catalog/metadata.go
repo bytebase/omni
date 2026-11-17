@@ -59,6 +59,8 @@ type oracleMetadataExtractor struct {
 	err               error
 	namedNotNull      map[string]bool
 	primaryKeyNotNull map[string]bool
+	explicitSchema    bool
+	owner             string
 	currentDatabase   string
 	currentSchema     string
 	tables            map[string]*metadatapb.TableMetadata
@@ -185,7 +187,14 @@ func (e *oracleMetadataExtractor) useSchema(schema string) bool {
 		return true
 	}
 	if e.currentSchema == "" {
+		if e.owner != "" && schema != e.owner {
+			if e.err == nil {
+				e.err = fmt.Errorf("statement names schema %q, but the catalog is loading schema %q", schema, e.owner)
+			}
+			return false
+		}
 		e.currentSchema = schema
+		e.explicitSchema = true
 		return true
 	}
 	if schema == e.currentSchema {
@@ -601,6 +610,11 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				e.err = fmt.Errorf("constraint enable/disable is not supported by oracle/catalog")
 			}
 			return
+		case ast.AT_SET_UNUSED:
+			if e.err == nil {
+				e.err = fmt.Errorf("SET UNUSED is not supported by oracle/catalog")
+			}
+			return
 		case ast.AT_RENAME_CONSTRAINT:
 			e.renameConstraint(table, action.ColumnName, action.NewName)
 		case ast.AT_RENAME:
@@ -874,17 +888,26 @@ func writeRenamedIdentifier(out *strings.Builder, name string, forceQuote bool) 
 
 func expressionReferencesFunction(expression, function string) bool {
 	upper := strings.ToUpper(expression)
-	needle := strings.ToUpper(function) + "("
+	name := strings.ToUpper(function)
 	for offset := 0; ; {
-		index := strings.Index(upper[offset:], needle)
+		index := strings.Index(upper[offset:], name)
 		if index < 0 {
 			return false
 		}
 		start := offset + index
-		if start == 0 || !isIdentifierByte(expression[start-1]) {
-			return true
+		end := start + len(name)
+		if start > 0 && isIdentifierByte(expression[start-1]) {
+			offset = end
+			continue
 		}
-		offset = start + len(needle)
+		if end < len(expression) && isIdentifierByte(expression[end]) {
+			offset = end
+			continue
+		}
+		for end < len(expression) && (expression[end] == ' ' || expression[end] == '\t' || expression[end] == '\n' || expression[end] == '\r') {
+			end++
+		}
+		return end < len(expression) && expression[end] == '('
 	}
 }
 
@@ -982,6 +1005,12 @@ func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetada
 		if index.Name == oldName && index.IsConstraint {
 			index.Name = newName
 		}
+	}
+	oldKey := table.Name + "\x00" + oldName
+	newKey := table.Name + "\x00" + newName
+	if e.namedNotNull[oldKey] {
+		delete(e.namedNotNull, oldKey)
+		e.namedNotNull[newKey] = true
 	}
 	for _, check := range table.CheckConstraints {
 		if check.Name == oldName {
@@ -1093,6 +1122,7 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 			if n.Cascade {
 				e.dropIncomingForeignKeys(name)
 			}
+			e.dropTableProvenance(name)
 			delete(e.tables, name)
 		case ast.OBJECT_VIEW:
 			delete(e.views, name)
@@ -1581,6 +1611,34 @@ func triggerAttributes(n *ast.CreateTriggerStmt) (string, string) {
 	return strings.Join(events, " OR "), timing
 }
 
+func (e *oracleMetadataExtractor) dropTableProvenance(tableName string) {
+	prefix := tableName + "\x00"
+	for key := range e.primaryKeyNotNull {
+		if strings.HasPrefix(key, prefix) {
+			delete(e.primaryKeyNotNull, key)
+		}
+	}
+	for key := range e.namedNotNull {
+		if strings.HasPrefix(key, prefix) {
+			delete(e.namedNotNull, key)
+		}
+	}
+}
+
+func renameTriggerName(body, oldName, newName string) string {
+	upper := strings.ToUpper(body)
+	index := strings.Index(upper, "TRIGGER ")
+	if index < 0 {
+		return body
+	}
+	start := index + len("TRIGGER ")
+	token, tokenStart, tokenEnd := scanTriggerIdentifier(body, start)
+	if !strings.EqualFold(token, oldName) {
+		return body
+	}
+	return body[:tokenStart] + renderRenamedIdentifier(newName) + body[tokenEnd:]
+}
+
 func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
 	name := objectName(n.Name)
 	if name == "" || !e.useSchema(n.Name.Schema) {
@@ -1591,6 +1649,14 @@ func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
 		return
 	}
 	switch strings.ToUpper(n.Action) {
+	case "RENAME":
+		if n.NewName == "" {
+			return
+		}
+		delete(e.triggers, name)
+		trigger.Name = n.NewName
+		trigger.Body = renameTriggerName(trigger.Body, name, n.NewName)
+		e.triggers[n.NewName] = trigger
 	case "DISABLE":
 		marker := "ALTER TRIGGER \"" + name + "\" DISABLE;"
 		if !strings.Contains(strings.ToUpper(trigger.Body), strings.ToUpper(marker)) {
@@ -1922,8 +1988,9 @@ func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, s
 	}
 	schema := meta.GetSchemas()[0]
 	e.currentSchema = schema.GetName()
-	if e.currentSchema == "" {
-		e.currentSchema = meta.GetName()
+	e.owner = e.currentSchema
+	if e.owner == "" {
+		e.owner = meta.GetName()
 	}
 	for _, table := range schema.GetTables() {
 		cloned := cloneTable(table)

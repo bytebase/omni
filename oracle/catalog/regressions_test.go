@@ -1838,3 +1838,41 @@ func TestRenameTableMovesPrimaryKeyProvenance(t *testing.T) {
 		t.Fatalf("renamed table's primary-key column kept NOT NULL: %+v", table.Columns[0])
 	}
 }
+
+func TestFunctionReferenceAllowsWhitespace(t *testing.T) {
+	if !expressionReferencesFunction("Z (C)", "Z") {
+		t.Fatal("function call with whitespace not detected")
+	}
+}
+
+func TestDropTableClearsNullabilityProvenance(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY); DROP TABLE T; CREATE TABLE T (ID NUMBER NOT NULL PRIMARY KEY); ALTER TABLE T DROP PRIMARY KEY`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if tableByName(c.Metadata().Schemas[0])["T"].Columns[0].Nullable {
+		t.Fatal("stale provenance cleared an explicit NOT NULL")
+	}
+}
+
+func TestAlterTriggerRename(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON T BEGIN NULL; END; ALTER TRIGGER TR RENAME TO TR2; DROP TRIGGER TR2`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["T"].Triggers) != 0 {
+		t.Fatal("renamed trigger survived its drop")
+	}
+}
+
+func TestQualifiedStatementEstablishesOwner(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE TABLE APP.U (C NUMBER); CREATE TABLE OTHER.V (C NUMBER)`); err == nil {
+		t.Fatal("a second owner was accepted after APP")
+	}
+}
+
+func TestSetUnusedIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, D NUMBER); ALTER TABLE T SET UNUSED COLUMN C`); err == nil {
+		t.Fatal("SET UNUSED silently accepted")
+	}
+}

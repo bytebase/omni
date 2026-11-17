@@ -161,6 +161,9 @@ func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
 			oldSchema, newSchema := result.Schemas[0], meta.Schemas[0]
 			merged := cloneSchema(oldSchema)
 			merged.Name = oldSchema.GetName()
+			if merged.Name == "" && extractor.explicitSchema {
+				merged.Name = newSchema.GetName()
+			}
 			merged.Tables = newSchema.GetTables()
 			merged.Views = newSchema.GetViews()
 			merged.MaterializedViews = newSchema.GetMaterializedViews()
