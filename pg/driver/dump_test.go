@@ -162,7 +162,9 @@ func TestDumpRestoresForeignPartition(t *testing.T) {
 		"CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)\n" +
 		"    SERVER loopback OPTIONS (schema_name 'public', table_name 'x');\n" +
 		"COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';\n" +
-		"COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';"
+		"COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';\n" +
+		"CREATE FUNCTION public.pt_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\n" +
+		"CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_partition", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)

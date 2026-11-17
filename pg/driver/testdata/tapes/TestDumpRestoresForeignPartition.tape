@@ -9,6 +9,8 @@
 |     SERVER loopback OPTIONS (schema_name 'public', table_name 'x');
 | COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';
 | COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';
+| CREATE FUNCTION public.pt_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
@@ -356,7 +358,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -365,6 +367,17 @@
 < column "trigger_name" "NAME"
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
+< row
+: int64 4294967303
+: string
+| public
+: string
+| pt
+: string
+| pt_trg
+: string
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit()
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
@@ -502,7 +515,7 @@
 | pt_remote
 : string
 | ["schema_name=public","table_name=x"]
-: int64 4294967303
+: int64 4294967304
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -528,7 +541,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967305
 : string
 | public
 : string
@@ -808,6 +821,21 @@
 |  LANGUAGE c
 |  STRICT
 | AS '$libdir/postgres_fdw', $function$postgres_fdw_validator$function$
+|
+: null
+< row
+: int64 4294967306
+: string
+| public
+: string
+| pt_audit
+: string
+|
+: string
+| CREATE OR REPLACE FUNCTION public.pt_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
 |
 : null
 > query
@@ -1114,6 +1142,12 @@
 |
 | CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
 |
+| CREATE OR REPLACE FUNCTION public.pt_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
+| ;
+|
 | CREATE TABLE "public"."pt" (
 |     "id" integer,
 |     CONSTRAINT "pt_id_check" CHECK (id > 0)
@@ -1131,6 +1165,8 @@
 | COMMENT ON FOREIGN TABLE "public"."pt_remote" IS 'remote partition';
 |
 | ALTER TABLE ONLY "public"."pt" ATTACH PARTITION "public"."pt_remote" FOR VALUES FROM (0) TO (10);
+|
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();
 |
 |
 < ok 0 -
@@ -1230,10 +1266,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967305
-< row
-: int64 4294967306
-< row
 : int64 4294967307
 < row
 : int64 4294967308
@@ -1241,6 +1273,10 @@
 : int64 4294967309
 < row
 : int64 4294967310
+< row
+: int64 4294967311
+< row
+: int64 4294967312
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1491,7 +1527,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -1500,6 +1536,17 @@
 < column "trigger_name" "NAME"
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
+< row
+: int64 4294967313
+: string
+| public
+: string
+| pt
+: string
+| pt_trg
+: string
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit()
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
@@ -1637,7 +1684,7 @@
 | pt_remote
 : string
 | ["schema_name=public","table_name=x"]
-: int64 4294967311
+: int64 4294967314
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1663,7 +1710,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967312
+: int64 4294967315
 : string
 | public
 : string
@@ -1866,7 +1913,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967309
+: int64 4294967311
 : string
 | public
 : string
@@ -1882,7 +1929,7 @@
 |
 : null
 < row
-: int64 4294967310
+: int64 4294967312
 : string
 | public
 : string
@@ -1898,7 +1945,7 @@
 |
 : null
 < row
-: int64 4294967308
+: int64 4294967310
 : string
 | public
 : string
@@ -1914,7 +1961,7 @@
 |
 : null
 < row
-: int64 4294967305
+: int64 4294967307
 : string
 | public
 : string
@@ -1930,7 +1977,7 @@
 |
 : null
 < row
-: int64 4294967306
+: int64 4294967308
 : string
 | public
 : string
@@ -1943,6 +1990,21 @@
 |  LANGUAGE c
 |  STRICT
 | AS '$libdir/postgres_fdw', $function$postgres_fdw_validator$function$
+|
+: null
+< row
+: int64 4294967316
+: string
+| public
+: string
+| pt_audit
+: string
+|
+: string
+| CREATE OR REPLACE FUNCTION public.pt_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
 |
 : null
 > query

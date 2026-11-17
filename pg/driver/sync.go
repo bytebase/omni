@@ -73,6 +73,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	isAtLeastPG10 := isAtLeastMajorVersion(engineVersion, 10)
 	isAtLeastPG12 := isAtLeastMajorVersion(engineVersion, 12)
+	isAtLeastPG13 := isAtLeastMajorVersion(engineVersion, 13)
 	isAtLeastPG14 := isAtLeastMajorVersion(engineVersion, 14)
 	searchPath, err := d.SearchPath(ctx)
 	if err != nil {
@@ -115,7 +116,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indexes from database %q: %w", d.databaseName, err)
 	}
-	triggerMap, err := getTriggers(txn, extensionDepend)
+	triggerMap, err := getTriggers(txn, isAtLeastPG13, extensionDepend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get triggers from database %q: %w", d.databaseName, err)
 	}
@@ -1968,7 +1969,13 @@ func getSequenceOwners(txn *sql.Tx) (map[int]ColumnOidKey, error) {
 	return sequenceOwnerMap, nil
 }
 
-func getTriggers(txn *sql.Tx, extensionDepend map[int]bool) (map[tableKey][]*metadatapb.TriggerMetadata, error) {
+func getTriggers(txn *sql.Tx, isAtLeastPG13 bool, extensionDepend map[int]bool) (map[tableKey][]*metadatapb.TriggerMetadata, error) {
+	// tgparentid names the trigger a partition's clone was made from, which it
+	// exists from PostgreSQL 13; before that a partition holds no clone.
+	cloneFilter := ""
+	if isAtLeastPG13 {
+		cloneFilter = " AND pt.tgparentid = 0"
+	}
 	query := `
 	SELECT
 		pt.oid,
@@ -1980,9 +1987,9 @@ func getTriggers(txn *sql.Tx, extensionDepend map[int]bool) (map[tableKey][]*met
 	FROM pg_trigger as pt
 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-	WHERE pn.nspname NOT IN (%s) AND pt.tgisinternal = false
+	WHERE pn.nspname NOT IN (%s) AND pt.tgisinternal = false%s
 	ORDER BY pn.nspname, pc.relname, pt.tgname;`
-	rows, err := txn.Query(fmt.Sprintf(query, pganalysis.SystemSchemaWhereClause))
+	rows, err := txn.Query(fmt.Sprintf(query, pganalysis.SystemSchemaWhereClause, cloneFilter))
 	if err != nil {
 		return nil, err
 	}

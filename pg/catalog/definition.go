@@ -264,6 +264,8 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 	}
 
+	addRelationTypeEdges(graph, foreignTableMap, tableMap, foreignPartitionParents)
+
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
 		// If topological sort fails (e.g., due to circular dependencies),
@@ -2225,6 +2227,32 @@ func checkExpressionForDependencies(expression string) string {
 	}
 }
 
+// addRelationTypeEdges makes a relation follow the relation whose row type one
+// of its columns uses. PostgreSQL row types are not composite types, so the
+// type section does not create them; a foreign table can name another foreign
+// table's row type, and the table that defines it must exist first.
+func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, tableMap map[string]*metadatapb.TableMetadata, partitionParents map[string]string) {
+	for id, table := range foreignTableMap {
+		for _, column := range table.Columns {
+			schema, name, ok := strings.Cut(column.Type, ".")
+			if !ok {
+				continue
+			}
+			dependencyID := getObjectID(schema, name)
+			if parentID, ok := partitionParents[dependencyID]; ok {
+				dependencyID = parentID
+			}
+			if _, ok := tableMap[dependencyID]; ok {
+				graph.AddEdge(dependencyID, id)
+				continue
+			}
+			if _, ok := foreignTableMap[dependencyID]; ok {
+				graph.AddEdge(dependencyID, id)
+			}
+		}
+	}
+}
+
 // addCheckFunctionEdges adds an edge from each user function a check expression
 // calls to the relation that states the check, so the function exists first.
 func addCheckFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, table string, checks []*metadatapb.CheckConstraintMetadata) {
@@ -2371,8 +2399,22 @@ func splitSignatureArguments(args string) []string {
 	var parts []string
 	depth := 0
 	start := 0
+	inQuote := false
 	for i := 0; i < len(args); i++ {
+		if inQuote {
+			if args[i] != '"' {
+				continue
+			}
+			if i+1 < len(args) && args[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = false
+			continue
+		}
 		switch args[i] {
+		case '"':
+			inQuote = true
 		case '(':
 			depth++
 		case ')':

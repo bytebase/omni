@@ -441,7 +441,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"

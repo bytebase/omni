@@ -882,8 +882,8 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 			Name: "app",
 			Functions: []*metadatapb.FunctionMetadata{{
 				Name:       "validate",
-				Signature:  "validate(options text[], catalog oid)",
-				Definition: "CREATE FUNCTION app.validate(options text[], catalog oid) RETURNS void LANGUAGE internal AS 'fdw_validate'",
+				Signature:  "validate(\"options,list\" text[], catalog oid)",
+				Definition: "CREATE FUNCTION app.validate(\"options,list\" text[], catalog oid) RETURNS void LANGUAGE internal AS 'fdw_validate'",
 			}},
 		}},
 		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
@@ -895,7 +895,7 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 	result, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 
-	function := "CREATE FUNCTION app.validate(options text[], catalog oid)"
+	function := `CREATE FUNCTION app.validate("options,list" text[], catalog oid)`
 	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" VALIDATOR app.validate;`
 	assert.Contains(t, result, function)
 	assert.Contains(t, result, wrapper)
@@ -966,4 +966,33 @@ func TestDatabaseDefinitionEscapesForeignColumnName(t *testing.T) {
 	result, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 	assert.Contains(t, result, `"a""b" integer`)
+}
+
+// TestDatabaseDefinitionOrdersForeignKeyTableAfterRowType checks that a foreign
+// table whose column uses another foreign table's row type follows that table,
+// even when its name sorts first.
+func TestDatabaseDefinitionOrdersForeignKeyTableAfterRowType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{Name: "a", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "r", Type: "public.z"}}},
+				{Name: "z", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+			},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	z := `CREATE FOREIGN TABLE "public"."z"`
+	a := `CREATE FOREIGN TABLE "public"."a"`
+	assert.Contains(t, result, z)
+	assert.Contains(t, result, a)
+	assert.Less(t, strings.Index(result, z), strings.Index(result, a), "the row type's table must be written first")
 }
