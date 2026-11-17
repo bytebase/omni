@@ -3002,3 +3002,36 @@ func TestReplacingReusedConstraintDropsItsIndex(t *testing.T) {
 		t.Fatalf("the retained index is not dropped before it is created again (constraint=%d index=%d create=%d):\n%s", constraint, index, create, sql)
 	}
 }
+
+func TestReusedUniqueIndexKeepsConstraintName(t *testing.T) {
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		Tables: []*metadatapb.TableMetadata{{
+			Name: "T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true},
+				{Name: "V", Type: "NUMBER", Position: 2, Nullable: true},
+			},
+			Indexes: []*metadatapb.IndexMetadata{{
+				Name:         "UK_VIRTUAL_IDX",
+				Type:         "NORMAL",
+				Unique:       true,
+				Expressions:  []string{`"V"`},
+				Descending:   []bool{false},
+				Visible:      true,
+				IsConstraint: true,
+				Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "UK_VIRTUAL_UK", Columns: []string{`"V"`}}},
+			}},
+		}},
+	})
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `ALTER TABLE "T" ADD CONSTRAINT "UK_VIRTUAL_UK" UNIQUE ("V") USING INDEX "UK_VIRTUAL_IDX"`) {
+		t.Fatalf("a reused unique index lost its constraint name:\n%s", definition)
+	}
+	if strings.Contains(definition, `CONSTRAINT "UK_VIRTUAL_IDX"`) {
+		t.Fatalf("the index name was used as the constraint name:\n%s", definition)
+	}
+}

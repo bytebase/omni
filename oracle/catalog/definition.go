@@ -776,6 +776,10 @@ func needsReusedIndexClause(index *metadatapb.IndexMetadata) bool {
 		return true
 	}
 	for _, constraint := range constraints {
+		// A constraint that reuses the index keeps its own name.
+		if constraint.GetName() != index.GetName() {
+			return true
+		}
 		columns := constraint.GetColumns()
 		if len(columns) == 0 {
 			columns = index.GetExpressions()
