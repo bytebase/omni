@@ -91,6 +91,12 @@ INSERT INTO `omni_record.customers` (id, city, signed_up, score, tags) VALUES
   (3, 'lisbon', TIMESTAMP '2026-01-04 03:04:05 UTC', NULL, []);
 
 CREATE VIEW `omni_record.recent` AS SELECT id, city FROM `omni_record.customers` WHERE id > 1;
+
+-- Ingestion-time partitioning lists _PARTITIONTIME and _PARTITIONDATE in
+-- INFORMATION_SCHEMA.COLUMNS with no ordinal position, so this table is what
+-- proves the sync leaves them out instead of failing on the NULL.
+CREATE TABLE `omni_record.partitioned` (id INT64)
+PARTITION BY DATE(_PARTITIONTIME);
 ```
 
 The corpus is also where the conversions this port does *not* map get recorded:
@@ -149,9 +155,9 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 
 | order | test | what it records |
 | --- | --- | --- |
-| 1 | `TestSyncDatabase` | the `INFORMATION_SCHEMA.COLUMNS` query, the dataset's table listing, each table's metadata read, and the metadata it builds |
+| 1 | `TestSyncDatabase` | the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the dataset's table listing, each table's metadata read, and the metadata it builds |
 | 2 | `TestSyncInstance` | `datasets.list` and the order the sync reports |
-| 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
+| 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
 | 4 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
 | 5 | `TestLiveSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
 
@@ -309,7 +315,7 @@ test), and require a failure; then `git checkout -- bigquery/`:
 
 ## Differences from Bytebase's driver, each to confirm on a project
 
-The port is close to `backend/plugin/db/bigquery` and diverges in nine places.
+The port is close to `backend/plugin/db/bigquery` and diverges in twelve places.
 Every one is a decision the recording settles.
 
 | difference | why |
@@ -323,6 +329,9 @@ Every one is a decision the recording settles.
 | an unclosed literal is the statement's error, not the call's | the splitter is `googlesql/parser.SplitFlat`, which never fails; Bytebase's hand-rolled splitter refused the whole script |
 | a command whose job reports no statistics is zero rows affected, not an error | the script ran; Bytebase's `QueryConn` returned an error there, but its `Execute` did not |
 | `Config.TLS` and `Config.Dial` do nothing | the client library owns its transport and holds no dialer; a caller that must tunnel forwards a local port and passes it as `Config.Host`/`Config.Port`, as hive's driver asks |
+| a synced column with no ordinal position is left out | an ingestion-time partitioned table's `_PARTITIONTIME` and `_PARTITIONDATE` are pseudo-columns the view states without a position, and the client cannot decode that NULL into a position |
+| the dataset the sync reads is quoted as a path, and the metadata reads are sorted | a dataset may be named a reserved keyword, which a path has to quote; the service's order is not part of an answer |
+| a statement `googlesql/analysis` cannot read keeps the rows the service answered | omni's parser does not read a pipe query yet, and Bytebase's classification of the same statement by its first word is not available here; the job's result schema is what says whether the service returned rows |
 
 ## What would unblock it
 

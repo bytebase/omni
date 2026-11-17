@@ -43,10 +43,14 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 }
 
 // columnRow is one row of INFORMATION_SCHEMA.COLUMNS as the client decodes it.
+//
+// The view states no position for the pseudo-columns of an ingestion-time
+// partitioned table, so the position is nullable: the client refuses to decode
+// a NULL into a plain integer, and one such table would fail the whole sync.
 type columnRow struct {
 	TableName       string              `bigquery:"table_name"`
 	ColumnName      string              `bigquery:"column_name"`
-	OrdinalPosition int32               `bigquery:"ordinal_position"`
+	OrdinalPosition bigquery.NullInt64  `bigquery:"ordinal_position"`
 	IsNullable      string              `bigquery:"is_nullable"`
 	DataType        string              `bigquery:"data_type"`
 	CollationName   bigquery.NullString `bigquery:"collation_name"`
@@ -65,7 +69,7 @@ func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMe
 			data_type,
 			collation_name,
 			column_default
-		FROM %s.INFORMATION_SCHEMA.COLUMNS ORDER BY table_name, ordinal_position;`, d.databaseName))
+		FROM %s.INFORMATION_SCHEMA.COLUMNS ORDER BY table_name, ordinal_position;`, quoteIdentifier(d.databaseName)))
 	it, err := q.Read(ctx)
 	if err != nil {
 		return nil, err
@@ -79,6 +83,11 @@ func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMe
 		}
 		if err != nil {
 			return nil, err
+		}
+		if !row.OrdinalPosition.Valid {
+			// A pseudo-column of an ingestion-time partitioned table
+			// (_PARTITIONTIME, _PARTITIONDATE) is not one the table declares.
+			continue
 		}
 		column, err := columnMetadata(row)
 		if err != nil {
@@ -100,7 +109,7 @@ func columnMetadata(row columnRow) (*metadatapb.ColumnMetadata, error) {
 	}
 	column := &metadatapb.ColumnMetadata{
 		Name:     row.ColumnName,
-		Position: row.OrdinalPosition,
+		Position: int32(row.OrdinalPosition.Int64),
 		Nullable: nullable,
 		Type:     row.DataType,
 		Default:  "NULL",
@@ -153,4 +162,11 @@ func (d *Driver) tables(ctx context.Context, columns map[string][]*metadatapb.Co
 	}
 	sort.Slice(tables, func(i, j int) bool { return tables[i].Name < tables[j].Name })
 	return tables, nil
+}
+
+// quoteIdentifier quotes name as a BigQuery path expression, which is what a
+// dataset a query names is: a dataset may be called a reserved keyword, and the
+// path it opens then has to be quoted.
+func quoteIdentifier(name string) string {
+	return "`" + name + "`"
 }

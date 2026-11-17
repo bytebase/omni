@@ -18,7 +18,7 @@ func TestColumnMetadata(t *testing.T) {
 	column, err := columnMetadata(columnRow{
 		TableName:       "customers",
 		ColumnName:      "city",
-		OrdinalPosition: 2,
+		OrdinalPosition: bigquery.NullInt64{Int64: 2, Valid: true},
 		IsNullable:      "YES",
 		DataType:        "STRING",
 	})
@@ -34,7 +34,7 @@ func TestColumnMetadata(t *testing.T) {
 	column, err = columnMetadata(columnRow{
 		TableName:       "customers",
 		ColumnName:      "id",
-		OrdinalPosition: 1,
+		OrdinalPosition: bigquery.NullInt64{Int64: 1, Valid: true},
 		IsNullable:      "NO",
 		DataType:        "INT64",
 		CollationName:   bigquery.NullString{StringVal: "und:ci", Valid: true},

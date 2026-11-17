@@ -223,6 +223,23 @@ func TestLiveQuery(t *testing.T) {
 		t.Errorf("Rows = %+v, want one row holding int64 1", result.Rows)
 	}
 
+	// A pipe query is valid BigQuery and one omni's parser does not read yet, so
+	// the statement is classified as neither a query nor a command: it runs as a
+	// job, and the rows the service answered are what comes back.
+	piped, err := session.Query(ctx, "SELECT 1 AS n |> WHERE n = 1", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query of a pipe statement: %v", err)
+	}
+	if len(piped) != 1 || piped[0].Err != nil {
+		t.Fatalf("pipe query results = %+v", piped)
+	}
+	if len(piped[0].Columns) != 1 || piped[0].Columns[0].Name != "n" {
+		t.Errorf("Columns = %+v, want one column n", piped[0].Columns)
+	}
+	if len(piped[0].Rows) != 1 || piped[0].Rows[0][0].Int64 != 1 {
+		t.Errorf("Rows = %+v, want the row the pipe query returned", piped[0].Rows)
+	}
+
 	limited, err := session.Query(ctx, "SELECT 1 AS n UNION ALL SELECT 2; SELECT 3 AS n UNION ALL SELECT 4", driver.QueryOptions{Limit: 1})
 	if err != nil {
 		t.Fatalf("Query with Limit: %v", err)

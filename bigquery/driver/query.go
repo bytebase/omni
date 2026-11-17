@@ -77,8 +77,8 @@ func statements(script string) []string {
 // returnsRows reports whether statement returns a result set, which
 // googlesql/analysis decides for the BigQuery dialect. A statement it does not
 // classify as a query is run as a job that reports rows affected, as Bytebase's
-// driver did; one it cannot classify at all takes the same path, and the service
-// is then what refuses it.
+// driver did; one it cannot classify at all takes that path too, and
+// session.command reads the result set when the service states one.
 func returnsRows(statement string) bool {
 	switch googlesqlanalysis.ClassifySQL(statement, googlesqlanalysis.DialectBigQuery) {
 	case googlesqlanalysis.Select, googlesqlanalysis.SelectInfoSchema:
@@ -99,7 +99,7 @@ func limitStatement(statement string, limit int) string {
 // statistics report the rows it affected.
 func (s *session) run(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
 	if !returnsRows(statement) {
-		return s.command(ctx, statement)
+		return s.command(ctx, statement, opts)
 	}
 	text := statement
 	if opts.Limit > 0 {
@@ -119,6 +119,12 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 	if err != nil {
 		return nil, err
 	}
+	return s.readRows(ctx, it, opts)
+}
+
+// readRows decodes the rows the iterator returns, up to opts.MaxResultBytes, and
+// carries the plan of the job that returned them.
+func (s *session) readRows(ctx context.Context, it *bigquery.RowIterator, opts driver.QueryOptions) (*driver.Result, error) {
 	result := &driver.Result{}
 	var totalBytes int64
 	for {
@@ -181,7 +187,12 @@ func columnsOf(schema bigquery.Schema) []driver.Column {
 }
 
 // command runs a statement that returns no rows and reports the rows it affected.
-func (s *session) command(ctx context.Context, statement string) (*driver.Result, error) {
+//
+// A statement googlesql/analysis cannot read runs this way too, and omni's
+// parser has gaps a valid statement may hit (a pipe query is one). When the job
+// states a result schema, it returned a result set, so its rows are read rather
+// than dropped; one that states none reports the rows it affected.
+func (s *session) command(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
 	job, err := s.driver.query(statement).Run(ctx)
 	if err != nil {
 		return nil, err
@@ -196,6 +207,13 @@ func (s *session) command(ctx context.Context, statement string) (*driver.Result
 	stats, ok := statisticsOf(status)
 	if !ok {
 		return nil, errors.New("the job's status carries no query statistics")
+	}
+	if len(stats.Schema) > 0 {
+		it, err := job.Read(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return s.readRows(ctx, it, opts)
 	}
 	affected := stats.NumDMLAffectedRows
 	return &driver.Result{AffectedRows: &affected}, nil
