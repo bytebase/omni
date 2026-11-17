@@ -2851,3 +2851,27 @@ func TestMigrationWritesOnlyCommentCategoriesOracleTakes(t *testing.T) {
 	check(t, migrationFor(t, commented(""), commented("a comment")))
 	check(t, migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{}), commented("a comment")))
 }
+
+func TestQuotedKeyWithSpacesIsAChange(t *testing.T) {
+	index := func(expression string) *Catalog {
+		return catalogFromSchema(&metadatapb.SchemaMetadata{
+			Name: "APP",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "T",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "A", Type: "NUMBER", Position: 1, Nullable: true}},
+				Indexes: []*metadatapb.IndexMetadata{{
+					Name:        "T_IDX",
+					Type:        "NORMAL",
+					Expressions: []string{expression},
+					Descending:  []bool{false},
+				}},
+			}},
+		})
+	}
+	if Diff(index(`"A  B"`), index(`"A B"`)).IsEmpty() {
+		t.Fatal("a quoted key with repeated spaces compared equal to one with a single space")
+	}
+	if !Diff(index(`"A"`), index(`A`)).IsEmpty() {
+		t.Fatal("a quoted key compared unequal to the same raw key")
+	}
+}

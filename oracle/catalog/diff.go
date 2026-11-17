@@ -525,9 +525,7 @@ func indexEqual(a, b *metadatapb.IndexMetadata) bool {
 		return false
 	}
 	for i, expression := range a.GetExpressions() {
-		// The sync keeps a case-sensitive name quoted; an extracted snapshot
-		// states it raw. The same column is not a change.
-		if normalizeExpression(unquoteIdentifier(expression)) != normalizeExpression(unquoteIdentifier(b.GetExpressions()[i])) {
+		if !keyExpressionsEqual(expression, b.GetExpressions()[i]) {
 			return false
 		}
 	}
@@ -574,6 +572,24 @@ func compareForeignKeys(oldFKs, newFKs []*metadatapb.ForeignKeyMetadata) []*Fore
 		}
 	}
 	return changes
+}
+
+// keyExpressionsEqual compares two index expressions. A bare identifier,
+// quoted or not, is the same column only under its exact name: the sync quotes
+// a case-sensitive name, and a quoted name may hold significant spaces, so it
+// is not normalized. Anything else compares as normalized text.
+func keyExpressionsEqual(a, b string) bool {
+	if isKeyIdentifier(a) && isKeyIdentifier(b) {
+		return unquoteIdentifier(a) == unquoteIdentifier(b)
+	}
+	return normalizeExpression(a) == normalizeExpression(b)
+}
+
+func isKeyIdentifier(expression string) bool {
+	if strings.HasPrefix(expression, `"`) && strings.HasSuffix(expression, `"`) && len(expression) > 1 {
+		return !strings.Contains(expression[1:len(expression)-1], `"`)
+	}
+	return isSimpleIdentifier(expression)
 }
 
 func unquoteIdentifiers(identifiers []string) []string {
