@@ -317,11 +317,12 @@ func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database, self, 
 }
 
 // dumpASTReads returns the definitions in definitions that the AST names as a
-// table, and not the statement's own object.
+// table, and not the statement's own object. A relation the statement writes
+// without its database is the session's, which is the database dumped.
 func dumpASTReads(ast, database, self string, definitions map[string]*dumpObject) []string {
 	var reads []string
 	for name := range definitions {
-		if name != self && dumpASTNames(ast, "TableIdentifier "+database+"."+name) {
+		if name != self && (dumpASTNames(ast, "TableIdentifier "+database+"."+name) || dumpASTNames(ast, "TableIdentifier "+name)) {
 			reads = append(reads, name)
 		}
 	}
@@ -455,15 +456,14 @@ func dumpLiteralValue(text string) string {
 // dumpLiteralObject returns the object of byName that literal names. The server
 // writes a literal as it was given, so it may be qualified with its database and
 // may hold a dot of its own: the literal is tried whole, then without the
-// database, and only then by its last part.
+// database dumped, and a qualifier naming another database is not this one's.
 func dumpLiteralObject(literal, database string, byName map[string]*dumpObject) (*dumpObject, string) {
-	for _, name := range []string{
-		literal,
-		strings.TrimPrefix(literal, database+"."),
-		literal[strings.LastIndex(literal, ".")+1:],
-	} {
-		if object := byName[name]; object != nil {
-			return object, name
+	if object := byName[literal]; object != nil {
+		return object, literal
+	}
+	if len(literal) > len(database)+1 && strings.EqualFold(literal[:len(database)+1], database+".") {
+		if name := literal[len(database)+1:]; byName[name] != nil {
+			return byName[name], name
 		}
 	}
 	return nil, ""

@@ -252,9 +252,14 @@ func TestDumpASTNames(t *testing.T) {
 		{"z", true},
 		{"zz", false},
 		{"a_top (children 2)", false},
+		{"unqualified", false},
 	} {
 		require.Equal(t, node.read, dumpASTNames(ast, "TableIdentifier db."+node.name), node.name)
 	}
+	// A relation the statement writes without its database is the session's.
+	const unqualified = "\n  TableIdentifier unqualified\n"
+	require.True(t, dumpASTNames(unqualified, "TableIdentifier unqualified"))
+	require.False(t, dumpASTNames(unqualified, "TableIdentifier db.unqualified"))
 }
 
 // TestDumpDictionaryTableReads holds what a table on the Dictionary engine reads:
@@ -276,6 +281,11 @@ func TestDumpDictionaryTableReads(t *testing.T) {
 	byName["v\\src"] = &dumpObject{name: "v\\src"}
 	byName["escaped"] = &dumpObject{name: "escaped", stmt: "CREATE TABLE db.escaped\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db.d\\'ict')"}
 	require.Equal(t, []string{"v\\src"}, dumpDictionaryTableReads(byName["escaped"], "db", byName))
+
+	// A dictionary qualified with another database is not this one's, whatever
+	// it is called here.
+	byName["foreign"] = &dumpObject{name: "foreign", stmt: "CREATE TABLE db.foreign\n(\n    `id` UInt64\n)\nENGINE = Dictionary('other.d')"}
+	require.Empty(t, dumpDictionaryTableReads(byName["foreign"], "db", byName))
 }
 
 // TestDumpViewTargetReads holds the TO clause a materialized view writes, which
