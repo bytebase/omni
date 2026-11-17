@@ -628,6 +628,8 @@ SELECT
 	cols.column_name,
 	cols.data_type,
 	cols.character_maximum_length,
+	cols.numeric_precision,
+	cols.numeric_scale,
 	cols.ordinal_position,
 	cols.column_default,
 	cols.is_nullable,
@@ -653,7 +655,8 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable string
 		var characterMaxLength, defaultStr, collation, udtSchema, udtName, comment sql.NullString
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment); err != nil {
+		var numericPrecision, numericScale sql.NullInt64
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment); err != nil {
 			return nil, err
 		}
 		if defaultStr.Valid {
@@ -677,6 +680,14 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 				// we don't need to append the length.
 				// https://www.postgresql.org/docs/current/infoschema-columns.html.
 				column.Type = fmt.Sprintf("%s(%s)", column.Type, characterMaxLength.String)
+			}
+		case "numeric", "decimal":
+			if numericPrecision.Valid {
+				if numericScale.Valid && numericScale.Int64 != 0 {
+					column.Type = fmt.Sprintf("%s(%d,%d)", column.Type, numericPrecision.Int64, numericScale.Int64)
+				} else {
+					column.Type = fmt.Sprintf("%s(%d)", column.Type, numericPrecision.Int64)
+				}
 			}
 		default:
 			// Keep the type as is

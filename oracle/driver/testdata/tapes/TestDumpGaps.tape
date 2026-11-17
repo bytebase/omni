@@ -508464,6 +508464,12 @@
 > commit
 < ok
 > exec
+| ALTER SESSION SET CURRENT_SCHEMA = SYSTEM
+< ok 0 0
+> exec
+| DROP PUBLIC DATABASE LINK OMNIGAP_LINK
+< ok 0 0
+> exec
 | DROP USER OMNI_GAP_4 CASCADE
 < error
 | 1918 ORA-01918: user 'OMNI_GAP_4' does not exist
@@ -508911,13 +508917,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -572470,13 +572469,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -636112,13 +636104,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -699671,13 +699656,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -763333,13 +763311,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -826998,13 +826969,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -890557,13 +890521,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -954123,13 +954080,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1017692,13 +1017642,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1081258,13 +1081201,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1144827,13 +1144763,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1208393,13 +1208322,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1271952,13 +1271874,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1335509,13 +1335424,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1399133,13 +1399041,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1462757,13 +1462658,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1526354,13 +1526248,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
@@ -1589991,13 +1589878,6 @@
 < column "DB_LINK" "NCHAR" "string"
 < column "HOST" "NCHAR" "string"
 < column "USERNAME" "NCHAR" "string"
-< row
-: string
-| OMNIGAP_LINK
-: string
-| example.com:1521/x
-: string
-| U
 > query
 |
 | 		SELECT
