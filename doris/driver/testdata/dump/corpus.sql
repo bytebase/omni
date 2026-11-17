@@ -69,6 +69,18 @@ PROPERTIES("replication_num" = "1");
 
 CREATE ALIAS FUNCTION alias_abs(INT) WITH PARAMETER(a) AS abs(a);
 
+-- A synchronous materialized view is an index on its table, not a table of its
+-- own: no catalogue lists it, and the table gains it asynchronously.
+CREATE TABLE sync_mv_base (
+	k INT NOT NULL,
+	v INT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(k)
+DISTRIBUTED BY HASH(k) BUCKETS 1
+PROPERTIES("replication_num" = "1");
+
+CREATE MATERIALIZED VIEW smv_total AS SELECT k, sum(v) AS s FROM sync_mv_base GROUP BY k;
+
 CREATE TABLE materialized_view_base (
 	k INT NOT NULL,
 	v INT NULL

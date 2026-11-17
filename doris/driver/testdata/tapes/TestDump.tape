@@ -81,6 +81,20 @@
 | CREATE ALIAS FUNCTION alias_abs(INT) WITH PARAMETER(a) AS abs(a);
 < ok 0 0
 > exec
+| -- A synchronous materialized view is an index on its table, not a table of its
+| -- own: no catalogue lists it, and the table gains it asynchronously.
+| CREATE TABLE sync_mv_base (
+| 	k INT NOT NULL,
+| 	v INT NULL
+| ) ENGINE=OLAP
+| DUPLICATE KEY(k)
+| DISTRIBUTED BY HASH(k) BUCKETS 1
+| PROPERTIES("replication_num" = "1");
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW smv_total AS SELECT k, sum(v) AS s FROM sync_mv_base GROUP BY k;
+< ok 0 0
+> exec
 | CREATE TABLE materialized_view_base (
 | 	k INT NOT NULL,
 | 	v INT NULL
@@ -259,6 +273,11 @@
 | BASE TABLE
 < row
 : bytes
+| sync_mv_base
+: bytes
+| BASE TABLE
+< row
+: bytes
 | unique_keys
 : bytes
 | BASE TABLE
@@ -272,6 +291,703 @@
 | z_parent_view
 : bytes
 | VIEW
+> query
+| DESC `omni_dump_corpus`.`aggregate_keys` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| aggregate_keys
+: bytes
+| AGG_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| s
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| SUM
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| m
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| MAX
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| r
+: bytes
+| varchar(10)
+: bytes
+| varchar(10)
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| REPLACE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`auto_partitions` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| auto_partitions
+: bytes
+| DUP_KEYS
+: bytes
+| d
+: bytes
+| DATE
+: bytes
+| datev2
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`duplicate_keys` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| duplicate_keys
+: bytes
+| DUP_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| varchar(20)
+: bytes
+| varchar(20)
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| d
+: bytes
+| DATETIME
+: bytes
+| datetimev2(0)
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| w
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`dynamic_partitions` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| dynamic_partitions
+: bytes
+| UNIQUE_KEYS
+: bytes
+| d
+: bytes
+| DATE
+: bytes
+| datev2
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`list_partitions` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| list_partitions
+: bytes
+| DUP_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`materialized_view_base` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| materialized_view_base
+: bytes
+| DUP_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`sync_mv_base` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| sync_mv_base
+: bytes
+| DUP_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| smv_total
+: bytes
+| AGG_KEYS
+: bytes
+| mv_k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+| `k`
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| mva_SUM__CAST(`v` AS bigint)
+: bytes
+| bigint
+: bytes
+| bigint
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| SUM
+: bytes
+| true
+: bytes
+| CAST(`v` AS bigint)
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`unique_keys` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| unique_keys
+: bytes
+| UNIQUE_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| g
+: bytes
+| bigint
+: bytes
+| bigint
+: bytes
+| No
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
 > query
 | SHOW FULL FUNCTIONS FROM `omni_dump_corpus`
 < result
@@ -681,6 +1397,47 @@
 | ) ENGINE=OLAP
 | DUPLICATE KEY(`k`)
 | DISTRIBUTED BY RANDOM BUCKETS 2
+| PROPERTIES (
+| "replication_allocation" = "tag.location.default: 1",
+| "min_load_replica_num" = "-1",
+| "is_being_synced" = "false",
+| "storage_medium" = "hdd",
+| "storage_format" = "V2",
+| "inverted_index_storage_format" = "V2",
+| "light_schema_change" = "true",
+| "disable_auto_compaction" = "false",
+| "enable_single_replica_compaction" = "false",
+| "group_commit_interval_ms" = "10000",
+| "group_commit_data_bytes" = "134217728"
+| );
+> query
+| SHOW CREATE MATERIALIZED VIEW smv_total ON `omni_dump_corpus`.`sync_mv_base`
+< result
+< column "TableName" "CHAR"
+< column "ViewName" "CHAR"
+< column "CreateStmt" "CHAR"
+< row
+: bytes
+| sync_mv_base
+: bytes
+| smv_total
+: bytes
+| CREATE MATERIALIZED VIEW smv_total AS SELECT k, sum(v) AS s FROM sync_mv_base GROUP BY k;
+> query
+| SHOW CREATE TABLE `omni_dump_corpus`.`sync_mv_base`
+< result
+< column "Table" "CHAR"
+< column "Create Table" "CHAR"
+< row
+: bytes
+| sync_mv_base
+: bytes
+| CREATE TABLE `sync_mv_base` (
+|   `k` int NOT NULL,
+|   `v` int NULL
+| ) ENGINE=OLAP
+| DUPLICATE KEY(`k`)
+| DISTRIBUTED BY HASH(`k`) BUCKETS 1
 | PROPERTIES (
 | "replication_allocation" = "tag.location.default: 1",
 | "min_load_replica_num" = "-1",

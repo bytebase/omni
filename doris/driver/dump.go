@@ -17,11 +17,12 @@ import (
 
 // The object kinds a dump carries, in the order it writes them.
 const (
-	dumpTable            = "table"
-	dumpFunction         = "function"
-	dumpView             = "view"
-	dumpMaterializedView = "materialized view"
-	dumpProcedure        = "procedure"
+	dumpTable                = "table"
+	dumpSyncMaterializedView = "sync materialized view"
+	dumpFunction             = "function"
+	dumpView                 = "view"
+	dumpMaterializedView     = "materialized view"
+	dumpProcedure            = "procedure"
 )
 
 // A table's key model (AGGREGATE, UNIQUE or DUPLICATE), DISTRIBUTED BY with its
@@ -55,22 +56,30 @@ const (
 	// SHOW CREATE FUNCTION needs the signature SHOW FULL FUNCTIONS states:
 	// SHOW FUNCTIONS lists a name only.
 	dumpFunctionsQuery = `SHOW FULL FUNCTIONS FROM %s`
+
+	// A synchronous materialized view is an index on its base table, not a table
+	// of its own, so neither information_schema nor mv_infos() lists it: the
+	// table's own description names the indexes it carries.
+	dumpTableIndexesQuery = `DESC %s.%s ALL`
 )
 
 var _ driver.Dumper = (*Driver)(nil)
 
 // dumpObject is one object a dump writes: the statement the server states, and
 // the objects in the same database that statement reads, so the dump can order
-// definitions whose creation depends on another definition.
+// definitions whose creation depends on another definition. A synchronous
+// materialized view is scoped to its base table, which its kind states alone.
 type dumpObject struct {
 	kind  string
 	name  string
+	table string
 	stmt  string
 	reads []string
 }
 
-// Dump writes the database's DDL as the server states it: tables, functions,
-// views, materialized views and procedures, in an order that replays. The
+// Dump writes the database's DDL as the server states it: tables, their
+// synchronous materialized views, functions, views, materialized views and
+// procedures, in an order that replays. The
 // metadata is not rendered and does not narrow the dump, because a Doris table's
 // definition is more than its columns and information_schema states none of the
 // rest, so the server's own SHOW CREATE statements are the only complete
@@ -127,6 +136,7 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 		return nil, err
 	}
 
+	var tables []string
 	var objects []*dumpObject
 	rows, err := d.db.QueryContext(ctx, dumpTablesQuery, d.databaseName)
 	if err != nil {
@@ -153,10 +163,19 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 			continue
 		}
 		objects = append(objects, &dumpObject{kind: kind, name: name})
+		if kind == dumpTable {
+			tables = append(tables, name)
+		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+
+	syncMaterializedViews, err := d.dumpSyncMaterializedViews(ctx, tables)
+	if err != nil {
+		return nil, err
+	}
+	objects = append(objects, syncMaterializedViews...)
 
 	for name := range materializedViews {
 		objects = append(objects, &dumpObject{kind: dumpMaterializedView, name: name})
@@ -167,6 +186,14 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 		return nil, err
 	}
 	for _, signature := range functions {
+		// A variadic function's definition does not replay: the catalogue states
+		// the ellipsis against the last type (fv(int...)), Doris's parser refuses
+		// that argument list, and the definition it states for the accepted form
+		// (CREATE ALIAS FUNCTION fv(int...) ...) is refused when applied.
+		// TestDumpGaps records the gap.
+		if strings.Contains(signature, "...") {
+			continue
+		}
 		objects = append(objects, &dumpObject{kind: dumpFunction, name: signature})
 	}
 
@@ -181,8 +208,14 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 	// The statement queries go in a fixed order, so a recording of them does
 	// not depend on the map iteration above.
 	objects = sortDumpObjects(objects)
+	defined := objects[:0]
 	for _, o := range objects {
-		stmt, err := d.dumpStatement(ctx, o.kind, o.name)
+		stmt, err := d.dumpStatement(ctx, o.kind, o.name, o.table)
+		if errors.Is(err, errNoStatement) && o.kind == dumpSyncMaterializedView {
+			// A rollup index is listed like a synchronous materialized view, and
+			// no statement states its definition; TestDumpGaps records the gap.
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -192,9 +225,14 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 				return nil, fmt.Errorf("%s %q: %w", o.kind, o.name, err)
 			}
 		}
+		defined = append(defined, o)
 	}
-	return objects, nil
+	return defined, nil
 }
+
+// errNoStatement reports a form the server answers no row for, which a
+// synchronous materialized view's index can be.
+var errNoStatement = errors.New("no statement")
 
 // dumpMaterializedViewNames returns the set of the database's materialized
 // views.
@@ -212,6 +250,62 @@ func (d *Driver) dumpMaterializedViewNames(ctx context.Context) (map[string]bool
 			return nil, err
 		}
 		names[name] = true
+	}
+	return names, rows.Err()
+}
+
+// dumpSyncMaterializedViews returns the synchronous materialized views of the
+// given tables, each scoped to its base table. The table is the one that reads
+// them back: SHOW CREATE MATERIALIZED VIEW takes the view's name and its table.
+func (d *Driver) dumpSyncMaterializedViews(ctx context.Context, tables []string) ([]*dumpObject, error) {
+	var objects []*dumpObject
+	for _, table := range tables {
+		query := fmt.Sprintf(dumpTableIndexesQuery, quoteBacktick(d.databaseName), quoteBacktick(table))
+		names, err := dumpIndexNames(ctx, d.db, query)
+		if err != nil {
+			return nil, err
+		}
+		for _, name := range names {
+			// The table's own index is the base index; every other index is a
+			// synchronous materialized view.
+			if name == "" || strings.EqualFold(name, table) {
+				continue
+			}
+			objects = append(objects, &dumpObject{kind: dumpSyncMaterializedView, name: name, table: table})
+		}
+	}
+	return objects, nil
+}
+
+// dumpIndexNames returns the first column of a description of a table's
+// indexes: the index name, repeated for each column it holds.
+func dumpIndexNames(ctx context.Context, q interface {
+	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
+}, query string) ([]string, error) {
+	rows, err := q.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	columns, err := rows.Columns()
+	if err != nil {
+		return nil, err
+	}
+	var names []string
+	for rows.Next() {
+		values := make([]sql.NullString, len(columns))
+		dest := make([]any, len(columns))
+		for i := range values {
+			dest[i] = &values[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
+			return nil, err
+		}
+		name := values[0].String
+		if len(names) > 0 && names[len(names)-1] == name {
+			continue
+		}
+		names = append(names, name)
 	}
 	return names, rows.Err()
 }
@@ -268,15 +362,21 @@ func (d *Driver) dumpProcedureNames(ctx context.Context) ([]string, error) {
 // dumpStatement returns the statement the server states for one object, without
 // its terminating semicolon. Each SHOW CREATE form returns the object's name
 // first and its statement second, followed by session columns a view adds.
-func (d *Driver) dumpStatement(ctx context.Context, kind, name string) (string, error) {
+func (d *Driver) dumpStatement(ctx context.Context, kind, name, table string) (string, error) {
 	qualified := quoteBacktick(d.databaseName) + "." + quoteBacktick(name)
 	var query string
+	statementColumn := 1
 	switch kind {
 	case dumpTable:
 		query = "SHOW CREATE TABLE " + qualified
+	case dumpSyncMaterializedView:
+		// The view is scoped to its base table, which the statement names.
+		query = "SHOW CREATE MATERIALIZED VIEW " + name + " ON " + quoteBacktick(d.databaseName) + "." + quoteBacktick(table)
+		// TableName, ViewName, CreateStmt.
+		statementColumn = 2
 	case dumpFunction:
-		// A signature is the server's own rendering, and SHOW CREATE FUNCTION
-		// states a definition only for the session's database.
+		// A signature is the server's own rendering; a variadic one is left out
+		// of the object list, so it never reaches this query.
 		query = "SHOW CREATE FUNCTION " + name
 	case dumpView:
 		query = "SHOW CREATE VIEW " + qualified
@@ -296,14 +396,14 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name string) (string, 
 		if err := rows.Err(); err != nil {
 			return "", err
 		}
-		return "", fmt.Errorf("%s: no row", query)
+		return "", fmt.Errorf("%s: %w", query, errNoStatement)
 	}
 	columns, err := rows.Columns()
 	if err != nil {
 		return "", err
 	}
-	if len(columns) < 2 {
-		return "", fmt.Errorf("%s: %d columns, want the statement second", query, len(columns))
+	if len(columns) <= statementColumn {
+		return "", fmt.Errorf("%s: %d columns, want the statement at %d", query, len(columns), statementColumn)
 	}
 	values := make([]sql.NullString, len(columns))
 	dest := make([]any, len(columns))
@@ -313,7 +413,7 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name string) (string, 
 	if err := rows.Scan(dest...); err != nil {
 		return "", fmt.Errorf("%s: %w", query, err)
 	}
-	return strings.TrimSuffix(strings.TrimSpace(values[1].String), ";"), nil
+	return strings.TrimSuffix(strings.TrimSpace(values[statementColumn].String), ";"), nil
 }
 
 // dumpDefinitionReads returns the objects in database that a view's or a
@@ -395,11 +495,13 @@ func dumpReferencedName(name *ast.ObjectName, catalog, database string) string {
 // materialized view, and either may call a function or read another of its kind,
 // so definitions follow those references.
 func orderDumpObjects(objects []*dumpObject) []*dumpObject {
-	var tables, functions, definitions, procedures []*dumpObject
+	var tables, syncMaterializedViews, functions, definitions, procedures []*dumpObject
 	for _, o := range objects {
 		switch o.kind {
 		case dumpTable:
 			tables = append(tables, o)
+		case dumpSyncMaterializedView:
+			syncMaterializedViews = append(syncMaterializedViews, o)
 		case dumpFunction:
 			functions = append(functions, o)
 		case dumpProcedure:
@@ -408,7 +510,8 @@ func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 			definitions = append(definitions, o)
 		}
 	}
-	ordered := append(sortDumpObjects(tables), sortDumpObjects(functions)...)
+	ordered := append(sortDumpObjects(tables), sortSyncMaterializedViews(syncMaterializedViews)...)
+	ordered = append(ordered, sortDumpObjects(functions)...)
 	ordered = append(ordered, orderDumpDefinitions(definitions)...)
 	return append(ordered, sortDumpObjects(procedures)...)
 }
@@ -455,6 +558,19 @@ func orderDumpDefinitions(definitions []*dumpObject) []*dumpObject {
 	return ordered
 }
 
+// sortSyncMaterializedViews orders synchronous materialized views by their base
+// table, then their name: the same view name may repeat across tables.
+func sortSyncMaterializedViews(objects []*dumpObject) []*dumpObject {
+	sorted := append([]*dumpObject(nil), objects...)
+	sort.Slice(sorted, func(i, j int) bool {
+		if sorted[i].table != sorted[j].table {
+			return sorted[i].table < sorted[j].table
+		}
+		return sorted[i].name < sorted[j].name
+	})
+	return sorted
+}
+
 func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 	sorted := append([]*dumpObject(nil), objects...)
 	sort.Slice(sorted, func(i, j int) bool { return sorted[i].name < sorted[j].name })
@@ -469,7 +585,14 @@ func writeDumpObject(out io.Writer, o *dumpObject) error {
 		_, err := fmt.Fprintf(out, "--\n-- Procedure structure for %s\n--\nDELIMITER ;;\n%s;;\nDELIMITER ;\n\n", quoteBacktick(o.name), o.stmt)
 		return err
 	}
-	if o.kind == dumpFunction {
+	switch o.kind {
+	case dumpSyncMaterializedView:
+		// No header: Doris keeps a comment that precedes CREATE MATERIALIZED
+		// VIEW as part of the view's definition, so a header would come back
+		// inside the statement of the next dump.
+		_, err := fmt.Fprintf(out, "%s;\n\n", o.stmt)
+		return err
+	case dumpFunction:
 		_, err := fmt.Fprintf(out, "--\n-- Function structure for %s\n--\n%s;\n\n", o.name, o.stmt)
 		return err
 	}
