@@ -42,6 +42,7 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 	delimiter := false
 	comment := false
 	inlineComment := false
+	pendingTerminator := false
 	quote := rune(0)
 	done := false
 	hasContent := false
@@ -72,13 +73,13 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 			if line != "" {
 				contentEnd = byteOffset + len(line)
 			}
-			if scanLineQuotes(line, &quote, &inlineComment) {
+			if scanLineQuotes(line, &quote, &inlineComment, &pendingTerminator) {
 				execute = true
 			}
 		} else {
 			endsWithSemicolon := false
 			if !comment && (inlineComment || !strings.HasPrefix(line, "/*")) {
-				endsWithSemicolon = scanLineQuotes(line, &quote, &inlineComment)
+				endsWithSemicolon = scanLineQuotes(line, &quote, &inlineComment, &pendingTerminator)
 			}
 			switch {
 			case strings.HasPrefix(line, "/*"):
@@ -142,13 +143,17 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 // comment text outside a quoted string, and reports whether the last content
 // outside both is a semicolon. A block comment that opens after SQL text keeps
 // its state on the next line.
-func scanLineQuotes(line string, quote *rune, inlineComment *bool) bool {
+func scanLineQuotes(line string, quote *rune, inlineComment, pendingTerminator *bool) bool {
 	last := byte(0)
 	for i := 0; i < len(line); {
 		c := line[i]
 		if *inlineComment {
 			if c == '*' && i+1 < len(line) && line[i+1] == '/' {
 				*inlineComment = false
+				if *pendingTerminator {
+					last = ';'
+					*pendingTerminator = false
+				}
 				i += 2
 				continue
 			}
@@ -179,6 +184,7 @@ func scanLineQuotes(line string, quote *rune, inlineComment *bool) bool {
 				continue
 			}
 			*inlineComment = true
+			*pendingTerminator = last == ';'
 			break
 		}
 		if c == '\'' || c == '"' || c == '`' {

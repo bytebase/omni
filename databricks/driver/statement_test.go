@@ -71,6 +71,11 @@ func TestSplitCommands(t *testing.T) {
 			want:   []string{"SELECT 1; -- note", "\nSELECT 2;"},
 		},
 		{
+			name:   "a terminating semicolon before a multiline block comment keeps its boundary",
+			script: "SELECT 1; /* note\ncontinued */\nSELECT 2;",
+			want:   []string{"SELECT 1; /* note\ncontinued */", "\nSELECT 2;"},
+		},
+		{
 			name:   "a trailing block comment after a terminator does not merge the next statement",
 			script: "SELECT 1; /* note */\nSELECT 2;",
 			want:   []string{"SELECT 1; /* note */", "\nSELECT 2;"},
