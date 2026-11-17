@@ -882,8 +882,8 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 			Name: "app",
 			Functions: []*metadatapb.FunctionMetadata{{
 				Name:       "validate",
-				Signature:  "validate(\"options,list\" text[], catalog oid)",
-				Definition: "CREATE FUNCTION app.validate(\"options,list\" text[], catalog oid) RETURNS void LANGUAGE internal AS 'fdw_validate'",
+				Signature:  "validate(double text[], catalog oid)",
+				Definition: "CREATE FUNCTION app.validate(double text[], catalog oid) RETURNS void LANGUAGE internal AS 'fdw_validate'",
 			}},
 		}},
 		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
@@ -895,7 +895,7 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 	result, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 
-	function := `CREATE FUNCTION app.validate("options,list" text[], catalog oid)`
+	function := "CREATE FUNCTION app.validate(double text[], catalog oid)"
 	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" VALIDATOR app.validate;`
 	assert.Contains(t, result, function)
 	assert.Contains(t, result, wrapper)

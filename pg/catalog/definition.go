@@ -2466,78 +2466,48 @@ func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []
 		return false
 	}
 	for i := range actual {
-		if signatureArgumentType(actual[i]) != normalizeSignatureType(expected[i]) {
+		if !signatureArgumentMatches(actual[i], expected[i]) {
 			return false
 		}
 	}
 	return true
 }
 
-// signatureArgumentType drops an argument's mode and name, leaving its type.
-// pg_get_function_identity_arguments may keep both.
-func signatureArgumentType(arg string) string {
-	tokens := splitSignatureTokens(arg)
-	for len(tokens) > 0 && isSignatureMode(tokens[0]) {
-		tokens = tokens[1:]
+// signatureArgumentMatches reports whether an argument states the expected
+// type. pg_get_function_identity_arguments may keep an argument's name and
+// mode, so the whole argument and each suffix after a top-level space are
+// candidates; a quoted name's spaces are not boundaries.
+func signatureArgumentMatches(arg, expected string) bool {
+	expected = normalizeSignatureType(expected)
+	for i := 0; ; {
+		if normalizeSignatureType(arg[i:]) == expected {
+			return true
+		}
+		next := nextSignatureSpace(arg, i)
+		if next < 0 {
+			return false
+		}
+		i = next + 1
 	}
-	if len(tokens) > 1 && !isMultiWordTypeStart(tokens[0]) {
-		tokens = tokens[1:]
-	}
-	return normalizeSignatureType(strings.Join(tokens, " "))
 }
 
-func isSignatureMode(token string) bool {
-	switch strings.ToUpper(token) {
-	case "IN", "OUT", "INOUT", "VARIADIC":
-		return true
-	}
-	return false
-}
-
-func isMultiWordTypeStart(token string) bool {
-	switch strings.ToLower(token) {
-	case "double", "character", "bit", "national", "timestamp", "time", "interval":
-		return true
-	}
-	return false
-}
-
-func splitSignatureTokens(arg string) []string {
-	var tokens []string
-	var b strings.Builder
+func nextSignatureSpace(arg string, start int) int {
 	inQuote := false
-	for i := 0; i < len(arg); i++ {
-		c := arg[i]
-		if inQuote {
-			b.WriteByte(c)
-			if c != '"' {
-				continue
-			}
-			if i+1 < len(arg) && arg[i+1] == '"' {
-				b.WriteByte(arg[i+1])
+	for i := start; i < len(arg); i++ {
+		switch arg[i] {
+		case '"':
+			if inQuote && i+1 < len(arg) && arg[i+1] == '"' {
 				i++
 				continue
 			}
-			inQuote = false
-			continue
-		}
-		switch c {
-		case '"':
-			inQuote = true
-			b.WriteByte(c)
+			inQuote = !inQuote
 		case ' ', '\t':
-			if b.Len() > 0 {
-				tokens = append(tokens, b.String())
-				b.Reset()
+			if !inQuote {
+				return i
 			}
-		default:
-			b.WriteByte(c)
 		}
 	}
-	if b.Len() > 0 {
-		tokens = append(tokens, b.String())
-	}
-	return tokens
+	return -1
 }
 
 // signatureArguments returns the text between a signature's argument-list
