@@ -148,18 +148,30 @@ func TestParseSet(t *testing.T) {
 	})
 }
 
-// TestParseSet_DollarVarLimitation documents that the SET value (an expression)
-// cannot yet contain a $var session-variable reference, because the shared
-// expression parser (T3) does not implement the tokVariable primary. The SET
-// parser itself is correct — it delegates value parsing to parseExpr — so when
-// the expression parser gains $var support, these forms will parse with no
-// change to session.go. Flagged divergence: official set/example_06.sql
-// ("SET (min, max) = (50, 2 * $min)") currently errors for this reason, NOT
-// because of the SET grammar.
-func TestParseSet_DollarVarLimitation(t *testing.T) {
-	result := ParseBestEffort("SET (min, max) = (50, 2 * $min)")
-	if len(result.Errors) == 0 {
-		t.Skip("expression parser now supports $var — update the SET corpus filter to include set/example_06.sql")
+// TestParseSet_DollarVarValue covers SET (min, max) = (50, 2 * $min), the
+// official set/example_06.sql form, whose value expression holds a $var
+// session-variable reference. The expression parser implements the $var
+// primary, so this goes through parseExpr unchanged and the AST keeps the
+// reference. TestCorpusClosure parses the same statement from the corpus.
+func TestParseSet_DollarVarValue(t *testing.T) {
+	node := mustParseOne(t, "SET (min, max) = (50, 2 * $min)")
+	stmt, ok := node.(*ast.SetStmt)
+	if !ok {
+		t.Fatalf("got %T, want *ast.SetStmt", node)
+	}
+	if len(stmt.Vars) != 2 {
+		t.Fatalf("Vars len = %d, want 2", len(stmt.Vars))
+	}
+	bin, ok := stmt.Vars[1].Value.(*ast.BinaryExpr)
+	if !ok {
+		t.Fatalf("Vars[1].Value = %T, want *ast.BinaryExpr", stmt.Vars[1].Value)
+	}
+	dr, ok := bin.Right.(*ast.DollarRef)
+	if !ok {
+		t.Fatalf("Right = %T, want *ast.DollarRef", bin.Right)
+	}
+	if dr.Name != "min" || dr.Positional {
+		t.Errorf("got Name=%q Positional=%v, want \"min\" false", dr.Name, dr.Positional)
 	}
 }
 
