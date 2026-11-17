@@ -144,6 +144,8 @@ func TestDumpRestoresForeignTableDefaults(t *testing.T) {
 		"CREATE SEQUENCE public.remote_owned_seq OWNED BY public.remote_defaults.id;\n" +
 		"COMMENT ON COLUMN public.remote_defaults.token IS 'remote token';\n" +
 		"COMMENT ON CONSTRAINT remote_positive ON public.remote_defaults IS 'remote positive';\n" +
+		"CREATE FUNCTION public.remote_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\n" +
+		"CREATE TRIGGER remote_defaults_trg BEFORE INSERT ON public.remote_defaults FOR EACH ROW EXECUTE FUNCTION public.remote_audit();\n" +
 		"CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_default", setup)
 	if diff := restoreDiff(source, restored); diff != "" {

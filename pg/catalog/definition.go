@@ -2208,12 +2208,29 @@ func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*meta
 	}
 }
 
+// checkExpressionForDependencies drops the constraint suffixes that are not
+// part of the expression, so the rest parses as a SELECT.
+func checkExpressionForDependencies(expression string) string {
+	for {
+		trimmed := strings.TrimSpace(expression)
+		upper := strings.ToUpper(trimmed)
+		switch {
+		case strings.HasSuffix(upper, " NO INHERIT"):
+			expression = trimmed[:len(trimmed)-len(" NO INHERIT")]
+		case strings.HasSuffix(upper, " NOT VALID"):
+			expression = trimmed[:len(trimmed)-len(" NOT VALID")]
+		default:
+			return trimmed
+		}
+	}
+}
+
 // addCheckFunctionEdges adds an edge from each user function a check expression
 // calls to the relation that states the check, so the function exists first.
 func addCheckFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, table string, checks []*metadatapb.CheckConstraintMetadata) {
 	tableID := getObjectID(schema, table)
 	for _, check := range checks {
-		node, err := parseScalar("SELECT " + check.Expression)
+		node, err := parseScalar("SELECT " + checkExpressionForDependencies(check.Expression))
 		if err != nil {
 			continue
 		}
@@ -2462,7 +2479,7 @@ func writeColumnDefinition(out io.Writer, column *metadatapb.ColumnMetadata) err
 		return err
 	}
 
-	if _, err := io.WriteString(out, column.Name); err != nil {
+	if _, err := io.WriteString(out, escapeIdentifier(column.Name)); err != nil {
 		return err
 	}
 
@@ -2723,6 +2740,20 @@ func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata) error
 				continue
 			}
 			if err := writeTrigger(out, schema.Name, materializedView.Name, trigger); err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, externalTable := range schema.ExternalTables {
+		if externalTable.SkipDump {
+			continue
+		}
+		for _, trigger := range externalTable.Triggers {
+			if trigger.SkipDump {
+				continue
+			}
+			if err := writeTrigger(out, schema.Name, externalTable.Name, trigger); err != nil {
 				return err
 			}
 		}

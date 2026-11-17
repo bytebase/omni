@@ -928,7 +928,7 @@ func TestDatabaseDefinitionOrdersForeignTableAfterCheckFunction(t *testing.T) {
 				ExternalServerName: "s",
 				CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
 					Name:       "c",
-					Expression: "(public.validate(ROW(id)::public.zz_type))",
+					Expression: "(public.validate(ROW(id)::public.zz_type)) NOT VALID",
 				}},
 			}},
 		}},
@@ -942,4 +942,28 @@ func TestDatabaseDefinitionOrdersForeignTableAfterCheckFunction(t *testing.T) {
 	assert.Contains(t, result, function)
 	assert.Contains(t, result, table)
 	assert.Less(t, strings.Index(result, function), strings.Index(result, table), "the CHECK's function must be written before the foreign table")
+}
+
+// TestDatabaseDefinitionEscapesForeignColumnName checks that a foreign column
+// whose name holds a quote is written escaped.
+func TestDatabaseDefinitionEscapesForeignColumnName(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "ft",
+				ExternalServerName: "s",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: `a"b`, Type: "integer"}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, result, `"a""b" integer`)
 }

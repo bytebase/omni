@@ -14,6 +14,8 @@
 | CREATE SEQUENCE public.remote_owned_seq OWNED BY public.remote_defaults.id;
 | COMMENT ON COLUMN public.remote_defaults.token IS 'remote token';
 | COMMENT ON CONSTRAINT remote_positive ON public.remote_defaults IS 'remote positive';
+| CREATE FUNCTION public.remote_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER remote_defaults_trg BEFORE INSERT ON public.remote_defaults FOR EACH ROW EXECUTE FUNCTION public.remote_audit();
 | CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 < ok 0 -
 > query
@@ -374,6 +376,17 @@
 < column "trigger_name" "NAME"
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
+< row
+: int64 4294967303
+: string
+| public
+: string
+| remote_defaults
+: string
+| remote_defaults_trg
+: string
+| CREATE TRIGGER remote_defaults_trg BEFORE INSERT ON public.remote_defaults FOR EACH ROW EXECUTE FUNCTION public.remote_audit()
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
@@ -501,7 +514,7 @@
 | remote_defaults
 : string
 | ["schema_name=public","table_name=defaults"]
-: int64 4294967303
+: int64 4294967304
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -665,8 +678,8 @@
 < column "function_oid" "OID"
 < column "table_oid" "OID"
 < row
+: int64 4294967305
 : int64 4294967304
-: int64 4294967303
 > query
 |
 | select p.oid, n.nspname as function_schema,
@@ -784,7 +797,7 @@
 |
 : null
 < row
-: int64 4294967304
+: int64 4294967305
 : string
 | public
 : string
@@ -799,7 +812,22 @@
 |
 : null
 < row
-: int64 4294967305
+: int64 4294967306
+: string
+| public
+: string
+| remote_audit
+: string
+|
+: string
+| CREATE OR REPLACE FUNCTION public.remote_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
+|
+: null
+< row
+: int64 4294967307
 : string
 | public
 : string
@@ -832,8 +860,8 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967306
-: int64 4294967303
+: int64 4294967308
+: int64 4294967304
 : int64 1
 > query
 |
@@ -871,7 +899,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967307
+: int64 4294967309
 : string
 | public
 : string
@@ -887,7 +915,7 @@
 : null
 : null
 < row
-: int64 4294967306
+: int64 4294967308
 : string
 | public
 : string
@@ -1171,6 +1199,12 @@
 |
 | CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
 |
+| CREATE OR REPLACE FUNCTION public.remote_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
+| ;
+|
 | CREATE OR REPLACE FUNCTION public.remote_token()
 |  RETURNS text
 |  LANGUAGE sql
@@ -1194,6 +1228,8 @@
 |  LANGUAGE sql
 | AS $function$ SELECT 1 $function$
 | ;
+|
+| CREATE TRIGGER remote_defaults_trg BEFORE INSERT ON public.remote_defaults FOR EACH ROW EXECUTE FUNCTION public.remote_audit();
 |
 |
 < ok 0 -
@@ -1293,10 +1329,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967308
-< row
-: int64 4294967309
-< row
 : int64 4294967310
 < row
 : int64 4294967311
@@ -1304,6 +1336,10 @@
 : int64 4294967312
 < row
 : int64 4294967313
+< row
+: int64 4294967314
+< row
+: int64 4294967315
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1566,6 +1602,17 @@
 < column "trigger_name" "NAME"
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
+< row
+: int64 4294967316
+: string
+| public
+: string
+| remote_defaults
+: string
+| remote_defaults_trg
+: string
+| CREATE TRIGGER remote_defaults_trg BEFORE INSERT ON public.remote_defaults FOR EACH ROW EXECUTE FUNCTION public.remote_audit()
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
@@ -1693,7 +1740,7 @@
 | remote_defaults
 : string
 | ["schema_name=public","table_name=defaults"]
-: int64 4294967314
+: int64 4294967317
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1857,8 +1904,8 @@
 < column "function_oid" "OID"
 < column "table_oid" "OID"
 < row
-: int64 4294967315
-: int64 4294967314
+: int64 4294967318
+: int64 4294967317
 > query
 |
 | select p.oid, n.nspname as function_schema,
@@ -1896,7 +1943,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967312
+: int64 4294967314
 : string
 | public
 : string
@@ -1912,7 +1959,7 @@
 |
 : null
 < row
-: int64 4294967313
+: int64 4294967315
 : string
 | public
 : string
@@ -1928,7 +1975,7 @@
 |
 : null
 < row
-: int64 4294967311
+: int64 4294967313
 : string
 | public
 : string
@@ -1944,7 +1991,7 @@
 |
 : null
 < row
-: int64 4294967308
+: int64 4294967310
 : string
 | public
 : string
@@ -1960,7 +2007,7 @@
 |
 : null
 < row
-: int64 4294967309
+: int64 4294967311
 : string
 | public
 : string
@@ -1976,7 +2023,7 @@
 |
 : null
 < row
-: int64 4294967315
+: int64 4294967318
 : string
 | public
 : string
@@ -1991,7 +2038,22 @@
 |
 : null
 < row
-: int64 4294967316
+: int64 4294967319
+: string
+| public
+: string
+| remote_audit
+: string
+|
+: string
+| CREATE OR REPLACE FUNCTION public.remote_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
+|
+: null
+< row
+: int64 4294967320
 : string
 | public
 : string
@@ -2024,8 +2086,8 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
+: int64 4294967321
 : int64 4294967317
-: int64 4294967314
 : int64 1
 > query
 |
@@ -2063,7 +2125,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967318
+: int64 4294967322
 : string
 | public
 : string
@@ -2079,7 +2141,7 @@
 : null
 : null
 < row
-: int64 4294967317
+: int64 4294967321
 : string
 | public
 : string

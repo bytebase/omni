@@ -680,6 +680,10 @@ message ExternalTableMetadata {
   // PATTERN), such as ".*[.]csv". Empty when the engine states none; omitting
   // it makes the table read every file under its location.
   string pattern = 10;
+
+  // The triggers the engine states on a foreign table. Empty for an engine that
+  // states none.
+  repeated TriggerMetadata triggers = 11;
 }
 
 // TablePartitionMetadata is the metadata for table partitions.

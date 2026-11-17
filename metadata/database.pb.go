@@ -2694,7 +2694,10 @@ type ExternalTableMetadata struct {
 	// The file filter the engine states for an external table (OceanBase's
 	// PATTERN), such as ".*[.]csv". Empty when the engine states none; omitting
 	// it makes the table read every file under its location.
-	Pattern       string `protobuf:"bytes,10,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	Pattern string `protobuf:"bytes,10,opt,name=pattern,proto3" json:"pattern,omitempty"`
+	// The triggers the engine states on a foreign table. Empty for an engine that
+	// states none.
+	Triggers      []*TriggerMetadata `protobuf:"bytes,11,rep,name=triggers,proto3" json:"triggers,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2797,6 +2800,13 @@ func (x *ExternalTableMetadata) GetPattern() string {
 		return x.Pattern
 	}
 	return ""
+}
+
+func (x *ExternalTableMetadata) GetTriggers() []*TriggerMetadata {
+	if x != nil {
+		return x.Triggers
+	}
+	return nil
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
@@ -5248,7 +5258,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
-	"expression\"\xa6\x03\n" +
+	"expression\"\xe2\x03\n" +
 	"\x15ExternalTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14external_server_name\x18\x02 \x01(\tR\x12externalServerName\x124\n" +
@@ -5260,7 +5270,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\tskip_dump\x18\b \x01(\bR\bskipDump\x12S\n" +
 	"\x11check_constraints\x18\t \x03(\v2&.omni.metadata.CheckConstraintMetadataR\x10checkConstraints\x12\x18\n" +
 	"\apattern\x18\n" +
-	" \x01(\tR\apattern\"\xb7\x05\n" +
+	" \x01(\tR\apattern\x12:\n" +
+	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\"\xb7\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5601,35 +5612,36 @@ var file_omni_metadata_database_proto_depIdxs = []int32{
 	25, // 34: omni.metadata.TableMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
 	28, // 35: omni.metadata.ExternalTableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
 	24, // 36: omni.metadata.ExternalTableMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
-	3,  // 37: omni.metadata.TablePartitionMetadata.type:type_name -> omni.metadata.TablePartitionMetadata.Type
-	27, // 38: omni.metadata.TablePartitionMetadata.subpartitions:type_name -> omni.metadata.TablePartitionMetadata
-	37, // 39: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	24, // 40: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
-	25, // 41: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
-	29, // 42: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
-	4,  // 43: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
-	5,  // 44: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
-	31, // 45: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	28, // 46: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	19, // 47: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	20, // 48: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	31, // 49: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	19, // 50: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	37, // 51: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	33, // 52: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
-	38, // 53: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
-	39, // 54: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
-	40, // 55: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
-	43, // 56: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
-	44, // 57: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
-	48, // 58: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
-	41, // 59: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
-	42, // 60: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
-	61, // [61:61] is the sub-list for method output_type
-	61, // [61:61] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	19, // 37: omni.metadata.ExternalTableMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	3,  // 38: omni.metadata.TablePartitionMetadata.type:type_name -> omni.metadata.TablePartitionMetadata.Type
+	27, // 39: omni.metadata.TablePartitionMetadata.subpartitions:type_name -> omni.metadata.TablePartitionMetadata
+	37, // 40: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	24, // 41: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
+	25, // 42: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
+	29, // 43: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
+	4,  // 44: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
+	5,  // 45: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
+	31, // 46: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	28, // 47: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	19, // 48: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	20, // 49: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
+	31, // 50: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	19, // 51: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	37, // 52: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	33, // 53: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
+	38, // 54: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
+	39, // 55: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
+	40, // 56: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
+	43, // 57: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
+	44, // 58: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
+	48, // 59: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
+	41, // 60: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
+	42, // 61: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
+	62, // [62:62] is the sub-list for method output_type
+	62, // [62:62] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_omni_metadata_database_proto_init() }
