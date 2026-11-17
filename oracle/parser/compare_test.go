@@ -9162,8 +9162,13 @@ func TestBatch106_ReviewBundleTxnUtilityDclDrop(t *testing.T) {
 		// === COMMENT (BNF: COMMENT.bnf) ===
 		{"comment_table", "COMMENT ON TABLE hr.employees IS 'Employee master table'"},
 		{"comment_column", "COMMENT ON COLUMN hr.employees.salary IS 'Monthly salary'"},
-		{"comment_index", "COMMENT ON INDEX hr.emp_idx IS 'Primary index on emp table'"},
 		{"comment_mview", "COMMENT ON MATERIALIZED VIEW hr.emp_mv IS 'Employee materialized view'"},
+		{"comment_edition", "COMMENT ON EDITION e1 IS 'Edition comment'"},
+		{"comment_indextype", "COMMENT ON INDEXTYPE hr.my_indextype IS 'Indextype comment'"},
+		{"comment_operator", "COMMENT ON OPERATOR hr.my_operator IS 'Operator comment'"},
+		{"comment_audit_policy", "COMMENT ON AUDIT POLICY my_policy IS 'Audit policy comment'"},
+		{"comment_mining_model", "COMMENT ON MINING MODEL hr.my_model IS 'Mining model comment'"},
+		{"comment_property_graph", "COMMENT ON PROPERTY GRAPH hr.my_graph IS 'Property graph comment'"},
 
 		// === GRANT (BNF: GRANT.bnf) ===
 		{"grant_sys_priv", "GRANT CREATE SESSION TO scott"},

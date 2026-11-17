@@ -11,8 +11,10 @@ import (
 var _ driver.Executor = (*Driver)(nil)
 
 // Execute runs every statement of script and returns the rows they affected in
-// total. It parses no transaction directive: the caller chooses the mode, and
-// an empty mode is Bytebase's default, one transaction.
+// total, which this client cannot state: it answers 0, for the reason the
+// package doc gives for Result.AffectedRows. It parses no transaction directive:
+// the caller chooses the mode, and an empty mode is Bytebase's default, one
+// transaction.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
 	statements, err := splitSQL(script)
 	if err != nil {
@@ -49,26 +51,17 @@ func (d *Driver) executeInTransactionMode(ctx context.Context, statements []stat
 
 	transactionControl(opts.Log, driver.Begin, nil)
 
-	totalRowsAffected := int64(0)
 	for _, single := range statements {
 		commandExecute(opts.Log, driver.Command{
 			Text:      single.Text,
 			ByteStart: single.ByteStart,
 			ByteEnd:   single.ByteEnd,
 		})
-		sqlResult, err := tx.ExecContext(ctx, single.Text)
-		if err != nil {
+		if _, err := tx.ExecContext(ctx, single.Text); err != nil {
 			commandResponse(opts.Log, 0, nil, err)
 			return 0, err
 		}
-		rowsAffected, err := sqlResult.RowsAffected()
-		if err != nil {
-			// A DDL statement reports no count, which the client reports as an
-			// error; Bytebase recorded zero.
-			rowsAffected = 0
-		}
-		commandResponse(opts.Log, rowsAffected, nil, nil)
-		totalRowsAffected += rowsAffected
+		commandResponse(opts.Log, 0, nil, nil)
 	}
 
 	if err := tx.Commit(); err != nil {
@@ -78,33 +71,23 @@ func (d *Driver) executeInTransactionMode(ctx context.Context, statements []stat
 
 	transactionControl(opts.Log, driver.Commit, nil)
 	committed = true
-	return totalRowsAffected, nil
+	return 0, nil
 }
 
 func (d *Driver) executeInAutoCommitMode(ctx context.Context, statements []statement, opts driver.ExecuteOptions) (int64, error) {
-	totalRowsAffected := int64(0)
 	for _, single := range statements {
 		commandExecute(opts.Log, driver.Command{
 			Text:      single.Text,
 			ByteStart: single.ByteStart,
 			ByteEnd:   single.ByteEnd,
 		})
-		sqlResult, err := d.db.ExecContext(ctx, single.Text)
-		if err != nil {
+		if _, err := d.db.ExecContext(ctx, single.Text); err != nil {
 			commandResponse(opts.Log, 0, nil, err)
-			return totalRowsAffected, err
+			return 0, err
 		}
-		rowsAffected, err := sqlResult.RowsAffected()
-		if err != nil {
-			// A DDL statement reports no count, which the client reports as an
-			// error; Bytebase recorded zero and kept going.
-			rowsAffected = 0
-		} else {
-			totalRowsAffected += rowsAffected
-		}
-		commandResponse(opts.Log, rowsAffected, nil, nil)
+		commandResponse(opts.Log, 0, nil, nil)
 	}
-	return totalRowsAffected, nil
+	return 0, nil
 }
 
 // sqlIsolation maps the contract's level onto database/sql's. An empty level is

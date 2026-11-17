@@ -140,6 +140,13 @@ GET /`, driver.QueryOptions{})
 	require.Len(t, results, 1)
 	require.Error(t, results[0].Err)
 	require.Contains(t, results[0].Err.Error(), "request failed with status code 404")
+	// The refusal states the status and the body a caller reads the error's own
+	// type and subject from, as the package doc says.
+	var responseErr *ResponseError
+	require.ErrorAs(t, results[0].Err, &responseErr)
+	require.Equal(t, 404, responseErr.Status)
+	require.Contains(t, responseErr.Body, "index_not_found_exception")
+	require.Contains(t, responseErr.Body, "missing-index")
 }
 
 // TestQueryUnreadableScript holds a script the REST console parser cannot read

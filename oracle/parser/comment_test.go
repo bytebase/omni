@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/bytebase/omni/oracle/ast"
@@ -63,18 +64,64 @@ func TestParseCommentOnColumnSchemaQualified(t *testing.T) {
 	}
 }
 
-func TestParseCommentOnIndex(t *testing.T) {
-	result := ParseAndCheck(t, "COMMENT ON INDEX idx_emp IS 'Primary index'")
-	raw := result.Items[0].(*ast.RawStmt)
-	stmt := raw.Stmt.(*ast.CommentStmt)
-	if stmt.ObjectType != ast.OBJECT_INDEX {
-		t.Errorf("expected OBJECT_INDEX, got %d", stmt.ObjectType)
+// TestParseCommentOnAcceptedCategories holds the parser to the categories
+// the pinned Oracle (testdata/pins.tsv, 23.26.3) reads on COMMENT ON: for
+// each, DBMS_SQL.PARSE of "COMMENT ON <category> a IS 's'" answers an error
+// about the name and not ORA-32594, so the category was read. A view is
+// commented through TABLE, which the dictionary then reports as
+// TABLE_TYPE = 'VIEW'.
+func TestParseCommentOnAcceptedCategories(t *testing.T) {
+	tests := []struct {
+		sql    string
+		object string
+		column string
+	}{
+		{"COMMENT ON TABLE employees IS 'a table'", "EMPLOYEES", ""},
+		{"COMMENT ON TABLE view_commented_as_a_table IS 'a view'", "VIEW_COMMENTED_AS_A_TABLE", ""},
+		{"COMMENT ON COLUMN employees.salary IS 'a column'", "EMPLOYEES", "SALARY"},
+		{"COMMENT ON MATERIALIZED VIEW mv_sales IS 'a materialized view'", "MV_SALES", ""},
+		{"COMMENT ON EDITION e1 IS 'an edition'", "E1", ""},
+		{"COMMENT ON INDEXTYPE it IS 'an indextype'", "IT", ""},
+		{"COMMENT ON OPERATOR op IS 'an operator'", "OP", ""},
+		{"COMMENT ON AUDIT POLICY p IS 'an audit policy'", "P", ""},
+		{"COMMENT ON MINING MODEL m IS 'a mining model'", "M", ""},
+		{"COMMENT ON PROPERTY GRAPH g IS 'a property graph'", "G", ""},
 	}
-	if stmt.Object == nil || stmt.Object.Name != "IDX_EMP" {
-		t.Errorf("expected IDX_EMP, got %v", stmt.Object)
+	for _, tc := range tests {
+		t.Run(tc.sql, func(t *testing.T) {
+			result := ParseAndCheck(t, tc.sql)
+			stmt, ok := result.Items[0].(*ast.RawStmt).Stmt.(*ast.CommentStmt)
+			if !ok {
+				t.Fatalf("expected CommentStmt, got %T", result.Items[0].(*ast.RawStmt).Stmt)
+			}
+			if stmt.Object == nil || stmt.Object.Name != tc.object || stmt.Column != tc.column {
+				t.Errorf("expected %q.%q, got %v.%q", tc.object, tc.column, stmt.Object, stmt.Column)
+			}
+		})
 	}
-	if stmt.Comment != "Primary index" {
-		t.Errorf("expected 'Primary index', got %q", stmt.Comment)
+}
+
+// TestParseCommentOnRefusedCategories holds the parser to the categories
+// Oracle refuses on COMMENT ON: ORA-32594, "invalid object category", at the
+// category word, which is byte 11 of the statement. A grammar that takes one
+// of them accepts what the server answers with an error.
+func TestParseCommentOnRefusedCategories(t *testing.T) {
+	categories := []string{
+		"VIEW", "INDEX", "SEQUENCE", "FUNCTION", "PROCEDURE", "PACKAGE", "TRIGGER",
+		"TYPE", "SYNONYM", "DATABASE LINK", "DIMENSION", "CLUSTER", "CONSTRAINT",
+		"SCHEMA", "LIBRARY", "JAVA SOURCE", "DIRECTORY", "ROLE", "USER", "TABLESPACE", "DOMAIN",
+	}
+	for _, category := range categories {
+		sql := "COMMENT ON " + category + " a IS 's'"
+		_, err := Parse(sql)
+		if err == nil {
+			t.Errorf("Parse(%q): expected a rejection, got success", sql)
+			continue
+		}
+		var pe *ParseError
+		if !errors.As(err, &pe) || pe.Position != len("COMMENT ON ") {
+			t.Errorf("Parse(%q): expected a rejection at %d, got %v", sql, len("COMMENT ON "), err)
+		}
 	}
 }
 
