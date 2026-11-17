@@ -638,6 +638,7 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterItsFunctions(t *testing.
 			Name: "app",
 			Functions: []*metadatapb.FunctionMetadata{{
 				Name:       "handler",
+				Signature:  "handler()",
 				Definition: "CREATE FUNCTION app.handler() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
 			}},
 		}},
@@ -670,6 +671,7 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedHandler(t *testing
 			Name: "app",
 			Functions: []*metadatapb.FunctionMetadata{{
 				Name:       "MyHandler",
+				Signature:  "MyHandler()",
 				Definition: `CREATE FUNCTION app."MyHandler"() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;`,
 			}},
 		}},
@@ -733,13 +735,20 @@ func TestDatabaseDefinitionScopesQualifiedHandlerToItsSchema(t *testing.T) {
 				Name: "app",
 				Functions: []*metadatapb.FunctionMetadata{{
 					Name:       "validate",
+					Signature:  "validate()",
 					Definition: "CREATE FUNCTION app.validate() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+				}, {
+					Name:             "validate",
+					Signature:        "validate(public.pt)",
+					Definition:       "CREATE FUNCTION app.validate(r public.pt) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "pt"}},
 				}},
 			},
 			{
 				Name: "other",
 				Functions: []*metadatapb.FunctionMetadata{{
 					Name:             "validate",
+					Signature:        "validate(public.pt)",
 					Definition:       "CREATE FUNCTION other.validate(r public.pt) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
 					DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "pt"}},
 				}},
@@ -800,6 +809,7 @@ func TestDatabaseDefinitionOrdersViewAfterForeignPartition(t *testing.T) {
 			Name: "app",
 			Functions: []*metadatapb.FunctionMetadata{{
 				Name:       "handler",
+				Signature:  "handler()",
 				Definition: "CREATE FUNCTION app.handler() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
 			}},
 		}, {
@@ -826,4 +836,30 @@ func TestDatabaseDefinitionOrdersViewAfterForeignPartition(t *testing.T) {
 	assert.Contains(t, result, partition)
 	assert.Contains(t, result, view)
 	assert.Less(t, strings.Index(result, partition), strings.Index(result, view), "the foreign partition must exist before the view reads it")
+}
+
+// TestDatabaseDefinitionWritesColumnlessForeignTableCheck checks that a foreign
+// table with no columns but a CHECK constraint does not get a leading comma.
+func TestDatabaseDefinitionWritesColumnlessForeignTableCheck(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "ft",
+				ExternalServerName: "s",
+				CheckConstraints:   []*metadatapb.CheckConstraintMetadata{{Name: "c", Expression: "(true)"}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	assert.Contains(t, result, `CREATE FOREIGN TABLE "public"."ft" (
+    CONSTRAINT "c" CHECK (true)
+) SERVER "s";`)
 }

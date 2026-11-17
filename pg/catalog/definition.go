@@ -140,8 +140,8 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		foreignDataWrapperMap[wrapperID] = wrapper
 		wrapperIDsByName[wrapper.Name] = wrapperID
 		graph.AddNode(wrapperID)
-		addFunctionNameEdges(graph, functionIDsByName, wrapper.Handler, wrapperID)
-		addFunctionNameEdges(graph, functionIDsByName, wrapper.Validator, wrapperID)
+		addFunctionNameEdges(graph, functionMap, functionIDsByName, wrapper.Handler, nil, wrapperID)
+		addFunctionNameEdges(graph, functionMap, functionIDsByName, wrapper.Validator, []string{"text[]", "oid"}, wrapperID)
 	}
 	serverIDsByName := make(map[string]string)
 	for _, server := range metadata.ForeignServers {
@@ -1545,12 +1545,18 @@ func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalT
 		escapeIdentifier(schema), escapeIdentifier(table.Name)); err != nil {
 		return err
 	}
-	for i, column := range table.Columns {
+	first := true
+	writeSeparator := func() error {
 		separator := ",\n    "
-		if i == 0 {
+		if first {
 			separator = "\n    "
+			first = false
 		}
-		if _, err := io.WriteString(out, separator); err != nil {
+		_, err := io.WriteString(out, separator)
+		return err
+	}
+	for _, column := range table.Columns {
+		if err := writeSeparator(); err != nil {
 			return err
 		}
 		if err := writeColumnDefinition(out, column); err != nil {
@@ -1558,7 +1564,10 @@ func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalT
 		}
 	}
 	for _, check := range checks {
-		if _, err := fmt.Fprintf(out, ",\n    CONSTRAINT \"%s\" CHECK %s", escapeIdentifier(check.Name), check.Expression); err != nil {
+		if err := writeSeparator(); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "CONSTRAINT \"%s\" CHECK %s", escapeIdentifier(check.Name), check.Expression); err != nil {
 			return err
 		}
 	}
@@ -2247,7 +2256,7 @@ func walkPartitions(schema string, partitions []*metadatapb.TablePartitionMetada
 // addFunctionNameEdges makes every function a name resolves to precede node.
 // regproc writes a name that needs quoting quoted, so the map's unquoted keys
 // are tried too.
-func addFunctionNameEdges(graph *definitionGraph, functionIDsByName map[string][]string, name, node string) {
+func addFunctionNameEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, name string, expectedArgs []string, node string) {
 	if name == "" {
 		return
 	}
@@ -2257,10 +2266,67 @@ func addFunctionNameEdges(graph *definitionGraph, functionIDsByName map[string][
 			if seen[functionID] {
 				continue
 			}
+			if !functionSignatureMatches(functionMap[functionID], expectedArgs) {
+				continue
+			}
 			seen[functionID] = true
 			graph.AddEdge(functionID, node)
 		}
 	}
+}
+
+// functionSignatureMatches reports whether a function's identity arguments are
+// the ones a handler or validator has. A function map from a snapshot without
+// a signature matches nothing, so only the function the catalog can name is
+// ordered.
+func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []string) bool {
+	if function == nil || function.Signature == "" {
+		return false
+	}
+	open, close := strings.Index(function.Signature, "("), strings.LastIndex(function.Signature, ")")
+	if open < 0 || close < open {
+		return false
+	}
+	actual := splitSignatureArguments(function.Signature[open+1 : close])
+	if len(actual) != len(expected) {
+		return false
+	}
+	for i := range actual {
+		if normalizeSignatureType(actual[i]) != normalizeSignatureType(expected[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func splitSignatureArguments(args string) []string {
+	args = strings.TrimSpace(args)
+	if args == "" {
+		return nil
+	}
+	var parts []string
+	depth := 0
+	start := 0
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, args[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(parts, args[start:])
+}
+
+func normalizeSignatureType(t string) string {
+	t = strings.TrimSpace(t)
+	t = strings.ReplaceAll(t, "pg_catalog.", "")
+	return strings.ReplaceAll(t, " ", "")
 }
 
 // functionNameKeys is a SQL-qualified name's unquoted forms: its qualified name
