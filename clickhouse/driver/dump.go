@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -97,19 +98,29 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 		}
 		o.kind = dumpKind(o.stmt)
 	}
+	byName := make(map[string]*dumpObject, len(objects))
+	for _, o := range objects {
+		byName[o.name] = o
+	}
 	definitions := make(map[string]*dumpObject, len(objects))
 	for _, o := range objects {
-		if o.kind == dumpView || o.kind == dumpMaterializedView {
+		switch o.kind {
+		case dumpView, dumpMaterializedView, dumpDictionaryTable:
 			definitions[o.name] = o
 		}
 	}
 	for _, o := range objects {
-		if _, ok := definitions[o.name]; ok {
-			o.reads = dumpReads(o, database, definitions)
+		if _, ok := definitions[o.name]; !ok {
+			continue
 		}
+		if o.kind == dumpDictionaryTable {
+			o.reads = dumpDictionaryTableReads(o, byName)
+			continue
+		}
+		o.reads = dumpReads(o, database, definitions)
 	}
 	for _, o := range objects {
-		if o.kind == dumpMaterializedView {
+		if o.kind == dumpMaterializedView || o.kind == dumpDictionaryTable {
 			o.reads = dumpExpandedReads(o, definitions)
 		}
 	}
@@ -169,11 +180,10 @@ func (d *Driver) dumpStatement(ctx context.Context, database, name string) (stri
 //     tables their sources usually are;
 //   - views, whose creation does not resolve the query they hold, so their own
 //     order does not matter;
-//   - materialized views, which do resolve their source and their TO target
-//     when they are created, each after the materialized views it reads;
-//   - tables on the Dictionary engine last, since creating one loads its
-//     dictionary and the dictionary's source may be any object here, a view
-//     included, while nothing states what a dictionary reads.
+//   - materialized views and tables on the Dictionary engine, which resolve what
+//     they read when they are created: a materialized view its source and its TO
+//     target, and a table on the Dictionary engine its dictionary, which loads
+//     and reads the dictionary's source. Each follows what it reads.
 func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 	var tables, dictionaries, dictionaryTables, views, materializedViews []*dumpObject
 	for _, o := range objects {
@@ -193,18 +203,17 @@ func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 	ordered := sortDumpObjects(tables)
 	ordered = append(ordered, sortDumpObjects(dictionaries)...)
 	ordered = append(ordered, sortDumpObjects(views)...)
-	ordered = append(ordered, orderDumpMaterializedViews(materializedViews)...)
-	return append(ordered, sortDumpObjects(dictionaryTables)...)
+	return append(ordered, orderDumpResolved(append(materializedViews, dictionaryTables...))...)
 }
 
-// orderDumpMaterializedViews orders materialized views so that one follows every
-// materialized view it reads, directly or through a view, names breaking ties so
-// the dump is deterministic.
-// A reference cycle cannot exist on the server, which refuses the creation that
-// would close it; were one found anyway, the remaining views are written in name
-// order so the dump still carries them.
-func orderDumpMaterializedViews(materializedViews []*dumpObject) []*dumpObject {
-	pending := sortDumpObjects(materializedViews)
+// orderDumpResolved orders the objects that resolve what they read when they are
+// created, so that one follows every one it reads, directly or through a view,
+// names breaking ties so the dump is deterministic. A reference cycle cannot
+// exist on the server, which refuses the creation that would close it; were one
+// found anyway, the remaining objects are written in name order so the dump
+// still carries them.
+func orderDumpResolved(objects []*dumpObject) []*dumpObject {
+	pending := sortDumpObjects(objects)
 	names := make(map[string]bool, len(pending))
 	for _, o := range pending {
 		names[o.name] = true
@@ -259,6 +268,69 @@ func dumpReads(o *dumpObject, database string, definitions map[string]*dumpObjec
 	}
 	sort.Strings(reads)
 	return reads
+}
+
+// dumpDictionaryEngine matches the dictionary a table on the Dictionary engine
+// reads, which the server states as ENGINE = Dictionary('<database>.<name>').
+var dumpDictionaryEngine = regexp.MustCompile(`ENGINE = Dictionary\('([^']+)'\)`)
+
+// dumpDictionaryTableReads returns the objects a table on the Dictionary engine
+// reads: creating the table loads the dictionary, and the dictionary reads its
+// source, which may be a table, a view or a materialized view of this database.
+// Both are stated as string literals — the table's ENGINE clause and the
+// dictionary's SOURCE — so the names come from those literals.
+func dumpDictionaryTableReads(o *dumpObject, byName map[string]*dumpObject) []string {
+	engine := dumpDictionaryEngine.FindStringSubmatch(o.stmt)
+	if engine == nil {
+		return nil
+	}
+	dictionary := byName[dumpQualifiedName(engine[1])]
+	if dictionary == nil {
+		return nil
+	}
+	seen := make(map[string]bool, len(byName))
+	for _, literal := range dumpLiterals(dictionary.stmt) {
+		name := dumpQualifiedName(literal)
+		if name != o.name && byName[name] != nil {
+			seen[name] = true
+		}
+	}
+	reads := make([]string, 0, len(seen))
+	for name := range seen {
+		reads = append(reads, name)
+	}
+	sort.Strings(reads)
+	return reads
+}
+
+// dumpQualifiedName returns the object part of a name the server states, which
+// may be qualified with its database.
+func dumpQualifiedName(qualified string) string {
+	return qualified[strings.LastIndex(qualified, ".")+1:]
+}
+
+// dumpLiterals returns the contents of the single-quoted strings in stmt, with a
+// backslash escape resolved, which is how a dictionary states its source and a
+// table states the dictionary it reads.
+func dumpLiterals(stmt string) []string {
+	var literals []string
+	var text strings.Builder
+	inString := false
+	for i := 0; i < len(stmt); i++ {
+		switch c := stmt[i]; {
+		case !inString && c == '\'':
+			inString, text = true, strings.Builder{}
+		case inString && c == '\\' && i+1 < len(stmt):
+			i++
+			text.WriteByte(stmt[i])
+		case inString && c == '\'':
+			inString = false
+			literals = append(literals, text.String())
+		case inString:
+			text.WriteByte(c)
+		}
+	}
+	return literals
 }
 
 // dumpExpandedReads returns every definition o reads, directly or through a view:

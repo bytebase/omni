@@ -85,6 +85,24 @@ CREATE TABLE dict_table (
 )
 ENGINE = Dictionary('$database.dict');
 
+-- A dictionary whose source is a materialized view, and a table that loads it
+-- under a name that sorts first: creating the table queries the view, so it
+-- follows the view.
+CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT id, 'm' AS name FROM src;
+
+CREATE DICTIONARY mv_dict (
+  id UInt64
+)
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(TABLE 'z_src_mv'))
+LAYOUT(FLAT())
+LIFETIME(300);
+
+CREATE TABLE a_mv_dict_table (
+  id UInt64
+)
+ENGINE = Dictionary('$database.mv_dict');
+
 CREATE VIEW v_names AS SELECT id, name FROM src;
 
 -- A view states its columns, which ClickHouse creates without resolving its
@@ -109,5 +127,10 @@ mv` TO target AS SELECT id, 'x' AS name FROM src;
 
 CREATE MATERIALIZED VIEW a_after TO target AS SELECT id, 'y' AS name FROM `nl
 mv`;
+
+-- A materialized view reading a table on the Dictionary engine, under a name that
+-- sorts first: creating it needs the dictionary table, which loads the
+-- dictionary.
+CREATE MATERIALIZED VIEW a_dict TO target AS SELECT id, 'z' AS name FROM dict_table;
 
 CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps

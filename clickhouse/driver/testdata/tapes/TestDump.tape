@@ -122,6 +122,33 @@
 > exec
 |
 |
+| -- A dictionary whose source is a materialized view, and a table that loads it
+| -- under a name that sorts first: creating the table queries the view, so it
+| -- follows the view.
+| CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT id, 'm' AS name FROM src;
+< ok 0 -
+> exec
+|
+|
+| CREATE DICTIONARY mv_dict (
+|   id UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'z_src_mv'))
+| LAYOUT(FLAT())
+| LIFETIME(300);
+< ok 0 -
+> exec
+|
+|
+| CREATE TABLE a_mv_dict_table (
+|   id UInt64
+| )
+| ENGINE = Dictionary('omni_testdump.mv_dict');
+< ok 0 -
+> exec
+|
+|
 | CREATE VIEW v_names AS SELECT id, name FROM src;
 < ok 0 -
 > exec
@@ -168,6 +195,14 @@
 > exec
 |
 |
+| -- A materialized view reading a table on the Dictionary engine, under a name that
+| -- sorts first: creating it needs the dictionary table, which loads the
+| -- dictionary.
+| CREATE MATERIALIZED VIEW a_dict TO target AS SELECT id, 'z' AS name FROM dict_table;
+< ok 0 -
+> exec
+|
+|
 | CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps
 < ok 0 -
 > query
@@ -192,7 +227,13 @@
 | a_after
 < row
 : string
+| a_dict
+< row
+: string
 | a_first
+< row
+: string
+| a_mv_dict_table
 < row
 : string
 | a_top
@@ -209,6 +250,9 @@
 < row
 : string
 | mv_base
+< row
+: string
+| mv_dict
 < row
 : string
 | mv_own
@@ -240,6 +284,9 @@
 < row
 : string
 | view_dict_table
+< row
+: string
+| z_src_mv
 > query
 | SHOW CREATE TABLE `omni_testdump`.`.events`
 < result
@@ -282,6 +329,21 @@
 |     'y' AS name
 | FROM omni_testdump.`nl\nmv`
 > query
+| SHOW CREATE TABLE `omni_testdump`.`a_dict`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE MATERIALIZED VIEW omni_testdump.a_dict TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'z' AS name
+| FROM omni_testdump.dict_table
+> query
 | SHOW CREATE TABLE `omni_testdump`.`a_first`
 < result
 < column "statement" "String" "string"
@@ -293,6 +355,17 @@
 | )
 | AS SELECT id
 | FROM omni_testdump.v_names
+> query
+| SHOW CREATE TABLE `omni_testdump`.`a_mv_dict_table`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE TABLE omni_testdump.a_mv_dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdump.mv_dict')
 > query
 | SHOW CREATE TABLE `omni_testdump`.`a_top`
 < result
@@ -362,6 +435,20 @@
 |     id,
 |     'omni_testdump.a_top' AS name
 | FROM omni_testdump.src
+> query
+| SHOW CREATE TABLE `omni_testdump`.`mv_dict`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE DICTIONARY omni_testdump.mv_dict
+| (
+|     `id` UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'z_src_mv'))
+| LIFETIME(MIN 0 MAX 300)
+| LAYOUT(FLAT())
 > query
 | SHOW CREATE TABLE `omni_testdump`.`mv_own`
 < result
@@ -503,3 +590,18 @@
 |     `id` UInt64
 | )
 | ENGINE = Dictionary('omni_testdump.view_dict')
+> query
+| SHOW CREATE TABLE `omni_testdump`.`z_src_mv`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE MATERIALIZED VIEW omni_testdump.z_src_mv TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'm' AS name
+| FROM omni_testdump.src

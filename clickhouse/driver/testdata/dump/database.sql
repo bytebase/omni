@@ -83,6 +83,18 @@ LIFETIME(MIN 0 MAX 300)
 LAYOUT(FLAT());
 
 --
+-- Dictionary structure for `mv_dict`
+--
+CREATE DICTIONARY omni_testdump.mv_dict
+(
+    `id` UInt64
+)
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(TABLE 'z_src_mv'))
+LIFETIME(MIN 0 MAX 300)
+LAYOUT(FLAT());
+
+--
 -- Dictionary structure for `view_dict`
 --
 CREATE DICTIONARY omni_testdump.view_dict
@@ -141,6 +153,15 @@ AS SELECT id
 FROM omni_testdump.src;
 
 --
+-- Table structure for `dict_table`
+--
+CREATE TABLE omni_testdump.dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.dict');
+
+--
 -- Materialized view structure for `mv_base`
 --
 CREATE MATERIALIZED VIEW omni_testdump.mv_base TO omni_testdump.target
@@ -180,6 +201,28 @@ AS SELECT
 FROM omni_testdump.src;
 
 --
+-- Table structure for `view_dict_table`
+--
+CREATE TABLE omni_testdump.view_dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.view_dict');
+
+--
+-- Materialized view structure for `z_src_mv`
+--
+CREATE MATERIALIZED VIEW omni_testdump.z_src_mv TO omni_testdump.target
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    'm' AS name
+FROM omni_testdump.src;
+
+--
 -- Materialized view structure for `a_after`
 --
 CREATE MATERIALIZED VIEW omni_testdump.a_after TO omni_testdump.target
@@ -193,6 +236,28 @@ AS SELECT
 FROM omni_testdump.`nl\nmv`;
 
 --
+-- Materialized view structure for `a_dict`
+--
+CREATE MATERIALIZED VIEW omni_testdump.a_dict TO omni_testdump.target
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    'z' AS name
+FROM omni_testdump.dict_table;
+
+--
+-- Table structure for `a_mv_dict_table`
+--
+CREATE TABLE omni_testdump.a_mv_dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.mv_dict');
+
+--
 -- Materialized view structure for `a_top`
 --
 CREATE MATERIALIZED VIEW omni_testdump.a_top TO omni_testdump.target
@@ -204,22 +269,4 @@ AS SELECT
     id,
     name
 FROM omni_testdump.v_bridge;
-
---
--- Table structure for `dict_table`
---
-CREATE TABLE omni_testdump.dict_table
-(
-    `id` UInt64
-)
-ENGINE = Dictionary('omni_testdump.dict');
-
---
--- Table structure for `view_dict_table`
---
-CREATE TABLE omni_testdump.view_dict_table
-(
-    `id` UInt64
-)
-ENGINE = Dictionary('omni_testdump.view_dict');
 
