@@ -280,3 +280,87 @@ func TestSyncForeignKeyReferencedDatabase(t *testing.T) {
 		t.Errorf("foreign keys diff (-want +got):\n%s", diff)
 	}
 }
+
+// TestTriggerBody pins the header ACTION_STATEMENT repeats. The pinned server's answers
+// cover a plain body and a BEGIN…END one; a quoted name, and a body that holds the header's
+// own words, pin the scan.
+func TestTriggerBody(t *testing.T) {
+	for _, tc := range []struct {
+		name, statement, want string
+	}{
+		{
+			name:      "single statement",
+			statement: "TRIGGER trg_1 BEFORE INSERT ON trg_t FOR EACH ROW SET NEW.v = 1",
+			want:      "SET NEW.v = 1",
+		},
+		{
+			name:      "compound statement",
+			statement: "TRIGGER trg_1 BEFORE INSERT ON trg_t FOR EACH ROW BEGIN IF NEW.v < 0 THEN SET NEW.v = 0; END IF; END",
+			want:      "BEGIN IF NEW.v < 0 THEN SET NEW.v = 0; END IF; END",
+		},
+		{
+			name:      "quoted names",
+			statement: "TRIGGER `trg odd` AFTER DELETE ON `trg_t` FOR EACH ROW INSERT INTO trg_t (id) VALUES (1)",
+			want:      "INSERT INTO trg_t (id) VALUES (1)",
+		},
+		{
+			name:      "body holds the header's words",
+			statement: "TRIGGER t1 BEFORE UPDATE ON t FOR EACH ROW SET NEW.x = 'FOR EACH ROW'",
+			want:      "SET NEW.x = 'FOR EACH ROW'",
+		},
+		{
+			name:      "already a body",
+			statement: "SET NEW.v = 1",
+			want:      "SET NEW.v = 1",
+		},
+		{
+			name:      "no header terminator",
+			statement: "TRIGGER t1 BEFORE UPDATE ON t",
+			want:      "TRIGGER t1 BEFORE UPDATE ON t",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := triggerBody(tc.statement); got != tc.want {
+				t.Errorf("triggerBody(%q) = %q, want %q", tc.statement, got, tc.want)
+			}
+		})
+	}
+}
+
+// TestTemporalDefaultWithPrecision pins the precision a temporal default takes from its
+// column type, which OceanBase leaves out of COLUMN_DEFAULT.
+func TestTemporalDefaultWithPrecision(t *testing.T) {
+	for _, tc := range []struct {
+		value, columnType, want string
+	}{
+		{"CURRENT_TIMESTAMP", "datetime(6)", "CURRENT_TIMESTAMP(6)"},
+		{"CURRENT_TIMESTAMP", "timestamp(3)", "CURRENT_TIMESTAMP(3)"},
+		{"CURRENT_TIMESTAMP", "datetime", "CURRENT_TIMESTAMP"},
+		{"CURRENT_TIMESTAMP(6)", "datetime(6)", "CURRENT_TIMESTAMP(6)"},
+		{"CURRENT_DATE", "date", "CURRENT_DATE"},
+		{"CURRENT_TIME", "time(2)", "CURRENT_TIME(2)"},
+	} {
+		if got := temporalDefaultWithPrecision(tc.value, tc.columnType); got != tc.want {
+			t.Errorf("temporalDefaultWithPrecision(%q, %q) = %q, want %q", tc.value, tc.columnType, got, tc.want)
+		}
+	}
+}
+
+// TestEscapeEventComment pins how a comment information_schema.EVENTS states becomes a
+// string literal under the event's own sql_mode.
+func TestEscapeEventComment(t *testing.T) {
+	const strictMode = "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER"
+	for _, tc := range []struct {
+		comment, sqlMode, want string
+	}{
+		{"owner's once", strictMode, "owner''s once"},
+		{`C:\new path`, strictMode, `C:\\new path`},
+		{`trailing\`, strictMode, `trailing\\`},
+		{`C:\new path`, "NO_BACKSLASH_ESCAPES," + strictMode, `C:\new path`},
+		{`owner's \new`, "NO_BACKSLASH_ESCAPES", `owner''s \new`},
+	} {
+		if got := escapeEventComment(tc.comment, tc.sqlMode); got != tc.want {
+			t.Errorf("escapeEventComment(%q, %q) = %q, want %q", tc.comment, tc.sqlMode, got, tc.want)
+		}
+	}
+}

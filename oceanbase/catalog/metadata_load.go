@@ -279,6 +279,21 @@ func collectMetadataObjects(meta *metadata.DatabaseSchemaMetadata) []*metadataOb
 				out = append(out, &metadataObject{kind: metadataView, name: v.GetName(), view: v, snapshotDatabase: meta.GetName()})
 			}
 		}
+		// The catalog models no materialized view, so a snapshot's materialized view installs
+		// as the view its query is. Without it, a view that reads the materialized view would
+		// name a relation the catalog does not hold; the container table holds its rows, and
+		// the sync no longer lists that as a table.
+		for _, v := range s.GetMaterializedViews() {
+			if v.GetName() == "" || v.GetSkipDump() {
+				continue
+			}
+			out = append(out, &metadataObject{
+				kind:             metadataView,
+				name:             v.GetName(),
+				view:             &metadata.ViewMetadata{Name: v.GetName(), Definition: v.GetDefinition()},
+				snapshotDatabase: meta.GetName(),
+			})
+		}
 		for _, fn := range s.GetFunctions() {
 			if fn.GetName() != "" {
 				out = append(out, &metadataObject{kind: metadataFunction, name: fn.GetName(), function: fn})

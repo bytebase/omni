@@ -113,7 +113,20 @@
 < column "COLLATION_CONNECTION" "VARCHAR" "string"
 > query
 |
-| 		SELECT DISTINCT EVENT_NAME
+| 		SELECT
+| 			EVENT_NAME,
+| 			EVENT_TYPE,
+| 			IFNULL(CAST(EXECUTE_AT AS CHAR), ''),
+| 			IFNULL(INTERVAL_VALUE, ''),
+| 			IFNULL(INTERVAL_FIELD, ''),
+| 			IFNULL(CAST(STARTS AS CHAR), ''),
+| 			IFNULL(CAST(ENDS AS CHAR), ''),
+| 			IFNULL(STATUS, ''),
+| 			IFNULL(ON_COMPLETION, ''),
+| 			IFNULL(EVENT_COMMENT, ''),
+| 			IFNULL(TIME_ZONE, ''),
+| 			IFNULL(SQL_MODE, ''),
+| 			IFNULL(EVENT_DEFINITION, '')
 | 		FROM information_schema.EVENTS
 | 		WHERE EVENT_SCHEMA = ?
 | 		ORDER BY EVENT_NAME
@@ -121,6 +134,18 @@
 | omni_no_such_database
 < result
 < column "EVENT_NAME" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "IFNULL(CAST(EXECUTE_AT AS CHAR), '')" "VARCHAR"
+< column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
+< column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
+< column "IFNULL(CAST(STARTS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(CAST(ENDS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(STATUS, '')" "VARCHAR"
+< column "IFNULL(ON_COMPLETION, '')" "VARCHAR"
+< column "IFNULL(EVENT_COMMENT, '')" "TEXT"
+< column "IFNULL(TIME_ZONE, '')" "VARCHAR"
+< column "IFNULL(SQL_MODE, '')" "TEXT"
+< column "IFNULL(EVENT_DEFINITION, '')" "TEXT"
 > query
 |
 | 		SELECT
