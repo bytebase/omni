@@ -112,7 +112,8 @@ func (d *Driver) ExplainTabularEstimate(ctx context.Context, query string) (floa
 // ExplainJSON returns the EXPLAIN FORMAT=JSON output for statement in the
 // format version mysqlanalysis.EstimateAffectedRowsFromExplainJSON reads.
 func (d *Driver) ExplainJSON(ctx context.Context, statement string) (string, error) {
-	if err := requireOneStatement(statement); err != nil {
+	plan, err := explainText(statement, true)
+	if err != nil {
 		return "", err
 	}
 	conn, err := d.db.Conn(ctx)
@@ -136,7 +137,7 @@ func (d *Driver) ExplainJSON(ctx context.Context, statement string) (string, err
 		}()
 	}
 
-	rows, err := conn.QueryContext(ctx, "EXPLAIN FORMAT=JSON "+statement)
+	rows, err := conn.QueryContext(ctx, plan)
 	if err != nil {
 		return "", err
 	}
@@ -146,7 +147,8 @@ func (d *Driver) ExplainJSON(ctx context.Context, statement string) (string, err
 
 // Explain dry-runs statement with EXPLAIN inside a rolled-back transaction.
 func (d *Driver) Explain(ctx context.Context, statement string) error {
-	if err := requireOneStatement(statement); err != nil {
+	plan, err := explainText(statement, false)
+	if err != nil {
 		return err
 	}
 	tx, err := d.db.BeginTx(ctx, nil)
@@ -154,7 +156,7 @@ func (d *Driver) Explain(ctx context.Context, statement string) error {
 		return err
 	}
 	defer func() { _ = tx.Rollback() }()
-	rows, err := tx.QueryContext(ctx, "EXPLAIN "+statement)
+	rows, err := tx.QueryContext(ctx, plan)
 	if err != nil {
 		return err
 	}
@@ -177,6 +179,18 @@ func readExplainJSON(rows *sql.Rows) (string, error) {
 		return "", err
 	}
 	return plan.String(), nil
+}
+
+// explainText returns the statement that plans statement: mysql/analysis builds
+// it, so a statement EXPLAIN cannot plan is refused rather than prefixed — as
+// ANALYZE TABLE would be, where EXPLAIN ANALYZE TABLE runs a TABLE query — and
+// text holding more than one statement is refused too, because the connection
+// sends every statement of a request.
+func explainText(statement string, json bool) (string, error) {
+	if err := requireOneStatement(statement); err != nil {
+		return "", err
+	}
+	return mysqlanalysis.ExplainStatement(statement, json)
 }
 
 // requireOneStatement refuses text that holds anything but one statement: these

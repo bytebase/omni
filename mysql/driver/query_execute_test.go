@@ -551,6 +551,14 @@ INSERT INTO sitems VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');`, driver.Execu
 			if _, _, ok := d.ExplainTabularEstimate(ctx, "SELECT 1; DROP TABLE sitems;"); ok {
 				t.Error("ExplainTabularEstimate planned a script")
 			}
+			// A statement EXPLAIN cannot plan is refused: prefixed, ANALYZE TABLE
+			// would become EXPLAIN ANALYZE TABLE, which runs a TABLE query.
+			if err := d.Explain(ctx, "ANALYZE TABLE sitems;"); !errors.Is(err, mysqlanalysis.ErrNotExplainable) {
+				t.Errorf("Explain of ANALYZE TABLE err = %v, want ErrNotExplainable", err)
+			}
+			if _, err := d.ExplainJSON(ctx, "EXPLAIN ANALYZE SELECT 1;"); !errors.Is(err, mysqlanalysis.ErrExplainAnalyzeExecutes) {
+				t.Errorf("ExplainJSON of EXPLAIN ANALYZE err = %v, want ErrExplainAnalyzeExecutes", err)
+			}
 			kept, err := d.ExplainJSON(ctx, "SELECT COUNT(*) FROM sitems")
 			if err != nil || !strings.Contains(kept, "query_block") {
 				t.Errorf("ExplainJSON after the refused probes = %q, %v", kept, err)

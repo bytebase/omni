@@ -351,5 +351,10 @@ func parseTimestampOrStringValue(raw string, scale int32) driver.Value {
 	if err != nil || t.Year() < 1 || t.Year() > 9999 {
 		return driver.Value{Kind: driver.String, String: raw}
 	}
+	// The contract's Timestamp is a wall clock in UTC fields, so the calendar
+	// fields are rebuilt there rather than converted: a client that renders a
+	// value in another zone, as parseTime with loc does, then reports the same
+	// wall clock and the same instant everywhere.
+	t = time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(), t.Nanosecond(), time.UTC)
 	return driver.Value{Kind: driver.Timestamp, Time: t, Precision: scale}
 }
