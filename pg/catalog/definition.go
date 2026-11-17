@@ -2238,16 +2238,24 @@ func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*me
 			if !ok {
 				continue
 			}
-			dependencyID := getObjectID(schema, name)
-			if parentID, ok := partitionParents[dependencyID]; ok {
-				dependencyID = parentID
+			// An array of a row type is named _<relation>, as in public._z.
+			names := []string{name}
+			if strings.HasPrefix(name, "_") {
+				names = append(names, name[1:])
 			}
-			if _, ok := tableMap[dependencyID]; ok {
-				graph.AddEdge(dependencyID, id)
-				continue
-			}
-			if _, ok := foreignTableMap[dependencyID]; ok {
-				graph.AddEdge(dependencyID, id)
+			for _, relationName := range names {
+				dependencyID := getObjectID(schema, relationName)
+				if parentID, ok := partitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
+				if _, ok := tableMap[dependencyID]; ok {
+					graph.AddEdge(dependencyID, id)
+					break
+				}
+				if _, ok := foreignTableMap[dependencyID]; ok {
+					graph.AddEdge(dependencyID, id)
+					break
+				}
 			}
 		}
 	}

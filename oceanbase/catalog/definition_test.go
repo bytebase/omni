@@ -1212,6 +1212,10 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 				Location: `a\b`,
 				Pattern:  ".*[.]csv",
 				Format:   "TYPE = 'CSV'",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "c1", Type: "int", Comment: "O'Brien"},
+					{Name: "c2", Type: "varchar(8)", Comment: `C:\x`},
+				},
 			}},
 		}},
 	}
@@ -1219,4 +1223,6 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, def, `LOCATION = 'a\\b'`)
 	require.Contains(t, def, `PATTERN = '.*[.]csv'`)
+	require.Contains(t, def, `COMMENT 'O''Brien'`)
+	require.Contains(t, def, `COMMENT 'C:\\x'`)
 }
