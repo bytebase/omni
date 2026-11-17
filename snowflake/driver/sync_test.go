@@ -129,3 +129,17 @@ func TestSystemSchemas(t *testing.T) {
 		}
 	}
 }
+
+// TestInformationSchema pins the schema path a sync reads: the database is one
+// identifier, quoted once, and the schema's own name follows it.
+func TestInformationSchema(t *testing.T) {
+	for _, tc := range []struct{ database, want string }{
+		{database: "DEMO_DB", want: `"DEMO_DB".INFORMATION_SCHEMA`},
+		{database: "analytics", want: `"analytics".INFORMATION_SCHEMA`},
+		{database: `a"b`, want: `"a""b".INFORMATION_SCHEMA`},
+	} {
+		if got := informationSchema(tc.database); got != tc.want {
+			t.Errorf("informationSchema(%q) = %q, want %q", tc.database, got, tc.want)
+		}
+	}
+}

@@ -108,9 +108,9 @@ func (d *Driver) getSchemaList(ctx context.Context, database string) ([]string, 
 	query := fmt.Sprintf(`
 		SELECT
 			SCHEMA_NAME
-		FROM "%s".INFORMATION_SCHEMA.SCHEMATA
+		FROM %s.SCHEMATA
 		WHERE %s
-		ORDER BY SCHEMA_NAME`, quoteIdent(database), excludedSchemaPredicate("SCHEMA_NAME"))
+		ORDER BY SCHEMA_NAME`, informationSchema(database), excludedSchemaPredicate("SCHEMA_NAME"))
 
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
@@ -160,9 +160,9 @@ func (d *Driver) getTableSchema(ctx context.Context, database string) (map[strin
 			ROW_COUNT,
 			BYTES,
 			IFNULL(COMMENT, '')
-		FROM "%s".INFORMATION_SCHEMA.TABLES
+		FROM %s.TABLES
 		WHERE TABLE_TYPE = 'BASE TABLE' AND %s
-		ORDER BY TABLE_SCHEMA, TABLE_NAME`, quoteIdent(database), excludedSchemaPredicate("TABLE_SCHEMA"))
+		ORDER BY TABLE_SCHEMA, TABLE_NAME`, informationSchema(database), excludedSchemaPredicate("TABLE_SCHEMA"))
 	tableRows, err := d.db.QueryContext(ctx, tableQuery)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute query %q: %w", tableQuery, err)
@@ -197,9 +197,9 @@ func (d *Driver) getTableSchema(ctx context.Context, database string) (map[strin
 			TABLE_NAME,
 			IFNULL(VIEW_DEFINITION, ''),
 			IFNULL(COMMENT, '')
-		FROM "%s".INFORMATION_SCHEMA.VIEWS
+		FROM %s.VIEWS
 		WHERE %s
-		ORDER BY TABLE_SCHEMA, TABLE_NAME`, quoteIdent(database), excludedSchemaPredicate("TABLE_SCHEMA"))
+		ORDER BY TABLE_SCHEMA, TABLE_NAME`, informationSchema(database), excludedSchemaPredicate("TABLE_SCHEMA"))
 	viewRows, err := d.db.QueryContext(ctx, viewQuery)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to execute query %q: %w", viewQuery, err)
@@ -250,9 +250,9 @@ func (d *Driver) getColumnMap(ctx context.Context, database string) (map[tableKe
 			IFNULL(CHARACTER_SET_NAME, ''),
 			IFNULL(COLLATION_NAME, ''),
 			IFNULL(COMMENT, '')
-		FROM "%s".INFORMATION_SCHEMA.COLUMNS
+		FROM %s.COLUMNS
 		WHERE %s
-		ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION`, quoteIdent(database), excludedSchemaPredicate("TABLE_SCHEMA"))
+		ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION`, informationSchema(database), excludedSchemaPredicate("TABLE_SCHEMA"))
 	columnRows, err := d.db.QueryContext(ctx, columnQuery)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", columnQuery, err)
@@ -538,4 +538,12 @@ func convertYesNo(s string) (bool, error) {
 	default:
 		return false, fmt.Errorf("unrecognized isNullable type %q", s)
 	}
+}
+
+// informationSchema is the database's INFORMATION_SCHEMA as a path: the
+// database as one quoted identifier and the schema's own name, which is what a
+// query names. Quoting it here keeps the caller's name one identifier and does
+// not quote it twice.
+func informationSchema(database string) string {
+	return quoteIdent(database) + ".INFORMATION_SCHEMA"
 }

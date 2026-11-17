@@ -424,6 +424,10 @@ means the harness is comparing something narrower than the driver does.
 | difference | why |
 | --- | --- |
 | `Execute` ships one statement per request; Bytebase sent the whole script as one multi-statement request (`MULTI_STATEMENT_COUNT=0`) | the execution log a caller reads is per statement, and the splitter is lexical and never fails; what a multi-statement request does differently with a failing statement is what the recording shows |
+| autocommit `Execute` runs the whole script on one connection | a request of its own per statement would borrow a pooled connection each time, so a `USE SCHEMA` or a temporary table would not hold for the statements after it |
+| a string literal doubles a backslash | Snowflake reads a backslash as an escape inside a literal, so a name holding one reached `GET_DDL` as another name or did not resolve |
+| the sync's `INFORMATION_SCHEMA` path quotes the database once | the template quoted it too, so the query named `""DEMO_DB""` and the first schema read failed |
+| a dump's `CREATE OR REPLACE` and database qualifier are rewritten in the statement's head only | the earlier rewrite ran over the whole line, so a literal in a view's body that spelled either one came back changed |
 | a cell carries the contract's kind; Bytebase wrote every cell as text | its scan table names MySQL's and PostgreSQL's type names, which the client never reports, so the text fallback caught every column; a decimal still stays exact text |
 | an empty `BINARY` value is `Bytes` with no bytes, not NULL | Bytebase's shared converter turned an empty `[]byte` into NULL, which drops a value that is there |
 | `Config.Port` is honored; Bytebase read the data source's port nowhere and always dialed 443 | the contract has a port field, and a proxy endpoint may answer on another one |

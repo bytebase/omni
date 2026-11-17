@@ -335,8 +335,11 @@ func quoteIdent(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
 
-// sqlLiteral quotes value as a Snowflake string literal.
+// sqlLiteral quotes value as a Snowflake string literal. A backslash is an
+// escape inside one, so it is doubled as well: a name holding `\n` would
+// otherwise reach the call as a newline.
 func sqlLiteral(value string) string {
+	value = strings.ReplaceAll(value, `\`, `\\`)
 	return "'" + strings.ReplaceAll(value, "'", "''") + "'"
 }
 

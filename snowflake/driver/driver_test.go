@@ -448,6 +448,9 @@ func TestQuoteIdentAndLiteral(t *testing.T) {
 	for _, tc := range []struct{ in, want string }{
 		{in: "STREAM", want: "'STREAM'"},
 		{in: `a'b`, want: `'a''b'`},
+		// Snowflake reads a backslash as an escape inside a literal, so a name
+		// holding one is doubled rather than sent through.
+		{in: `a\b`, want: `'a\\b'`},
 	} {
 		if got := sqlLiteral(tc.in); got != tc.want {
 			t.Errorf("sqlLiteral(%q) = %q, want %q", tc.in, got, tc.want)

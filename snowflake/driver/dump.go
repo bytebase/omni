@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/snowflake/parser"
 )
 
 // Dump writes the server's own definition of the database the driver is open
@@ -65,17 +66,68 @@ func dropPublicSchema(databaseName, definition string) string {
 	return strings.ReplaceAll(definition, schemaStatement, "")
 }
 
-// keepCreate takes the database qualifier off a CREATE statement and turns every
-// CREATE OR REPLACE into a CREATE: a dump restores into objects that may already
-// be there, and replacing one would drop what it holds.
+// keepCreate takes the database qualifier off a CREATE statement and turns
+// CREATE OR REPLACE into a CREATE: a dump restores into objects that may
+// already be there, and replacing one would drop what it holds.
+//
+// Only the statement's head changes. A literal or a comment that spells
+// `create or replace` or the database's name is part of the object's definition,
+// so changing it would change what the object answers.
 func keepCreate(databaseName, definition string) string {
 	lines := strings.Split(definition, "\n")
 	for i, line := range lines {
 		if !strings.HasPrefix(strings.ToLower(line), "create ") {
 			continue
 		}
-		line = strings.ReplaceAll(line, " "+databaseName+".", " ")
-		lines[i] = strings.ReplaceAll(line, "create or replace ", "create ")
+		lines[i] = keepCreateLine(databaseName, line)
 	}
 	return strings.Join(lines, "\n")
+}
+
+// createOrReplace is the clause a dump's CREATE statement loses.
+const createOrReplace = "create or replace "
+
+// keepCreateLine rewrites one CREATE statement's head: the leading CREATE OR
+// REPLACE becomes CREATE, and the object name loses the database it qualifies.
+func keepCreateLine(databaseName, line string) string {
+	if len(line) >= len(createOrReplace) && strings.EqualFold(line[:len(createOrReplace)], createOrReplace) {
+		line = "create " + line[len(createOrReplace):]
+	}
+	tokens, _ := parser.Tokenize(line)
+	for i := 0; i+1 < len(tokens); i++ {
+		name, dot := tokens[i], tokens[i+1]
+		if dot.Type != '.' || !isNameText(line, name) {
+			continue
+		}
+		if !isDatabaseName(line[name.Loc.Start:name.Loc.End], databaseName) {
+			continue
+		}
+		return line[:name.Loc.Start] + line[dot.Loc.End:]
+	}
+	return line
+}
+
+// isNameText reports whether the token at that source offset is a name rather
+// than a literal: a string keeps its bytes and is not rewritten.
+func isNameText(line string, token parser.Token) bool {
+	if token.Loc.Start < 0 || token.Loc.Start >= len(line) {
+		return false
+	}
+	switch c := line[token.Loc.Start]; {
+	case c == '"', c == '_':
+		return true
+	case c >= 'a' && c <= 'z', c >= 'A' && c <= 'Z':
+		return true
+	}
+	return false
+}
+
+// isDatabaseName reports whether the name the statement states is the
+// database's: a quoted name is compared as written, an unquoted one by case,
+// since Snowflake folds it.
+func isDatabaseName(name, databaseName string) bool {
+	if len(name) > 1 && name[0] == '"' && name[len(name)-1] == '"' {
+		return strings.ReplaceAll(name[1:len(name)-1], `""`, `"`) == databaseName
+	}
+	return strings.EqualFold(name, databaseName)
 }
