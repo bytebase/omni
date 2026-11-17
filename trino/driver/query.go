@@ -153,7 +153,7 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
 			}
 			row := make([]driver.Value, len(columns))
 			for i, column := range columns {
-				row[i] = convertValue(column.TypeName, dest[i])
+				row[i] = convertValue(column.TypeName, columnTypes[i], dest[i])
 			}
 			result.Rows = append(result.Rows, row)
 			if maxResultBytes > 0 {
@@ -387,7 +387,7 @@ func makeValueByTypeName(typeName string) any {
 	}
 }
 
-func convertValue(typeName string, value any) driver.Value {
+func convertValue(typeName string, columnType *sql.ColumnType, value any) driver.Value {
 	switch raw := value.(type) {
 	case *sql.NullString:
 		if raw.Valid {
@@ -397,7 +397,13 @@ func convertValue(typeName string, value any) driver.Value {
 					if strings.Contains(typeName, "TIME ZONE") {
 						kind = driver.TimestampTZ
 					}
-					return driver.Value{Kind: kind, Time: t, Precision: 6}
+					// A tape recorded before it carried precision has none, so keep the
+					// 6 the driver used to report.
+					precision := int64(6)
+					if p, _, ok := columnType.DecimalSize(); ok {
+						precision = p
+					}
+					return driver.Value{Kind: kind, Time: t, Precision: int32(precision)}
 				}
 			}
 			return driver.Value{Kind: driver.String, String: raw.String}

@@ -265,6 +265,18 @@ func TestPrintIndexClauseWritesComment(t *testing.T) {
 	require.Equal(t, ",\n  KEY `idx_v` (`v`) COMMENT 'owner''s note'", buf.String())
 }
 
+// TestTableDefinitionWritesPrimaryKeyComment pins the PRIMARY KEY COMMENT a
+// sync reads from INDEX_COMMENT, which SHOW CREATE TABLE writes after the key.
+func TestTableDefinitionWritesPrimaryKeyComment(t *testing.T) {
+	got, err := TableDefinition(&metadata.TableMetadata{
+		Name:    "t",
+		Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "PRIMARY", Primary: true, Unique: true, Type: "BTREE", Expressions: []string{"id"}, Comment: "identity", Visible: true}},
+	})
+	require.NoError(t, err)
+	require.Contains(t, got, "PRIMARY KEY (`id`) COMMENT 'identity'")
+}
+
 // TestStripViewBodyDatabaseQualifier pins the token-scanner rewrite (X6). The failure
 // shapes were live-verified: (a) `db`.`db`.`col` (a table named like the database, the
 // 5.7 three-part form) was double-stripped down to `col`; (b) a backtick alias
