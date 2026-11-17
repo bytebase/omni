@@ -198,7 +198,7 @@ func TestVersionFromServer(t *testing.T) {
 	d := openTestDriver(t)
 	d.engineVersion = "11.1.0.0.0"
 
-	version, err := d.version(ctx)
+	version, err := d.Version(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

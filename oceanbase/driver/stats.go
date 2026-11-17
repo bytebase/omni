@@ -3,14 +3,21 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"errors"
+	"fmt"
 	"strings"
 
 	oceanbaseanalysis "github.com/bytebase/omni/oceanbase/analysis"
+	oceanbaseast "github.com/bytebase/omni/oceanbase/ast"
+	oceanbaseparser "github.com/bytebase/omni/oceanbase/parser"
 )
 
 // CountAffectedRows returns OceanBase's planner estimate of the rows statement
 // modifies from EXPLAIN FORMAT=JSON.
 func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64, error) {
+	if _, err := dmlStatement(statement); err != nil {
+		return 0, err
+	}
 	rows, err := d.db.QueryContext(ctx, "EXPLAIN FORMAT=JSON "+statement)
 	if err != nil {
 		return 0, err
@@ -21,6 +28,25 @@ func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64
 		return 0, err
 	}
 	return oceanbaseanalysis.EstimateAffectedRowsFromExplainJSON(plan)
+}
+
+// dmlStatement returns statement's one INSERT, UPDATE or DELETE. Only a
+// statement that changes rows has an estimate, so anything else is refused
+// before it reaches the server.
+func dmlStatement(statement string) (oceanbaseast.Node, error) {
+	list, err := oceanbaseparser.Parse(statement)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse statement: %w", err)
+	}
+	if list == nil || len(list.Items) != 1 {
+		return nil, errors.New("expected exactly one statement")
+	}
+	switch list.Items[0].(type) {
+	case *oceanbaseast.InsertStmt, *oceanbaseast.UpdateStmt, *oceanbaseast.DeleteStmt:
+		return list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("expected an INSERT, UPDATE or DELETE statement, got %T", list.Items[0])
+	}
 }
 
 // Explain dry-runs statement with EXPLAIN inside a rolled-back transaction.
