@@ -12,6 +12,7 @@
 package parser
 
 import (
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mysql/ast"
@@ -231,10 +232,19 @@ func completionSegment(sql string, cursorOffset int) (string, int, int) {
 }
 
 func shiftLoc(loc nodes.Loc, base int) nodes.Loc {
-	if base == 0 || loc.Start < 0 {
+	if base == 0 {
 		return loc
 	}
-	return nodes.Loc{Start: loc.Start + base, End: loc.End + base}
+	// An unknown endpoint stays unknown: the convention for an open-ended
+	// body is End == -1, and adding the segment base would invent a position.
+	start, end := loc.Start, loc.End
+	if start >= 0 {
+		start += base
+	}
+	if end >= 0 {
+		end += base
+	}
+	return nodes.Loc{Start: start, End: end}
 }
 
 func shiftReferences(refs []RangeReference, base int) []RangeReference {
@@ -383,7 +393,7 @@ func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
 			procedural = true
 		}
 	}
-	caseDepth := 0
+	var caseForms []bool // CASE nesting: true for a procedural CASE statement
 	for i, tok := range tokens {
 		if tok.Loc >= cursorOffset {
 			break
@@ -395,25 +405,51 @@ func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
 		if !procedural {
 			continue
 		}
-		// A CASE expression's branches are expressions; only a routine
-		// statement's THEN starts a statement.
+		// A CASE expression's branches are expressions; a procedural CASE's
+		// are statement lists, and only those THENs start a statement.
 		switch tok.Type {
 		case kwCASE:
-			caseDepth++
+			caseForms = append(caseForms, startsCaseStatement(tokens, i, start))
 		case kwEND:
-			if caseDepth > 0 {
-				caseDepth--
+			if i+1 < len(tokens) && tokens[i+1].Type == kwCASE {
+				// END CASE closes a procedural CASE.
+				if len(caseForms) > 0 {
+					caseForms = caseForms[:len(caseForms)-1]
+				}
+				continue
+			}
+			if len(caseForms) > 0 {
+				caseForms = caseForms[:len(caseForms)-1]
 			}
 		case kwBEGIN, kwTHEN, kwELSE, kwDO, kwLOOP, kwREPEAT:
-			if caseDepth == 0 {
-				start = i + 1
+			if len(caseForms) > 0 && !caseForms[len(caseForms)-1] {
+				continue
 			}
+			start = i + 1
 		}
 	}
 	if start >= len(tokens) {
 		return 0
 	}
 	return start
+}
+
+// startsCaseStatement reports whether the CASE at idx begins a statement rather
+// than an expression: it follows the statement start, a ';', or a routine
+// body's BEGIN, THEN, or ELSE.
+func startsCaseStatement(tokens []completionScopeToken, idx, start int) bool {
+	if idx == start {
+		return true
+	}
+	prev := tokens[idx-1]
+	if prev.depth != tokens[idx].depth {
+		return false
+	}
+	switch prev.Type {
+	case ';', kwBEGIN, kwTHEN, kwELSE:
+		return true
+	}
+	return false
 }
 
 // sliceScopeTokens returns tokens[start:end] as a token slice of its own, with
@@ -1237,6 +1273,19 @@ func (f completionSelectFrame) refsVisibleFrom(cursorOffset int) []RangeReferenc
 	return f.localRefs
 }
 
+// onBelongsToFrame reports whether the ON condition at onIdx belongs to the
+// FROM clause of the frame whose SELECT is at selectIdx: a query block between
+// them owns it instead.
+func onBelongsToFrame(tokens []completionScopeToken, selectIdx, onIdx int) bool {
+	depth := tokens[onIdx].depth
+	for i := selectIdx + 1; i < onIdx; i++ {
+		if tokens[i].Type == kwSELECT && tokens[i].depth == depth {
+			return false
+		}
+	}
+	return true
+}
+
 // joinOperandRefs returns the references the ON condition at onIdx can name:
 // the join's two operands.
 func joinOperandRefs(tokens []completionScopeToken, refs []RangeReference, onIdx, depth int) []RangeReference {
@@ -1362,12 +1411,12 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			}
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
 			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs, 0)
-			if onIdx := onPredicateToken(tokens, cursorOffset, cursorDepth); onIdx >= 0 {
+			if onIdx := onPredicateToken(tokens, cursorOffset, cursorDepth); onIdx >= 0 && onBelongsToFrame(tokens, i, onIdx) {
 				// A join condition names its own join's operands: a comma
 				// before the join starts an unrelated list item, and a
 				// parenthesized operand contributes all its members. The
 				// condition may sit in a group the frame's FROM opened.
-				local = joinOperandRefs(tokens, local, onIdx, cursorDepth)
+				local = joinOperandRefs(tokens, local, onIdx, tokens[onIdx].depth)
 			}
 		}
 		frames = append(frames, completionSelectFrame{selectIdx: i, depth: depth, localRefs: local})
@@ -1971,6 +2020,9 @@ func selectListColumns(tokens []completionScopeToken, lo, hi, nesting int) []str
 	if lo >= hi {
 		return nil
 	}
+	if tokens[lo].Type == kwVALUES {
+		return valuesColumnNames(tokens, lo, hi)
+	}
 	depth := tokens[lo].depth
 	selectIdx := -1
 	for i := lo; i < hi; i++ {
@@ -1996,6 +2048,39 @@ func selectListColumns(tokens []completionScopeToken, lo, hi, nesting int) []str
 		itemStart = i + 1
 	}
 	return names
+}
+
+// valuesColumnNames returns the names MySQL gives a VALUES query's columns:
+// column_0 to column_{n-1}, where n is the first row's arity. The row's
+// expressions are not the output names, and a scalar subquery inside one is
+// not the body's query.
+func valuesColumnNames(tokens []completionScopeToken, lo, hi int) []string {
+	depth := tokens[lo].depth
+	for i := lo + 1; i < hi; i++ {
+		if tokens[i].depth != depth || tokens[i].Type != kwROW {
+			continue
+		}
+		if i+1 >= hi || tokens[i+1].Type != '(' {
+			return nil
+		}
+		closeIdx := matchingParen(tokens, i+1)
+		if closeIdx < 0 || closeIdx > hi {
+			closeIdx = hi
+		}
+		arity := 1
+		inner := tokens[i+1].depth + 1
+		for j := i + 2; j < closeIdx; j++ {
+			if tokens[j].depth == inner && tokens[j].Type == ',' {
+				arity++
+			}
+		}
+		names := make([]string, arity)
+		for k := range names {
+			names[k] = "column_" + strconv.Itoa(k)
+		}
+		return names
+	}
+	return nil
 }
 
 // selectListEnd returns where the select list starting at start ends: the next
