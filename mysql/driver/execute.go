@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	sqldriver "database/sql/driver"
+	"errors"
 	"fmt"
 	"regexp"
+	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
@@ -77,7 +79,9 @@ func toSQLIsolation(level driver.IsolationLevel) (sqldriver.IsolationLevel, erro
 }
 
 // Execute runs script under opts.Transaction, reporting each step to opts.Log
-// when non-nil and returning the total affected rows.
+// when non-nil and returning the total affected rows. A script that fails on a
+// lock wait timeout runs again up to opts.MaxRetries times, each attempt from
+// the beginning, which is safe because such a failure commits nothing.
 //
 // MySQL commits implicitly on every DDL statement, so a script that mixes DDL
 // with DML leaves what it committed even when a later statement fails under
@@ -88,29 +92,67 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		return 0, err
 	}
 
-	conn, err := d.db.Conn(ctx)
-	if err != nil {
-		return 0, err
-	}
-	// A script may select a database or set session variables, so the
-	// connection is not poolable afterwards either: see discardConn.
-	defer discardConn(conn)
-
-	connID, err := d.readConnectionID(ctx, conn)
-	if err != nil {
-		return 0, err
-	}
-
 	commands := buildExecuteCommands(script)
 	if len(commands) == 0 {
 		return 0, nil
 	}
 
-	if opts.Transaction == driver.AutoCommit || opts.CreateDatabase {
-		return d.executeInAutoCommitMode(ctx, conn, commands, opts.Log, connID)
+	run := func() (int64, error) {
+		conn, err := d.db.Conn(ctx)
+		if err != nil {
+			return 0, err
+		}
+		// A script may select a database or set session variables, so the
+		// connection is not poolable afterwards either: see discardConn.
+		defer discardConn(conn)
+
+		connID, err := d.readConnectionID(ctx, conn)
+		if err != nil {
+			return 0, err
+		}
+		if opts.Transaction == driver.AutoCommit || opts.CreateDatabase {
+			return d.executeInAutoCommitMode(ctx, conn, commands, opts.Log, connID)
+		}
+		return d.executeInTransactionMode(ctx, conn, commands, opts.Log, connID, isolation)
 	}
-	return d.executeInTransactionMode(ctx, conn, commands, opts.Log, connID, isolation)
+
+	affectedRows, err := run()
+	if err == nil || !isLockTimeout(err) {
+		return affectedRows, err
+	}
+	for i := range opts.MaxRetries {
+		interval := time.Duration(150+(i+1)*100/opts.MaxRetries) * time.Millisecond
+		select {
+		case <-ctx.Done():
+			return affectedRows, ctx.Err()
+		case <-time.After(interval):
+		}
+		if opts.Log != nil {
+			opts.Log.Retry(err, i+1, opts.MaxRetries)
+		}
+		affectedRows, err = run()
+		if err == nil || !isLockTimeout(err) {
+			break
+		}
+	}
+	return affectedRows, err
 }
+
+// isLockTimeout reports whether err is MySQL's lock wait timeout (1205) or
+// deadlock (1213): the two failures that roll a statement's transaction back,
+// so running the script again starts from a state that holds nothing.
+func isLockTimeout(err error) bool {
+	var mysqlErr *gomysql.MySQLError
+	if !errors.As(err, &mysqlErr) {
+		return false
+	}
+	return mysqlErr.Number == erLockWaitTimeout || mysqlErr.Number == erLockDeadlock
+}
+
+const (
+	erLockWaitTimeout = 1205
+	erLockDeadlock    = 1213
+)
 
 func (d *Driver) executeInTransactionMode(
 	ctx context.Context,

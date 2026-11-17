@@ -178,6 +178,43 @@
 | Using where
 > rollback
 < ok
+> exec
+| SET SESSION explain_json_format_version = 1
+< error
+| 1193 HY000 Unknown system variable 'explain_json_format_version'
+> query
+| EXPLAIN FORMAT=JSON SELECT COUNT(*) FROM sitems
+< result
+< column "EXPLAIN" "VARCHAR" "string"
+< row
+: bytes
+| {
+|   "query_block": {
+|     "select_id": 1,
+|     "cost_info": {
+|       "query_cost": "0.65"
+|     },
+|     "table": {
+|       "table_name": "sitems",
+|       "access_type": "index",
+|       "key": "PRIMARY",
+|       "used_key_parts": [
+|         "id"
+|       ],
+|       "key_length": "4",
+|       "rows_examined_per_scan": 4,
+|       "rows_produced_per_join": 4,
+|       "filtered": "100.00",
+|       "using_index": true,
+|       "cost_info": {
+|         "read_cost": "0.25",
+|         "eval_cost": "0.40",
+|         "prefix_cost": "0.65",
+|         "data_read_per_join": "1K"
+|       }
+|     }
+|   }
+| }
 
 == TestCountAffectedRowsAndExplain/mysql84 mysql84#1
 > begin
@@ -362,3 +399,42 @@
 | Using where
 > rollback
 < ok
+> exec
+| SET SESSION explain_json_format_version = 1
+< ok 0 0
+> query
+| EXPLAIN FORMAT=JSON SELECT COUNT(*) FROM sitems
+< result
+< column "EXPLAIN" "VARCHAR" "string"
+< row
+: bytes
+| {
+|   "query_block": {
+|     "select_id": 1,
+|     "cost_info": {
+|       "query_cost": "0.65"
+|     },
+|     "table": {
+|       "table_name": "sitems",
+|       "access_type": "index",
+|       "key": "PRIMARY",
+|       "used_key_parts": [
+|         "id"
+|       ],
+|       "key_length": "4",
+|       "rows_examined_per_scan": 4,
+|       "rows_produced_per_join": 4,
+|       "filtered": "100.00",
+|       "using_index": true,
+|       "cost_info": {
+|         "read_cost": "0.25",
+|         "eval_cost": "0.40",
+|         "prefix_cost": "0.65",
+|         "data_read_per_join": "1K"
+|       }
+|     }
+|   }
+| }
+> exec
+| SET SESSION explain_json_format_version = DEFAULT
+< ok 0 0

@@ -4,11 +4,14 @@ import (
 	"context"
 	"database/sql"
 	sqldriver "database/sql/driver"
+	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/bytebase/omni/driver"
 	mysqlanalysis "github.com/bytebase/omni/mysql/analysis"
+	"github.com/bytebase/omni/mysql/ast"
 	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
@@ -72,22 +75,33 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	}
 	prepared := make([]preparedStmt, 0, len(rawStmts))
 	for _, cmd := range rawStmts {
+		parsed, err := parseStatement(script, cmd)
+		if err != nil {
+			return nil, err
+		}
+		node := parsed.Items[0]
+		_, returnsData := mysqlanalysis.ValidateQuery(parsed.Items)
+
 		statement := cmd.Text
 		if opts.Explain {
 			explained, err := mysqlanalysis.ExplainStatement(statement, strings.EqualFold(opts.ExplainFormat, "JSON"))
 			if err != nil {
-				return nil, err
+				return nil, scriptParseError(script, cmd.ByteStart, err)
 			}
 			statement = explained
+			// An explain request answers with a plan, or with the description
+			// of a table that EXPLAIN names.
+			returnsData = true
 		} else if opts.Limit > 0 {
 			statement = mysqlanalysis.StatementWithResultLimit(statement, opts.Limit)
 		}
 
-		parsed, err := mysqlparser.Parse(statement)
-		if err != nil {
-			return nil, err
+		// A statement the read-only whitelist does not name may still answer
+		// with rows, and masking withholds the rows of a statement whose
+		// columns the caller's analysis cannot trace.
+		if serverReturnsRows(node) {
+			returnsData = !opts.MaskingEnabled
 		}
-		_, returnsData := mysqlanalysis.ValidateQuery(parsed.Items)
 		prepared = append(prepared, preparedStmt{text: statement, returnsData: returnsData})
 	}
 
@@ -109,6 +123,57 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		}
 	}
 	return results, nil
+}
+
+// serverReturnsRows reports whether the server answers node with a result set
+// that mysql/analysis's read-only whitelist does not name: a stored procedure's
+// result sets, a table check's diagnosis, and a handler's read. It is what the
+// pinned servers answer with columns; DO, SET, FLUSH, a cache load without a
+// cache, and every write answer none.
+func serverReturnsRows(node ast.Node) bool {
+	switch node.(type) {
+	case *ast.CallStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt,
+		*ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt,
+		*ast.LoadIndexIntoCacheStmt, *ast.HandlerReadStmt:
+		return true
+	}
+	return false
+}
+
+// parseStatement parses the statement at cmd, reporting a parse error at the
+// script's coordinates so a caller locates it in the text it supplied.
+func parseStatement(script string, cmd driver.Command) (*ast.List, error) {
+	parsed, err := mysqlparser.Parse(cmd.Text)
+	if err != nil {
+		return nil, scriptParseError(script, cmd.ByteStart, err)
+	}
+	return parsed, nil
+}
+
+// scriptParseError moves a statement's parse error onto the script the
+// statement came from. A segment parsed on its own reports positions relative
+// to itself, and a caller holds the script.
+func scriptParseError(script string, offset int, err error) error {
+	var parseErr *mysqlparser.ParseError
+	if offset == 0 || !errors.As(err, &parseErr) {
+		return err
+	}
+	moved := *parseErr
+	moved.Position += offset
+	if moved.Position < 0 || moved.Position > len(script) {
+		return &moved
+	}
+	moved.Line = 1 + strings.Count(script[:moved.Position], "\n")
+	lineStart := strings.LastIndexByte(script[:moved.Position], '\n') + 1
+	lineEnd := strings.IndexByte(script[moved.Position:], '\n')
+	if lineEnd < 0 {
+		lineEnd = len(script)
+	} else {
+		lineEnd += moved.Position
+	}
+	moved.Column = utf8.RuneCountInString(script[lineStart:moved.Position]) + 1
+	moved.RelatedText = script[lineStart:lineEnd]
+	return &moved
 }
 
 func (s *session) runStatement(ctx context.Context, statement string, returnsData bool, maxResultBytes int64) (*driver.Result, error) {

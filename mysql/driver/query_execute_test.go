@@ -17,6 +17,7 @@ import (
 	"github.com/bytebase/omni/driver"
 	mysqlanalysis "github.com/bytebase/omni/mysql/analysis"
 	"github.com/bytebase/omni/mysql/internal/testcontainer"
+	mysqlparser "github.com/bytebase/omni/mysql/parser"
 )
 
 // queryRoles are the pinned servers the query and execute corpora run over:
@@ -96,7 +97,11 @@ const querySetup = `CREATE TABLE qitems (
 INSERT INTO qitems VALUES
   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615),
   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10),
-  (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);`
+  (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);
+CREATE PROCEDURE qcount()
+BEGIN
+  SELECT COUNT(*) AS n FROM qitems;
+END;`
 
 // TestQueryCorpus runs the query path over the pinned servers: what it sends
 // for each statement, the rows and column types it decodes, the limit rewrite,
@@ -115,7 +120,7 @@ func TestQueryCorpus(t *testing.T) {
 			// 1. A script of statements that return no rows reports one affected
 			// count each, and the statement text it sent.
 			setup, err := sess.Query(ctx, querySetup, driver.QueryOptions{})
-			if err != nil || len(setup) != 2 {
+			if err != nil || len(setup) != 3 {
 				t.Fatalf("setup = %+v, %v", setup, err)
 			}
 			if setup[0].AffectedRows == nil || *setup[0].AffectedRows != 0 || len(setup[0].Rows) != 0 {
@@ -126,6 +131,9 @@ func TestQueryCorpus(t *testing.T) {
 			}
 			if setup[1].AffectedRows == nil || *setup[1].AffectedRows != 3 {
 				t.Errorf("INSERT affected rows = %v, want 3", setup[1].AffectedRows)
+			}
+			if setup[2].AffectedRows == nil || *setup[2].AffectedRows != 0 {
+				t.Errorf("CREATE PROCEDURE affected rows = %v, want 0", setup[2].AffectedRows)
 			}
 
 			// 2. Column names, engine type names, and every value kind a MySQL
@@ -256,8 +264,20 @@ func TestQueryCorpus(t *testing.T) {
 
 			// 6. A script the parser cannot read runs nothing: every statement
 			// is read before the first is sent.
-			if _, err := sess.Query(ctx, "INSERT INTO qitems (id) VALUES (99);\nSELECT FROM WHERE;", driver.QueryOptions{}); err == nil {
+			const invalid = "INSERT INTO qitems (id) VALUES (99);\nSELECT FROM WHERE;"
+			_, err = sess.Query(ctx, invalid, driver.QueryOptions{})
+			if err == nil {
 				t.Fatal("expected a syntax error")
+			}
+			var parseErr *mysqlparser.ParseError
+			if !errors.As(err, &parseErr) {
+				t.Fatalf("syntax error = %v, want *parser.ParseError", err)
+			}
+			if want := strings.Index(invalid, "FROM"); parseErr.Position != want {
+				t.Errorf("parse error position = %d, want the script's %d (%q)", parseErr.Position, want, invalid[parseErr.Position:])
+			}
+			if parseErr.Line != 2 || parseErr.RelatedText != "SELECT FROM WHERE;" {
+				t.Errorf("parse error = line %d, related %q", parseErr.Line, parseErr.RelatedText)
 			}
 			after, err := sess.Query(ctx, "SELECT COUNT(*) FROM qitems WHERE id = 99;", driver.QueryOptions{})
 			if err != nil || after[0].Rows[0][0].Int64 != 0 {
@@ -277,7 +297,27 @@ func TestQueryCorpus(t *testing.T) {
 				t.Errorf("truncated[1] = %+v", truncated[1])
 			}
 
-			// 8. A write that returns no rows reports its count, and masking
+			// 8. A statement the read-only whitelist does not name still answers
+			// with rows — a procedure's result set, a table check's diagnosis —
+			// and masking withholds them, because the caller's analysis cannot
+			// trace the columns.
+			call, err := sess.Query(ctx, "CALL qcount();", driver.QueryOptions{})
+			if err != nil || len(call) != 1 || call[0].Err != nil {
+				t.Fatalf("CALL = %+v, %v", call, err)
+			}
+			if len(call[0].Rows) != 1 || call[0].Rows[0][0].Int64 != 3 {
+				t.Errorf("CALL rows = %+v", call[0].Rows)
+			}
+			maskedCall, err := sess.Query(ctx, "CALL qcount();", driver.QueryOptions{MaskingEnabled: true})
+			if err != nil || len(maskedCall) != 1 || len(maskedCall[0].Rows) != 0 || maskedCall[0].AffectedRows == nil {
+				t.Fatalf("masked CALL = %+v, %v", maskedCall, err)
+			}
+			checked, err := sess.Query(ctx, "CHECK TABLE qitems;", driver.QueryOptions{})
+			if err != nil || len(checked) != 1 || len(checked[0].Rows) == 0 {
+				t.Fatalf("CHECK TABLE = %+v, %v", checked, err)
+			}
+
+			// 9. A write that returns no rows reports its count, and masking
 			// asks this driver for nothing: the same rows come back either way.
 			updated, err := sess.Query(ctx, "UPDATE qitems SET note = 'z' WHERE id <= 2;", driver.QueryOptions{})
 			if err != nil || len(updated) != 1 || updated[0].AffectedRows == nil || *updated[0].AffectedRows != 2 || len(updated[0].Rows) != 0 {
@@ -486,6 +526,21 @@ INSERT INTO sitems VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');`, driver.Execu
 			}
 			if err := d.Explain(ctx, "UPDATE sitems SET note = 'x' WHERE id = 1"); err != nil {
 				t.Fatalf("Explain = %v", err)
+			}
+			// The probes plan the one statement they were given: a second one
+			// would run, and a DDL would commit despite the rollback.
+			if err := d.Explain(ctx, "SELECT 1; DROP TABLE sitems;"); err == nil || !strings.Contains(err.Error(), "exactly one statement") {
+				t.Errorf("Explain of a script err = %v", err)
+			}
+			if _, err := d.ExplainJSON(ctx, "SELECT 1; DROP TABLE sitems;"); err == nil || !strings.Contains(err.Error(), "exactly one statement") {
+				t.Errorf("ExplainJSON of a script err = %v", err)
+			}
+			if _, _, ok := d.ExplainTabularEstimate(ctx, "SELECT 1; DROP TABLE sitems;"); ok {
+				t.Error("ExplainTabularEstimate planned a script")
+			}
+			kept, err := d.ExplainJSON(ctx, "SELECT COUNT(*) FROM sitems")
+			if err != nil || !strings.Contains(kept, "query_block") {
+				t.Errorf("ExplainJSON after the refused probes = %q, %v", kept, err)
 			}
 		})
 	}

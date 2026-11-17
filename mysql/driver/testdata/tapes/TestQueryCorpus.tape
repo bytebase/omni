@@ -21,6 +21,13 @@
 |   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10),
 |   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);
 < ok 3 0
+> exec
+|
+| CREATE PROCEDURE qcount()
+| BEGIN
+|   SELECT COUNT(*) AS n FROM qitems;
+| END;
+< ok 0 0
 > query
 | /*app=bytebase*/ SELECT * FROM qitems ORDER BY id;
 < result
@@ -208,6 +215,31 @@
 < column "7" "BIGINT" "int64"
 < row
 : int64 7
+> query
+| /*app=bytebase*/ CALL qcount();
+< result
+< column "n" "BIGINT" "int64"
+< row
+: int64 3
+> exec
+| CALL qcount();
+< ok 0 0
+> query
+| /*app=bytebase*/ CHECK TABLE qitems;
+< result
+< column "Table" "VARCHAR"
+< column "Op" "VARCHAR"
+< column "Msg_type" "VARCHAR"
+< column "Msg_text" "MEDIUMTEXT"
+< row
+: bytes
+| omni_qe_query.qitems
+: bytes
+| check
+: bytes
+| status
+: bytes
+| OK
 > exec
 | UPDATE qitems SET note = 'z' WHERE id <= 2;
 < ok 2 0
@@ -265,6 +297,13 @@
 |   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10),
 |   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);
 < ok 3 0
+> exec
+|
+| CREATE PROCEDURE qcount()
+| BEGIN
+|   SELECT COUNT(*) AS n FROM qitems;
+| END;
+< ok 0 0
 > query
 | /*app=bytebase*/ SELECT * FROM qitems ORDER BY id;
 < result
@@ -452,6 +491,31 @@
 < column "7" "BIGINT" "int64"
 < row
 : int64 7
+> query
+| /*app=bytebase*/ CALL qcount();
+< result
+< column "n" "BIGINT" "int64"
+< row
+: int64 3
+> exec
+| CALL qcount();
+< ok 0 0
+> query
+| /*app=bytebase*/ CHECK TABLE qitems;
+< result
+< column "Table" "VARCHAR"
+< column "Op" "VARCHAR"
+< column "Msg_type" "VARCHAR"
+< column "Msg_text" "MEDIUMTEXT"
+< row
+: bytes
+| omni_qe_query.qitems
+: bytes
+| check
+: bytes
+| status
+: bytes
+| OK
 > exec
 | UPDATE qitems SET note = 'z' WHERE id <= 2;
 < ok 2 0

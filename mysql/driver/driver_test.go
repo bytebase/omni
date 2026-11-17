@@ -4,8 +4,10 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"net"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -600,4 +602,172 @@ func TestSessionCloseDiscardsTheConnection(t *testing.T) {
 	if last := statements[len(statements)-1]; !strings.Contains(last, "UPDATE t SET a = 2") {
 		t.Errorf("last statement = %q", last)
 	}
+}
+
+// TestExecuteRetriesLockWaitTimeout pins the retry loop: a script that fails on
+// MySQL's lock wait timeout runs again, each attempt from the beginning, and
+// the logger sees the retry.
+func TestExecuteRetriesLockWaitTimeout(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	var (
+		mu      sync.Mutex
+		updates int
+	)
+	appendPacket := func(dst []byte, seq byte, payload []byte) []byte {
+		dst = append(dst, byte(len(payload)), byte(len(payload)>>8), byte(len(payload)>>16), seq)
+		return append(dst, payload...)
+	}
+	readPacket := func(conn net.Conn) ([]byte, error) {
+		var hdr [4]byte
+		if _, err := io.ReadFull(conn, hdr[:]); err != nil {
+			return nil, err
+		}
+		n := int(hdr[0]) | int(hdr[1])<<8 | int(hdr[2])<<16
+		buf := make([]byte, n)
+		if _, err := io.ReadFull(conn, buf); err != nil {
+			return nil, err
+		}
+		return buf, nil
+	}
+	writeSingleCell := func(c net.Conn, val string) {
+		var out []byte
+		out = appendPacket(out, 1, []byte{1})
+		col := []byte{3, 'd', 'e', 'f', 0, 0, 0, 2, 'i', 'd', 0, 0x0c, 0x21, 0x00, 10, 0, 0, 0, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00}
+		out = appendPacket(out, 2, col)
+		out = appendPacket(out, 3, []byte{0xfe, 0, 0, 0x02, 0x00})
+		row := append([]byte{byte(len(val))}, val...)
+		out = appendPacket(out, 4, row)
+		out = appendPacket(out, 5, []byte{0xfe, 0, 0, 0x02, 0x00})
+		_, _ = c.Write(out)
+	}
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+				var greeting []byte
+				greeting = append(greeting, 0x0a)
+				greeting = append(greeting, "8.0.46\x00"...)
+				greeting = append(greeting, 1, 0, 0, 0)
+				greeting = append(greeting, "12345678"...)
+				greeting = append(greeting, 0x00, 0x09, 0x82, 0x21, 0x02, 0x00, 0x08, 0x00, 21)
+				greeting = append(greeting, make([]byte, 10)...)
+				greeting = append(greeting, "123456789012\x00"...)
+				greeting = append(greeting, "mysql_native_password\x00"...)
+				if _, err := c.Write(appendPacket(nil, 0, greeting)); err != nil {
+					return
+				}
+				if _, err := readPacket(c); err != nil {
+					return
+				}
+				if _, err := c.Write(appendPacket(nil, 2, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00})); err != nil {
+					return
+				}
+				for {
+					pkt, err := readPacket(c)
+					if err != nil || len(pkt) == 0 || pkt[0] == 0x01 {
+						return
+					}
+					if pkt[0] != 0x03 {
+						_, _ = c.Write(appendPacket(nil, 1, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00}))
+						continue
+					}
+					sql := string(pkt[1:])
+					switch {
+					case strings.Contains(sql, "max_allowed_packet"):
+						writeSingleCell(c, "67108864")
+					case strings.Contains(sql, "CONNECTION_ID()"):
+						writeSingleCell(c, "7")
+					case strings.Contains(sql, "UPDATE t"):
+						mu.Lock()
+						updates++
+						first := updates == 1
+						mu.Unlock()
+						if first {
+							// ERR 1205 HY000: the first attempt hits the lock
+							// wait timeout, the second succeeds.
+							var errPkt []byte
+							errPkt = append(errPkt, 0xff, 0xb5, 0x04)
+							errPkt = append(errPkt, "#HY000Lock wait timeout exceeded; try restarting transaction"...)
+							_, _ = c.Write(appendPacket(nil, 1, errPkt))
+							continue
+						}
+						_, _ = c.Write(appendPacket(nil, 1, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00}))
+					default:
+						_, _ = c.Write(appendPacket(nil, 1, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00}))
+					}
+				}
+			}(conn)
+		}
+	}()
+
+	host, port, _ := net.SplitHostPort(ln.Addr().String())
+	d, err := Open(context.Background(), driver.Config{Host: host, Port: port, User: "root"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = d.Close() }()
+
+	log := &executeStepLogger{}
+	affected, err := d.Execute(context.Background(), "UPDATE t SET a = 1;", driver.ExecuteOptions{
+		Transaction: driver.Transactional,
+		MaxRetries:  2,
+		Log:         log,
+	})
+	if err != nil {
+		t.Fatalf("Execute = (%d, %v)", affected, err)
+	}
+	mu.Lock()
+	attempts := updates
+	mu.Unlock()
+	if attempts != 2 {
+		t.Fatalf("UPDATE ran %d times, want 2", attempts)
+	}
+	want := []string{"tx:BEGIN", "exec[0:19]", "resp:err", "tx:ROLLBACK", "retry:1/2", "tx:BEGIN", "exec[0:19]", "resp:0:[0]", "tx:COMMIT"}
+	if !slices.Equal(log.steps, want) {
+		t.Fatalf("steps = %v, want %v", log.steps, want)
+	}
+
+	// A script that is not refused as a lock timeout runs once.
+	if _, err := d.Execute(context.Background(), "CREATE TABLE t (a INT);", driver.ExecuteOptions{
+		Transaction: driver.Transactional,
+		MaxRetries:  2,
+	}); err != nil {
+		t.Fatalf("Execute = %v", err)
+	}
+}
+
+type executeStepLogger struct{ steps []string }
+
+func (l *executeStepLogger) CommandExecute(cmd driver.Command) {
+	l.steps = append(l.steps, fmt.Sprintf("exec[%d:%d]", cmd.ByteStart, cmd.ByteEnd))
+}
+
+func (l *executeStepLogger) CommandResponse(affected int64, perResult []int64, err error) {
+	if err != nil {
+		l.steps = append(l.steps, "resp:err")
+		return
+	}
+	l.steps = append(l.steps, fmt.Sprintf("resp:%d:%v", affected, perResult))
+}
+
+func (l *executeStepLogger) TransactionControl(op driver.TransactionOp, err error) {
+	if err != nil {
+		l.steps = append(l.steps, fmt.Sprintf("tx:%s:err", op))
+		return
+	}
+	l.steps = append(l.steps, fmt.Sprintf("tx:%s", op))
+}
+
+func (l *executeStepLogger) Retry(_ error, attempt, max int) {
+	l.steps = append(l.steps, fmt.Sprintf("retry:%d/%d", attempt, max))
 }
