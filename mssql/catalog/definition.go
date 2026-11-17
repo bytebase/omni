@@ -877,26 +877,34 @@ func creationDefinition(definition string) string {
 
 var creationHeader = regexp.MustCompile(`(?is)^\s*(?:(?:--[^\n]*\n)|(?:/\*.*?\*/)\s*)*(?:CREATE\s+OR\s+ALTER|ALTER)\s+(VIEW|PROCEDURE|PROC|FUNCTION|TRIGGER)\b`)
 
+// hasRestorableDefinition is false for the placeholder a sync writes where an
+// encrypted module's definition is unavailable. Its extended property has no
+// object to attach to.
+func hasRestorableDefinition(definition string) bool {
+	trimmed := strings.TrimSpace(definition)
+	return trimmed != "" && !(strings.HasPrefix(trimmed, "/* Definition of ") && strings.HasSuffix(trimmed, " is encrypted. */"))
+}
+
 func writeView(out *strings.Builder, schemaName string, view *metadata.ViewMetadata) {
 	// A synced definition keeps the trailing semicolon the CREATE VIEW was run
 	// with. Trimming and adding one back makes a dump of a dump identical:
 	// appending unconditionally would add a semicolon on every restore.
 	fmt.Fprintf(out, "%s;\n\nGO\n\n", strings.TrimRight(strings.TrimSpace(creationDefinition(view.Definition)), ";"))
-	if schemaName != "" && view.Comment != "" {
+	if schemaName != "" && view.Comment != "" && hasRestorableDefinition(view.Definition) {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateViewCommentSQL("ADD", schemaName, view.Name, view.Comment))
 	}
 }
 
 func writeFunction(out *strings.Builder, schemaName string, function *metadata.FunctionMetadata) {
 	fmt.Fprintf(out, "%s\n\nGO\n\n", creationDefinition(function.Definition))
-	if schemaName != "" && function.Comment != "" {
+	if schemaName != "" && function.Comment != "" && hasRestorableDefinition(function.Definition) {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateFunctionCommentSQL("ADD", schemaName, function.Name, function.Comment))
 	}
 }
 
 func writeProcedure(out *strings.Builder, schemaName string, procedure *metadata.ProcedureMetadata) {
 	fmt.Fprintf(out, "%s\n\nGO\n\n", creationDefinition(procedure.Definition))
-	if schemaName != "" && procedure.Comment != "" {
+	if schemaName != "" && procedure.Comment != "" && hasRestorableDefinition(procedure.Definition) {
 		fmt.Fprintf(out, "%s;\nGO\n\n", generateExtendedPropertySQL("ADD", "PROCEDURE", schemaName, procedure.Name, procedure.Comment))
 	}
 }

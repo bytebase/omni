@@ -73,5 +73,8 @@ GO
 CREATE SEQUENCE [dump].[s] AS INT START WITH 10 INCREMENT BY 5 MINVALUE 1 MAXVALUE 1000 CACHE 20;
 GO
 
+CREATE SEQUENCE [dump].[decimal_s] AS DECIMAL(38, 0) START WITH 1 INCREMENT BY 1;
+GO
+
 EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'sequence note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'SEQUENCE', @level1name = N's';
 GO

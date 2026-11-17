@@ -92,13 +92,18 @@ func TestSyncDatabase(t *testing.T) {
 			continue
 		}
 		for _, sequence := range schema.Sequences {
-			if sequence.Name != "seq_orders" {
-				continue
-			}
-			sequences++
-			if sequence.Start != "10" || sequence.Increment != "2" || sequence.MinValue != "1" ||
-				sequence.MaxValue != "10000" || !sequence.Cycle || sequence.CacheSize != "50" {
-				t.Errorf("seq_orders synced without its options: %+v", sequence)
+			switch sequence.Name {
+			case "seq_orders":
+				sequences++
+				if sequence.Start != "10" || sequence.Increment != "2" || sequence.MinValue != "1" ||
+					sequence.MaxValue != "10000" || !sequence.Cycle || sequence.CacheSize != "50" {
+					t.Errorf("seq_orders synced without its options: %+v", sequence)
+				}
+			case "seq_decimal":
+				sequences++
+				if sequence.DataType != "decimal(38,0)" {
+					t.Errorf("seq_decimal synced without its precision: %q", sequence.DataType)
+				}
 			}
 		}
 		for _, table := range schema.Tables {
@@ -119,7 +124,7 @@ func TestSyncDatabase(t *testing.T) {
 			}
 		}
 	}
-	if sequences != 1 || indexes != 1 {
+	if sequences != 2 || indexes != 1 {
 		t.Fatalf("the corpus objects are missing from the sync: %d sequences, %d indexes", sequences, indexes)
 	}
 }

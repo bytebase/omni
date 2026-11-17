@@ -249,11 +249,16 @@ func getTables(txn *sql.Tx, schemas []string, columnMap map[tableKey][]*metadata
 
 	// Get table row counts separately
 	rowCountMap := make(map[int]int64)
-	rowCountQuery := `
-		SELECT object_id, SUM(row_count) AS total_rows
-		FROM sys.dm_db_partition_stats
-		WHERE index_id < 2
-		GROUP BY object_id`
+	// Only a synced schema's user tables contribute a row count. Internal
+	// tables such as the plan cache would make the answer depend on what the
+	// server has executed.
+	rowCountQuery := fmt.Sprintf(`
+		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+		FROM sys.dm_db_partition_stats ps
+		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+		WHERE ps.index_id < 2 AND s.name IN (%s)
+		GROUP BY ps.object_id`, quoteList(schemas))
 	rowCountRows, err := txn.Query(rowCountQuery)
 	if err == nil {
 		defer rowCountRows.Close()
@@ -852,6 +857,7 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		xi.secondary_type_desc,
 		pi.name AS using_index_name,
 		col.name AS column_name,
+		ic.key_ordinal,
 		ic.is_included_column,
 		ic.is_descending_key
 	FROM sys.indexes i
@@ -873,11 +879,11 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 	includeMap := make(map[*metadatapb.IndexMetadata][]string)
 	for rows.Next() {
 		var schemaName, tableName, indexName, typeDesc, colName sql.NullString
-		var objectID, indexID sql.NullInt32
+		var objectID, indexID, keyOrdinal sql.NullInt32
 		var isUnique, isIncluded, isDescending sql.NullBool
 		var filterDefinition, secondaryTypeDesc, usingIndexName sql.NullString
 		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique,
-			&filterDefinition, &secondaryTypeDesc, &usingIndexName, &colName, &isIncluded, &isDescending); err != nil {
+			&filterDefinition, &secondaryTypeDesc, &usingIndexName, &colName, &keyOrdinal, &isIncluded, &isDescending); err != nil {
 			return nil, err
 		}
 
@@ -939,12 +945,17 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		}
 
 		index := indexMap[key][indexName.String]
-		// A columnstore or XML index reports every column at key_ordinal 0, so
-		// only a rowstore index's included column belongs in INCLUDE.
-		included := isIncluded.Valid && isIncluded.Bool &&
-			typeDesc.String != "CLUSTERED COLUMNSTORE" && typeDesc.String != "NONCLUSTERED COLUMNSTORE" && typeDesc.String != "XML"
-		if included {
+		// A columnstore or XML index reports every column at key_ordinal 0.
+		// A partitioned rowstore index reports a partitioning column left out
+		// of its key and INCLUDE list the same way, and that column belongs to
+		// neither list.
+		columnstoreOrXML := typeDesc.String == "CLUSTERED COLUMNSTORE" || typeDesc.String == "NONCLUSTERED COLUMNSTORE" || typeDesc.String == "XML"
+		switch {
+		case isIncluded.Valid && isIncluded.Bool && !columnstoreOrXML:
 			includeMap[index] = append(includeMap[index], colName.String)
+			continue
+		case keyOrdinal.Valid && keyOrdinal.Int32 > 0, columnstoreOrXML:
+		default:
 			continue
 		}
 		index.Expressions = append(index.Expressions, colName.String)
@@ -1678,6 +1689,8 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 		s.name,
 		seq.name,
 		tp.name,
+		seq.precision,
+		seq.scale,
 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -1706,11 +1719,16 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
 		var schemaName string
+		var precision, scale sql.NullInt32
 		var start, increment, minValue, maxValue, cacheSize, comment sql.NullString
 		var isCycling sql.NullBool
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType,
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &precision, &scale,
 			&start, &increment, &minValue, &maxValue, &isCycling, &cacheSize, &comment); err != nil {
 			return nil, err
+		}
+		if (strings.EqualFold(sequence.DataType, "decimal") || strings.EqualFold(sequence.DataType, "numeric")) &&
+			precision.Valid && scale.Valid {
+			sequence.DataType = fmt.Sprintf("%s(%d,%d)", sequence.DataType, precision.Int32, scale.Int32)
 		}
 		sequence.Start = start.String
 		sequence.Increment = increment.String

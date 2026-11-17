@@ -491,6 +491,7 @@
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
 | 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
@@ -516,6 +517,7 @@
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
 < column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
@@ -535,6 +537,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool true
 < row
@@ -554,6 +557,7 @@
 : null
 : string
 | status
+: int64 2
 : bool false
 : bool false
 < row
@@ -573,6 +577,7 @@
 : null
 : string
 | status
+: int64 1
 : bool false
 : bool false
 < row
@@ -592,6 +597,7 @@
 : null
 : string
 | id
+: int64 2
 : bool false
 : bool true
 > query
@@ -840,333 +846,20 @@
 < column "value" "SQL_VARIANT"
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_cols')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
-< row
-: int64 3
-: int64 1506
-< row
-: int64 5
-: int64 191
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 224
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 0
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2787
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1233
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 0
-< row
-: int64 50
-: int64 34
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 222
-< row
-: int64 55
-: int64 451
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 266
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 27
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 205
-< row
-: int64 75
-: int64 108
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 0
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 0
-< row
-: int64 181575685
-: int64 0
-< row
-: int64 197575742
-: int64 0
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 1
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
 < row
 : int64 901578250
 : int64 0
 < row
 : int64 965578478
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -1224,6 +917,8 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
 | 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 | 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 | 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -1246,6 +941,8 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
 < column "start_value" "NVARCHAR"
 < column "increment" "NVARCHAR"
 < column "minimum_value" "NVARCHAR"
@@ -1920,6 +1617,7 @@
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
 | 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
@@ -1945,6 +1643,7 @@
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
 < column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
@@ -1964,6 +1663,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -1983,6 +1683,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool true
 < row
@@ -2002,6 +1703,7 @@
 : null
 : string
 | status
+: int64 2
 : bool false
 : bool false
 < row
@@ -2021,6 +1723,7 @@
 : null
 : string
 | status
+: int64 1
 : bool false
 : bool false
 < row
@@ -2040,6 +1743,7 @@
 : null
 : string
 | id
+: int64 2
 : bool false
 : bool true
 > query
@@ -2307,310 +2011,15 @@
 < column "value" "SQL_VARIANT"
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_added_columns_keys_constraints',N'fid_cols')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
-< row
-: int64 3
-: int64 1510
-< row
-: int64 5
-: int64 193
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 226
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 0
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2790
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1235
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 0
-< row
-: int64 50
-: int64 34
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 225
-< row
-: int64 55
-: int64 454
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 270
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 28
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 207
-< row
-: int64 75
-: int64 109
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 0
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 0
-< row
-: int64 181575685
-: int64 0
-< row
-: int64 197575742
-: int64 0
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 1
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
 < row
 : int64 901578250
 : int64 0
@@ -2619,24 +2028,6 @@
 : int64 0
 < row
 : int64 1061578820
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -2700,6 +2091,8 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
 | 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 | 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 | 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -2722,6 +2115,8 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
 < column "start_value" "NVARCHAR"
 < column "increment" "NVARCHAR"
 < column "minimum_value" "NVARCHAR"
@@ -3556,6 +2951,7 @@
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
 | 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
@@ -3581,6 +2977,7 @@
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
 < column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
@@ -3600,6 +2997,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -3619,6 +3017,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool true
 < row
@@ -3638,6 +3037,7 @@
 : null
 : string
 | status
+: int64 2
 : bool false
 : bool false
 < row
@@ -3657,6 +3057,7 @@
 : null
 : string
 | status
+: int64 1
 : bool false
 : bool false
 < row
@@ -3676,6 +3077,7 @@
 : null
 : string
 | id
+: int64 2
 : bool false
 : bool true
 > query
@@ -3955,310 +3357,15 @@
 < column "value" "SQL_VARIANT"
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_added_columns_keys_constraints',N'fid_cols',N'fid_routines')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
-< row
-: int64 3
-: int64 1512
-< row
-: int64 5
-: int64 194
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 227
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 0
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2797
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1242
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 0
-< row
-: int64 50
-: int64 34
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 226
-< row
-: int64 55
-: int64 455
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 276
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 29
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 209
-< row
-: int64 75
-: int64 117
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 4
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 0
-< row
-: int64 181575685
-: int64 0
-< row
-: int64 197575742
-: int64 0
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 1
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
 < row
 : int64 901578250
 : int64 0
@@ -4270,24 +3377,6 @@
 : int64 0
 < row
 : int64 1109578991
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -4375,6 +3464,8 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
 | 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 | 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 | 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -4397,6 +3488,8 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
 < column "start_value" "NVARCHAR"
 < column "increment" "NVARCHAR"
 < column "minimum_value" "NVARCHAR"
@@ -4411,6 +3504,8 @@
 | item_seq
 : string
 | bigint
+: int64 19
+: int64 0
 : string
 | -9223372036854775808
 : string
@@ -5315,6 +4410,7 @@
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
 | 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
@@ -5340,6 +4436,7 @@
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
 < column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
@@ -5359,6 +4456,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -5378,6 +4476,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -5397,6 +4496,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool true
 < row
@@ -5416,6 +4516,7 @@
 : null
 : string
 | status
+: int64 2
 : bool false
 : bool false
 < row
@@ -5435,6 +4536,7 @@
 : null
 : string
 | status
+: int64 1
 : bool false
 : bool false
 < row
@@ -5454,6 +4556,7 @@
 : null
 : string
 | id
+: int64 2
 : bool false
 : bool true
 > query
@@ -5752,310 +4855,15 @@
 < column "value" "SQL_VARIANT"
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_added_columns_keys_constraints',N'fid_added_views_functions_procedures_sequences',N'fid_cols',N'fid_routines')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
-< row
-: int64 3
-: int64 1516
-< row
-: int64 5
-: int64 196
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 229
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 0
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2800
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1244
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 0
-< row
-: int64 50
-: int64 34
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 228
-< row
-: int64 55
-: int64 457
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 279
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 30
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 211
-< row
-: int64 75
-: int64 118
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 4
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 0
-< row
-: int64 181575685
-: int64 0
-< row
-: int64 197575742
-: int64 0
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 1
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
 < row
 : int64 901578250
 : int64 0
@@ -6070,24 +4878,6 @@
 : int64 0
 < row
 : int64 1221579390
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -6181,6 +4971,8 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
 | 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 | 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 | 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -6203,6 +4995,8 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
 < column "start_value" "NVARCHAR"
 < column "increment" "NVARCHAR"
 < column "minimum_value" "NVARCHAR"
@@ -6217,6 +5011,8 @@
 | item_seq
 : string
 | bigint
+: int64 19
+: int64 0
 : string
 | -9223372036854775808
 : string
@@ -7234,6 +6030,7 @@
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
 | 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
@@ -7259,6 +6056,7 @@
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
 < column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
@@ -7278,6 +6076,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -7297,6 +6096,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -7316,6 +6116,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool true
 < row
@@ -7335,6 +6136,7 @@
 : null
 : string
 | status
+: int64 2
 : bool false
 : bool false
 < row
@@ -7354,6 +6156,7 @@
 : null
 : string
 | status
+: int64 1
 : bool false
 : bool false
 < row
@@ -7373,6 +6176,7 @@
 : null
 : string
 | id
+: int64 2
 : bool false
 : bool true
 > query
@@ -7713,310 +6517,15 @@
 < column "value" "SQL_VARIANT"
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_a',N'fid_added_columns_keys_constraints',N'fid_added_views_functions_procedures_sequences',N'fid_b',N'fid_cols',N'fid_routines')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
-< row
-: int64 3
-: int64 1519
-< row
-: int64 5
-: int64 198
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 231
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 0
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2805
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1247
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 0
-< row
-: int64 50
-: int64 34
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 230
-< row
-: int64 55
-: int64 459
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 281
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 32
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 218
-< row
-: int64 75
-: int64 118
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 4
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 1
-< row
-: int64 181575685
-: int64 1
-< row
-: int64 197575742
-: int64 1
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 1
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
 < row
 : int64 901578250
 : int64 0
@@ -8037,24 +6546,6 @@
 : int64 0
 < row
 : int64 1301579675
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -8160,6 +6651,8 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
 | 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 | 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 | 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -8182,6 +6675,8 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
 < column "start_value" "NVARCHAR"
 < column "increment" "NVARCHAR"
 < column "minimum_value" "NVARCHAR"
@@ -8196,6 +6691,8 @@
 | item_seq
 : string
 | bigint
+: int64 19
+: int64 0
 : string
 | -9223372036854775808
 : string
@@ -9270,6 +7767,7 @@
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
 | 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
@@ -9295,6 +7793,7 @@
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
 < column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
@@ -9314,6 +7813,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -9333,6 +7833,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -9352,6 +7853,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool false
 < row
@@ -9371,6 +7873,7 @@
 : null
 : string
 | note
+: int64 1
 : bool false
 : bool true
 < row
@@ -9390,6 +7893,7 @@
 : null
 : string
 | status
+: int64 2
 : bool false
 : bool false
 < row
@@ -9409,6 +7913,7 @@
 : null
 : string
 | status
+: int64 1
 : bool false
 : bool false
 < row
@@ -9428,6 +7933,7 @@
 : null
 : string
 | id
+: int64 2
 : bool false
 : bool true
 > query
@@ -9787,310 +8293,15 @@
 < column "value" "SQL_VARIANT"
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'dbo',N'fid_a',N'fid_added_columns_keys_constraints',N'fid_added_cross_schema',N'fid_added_views_functions_procedures_sequences',N'fid_b',N'fid_cols',N'fid_routines')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
-< row
-: int64 3
-: int64 1523
-< row
-: int64 5
-: int64 200
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 233
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 0
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2808
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1249
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 0
-< row
-: int64 50
-: int64 34
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 232
-< row
-: int64 55
-: int64 461
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 284
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 33
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 220
-< row
-: int64 75
-: int64 119
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 4
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 1
-< row
-: int64 181575685
-: int64 1
-< row
-: int64 197575742
-: int64 1
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 1
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
 < row
 : int64 901578250
 : int64 0
@@ -10114,24 +8325,6 @@
 : int64 0
 < row
 : int64 1349579846
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -10243,6 +8436,8 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
 | 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
 | 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
 | 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
@@ -10265,6 +8460,8 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
 < column "start_value" "NVARCHAR"
 < column "increment" "NVARCHAR"
 < column "minimum_value" "NVARCHAR"
@@ -10279,6 +8476,8 @@
 | item_seq
 : string
 | bigint
+: int64 19
+: int64 0
 : string
 | -9223372036854775808
 : string

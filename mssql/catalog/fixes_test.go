@@ -61,6 +61,33 @@ EXEC sp_addextendedproperty 'MS_Description', N'procedure note', 'SCHEMA', 'dbo'
 	}
 }
 
+func TestDefinitionSkipsCommentsWithoutADefinition(t *testing.T) {
+	placeholder := func(kind, name string) string {
+		return "/* Definition of " + kind + " dbo." + name + " is encrypted. */"
+	}
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Views: []*metadata.ViewMetadata{{
+			Name:       "v",
+			Definition: placeholder("view", "v"),
+			Comment:    "view note",
+		}},
+		Functions: []*metadata.FunctionMetadata{{
+			Name:       "f",
+			Definition: placeholder("function", "f"),
+			Comment:    "function note",
+		}},
+		Procedures: []*metadata.ProcedureMetadata{{
+			Name:       "p",
+			Definition: placeholder("procedure", "p"),
+			Comment:    "procedure note",
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, def, "sp_addextendedproperty")
+}
+
 func TestDefinitionDefersCyclicForeignKeys(t *testing.T) {
 	c, err := LoadSQL(`
 CREATE TABLE [dbo].[a] (

@@ -316,6 +316,14 @@
           "increment":  "1"
         },
         {
+          "name":  "seq_decimal",
+          "dataType":  "decimal(38,0)",
+          "start":  "1",
+          "minValue":  "-99999999999999999999999999999999999999",
+          "maxValue":  "99999999999999999999999999999999999999",
+          "increment":  "1"
+        },
+        {
           "name":  "seq_orders",
           "dataType":  "bigint",
           "start":  "10",
