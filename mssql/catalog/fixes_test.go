@@ -777,3 +777,18 @@ CREATE TABLE [dbo].[t] (
 	require.Equal(t, 1, strings.Count(sql, "DROP CONSTRAINT [DF_v]"), sql)
 	require.Contains(t, sql, "DROP COLUMN [v]")
 }
+
+func TestMigrationSeparatesTableDropFromRoutineCreation(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE PROCEDURE [dbo].[p] AS SELECT 1;`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	dropAt := strings.Index(sql, "DROP TABLE [dbo].[t]")
+	goAt := strings.Index(sql[dropAt:], "GO")
+	createAt := strings.Index(sql, "CREATE PROCEDURE [dbo].[p]")
+	require.GreaterOrEqual(t, dropAt, 0)
+	require.GreaterOrEqual(t, goAt, 0)
+	require.GreaterOrEqual(t, createAt, 0)
+	require.Less(t, dropAt+goAt, createAt)
+}

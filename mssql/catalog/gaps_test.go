@@ -170,6 +170,57 @@ CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS n;
 		require.Contains(t, sql, "UNSUPPORTED")
 		require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
 	})
+
+	t.Run("function default from another schema", func(t *testing.T) {
+		// Default cleanup matches the function name without its schema, so
+		// dropping a.f also drops a default bound to b.f.
+		from, err := LoadSQL(`
+CREATE SCHEMA [a];
+CREATE SCHEMA [b];
+GO
+CREATE FUNCTION [a].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE FUNCTION [b].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [b].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_v] DEFAULT ([b].[f]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`
+CREATE SCHEMA [b];
+GO
+CREATE FUNCTION [b].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [b].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_v] DEFAULT ([b].[f]()), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "DROP CONSTRAINT [DF_v]", "gap closed: match a default's function by schema")
+	})
+
+	t.Run("schema-bound function reads a dropped table", func(t *testing.T) {
+		// The table drop phase runs before the function drops, so a
+		// schema-bound function still references its table.
+		from, err := LoadSQL(`
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+GO
+CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELECT MAX([id]) FROM [dbo].[t]) END;
+`)
+		require.NoError(t, err)
+		to := New()
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Less(t, strings.Index(sql, "DROP TABLE [dbo].[t]"), strings.Index(sql, "DROP FUNCTION [dbo].[f]"), "gap closed: drop the function before its table or refuse")
+	})
+
+	t.Run("omitted column collation", func(t *testing.T) {
+		// SQL Server stores the database's default collation on the column, so
+		// a desired column without COLLATE mismatches the synced column.
+		from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] varchar(20) NULL);`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] varchar(20) COLLATE Latin1_General_CI_AS NULL);`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "COLLATE Latin1_General_CI_AS", "gap closed: resolve an omitted collation to the database default")
+	})
 }
 
 func commentRebuildMetadata(computedType string) *metadata.DatabaseSchemaMetadata {

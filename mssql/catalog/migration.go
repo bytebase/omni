@@ -428,7 +428,7 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 	if hasCommentChanges {
 		buf.WriteString("GO\n")
 	}
-	if hasCreateOrAlterTables(diff) && (hasCreateViews(diff) || hasCreateFunctions(diff) || hasCreateProcedures(diff)) {
+	if (hasCreateOrAlterTables(diff) || hasTableDrops) && (hasCreateViews(diff) || hasCreateFunctions(diff) || hasCreateProcedures(diff)) {
 		buf.WriteString("\nGO\n")
 	}
 
