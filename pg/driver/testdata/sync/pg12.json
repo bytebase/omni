@@ -52,6 +52,70 @@
       "name":  "app",
       "tables":  [
         {
+          "name":  "Own Measure",
+          "columns":  [
+            {
+              "name":  "Id",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "On",
+              "position":  2,
+              "type":  "date"
+            }
+          ],
+          "indexes":  [
+            {
+              "name":  "own_measure_id",
+              "expressions":  [
+                "\"Id\""
+              ],
+              "descending":  [
+                false
+              ],
+              "type":  "btree",
+              "definition":  "CREATE INDEX own_measure_id ON ONLY app.\"Own Measure\" USING btree (\"Id\");",
+              "opclassNames":  [
+                "int4_ops"
+              ],
+              "opclassDefaults":  [
+                true
+              ]
+            }
+          ],
+          "partitions":  [
+            {
+              "name":  "Own Measure 2025",
+              "type":  "RANGE",
+              "expression":  "RANGE (\"On\")",
+              "value":  "FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')",
+              "indexes":  [
+                {
+                  "name":  "Own Measure 2025_Id_idx",
+                  "expressions":  [
+                    "\"Id\""
+                  ],
+                  "descending":  [
+                    false
+                  ],
+                  "type":  "btree",
+                  "definition":  "CREATE INDEX \"Own Measure 2025_Id_idx\" ON app.\"Own Measure 2025\" USING btree (\"Id\");",
+                  "parentIndexSchema":  "app",
+                  "parentIndexName":  "own_measure_id",
+                  "opclassNames":  [
+                    "int4_ops"
+                  ],
+                  "opclassDefaults":  [
+                    true
+                  ]
+                }
+              ]
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
           "name":  "animal",
           "columns":  [
             {
@@ -72,6 +136,56 @@
             {
               "name":  "animal_legs_check",
               "expression":  "(legs >= 0)"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "attached",
+          "columns":  [
+            {
+              "name":  "id",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "v",
+              "position":  2,
+              "nullable":  true,
+              "type":  "text"
+            }
+          ],
+          "partitions":  [
+            {
+              "name":  "attached_x",
+              "type":  "LIST",
+              "expression":  "LIST (v)",
+              "value":  "FOR VALUES IN ('x')",
+              "indexes":  [
+                {
+                  "name":  "attached_x_id",
+                  "expressions":  [
+                    "id"
+                  ],
+                  "descending":  [
+                    false
+                  ],
+                  "type":  "btree",
+                  "definition":  "CREATE INDEX attached_x_id ON app.attached_x USING btree (id);",
+                  "opclassNames":  [
+                    "int4_ops"
+                  ],
+                  "opclassDefaults":  [
+                    true
+                  ]
+                }
+              ],
+              "checkConstraints":  [
+                {
+                  "name":  "attached_x_positive",
+                  "expression":  "(id > 0)"
+                }
+              ]
             }
           ],
           "owner":  "postgres"
@@ -903,6 +1017,36 @@
             {
               "name":  "measurement_peak_check",
               "expression":  "(peak > '-100'::integer)"
+            }
+          ],
+          "owner":  "postgres"
+        },
+        {
+          "name":  "multi_bound",
+          "columns":  [
+            {
+              "name":  "a",
+              "position":  1,
+              "type":  "integer"
+            },
+            {
+              "name":  "b",
+              "position":  2,
+              "type":  "integer"
+            }
+          ],
+          "partitions":  [
+            {
+              "name":  "multi_bound_low",
+              "type":  "RANGE",
+              "expression":  "RANGE (a, b)",
+              "value":  "FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)"
+            },
+            {
+              "name":  "multi_bound_high",
+              "type":  "RANGE",
+              "expression":  "RANGE (a, b)",
+              "value":  "FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)"
             }
           ],
           "owner":  "postgres"

@@ -17,9 +17,16 @@ type tableKey struct {
 	Table  string
 }
 
-// SyncDatabase reads the full schema metadata of Config.Database.
+// SyncDatabase reads the full schema metadata of the driver's database.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	txn, err := d.db.BeginTx(ctx, nil)
+	return SyncDatabase(ctx, d.db, d.databaseName)
+}
+
+// SyncDatabase reads the full schema metadata of database through db, a
+// connection the caller opened. The Driver method is this on its own pool; a
+// caller that owns a connection, such as a catalog fidelity test, calls this.
+func SyncDatabase(ctx context.Context, db *sql.DB, databaseName string) (*metadatapb.DatabaseSchemaMetadata, error) {
+	txn, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -27,45 +34,45 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 
 	schemaNames, err := getSchemas(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get schemas from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get schemas from database %q: %w", databaseName, err)
 	}
 	columnMap, err := getTableColumns(txn, schemaNames)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get table columns from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get table columns from database %q: %w", databaseName, err)
 	}
 	tableMap, err := getTables(txn, schemaNames, columnMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tables from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get tables from database %q: %w", databaseName, err)
 	}
 	viewMap, err := getViews(txn, columnMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get views from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get views from database %q: %w", databaseName, err)
 	}
 	sequenceMap, err := getSequences(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sequences from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get sequences from database %q: %w", databaseName, err)
 	}
 	functionMap, err := getFunctions(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get functions from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get functions from database %q: %w", databaseName, err)
 	}
 	procedureMap, err := getProcedures(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get procedures from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get procedures from database %q: %w", databaseName, err)
 	}
 	tableTriggers, viewTriggers, err := getTriggers(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get triggers from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get triggers from database %q: %w", databaseName, err)
 	}
 	synonymMap, err := getSynonyms(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", databaseName, err)
 	}
 	// Changes run as the user that syncs, so this is where their unqualified
 	// names land.
 	var defaultSchema string
 	if err := txn.QueryRow("SELECT SCHEMA_NAME()").Scan(&defaultSchema); err != nil {
-		return nil, fmt.Errorf("failed to get the default schema of database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get the default schema of database %q: %w", databaseName, err)
 	}
 	for schemaName, tables := range tableMap {
 		for i := range tables {
@@ -89,7 +96,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
-		Name:          d.databaseName,
+		Name:          databaseName,
 		DefaultSchema: defaultSchema,
 	}
 	for _, schemaName := range schemaNames {
@@ -841,11 +848,15 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		i.name,
 		i.type_desc,
 		i.is_unique,
+		xi.secondary_type_desc,
+		pi.name AS using_index_name,
 		col.name AS column_name,
 		ic.is_descending_key
 	FROM sys.indexes i
 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
@@ -864,7 +875,9 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		var schemaName, tableName, indexName, typeDesc, colName sql.NullString
 		var objectID, indexID sql.NullInt32
 		var isUnique, isDescending sql.NullBool
-		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique, &colName, &isDescending); err != nil {
+		var secondaryTypeDesc, usingIndexName sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique,
+			&secondaryTypeDesc, &usingIndexName, &colName, &isDescending); err != nil {
 			return nil, err
 		}
 
@@ -887,6 +900,16 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 			}
 			if typeDesc.Valid {
 				index.Type = typeDesc.String
+				if typeDesc.String == "XML" {
+					if usingIndexName.Valid {
+						index.Definition = "USING XML INDEX " + usingIndexName.String
+						if secondaryTypeDesc.Valid {
+							index.Definition += " FOR " + secondaryTypeDesc.String
+						}
+					} else {
+						index.Definition = "PRIMARY"
+					}
+				}
 				// If this is a spatial index, populate basic spatial config
 				if typeDesc.String == "SPATIAL" {
 					index.SpatialConfig = &metadatapb.SpatialIndexConfig{

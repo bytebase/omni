@@ -174,6 +174,20 @@ CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
 CREATE TABLE app.sharded_1 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 1);
 
+-- A partition's own name can be quoted and mixed case, its bounds can be
+-- multi-column with MINVALUE and MAXVALUE, and a table created on its own can
+-- be attached with a CHECK and an index of its own.
+CREATE TABLE app."Own Measure" ("Id" int NOT NULL, "On" date NOT NULL) PARTITION BY RANGE ("On");
+CREATE TABLE app."Own Measure 2025" PARTITION OF app."Own Measure" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+CREATE INDEX own_measure_id ON app."Own Measure" ("Id");
+CREATE TABLE app.multi_bound (a int NOT NULL, b int NOT NULL) PARTITION BY RANGE (a, b);
+CREATE TABLE app.multi_bound_low PARTITION OF app.multi_bound FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
+CREATE TABLE app.multi_bound_high PARTITION OF app.multi_bound FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+CREATE TABLE app.attached (id int NOT NULL, v text) PARTITION BY LIST (v);
+CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
+ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
+CREATE INDEX attached_x_id ON app.attached_x (id);
+
 -- Views, dependencies, rules, triggers on views.
 CREATE VIEW app.happy_customer AS
     SELECT c.id, c.name, o.total FROM app.customer c JOIN app.orders o ON o.customer_id = c.id

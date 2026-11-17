@@ -514,13 +514,19 @@ func TestDatabaseDefinition_TableWithConstraintsButNoColumns(t *testing.T) {
 					}},
 				},
 				{
-					// Broken sync on a partitioned table with no indexes: the
-					// partition key references missing columns, so the table
-					// must dump bare, without the PARTITION BY clause.
+					// Broken sync on a partitioned table: the partition key
+					// references missing columns, so the table must dump bare,
+					// without the PARTITION BY clause, and neither the partition
+					// nor the index the partition's metadata still holds.
 					Name: "t3",
 					Partitions: []*metadatapb.TablePartitionMetadata{{
 						Name:       "t3_p1",
 						Expression: "RANGE (created_at)",
+						Value:      "FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')",
+						Indexes: []*metadatapb.IndexMetadata{{
+							Name:        "t3_p1_created_at_idx",
+							Expressions: []string{"created_at"},
+						}},
 					}},
 				},
 				{
@@ -536,7 +542,7 @@ func TestDatabaseDefinition_TableWithConstraintsButNoColumns(t *testing.T) {
 		}},
 	}
 
-	banned := []string{"pk_t1", "uk_t1_c1", "idx_t1_c2", "chk_t1_c1", "fk_t1_t2", "fk_t2_t1", "trg_t1_c1", "rule_t1", "t3_p1", "PARTITION BY", "OWNED BY", "COMMENT ON INDEX"}
+	banned := []string{"pk_t1", "uk_t1_c1", "idx_t1_c2", "chk_t1_c1", "fk_t1_t2", "fk_t2_t1", "trg_t1_c1", "rule_t1", "t3_p1", "t3_p1_created_at_idx", "PARTITION BY", "OWNED BY", "COMMENT ON INDEX"}
 
 	for name, ctx := range map[string]DefinitionOptions{
 		"dump": {},
