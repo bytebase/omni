@@ -230,3 +230,16 @@ func withSearchPath(statement string, schemas []string) string {
 	}
 	return searchPathPrefix + strings.Join(quoted, ", ") + ";\n" + statement
 }
+
+// SplitSearchPath returns the SET LOCAL search_path statement that withSearchPath
+// put before statement, or "" when there is none, and the statement after it.
+func SplitSearchPath(statement string) (string, string) {
+	if !strings.HasPrefix(statement, searchPathPrefix) {
+		return "", statement
+	}
+	setup, rest, ok := strings.Cut(statement, ";\n")
+	if !ok {
+		return "", statement
+	}
+	return setup, rest
+}
