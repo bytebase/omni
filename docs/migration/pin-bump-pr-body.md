@@ -235,21 +235,27 @@ untyped `DriverHandle`, oceanbase's three-method handle). The seam is now decide
 [2026-11-17-advisor-probe-seam.md](../specs/2026-11-17-advisor-probe-seam.md) (omni #1401), and it is
 **one probe with two capabilities, in Bytebase**:
 
-- **`db.Prober`** with `PreExecutions`, `Arguments` and `Autocommit`, plus **`db.RowEstimator`**
-  (`CountAffectedRows`, which eight drivers on each side already implement and plancheck already
-  asserts for by concrete type), reached through one `Context.Prober` field.
-- Twelve of the sixteen rule files that probe ask a question a rule can phrase as SQL; four (mysql and
-  mariadb's row-limit rules) want the driver's own rewrite of the statement into a plan it can count.
-  That is the whole split — do not build the `DriverHandle`.
+- **`db.Prober`** with `PreExecutions` and `Autocommit` — and deliberately **no** argument binding,
+  because `driver.Session.Query` takes a script and `QueryOptions`, so a probe that bound values
+  would work on the `*sql.DB` path and fail on every adapter.
+- Two capabilities beside it: **`db.RowEstimator`** (`CountAffectedRows`, which eight drivers on each
+  side already implement and plancheck already asserts for by concrete type) and
+  **`db.ColumnExtraLookup`** (`ColumnExtra`, for the one rule whose answer must bind values).
+- Eleven of the sixteen rule files that probe ask a question a rule can phrase as SQL, four (mysql and
+  mariadb's row-limit rules) want the driver's own rewrite of the statement into a plan it can count,
+  and one (OceanBase's offline-DDL rule) needs the bound catalogue lookup. That is the whole split —
+  do not build the `DriverHandle`.
 - A rule whose capability is absent returns an error the review reports as an advice. It must never
   produce no advice, which is what mariadb measured: 1 `EXPLAIN` and 1 advice with a `*sql.DB`, 0 and
   0 with the adapter's nil handle.
 - mssql needs none of it (its advisors are static AST rules); oracle and tidb's dry run need the probe
   and its plan/autocommit options.
 
-The proof costs stay the same order — `advisor.Context` +11/−1, a new `prober.go` about +55, sixteen
-rule files about +60/−80, `advisor.Query`/`QueryContext` deleted (−45) — and the seam adds nothing to
-omni.
+The seam itself is estimated at +290/−190 across about 24 files — `advisor.Context` +11/−1, a new
+`advisor/prober.go`, `db/probe.go` and `db/util/probe.go`, the sixteen rule files, and
+`advisor.Query`/`QueryContext` deleted — and it adds nothing to omni. The proofs measured the three
+shapes it replaces (pg's 46-line prober, mysql's four files +73/−20, OceanBase's six advisor files), so
+the estimate is a cheaper composition of the same work, not a new budget.
 
 ### 2.5 `*sql.Conn` handling
 
