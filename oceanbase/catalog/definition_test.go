@@ -1198,3 +1198,33 @@ func TestSDLOfMaterializedViewLoads(t *testing.T) {
 	_, err = LoadSDL("CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n" + sdl)
 	require.NoError(t, err)
 }
+
+// TestExternalTableLocationEscapesBackslash checks that a decoded location's
+// backslash is written escaped, so OceanBase reads the same path back, and that
+// the PATTERN filter is kept.
+func TestExternalTableLocationEscapesBackslash(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "test",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "test",
+			ExternalTables: []*metadata.ExternalTableMetadata{{
+				Name:        "ext",
+				Location:    `a\b`,
+				Pattern:     ".*[.]csv",
+				AutoRefresh: "IMMEDIATE",
+				Format:      "TYPE = 'CSV'",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "c1", Type: "int", Comment: `O\'Brien`},
+					{Name: "c2", Type: "varchar(8)", Comment: `C:\\x`},
+				},
+			}},
+		}},
+	}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, `LOCATION = 'a\\b'`)
+	require.Contains(t, def, `PATTERN = '.*[.]csv'`)
+	require.Contains(t, def, `AUTO_REFRESH = IMMEDIATE`)
+	require.Contains(t, def, `COMMENT 'O\'Brien'`)
+	require.Contains(t, def, `COMMENT 'C:\\x'`)
+}

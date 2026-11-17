@@ -147,7 +147,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -185,6 +186,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -215,6 +217,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -308,7 +312,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -404,6 +408,19 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< column "oid" "OID"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -854,6 +871,41 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 > commit
 < ok
 
@@ -1037,7 +1089,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -1075,6 +1128,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -1105,6 +1159,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -1198,7 +1254,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -1294,6 +1350,19 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< column "oid" "OID"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1744,6 +1813,41 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 > commit
 < ok
 
@@ -1893,7 +1997,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -1931,6 +2036,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -1961,6 +2067,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -2054,7 +2162,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -2150,6 +2258,19 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< column "oid" "OID"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -2600,6 +2721,41 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 > commit
 < ok
 
@@ -2783,7 +2939,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -2821,6 +2978,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -2851,6 +3009,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -2944,7 +3104,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -3040,6 +3200,19 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< column "oid" "OID"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -3490,5 +3663,40 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
 > commit
 < ok

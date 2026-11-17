@@ -477,7 +477,8 @@ SELECT
 	cols.udt_schema,
 	cols.udt_name,
 	cols.identity_generation,
-	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
+	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
+	COALESCE(array_to_json(pa.attfdwoptions)::text, '[]') AS column_options
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
@@ -736,17 +737,17 @@ func TestSyncForeignTablesWithoutTablePrivilege(t *testing.T) {
 	var got []string
 	for _, s := range m.Schemas {
 		for _, e := range s.ExternalTables {
-			got = append(got, fmt.Sprintf("%s.%s server=%s database=%s", s.Name, e.Name, e.ExternalServerName, e.ExternalDatabaseName))
+			got = append(got, fmt.Sprintf("%s.%s server=%s options=%v", s.Name, e.Name, e.ExternalServerName, e.Options))
 			for _, c := range e.Columns {
 				got = append(got, fmt.Sprintf("  %s %s nullable=%v", c.Name, c.Type, c.Nullable))
 			}
 		}
 	}
 	want := []string{
-		"fdw_schema.remote_orders server=loopback_server database=" + d.databaseName,
+		"fdw_schema.remote_orders server=loopback_server options=[schema_name=public table_name=orders]",
 		"  id integer nullable=false",
 		"  note character varying(30) nullable=true",
-		"public.remote_items server=loopback_server database=" + d.databaseName,
+		"public.remote_items server=loopback_server options=[schema_name=public table_name=items]",
 		"  item_id bigint nullable=true",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {

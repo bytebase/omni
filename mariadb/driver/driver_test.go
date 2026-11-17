@@ -101,6 +101,24 @@ func TestBuildExecuteCommandsDelimiterAndBounds(t *testing.T) {
 	if got := buildExecuteCommands(large); len(got) != 1 || got[0].Text != large {
 		t.Fatalf("large-sheet fallback = %d cmds", len(got))
 	}
+
+	// A script with directives stays split past both limits: the directives
+	// cannot reach the server, which rejects one.
+	var manyProcedures strings.Builder
+	manyProcedures.WriteString("DELIMITER //\n")
+	for range maxSplitCommands + 5 {
+		manyProcedures.WriteString("SELECT 1//\n")
+	}
+	manyProcedures.WriteString("DELIMITER ;\n")
+	got := buildExecuteCommands(manyProcedures.String())
+	if len(got) != maxSplitCommands+5 {
+		t.Fatalf("delimiter script past the command limit = %d cmds, want %d", len(got), maxSplitCommands+5)
+	}
+	for _, cmd := range got {
+		if strings.Contains(strings.ToUpper(cmd.Text), "DELIMITER") {
+			t.Fatalf("command holds a directive: %q", cmd.Text)
+		}
+	}
 }
 
 func TestOpenSyncDatabaseHandshake1049AndKillOnCancel(t *testing.T) {

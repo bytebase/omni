@@ -84,7 +84,13 @@ func affectedRows(result *gomongo.Result) int64 {
 		case "insertedId":
 			inserted = 1
 		case "insertedIds":
-			if ids, ok := field.Value.(bson.A); ok {
+			// gomongo answers with the Go driver's InsertedIDs, a []any, while a
+			// tape has carried the same field through Extended JSON, which decodes
+			// an array into a bson.A.
+			switch ids := field.Value.(type) {
+			case bson.A:
+				inserted = int64(len(ids))
+			case []any:
 				inserted = int64(len(ids))
 			}
 		case "modifiedCount":

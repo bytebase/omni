@@ -41,6 +41,11 @@ replay tests exercise.
 - Migration statements keep a bitmap index's `BITMAP` modifier and an
   invisible index's `INVISIBLE`, quote a case-sensitive key column, and recreate
   a changed view's triggers.
+- A synced key's columns arrive quoted, and a definition renders a quoted key
+  column as it arrives instead of quoting it twice. Bytebase's `schema/oracle`
+  quotes a constraint column itself, so a migration it generates from an omni
+  snapshot prints `PRIMARY KEY (""ID"")` where omni prints `PRIMARY KEY ("ID")`
+  ([#1332](https://github.com/bytebase/omni/pull/1332)).
 - Identity columns render `GENERATED ... AS IDENTITY` with their seed and
   increment, in a definition and in CREATE/ADD.
 - A definition with mutually referencing tables creates the tables first and

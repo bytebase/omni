@@ -143,6 +143,51 @@ END;
 		t.Fatalf("procedure results = %+v, %v", procedure, err)
 	}
 
+	// Every statement of a batch keeps its text, including one that reports
+	// neither rows nor a count: a caller shows each result beside its statement.
+	texts, err := sess.Query(ctx, "SET NOCOUNT OFF;\nSELECT 1 AS one;", driver.QueryOptions{})
+	if err != nil || len(texts) != 2 || texts[0].Err != nil || texts[1].Err != nil {
+		t.Fatalf("statement texts = %+v, %v", texts, err)
+	}
+	if texts[0].Statement != "SET NOCOUNT OFF;" || texts[1].Statement != "\nSELECT 1 AS one;" {
+		t.Errorf("statement texts = %q, %q", texts[0].Statement, texts[1].Statement)
+	}
+
+	// A procedure's further result sets come after every statement's result of
+	// the script, not after those of the procedure's own batch, so a caller
+	// pairing results with the request's statements keeps its order.
+	acrossBatches, err := sess.Query(ctx, "EXEC q_sp_items;\nGO\nSELECT 1 AS one;", driver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(acrossBatches) != 3 {
+		t.Fatalf("across batches = %d results, want 3", len(acrossBatches))
+	}
+	if acrossBatches[1].Statement != "SELECT 1 AS one;" || acrossBatches[2].Statement != "EXEC q_sp_items;" {
+		t.Errorf("across batches = %q, %q, %q", acrossBatches[0].Statement, acrossBatches[1].Statement, acrossBatches[2].Statement)
+	}
+	if len(acrossBatches[2].Rows) != 1 || len(acrossBatches[2].Rows[0]) != 1 {
+		t.Errorf("the procedure's further result set = %+v, want its COUNT", acrossBatches[2].Rows)
+	}
+
+	// A limit caps a statement the rewrite cannot reach, such as a procedure
+	// call's result sets.
+	limitedExec, err := sess.Query(ctx, "EXEC('SELECT TOP 200 name FROM sys.all_objects');", driver.QueryOptions{Limit: 2})
+	if err != nil || len(limitedExec) != 1 || limitedExec[0].Err != nil {
+		t.Fatalf("limited procedure = %+v, %v", limitedExec, err)
+	}
+	if len(limitedExec[0].Rows) != 2 {
+		t.Errorf("limited procedure kept %d rows, want 2", len(limitedExec[0].Rows))
+	}
+	// A capped result set is read to its end, so the next one still arrives.
+	limitedSets, err := sess.Query(ctx, "EXEC('SELECT TOP 200 name FROM sys.all_objects; SELECT 7 AS n;');", driver.QueryOptions{Limit: 2})
+	if err != nil || len(limitedSets) != 2 {
+		t.Fatalf("limited procedure sets = %+v, %v", limitedSets, err)
+	}
+	if len(limitedSets[0].Rows) != 2 || len(limitedSets[1].Rows) != 1 {
+		t.Errorf("limited procedure sets kept %d and %d rows, want 2 and 1", len(limitedSets[0].Rows), len(limitedSets[1].Rows))
+	}
+
 	// With masking on, rows the statement does not trace to columns are withheld.
 	withheld, err := sess.Query(ctx, "EXEC q_sp_items;", driver.QueryOptions{MaskingEnabled: true})
 	if err != nil || len(withheld) != 2 {
@@ -152,6 +197,22 @@ END;
 		if len(result.Rows) != 0 || result.Err == nil {
 			t.Errorf("masked result kept rows: %+v", result)
 		}
+	}
+
+	// Withholding a procedure's rows is not a statement failure: the batches
+	// after it still run.
+	maskedAcrossBatches, err := sess.Query(ctx, "EXEC q_sp_items;\nGO\nSELECT 1 AS one;", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(maskedAcrossBatches) != 3 {
+		t.Fatalf("masked across batches = %d results, want 3", len(maskedAcrossBatches))
+	}
+	if maskedAcrossBatches[1].Err != nil || maskedAcrossBatches[1].Rows == nil {
+		t.Errorf("the statement after the masked procedure = %+v, want its rows", maskedAcrossBatches[1])
+	}
+	if maskedAcrossBatches[2].Err == nil || maskedAcrossBatches[2].Rows != nil {
+		t.Errorf("the procedure's further result set = %+v, want it withheld", maskedAcrossBatches[2])
 	}
 
 	// The plan the server prints is the result of an explain request.
@@ -254,6 +315,16 @@ END;
 	truncated, err := sess.Query(ctx, "SELECT id, REPLICATE(N'x', 200) AS payload FROM q_items ORDER BY id;\nSELECT 7 AS after_cap;", driver.QueryOptions{MaxResultBytes: 200})
 	if err != nil || len(truncated) != 2 || !truncated[0].Truncated || truncated[1].Rows[0][0].Int64 != 7 {
 		t.Fatalf("truncated = %+v, %v", truncated, err)
+	}
+
+	// A result set cut off at the size cap does not swallow the next one: the
+	// client learns of it only as it reads past the cut set's end.
+	cut, err := sess.Query(ctx, "SELECT id FROM q_items ORDER BY id;\nSELECT 9 AS after_cut;", driver.QueryOptions{MaxResultBytes: 1})
+	if err != nil || len(cut) != 2 || !cut[0].Truncated || cut[1].Err != nil {
+		t.Fatalf("cut result sets = %+v, %v", cut, err)
+	}
+	if len(cut[1].Rows) != 1 || cut[1].Rows[0][0].Int64 != 9 {
+		t.Errorf("the result set after a cut one = %+v", cut[1].Rows)
 	}
 
 	// A batch separator splits batches, and a failed statement ends its own.

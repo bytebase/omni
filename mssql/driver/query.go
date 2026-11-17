@@ -59,7 +59,10 @@ func (s *session) Close() error { return s.conn.Close() }
 // but not classify (control flow), is the call's error, with the results of the
 // batches before it.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
-	var results []*driver.Result
+	// extras holds a procedure call's result sets after its first: they come
+	// after every statement's result of the script, not after their batch's, so
+	// a caller pairing results with the request's statements keeps its order.
+	var results, extras []*driver.Result
 	batch := mssqlanalysis.NewBatcher(script)
 	for {
 		command, err := batch.Next()
@@ -68,13 +71,14 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 				return results, fmt.Errorf("failed to get next batch for statement: %s: %w", batch.Batch().Text, err)
 			}
 			if v := batch.Batch(); v != nil && v.Text != "" {
-				r, stop, err := s.queryBatch(ctx, v.Text, opts)
+				r, e, stop, err := s.queryBatch(ctx, v.Text, opts)
 				results = append(results, r...)
+				extras = append(extras, e...)
 				if err != nil {
-					return results, err
+					return append(results, extras...), err
 				}
 				if stop {
-					return results, nil
+					return append(results, extras...), nil
 				}
 			}
 			break
@@ -88,30 +92,33 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		}
 		v := batch.Batch()
 		for i := uint(0); i < goCommand.Count; i++ {
-			r, stop, err := s.queryBatch(ctx, v.Text, opts)
+			r, e, stop, err := s.queryBatch(ctx, v.Text, opts)
 			results = append(results, r...)
+			extras = append(extras, e...)
 			if err != nil {
-				return results, err
+				return append(results, extras...), err
 			}
 			if stop {
-				return results, nil
+				return append(results, extras...), nil
 			}
 		}
 		batch.Reset(nil)
 	}
+	results = append(results, extras...)
 	if len(results) == 0 {
 		return nil, nil
 	}
 	return results, nil
 }
 
-// queryBatch runs one batch and returns one result per statement. stop reports
-// that a statement failed, which ends the script; err reports that the batch
-// could not be split or classified at all.
-func (s *session) queryBatch(ctx context.Context, batch string, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
+// queryBatch runs one batch and returns one result per statement, plus the
+// further result sets a procedure call returns. stop reports that a statement
+// failed, which ends the script; err reports that the batch could not be split
+// or classified at all.
+func (s *session) queryBatch(ctx context.Context, batch string, opts driver.QueryOptions) ([]*driver.Result, []*driver.Result, bool, error) {
 	statements, err := omnimssql.Parse(batch)
 	if err != nil {
-		return nil, true, err
+		return nil, nil, true, err
 	}
 	var nonEmpty []omnimssql.Statement
 	for _, statement := range statements {
@@ -120,7 +127,7 @@ func (s *session) queryBatch(ctx context.Context, batch string, opts driver.Quer
 		}
 	}
 	if len(nonEmpty) == 0 {
-		return nil, false, nil
+		return nil, nil, false, nil
 	}
 
 	if opts.Explain {
@@ -131,10 +138,10 @@ func (s *session) queryBatch(ctx context.Context, batch string, opts driver.Quer
 
 // explainBatch runs each statement under the session's plan output and returns
 // the plan as the statement's result.
-func (s *session) explainBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
+func (s *session) explainBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, []*driver.Result, bool, error) {
 	showplan := showplanStatistic(opts.ExplainFormat)
 	if _, err := s.conn.ExecContext(ctx, "SET "+showplan+" ON"); err != nil {
-		return nil, true, fmt.Errorf("failed to enable explain mode: %w", err)
+		return nil, nil, true, fmt.Errorf("failed to enable explain mode: %w", err)
 	}
 	defer func() {
 		// A cancelled context cannot send the option; the session is dropped with it.
@@ -149,7 +156,7 @@ func (s *session) explainBatch(ctx context.Context, statements []omnimssql.State
 		if err != nil {
 			result = &driver.Result{Err: err}
 		} else {
-			result, err = readRows(rows, opts.MaxResultBytes)
+			result, err = readRows(rows, opts.MaxResultBytes, 0)
 			_ = rows.Close()
 			if err != nil {
 				result = &driver.Result{Err: err}
@@ -159,12 +166,12 @@ func (s *session) explainBatch(ctx context.Context, statements []omnimssql.State
 		result.Latency = time.Since(start)
 		if result.Err != nil {
 			results = append(results, result)
-			return results, true, nil
+			return results, nil, true, nil
 		}
 		result.Plan = &driver.Plan{Format: showplanFormat(opts.ExplainFormat)}
 		results = append(results, result)
 	}
-	return results, false, nil
+	return results, nil, false, nil
 }
 
 // showplanStatistic picks the session option that turns on the requested plan
@@ -196,24 +203,21 @@ func showplanFormat(format string) string {
 // *sqlexp.ReturnMessage message loop, whose MsgRowsAffected values are
 // interleaved with MsgNext and MsgNextResultSet; a tape cannot carry the message
 // object or that order, so only a lone statement's count is read.
-func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
+func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, []*driver.Result, bool, error) {
 	if len(statements) == 1 {
-		results, err := s.runStatementAlone(ctx, statements[0], opts)
-		if err != nil {
-			return results, true, err
-		}
-		// A failing statement ends the script, so its batch is the last one.
-		stop := len(results) > 0 && results[len(results)-1].Err != nil
-		return results, stop, nil
+		results, extras, stop, err := s.runStatementAlone(ctx, statements[0], opts)
+		return results, extras, stop, err
 	}
 	return s.runBatchTogether(ctx, statements, opts)
 }
 
 // runStatementAlone runs a lone statement, which reports its own affected rows.
-func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, error) {
+// stop reports that the statement failed to run, which ends the script: a
+// result whose rows masking withheld carries an error too, and does not.
+func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, []*driver.Result, bool, error) {
 	t, err := getStmtType(statement.AST)
 	if err != nil {
-		return nil, err
+		return nil, nil, true, err
 	}
 	text := statement.Text
 	if t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0 {
@@ -230,7 +234,7 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 		results, err = s.runStatementWithoutACount(ctx, text)
 	}
 	if err != nil {
-		return []*driver.Result{{Statement: text, Err: unpackMSSQLError(err), Latency: time.Since(start)}}, nil
+		return []*driver.Result{{Statement: text, Err: unpackMSSQLError(err), Latency: time.Since(start)}}, nil, true, nil
 	}
 	for _, result := range results {
 		result.Statement = text
@@ -239,12 +243,17 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 			withholdRows(result)
 		}
 	}
-	return results, nil
+	// A procedure call's result sets after its first are extras: the
+	// statement's own result is the first one.
+	if t&stmtTypeProcedure != 0 && len(results) > 1 {
+		return results[:1], results[1:], false, nil
+	}
+	return results, nil, false, nil
 }
 
 // runBatchTogether sends the whole batch in one request and gives each statement
 // the result set the server returned for it.
-func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
+func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, []*driver.Result, bool, error) {
 	start := time.Now()
 	types := make([]stmtType, 0, len(statements))
 	texts := make([]string, 0, len(statements))
@@ -252,7 +261,7 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 	for _, statement := range statements {
 		t, err := getStmtType(statement.AST)
 		if err != nil {
-			return nil, true, err
+			return nil, nil, true, err
 		}
 		types = append(types, t)
 		text := statement.Text
@@ -266,15 +275,15 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 
 	rows, err := s.conn.QueryContext(ctx, batchText.String())
 	if err != nil {
-		return nil, true, unpackMSSQLError(err)
+		return nil, nil, true, unpackMSSQLError(err)
 	}
 	defer rows.Close()
 
 	var resultSets []*driver.Result
 	for {
-		result, err := readRows(rows, opts.MaxResultBytes)
+		result, err := readRows(rows, opts.MaxResultBytes, opts.Limit)
 		if err != nil {
-			return nil, true, err
+			return nil, nil, true, err
 		}
 		// A statement that reports no rows answers with a columnless result, which
 		// belongs to no result set: matching counts only the sets that have columns.
@@ -286,27 +295,36 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 		}
 	}
 	if err := rows.Err(); err != nil {
-		return nil, true, unpackMSSQLError(err)
+		return nil, nil, true, unpackMSSQLError(err)
 	}
 
-	results, err := matchResults(texts, types, resultSets)
+	results, extras, err := matchResults(texts, types, resultSets)
 	if err != nil {
-		return nil, true, err
+		return nil, nil, true, err
 	}
 	latency := time.Since(start)
 	out := make([]*driver.Result, 0, len(results))
-	for _, matched := range results {
+	for i, matched := range results {
 		result := matched.result
 		if result == nil {
 			result = &driver.Result{}
 		}
+		// Every statement keeps its text, even one that returned no result set.
+		result.Statement = texts[i]
 		result.Latency = latency
 		if opts.MaskingEnabled && matched.withheld && len(result.Columns) > 0 {
 			withholdRows(result)
 		}
 		out = append(out, result)
 	}
-	return out, false, nil
+	extraResults := make([]*driver.Result, 0, len(extras))
+	for _, matched := range extras {
+		if opts.MaskingEnabled && matched.withheld && len(matched.result.Columns) > 0 {
+			withholdRows(matched.result)
+		}
+		extraResults = append(extraResults, matched.result)
+	}
+	return out, extraResults, false, nil
 }
 
 // batchResult pairs a statement's result with whether masking withholds its
@@ -321,7 +339,7 @@ type batchResult struct {
 // a batch whose procedure call returns result sets must have no other statement
 // that returns any. The procedure call's result sets after its first are
 // returned after every statement's result.
-func matchResults(statements []string, types []stmtType, resultSets []*driver.Result) ([]batchResult, error) {
+func matchResults(statements []string, types []stmtType, resultSets []*driver.Result) ([]batchResult, []batchResult, error) {
 	var withResultSet, procedures int
 	for _, t := range types {
 		switch {
@@ -334,7 +352,7 @@ func matchResults(statements []string, types []stmtType, resultSets []*driver.Re
 	}
 	procedureReturnedSets := len(resultSets) != withResultSet
 	if procedureReturnedSets && (withResultSet > 0 || procedures != 1) {
-		return nil, errors.New("cannot match the batch's result sets to its statements; a procedure call that returns rows must be the only statement in its batch that does, so separate the others with GO")
+		return nil, nil, errors.New("cannot match the batch's result sets to its statements; a procedure call that returns rows must be the only statement in its batch that does, so separate the others with GO")
 	}
 
 	results := make([]batchResult, len(types))
@@ -359,7 +377,7 @@ func matchResults(statements []string, types []stmtType, resultSets []*driver.Re
 		}
 		results[i] = matched
 	}
-	return append(results, extras...), nil
+	return results, extras, nil
 }
 
 // withResultLimit applies the row limit a query request asks for.
@@ -384,7 +402,7 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 
 	var results []*driver.Result
 	for {
-		result, err := readRows(rows, opts.MaxResultBytes)
+		result, err := readRows(rows, opts.MaxResultBytes, opts.Limit)
 		if err != nil {
 			return results, err
 		}
@@ -423,8 +441,10 @@ func (s *session) execStatement(ctx context.Context, statement string) ([]*drive
 	return []*driver.Result{{AffectedRows: &affected}}, nil
 }
 
-// readRows reads one result set, stopping at maxResultBytes.
-func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
+// readRows reads one result set, stopping at maxResultBytes, and after
+// rowLimit's rows when the statement's text could not be rewritten for it (a
+// procedure call, an OUTPUT clause).
+func readRows(rows *sql.Rows, maxResultBytes int64, rowLimit int) (*driver.Result, error) {
 	columnNames, err := rows.Columns()
 	if err != nil {
 		return nil, err
@@ -446,6 +466,12 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
 		return result, nil
 	}
 	for rows.Next() {
+		// Past the row limit the set is still read to its end, so the server
+		// finishes it and the request can reach the next one; no more rows are
+		// kept.
+		if rowLimit > 0 && len(result.Rows) >= rowLimit {
+			continue
+		}
 		dest := make([]any, len(columns))
 		for i, columnType := range columnTypes {
 			dest[i] = makeValueByTypeName(columnType.DatabaseTypeName())
@@ -462,6 +488,10 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
 			totalBytes += driver.RowByteSize(row)
 			if totalBytes > maxResultBytes {
 				result.Truncated = true
+				// The client learns of the next result set only as it reads
+				// past this one's end, so the rest is read and dropped.
+				for rows.Next() {
+				}
 				break
 			}
 		}

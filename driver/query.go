@@ -15,9 +15,11 @@ type Querier interface {
 // Session runs queries on one server session.
 type Session interface {
 	// Query runs each statement of a script in order and returns one Result
-	// per statement run. A statement that fails ends the script: its Result
-	// carries the error, and the error returned is nil. An error returned
-	// means the script could not be run at all.
+	// per statement run, then the result sets a procedure call returned after
+	// its first, so a caller that pairs results with the script's statements
+	// finds each statement's own result in place. A statement that fails ends
+	// the script: its Result carries the error, and the error returned is nil.
+	// An error returned means the script could not be run at all.
 	Query(ctx context.Context, script string, opts QueryOptions) ([]*Result, error)
 	Close() error
 }
