@@ -225,8 +225,9 @@ type instance struct {
 	base      *pgx.ConnConfig
 	err       error
 
-	roles []string // the roles the image starts with
-	major int      // the server's major version
+	roles       []string // the roles the image starts with
+	tablespaces []string // the tablespaces the image starts with
+	major       int      // the server's major version
 
 	mu      sync.Mutex
 	emptied map[string]bool // the top-level tests the server was emptied for
@@ -315,14 +316,19 @@ func liveMissingDatabase(t testing.TB, pin enginetest.Pin, name string) driver.C
 	return connector{Connector: stdlib.GetConnector(*in.config(name))}
 }
 
-// emptying returns the statements that drop every database but the image's
-// own and every role the image did not start with: what a test before this
-// one made, which a role, a server-wide object, would let this test see.
+// emptying returns the statements that drop every database, tablespace and
+// role the image did not start with: what a test before this one made, which
+// an object of the server rather than of a database would let this test see.
 func (in *instance) emptying(t testing.TB, db *sql.DB) []string {
 	t.Helper()
 	var stmts []string
 	for _, d := range names(t, db, "SELECT datname FROM pg_database WHERE datname NOT IN ('postgres', 'template0', 'template1') ORDER BY 1") {
 		stmts = append(stmts, in.dropDatabase(d, "")...)
+	}
+	for _, t := range names(t, db, "SELECT spcname FROM pg_tablespace ORDER BY 1") {
+		if !slices.Contains(in.tablespaces, t) {
+			stmts = append(stmts, "DROP TABLESPACE "+quote(t))
+		}
 	}
 	for _, r := range names(t, db, "SELECT rolname FROM pg_roles ORDER BY 1") {
 		if !slices.Contains(in.roles, r) {
@@ -459,7 +465,23 @@ func (in *instance) start(ctx context.Context) (err error) {
 		}
 		in.roles = append(in.roles, r)
 	}
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	rows.Close()
+	tablespaces, err := db.QueryContext(ctx, "SELECT spcname FROM pg_tablespace ORDER BY 1")
+	if err != nil {
+		return err
+	}
+	defer tablespaces.Close()
+	for tablespaces.Next() {
+		var t string
+		if err := tablespaces.Scan(&t); err != nil {
+			return err
+		}
+		in.tablespaces = append(in.tablespaces, t)
+	}
+	return tablespaces.Err()
 }
 
 // Version is the server_version of a source tag: 17.12 for REL_17_12.

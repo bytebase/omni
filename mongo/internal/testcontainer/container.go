@@ -649,7 +649,9 @@ var emptied struct {
 }
 
 // emptyOnce drops every database on t's top-level test's first live call but
-// MongoDB's own, so what an earlier test left behind cannot reach the tape.
+// MongoDB's own, and every account the databases' drops leave, so what an
+// earlier test left behind cannot reach the tape. An account in admin is not
+// in a database a test made, as Oracle's database link is not in a schema.
 func emptyOnce(t testing.TB, client *mongo.Client) {
 	t.Helper()
 	top := enginetest.TopName(t.Name())
@@ -669,6 +671,23 @@ func emptyOnce(t testing.TB, client *mongo.Client) {
 		}
 		if err := client.Database(name).Drop(ctx); err != nil {
 			t.Fatalf("empty MongoDB: drop %s: %v", name, err)
+		}
+	}
+	var users struct {
+		Users []struct {
+			User string `bson:"user"`
+			DB   string `bson:"db"`
+		} `bson:"users"`
+	}
+	if err := client.Database("admin").RunCommand(ctx, bson.D{{Key: "usersInfo", Value: bson.D{{Key: "forAllDBs", Value: true}}}}).Decode(&users); err != nil {
+		t.Fatalf("empty MongoDB: list accounts: %v", err)
+	}
+	for _, account := range users.Users {
+		if account.User == user && account.DB == "admin" {
+			continue
+		}
+		if err := client.Database(account.DB).RunCommand(ctx, bson.D{{Key: "dropUser", Value: account.User}}).Err(); err != nil {
+			t.Fatalf("empty MongoDB: drop account %s: %v", account.User, err)
 		}
 	}
 	if emptied.done == nil {
