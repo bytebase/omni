@@ -4,70 +4,181 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/driver"
 )
 
 // The live tests ask a real BigQuery project and are the only tests in this
 // package that do. They skip with the gate's name when it is unset, because no CI
-// machine has a project: BIGQUERY_CREDENTIALS holds a service-account key, and the
+// machine has a project: BIGQUERY_CREDENTIALS names the credential, and the
 // project and dataset come from BIGQUERY_PROJECT and BIGQUERY_DATASET.
 //
-// Nothing here has ever passed. It is the shape the day-of recording runs, and
+// Nothing here has been recorded. It is the shape the day-of recording runs, and
 // VERIFY.md says what to do when one fails.
 
 // liveVariables are the settings a live test needs, in the order the skip message
-// names them. BIGQUERY_CREDENTIALS gates all of them: without a key there is
-// nothing to ask and nothing to record.
+// names them. BIGQUERY_CREDENTIALS gates all of them: without a credential there
+// is nothing to ask and nothing to record.
 const (
 	credentialVariable = "BIGQUERY_CREDENTIALS"
 	projectVariable    = "BIGQUERY_PROJECT"
 	datasetVariable    = "BIGQUERY_DATASET"
 )
 
+// credentialDefault is the BIGQUERY_CREDENTIALS value that means the credential is
+// the Google authentication library's own default chain: the environment, the
+// well-known file, or an attached service account read from the metadata server.
+// It names no key, so it carries no project and BIGQUERY_PROJECT has to name one.
+// The value is reserved for this meaning, so a key file cannot be called
+// "default"; every other value is a path to a key or the key's JSON document.
+const credentialDefault = "default"
+
+// errNoCredential reports that nothing names a credential at all. A live test
+// skips on it, because a machine with no project is a machine that runs the unit
+// tests, and a machine that named a credential of some kind fails instead.
+var errNoCredential = errors.New("no " + credentialVariable)
+
 // liveConfig reads the recording's connection settings out of the environment and
 // skips the test when the gate is unset.
 func liveConfig(t *testing.T) driver.Config {
 	t.Helper()
-	credentials := strings.TrimSpace(os.Getenv(credentialVariable))
-	if credentials == "" {
-		t.Skipf("no %s: the live tests need a Google Cloud project, a dataset and a service-account key, and skip rather than ask a stand-in", credentialVariable)
+	cfg, err := liveConfigFrom(os.Getenv)
+	if errors.Is(err, errNoCredential) {
+		t.Skipf("%v: the live tests need a Google Cloud project and a dataset, and skip rather than ask a stand-in", err)
 	}
-	if !strings.HasPrefix(credentials, "{") {
-		key, err := os.ReadFile(credentials)
-		if err != nil {
-			t.Fatalf("%s names a file that cannot be read: %v", credentialVariable, err)
-		}
-		credentials = string(key)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return cfg
+}
 
-	project := strings.TrimSpace(os.Getenv(projectVariable))
-	if project == "" {
-		// A service-account key names its project, which is the one the recording
-		// bills.
-		var key struct {
-			ProjectID string `json:"project_id"`
-		}
-		if err := json.Unmarshal([]byte(credentials), &key); err != nil {
-			t.Fatalf("%s does not parse as a credential: %v", credentialVariable, err)
-		}
-		project = key.ProjectID
+// liveConfigFrom resolves the settings a live test asks with out of lookup, which
+// is os.Getenv in a live test and a map in the gate's own test.
+func liveConfigFrom(lookup func(string) string) (driver.Config, error) {
+	credentials := strings.TrimSpace(lookup(credentialVariable))
+	if credentials == "" {
+		return driver.Config{}, errNoCredential
 	}
-	if project == "" {
-		t.Fatalf("%s is not set and the key names no project_id", projectVariable)
+	project := strings.TrimSpace(lookup(projectVariable))
+	var document string
+	if credentials == credentialDefault {
+		// The default chain resolves the credential, so no document arrives here
+		// and Config.Password stays empty, which is how Open reads "the library
+		// reads one".
+		if project == "" {
+			return driver.Config{}, fmt.Errorf("%s is %q and names no key to read a project from, so %s has to name the project", credentialVariable, credentialDefault, projectVariable)
+		}
+	} else {
+		document = credentials
+		if !strings.HasPrefix(credentials, "{") {
+			key, err := os.ReadFile(credentials)
+			if err != nil {
+				return driver.Config{}, fmt.Errorf("%s names a file that cannot be read: %w", credentialVariable, err)
+			}
+			document = string(key)
+		}
+		if project == "" {
+			// A service-account key names its project, which is the one the
+			// recording bills.
+			var key struct {
+				ProjectID string `json:"project_id"`
+			}
+			if err := json.Unmarshal([]byte(document), &key); err != nil {
+				return driver.Config{}, fmt.Errorf("%s does not parse as a credential: %w", credentialVariable, err)
+			}
+			project = key.ProjectID
+			if project == "" {
+				return driver.Config{}, fmt.Errorf("%s is not set and the key names no project_id", projectVariable)
+			}
+		}
 	}
-	dataset := strings.TrimSpace(os.Getenv(datasetVariable))
+	dataset := strings.TrimSpace(lookup(datasetVariable))
 	if dataset == "" {
-		t.Fatalf("%s is not set: a recording runs against a scratch dataset of its own", datasetVariable)
+		return driver.Config{}, fmt.Errorf("%s is not set: a recording runs against a scratch dataset of its own", datasetVariable)
 	}
 	return driver.Config{
 		Database: dataset,
-		Password: credentials,
+		Password: document,
 		Params:   map[string]string{ParamProject: project},
+	}, nil
+}
+
+// TestLiveConfigResolution covers the gate without a project, which is the one
+// thing about these tests CI can check: an unset BIGQUERY_CREDENTIALS skips, so a
+// machine with no credential runs nothing, and the sentinel that means the default
+// chain still yields the project and dataset a live test needs.
+func TestLiveConfigResolution(t *testing.T) {
+	environment := func(values map[string]string) func(string) string {
+		return func(name string) string { return values[name] }
 	}
+
+	_, err := liveConfigFrom(environment(nil))
+	require.ErrorIs(t, err, errNoCredential)
+
+	_, err = liveConfigFrom(environment(map[string]string{credentialVariable: "  "}))
+	require.ErrorIs(t, err, errNoCredential)
+
+	// The sentinel names no key, so the project has to arrive beside it.
+	_, err = liveConfigFrom(environment(map[string]string{
+		credentialVariable: credentialDefault,
+		datasetVariable:    "omni_record",
+	}))
+	require.ErrorContains(t, err, projectVariable)
+
+	cfg, err := liveConfigFrom(environment(map[string]string{
+		credentialVariable: credentialDefault,
+		projectVariable:    "  example-project ",
+		datasetVariable:    "omni_record",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, driver.Config{
+		Database: "omni_record",
+		Params:   map[string]string{ParamProject: "example-project"},
+	}, cfg)
+
+	// An inline document is the credential, and it names the project.
+	document := `{"type":"service_account","project_id":"key-project"}`
+	cfg, err = liveConfigFrom(environment(map[string]string{
+		credentialVariable: document,
+		datasetVariable:    "omni_record",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, document, cfg.Password)
+	require.Equal(t, "key-project", cfg.Params[ParamProject])
+
+	// A path is read, and an explicit project wins over the key's.
+	path := filepath.Join(t.TempDir(), "key.json")
+	require.NoError(t, os.WriteFile(path, []byte(document), 0o600))
+	cfg, err = liveConfigFrom(environment(map[string]string{
+		credentialVariable: path,
+		projectVariable:    "example-project",
+		datasetVariable:    "omni_record",
+	}))
+	require.NoError(t, err)
+	require.Equal(t, document, cfg.Password)
+	require.Equal(t, "example-project", cfg.Params[ParamProject])
+
+	_, err = liveConfigFrom(environment(map[string]string{
+		credentialVariable: filepath.Join(t.TempDir(), "missing.json"),
+		projectVariable:    "example-project",
+		datasetVariable:    "omni_record",
+	}))
+	require.ErrorContains(t, err, "cannot be read")
+
+	// A credential of some kind but no dataset is a misconfiguration, not a skip:
+	// a golden recorded from a dataset nobody named cannot be read.
+	_, err = liveConfigFrom(environment(map[string]string{
+		credentialVariable: credentialDefault,
+		projectVariable:    "example-project",
+	}))
+	require.ErrorContains(t, err, datasetVariable)
 }
 
 // openLive returns an open driver for the project the environment names.
