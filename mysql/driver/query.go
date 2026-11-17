@@ -293,8 +293,7 @@ func makeValueByTypeName(typeName string) any {
 		return new(sql.NullInt64)
 	case "UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED INT", "UNSIGNED BIGINT":
 		return new(sql.Null[uint64])
-	case "BIT", "VARBIT", "BINARY", "VARBINARY", "BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB",
-		"GEOMETRY", "POINT", "LINESTRING", "POLYGON", "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION":
+	case "BIT", "VARBIT", "BINARY", "VARBINARY", "BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB", "GEOMETRY":
 		return new([]byte)
 	default:
 		return new(sql.NullString)

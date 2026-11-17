@@ -865,18 +865,21 @@ func TestSanitizeCommentToken(t *testing.T) {
 
 func TestParseTimestampOrStringValue(t *testing.T) {
 	// The default text form, the form database/sql renders a parseTime
-	// time.Time as, and a value that is not a timestamp at all.
+	// time.Time as in the default location and in one east of it, and a value
+	// that is not a timestamp at all.
 	for _, tc := range []struct {
 		raw  string
 		kind driver.Kind
-		year int
-		nano int
+		want time.Time
 	}{
-		{"2026-03-04 05:06:07.123456", driver.Timestamp, 2026, 123456000},
-		{"2026-03-04 05:06:07", driver.Timestamp, 2026, 0},
-		{"2026-03-04T05:06:07.123456Z", driver.Timestamp, 2026, 123456000},
-		{"0000-00-00 00:00:00", driver.String, 0, 0},
-		{"not a time", driver.String, 0, 0},
+		{"2026-03-04 05:06:07.123456", driver.Timestamp, time.Date(2026, 3, 4, 5, 6, 7, 123456000, time.UTC)},
+		{"2026-03-04 05:06:07", driver.Timestamp, time.Date(2026, 3, 4, 5, 6, 7, 0, time.UTC)},
+		{"2026-03-04T05:06:07.123456Z", driver.Timestamp, time.Date(2026, 3, 4, 5, 6, 7, 123456000, time.UTC)},
+		// parseTime with loc renders this form, whose instant is the previous
+		// day in UTC; the wall clock is the one the column holds.
+		{"2026-03-04T05:06:07.123456+08:00", driver.Timestamp, time.Date(2026, 3, 4, 5, 6, 7, 123456000, time.UTC)},
+		{"0000-00-00 00:00:00", driver.String, time.Time{}},
+		{"not a time", driver.String, time.Time{}},
 	} {
 		got := parseTimestampOrStringValue(tc.raw, 6)
 		if got.Kind != tc.kind {
@@ -884,8 +887,8 @@ func TestParseTimestampOrStringValue(t *testing.T) {
 			continue
 		}
 		if tc.kind == driver.Timestamp {
-			if got.Time.Year() != tc.year || got.Time.Nanosecond() != tc.nano || got.Precision != 6 {
-				t.Errorf("parseTimestampOrStringValue(%q) = %+v", tc.raw, got)
+			if !got.Time.Equal(tc.want) || got.Time.Location() != time.UTC || got.Precision != 6 {
+				t.Errorf("parseTimestampOrStringValue(%q) = %+v, want %v at UTC with precision 6", tc.raw, got, tc.want)
 			}
 		}
 	}

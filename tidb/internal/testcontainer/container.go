@@ -34,14 +34,30 @@ var Pins = func() string {
 	return filepath.Join(filepath.Dir(file), "..", "..", "testdata", "pins.tsv")
 }()
 
-var server = &tape.Server{Pins: Pins, Live: live, Codec: Codec{}}
-
 // Open returns t's connection to TiDB: a replay of its tape, or the pinned
 // server in a recording. Each call is a connection of its own, at session
 // defaults with the database test selected.
 func Open(t testing.TB) *sql.DB {
 	t.Helper()
-	return tape.Open(t, server, "default")
+	return OpenWith(t, Options{})
+}
+
+// Options is how a test's connection differs from the plain one.
+type Options struct {
+	// Database is selected when the connection opens. Empty selects the
+	// database test, which the tests that share the server take.
+	Database string
+	// ParseTime returns DATE and DATETIME values as time.Time.
+	ParseTime bool
+	// Loc is the location go-sql-driver parses a temporal value in when
+	// ParseTime is set. Nil is the default, UTC.
+	Loc *time.Location
+}
+
+// OpenWith is Open with other connection settings.
+func OpenWith(t testing.TB, o Options) *sql.DB {
+	t.Helper()
+	return tape.Open(t, &tape.Server{Pins: Pins, Live: o.live, Codec: Codec{}}, "default")
 }
 
 // Reset runs fn on the pinned server before a test opens its connection,
@@ -56,7 +72,7 @@ func Reset(t testing.TB, fn func(ctx context.Context, db *sql.DB) error) {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	db := sql.OpenDB(live(t, pin))
+	db := sql.OpenDB(Options{}.live(t, pin))
 	defer db.Close()
 	if err := fn(context.Background(), db); err != nil {
 		t.Fatalf("reset TiDB: %v", err)
@@ -76,7 +92,7 @@ func Judge(t testing.TB) *sql.DB {
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
-	live(t, pin)
+	Options{}.live(t, pin)
 	cfg := shared.config.Clone()
 	cfg.InterpolateParams = false
 	db := sql.OpenDB(must(mysql.NewConnector(cfg)))
@@ -93,7 +109,7 @@ var shared struct {
 }
 
 // live connects to the pinned server, starting it on the first call.
-func live(t testing.TB, pin enginetest.Pin) driver.Connector {
+func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	t.Helper()
 	shared.once.Do(func() {
 		shared.pin = pin
@@ -105,7 +121,15 @@ func live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	if shared.pin != pin {
 		t.Fatalf("this run started TiDB at %s, not %s", shared.pin, pin)
 	}
-	c, err := mysql.NewConnector(shared.config.Clone())
+	cfg := shared.config.Clone()
+	cfg.ParseTime = o.ParseTime
+	if o.Database != "" {
+		cfg.DBName = o.Database
+	}
+	if o.Loc != nil {
+		cfg.Loc = o.Loc
+	}
+	c, err := mysql.NewConnector(cfg)
 	if err != nil {
 		t.Fatalf("%v", err)
 	}
