@@ -216,16 +216,15 @@ func TestQuery(t *testing.T) {
 			checkVal(18, driver.Null)
 
 			// Session state persists across Query calls; zero-column SELECT has
-			// AffectedRows == nil while DML/DDL report AffectedRows != nil.
+			// AffectedRows == nil while DML reports the count. A tape's connection
+			// has no pgx underneath, so the command tag path (TestSessionAffectedRowsFromCommandTag)
+			// is not what this replay exercises.
 			setupRes, err := sess.Query(ctx, `
 				CREATE TEMP TABLE sess_items (id int PRIMARY KEY, note text);
 				INSERT INTO sess_items SELECT g, repeat('x', 40) FROM generate_series(1, 10) g;
 				SELECT FROM sess_items;`, driver.QueryOptions{})
 			if err != nil || len(setupRes) != 3 {
 				t.Fatalf("setup query = %+v, %v", setupRes, err)
-			}
-			if setupRes[0].AffectedRows == nil || *setupRes[0].AffectedRows != 0 {
-				t.Errorf("CREATE TEMP TABLE AffectedRows = %v", setupRes[0].AffectedRows)
 			}
 			if setupRes[1].AffectedRows == nil || *setupRes[1].AffectedRows != 10 {
 				t.Errorf("INSERT AffectedRows = %v", setupRes[1].AffectedRows)
