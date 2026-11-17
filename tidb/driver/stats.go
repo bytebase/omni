@@ -17,6 +17,10 @@ import (
 // CountAffectedRows returns TiDB's planner estimate of the rows statement
 // modifies.
 func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64, error) {
+	stmt, err := dmlStatement(statement)
+	if err != nil {
+		return 0, err
+	}
 	rows, err := d.db.QueryContext(ctx, "EXPLAIN "+statement)
 	if err != nil {
 		return 0, err
@@ -53,7 +57,26 @@ func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}
-	return getAffectedRows(plan, statement)
+	return getAffectedRows(plan, stmt)
+}
+
+// dmlStatement returns statement's one INSERT, UPDATE or DELETE. Only a
+// statement that changes rows has an estimate, so anything else is refused
+// before it reaches the server.
+func dmlStatement(statement string) (tidbast.Node, error) {
+	list, err := tidbparser.Parse(statement)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse statement: %w", err)
+	}
+	if list == nil || len(list.Items) != 1 {
+		return nil, errors.New("expected exactly one statement")
+	}
+	switch list.Items[0].(type) {
+	case *tidbast.InsertStmt, *tidbast.UpdateStmt, *tidbast.DeleteStmt:
+		return list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("expected an INSERT, UPDATE or DELETE statement, got %T", list.Items[0])
+	}
 }
 
 // Explain dry-runs statement with EXPLAIN inside a rolled-back transaction.
@@ -92,32 +115,20 @@ type planRow struct {
 	estRows string
 }
 
-func getAffectedRows(plan []planRow, statement string) (int64, error) {
+func getAffectedRows(plan []planRow, stmt tidbast.Node) (int64, error) {
 	estimate, err := getAffectedRowsFromPlan(plan)
 	if err != nil {
 		return 0, err
 	}
-	targets, err := countDMLTargets(statement)
-	if err != nil {
-		return 0, err
-	}
-	return roundRows(estimate * float64(targets)), nil
+	return roundRows(estimate * float64(countDMLTargets(stmt))), nil
 }
 
 // countDMLTargets returns how many tables an UPDATE or DELETE can change per
-// row read; a statement that already ran through EXPLAIN on TiDB was accepted
-// by the engine, and any parse error is returned.
-func countDMLTargets(statement string) (int, error) {
-	list, err := tidbparser.Parse(statement)
-	if err != nil {
-		return 0, err
-	}
-	if list == nil || len(list.Items) != 1 {
-		return 1, nil
-	}
-	switch n := list.Items[0].(type) {
+// row read.
+func countDMLTargets(stmt tidbast.Node) int {
+	switch n := stmt.(type) {
 	case *tidbast.DeleteStmt:
-		return max(len(n.Tables), 1), nil
+		return max(len(n.Tables), 1)
 	case *tidbast.UpdateStmt:
 		var tables []string
 		unqualified := 0
@@ -132,9 +143,9 @@ func countDMLTargets(statement string) (int, error) {
 				}
 			}
 		}
-		return max(min(len(tables)+unqualified, countTableSources(n.Tables)), 1), nil
+		return max(min(len(tables)+unqualified, countTableSources(n.Tables)), 1)
 	default:
-		return 1, nil
+		return 1
 	}
 }
 
