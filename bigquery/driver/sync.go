@@ -28,6 +28,14 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if d.databaseName == "" {
 		return nil, fmt.Errorf("the driver is open on no dataset: %w", driver.ErrNotFound)
 	}
+	// The dataset is asked for before its columns, because the service answers a
+	// read of a missing dataset's INFORMATION_SCHEMA with accessDenied: it states a
+	// table's absence only to a caller that may read it. The dataset's own
+	// metadata does say not found, so a caller that may list the project learns
+	// which of the two happened, and one that may not gets accessDenied for both.
+	if _, err := d.client.Dataset(d.databaseName).Metadata(ctx); err != nil {
+		return nil, notFoundError(err)
+	}
 	columns, err := d.columns(ctx)
 	if err != nil {
 		return nil, notFoundError(err)

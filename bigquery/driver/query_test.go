@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/civil"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/driver"
@@ -184,18 +185,42 @@ func TestConvertValue(t *testing.T) {
 			want:      driver.Value{Kind: driver.Bool, Bool: true},
 		},
 		{
-			name:      "a TIMESTAMP reads as Go's rendering of the value",
+			name:      "a TIMESTAMP is an instant",
 			value:     instant,
 			fieldType: bigquery.TimestampFieldType,
-			want:      driver.Value{Kind: driver.String, String: "2026-01-02 03:04:05 +0000 UTC"},
+			want:      driver.Value{Kind: driver.TimestampTZ, Time: instant, Precision: bigqueryFractionalDigits},
 		},
 		{
-			// The client hands a NUMERIC over as a *big.Rat, and Go renders it as
-			// a ratio rather than as BigQuery's literal. VERIFY.md records the gap.
-			name:      "a NUMERIC reads as Go's rendering of the value",
+			// The client states a DATETIME as a wall clock with no zone, which is
+			// what the contract's Timestamp holds.
+			name:      "a DATETIME is a wall clock",
+			value:     civil.DateTime{Date: civil.Date{Year: 2026, Month: 1, Day: 2}, Time: civil.Time{Hour: 3, Minute: 4, Second: 5, Nanosecond: 123000000}},
+			fieldType: bigquery.DateTimeFieldType,
+			want: driver.Value{
+				Kind:      driver.Timestamp,
+				Time:      time.Date(2026, 1, 2, 3, 4, 5, 123000000, time.UTC),
+				Precision: bigqueryFractionalDigits,
+			},
+		},
+		{
+			// The client hands a NUMERIC over as a *big.Rat, whose own rendering
+			// is a ratio rather than BigQuery's literal.
+			name:      "a NUMERIC is its exact decimal text",
 			value:     big.NewRat(12345, 100),
 			fieldType: bigquery.NumericFieldType,
-			want:      driver.Value{Kind: driver.String, String: "2469/20"},
+			want:      driver.Value{Kind: driver.String, String: "123.45"},
+		},
+		{
+			name:      "a BIGNUMERIC is its exact decimal text, without trailing zeros",
+			value:     big.NewRat(50, 4),
+			fieldType: bigquery.BigNumericFieldType,
+			want:      driver.Value{Kind: driver.String, String: "12.5"},
+		},
+		{
+			name:      "a whole NUMERIC states no point",
+			value:     big.NewRat(12, 1),
+			fieldType: bigquery.NumericFieldType,
+			want:      driver.Value{Kind: driver.String, String: "12"},
 		},
 		{
 			name:      "an ARRAY reads as Go's rendering of the slice",
@@ -218,6 +243,29 @@ func TestConvertValue(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			require.Equal(t, tc.want, convertValue(tc.value, tc.fieldType))
+		})
+	}
+}
+
+// TestJobReturnsRows covers the answer the command path reads a statement's rows
+// from: a plain query states its statement type and no result schema, a script the
+// schema of the last statement it ran, and neither for a statement that answered
+// no rows.
+func TestJobReturnsRows(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		stats *bigquery.QueryStatistics
+		want  bool
+	}{
+		{name: "no statistics at all"},
+		{name: "a plain SELECT, which states no schema", stats: &bigquery.QueryStatistics{StatementType: selectStatementType}, want: true},
+		{name: "a script whose last statement returned rows", stats: &bigquery.QueryStatistics{StatementType: "SCRIPT", Schema: bigquery.Schema{{Name: "n", Type: bigquery.IntegerFieldType}}}, want: true},
+		{name: "a script whose last statement returned none", stats: &bigquery.QueryStatistics{StatementType: "SCRIPT"}},
+		{name: "a DDL statement", stats: &bigquery.QueryStatistics{StatementType: "CREATE_TABLE"}},
+		{name: "a DML statement, whose rows are the count it affected", stats: &bigquery.QueryStatistics{StatementType: "INSERT", NumDMLAffectedRows: 2}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, jobReturnsRows(tc.stats))
 		})
 	}
 }
