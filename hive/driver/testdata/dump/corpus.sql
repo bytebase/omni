@@ -1,7 +1,7 @@
--- The schema the dump tests read. The external table, the table whose name ends
--- in "__" and the two views are what TestDumpRestores restores; the managed
--- table and the partitioned one carry what a dump leaves out, so each line of
--- theirs ends with the gap marker.
+-- The schema the dump tests read: an external table, a name ending in "__", two
+-- tables Hive translated to external and then made managed, one of them
+-- partitioned, a view with a comment and a materialized view over it, beside
+-- two databases that read each other's views.
 CREATE EXTERNAL TABLE omni_dump.ext_users (id INT COMMENT 'the id', name STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION '/tmp/omni/dump_ext_users'
 
 -- A name ending in "__", which Hive 4 has no index to give one to: every name
@@ -33,19 +33,39 @@ CREATE VIEW omni_other.middle AS SELECT id FROM omni_dump.z_base
 CREATE VIEW omni_dump.a_top AS SELECT id AS `it's` FROM omni_other.middle
 
 -- A table Hive translated to external and then made managed: the only managed
--- table the pinned server can make, and the one a dump cannot restore as
--- managed.
-CREATE TABLE omni_dump.orders (id BIGINT, amount DECIMAL(10,2), note STRING COMMENT 'a note') STORED AS PARQUET -- not restorable: TestDumpGaps
+-- table the pinned server can make, and one a dump restores as managed by
+-- stating the ALTER beside the CREATE.
+CREATE TABLE omni_dump.orders (id BIGINT, amount DECIMAL(10,2), note STRING COMMENT 'a note') STORED AS PARQUET
 
-ALTER TABLE omni_dump.orders SET TBLPROPERTIES('EXTERNAL'='FALSE') -- not restorable: TestDumpGaps
+ALTER TABLE omni_dump.orders SET TBLPROPERTIES('EXTERNAL'='FALSE')
 
-INSERT INTO omni_dump.orders VALUES (1, 1.5, 'n1') -- not restorable: TestDumpGaps
+INSERT INTO omni_dump.orders VALUES (1, 1.5, 'n1')
 
--- A partitioned managed table with one partition and two rows.
-CREATE TABLE omni_dump.events (id INT, body STRING) PARTITIONED BY (dt STRING) STORED AS PARQUET -- not restorable: TestDumpGaps
+-- A partitioned managed table with one partition and two rows, whose partition
+-- is a name and a location rather than a clause SHOW CREATE TABLE states.
+CREATE TABLE omni_dump.events (id INT, body STRING) PARTITIONED BY (dt STRING) STORED AS PARQUET
 
-ALTER TABLE omni_dump.events SET TBLPROPERTIES('EXTERNAL'='FALSE') -- not restorable: TestDumpGaps
+ALTER TABLE omni_dump.events SET TBLPROPERTIES('EXTERNAL'='FALSE')
 
-ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-01') -- not restorable: TestDumpGaps
+ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-01')
 
-INSERT INTO omni_dump.events PARTITION (dt='2024-01-01') VALUES (1, 'x'), (2, 'y') -- not restorable: TestDumpGaps
+-- A partition that lives outside the table's own directory, which its name does
+-- not state and only the describe of the partition does.
+ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-02') LOCATION 'file:/tmp/omni/dump_events_dt_2024-01-02'
+
+INSERT INTO omni_dump.events PARTITION (dt='2024-01-01') VALUES (1, 'x'), (2, 'y')
+
+-- A view whose comment SHOW CREATE TABLE leaves out, and the quote in it, which
+-- a replay escapes rather than doubling. Its query names a column with an alias
+-- SHOW CREATE TABLE has to quote: the statement the server states is the one a
+-- replay takes, whatever the query could not be restated from.
+CREATE VIEW omni_dump.z_users COMMENT 'the users\' rows' AS SELECT id AS 1bad, name FROM omni_dump.ext_users
+
+-- A materialized view over that view, named so that name order alone would place
+-- it before the view it resolves.
+CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad`
+FROM omni_dump.z_users
+
+-- A partitioned materialized view: the statement states a partition as a table
+-- does, with the column's type, and a materialized view takes it without.
+CREATE MATERIALIZED VIEW omni_dump.p_events_mv DISABLE REWRITE COMMENT 'says PARTITIONED BY (old)' PARTITIONED ON (dt) AS SELECT id, dt FROM omni_dump.events

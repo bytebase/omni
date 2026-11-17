@@ -225,12 +225,21 @@ func (d *Driver) getDatabaseInfoByName(ctx context.Context, databaseName string)
 
 // TableInfo is what one DESCRIBE FORMATTED answer says about a table.
 type TableInfo struct {
+	database string
+	// tableType is the type DESCRIBE FORMATTED states, such as MANAGED_TABLE.
 	tableType    string
 	colMetadatas []*metadatapb.ColumnMetadata
 	numRows      int
-	viewDef      string
-	totalSize    int
-	comment      string
+	// viewDef is the query a view or materialized view was created with.
+	viewDef string
+	// expandedViewDef is the query as the server renders it, with every
+	// identifier quoted: the text a dump replays.
+	expandedViewDef string
+	totalSize       int
+	comment         string
+	// storage is what DESCRIBE FORMATTED states about how the table reads its
+	// files, which a dump compares each partition's against.
+	storage dumpStorage
 }
 
 const (
@@ -254,6 +263,9 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	defer rows.Close()
 
 	section := columnSection
+	storageReader := dumpStorageReader{}
+	// reading is the field the view section states over several rows.
+	var reading *string
 	for rows.Next() {
 		// DESCRIBE FORMATTED answers NULL for the cells a section's headings and
 		// blank separator rows do not fill, so each cell is read as a value that
@@ -276,6 +288,11 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			section = storageSection
 		case strings.HasPrefix(colNameValue, "# View Information"):
 			section = viewSection
+		case strings.HasPrefix(colNameValue, "# Materialized View Information"):
+			// A materialized view states its query under its own heading, which
+			// is where the definition of the view comes from.
+			section = viewSection
+
 		default:
 			// No action needed for other cases
 		}
@@ -293,6 +310,10 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			}
 		case tableInfoSection:
 			switch {
+			case trimField(colNameValue) == "Database:":
+				// The database as the server stores its name, which a statement
+				// the dump writes qualifies with.
+				tableInfo.database = trimField(dataTypeValue)
 			case trimField(colNameValue) == "Table Type:":
 				tableInfo.tableType = trimField(dataTypeValue)
 			case trimField(dataTypeValue) == "numRows":
@@ -308,16 +329,31 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 				}
 				tableInfo.totalSize = n
 			case trimField(dataTypeValue) == "comment":
-				tableInfo.comment = trimField(commentValue)
+				// The formatter renders a parameter escaped, so a backslash in
+				// the comment is the one it escaped rather than the one stored.
+				tableInfo.comment = dumpUnescapeDescribed(trimField(commentValue))
 			default:
 				// No action needed for other table info fields
 			}
+		case storageSection:
+			storageReader.read(trimField(colNameValue), trimField(dataTypeValue), trimField(commentValue))
 		case viewSection:
 			switch {
 			case strings.HasPrefix(colNameValue, "View Original Text:"):
 				tableInfo.viewDef = trimField(dataTypeValue)
+				reading = &tableInfo.viewDef
 			case strings.HasPrefix(colNameValue, "Original Query:"):
 				tableInfo.viewDef = trimField(dataTypeValue)
+				reading = &tableInfo.viewDef
+			case strings.HasPrefix(colNameValue, "Expanded Query:"):
+				tableInfo.expandedViewDef = trimField(dataTypeValue)
+				reading = &tableInfo.expandedViewDef
+			case reading != nil:
+				line, ok := dumpQueryRow(colNameValue, dataType, comment)
+				if !ok {
+					continue
+				}
+				*reading += "\n" + line
 			default:
 				// No action needed for other view fields
 			}
@@ -329,8 +365,24 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
+	tableInfo.storage = storageReader.storage
 
 	return tableInfo, nil
+}
+
+// dumpQueryRow reads one row of a DESCRIBE FORMATTED view section as a line of
+// the query being read, and false for a row that states none of it: the query
+// continues in rows whose label is empty, and the rows that end the section
+// leave every cell absent where a line the query holds empty states blank ones.
+// The layout pads a line on the right, so the line's own indent stands.
+func dumpQueryRow(label string, dataType, comment sql.NullString) (string, bool) {
+	if trimField(label) != "" {
+		return "", false
+	}
+	if !dataType.Valid && !comment.Valid {
+		return "", false
+	}
+	return strings.TrimRight(dataType.String, " ") + strings.TrimRight(comment.String, " "), true
 }
 
 func trimField(field string) string {

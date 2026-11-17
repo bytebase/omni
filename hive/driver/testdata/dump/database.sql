@@ -22,6 +22,12 @@ TBLPROPERTIES (
   'last_modified_time'='1000000000', 
   'transient_lastDdlTime'='1000000000');
 
+ALTER TABLE `omni_dump`.`events` SET TBLPROPERTIES('EXTERNAL'='FALSE');
+
+ALTER TABLE `omni_dump`.`events` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/opt/hive/data/warehouse/omni_dump.db/events/dt=2024-01-01';
+
+ALTER TABLE `omni_dump`.`events` ADD PARTITION (`dt`='2024-01-02') LOCATION 'file:/tmp/omni/dump_events_dt_2024-01-02';
+
 --
 -- Table structure for `events__`
 --
@@ -85,13 +91,60 @@ TBLPROPERTIES (
   'last_modified_time'='1000000000', 
   'transient_lastDdlTime'='1000000000');
 
+ALTER TABLE `omni_dump`.`orders` SET TBLPROPERTIES('EXTERNAL'='FALSE');
+
 --
 -- View structure for `z_base`
 --
 CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`;
 
 --
+-- View structure for `z_users`
+--
+CREATE VIEW `omni_dump`.`z_users` AS SELECT `ext_users`.`id` AS `1bad`, `ext_users`.`name` FROM `omni_dump`.`ext_users`;
+
+ALTER VIEW `omni_dump`.`z_users` SET TBLPROPERTIES('comment'='the users\' rows');
+
+--
 -- View structure for `a_top`
 --
 CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`;
+
+--
+-- Materialized view structure for `a_users_mv`
+--
+CREATE MATERIALIZED VIEW `omni_dump`.`a_users_mv` DISABLE REWRITE
+COMMENT 'the users materialized'
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  'file:/opt/hive/data/warehouse/omni_dump.db/a_users_mv'
+TBLPROPERTIES (
+  'bucketing_version'='2', 
+  'transient_lastDdlTime'='1000000000')
+AS SELECT `z_users`.`1bad`
+FROM `omni_dump`.`z_users`;
+
+--
+-- Materialized view structure for `p_events_mv`
+--
+CREATE MATERIALIZED VIEW `omni_dump`.`p_events_mv` DISABLE REWRITE
+COMMENT 'says PARTITIONED BY (old)'
+PARTITIONED ON (`dt`)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  'file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv'
+TBLPROPERTIES (
+  'bucketing_version'='2', 
+  'transient_lastDdlTime'='1000000000')
+AS SELECT id, dt FROM omni_dump.events;
 
