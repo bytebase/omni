@@ -189,6 +189,18 @@ func TestCollectCompletionSignals(t *testing.T) {
 			sql:  "DELIMITER $$\nSELECT 1$$|",
 			want: wantSignals{},
 		},
+		// TiDB rejects the INSERT row alias (MySQL 8.0.19's `AS incoming(x)`),
+		// so that case is MySQL's and OceanBase's, not this corpus's.
+		{
+			name: "update inside a routine body",
+			sql:  "CREATE PROCEDURE p() BEGIN UPDATE t SET x = |; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "delete after a statement in a routine body",
+			sql:  "CREATE PROCEDURE p() BEGIN SELECT 1; DELETE FROM d WHERE x = |; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "d"}}, dml: "->d"},
+		},
 		{
 			name: "joined aliases",
 			sql:  "SELECT * FROM t1 a JOIN t2 AS b ON a.id = b.id WHERE |",
@@ -805,7 +817,7 @@ func TestCollectCompletionReferenceColumns(t *testing.T) {
 		},
 		{
 			name:  "expression items name no column",
-			sql:   "SELECT * FROM (SELECT a + b, a + t.b, count(*), t.a AS z FROM t) d WHERE d.|",
+			sql:   "SELECT * FROM (SELECT a + b, a + t.b, a * b, count(*), t.a AS z FROM t) d WHERE d.|",
 			local: map[string][]string{"d": {"z"}},
 		},
 		{
