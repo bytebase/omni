@@ -2130,3 +2130,67 @@ func TestMaterializedViewSkipsSystemGeneratedIndex(t *testing.T) {
 		t.Fatalf("a migration dropped the view's own index:\n%s", sql)
 	}
 }
+
+func TestCascadeUnnamedPrimaryKeyDropKeepsForeignKeyOnOtherKey(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE P (ID NUMBER PRIMARY KEY, CODE NUMBER CONSTRAINT P_CODE_UK UNIQUE);
+CREATE TABLE C (CODE NUMBER, CONSTRAINT C_FK FOREIGN KEY (CODE) REFERENCES P (CODE));
+ALTER TABLE P DROP PRIMARY KEY CASCADE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := c.Metadata().Schemas[0]
+	if got := tableByName(schema)["C"].ForeignKeys; len(got) != 1 {
+		t.Fatalf("the cascade removed a foreign key on another key: %v", got)
+	}
+	p := tableByName(schema)["P"]
+	if len(p.Indexes) != 1 || !p.Indexes[0].Unique {
+		t.Fatalf("the unique key on CODE was removed with the primary key: %v", p.Indexes)
+	}
+}
+
+func TestDefinitionOrdersViewsThroughEffectiveSchema(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE Z (C NUMBER);
+CREATE VIEW B AS SELECT C FROM Z;
+CREATE VIEW A AS SELECT C FROM B;
+CREATE TABLE APP.U (C NUMBER)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner := strings.Index(definition, `CREATE VIEW "B"`)
+	outer := strings.Index(definition, `CREATE VIEW "A"`)
+	if inner < 0 || outer < 0 || inner > outer {
+		t.Fatalf("a view precedes the view it reads:\n%s", definition)
+	}
+}
+
+func TestCreateSchemaAuthorizationMustMatch(t *testing.T) {
+	_, err := LoadSQL(`CREATE TABLE APP.T (C NUMBER); CREATE SCHEMA AUTHORIZATION OTHER CREATE TABLE U (C NUMBER)`)
+	if err == nil || !strings.Contains(err.Error(), `statement names schema "OTHER"`) {
+		t.Fatalf("CREATE SCHEMA AUTHORIZATION OTHER: %v, want the owner mismatch", err)
+	}
+}
+
+func TestStandaloneRenameMovesSequencesAndViews(t *testing.T) {
+	c, err := LoadSQL(`CREATE SEQUENCE S;
+RENAME S TO S2;
+DROP SEQUENCE S2;
+CREATE VIEW V AS SELECT 1 AS X FROM DUAL;
+RENAME V TO V2`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := c.Metadata().Schemas[0]
+	if len(schema.Sequences) != 0 {
+		t.Fatalf("a dropped, renamed sequence stayed: %v", schema.Sequences)
+	}
+	if len(schema.Views) != 1 || schema.Views[0].Name != "V2" {
+		t.Fatalf("views = %v, want V2", schema.Views)
+	}
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE INDEX I ON T (C); RENAME I TO J`); err == nil {
+		t.Fatal("renaming an index was silently ignored")
+	}
+}

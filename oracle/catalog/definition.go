@@ -62,7 +62,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		graph.AddNode(viewID)
 		// Add dependencies from view to tables/views it references
 		for _, dependency := range view.DependencyColumns {
-			dependencyID := getObjectID(dependency.Schema, dependency.Table)
+			dependencyID := getObjectID(dependencyOwner(dependency, databaseName), dependency.Table)
 			graph.AddEdge(dependencyID, viewID)
 		}
 	}
@@ -74,7 +74,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		graph.AddNode(viewID)
 		// Add dependencies from materialized view to tables/views it references
 		for _, dependency := range view.DependencyColumns {
-			dependencyID := getObjectID(dependency.Schema, dependency.Table)
+			dependencyID := getObjectID(dependencyOwner(dependency, databaseName), dependency.Table)
 			graph.AddEdge(dependencyID, viewID)
 		}
 	}
@@ -86,7 +86,7 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		graph.AddNode(functionID)
 		// Add dependencies from function to tables it references
 		for _, dependency := range function.DependencyTables {
-			dependencyID := getObjectID(dependency.Schema, dependency.Table)
+			dependencyID := getObjectID(tableDependencyOwner(dependency, databaseName), dependency.Table)
 			graph.AddEdge(dependencyID, functionID)
 		}
 	}
@@ -232,6 +232,26 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 	return buf.String(), nil
 }
 
+// dependencyOwner names the schema a dependency belongs to: the one the
+// snapshot gives, or, when it gives none, the schema being defined. A synced
+// snapshot leaves the owner of an unqualified name empty, so connecting the
+// raw value would attach the edge to a ghost node and lose the order.
+func dependencyOwner(dependency *metadatapb.DependencyColumn, schema string) string {
+	if dependency.GetSchema() != "" {
+		return dependency.GetSchema()
+	}
+	return schema
+}
+
+// tableDependencyOwner is dependencyOwner for a function's dependency, which
+// carries the same owner rule in another message.
+func tableDependencyOwner(dependency *metadatapb.DependencyTable, schema string) string {
+	if dependency.GetSchema() != "" {
+		return dependency.GetSchema()
+	}
+	return schema
+}
+
 func writeViewsInDependencyOrder(buf *strings.Builder, schema *metadatapb.SchemaMetadata) error {
 	graph := newGraph()
 	views := map[string]*metadatapb.ViewMetadata{}
@@ -246,8 +266,15 @@ func writeViewsInDependencyOrder(buf *strings.Builder, schema *metadatapb.Schema
 		matViews[key] = view
 		graph.AddNode(key)
 	}
-	addEdges := func(key string, dependencies []*metadatapb.DependencyColumn) {
+	addEdges := func(key, owner string, dependencies []*metadatapb.DependencyColumn) {
 		for _, dependency := range dependencies {
+			// A dependency the snapshot leaves unowned belongs to the view's
+			// schema: without that, a synced view whose text names its
+			// relations unqualified connects to a ghost node and keeps a
+			// dependent view ahead of the view it reads.
+			if owner != "" && dependency.GetSchema() != "" && dependency.GetSchema() != owner {
+				continue
+			}
 			for _, candidate := range []string{"v:" + dependency.Table, "m:" + dependency.Table} {
 				if views[candidate] != nil || matViews[candidate] != nil {
 					graph.AddEdge(candidate, key)
@@ -256,10 +283,10 @@ func writeViewsInDependencyOrder(buf *strings.Builder, schema *metadatapb.Schema
 		}
 	}
 	for key, view := range views {
-		addEdges(key, view.DependencyColumns)
+		addEdges(key, schema.Name, view.DependencyColumns)
 	}
 	for key, view := range matViews {
-		addEdges(key, view.DependencyColumns)
+		addEdges(key, schema.Name, view.DependencyColumns)
 	}
 	ordered, err := graph.TopologicalSort()
 	if err != nil {

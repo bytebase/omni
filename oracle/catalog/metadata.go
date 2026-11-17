@@ -251,8 +251,8 @@ func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
 }
 
 func (e *oracleMetadataExtractor) extractCreateSchema(n *ast.CreateSchemaStmt) {
-	if n.SchemaName != "" {
-		e.currentSchema = n.SchemaName
+	if n.SchemaName != "" && !e.useSchema(n.SchemaName) {
+		return
 	}
 	for _, item := range listItems(n.Stmts) {
 		stmt, ok := item.(ast.StmtNode)
@@ -575,7 +575,55 @@ func (e *oracleMetadataExtractor) extractRename(n *ast.RenameStmt) {
 	if !e.useSchema(n.OldName.Schema) || !e.useSchema(n.NewName.Schema) {
 		return
 	}
-	e.renameTable(oldName, newName)
+	if e.renameSequence(oldName, newName) {
+		return
+	}
+	if e.renameView(oldName, newName) {
+		return
+	}
+	if e.renameMaterializedView(oldName, newName) {
+		return
+	}
+	if e.tables[oldName] != nil {
+		e.renameTable(oldName, newName)
+		return
+	}
+	if e.err == nil {
+		e.err = fmt.Errorf("RENAME of %q is not supported by oracle/catalog: the catalog holds no such table, view, materialized view or sequence", oldName)
+	}
+}
+
+func (e *oracleMetadataExtractor) renameSequence(oldName, newName string) bool {
+	sequence := e.sequences[oldName]
+	if sequence == nil {
+		return false
+	}
+	delete(e.sequences, oldName)
+	sequence.Name = newName
+	e.sequences[newName] = sequence
+	return true
+}
+
+func (e *oracleMetadataExtractor) renameView(oldName, newName string) bool {
+	view := e.views[oldName]
+	if view == nil {
+		return false
+	}
+	delete(e.views, oldName)
+	view.Name = newName
+	e.views[newName] = view
+	return true
+}
+
+func (e *oracleMetadataExtractor) renameMaterializedView(oldName, newName string) bool {
+	view := e.materializedViews[oldName]
+	if view == nil {
+		return false
+	}
+	delete(e.materializedViews, oldName)
+	view.Name = newName
+	e.materializedViews[newName] = view
+	return true
 }
 
 func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
@@ -635,6 +683,12 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				var columns []string
 				if action.Constraint != nil {
 					columns = stringList(action.Constraint.Columns)
+				}
+				// An unnamed DROP PRIMARY KEY states no columns, so read them
+				// before the key is removed: CASCADE removes the foreign keys the
+				// dropped key carried, not every foreign key to the table.
+				if len(columns) == 0 && action.Subtype == "PRIMARY KEY" {
+					columns = primaryKeyColumns(table)
 				}
 				droppedColumns = columns
 				e.dropConstraintSubtype(table, action.Subtype, columns)
@@ -1201,6 +1255,15 @@ func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
 func indexColumns(table *metadatapb.TableMetadata, name string) []string {
 	for _, index := range table.Indexes {
 		if index.Name == name {
+			return append([]string(nil), index.Expressions...)
+		}
+	}
+	return nil
+}
+
+func primaryKeyColumns(table *metadatapb.TableMetadata) []string {
+	for _, index := range table.Indexes {
+		if index.Primary {
 			return append([]string(nil), index.Expressions...)
 		}
 	}
@@ -2075,18 +2138,6 @@ func hasPrimaryIndex(table *metadatapb.TableMetadata) bool {
 		}
 	}
 	return false
-}
-
-func primaryKeyColumns(table *metadatapb.TableMetadata) []string {
-	if table == nil {
-		return nil
-	}
-	for _, index := range table.Indexes {
-		if index.Primary {
-			return append([]string(nil), index.Expressions...)
-		}
-	}
-	return nil
 }
 
 func hasUniqueIndex(table *metadatapb.TableMetadata, columns []string) bool {

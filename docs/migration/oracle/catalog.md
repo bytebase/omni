@@ -226,6 +226,12 @@ replay tests exercise.
 - Deferrable CHECKs are rejected, and table-wide trigger enable/disable is
   rejected.
 - View dependency lookups resolve an empty owner to the view's schema.
+- A definition orders views through the schema being defined when a
+  dependency leaves its owner empty, and `CASCADE` on an unnamed `DROP PRIMARY
+  KEY` removes only the foreign keys on that key's columns.
+- `CREATE SCHEMA AUTHORIZATION` validates the owner against the schema already
+  loaded, and a standalone `RENAME` moves a sequence, view or materialized
+  view, while an object the catalog does not hold is rejected.
 - The deparse is byte-for-byte the Bytebase renderer. The fixtures that pin it
   are the Bytebase fixtures.
 
