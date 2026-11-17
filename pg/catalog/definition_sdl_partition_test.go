@@ -211,6 +211,50 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 // SDL and the database it was read from differ in nothing.
 func TestDatabaseDefinitionSDLPartitionRoundTrip(t *testing.T) {
 	meta := partitionedMetadata()
+	if countAttachedPartitionIndexes(meta) == 0 {
+		t.Fatal("the snapshot holds no attached partition index, so nothing checks the attachment")
+	}
+	assertSnapshotRendersAndReloads(t, meta)
+}
+
+// TestDatabaseDefinitionSDLPartitionWithoutKey pins the SDL of a snapshot that
+// says a table has partitions without saying what it is partitioned by: nothing
+// can be written in PARTITION BY, so the table and the partition come out as the
+// plain tables LoadMetadata installs from the same snapshot, and the text parses.
+// A stored snapshot whose columns were synced but whose partitions were not
+// still has to render a definition a user can read and replay.
+func TestDatabaseDefinitionSDLPartitionWithoutKey(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "app",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name: "t",
+						Columns: []*metadatapb.ColumnMetadata{
+							{Name: "a", Type: "integer", Nullable: false},
+							{Name: "b", Type: "integer", Nullable: false},
+						},
+						Partitions: []*metadatapb.TablePartitionMetadata{
+							{
+								Name: "t_p1",
+								Indexes: []*metadatapb.IndexMetadata{
+									{Name: "t_p1_idx", Expressions: []string{"(a + b)"}, Type: "btree"},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	assertSnapshotRendersAndReloads(t, meta)
+}
+
+// assertSnapshotRendersAndReloads renders meta as SDL, in one file and as many,
+// and holds each to the catalog LoadMetadata installs from meta.
+func assertSnapshotRendersAndReloads(t *testing.T, meta *metadatapb.DatabaseSchemaMetadata) {
+	t.Helper()
 	want := New()
 	if _, err := want.LoadMetadata(context.Background(), meta, LoadMetadataOptions{Full: true}); err != nil {
 		t.Fatalf("LoadMetadata: %v", err)
@@ -221,7 +265,7 @@ func TestDatabaseDefinitionSDLPartitionRoundTrip(t *testing.T) {
 		t.Fatalf("DatabaseDefinition: %v", err)
 	}
 	t.Run("single file", func(t *testing.T) {
-		assertSDLReloads(t, want, sdl)
+		assertSDLReloads(t, want, meta, sdl)
 	})
 
 	files, err := MultiFileDefinition(meta)
@@ -234,13 +278,13 @@ func TestDatabaseDefinitionSDLPartitionRoundTrip(t *testing.T) {
 			joined.WriteString(file.Content)
 			joined.WriteString("\n")
 		}
-		assertSDLReloads(t, want, joined.String())
+		assertSDLReloads(t, want, meta, joined.String())
 	})
 }
 
-// assertSDLReloads loads sdl and holds it to want: the migration that takes one
-// to the other must be empty.
-func assertSDLReloads(t *testing.T, want *Catalog, sdl string) {
+// assertSDLReloads loads sdl, rendered from meta, and holds it to want: the
+// migration that takes one to the other must be empty.
+func assertSDLReloads(t *testing.T, want *Catalog, meta *metadatapb.DatabaseSchemaMetadata, sdl string) {
 	t.Helper()
 	got, err := LoadSDL(sdl)
 	if err != nil {
@@ -252,54 +296,68 @@ func assertSDLReloads(t *testing.T, want *Catalog, sdl string) {
 	// The diff takes a partition's unattached index for the parent's, so the
 	// attachment is checked here: plain PostgreSQL keeps a partitioned index
 	// invalid until every partition's index is attached to it.
-	assertPartitionIndexesAttached(t, got, partitionedMetadata())
+	assertPartitionIndexesAttached(t, got, meta)
+}
+
+// countAttachedPartitionIndexes counts the partition indexes meta attaches to a
+// parent's.
+func countAttachedPartitionIndexes(meta *metadatapb.DatabaseSchemaMetadata) int {
+	attached := 0
+	forEachSnapshotPartition(meta, func(_ string, partition *metadatapb.TablePartitionMetadata) {
+		for _, index := range partition.Indexes {
+			if index.ParentIndexName != "" {
+				attached++
+			}
+		}
+	})
+	return attached
 }
 
 // assertPartitionIndexesAttached requires every partition index the snapshot
 // attaches to a parent index to be attached in c too.
 func assertPartitionIndexesAttached(t *testing.T, c *Catalog, meta *metadatapb.DatabaseSchemaMetadata) {
 	t.Helper()
-	attached := 0
+	forEachSnapshotPartition(meta, func(parentSchema string, partition *metadatapb.TablePartitionMetadata) {
+		partitionSchema := partitionSchemaName(parentSchema, partition)
+		rel := c.GetRelation(partitionSchema, partition.Name)
+		if rel == nil {
+			t.Errorf("the SDL leaves out partition %q", partition.Name)
+			return
+		}
+		indexes := make(map[string]*Index)
+		for _, index := range c.IndexesOf(rel.OID) {
+			indexes[index.Name] = index
+		}
+		for _, index := range partition.Indexes {
+			if index.ParentIndexName == "" {
+				continue
+			}
+			got := indexes[index.Name]
+			if got == nil {
+				t.Errorf("the SDL leaves out index %q of partition %q", index.Name, partition.Name)
+				continue
+			}
+			if got.ParentIndexOID == 0 {
+				t.Errorf("the SDL leaves index %q of partition %q unattached to %q", index.Name, partition.Name, index.ParentIndexName)
+			}
+		}
+	})
+}
+
+// forEachSnapshotPartition calls f for every partition and subpartition of
+// meta's tables, with the schema its parent lives in.
+func forEachSnapshotPartition(meta *metadatapb.DatabaseSchemaMetadata, f func(parentSchema string, partition *metadatapb.TablePartitionMetadata)) {
 	for _, schema := range meta.Schemas {
 		for _, table := range schema.Tables {
 			var walk func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata)
 			walk = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) {
 				for _, partition := range partitions {
-					partitionSchema := partition.GetSchema()
-					if partitionSchema == "" {
-						partitionSchema = parentSchema
-					}
-					rel := c.GetRelation(partitionSchema, partition.Name)
-					if rel == nil {
-						t.Errorf("the SDL leaves out partition %q", partition.Name)
-						continue
-					}
-					indexes := make(map[string]*Index)
-					for _, index := range c.IndexesOf(rel.OID) {
-						indexes[index.Name] = index
-					}
-					for _, index := range partition.Indexes {
-						if index.ParentIndexName == "" {
-							continue
-						}
-						attached++
-						got := indexes[index.Name]
-						if got == nil {
-							t.Errorf("the SDL leaves out index %q of partition %q", index.Name, partition.Name)
-							continue
-						}
-						if got.ParentIndexOID == 0 {
-							t.Errorf("the SDL leaves index %q of partition %q unattached to %q", index.Name, partition.Name, index.ParentIndexName)
-						}
-					}
-					walk(partitionSchema, partition.Subpartitions)
+					f(parentSchema, partition)
+					walk(partitionSchemaName(parentSchema, partition), partition.Subpartitions)
 				}
 			}
 			walk(schema.Name, table.Partitions)
 		}
-	}
-	if attached == 0 {
-		t.Fatal("the snapshot holds no attached partition index, so nothing checks the attachment")
 	}
 }
 
