@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -121,4 +122,67 @@ CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() 
 		require.False(t, expressionsEqual("(0)", "((0))"), "gap closed: normalize generated defaults")
 		require.False(t, expressionsEqual("GETDATE()", "(getdate())"), "gap closed: normalize generated defaults")
 	})
+
+	t.Run("function name inside a default literal", func(t *testing.T) {
+		// The cleanup matches the function name as a substring of the default,
+		// so a literal that spells the name also loses its constraint.
+		from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [DF_v] DEFAULT ('foo'), CONSTRAINT [PK_t] PRIMARY KEY ([id]));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [DF_v] DEFAULT ('foo'), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "DROP CONSTRAINT [DF_v]", "gap closed: match function references outside literals")
+	})
+
+	t.Run("computed column comment after its rebuild", func(t *testing.T) {
+		// Rebuilding a computed column drops its extended properties, but the
+		// comment phase compares the old and new text and skips an unchanged
+		// comment, so the rebuilt column has none.
+		from := New()
+		require.NoError(t, from.LoadMetadata(context.Background(), commentRebuildMetadata("AS ([a] + 1) PERSISTED")))
+		to := New()
+		require.NoError(t, to.LoadMetadata(context.Background(), commentRebuildMetadata("AS ([a] + 2) PERSISTED")))
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "DROP COLUMN [c]")
+		require.NotContains(t, sql, "sp_addextendedproperty", "gap closed: restore a rebuilt column's comment")
+	})
+
+	t.Run("schema-bound view calling a replaced function", func(t *testing.T) {
+		// The function replacement does not consider an unchanged schema-bound
+		// view, so the drop runs while the view still references the function.
+		from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS n;
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS n;
+`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "DROP FUNCTION [dbo].[f]")
+		require.NotContains(t, sql, "DROP VIEW [dbo].[v]", "gap closed: rebuild or refuse on a dependent schema-bound view")
+	})
+}
+
+func commentRebuildMetadata(computedType string) *metadata.DatabaseSchemaMetadata {
+	return &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "t",
+			Columns: []*metadata.ColumnMetadata{
+				{Name: "id", Type: "int", Nullable: false},
+				{Name: "a", Type: "int", Nullable: true},
+				{Name: "c", Type: computedType, Nullable: true, Comment: "note"},
+			},
+			Indexes: []*metadata.IndexMetadata{{Name: "PK_t", Type: "CLUSTERED", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"id"}}},
+		}},
+	}}}
 }
