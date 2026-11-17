@@ -163,10 +163,14 @@ func TestQueryExecuteAndStats(t *testing.T) {
 				t.Errorf("ANALYZE SELECT 1 err = %v", err)
 			}
 
-			// MariaDB DELETE ... RETURNING is a write and routes to ExecContext (no leaked rows).
+			// MariaDB DELETE ... RETURNING answers with the rows it deleted, so
+			// it routes to QueryContext and reports no affected-rows count.
 			retRes, err := sess.Query(ctx, "DELETE FROM items WHERE id = 10 RETURNING note;", driver.QueryOptions{})
-			if err != nil || len(retRes) != 1 || retRes[0].AffectedRows == nil || len(retRes[0].Rows) != 0 {
+			if err != nil || len(retRes) != 1 || retRes[0].AffectedRows != nil || len(retRes[0].Rows) != 1 {
 				t.Fatalf("DELETE RETURNING result = %+v, %v", retRes, err)
+			}
+			if retRes[0].Rows[0][0].String != "kept" {
+				t.Errorf("DELETE RETURNING note = %q", retRes[0].Rows[0][0].String)
 			}
 
 			// Pre-validation rejects syntax errors before running earlier statements.
@@ -194,5 +198,110 @@ func TestQueryExecuteAndStats(t *testing.T) {
 				t.Fatalf("truncRes = %+v, %v", truncRes, err)
 			}
 		})
+	}
+}
+
+// TestQueryServerRows covers the statements that answer with a result set the
+// read-only whitelist does not name — a procedure's result set, a table
+// check's diagnosis — the rows a write's RETURNING selects, and masking: the
+// rows a statement does not trace to columns are withheld when the caller asks.
+// It also holds a session's state to the session: a temporary table one session
+// creates is gone when it closes.
+func TestQueryServerRows(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t, "default", "omni_rows_test")
+	if _, err := d.db.ExecContext(ctx, `CREATE TABLE ritems (id INT PRIMARY KEY, d INT);
+INSERT INTO ritems VALUES (1, 0), (2, 0), (3, 1);
+CREATE PROCEDURE rcount() BEGIN SELECT COUNT(*) AS n FROM ritems; END`); err != nil {
+		t.Fatal(err)
+	}
+
+	sess, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	// RETURNING: INSERT, REPLACE and DELETE answer with the rows the statement
+	// wrote or removed, and report no count instead.
+	inserted, err := sess.Query(ctx, "INSERT INTO ritems VALUES (4, 1) RETURNING id;", driver.QueryOptions{})
+	if err != nil || len(inserted) != 1 || inserted[0].Err != nil || inserted[0].AffectedRows != nil {
+		t.Fatalf("INSERT RETURNING = %+v, %v", inserted, err)
+	}
+	if len(inserted[0].Rows) != 1 || inserted[0].Rows[0][0].Int64 != 4 {
+		t.Errorf("INSERT RETURNING rows = %+v", inserted[0].Rows)
+	}
+	replaced, err := sess.Query(ctx, "REPLACE INTO ritems VALUES (4, 2) RETURNING d;", driver.QueryOptions{})
+	if err != nil || len(replaced) != 1 || len(replaced[0].Rows) != 1 || replaced[0].Rows[0][0].Int64 != 2 {
+		t.Fatalf("REPLACE RETURNING = %+v, %v", replaced, err)
+	}
+	deleted, err := sess.Query(ctx, "DELETE FROM ritems WHERE d = 0 RETURNING id;", driver.QueryOptions{})
+	if err != nil || len(deleted) != 1 || len(deleted[0].Rows) != 2 {
+		t.Fatalf("DELETE RETURNING rows = %+v, %v", deleted, err)
+	}
+
+	// RETURNING columns are not traced by mariadb/analysis's lineage, so masking
+	// withholds them rather than returning values the caller asked to mask.
+	maskedDeleted, err := sess.Query(ctx, "DELETE FROM ritems WHERE d = 1 RETURNING id;", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil || len(maskedDeleted) != 1 || maskedDeleted[0].AffectedRows == nil || len(maskedDeleted[0].Rows) != 0 {
+		t.Fatalf("masked DELETE RETURNING = %+v, %v", maskedDeleted, err)
+	}
+	maskedInserted, err := sess.Query(ctx, "INSERT INTO ritems VALUES (5, 1) RETURNING id;", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil || len(maskedInserted) != 1 || maskedInserted[0].AffectedRows == nil || len(maskedInserted[0].Rows) != 0 {
+		t.Fatalf("masked INSERT RETURNING = %+v, %v", maskedInserted, err)
+	}
+
+	// A procedure's result set is columns the caller's analysis cannot trace:
+	// unmasked it comes back, masked it is withheld and reported as a count.
+	call, err := sess.Query(ctx, "CALL rcount();", driver.QueryOptions{})
+	if err != nil || len(call) != 1 || call[0].Err != nil || len(call[0].Rows) != 1 {
+		t.Fatalf("CALL = %+v, %v", call, err)
+	}
+	if call[0].Rows[0][0].Int64 != 2 {
+		t.Errorf("CALL rows = %+v", call[0].Rows)
+	}
+	maskedCall, err := sess.Query(ctx, "CALL rcount();", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil || len(maskedCall) != 1 || maskedCall[0].AffectedRows == nil || len(maskedCall[0].Rows) != 0 {
+		t.Fatalf("masked CALL = %+v, %v", maskedCall, err)
+	}
+
+	// Masking a traced statement changes nothing.
+	plain, err := sess.Query(ctx, "SELECT id, d FROM ritems ORDER BY id;", driver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	masked, err := sess.Query(ctx, "SELECT id, d FROM ritems ORDER BY id;", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(plain[0].Rows) != len(masked[0].Rows) || len(plain[0].Rows) == 0 {
+		t.Errorf("masking changed a traced statement's rows: %d vs %d", len(plain[0].Rows), len(masked[0].Rows))
+	}
+
+	// CHECK TABLE answers a diagnosis, not a count.
+	checked, err := sess.Query(ctx, "CHECK TABLE ritems;", driver.QueryOptions{})
+	if err != nil || len(checked) != 1 || len(checked[0].Rows) == 0 {
+		t.Fatalf("CHECK TABLE = %+v, %v", checked, err)
+	}
+
+	// A session's temporary table dies with it.
+	if _, err := sess.Query(ctx, "CREATE TEMPORARY TABLE leak (id INT);", driver.QueryOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Close(); err != nil {
+		t.Fatal(err)
+	}
+	next, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer next.Close()
+	leak, err := next.Query(ctx, "SELECT * FROM leak;", driver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var myErr *gomysql.MySQLError
+	if !errors.As(leak[0].Err, &myErr) || myErr.Number != 1146 {
+		t.Fatalf("session state leaked into the next session: %+v", leak)
 	}
 }

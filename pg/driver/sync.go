@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"regexp"
@@ -72,6 +73,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	isAtLeastPG10 := isAtLeastMajorVersion(engineVersion, 10)
 	isAtLeastPG12 := isAtLeastMajorVersion(engineVersion, 12)
+	isAtLeastPG13 := isAtLeastMajorVersion(engineVersion, 13)
 	isAtLeastPG14 := isAtLeastMajorVersion(engineVersion, 14)
 	searchPath, err := d.SearchPath(ctx)
 	if err != nil {
@@ -114,7 +116,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get indexes from database %q: %w", d.databaseName, err)
 	}
-	triggerMap, err := getTriggers(txn, extensionDepend)
+	triggerMap, err := getTriggers(txn, isAtLeastPG13, extensionDepend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get triggers from database %q: %w", d.databaseName, err)
 	}
@@ -192,6 +194,16 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		return nil, fmt.Errorf("failed to get event triggers from database %q: %w", d.databaseName, err)
 	}
 
+	foreignDataWrappers, err := getForeignDataWrappers(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get foreign data wrappers from database %q: %w", d.databaseName, err)
+	}
+
+	foreignServers, err := getForeignServers(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get foreign servers from database %q: %w", d.databaseName, err)
+	}
+
 	if err := txn.Commit(); err != nil {
 		return nil, err
 	}
@@ -231,6 +243,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	databaseMetadata.Extensions = extensions
 	databaseMetadata.EventTriggers = eventTriggers
+	databaseMetadata.ForeignDataWrappers = foreignDataWrappers
+	databaseMetadata.ForeignServers = foreignServers
 
 	return databaseMetadata, err
 }
@@ -574,6 +588,158 @@ func getListForeignTableQuery() string {
 	WHERE c.relkind = 'f'
 	ORDER BY n.nspname, c.relname;`
 }
+
+// listForeignDataWrapperQuery reads the wrappers the database declares itself,
+// leaving out the ones an extension provides; the extension creates those.
+var listForeignDataWrapperQuery = `
+SELECT w.fdwname,
+	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+FROM pg_catalog.pg_foreign_data_wrapper w
+WHERE NOT EXISTS (
+	SELECT 1 FROM pg_catalog.pg_depend d
+	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+		AND d.objid = w.oid AND d.deptype = 'e'
+)
+ORDER BY w.fdwname;`
+
+func getForeignDataWrappers(txn *sql.Tx) ([]*metadatapb.ForeignDataWrapperMetadata, error) {
+	rows, err := txn.Query(listForeignDataWrapperQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var wrappers []*metadatapb.ForeignDataWrapperMetadata
+	for rows.Next() {
+		var name, handler, validator, optionsJSON string
+		if err := rows.Scan(&name, &handler, &validator, &optionsJSON); err != nil {
+			return nil, err
+		}
+		options, err := decodeOptionList(optionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("foreign data wrapper %q options: %w", name, err)
+		}
+		wrappers = append(wrappers, &metadatapb.ForeignDataWrapperMetadata{
+			Name:      name,
+			Handler:   handler,
+			Validator: validator,
+			Options:   options,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return wrappers, nil
+}
+
+// listForeignServerQuery reads a server's name, the wrapper it uses and its
+// options. array_to_json keeps an option's quotes and commas intact, so a
+// value that holds either still arrives as one entry; pg_foreign_server.srvoptions
+// is already ordered as the server writes it.
+var listForeignServerQuery = `
+SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+FROM pg_catalog.pg_foreign_server s
+	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+WHERE NOT EXISTS (
+	SELECT 1 FROM pg_catalog.pg_depend d
+	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+		AND d.objid = s.oid AND d.deptype = 'e'
+)
+ORDER BY s.srvname;`
+
+// listForeignTableOptionsQuery reads the options a foreign table states itself,
+// apart from the server's; array_to_json has the same reason as above.
+var listForeignTableOptionsQuery = `
+SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+FROM pg_catalog.pg_foreign_table t
+	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'f'
+ORDER BY n.nspname, c.relname;`
+
+func getForeignServers(txn *sql.Tx) ([]*metadatapb.ForeignServerMetadata, error) {
+	rows, err := txn.Query(listForeignServerQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var servers []*metadatapb.ForeignServerMetadata
+	for rows.Next() {
+		var name, fdw, optionsJSON string
+		var serverType, serverVersion sql.NullString
+		if err := rows.Scan(&name, &fdw, &optionsJSON, &serverType, &serverVersion); err != nil {
+			return nil, err
+		}
+		options, err := decodeOptionList(optionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("server %q options: %w", name, err)
+		}
+		server := &metadatapb.ForeignServerMetadata{
+			Name:    name,
+			Fdw:     fdw,
+			Options: options,
+		}
+		if serverType.Valid {
+			server.Type = &serverType.String
+		}
+		if serverVersion.Valid {
+			server.Version = &serverVersion.String
+		}
+		servers = append(servers, server)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return servers, nil
+}
+
+type foreignTableOptions struct {
+	options []string
+	oid     int
+}
+
+func getForeignTableOptions(txn *sql.Tx) (map[tableKey]foreignTableOptions, error) {
+	rows, err := txn.Query(listForeignTableOptionsQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	optionsMap := make(map[tableKey]foreignTableOptions)
+	for rows.Next() {
+		var schemaName, tableName, optionsJSON string
+		var oid int
+		if err := rows.Scan(&schemaName, &tableName, &optionsJSON, &oid); err != nil {
+			return nil, err
+		}
+		options, err := decodeOptionList(optionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("foreign table %q.%q options: %w", schemaName, tableName, err)
+		}
+		optionsMap[tableKey{Schema: schemaName, Table: tableName}] = foreignTableOptions{options: options, oid: oid}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return optionsMap, nil
+}
+
+// decodeOptionList reads one text[] of "key=value" entries, as array_to_json
+// writes it.
+func decodeOptionList(encoded string) ([]string, error) {
+	if encoded == "" {
+		return nil, nil
+	}
+	var options []string
+	if err := json.Unmarshal([]byte(encoded), &options); err != nil {
+		return nil, err
+	}
+	return options, nil
+}
+
 func getListTableQuery(isAtLeastPG10 bool) string {
 	relisPartition := ""
 	if isAtLeastPG10 {
@@ -610,13 +776,16 @@ func getTables(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign keys: %w", err)
 	}
-	foreignTablesMap, err := getForeignTables(txn, columnMap)
+	foreignTablesMap, foreignTableOidMap, err := getForeignTables(txn, columnMap, checksMap, triggerMap, extensionDepend)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign tables: %w", err)
 	}
 
 	tableMap := make(map[string][]*metadatapb.TableMetadata)
 	tableOidMap := make(map[int]*tableKeyWithColumns)
+	for oid, table := range foreignTableOidMap {
+		tableOidMap[oid] = table
+	}
 	query := getListTableQuery(isAtLeastPG10)
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -665,37 +834,57 @@ func getTables(
 	return tableMap, foreignTablesMap, tableOidMap, nil
 }
 
-func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ExternalTableMetadata, error) {
+func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, checksMap map[tableKey][]*metadatapb.CheckConstraintMetadata, triggerMap map[tableKey][]*metadatapb.TriggerMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.ExternalTableMetadata, map[int]*tableKeyWithColumns, error) {
 	query := getListForeignTableQuery()
 	rows, err := txn.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
-	foreignTablesMap := make(map[string][]*metadatapb.ExternalTableMetadata)
-
+	type foreignTable struct {
+		schema, table, server string
+	}
+	var foreignTables []foreignTable
 	for rows.Next() {
 		var schemaName, tableName, foreignServerCatalog, foreignServerName string
 		if err := rows.Scan(&schemaName, &tableName, &foreignServerCatalog, &foreignServerName); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
-		externalTable := &metadatapb.ExternalTableMetadata{
-			Name:                 tableName,
-			ExternalServerName:   foreignServerName,
-			ExternalDatabaseName: foreignServerCatalog,
-		}
-		key := tableKey{Schema: schemaName, Table: externalTable.Name}
-		externalTable.Columns = columnMap[key]
-
-		foreignTablesMap[schemaName] = append(foreignTablesMap[schemaName], externalTable)
+		foreignTables = append(foreignTables, foreignTable{schema: schemaName, table: tableName, server: foreignServerName})
 	}
-
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, nil, err
 	}
 
-	return foreignTablesMap, nil
+	// Read the options after closing the table rows: a transaction runs one
+	// statement at a time.
+	optionsMap, err := getForeignTableOptions(txn)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	foreignTablesMap := make(map[string][]*metadatapb.ExternalTableMetadata)
+	tableOidMap := make(map[int]*tableKeyWithColumns)
+	for _, table := range foreignTables {
+		key := tableKey{Schema: table.schema, Table: table.table}
+		facts := optionsMap[key]
+		foreignTablesMap[table.schema] = append(foreignTablesMap[table.schema], &metadatapb.ExternalTableMetadata{
+			Name:               table.table,
+			ExternalServerName: table.server,
+			Columns:            columnMap[key],
+			Options:            facts.options,
+			SkipDump:           extensionDepend[facts.oid],
+			CheckConstraints:   checksMap[key],
+			Triggers:           triggerMap[key],
+		})
+		tableOidMap[facts.oid] = &tableKeyWithColumns{Schema: table.schema, Table: table.table, Columns: columnMap[key]}
+	}
+
+	return foreignTablesMap, tableOidMap, nil
 }
 
 var listTablePartitionQuery = `
@@ -878,7 +1067,8 @@ SELECT
 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 	COALESCE(bt.typname, t.typname) AS udt_name,
 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 FROM pg_catalog.pg_attribute a
 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -910,9 +1100,15 @@ func getTableColumns(txn *sql.Tx, isAtLeastPG12 bool) (map[tableKey][]*metadatap
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable, generationKind string
 		var characterMaxLength, numericPrecision, numericScale, datetimePrecision, defaultStr, generationExpression, collation, collationSchema, udtSchema, udtName, identityGeneration, comment sql.NullString
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &collationSchema, &udtSchema, &udtName, &identityGeneration, &comment); err != nil {
+		var columnOptions string
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &collationSchema, &udtSchema, &udtName, &identityGeneration, &comment, &columnOptions); err != nil {
 			return nil, err
 		}
+		options, err := decodeOptionList(columnOptions)
+		if err != nil {
+			return nil, fmt.Errorf("column %q.%q.%q options: %w", schemaName, tableName, column.Name, err)
+		}
+		column.Options = options
 		// A generated column carries its expression instead of a default, and
 		// attgenerated gives its storage: 's' STORED or 'v' PG18 VIRTUAL.
 		if generationExpression.Valid {
@@ -1773,7 +1969,13 @@ func getSequenceOwners(txn *sql.Tx) (map[int]ColumnOidKey, error) {
 	return sequenceOwnerMap, nil
 }
 
-func getTriggers(txn *sql.Tx, extensionDepend map[int]bool) (map[tableKey][]*metadatapb.TriggerMetadata, error) {
+func getTriggers(txn *sql.Tx, isAtLeastPG13 bool, extensionDepend map[int]bool) (map[tableKey][]*metadatapb.TriggerMetadata, error) {
+	// tgparentid names the trigger a partition's clone was made from, which it
+	// exists from PostgreSQL 13; before that a partition holds no clone.
+	cloneFilter := ""
+	if isAtLeastPG13 {
+		cloneFilter = " AND pt.tgparentid = 0"
+	}
 	query := `
 	SELECT
 		pt.oid,
@@ -1785,9 +1987,9 @@ func getTriggers(txn *sql.Tx, extensionDepend map[int]bool) (map[tableKey][]*met
 	FROM pg_trigger as pt
 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-	WHERE pn.nspname NOT IN (%s) AND pt.tgisinternal = false
+	WHERE pn.nspname NOT IN (%s) AND pt.tgisinternal = false%s
 	ORDER BY pn.nspname, pc.relname, pt.tgname;`
-	rows, err := txn.Query(fmt.Sprintf(query, pganalysis.SystemSchemaWhereClause))
+	rows, err := txn.Query(fmt.Sprintf(query, pganalysis.SystemSchemaWhereClause, cloneFilter))
 	if err != nil {
 		return nil, err
 	}

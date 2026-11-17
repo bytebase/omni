@@ -353,3 +353,26 @@ func TestQueryAffectedRows(t *testing.T) {
 		t.Errorf("AffectedRows = %d, want none", *results[0].AffectedRows)
 	}
 }
+
+// TestQueryExplainAnalyzeReturnsPlan reads back what EXPLAIN ANALYZE answers:
+// the plan of an execution that happened. The statement runs what it plans, so
+// the editor's read-only classification calls it a write, but the server still
+// answers with rows — a driver that sends it as a command drops the plan it
+// says the statement produced.
+func TestQueryExplainAnalyzeReturnsPlan(t *testing.T) {
+	d := setupQuery(t)
+	results := query(t, d, "EXPLAIN ANALYZE SELECT count() FROM q", driver.QueryOptions{})
+	if len(results) != 1 {
+		t.Fatalf("results = %d, want 1", len(results))
+	}
+	result := results[0]
+	if result.Err != nil {
+		t.Fatalf("query failed: %v", result.Err)
+	}
+	if result.Plan == nil || result.Plan.Format != "TEXT" || !result.Plan.Executed {
+		t.Errorf("Plan = %+v, want a TEXT plan that ran", result.Plan)
+	}
+	if len(result.Rows) == 0 {
+		t.Error("EXPLAIN ANALYZE returned no rows")
+	}
+}

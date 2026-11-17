@@ -1,10 +1,17 @@
 -- pin: default postgres:17.12-alpine sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f REL_17_12
 
-== TestDumpGaps/foreign_table default#1
+== TestDumpRestoresForeignPartition default#1
 > exec
 | CREATE EXTENSION postgres_fdw;
-| CREATE SERVER srv FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
-| CREATE FOREIGN TABLE ft (id int) SERVER srv OPTIONS (schema_name 'public', table_name 'x');
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE TABLE public.pt (id integer CHECK (id > 0)) PARTITION BY RANGE (id);
+| CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'x');
+| COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';
+| COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';
+| CREATE FUNCTION public.pt_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();
+| CREATE SEQUENCE public.pt_remote_seq OWNED BY public.pt_remote.id;
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
@@ -15,7 +22,7 @@
 < column "db_owner" "NAME"
 < row
 : string
-| omni_gap_foreign
+| omni_foreign_partition
 : string
 | UTF8
 : string
@@ -159,7 +166,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -197,11 +205,12 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
 : string
-| ft
+| pt
 : string
 | id
 : string
@@ -225,6 +234,38 @@
 | int4
 : null
 : null
+: string
+| []
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+: string
+| []
 > query
 |
 | SELECT
@@ -318,7 +359,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -327,6 +368,17 @@
 < column "trigger_name" "NAME"
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
+< row
+: int64 4294967303
+: string
+| public
+: string
+| pt
+: string
+| pt_trg
+: string
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit()
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
@@ -344,6 +396,27 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| public
+: string
+| pt
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: null
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: string
+| remote check
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -418,11 +491,32 @@
 : string
 | public
 : string
-| ft
+| pt_remote
 : string
-| omni_gap_foreign
+| omni_foreign_partition
 : string
-| srv
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< column "oid" "OID"
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| ["schema_name=public","table_name=x"]
+: int64 4294967304
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -447,6 +541,18 @@
 < column "estimate" "INT8"
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
+< row
+: int64 4294967305
+: string
+| public
+: string
+| pt
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
 > query
 |
 | SELECT
@@ -483,6 +589,23 @@
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
 < column "partition_comment" "TEXT"
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| public
+: string
+| pt
+: string
+| r
+: string
+| FOR VALUES FROM (0) TO (10)
+: string
+| RANGE (id)
+: string
+| remote partition
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -701,6 +824,21 @@
 | AS '$libdir/postgres_fdw', $function$postgres_fdw_validator$function$
 |
 : null
+< row
+: int64 4294967306
+: string
+| public
+: string
+| pt_audit
+: string
+|
+: string
+| CREATE OR REPLACE FUNCTION public.pt_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
+|
+: null
 > query
 |
 | 	SELECT
@@ -719,6 +857,10 @@
 < column "oid" "OID"
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
+< row
+: int64 4294967307
+: int64 4294967304
+: int64 1
 > query
 |
 | 	SELECT
@@ -754,6 +896,22 @@
 < column "cache_size" "INT8"
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
+< row
+: int64 4294967307
+: string
+| public
+: string
+| pt_remote_seq
+: string
+| bigint
+: int64 1
+: int64 1
+: int64 9223372036854775807
+: int64 1
+: bool false
+: int64 1
+: null
+: null
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description
@@ -934,10 +1092,54 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
+: null
+: null
 > commit
 < ok
 
-== TestDumpGaps/foreign_table default#2
+== TestDumpRestoresForeignPartition default#2
 > exec
 |
 | SET statement_timeout = 0;
@@ -957,12 +1159,51 @@
 |
 | COMMENT ON EXTENSION "postgres_fdw" IS 'foreign-data wrapper for remote PostgreSQL servers';
 |
+| CREATE SEQUENCE "public"."pt_remote_seq"
+|     AS bigint
+| 	START WITH 1
+| 	INCREMENT BY 1
+| 	MINVALUE 1
+| 	MAXVALUE 9223372036854775807
+| 	CACHE 1
+| 	NO CYCLE;
+|
 | SET default_tablespace = '';
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE OR REPLACE FUNCTION public.pt_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
+| ;
+|
+| CREATE TABLE "public"."pt" (
+|     "id" integer,
+|     CONSTRAINT "pt_id_check" CHECK (id > 0)
+| ) PARTITION BY RANGE (id);
+|
+| ALTER TABLE "public"."pt" OWNER TO "postgres";
+|
+| CREATE FOREIGN TABLE "public"."pt_remote" (
+|     "id" integer,
+|     CONSTRAINT "pt_id_check" CHECK (id > 0)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'x');
+|
+| COMMENT ON CONSTRAINT "pt_id_check" ON "public"."pt_remote" IS 'remote check';
+|
+| COMMENT ON FOREIGN TABLE "public"."pt_remote" IS 'remote partition';
+|
+| ALTER TABLE ONLY "public"."pt" ATTACH PARTITION "public"."pt_remote" FOR VALUES FROM (0) TO (10);
+|
+| ALTER SEQUENCE "public"."pt_remote_seq" OWNED BY "public"."pt_remote"."id";
+|
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();
 |
 |
 < ok 0 -
 
-== TestDumpGaps/foreign_table default#3
+== TestDumpRestoresForeignPartition default#3
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
 < result
@@ -972,7 +1213,7 @@
 < column "db_owner" "NAME"
 < row
 : string
-| omni_gap_foreign
+| omni_foreign_partition
 : string
 | UTF8
 : string
@@ -981,7 +1222,7 @@
 | postgres
 < row
 : string
-| omni_gap_foreign_restored
+| omni_foreign_partition_restored
 : string
 | UTF8
 : string
@@ -1057,17 +1298,17 @@
 < row
 : int64 13671
 < row
-: int64 4294967303
-< row
-: int64 4294967304
-< row
-: int64 4294967305
-< row
-: int64 4294967306
-< row
-: int64 4294967307
-< row
 : int64 4294967308
+< row
+: int64 4294967309
+< row
+: int64 4294967310
+< row
+: int64 4294967311
+< row
+: int64 4294967312
+< row
+: int64 4294967313
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1125,7 +1366,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -1163,6 +1405,67 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
+< row
+: string
+| public
+: string
+| pt
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+: string
+| []
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+: string
+| []
 > query
 |
 | SELECT
@@ -1256,7 +1559,7 @@
 | 	FROM pg_trigger as pt
 | 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
 | 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
-| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false AND pt.tgparentid = 0
 | 	ORDER BY pn.nspname, pc.relname, pt.tgname;
 < result
 < column "oid" "OID"
@@ -1265,6 +1568,17 @@
 < column "trigger_name" "NAME"
 < column "trigger_def" "TEXT"
 < column "trigger_comment" "TEXT"
+< row
+: int64 4294967314
+: string
+| public
+: string
+| pt
+: string
+| pt_trg
+: string
+| CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit()
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
@@ -1282,6 +1596,27 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| public
+: string
+| pt
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: null
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: string
+| remote check
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -1352,6 +1687,36 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| omni_foreign_partition_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]'), c.oid
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< column "oid" "OID"
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| ["schema_name=public","table_name=x"]
+: int64 4294967315
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1376,6 +1741,18 @@
 < column "estimate" "INT8"
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
+< row
+: int64 4294967316
+: string
+| public
+: string
+| pt
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
 > query
 |
 | SELECT
@@ -1412,6 +1789,23 @@
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
 < column "partition_comment" "TEXT"
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| public
+: string
+| pt
+: string
+| r
+: string
+| FOR VALUES FROM (0) TO (10)
+: string
+| RANGE (id)
+: string
+| remote partition
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -1551,7 +1945,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967307
+: int64 4294967312
 : string
 | public
 : string
@@ -1567,7 +1961,7 @@
 |
 : null
 < row
-: int64 4294967308
+: int64 4294967313
 : string
 | public
 : string
@@ -1583,7 +1977,7 @@
 |
 : null
 < row
-: int64 4294967306
+: int64 4294967311
 : string
 | public
 : string
@@ -1599,7 +1993,7 @@
 |
 : null
 < row
-: int64 4294967303
+: int64 4294967308
 : string
 | public
 : string
@@ -1615,7 +2009,7 @@
 |
 : null
 < row
-: int64 4294967304
+: int64 4294967309
 : string
 | public
 : string
@@ -1628,6 +2022,21 @@
 |  LANGUAGE c
 |  STRICT
 | AS '$libdir/postgres_fdw', $function$postgres_fdw_validator$function$
+|
+: null
+< row
+: int64 4294967317
+: string
+| public
+: string
+| pt_audit
+: string
+|
+: string
+| CREATE OR REPLACE FUNCTION public.pt_audit()
+|  RETURNS trigger
+|  LANGUAGE plpgsql
+| AS $function$ BEGIN RETURN NEW; END $function$
 |
 : null
 > query
@@ -1648,6 +2057,10 @@
 < column "oid" "OID"
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
+< row
+: int64 4294967318
+: int64 4294967315
+: int64 1
 > query
 |
 | 	SELECT
@@ -1683,6 +2096,22 @@
 < column "cache_size" "INT8"
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
+< row
+: int64 4294967318
+: string
+| public
+: string
+| pt_remote_seq
+: string
+| bigint
+: int64 1
+: int64 1
+: int64 9223372036854775807
+: int64 1
+: bool false
+: int64 1
+: null
+: null
 > query
 |
 | 		SELECT e.extname, e.extversion, n.nspname, c.description
@@ -1863,5 +2292,49 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "srvtype" "TEXT"
+< column "srvversion" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
+: null
+: null
 > commit
 < ok
