@@ -107,6 +107,48 @@ func TestMSSQLConfigTLS(t *testing.T) {
 	}
 }
 
+// A connection that lets the client build its TLS configuration from the
+// parameters must verify the host it dials, not the placeholder the client
+// reads the rest of the DSN from.
+func TestMSSQLConfigTLSVerifiesTheHost(t *testing.T) {
+	cfg := baseConfig()
+	cfg.Params = map[string]string{"encrypt": "true"}
+	config, err := (&Driver{}).mssqlConfig(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.TLSConfig == nil {
+		t.Fatal("no TLS configuration")
+	}
+	if config.TLSConfig.ServerName != "db.example.com" {
+		t.Fatalf("TLS verifies %q, want db.example.com", config.TLSConfig.ServerName)
+	}
+
+	instance := baseConfig()
+	instance.Host = `db.example.com\SQLEXPRESS`
+	instance.Params = map[string]string{"encrypt": "true"}
+	config, err = (&Driver{}).mssqlConfig(instance)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.TLSConfig == nil || config.TLSConfig.ServerName != "db.example.com" {
+		t.Fatalf("named-instance TLS verifies %+v, want db.example.com", config.TLSConfig)
+	}
+
+	// A caller that names the certificate's host keeps it: an alias or an IP
+	// address dialed to a server whose certificate names another DNS host
+	// still verifies.
+	named := baseConfig()
+	named.Params = map[string]string{"encrypt": "true", "hostnameincertificate": "sql.example.com"}
+	config, err = (&Driver{}).mssqlConfig(named)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.TLSConfig == nil || config.TLSConfig.ServerName != "sql.example.com" {
+		t.Fatalf("TLS verifies %+v, want the caller's sql.example.com", config.TLSConfig)
+	}
+}
+
 func TestMSSQLConfigValidation(t *testing.T) {
 	for _, tc := range []struct {
 		name string
