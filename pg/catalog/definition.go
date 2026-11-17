@@ -110,7 +110,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	foreignServerMap := make(map[string]*metadatapb.ForeignServerMetadata)
 	externalTables := collectExternalTables(metadata.Schemas)
 	foreignPartitions := collectForeignPartitionIDs(metadata.Schemas, externalTables)
-	foreignPartitionParents := collectForeignPartitionParents(metadata.Schemas, externalTables)
+	partitionParents := collectPartitionParents(metadata.Schemas)
 
 	// Construct functions.
 	functionIDsByName := make(map[string][]string)
@@ -127,7 +127,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(funcID)
 			for _, dependency := range function.DependencyTables {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
-				if parentID, ok := foreignPartitionParents[dependencyID]; ok {
+				if parentID, ok := partitionParents[dependencyID]; ok {
 					dependencyID = parentID
 				}
 				graph.AddEdge(dependencyID, funcID)
@@ -240,7 +240,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(viewID)
 			for _, dependency := range view.DependencyColumns {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
-				if parentID, ok := foreignPartitionParents[dependencyID]; ok {
+				if parentID, ok := partitionParents[dependencyID]; ok {
 					dependencyID = parentID
 				}
 				graph.AddEdge(dependencyID, viewID)
@@ -256,7 +256,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(viewID)
 			for _, dependency := range view.DependencyColumns {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
-				if parentID, ok := foreignPartitionParents[dependencyID]; ok {
+				if parentID, ok := partitionParents[dependencyID]; ok {
 					dependencyID = parentID
 				}
 				graph.AddEdge(dependencyID, viewID)
@@ -277,8 +277,8 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	for id := range materializedViewMap {
 		relationIDs[id] = true
 	}
-	addRelationTypeEdges(graph, foreignTableMap, tableMap, relationIDs, foreignPartitionParents)
-	addPartitionRelationTypeEdges(graph, externalTables, foreignPartitionParents, relationIDs)
+	addRelationTypeEdges(graph, foreignTableMap, tableMap, relationIDs, partitionParents)
+	addPartitionRelationTypeEdges(graph, externalTables, partitionParents, relationIDs)
 
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
@@ -2403,19 +2403,16 @@ func collectForeignPartitionIDs(schemas []*metadatapb.SchemaMetadata, externalTa
 	return ids
 }
 
-// collectForeignPartitionParents maps a foreign partition's ID to the table
-// that creates and attaches it, so a view that reads the partition waits for
-// the parent rather than for a node of its own.
-func collectForeignPartitionParents(schemas []*metadatapb.SchemaMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) map[string]string {
+// collectPartitionParents maps a partition's ID to the table that creates and
+// attaches it, so a consumer of the partition waits for the parent rather than
+// for a node of its own.
+func collectPartitionParents(schemas []*metadatapb.SchemaMetadata) map[string]string {
 	parents := make(map[string]string)
 	for _, schema := range schemas {
 		for _, table := range schema.Tables {
 			parentID := getObjectID(schema.Name, table.Name)
 			walkPartitions(schema.Name, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
-				id := getObjectID(partitionSchema, partition.Name)
-				if externalTables[id] != nil {
-					parents[id] = parentID
-				}
+				parents[getObjectID(partitionSchema, partition.Name)] = parentID
 			})
 		}
 	}
