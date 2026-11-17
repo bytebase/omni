@@ -273,6 +273,31 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t"}}},
 		},
 		{
+			name: "second statement keeps its own parentheses",
+			sql:  "SELECT 1; SELECT * FROM (SELECT a FROM t) d WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}},
+		},
+		{
+			name: "delete target list with using",
+			sql:  "DELETE FROM t1, t2 USING t1 JOIN t2 ON t1.x = t2.x WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t1"}, {kind: RangeReferenceDMLTarget, table: "t2"}, {table: "t1"}, {table: "t2"}}, dml: "->t1"},
+		},
+		{
+			name: "set operation order by names the first arm",
+			sql:  "SELECT 1 AS first_name UNION SELECT 2 AS second_name ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, aliases: []string{"first_name"}},
+		},
+		{
+			name: "table query primary",
+			sql:  "TABLE t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}},
+		},
+		{
+			name: "delete target with star",
+			sql:  "DELETE FROM t1.* USING t1 JOIN t2 ON t1.x = t2.x WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t1"}, {table: "t1"}, {table: "t2"}}, dml: "->t1"},
+		},
+		{
 			name: "no leak between statements",
 			sql:  "SELECT * FROM earlier; SELECT * FROM t WHERE |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t"}}},
@@ -333,7 +358,7 @@ func TestCollectCompletionSignals(t *testing.T) {
 		{
 			name: "index name position",
 			sql:  "DROP INDEX | ON t",
-			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindIndex}},
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindIndex}, local: []ref{{table: "t", alias: "t"}}},
 		},
 		{
 			name: "engine name position",
@@ -634,5 +659,103 @@ func TestCollectCompletionEveryOffset(t *testing.T) {
 		for offset := 0; offset <= len(script); offset++ {
 			CollectCompletion(script, offset)
 		}
+	}
+}
+
+// TestCollectCompletionReferenceColumns pins the columns the reader reports for
+// a reference, which is what a caller cannot compute from metadata when the SQL
+// itself names them.
+func TestCollectCompletionReferenceColumns(t *testing.T) {
+	cases := []struct {
+		name  string
+		sql   string
+		ctes  map[string][]string
+		local map[string][]string
+		outer map[string][]string
+	}{
+		{
+			name:  "nested with body names its output after the clause",
+			sql:   "WITH c AS (WITH inner_cte(x) AS (SELECT 1) SELECT x AS y FROM inner_cte) SELECT c.| FROM c",
+			ctes:  map[string][]string{"c": {"y"}, "inner_cte": {"x"}},
+			local: map[string][]string{"c": {"y"}},
+		},
+		{
+			name:  "a shadowing with clause does not rewrite the outer reference",
+			sql:   "WITH c(x) AS (SELECT 1) SELECT * FROM c t WHERE EXISTS (WITH c(y) AS (SELECT 2) SELECT * FROM c WHERE |)",
+			ctes:  map[string][]string{"c": {"y"}},
+			local: map[string][]string{"c": {"y"}},
+			outer: map[string][]string{"t": {"x"}},
+		},
+		{
+			name:  "expression items name no column",
+			sql:   "SELECT * FROM (SELECT a + b, a + t.b, count(*), t.a AS z FROM t) d WHERE d.|",
+			local: map[string][]string{"d": {"z"}},
+		},
+		{
+			name:  "qualified names name their last part",
+			sql:   "SELECT * FROM (SELECT a, t.b, db.t.c FROM t) d WHERE d.|",
+			local: map[string][]string{"d": {"a", "b", "c"}},
+		},
+		{
+			name:  "json table declares its columns",
+			sql:   "SELECT jt.| FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$', NESTED PATH '$.a' COLUMNS (y INT PATH '$'))) AS jt",
+			local: map[string][]string{"jt": {"x", "y"}},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cursor := strings.Index(tc.sql, "|")
+			if cursor < 0 {
+				t.Fatalf("case has no cursor marker")
+			}
+			ctx := CollectCompletion(tc.sql[:cursor]+tc.sql[cursor+1:], cursor)
+			for _, cte := range ctx.CTEs {
+				want, ok := tc.ctes[cte.Table]
+				if !ok {
+					t.Errorf("unexpected cte %q", cte.Table)
+					continue
+				}
+				if got := strings.Join(cte.Columns, ","); got != strings.Join(want, ",") {
+					t.Errorf("cte %q columns = %q, want %q", cte.Table, got, strings.Join(want, ","))
+				}
+			}
+			check := func(where string, refs []RangeReference, want map[string][]string) {
+				for _, ref := range refs {
+					if _, ok := want[ref.Table]; !ok {
+						continue
+					}
+					if got, expected := strings.Join(ref.Columns, ","), strings.Join(want[ref.Table], ","); got != expected {
+						t.Errorf("%s reference %q columns = %q, want %q", where, ref.Table, got, expected)
+					}
+				}
+			}
+			check("local", ctx.Scope.LocalReferences, tc.local)
+			for _, level := range ctx.Scope.OuterReferences {
+				check("outer", level, tc.outer)
+			}
+		})
+	}
+}
+
+// TestCollectCompletionNestingLimits holds the reader to the parser's nesting
+// budget: editor input is not guaranteed to parse, and a reader that keeps
+// descending past the limit kills the process rather than returning a scope.
+func TestCollectCompletionNestingLimits(t *testing.T) {
+	parens := strings.Repeat("(", maxNestingDepth+2) + "t" + strings.Repeat(")", maxNestingDepth+2)
+	jsonColumns := "SELECT * FROM JSON_TABLE('[1]', '$[*]' COLUMNS (" +
+		strings.Repeat("NESTED PATH '$.a' COLUMNS (", maxNestingDepth+2) +
+		"x INT PATH '$'" +
+		strings.Repeat("))", maxNestingDepth+2) +
+		") jt WHERE "
+	for name, sql := range map[string]string{
+		"parenthesized table sources": "SELECT * FROM " + parens + " WHERE ",
+		"json_table nested columns":   jsonColumns,
+	} {
+		t.Run(name, func(t *testing.T) {
+			ctx := CollectCompletion(sql, len(sql))
+			if ctx == nil || ctx.Candidates == nil {
+				t.Fatal("expected a context")
+			}
+		})
 	}
 }
