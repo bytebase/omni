@@ -336,7 +336,12 @@ type oceanBase struct {
 // it on the first call of this process. Open it with OpenOceanBase.
 func (o *oceanBase) DSN(ctx context.Context) (string, error) {
 	o.once.Do(func() {
-		o.container, o.dsn, o.err = startOceanBase(ctx)
+		pin, err := enginetest.LoadPin(Pins, "default")
+		if err != nil {
+			o.err = err
+			return
+		}
+		o.container, o.dsn, o.err = startOceanBase(ctx, pin)
 		if o.err == nil {
 			o.err = waitReady(ctx, o.dsn)
 		}
@@ -403,9 +408,10 @@ func (o *oceanBase) CheckPin(ctx context.Context, pin enginetest.Pin) error {
 	return o.pinErr
 }
 
-// CheckDigest fails unless the server this process started runs the image
-// with the pinned repository digest. A tag can be pushed again; a digest
-// cannot.
+// CheckDigest proves the server this process started runs the pinned image.
+// The pull names image@digest, so a moved tag cannot select another image;
+// this check reads what the daemon actually started, which is where the
+// recorded answers came from.
 func (o *oceanBase) CheckDigest(ctx context.Context, digest string) error {
 	if o.container == nil {
 		return errors.New("no OceanBase container: call DSN first")
@@ -438,15 +444,15 @@ func (o *oceanBase) Terminate() {
 	}
 }
 
-// startOceanBase boots OceanBaseImage in SLIM mode and returns the container
+// startOceanBase boots the pinned image in SLIM mode and returns the container
 // with a DSN for root in the test tenant, which has no password.
 //
 // SLIM starts the observer from the store the image ships, already holding the
 // test tenant: about 30 s and 3.5 GiB under the oracle tests, where the default
 // MINI mode deploys a cluster and creates the tenant, which takes minutes and
 // 8 GiB. The deployer refuses fewer than 20000 open files.
-func startOceanBase(ctx context.Context) (testcontainers.Container, string, error) {
-	c, err := testcontainers.Run(ctx, OceanBaseImage,
+func startOceanBase(ctx context.Context, pin enginetest.Pin) (testcontainers.Container, string, error) {
+	c, err := testcontainers.Run(ctx, pin.ImageRef(),
 		testcontainers.WithEnv(map[string]string{"MODE": "SLIM"}),
 		testcontainers.WithExposedPorts("2881/tcp"),
 		testcontainers.WithHostConfigModifier(func(hc *container.HostConfig) {
@@ -455,7 +461,7 @@ func startOceanBase(ctx context.Context) (testcontainers.Container, string, erro
 		testcontainers.WithWaitStrategy(wait.ForLog("boot success!").WithStartupTimeout(10*time.Minute)),
 	)
 	if err != nil {
-		return c, "", fmt.Errorf("start %s: %w", OceanBaseImage, err)
+		return c, "", fmt.Errorf("start %s: %w", pin.ImageRef(), err)
 	}
 	for _, setup := range oceanBaseSetup {
 		code, out, err := c.Exec(ctx, setup)

@@ -221,6 +221,9 @@ func TestQueryExplainJSON(t *testing.T) {
 	if results[0].Plan == nil || results[0].Plan.Format != "JSON" {
 		t.Errorf("Plan = %+v, want JSON", results[0].Plan)
 	}
+	if results[0].Plan.Executed {
+		t.Error("Executed = true, want a plan that did not run the statement")
+	}
 	if len(results[0].Rows) == 0 {
 		t.Error("explain returned no rows")
 	}
@@ -281,7 +284,7 @@ func TestQueryLimitInsert(t *testing.T) {
 	if len(results) != 1 || results[0].Err != nil {
 		t.Fatalf("results = %+v", results)
 	}
-	if results[0].AffectedRows == nil {
+	if results[0].Statement != "INSERT INTO q (id) VALUES (4)" {
 		t.Errorf("Statement = %q, want the insert run as written", results[0].Statement)
 	}
 }
@@ -292,8 +295,8 @@ func TestQueryValidationErrorKeepsEarlierResults(t *testing.T) {
 	if len(results) != 2 {
 		t.Fatalf("results = %d, want the insert and the refused statement", len(results))
 	}
-	if results[0].Err != nil || results[0].AffectedRows == nil {
-		t.Errorf("first result = %+v, want the insert's affected row", results[0])
+	if results[0].Err != nil {
+		t.Errorf("first result = %+v, want the insert run", results[0])
 	}
 	if results[1].Err == nil || !strings.Contains(results[1].Err.Error(), "invalid string") {
 		t.Errorf("second error = %v, want the unterminated string", results[1].Err)
@@ -335,6 +338,8 @@ func TestQueryMultipleStatements(t *testing.T) {
 	}
 }
 
+// TestQueryAffectedRows holds a statement that returns no rows to no affected
+// count: the client states none, so the driver states none rather than a zero.
 func TestQueryAffectedRows(t *testing.T) {
 	d := setupQuery(t)
 	results := query(t, d, "INSERT INTO q (id) VALUES (3)", driver.QueryOptions{})
@@ -344,10 +349,7 @@ func TestQueryAffectedRows(t *testing.T) {
 	if results[0].Err != nil {
 		t.Fatalf("insert failed: %v", results[0].Err)
 	}
-	if results[0].AffectedRows == nil {
-		t.Fatal("a statement that returned no rows reports no affected count")
-	}
-	if diff := cmp.Diff(int64(0), *results[0].AffectedRows); diff != "" {
-		t.Errorf("affected rows (-want +got):\n%s", diff)
+	if results[0].AffectedRows != nil {
+		t.Errorf("AffectedRows = %d, want none", *results[0].AffectedRows)
 	}
 }

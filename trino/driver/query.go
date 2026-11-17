@@ -65,6 +65,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			stop = true
 		}
 		result.Latency = time.Since(startTime)
+		if !stop {
+			result.Plan = describeExplain(result.Statement)
+		}
 		results = append(results, result)
 		if stop {
 			break
@@ -153,7 +156,7 @@ func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
 			}
 			row := make([]driver.Value, len(columns))
 			for i, column := range columns {
-				row[i] = convertValue(column.TypeName, dest[i])
+				row[i] = convertValue(column.TypeName, columnTypes[i], dest[i])
 			}
 			result.Rows = append(result.Rows, row)
 			if maxResultBytes > 0 {
@@ -196,6 +199,39 @@ func explainStatement(statement string, format string) (string, error) {
 		return "EXPLAIN (FORMAT JSON) " + planned, nil
 	}
 	return "EXPLAIN " + planned, nil
+}
+
+// describeExplain reports the plan a statement answered with, when it is one:
+// an explain request rewrites the statement, and a caller's own EXPLAIN runs as
+// written. Trino states the plan's format in the statement, and only EXPLAIN
+// ANALYZE runs what it plans.
+func describeExplain(statement string) *driver.Plan {
+	file, err := parser.Parse(statement)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return nil
+	}
+	explain, ok := file.Stmts[0].(*parser.ExplainStmt)
+	if !ok {
+		return nil
+	}
+	// TYPE VALIDATE answers whether the statement validates, which is one boolean
+	// column and not a plan of anything.
+	if explain.Type == parser.ExplainTypeValidate {
+		return nil
+	}
+	format := "TEXT"
+	switch explain.Format {
+	case parser.ExplainFormatJSON:
+		format = "JSON"
+	case parser.ExplainFormatGraphviz:
+		format = "GRAPHVIZ"
+	case parser.ExplainFormatUnset:
+		// The IO plan is a JSON document unless a FORMAT option says otherwise.
+		if explain.Type == parser.ExplainTypeIO {
+			format = "JSON"
+		}
+	}
+	return &driver.Plan{Format: format, Executed: explain.Analyze}
 }
 
 // errExplainAnalyzeExecutes is what an EXPLAIN ANALYZE request gets: planning it
@@ -387,7 +423,7 @@ func makeValueByTypeName(typeName string) any {
 	}
 }
 
-func convertValue(typeName string, value any) driver.Value {
+func convertValue(typeName string, columnType *sql.ColumnType, value any) driver.Value {
 	switch raw := value.(type) {
 	case *sql.NullString:
 		if raw.Valid {
@@ -397,7 +433,13 @@ func convertValue(typeName string, value any) driver.Value {
 					if strings.Contains(typeName, "TIME ZONE") {
 						kind = driver.TimestampTZ
 					}
-					return driver.Value{Kind: kind, Time: t, Precision: 6}
+					// A tape recorded before it carried precision has none, so keep the
+					// 6 the driver used to report.
+					precision := int64(6)
+					if p, _, ok := columnType.DecimalSize(); ok {
+						precision = p
+					}
+					return driver.Value{Kind: kind, Time: t, Precision: int32(precision)}
 				}
 			}
 			return driver.Value{Kind: driver.String, String: raw.String}

@@ -110,8 +110,7 @@ func firstTwoKeywords(text string) [2]string {
 // Query runs each statement of script in order and returns one Result per
 // statement run. A statement that fails ends the script with its error on its
 // own Result; the error returned is nil, since the script ran as far as it
-// could. An error of a statement's answer is the Spanner client's own, as the
-// client returned it.
+// could. A statement's error is the client's, as the package doc describes.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	if opts.Explain {
 		return s.explainStatement(ctx, script, opts)
@@ -199,9 +198,7 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 		result.Rows = append(result.Rows, row)
 		totalBytes += driver.RowByteSize(row)
 		n := len(result.Rows)
-		// The size is measured where Bytebase measured it, at every doubling of
-		// the row count, so a result that passes the cap is cut at the same place.
-		if opts.MaxResultBytes > 0 && n&(n-1) == 0 && totalBytes > opts.MaxResultBytes {
+		if opts.MaxResultBytes > 0 && totalBytes > opts.MaxResultBytes {
 			result.Truncated = true
 			break
 		}

@@ -191,6 +191,13 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 			}
 			buf.WriteString(";\n\n")
 
+			// Write the table's partitions before its indexes: a partition takes
+			// the parent's indexes at its own creation, under names of the
+			// server's making rather than the snapshot's.
+			if err := writePartitionTablesSDL(&buf, schemaName, table); err != nil {
+				return nil, fmt.Errorf("failed to generate partition SDL for %s.%s: %w", schemaName, table.Name, err)
+			}
+
 			// Write table comment if present
 			if len(table.Comment) > 0 {
 				if err := writeTableCommentSDL(&buf, schemaName, table); err != nil {
@@ -210,6 +217,11 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 			// Write CREATE INDEX statements for non-constraint indexes
 			if err := writeIndexesSDL(&buf, schemaName, table); err != nil {
 				return nil, fmt.Errorf("failed to generate indexes SDL for %s.%s: %w", schemaName, table.Name, err)
+			}
+
+			// Write each partition's own indexes, attached to the parent's.
+			if err := writePartitionIndexesSDL(&buf, schemaName, table); err != nil {
+				return nil, fmt.Errorf("failed to generate partition index SDL for %s.%s: %w", schemaName, table.Name, err)
 			}
 
 			// Write index comments if present. Skip when the table has no

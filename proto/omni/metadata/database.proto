@@ -239,6 +239,28 @@ message SequenceMetadata {
   string comment = 12;
 
   bool skip_dump = 13;
+
+  // Whether the sequence orders its values instead of letting them be
+  // allocated out of order (Oracle ORDER).
+  bool order = 14;
+
+  // Whether the sequence keeps its values across a restart (Oracle KEEP).
+  bool keep = 15;
+
+  // Whether the sequence scales its values by the session and shard it is
+  // allocated in (Oracle SCALE).
+  bool scale = 16;
+
+  // Whether a scaled sequence extends its values past MAXVALUE rather than
+  // cycling (Oracle SCALE EXTEND).
+  bool extend = 17;
+
+  // Whether the sequence belongs to a session rather than to the schema
+  // (Oracle SESSION).
+  bool session = 18;
+
+  // Whether the sequence is sharded (Oracle SHARD).
+  bool sharded = 19;
 }
 
 message TriggerMetadata {
@@ -445,6 +467,12 @@ message CheckConstraintMetadata {
 
   // The expression is the expression of a check constraint.
   string expression = 2;
+
+  // The comment is the comment of a check constraint as the engine states it, not
+  // as a first-class attribute of the constraint: SQL Server's MS_Description
+  // extended property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds
+  // no constraint comment (MySQL and its forks, Oracle) leaves it empty.
+  string comment = 3;
 }
 
 message ExcludeConstraintMetadata {
@@ -820,9 +848,23 @@ message IndexMetadata {
   // The number of granules in the block. It's a ClickHouse specific field.
   int64 granularity = 13;
 
-  // It's a PostgreSQL specific field.
-  // The unique constraint and unique index are not the same thing in PostgreSQL.
+  // Whether the index backs a constraint, so DDL must not create it on its
+  // own: PostgreSQL and Oracle keep the constraint and its index as two
+  // objects, and a unique index that backs no constraint is not a unique
+  // constraint.
   bool is_constraint = 14;
+
+  // The constraints the index enforces, if any. PostgreSQL and Oracle each
+  // reuse an existing index for a constraint, so a constraint and its index are
+  // two differently named objects, and Oracle shares one index between several
+  // constraints, so a primary key and a unique constraint may draw on one. The
+  // index's expressions are the index's own keys; a constraint's are its own,
+  // which Oracle may take a subset of the index's.
+  //
+  // is_constraint and primary summarise this list for consumers that only need
+  // whether the index is a constraint's and whether one of them is the primary
+  // key.
+  repeated IndexConstraintMetadata constraints = 18;
 
   // Spatial index specific configuration
   SpatialIndexConfig spatial_config = 15;
@@ -832,6 +874,20 @@ message IndexMetadata {
   repeated string opclass_names = 16;
   // True if the operator class is the default. (PostgreSQL specific).
   repeated bool opclass_defaults = 17;
+}
+
+// IndexConstraintMetadata is a constraint an index enforces.
+message IndexConstraintMetadata {
+  // The name of the constraint.
+  string name = 1;
+
+  // The key columns or expressions of the constraint, in the order the
+  // constraint declares them. They are the index's expressions only when the
+  // constraint is on every key of the index.
+  repeated string columns = 2;
+
+  // Whether the constraint is the primary key.
+  bool primary = 3;
 }
 
 // SpatialIndexConfig is the configuration for spatial indexes across different database engines.
@@ -1003,4 +1059,10 @@ message ForeignKeyMetadata {
   // The match_type is the PostgreSQL specific field.
   // It's empty string for other databases.
   string match_type = 8;
+
+  // The comment is the comment of a foreign key as the engine states it, not as a
+  // first-class attribute of the constraint: SQL Server's MS_Description extended
+  // property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds no
+  // constraint comment (MySQL and its forks, Oracle) leaves it empty.
+  string comment = 9;
 }

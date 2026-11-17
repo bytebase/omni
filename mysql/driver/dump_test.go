@@ -115,44 +115,6 @@ PARTITION BY RANGE (id) SUBPARTITION BY HASH (id) SUBPARTITIONS 2 (
 	}
 }
 
-// TestDumpGaps holds what a dump cannot faithfully restore yet; each entry
-// fails once its gap closes so its corpus line moves into TestDumpRestores.
-func TestDumpGaps(t *testing.T) {
-	for _, gap := range []struct {
-		name, db, setup, wantErr string
-	}{
-		{
-			name: "view explicit column list",
-			db:   "omni_gap_view_cols",
-			setup: "CREATE TABLE t (id INT PRIMARY KEY);\n\n" +
-				"CREATE VIEW v1 (`renamed_id`) AS SELECT id FROM t;\n\n" +
-				"CREATE VIEW v2 AS SELECT renamed_id FROM v1;",
-			wantErr: "Unknown column",
-		},
-		{
-			name:  "index comment",
-			db:    "omni_gap_idx_comment",
-			setup: "CREATE TABLE t (id INT PRIMARY KEY, v INT, KEY idx_v (v) COMMENT 'note');",
-		},
-	} {
-		t.Run(gap.name, func(t *testing.T) {
-			source, restored, err := dumpAndRestore(t, testcontainer.Default, gap.db, gap.setup)
-			if gap.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), gap.wantErr) {
-					t.Fatalf("restore err = %v, want %q; if the gap closed, remove it", err, gap.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("restore failed: %v", err)
-			}
-			if diff := restoreDiff(source, restored); diff == "" {
-				t.Fatal("restore reproduced source; if the gap closed, remove it")
-			}
-		})
-	}
-}
-
 func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {
 	return cmp.Diff(source, restored, protocmp.Transform(),
 		protocmp.IgnoreFields(&metadatapb.TableMetadata{}, "data_size", "index_size", "data_free", "row_count"),

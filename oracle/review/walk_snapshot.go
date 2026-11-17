@@ -202,26 +202,29 @@ func newOracleSnapshot(db *metadata.DatabaseSchemaMetadata) *oracleSnapshot {
 	return s
 }
 
-// indexesOf records a table's indexes. The sync lists a primary key or
-// unique constraint as an index named after the constraint, and the
-// indexes that back no constraint of their name apart (getConstraints,
-// getIndexesAndConstraints).
+// indexesOf records a table's indexes. A primary key or unique constraint
+// and the index that enforces it are two objects with two names, which the
+// sync records as one entry under the index's (getConstraints,
+// getIndexesAndConstraints), so the constraint is recorded under the name a
+// DROP CONSTRAINT gives it.
 func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*metadata.IndexMetadata) {
 	for _, idx := range indexes {
-		name := idx.GetName()
 		if idx.GetType() == "DOMAIN" {
 			s.domainTables[table] = true
-			s.domainIndexes[name] = true
+			s.domainIndexes[idx.GetName()] = true
 		}
 		if !idx.GetIsConstraint() {
-			s.indexes[name] = table
+			s.indexes[idx.GetName()] = table
 			continue
 		}
-		s.constraintIndexes[name] = true
-		st.constraints[name] = true
-		s.constraints[name] = table
-		if idx.GetPrimary() {
-			st.primary = true
+		s.constraintIndexes[idx.GetName()] = true
+		for _, constraint := range indexConstraints(idx) {
+			name := constraint.GetName()
+			st.constraints[name] = true
+			s.constraints[name] = table
+			if constraint.GetPrimary() {
+				st.primary = true
+			}
 		}
 	}
 }

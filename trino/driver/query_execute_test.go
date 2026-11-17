@@ -89,8 +89,8 @@ func TestQuery(t *testing.T) {
 			{Kind: driver.String, String: "2026-01-02"},
 			{Kind: driver.String, String: "12:34:56.789"},
 			{Kind: driver.String, String: "12:34:56+02:00"},
-			{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 12, 34, 56, 0, time.UTC), Precision: 6},
-			{Kind: driver.TimestampTZ, Time: time.Date(2026, 1, 2, 12, 34, 56, 123000000, time.FixedZone("", 2*60*60)), Precision: 6},
+			{Kind: driver.Timestamp, Time: time.Date(2026, 1, 2, 12, 34, 56, 0, time.UTC), Precision: 0},
+			{Kind: driver.TimestampTZ, Time: time.Date(2026, 1, 2, 12, 34, 56, 123000000, time.FixedZone("", 2*60*60)), Precision: 3},
 			{Kind: driver.Bytes, Bytes: []byte{1, 2}},
 			{Kind: driver.Bytes, Bytes: []byte{}},
 			{Kind: driver.String, String: "12151fd2-7586-11e9-8f9e-2a86e4085a59"},
@@ -251,6 +251,9 @@ func TestQuery(t *testing.T) {
 				}
 				if len(results[0].Rows) == 0 {
 					t.Error("the plan returned no rows")
+				}
+				if results[0].Plan == nil || results[0].Plan.Format != tc.format || results[0].Plan.Executed || results[0].Plan.Content != "" {
+					t.Errorf("Plan = %+v, want a %s plan in the rows that did not run the statement", results[0].Plan, tc.format)
 				}
 			})
 		}
@@ -471,6 +474,37 @@ func TestQuery(t *testing.T) {
 			t.Fatal(err)
 		}
 	})
+}
+
+// TestDescribeExplain holds what a statement's plan says about itself, which a
+// plan of a tapeless statement (the timings EXPLAIN ANALYZE prints move between
+// runs) can only be read from the text.
+func TestDescribeExplain(t *testing.T) {
+	for _, tc := range []struct {
+		statement, format string
+		executed, ok      bool
+	}{
+		{statement: "SELECT 1"},
+		{statement: "EXPLAIN SELECT 1", format: "TEXT", ok: true},
+		{statement: "EXPLAIN (FORMAT JSON) SELECT 1", format: "JSON", ok: true},
+		{statement: "EXPLAIN (FORMAT GRAPHVIZ) SELECT 1", format: "GRAPHVIZ", ok: true},
+		{statement: "EXPLAIN (TYPE DISTRIBUTED) SELECT 1", format: "TEXT", ok: true},
+		{statement: "EXPLAIN (TYPE IO) SELECT 1", format: "JSON", ok: true},
+		{statement: "EXPLAIN (TYPE IO, FORMAT TEXT) SELECT 1", format: "TEXT", ok: true},
+		{statement: "EXPLAIN (TYPE VALIDATE) SELECT 1"},
+		{statement: "EXPLAIN ANALYZE SELECT 1", format: "TEXT", executed: true, ok: true},
+		{statement: "explain analyze verbose select 1", format: "TEXT", executed: true, ok: true},
+	} {
+		plan := describeExplain(tc.statement)
+		switch {
+		case !tc.ok && plan != nil:
+			t.Errorf("%q = %+v, want no plan", tc.statement, plan)
+		case tc.ok && plan == nil:
+			t.Errorf("%q = no plan, want %s", tc.statement, tc.format)
+		case tc.ok && (plan.Format != tc.format || plan.Executed != tc.executed || plan.Content != ""):
+			t.Errorf("%q = %+v, want %s executed=%v", tc.statement, plan, tc.format, tc.executed)
+		}
+	}
 }
 
 // TestExecute runs change scripts and holds what each step reported.

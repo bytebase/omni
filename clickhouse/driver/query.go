@@ -64,11 +64,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	var results []*driver.Result
 	for _, single := range statements {
 		statement := single.Text
-		explainFormat := opts.ExplainFormat
 		if opts.Explain {
-			if startsWithExplain(statement) {
-				explainFormat = explainFormatOf(statement)
-			}
 			statement = explainStatement(statement, opts.ExplainFormat)
 		} else if opts.Limit > 0 {
 			statement = statementWithResultLimit(statement, opts.Limit)
@@ -95,8 +91,8 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		}
 		result.Statement = statement
 		result.Latency = time.Since(startTime)
-		if opts.Explain && queryErr == nil {
-			result.Plan = &driver.Plan{Format: explainPlanFormat(explainFormat)}
+		if queryErr == nil {
+			result.Plan = describeExplain(statement)
 		}
 		results = append(results, result)
 		if stop {
@@ -122,18 +118,13 @@ func (s *session) runQuery(ctx context.Context, statement string, maxResultBytes
 	return result, nil
 }
 
+// runExec runs a statement that returns no rows. Its Result states no affected
+// count, for the reason the package doc gives.
 func (s *session) runExec(ctx context.Context, statement string) (*driver.Result, error) {
-	sqlResult, err := s.conn.ExecContext(ctx, statement)
-	if err != nil {
+	if _, err := s.conn.ExecContext(ctx, statement); err != nil {
 		return nil, err
 	}
-	affectedRows, err := sqlResult.RowsAffected()
-	if err != nil {
-		// A DDL statement reports no count, which the client reports as an
-		// error; Bytebase ignored it and recorded zero.
-		affectedRows = 0
-	}
-	return &driver.Result{AffectedRows: &affectedRows}, nil
+	return &driver.Result{}, nil
 }
 
 // readRows reads one result set, stopping at maxResultBytes.
@@ -463,11 +454,26 @@ func normalizeJSONValue(value any) any {
 	}
 }
 
-func explainPlanFormat(format string) string {
-	if strings.EqualFold(format, "JSON") {
-		return "JSON"
+// describeExplain reports the plan statement answers with, when it is one: an
+// explain request rewrites the statement, and a caller's own EXPLAIN runs as
+// written. ClickHouse states the format in the statement, and only EXPLAIN
+// ANALYZE runs what it plans.
+func describeExplain(statement string) *driver.Plan {
+	if !startsWithExplain(statement) {
+		return nil
 	}
-	return "TEXT"
+	return &driver.Plan{Format: explainFormatOf(statement), Executed: explainAnalyzes(statement)}
+}
+
+// explainAnalyzes reports whether statement's EXPLAIN is the ANALYZE kind,
+// whose output is a plan of an execution that happened.
+func explainAnalyzes(statement string) bool {
+	body, err := removeQuotedTextAndComment(statement)
+	if err != nil {
+		return false
+	}
+	tokens := keywordTokens(body)
+	return len(tokens) > 1 && tokens[1].word && strings.EqualFold(tokens[1].text, "ANALYZE")
 }
 
 // explainFormatOf reads the format from an EXPLAIN the caller wrote, which the

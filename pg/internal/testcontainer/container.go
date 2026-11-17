@@ -74,13 +74,14 @@ func OpenRole(t testing.TB, role string) *sql.DB {
 // it differs with what the server made before; in a recording each such
 // value of a result column of type oid becomes a stand-in, 2^32 plus the
 // order in which the test first read that OID, the same in every
-// connection of the test. Stand-ins keep equality and are never sent back.
+// connection of the test to that server. Stand-ins keep equality and are
+// never sent back.
 func OpenRoleNumberingOIDs(t testing.TB, role string) *sql.DB {
 	t.Helper()
 	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
 		t.Helper()
 		c := live(t, pin).(connector)
-		c.oids = oidNumbering(enginetest.TopName(t.Name()))
+		c.oids = oidNumbering(enginetest.TopName(t.Name()), role)
 		return c
 	}}
 	return tape.Open(t, s, role)
@@ -90,24 +91,30 @@ func OpenRoleNumberingOIDs(t testing.TB, role string) *sql.DB {
 // below it, the same in every run of an image.
 const firstUserOID = 16384
 
-// oidNumbers holds each top-level test's stand-ins.
+// oidNumbers holds the stand-ins of each top-level test on each pin role.
+// One server's numbering covers that role alone: the same object of the
+// same corpus gets the same one on two pinned servers only while both
+// counters start at the same place, and a server another test has created
+// objects on does not, so a stand-in shared across roles would make a
+// tape depend on what the run did before.
 var oidNumbers = struct {
 	sync.Mutex
-	byTest map[string]*oids
-}{byTest: map[string]*oids{}}
+	byServer map[string]*oids
+}{byServer: map[string]*oids{}}
 
 type oids struct {
 	sync.Mutex
 	standIn map[int64]int64
 }
 
-func oidNumbering(top string) *oids {
+func oidNumbering(top, role string) *oids {
 	oidNumbers.Lock()
 	defer oidNumbers.Unlock()
-	o := oidNumbers.byTest[top]
+	key := top + "\x00" + role
+	o := oidNumbers.byServer[key]
 	if o == nil {
 		o = &oids{standIn: map[int64]int64{}}
-		oidNumbers.byTest[top] = o
+		oidNumbers.byServer[key] = o
 	}
 	return o
 }
@@ -144,8 +151,21 @@ func OpenDatabaseNumberingOIDs(t testing.TB, role, name string) *sql.DB {
 	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
 		t.Helper()
 		c := liveDatabase(t, pin, name).(connector)
-		c.oids = oidNumbering(enginetest.TopName(t.Name()))
+		c.oids = oidNumbering(enginetest.TopName(t.Name()), role)
 		return c
+	}}
+	return tape.Open(t, s, role)
+}
+
+// OpenMissingDatabase returns t's connection to a database the pinned server
+// does not have: the server refuses the connection, and a recording holds what it
+// answered. name must be one no test creates; the emptying below drops every
+// database the image did not start with and creates none.
+func OpenMissingDatabase(t testing.TB, role, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		return liveMissingDatabase(t, pin, name)
 	}}
 	return tape.Open(t, s, role)
 }
@@ -273,6 +293,28 @@ func liveDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connecto
 	return connector{Connector: stdlib.GetConnector(*in.config(name))}
 }
 
+// liveMissingDatabase is liveDatabase without the database's creation: it
+// empties the server as a test's first connection does, then connects to a name
+// the emptying has left absent.
+func liveMissingDatabase(t testing.TB, pin enginetest.Pin, name string) driver.Connector {
+	t.Helper()
+	in := started(t, pin)
+	top := enginetest.TopName(t.Name())
+	in.mu.Lock()
+	defer in.mu.Unlock()
+	if !in.emptied[top] {
+		db := sql.OpenDB(stdlib.GetConnector(*in.config("postgres")))
+		defer db.Close()
+		for _, stmt := range in.emptying(t, db) {
+			if _, err := db.ExecContext(context.Background(), stmt); err != nil {
+				t.Fatalf("%s: %v", stmt, err)
+			}
+		}
+		in.emptied[top] = true
+	}
+	return connector{Connector: stdlib.GetConnector(*in.config(name))}
+}
+
 // emptying returns the statements that drop every database but the image's
 // own and every role the image did not start with: what a test before this
 // one made, which a role, a server-wide object, would let this test see.
@@ -368,7 +410,7 @@ func (in *instance) start(ctx context.Context) (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	c, err := tcpg.Run(ctx, in.pin.Image,
+	c, err := tcpg.Run(ctx, in.pin.ImageRef(),
 		tcpg.WithDatabase("postgres"),
 		tcpg.WithUsername("postgres"),
 		tcpg.WithPassword("test"),
@@ -436,8 +478,10 @@ func Terminate() {
 	}
 }
 
-// CheckDigest fails unless c runs the image with the pinned repository
-// digest. A tag can be pushed again; a digest cannot.
+// CheckDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func CheckDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

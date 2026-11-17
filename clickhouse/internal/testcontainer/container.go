@@ -77,6 +77,34 @@ func Open(t testing.TB) *sql.DB {
 	return tape.Open(t, s, Default)
 }
 
+// OpenMissingDatabase returns t's connection to a database the pinned server
+// does not have. The client's handshake is refused, which is all ClickHouse
+// answers for a database that is not there, so a tape records the refused
+// connection. name must be one no test creates; the emptying below drops every
+// database the image did not start with and creates none.
+func OpenMissingDatabase(t testing.TB, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		if err := start(context.Background(), pin); err != nil {
+			t.Fatalf("ClickHouse: %v", err)
+		}
+		top := enginetest.TopName(t.Name())
+		server.mu.Lock()
+		defer server.mu.Unlock()
+		if !server.emptied[top] {
+			// empty keeps the database it is given and creates it if it is not
+			// there; the image's own is in systemDatabases and already there.
+			if err := empty(context.Background(), "default"); err != nil {
+				t.Fatalf("ClickHouse: empty the server for %s: %v", top, err)
+			}
+			server.emptied[top] = true
+		}
+		return connector(name)
+	}}
+	return tape.Open(t, s, Default)
+}
+
 // Database is the database Open selects for t: one per top-level test, named
 // for it, so a test reads the same name in every recording.
 func Database(t testing.TB) string {
@@ -152,7 +180,7 @@ func boot(ctx context.Context, pin enginetest.Pin) (err error) {
 	}()
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        pin.Image,
+			Image:        pin.ImageRef(),
 			ExposedPorts: []string{Port + "/tcp"},
 			Env:          map[string]string{"CLICKHOUSE_SKIP_USER_SETUP": "1"},
 			// The server's stdout carries the entrypoint's lines only; the
@@ -275,8 +303,10 @@ func escape(name string) string {
 	return strings.ReplaceAll(name, "`", "``")
 }
 
-// checkDigest fails unless c runs the image with the pinned repository
-// digest. A tag can be pushed again; a digest cannot.
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

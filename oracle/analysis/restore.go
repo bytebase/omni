@@ -167,6 +167,22 @@ func quoteOracleColumns(columns []string) string {
 	return strings.Join(quotedColumns, ", ")
 }
 
+// keyColumns returns the column names an index's expressions are, as the MERGE
+// statement and the nullability check name them: the sync writes a key column
+// quoted ("ID"), and an expression that is no column stays as it is, though no
+// function-based index can key a MERGE.
+func keyColumns(expressions []string) []string {
+	columns := make([]string, 0, len(expressions))
+	for _, expression := range expressions {
+		if len(expression) >= 2 && strings.HasPrefix(expression, `"`) && strings.HasSuffix(expression, `"`) {
+			columns = append(columns, strings.ReplaceAll(expression[1:len(expression)-1], `""`, `"`))
+			continue
+		}
+		columns = append(columns, expression)
+	}
+	return columns
+}
+
 func disjoint(a []string, b map[string]bool) bool {
 	for _, item := range a {
 		if _, ok := b[item]; ok {
@@ -176,33 +192,58 @@ func disjoint(a []string, b map[string]bool) bool {
 	return true
 }
 
+// indexKeys returns the key column lists an index offers a MERGE: one per
+// constraint it enforces, since a constraint's keys are its own columns — a
+// virtual column's too, which is how a function-based index enforces a unique
+// constraint — or the index's own keys when it enforces no constraint the sync
+// listed, which a function-based index's expressions are no columns of.
+func indexKeys(index *metadata.IndexMetadata) [][]string {
+	if len(index.GetConstraints()) == 0 {
+		if strings.Contains(index.Type, "FUNCTION-BASED") {
+			return nil
+		}
+		return [][]string{keyColumns(index.GetExpressions())}
+	}
+	keys := make([][]string, 0, len(index.GetConstraints()))
+	for _, constraint := range index.GetConstraints() {
+		if key := keyColumns(constraint.GetColumns()); len(key) > 0 {
+			keys = append(keys, key)
+		}
+	}
+	return keys
+}
+
 func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 	columnMap := make(map[string]bool)
 	for _, column := range columns {
 		columnMap[column] = true
 	}
 	if g.pk != nil {
-		if disjoint(g.pk.Expressions, columnMap) {
-			return g.pk.Expressions, nil
+		for _, key := range indexKeys(g.pk) {
+			if disjoint(key, columnMap) {
+				return key, nil
+			}
 		}
 	}
 	for _, index := range g.table.Indexes {
-		if index.Primary {
+		// A primary key's keys are unique too, and the caller need not have given
+		// the key g.pk holds, so the keys the index enforces are all tried.
+		//
+		// A unique constraint on a non-unique index enforces uniqueness all the
+		// same, which is what the metadata says of the index the constraint
+		// reuses: the index is not unique, and the constraint is.
+		if !index.Unique && !index.IsConstraint {
 			continue
 		}
-		if !index.Unique {
-			continue
-		}
-		if strings.Contains(index.Type, "FUNCTION-BASED") {
-			continue
-		}
-		// MERGE's ON never matches a NULL, so a row whose key holds one would
-		// be inserted again instead of updated.
-		if !g.notNull(index.Expressions) {
-			continue
-		}
-		if disjoint(index.Expressions, columnMap) {
-			return index.Expressions, nil
+		for _, key := range indexKeys(index) {
+			// MERGE's ON never matches a NULL, so a row whose key holds one
+			// would be inserted again instead of updated.
+			if !g.notNull(key) {
+				continue
+			}
+			if disjoint(key, columnMap) {
+				return key, nil
+			}
 		}
 	}
 	return nil, fmt.Errorf("no disjoint unique key found for %s.%s", g.originalDatabase, g.originalTable)

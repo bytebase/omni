@@ -26,6 +26,9 @@ GO
 EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'owner''s note', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'COLUMN', @level2name = N'bio';
 GO
 
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'balance never negative', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'accounts', @level2type = N'CONSTRAINT', @level2name = N'chk_accounts_balance';
+GO
+
 CREATE INDEX idx_accounts_status ON app.accounts (status) INCLUDE (email) WHERE status = 'open';
 GO
 
@@ -39,6 +42,9 @@ CREATE TABLE app.orders (
 	total INT NOT NULL,
 	note NVARCHAR(100) NULL
 );
+GO
+
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'an order belongs to an account', @level0type = N'SCHEMA', @level0name = N'app', @level1type = N'TABLE', @level1name = N'orders', @level2type = N'CONSTRAINT', @level2name = N'fk_orders_account';
 GO
 
 CREATE TABLE app.metrics (
@@ -94,6 +100,9 @@ CREATE TYPE app.big_id FROM BIGINT NOT NULL;
 GO
 
 CREATE SEQUENCE app.seq_alias AS app.big_id START WITH 1 INCREMENT BY 1;
+GO
+
+CREATE SEQUENCE app.seq_decimal AS DECIMAL(38, 0) START WITH 1 INCREMENT BY 1;
 GO
 
 CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS

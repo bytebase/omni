@@ -57,6 +57,134 @@ func TestDatabaseDefinitionSDLFormat(t *testing.T) {
 `,
 		},
 		{
+			// A partition is a table of its own that inherits its parent's
+			// columns, so SDL names it PARTITION OF its parent with the bound
+			// the server answered, and attaches its index to the parent's.
+			name: "Partitioned table with a sub-partitioned partition, a default partition and partitioned indexes",
+			metadata: &metadatapb.DatabaseSchemaMetadata{
+				Schemas: []*metadatapb.SchemaMetadata{
+					{
+						Name: "app",
+						Tables: []*metadatapb.TableMetadata{
+							{
+								Name: "Orders",
+								Columns: []*metadatapb.ColumnMetadata{
+									{Name: "Day", Type: "date", Nullable: false},
+									{Name: "Region", Type: "text", Nullable: false},
+								},
+								Indexes: []*metadatapb.IndexMetadata{
+									{Name: "orders_day", Expressions: []string{`"Day"`}, Type: "btree"},
+								},
+								Partitions: []*metadatapb.TablePartitionMetadata{
+									{
+										Name:       "Orders 2025",
+										Expression: `RANGE ("Day")`,
+										Value:      "FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')",
+										Indexes: []*metadatapb.IndexMetadata{
+											{Name: "orders_2025_day_idx", Expressions: []string{`"Day"`}, Type: "btree", ParentIndexName: "orders_day", ParentIndexSchema: "app"},
+										},
+										Subpartitions: []*metadatapb.TablePartitionMetadata{
+											{
+												Name:       "Orders 2025 EU",
+												Expression: `LIST ("Region")`,
+												Value:      "FOR VALUES IN ('eu')",
+												Indexes: []*metadatapb.IndexMetadata{
+													{Name: "orders_2025_eu_day_idx", Expressions: []string{`"Day"`}, Type: "btree", ParentIndexName: "orders_2025_day_idx", ParentIndexSchema: "app"},
+												},
+											},
+											{
+												Name:       "Orders 2025 Other",
+												Expression: `LIST ("Region")`,
+												Value:      "DEFAULT",
+											},
+										},
+									},
+									{
+										Name:       "Orders 2026",
+										Expression: `RANGE ("Day")`,
+										Value:      "FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: `CREATE SCHEMA IF NOT EXISTS "app";
+
+CREATE TABLE "app"."Orders" (
+    "Day" date NOT NULL,
+    "Region" text NOT NULL
+) PARTITION BY RANGE ("Day");
+
+CREATE TABLE "app"."Orders 2025" PARTITION OF "app"."Orders" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST ("Region");
+
+CREATE TABLE "app"."Orders 2025 EU" PARTITION OF "app"."Orders 2025" FOR VALUES IN ('eu');
+
+CREATE TABLE "app"."Orders 2025 Other" PARTITION OF "app"."Orders 2025" DEFAULT;
+
+CREATE TABLE "app"."Orders 2026" PARTITION OF "app"."Orders" FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+
+CREATE INDEX "orders_day" ON ONLY "app"."Orders" ("Day");
+
+CREATE INDEX "orders_2025_day_idx" ON ONLY "app"."Orders 2025" ("Day");
+
+ALTER INDEX "app"."orders_day" ATTACH PARTITION "app"."orders_2025_day_idx";
+
+CREATE INDEX "orders_2025_eu_day_idx" ON "app"."Orders 2025 EU" ("Day");
+
+ALTER INDEX "app"."orders_2025_day_idx" ATTACH PARTITION "app"."orders_2025_eu_day_idx";
+
+`,
+		},
+		{
+			// A partition's EXCLUDE constraint is written with its definition,
+			// not through the index that backs it, which a snapshot records
+			// beside it as a constraint index that is not unique.
+			name: "Partition with an EXCLUDE constraint of its own",
+			metadata: &metadatapb.DatabaseSchemaMetadata{
+				Schemas: []*metadatapb.SchemaMetadata{
+					{
+						Name: "app",
+						Tables: []*metadatapb.TableMetadata{
+							{
+								Name: "booking",
+								Columns: []*metadatapb.ColumnMetadata{
+									{Name: "room", Type: "integer", Nullable: true},
+									{Name: "span", Type: "tstzrange", Nullable: true},
+								},
+								Partitions: []*metadatapb.TablePartitionMetadata{
+									{
+										Name:       "booking_1",
+										Expression: "RANGE (room)",
+										Value:      "FOR VALUES FROM (1) TO (2)",
+										ExcludeConstraints: []*metadatapb.ExcludeConstraintMetadata{
+											{Name: "booking_1_no_overlap", Expression: "EXCLUDE USING gist (room WITH =, span WITH &&)"},
+										},
+										Indexes: []*metadatapb.IndexMetadata{
+											{Name: "booking_1_no_overlap", Type: "gist", IsConstraint: true, Expressions: []string{"room"}},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: `CREATE SCHEMA IF NOT EXISTS "app";
+
+CREATE TABLE "app"."booking" (
+    "room" integer,
+    "span" tstzrange
+) PARTITION BY RANGE (room);
+
+CREATE TABLE "app"."booking_1" PARTITION OF "app"."booking" (
+    CONSTRAINT "booking_1_no_overlap" EXCLUDE USING gist (room WITH =, span WITH &&)
+) FOR VALUES FROM (1) TO (2);
+
+`,
+		},
+		{
 			name: "Table with default values",
 			metadata: &metadatapb.DatabaseSchemaMetadata{
 				Schemas: []*metadatapb.SchemaMetadata{

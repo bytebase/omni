@@ -11,8 +11,9 @@
 // the state gocql returned for that page. Each cell is written with the Go type
 // its CQL column decodes to, because that is what the driver's row conversion
 // reads: a CQL time is a time.Duration, a decimal an *inf.Dec, and a list or a
-// user-defined type its JSON spelling. container_test.go holds that encoding to
-// every kind the driver converts.
+// user-defined type its JSON spelling. A NULL column is written as null, which
+// is the one cell that says nothing about the column's Go type.
+// container_test.go holds that encoding to every kind the driver converts.
 //
 // A tape records what gocql answered, not the wire traffic: the handshake, the
 // prepared statements the sync queries would otherwise use, and gocql's paging
@@ -30,6 +31,7 @@ import (
 	"fmt"
 	"math/big"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strconv"
 	"strings"
@@ -232,8 +234,11 @@ func encodeError(err error) *clientError {
 }
 
 // The Go types a cell is written as. A CQL column decodes to exactly one of
-// them, and the driver's row conversion keys on it.
+// them, and the driver's row conversion keys on it. A NULL column is
+// kindNull rather than a value of its Go type, since a NULL has none: the
+// tape says NULL once, not once per Go type that can be nil.
 const (
+	kindNull         = "null"
 	kindString       = "string"
 	kindInt          = "int"
 	kindInt64        = "int64"
@@ -255,7 +260,8 @@ const (
 
 // cell is one value as a tape holds it: the Go type it decoded to, whether the
 // column was NULL, and the value's spelling. A collection or a user-defined
-// type is its JSON text, which is what the driver shows.
+// type is its JSON text, which is what the driver shows. Null is what a tape
+// written before kindNull says instead; a replay reads both.
 type cell struct {
 	Kind   string `json:"kind"`
 	Null   bool   `json:"null,omitempty"`
@@ -267,85 +273,46 @@ type cell struct {
 
 // encodeCell reads one value gocql handed back.
 func encodeCell(v any) (cell, error) {
+	if isNull(v) {
+		return cell{Kind: kindNull}, nil
+	}
 	switch v := v.(type) {
 	case *string:
-		if v == nil {
-			return cell{Kind: kindString, Null: true}, nil
-		}
 		return cell{Kind: kindString, Text: *v}, nil
 	case *int:
-		if v == nil {
-			return cell{Kind: kindInt, Null: true}, nil
-		}
 		return cell{Kind: kindInt, Text: strconv.Itoa(*v)}, nil
 	case *int64:
-		if v == nil {
-			return cell{Kind: kindInt64, Null: true}, nil
-		}
 		return cell{Kind: kindInt64, Text: strconv.FormatInt(*v, 10)}, nil
 	case *int32:
-		if v == nil {
-			return cell{Kind: kindInt32, Null: true}, nil
-		}
 		return cell{Kind: kindInt32, Text: strconv.FormatInt(int64(*v), 10)}, nil
 	case *int16:
-		if v == nil {
-			return cell{Kind: kindInt16, Null: true}, nil
-		}
 		return cell{Kind: kindInt16, Text: strconv.FormatInt(int64(*v), 10)}, nil
 	case *int8:
-		if v == nil {
-			return cell{Kind: kindInt8, Null: true}, nil
-		}
 		return cell{Kind: kindInt8, Text: strconv.FormatInt(int64(*v), 10)}, nil
 	case *bool:
-		if v == nil {
-			return cell{Kind: kindBool, Null: true}, nil
-		}
 		return cell{Kind: kindBool, Text: strconv.FormatBool(*v)}, nil
 	case *float32:
-		if v == nil {
-			return cell{Kind: kindFloat32, Null: true}, nil
-		}
 		return cell{Kind: kindFloat32, Text: strconv.FormatFloat(float64(*v), 'g', -1, 32)}, nil
 	case *float64:
-		if v == nil {
-			return cell{Kind: kindFloat64, Null: true}, nil
-		}
 		return cell{Kind: kindFloat64, Text: strconv.FormatFloat(*v, 'g', -1, 64)}, nil
 	case *[]byte:
-		if v == nil {
-			return cell{Kind: kindBytes, Null: true}, nil
-		}
 		return cell{Kind: kindBytes, Text: base64.StdEncoding.EncodeToString(*v)}, nil
 	case *time.Time:
-		if v == nil {
-			return cell{Kind: kindTimestamp, Null: true}, nil
-		}
 		return cell{Kind: kindTimestamp, Text: v.Format(time.RFC3339Nano)}, nil
 	case *time.Duration:
-		if v == nil {
-			return cell{Kind: kindDuration, Null: true}, nil
-		}
 		return cell{Kind: kindDuration, Text: strconv.FormatInt(int64(*v), 10)}, nil
 	case *gocql.Duration:
-		if v == nil {
-			return cell{Kind: kindLongDuration, Null: true}, nil
-		}
 		return cell{Kind: kindLongDuration, Months: v.Months, Days: v.Days, Nanos: v.Nanoseconds}, nil
 	case *gocql.UUID:
-		if v == nil {
-			return cell{Kind: kindUUID, Null: true}, nil
-		}
 		return cell{Kind: kindUUID, Text: v.String()}, nil
 	case **inf.Dec:
-		if v == nil || *v == nil {
-			return cell{Kind: kindDecimal, Null: true}, nil
+		if *v == nil {
+			return cell{Kind: kindNull}, nil
 		}
 		return cell{Kind: kindDecimal, Text: (*v).String()}, nil
 	case **big.Int:
-		if v == nil || *v == nil {
-			return cell{Kind: kindVarint, Null: true}, nil
+		if *v == nil {
+			return cell{Kind: kindNull}, nil
 		}
 		return cell{Kind: kindVarint, Text: (*v).String()}, nil
 	default:
@@ -357,9 +324,21 @@ func encodeCell(v any) (cell, error) {
 	}
 }
 
+// isNull reports whether a value gocql handed back is a NULL: no value at all,
+// or the nil pointer a column whose Go type is itself a pointer decodes to.
+func isNull(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	return rv.Kind() == reflect.Ptr && rv.IsNil()
+}
+
 // decodeCell rebuilds the pointer gocql hands the driver for a cell.
 func decodeCell(c cell) (any, error) {
 	switch c.Kind {
+	case kindNull:
+		return nil, nil
 	case kindString:
 		if c.Null {
 			return (*string)(nil), nil
@@ -446,9 +425,14 @@ func decodeCell(c cell) (any, error) {
 		if c.Null {
 			return (*[]byte)(nil), nil
 		}
-		v, err := base64.StdEncoding.DecodeString(c.Text)
-		if err != nil {
-			return nil, err
+		// gocql appends into the target, so an empty blob leaves a nil slice.
+		var v []byte
+		if c.Text != "" {
+			decoded, err := base64.StdEncoding.DecodeString(c.Text)
+			if err != nil {
+				return nil, err
+			}
+			v = decoded
 		}
 		return &v, nil
 	case kindTimestamp:
@@ -608,6 +592,7 @@ var sessions = struct {
 }{byKeyspace: map[string]*gocql.Session{}}
 
 // liveSession returns the pinned server's session in keyspace, starting the
+// liveSession returns the pinned server's session in keyspace, starting the
 // container on the first call. Only a recording calls it.
 func liveSession(keyspace string) (*gocql.Session, error) {
 	sessions.Lock()
@@ -630,6 +615,18 @@ func liveSession(keyspace string) (*gocql.Session, error) {
 	return session, nil
 }
 
+// LiveSession returns the pinned server's session in keyspace, for a test that
+// holds the driver's own gocql read: a tape records the answers this package's
+// read got, never the driver's, so tape.Live gates the caller to a recording.
+func LiveSession(t testing.TB, keyspace string) *gocql.Session {
+	t.Helper()
+	session, err := liveSession(keyspace)
+	if err != nil {
+		t.Fatalf("start Cassandra: %v", err)
+	}
+	return session
+}
+
 // startContainer starts the pinned server and holds its address for the
 // sessions a recording opens.
 func startContainer() (err error) {
@@ -646,7 +643,7 @@ func startContainer() (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := testcontainers.Run(ctx, pin.Image,
+	container, err := testcontainers.Run(ctx, pin.ImageRef(),
 		testcontainers.WithEnv(map[string]string{
 			// A recording needs one node's answers, not a cluster's, and the
 			// heap the machine can spare.
@@ -698,6 +695,10 @@ func connect(keyspace string) (*gocql.Session, error) {
 	return session, nil
 }
 
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, container testcontainers.Container, digest string) error {
 	info, err := container.Inspect(ctx)
 	if err != nil {
@@ -804,7 +805,9 @@ func liveDo(t testing.TB, text, keyspace string) (string, error) {
 }
 
 // liveQuery is the page read the driver makes of gocql, against the pinned
-// server: one page, its columns, and the state that continues after it.
+// server: one page, its columns, and the state that continues after it. It
+// reads a column into a target one pointer deeper than RowData's, so a NULL
+// column records as NULL rather than as its type's zero value.
 func liveQuery(ctx context.Context, session *gocql.Session, statement string, pageSize int, pageState []byte) ([]gocql.ColumnInfo, []gocql.RowData, []byte, error) {
 	iter := session.Query(statement).PageSize(pageSize).PageState(pageState).IterContext(ctx)
 	defer func() { _ = iter.Close() }()
@@ -815,8 +818,15 @@ func liveQuery(ctx context.Context, session *gocql.Session, statement string, pa
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if !iter.Scan(rowData.Values...) {
+		targets := make([]any, len(rowData.Values))
+		for i, value := range rowData.Values {
+			targets[i] = reflect.New(reflect.TypeOf(value)).Interface()
+		}
+		if !iter.Scan(targets...) {
 			break
+		}
+		for i, target := range targets {
+			rowData.Values[i] = reflect.ValueOf(target).Elem().Interface()
 		}
 		rows = append(rows, rowData)
 	}

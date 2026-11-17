@@ -1026,11 +1026,14 @@ func validateSDLStmt(stmt nodes.Node) error {
 }
 
 // validateAlterTableSDL checks that an ALTER TABLE only contains RLS-related
-// subcommands (ENABLE/DISABLE/FORCE/NO FORCE ROW LEVEL SECURITY).
+// subcommands (ENABLE/DISABLE/FORCE/NO FORCE ROW LEVEL SECURITY). ALTER INDEX
+// may also attach a partition's index to its parent's: a partitioned index is
+// one index per partition, and SDL declares each of them.
 func validateAlterTableSDL(s *nodes.AlterTableStmt) error {
 	if s.Cmds == nil {
 		return nil
 	}
+	isIndex := nodes.ObjectType(s.ObjType) == nodes.OBJECT_INDEX
 	for _, item := range s.Cmds.Items {
 		cmd, ok := item.(*nodes.AlterTableCmd)
 		if !ok {
@@ -1043,6 +1046,10 @@ func validateAlterTableSDL(s *nodes.AlterTableStmt) error {
 			nodes.AT_ForceRowSecurity,
 			nodes.AT_NoForceRowSecurity:
 			// allowed
+		case nodes.AT_AttachPartition:
+			if !isIndex {
+				return fmt.Errorf("SDL does not allow ALTER TABLE ATTACH PARTITION")
+			}
 		default:
 			return fmt.Errorf("SDL does not allow ALTER TABLE ADD/DROP COLUMN")
 		}

@@ -3,11 +3,14 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
-	"errors"
+	gomssqldb "github.com/microsoft/go-mssqldb"
+
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
@@ -17,9 +20,41 @@ type tableKey struct {
 	Table  string
 }
 
-// SyncDatabase reads the full schema metadata of Config.Database.
+// SyncDatabase reads the full schema metadata of the driver's database. A
+// database that is not there is driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	txn, err := d.db.BeginTx(ctx, nil)
+	metadata, err := SyncDatabase(ctx, d.db, d.databaseName)
+	if err != nil {
+		return nil, wrapSyncError(d.databaseName, err)
+	}
+	return metadata, nil
+}
+
+// wrapSyncError reports a database SQL Server says it does not have as
+// driver.ErrNotFound: a sync names the database it reads, so its absence is the
+// object the call asked for and not a failure of the sync.
+//
+// 4060 and 911 are the server's answer for a database the login may not open;
+// 4063 is what it says when the login may fall back to its default database,
+// which go-mssqldb reports as the connect error. A database that is not there
+// is refused when the connection opens, so the answer arrives before any
+// statement does.
+func wrapSyncError(database string, err error) error {
+	var engineError gomssqldb.Error
+	if errors.As(err, &engineError) {
+		switch engineError.Number {
+		case 911, 4060, 4063:
+			return fmt.Errorf("%w: database %q does not exist", driver.ErrNotFound, database)
+		}
+	}
+	return err
+}
+
+// SyncDatabase reads the full schema metadata of database through db, a
+// connection the caller opened. The Driver method is this on its own pool; a
+// caller that owns a connection, such as a catalog fidelity test, calls this.
+func SyncDatabase(ctx context.Context, db *sql.DB, databaseName string) (*metadatapb.DatabaseSchemaMetadata, error) {
+	txn, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -27,45 +62,45 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 
 	schemaNames, err := getSchemas(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get schemas from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get schemas from database %q: %w", databaseName, err)
 	}
 	columnMap, err := getTableColumns(txn, schemaNames)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get table columns from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get table columns from database %q: %w", databaseName, err)
 	}
 	tableMap, err := getTables(txn, schemaNames, columnMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get tables from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get tables from database %q: %w", databaseName, err)
 	}
 	viewMap, err := getViews(txn, columnMap)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get views from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get views from database %q: %w", databaseName, err)
 	}
 	sequenceMap, err := getSequences(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get sequences from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get sequences from database %q: %w", databaseName, err)
 	}
 	functionMap, err := getFunctions(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get functions from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get functions from database %q: %w", databaseName, err)
 	}
 	procedureMap, err := getProcedures(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get procedures from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get procedures from database %q: %w", databaseName, err)
 	}
 	tableTriggers, viewTriggers, err := getTriggers(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get triggers from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get triggers from database %q: %w", databaseName, err)
 	}
 	synonymMap, err := getSynonyms(txn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get synonyms from database %q: %w", databaseName, err)
 	}
 	// Changes run as the user that syncs, so this is where their unqualified
 	// names land.
 	var defaultSchema string
 	if err := txn.QueryRow("SELECT SCHEMA_NAME()").Scan(&defaultSchema); err != nil {
-		return nil, fmt.Errorf("failed to get the default schema of database %q: %w", d.databaseName, err)
+		return nil, fmt.Errorf("failed to get the default schema of database %q: %w", databaseName, err)
 	}
 	for schemaName, tables := range tableMap {
 		for i := range tables {
@@ -89,7 +124,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
-		Name:          d.databaseName,
+		Name:          databaseName,
 		DefaultSchema: defaultSchema,
 	}
 	for _, schemaName := range schemaNames {
@@ -242,11 +277,16 @@ func getTables(txn *sql.Tx, schemas []string, columnMap map[tableKey][]*metadata
 
 	// Get table row counts separately
 	rowCountMap := make(map[int]int64)
-	rowCountQuery := `
-		SELECT object_id, SUM(row_count) AS total_rows
-		FROM sys.dm_db_partition_stats
-		WHERE index_id < 2
-		GROUP BY object_id`
+	// Only a synced schema's user tables contribute a row count. Internal
+	// tables such as the plan cache would make the answer depend on what the
+	// server has executed.
+	rowCountQuery := fmt.Sprintf(`
+		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+		FROM sys.dm_db_partition_stats ps
+		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+		WHERE ps.index_id < 2 AND s.name IN (%s)
+		GROUP BY ps.object_id`, quoteList(schemas))
 	rowCountRows, err := txn.Query(rowCountQuery)
 	if err == nil {
 		defer rowCountRows.Close()
@@ -398,14 +438,9 @@ func getChecks(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.CheckC
 			Name:       checkName.String,
 			Expression: definition.String,
 		}
-		// TODO: Join with comments when CheckConstraintMetadata supports it
-		// Currently the proto doesn't support comments for check constraints
-		// When support is added, use:
-		// if objectID.Valid {
-		//     if comment, ok := checkCommentsMap[int(objectID.Int32)]; ok {
-		//         check.Comment = comment
-		//     }
-		// }
+		if objectID.Valid {
+			check.Comment = checkCommentsMap[int(objectID.Int32)]
+		}
 		checkMap[key] = append(checkMap[key], check)
 	}
 	if err := rows.Err(); err != nil {
@@ -507,14 +542,9 @@ func getForeignKeys(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.F
 				ReferencedSchema: referencedSchemaName.String,
 				ReferencedTable:  referencedTableName.String,
 			}
-			// TODO: Join with comments when ForeignKeyMetadata supports it
-			// Currently the proto doesn't support comments for foreign keys
-			// When support is added, use:
-			// if objectID.Valid {
-			//     if comment, ok := fkCommentsMap[int(objectID.Int32)]; ok {
-			//         fk.Comment = comment
-			//     }
-			// }
+			if objectID.Valid {
+				fk.Comment = fkCommentsMap[int(objectID.Int32)]
+			}
 
 			if onDelete.Valid {
 				fk.OnDelete = referentialAction(int(onDelete.Int32))
@@ -851,18 +881,22 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		i.name,
 		i.type_desc,
 		i.is_unique,
+		i.filter_definition,
+		xi.secondary_type_desc,
+		pi.name AS using_index_name,
 		col.name AS column_name,
+		ic.key_ordinal,
+		ic.is_included_column,
 		ic.is_descending_key
 	FROM sys.indexes i
 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 		AND s.name in (%s) AND o.type IN ('U', 'S', 'V')
-		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
-		-- key; a columnstore or XML index states every one of its columns that way.
-		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 	`, quoteList(schemas))
 	rows, err := txn.Query(query)
@@ -870,11 +904,14 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		return nil, err
 	}
 	defer rows.Close()
+	includeMap := make(map[*metadatapb.IndexMetadata][]string)
 	for rows.Next() {
 		var schemaName, tableName, indexName, typeDesc, colName sql.NullString
-		var objectID, indexID sql.NullInt32
-		var isUnique, isDescending sql.NullBool
-		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique, &colName, &isDescending); err != nil {
+		var objectID, indexID, keyOrdinal sql.NullInt32
+		var isUnique, isIncluded, isDescending sql.NullBool
+		var filterDefinition, secondaryTypeDesc, usingIndexName sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique,
+			&filterDefinition, &secondaryTypeDesc, &usingIndexName, &colName, &keyOrdinal, &isIncluded, &isDescending); err != nil {
 			return nil, err
 		}
 
@@ -897,6 +934,20 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 			}
 			if typeDesc.Valid {
 				index.Type = typeDesc.String
+				if filterDefinition.Valid && strings.TrimSpace(filterDefinition.String) != "" &&
+					typeDesc.String != "XML" && typeDesc.String != "SPATIAL" {
+					index.Definition = "WHERE " + strings.TrimSpace(filterDefinition.String)
+				}
+				if typeDesc.String == "XML" {
+					if usingIndexName.Valid {
+						index.Definition = "USING XML INDEX " + usingIndexName.String
+						if secondaryTypeDesc.Valid {
+							index.Definition += " FOR " + secondaryTypeDesc.String
+						}
+					} else {
+						index.Definition = "PRIMARY"
+					}
+				}
 				// If this is a spatial index, populate basic spatial config
 				if typeDesc.String == "SPATIAL" {
 					index.SpatialConfig = &metadatapb.SpatialIndexConfig{
@@ -921,15 +972,38 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 			indexMap[key][indexName.String] = index
 		}
 
-		indexMap[key][indexName.String].Expressions = append(indexMap[key][indexName.String].Expressions, colName.String)
-		if isDescending.Valid && isDescending.Bool {
-			indexMap[key][indexName.String].Descending = append(indexMap[key][indexName.String].Descending, true)
-		} else {
-			indexMap[key][indexName.String].Descending = append(indexMap[key][indexName.String].Descending, false)
+		index := indexMap[key][indexName.String]
+		// A columnstore or XML index reports every column at key_ordinal 0.
+		// A partitioned rowstore index reports a partitioning column left out
+		// of its key and INCLUDE list the same way, and that column belongs to
+		// neither list.
+		columnstoreOrXML := typeDesc.String == "CLUSTERED COLUMNSTORE" || typeDesc.String == "NONCLUSTERED COLUMNSTORE" || typeDesc.String == "XML"
+		switch {
+		case isIncluded.Valid && isIncluded.Bool && !columnstoreOrXML:
+			includeMap[index] = append(includeMap[index], colName.String)
+			continue
+		case keyOrdinal.Valid && keyOrdinal.Int32 > 0, columnstoreOrXML:
+		default:
+			continue
 		}
+		index.Expressions = append(index.Expressions, colName.String)
+		index.Descending = append(index.Descending, isDescending.Valid && isDescending.Bool)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	for _, indexes := range indexMap {
+		for _, index := range indexes {
+			if len(includeMap[index]) == 0 {
+				continue
+			}
+			include := "INCLUDE:" + strings.Join(includeMap[index], "\x00")
+			if index.Definition != "" {
+				index.Definition = include + " " + index.Definition
+			} else {
+				index.Definition = include
+			}
+		}
 	}
 
 	tableIndexes := make(map[tableKey][]*metadatapb.IndexMetadata)
@@ -1451,6 +1525,16 @@ func getKeyAndIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb
 	return keys, nil
 }
 
+// encryptedDefinition is what a sync writes where the server withholds an
+// encrypted module's body: a comment, so a dump that applies it creates
+// nothing. mssql/catalog's hasRestorableDefinition recognizes exactly this
+// text, which is why the module's comment is not attached to an object the
+// dump never creates; TestDumpKeepsAnEncryptedModuleCommentOut holds the two
+// ends together.
+func encryptedDefinition(kind, qualifiedName string) string {
+	return fmt.Sprintf("/* Definition of %s %s is encrypted. */", kind, qualifiedName)
+}
+
 // getViews gets all views of a database.
 func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
 	viewMap := make(map[string][]*metadatapb.ViewMetadata)
@@ -1512,7 +1596,7 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) 
 			// https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-all-sql-modules-transact-sql?view=sql-server-ver16
 			// https://www.mssqltips.com/sqlservertip/7465/encrypt-stored-procedure-sql-server/
 			// We will write a pseudo definition in pure comment.
-			viewDefinition = fmt.Sprintf("/* Definition of view %s.%s is encrypted. */", schemaName, view.Name)
+			viewDefinition = encryptedDefinition("view", schemaName+"."+view.Name)
 		} else {
 			viewDefinition = definition.String
 		}
@@ -1606,7 +1690,7 @@ ORDER BY st.name;
 		if err := rows.Scan(&objectID, &name, &events, &timing, &body, &parentName, &schemaName, &parentType); err != nil {
 			return nil, nil, err
 		}
-		bodyString := fmt.Sprintf("/* Definition of trigger %s.%s.%s is encrypted. */", schemaName, parentName, name)
+		bodyString := encryptedDefinition("trigger", schemaName+"."+parentName+"."+name)
 		if body.Valid {
 			bodyString = body.String
 		}
@@ -1643,6 +1727,14 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 		s.name,
 		seq.name,
 		tp.name,
+		seq.precision,
+		seq.scale,
+		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+		seq.is_cycling,
+		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 	FROM
 		sys.sequences seq
@@ -1665,10 +1757,23 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
 		var schemaName string
-		var comment sql.NullString
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &comment); err != nil {
+		var precision, scale sql.NullInt32
+		var start, increment, minValue, maxValue, cacheSize, comment sql.NullString
+		var isCycling sql.NullBool
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &precision, &scale,
+			&start, &increment, &minValue, &maxValue, &isCycling, &cacheSize, &comment); err != nil {
 			return nil, err
 		}
+		if (strings.EqualFold(sequence.DataType, "decimal") || strings.EqualFold(sequence.DataType, "numeric")) &&
+			precision.Valid && scale.Valid {
+			sequence.DataType = fmt.Sprintf("%s(%d,%d)", sequence.DataType, precision.Int32, scale.Int32)
+		}
+		sequence.Start = start.String
+		sequence.Increment = increment.String
+		sequence.MinValue = minValue.String
+		sequence.MaxValue = maxValue.String
+		sequence.Cycle = isCycling.Valid && isCycling.Bool
+		sequence.CacheSize = cacheSize.String
 		if comment.Valid {
 			sequence.Comment = comment.String
 		}
@@ -1688,9 +1793,14 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 	SELECT
 		SCHEMA_NAME(ao.schema_id) AS schema_name,
 		ao.name AS procedure_name,
-		asm.definition
+		asm.definition,
+		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 	FROM sys.all_objects ao
         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+			AND ep.minor_id = 0
+			AND ep.class = 1
+			AND ep.name = 'MS_Description'
 	WHERE ao.type IN ('P', 'RF')
 		AND ao.is_ms_shipped = 0 AND
 		(
@@ -1710,8 +1820,8 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 	for rows.Next() {
 		procedure := &metadatapb.ProcedureMetadata{}
 		var schemaName string
-		var definition sql.NullString
-		if err := rows.Scan(&schemaName, &procedure.Name, &definition); err != nil {
+		var definition, comment sql.NullString
+		if err := rows.Scan(&schemaName, &procedure.Name, &definition, &comment); err != nil {
 			return nil, err
 		}
 		var procedureDefinition string
@@ -1720,11 +1830,14 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 			// https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-all-sql-modules-transact-sql?view=sql-server-ver16
 			// https://www.mssqltips.com/sqlservertip/7465/encrypt-stored-procedure-sql-server/
 			// We will write a pseudo definition in pure comment.
-			procedureDefinition = fmt.Sprintf("/* Definition of procedure %s.%s is encrypted. */", schemaName, procedure.Name)
+			procedureDefinition = encryptedDefinition("procedure", schemaName+"."+procedure.Name)
 		} else {
 			procedureDefinition = definition.String
 		}
 		procedure.Definition = procedureDefinition
+		if comment.Valid {
+			procedure.Comment = comment.String
+		}
 		procedureMap[schemaName] = append(procedureMap[schemaName], procedure)
 	}
 	if err := rows.Err(); err != nil {
@@ -1779,7 +1892,7 @@ func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error
 			// https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-all-sql-modules-transact-sql?view=sql-server-ver16
 			// https://www.mssqltips.com/sqlservertip/7465/encrypt-stored-procedure-sql-server/
 			// We will write a pseudo definition in pure comment.
-			functionDefinition = fmt.Sprintf("/* Definition of function %s.%s is encrypted. */", schemaName, function.Name)
+			functionDefinition = encryptedDefinition("function", schemaName+"."+function.Name)
 		} else {
 			functionDefinition = definition.String
 		}

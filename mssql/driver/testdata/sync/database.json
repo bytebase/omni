@@ -123,7 +123,8 @@
               "descending":  [
                 false
               ],
-              "type":  "NONCLUSTERED"
+              "type":  "NONCLUSTERED",
+              "definition":  "INCLUDE:email WHERE ([status]='open')"
             },
             {
               "name":  "pxml_accounts_doc",
@@ -133,14 +134,16 @@
               "descending":  [
                 false
               ],
-              "type":  "XML"
+              "type":  "XML",
+              "definition":  "PRIMARY"
             }
           ],
           "comment":  "customer accounts",
           "checkConstraints":  [
             {
               "name":  "chk_accounts_balance",
-              "expression":  "([balance]>=(0))"
+              "expression":  "([balance]>=(0))",
+              "comment":  "balance never negative"
             }
           ]
         },
@@ -242,7 +245,8 @@
                 "id"
               ],
               "onDelete":  "CASCADE",
-              "onUpdate":  "NO ACTION"
+              "onUpdate":  "NO ACTION",
+              "comment":  "an order belongs to an account"
             }
           ],
           "triggers":  [
@@ -305,11 +309,29 @@
       "sequences":  [
         {
           "name":  "seq_alias",
-          "dataType":  "big_id"
+          "dataType":  "big_id",
+          "start":  "1",
+          "minValue":  "-9223372036854775808",
+          "maxValue":  "9223372036854775807",
+          "increment":  "1"
+        },
+        {
+          "name":  "seq_decimal",
+          "dataType":  "decimal(38,0)",
+          "start":  "1",
+          "minValue":  "-99999999999999999999999999999999999999",
+          "maxValue":  "99999999999999999999999999999999999999",
+          "increment":  "1"
         },
         {
           "name":  "seq_orders",
           "dataType":  "bigint",
+          "start":  "10",
+          "minValue":  "1",
+          "maxValue":  "10000",
+          "increment":  "2",
+          "cycle":  true,
+          "cacheSize":  "50",
           "comment":  "order sequence"
         }
       ],

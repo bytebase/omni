@@ -1963,6 +1963,11 @@ func writeSchemaForeignKeys(out io.Writer, schema *metadatapb.SchemaMetadata, ta
 			if err := writeForeignKey(out, schema.Name, table.Name, fk); err != nil {
 				return err
 			}
+			if len(fk.Comment) > 0 {
+				if err := writeConstraintComment(out, schema.Name, table.Name, fk.Name, fk.Comment); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -2030,6 +2035,14 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 	for _, column := range table.Columns {
 		if len(column.Comment) > 0 {
 			if err := writeColumnComment(out, schema, table.Name, column); err != nil {
+				return err
+			}
+		}
+	}
+
+	for _, check := range table.CheckConstraints {
+		if len(check.Comment) > 0 {
+			if err := writeConstraintComment(out, schema, table.Name, check.Name, check.Comment); err != nil {
 				return err
 			}
 		}
@@ -2458,7 +2471,7 @@ func writeUniqueKey(out io.Writer, schema string, table string, index *metadatap
 	}
 
 	if len(index.Comment) > 0 {
-		if err := writeConstraintComment(out, schema, table, index); err != nil {
+		if err := writeConstraintComment(out, schema, table, index.Name, index.Comment); err != nil {
 			return err
 		}
 	}
@@ -2520,7 +2533,7 @@ func writePrimaryKey(out io.Writer, schema string, table string, index *metadata
 	}
 
 	if len(index.Comment) > 0 {
-		if err := writeConstraintComment(out, schema, table, index); err != nil {
+		if err := writeConstraintComment(out, schema, table, index.Name, index.Comment); err != nil {
 			return err
 		}
 	}
@@ -2528,12 +2541,15 @@ func writePrimaryKey(out io.Writer, schema string, table string, index *metadata
 	return nil
 }
 
-func writeConstraintComment(out io.Writer, schema string, table string, index *metadatapb.IndexMetadata) error {
+// writeConstraintComment writes COMMENT ON CONSTRAINT for a constraint the
+// engine states a comment beside: a key constraint (carried as an index), a
+// check constraint or a foreign key.
+func writeConstraintComment(out io.Writer, schema string, table string, name string, comment string) error {
 	if _, err := io.WriteString(out, `COMMENT ON CONSTRAINT "`); err != nil {
 		return err
 	}
 
-	if _, err := io.WriteString(out, index.Name); err != nil {
+	if _, err := io.WriteString(out, name); err != nil {
 		return err
 	}
 
@@ -2557,7 +2573,7 @@ func writeConstraintComment(out io.Writer, schema string, table string, index *m
 		return err
 	}
 
-	if _, err := io.WriteString(out, escapeSingleQuote(index.Comment)); err != nil {
+	if _, err := io.WriteString(out, escapeSingleQuote(comment)); err != nil {
 		return err
 	}
 
@@ -2677,6 +2693,17 @@ func writePartitionTable(out io.Writer, schema string, columns []*metadatapb.Col
 
 	if _, err := io.WriteString(out, ";\n\n"); err != nil {
 		return err
+	}
+
+	// A partition's check constraint comment is a statement of its own: written
+	// into the CREATE TABLE before its optional PARTITION BY clause, it would
+	// not parse.
+	for _, check := range partition.CheckConstraints {
+		if len(check.Comment) > 0 {
+			if err := writeConstraintComment(out, schema, partition.Name, check.Name, check.Comment); err != nil {
+				return err
+			}
+		}
 	}
 
 	// Construct subpartition tables.

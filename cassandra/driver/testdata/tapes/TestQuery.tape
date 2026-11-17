@@ -78,10 +78,22 @@
 < raw
 | {}
 > raw
+| {"op":"exec","statement":"-- One row of every CQL type holding NULL, and one holding the type's zero\n-- value: the contract's Null and a zero value must not read alike. A collection\n-- is the exception: Cassandra stores an empty list, set or map as NULL, so those\n-- three stay NULL in the zero row and Null is what the driver reads.\nCREATE TABLE omni_nulls (\n    id int PRIMARY KEY,\n    n int,\n    txt text,\n    ascii_col ascii,\n    vc varchar,\n    flag boolean,\n    bi bigint,\n    ti tinyint,\n    si smallint,\n    dbl double,\n    flt float,\n    dec decimal,\n    vi varint,\n    ts timestamp,\n    dt date,\n    tm time,\n    uid uuid,\n    tuid timeuuid,\n    bl blob,\n    dur duration,\n    lst list\u003cint\u003e,\n    st set\u003ctext\u003e,\n    mp map\u003ctext,int\u003e,\n    addr inet,\n    tup tuple\u003cint, text\u003e\n)"}
+< raw
+| {}
+> raw
+| {"op":"exec","statement":"INSERT INTO omni_nulls (id) VALUES (1)"}
+< raw
+| {}
+> raw
+| {"op":"exec","statement":"INSERT INTO omni_nulls (\n    id, n, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup\n) VALUES (\n    2, 0, '', '', '', false, 0, 0, 0, 0, 0, 0, 0, 0, '1970-01-01', 0,\n    00000000-0000-0000-0000-000000000000, 00000000-0000-1000-0000-000000000000,\n    0x, 0s, NULL, NULL, NULL, '0.0.0.0', (0, '')\n)"}
+< raw
+| {}
+> raw
 | {"op":"query","statement":"SELECT id, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup\n\t\tFROM omni_types WHERE id = 1"}
 < raw
 | {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"ascii_col","type":1},{"name":"vc","type":13},{"name":"flag","type":4},{"name":"bi","type":2},{"name":"ti","type":20},{"name":"si","type":19},{"name":"dbl","type":7},{"name":"flt","type":8},{"name":"dec","type":6},{"name":"vi","type":14},{"name":"ts","type":11},{"name":"dt","type":17},{"name":"tm","type":18},{"name":"uid","type":12},{"name":"tuid","type":15},{"name":"bl","type":3},{"name":"dur","type":21},{"name":"lst","type":32},{"name":"st","type":34},{"name":"mp","type":33},{"name":"addr","type":16},{"name":"tup","type":49,"tupleElements":2}],"rowColumns":["id","txt","ascii_col","vc","flag","bi","ti","si","dbl","flt","dec","vi","ts","dt","tm","uid","tuid","bl","dur","lst","st","mp","addr","tup[0]","tup[1]"],"rows":[[{"kind":"int","text":"1"},{"kind":"string","text":"text value"},{"kind":"string","text":"ascii"},{"kind":"string","text":"varchar"},{"kind":"bool","text":"true"},{"kind":"int64","text":"9223372036854775807"},{"kind":"int8","text":"7"},{"kind":"int16","text":"300"},{"kind":"float64","text":"3.5"},{"kind":"float32","text":"1.25"},{"kind":"inf.Dec","text":"1.5"},{"kind":"big.Int","text":"123456789012345678901234567890"},{"kind":"timestamp","text":"2026-01-02T03:04:05.678Z"},{"kind":"timestamp","text":"2026-01-02T00:00:00Z"},{"kind":"duration","text":"29574123456789"},{"kind":"uuid","text":"6afaf7c2-c0c2-0ddc-7f22-71b8f0a0b0c0"},{"kind":"uuid","text":"50554d6e-29bb-11e5-b345-feff819cdc9f"},{"kind":"bytes","text":"3q2+7w=="},{"kind":"gocql.Duration","months":1,"days":2,"nanos":10800000000000},{"kind":"json","text":"[1,2,3]"},{"kind":"json","text":"[\"a\",\"b\"]"},{"kind":"json","text":"{\"a\":1,\"b\":2}"},{"kind":"json","text":"\"10.0.0.1\""},{"kind":"int","text":"7"},{"kind":"string","text":"seven"}]]}
 > raw
 | {"op":"query","statement":"SELECT id, txt, dec, vi FROM omni_types WHERE id = 2"}
 < raw
-| {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"dec","type":6},{"name":"vi","type":14}],"rowColumns":["id","txt","dec","vi"],"rows":[[{"kind":"int","text":"2"},{"kind":"string"},{"kind":"inf.Dec","null":true},{"kind":"big.Int","null":true}]]}
+| {"columns":[{"name":"id","type":9},{"name":"txt","type":13},{"name":"dec","type":6},{"name":"vi","type":14}],"rowColumns":["id","txt","dec","vi"],"rows":[[{"kind":"int","text":"2"},{"kind":"null"},{"kind":"null"},{"kind":"null"}]]}

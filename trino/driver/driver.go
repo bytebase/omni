@@ -15,10 +15,19 @@
 // opts.Transaction says; opts.Isolation and opts.MaxRetries do nothing.
 // Config.ReadOnly is ignored: the driver cannot open a read-only session.
 //
+// QueryOptions.Explain runs the statement's plan in ExplainFormat. Result.Plan
+// is set for a statement that is a plan, whatever asked for it: its Format is
+// the one the statement states (TYPE IO answers JSON unless a FORMAT option says
+// otherwise, and TYPE VALIDATE answers no plan), and only EXPLAIN ANALYZE, which
+// the driver runs as written, executed the statement it plans. The rows are the
+// plan, so Content stays empty.
+//
 // A statement's update count reaches the caller only on the client's exec path,
 // so the driver sends a statement that returns no rows through Executor.
 // Querier decides which statements return rows from their leading keyword;
-// see session.Query.
+// see session.Query. Result.AffectedRows is 0 for a statement that reports no
+// count, such as DDL: the client states the statement's update count as a
+// number, and 0 is what a statement with none reports.
 //
 // Config.TLS supplies the TLS settings for the one host the client dials and
 // selects https; nil selects http. Config.Dial, when set, becomes the

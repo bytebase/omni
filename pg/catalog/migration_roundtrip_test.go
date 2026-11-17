@@ -93,6 +93,21 @@ func TestMigrationRoundtrip(t *testing.T) {
 		assertRoundtrip(t, fromSQL, toSQL)
 	})
 
+	t.Run("roundtrip partitioned table from empty", func(t *testing.T) {
+		fromSQL := ``
+		toSQL := `
+			CREATE TABLE measure (city int NOT NULL, day date NOT NULL, region text NOT NULL, PRIMARY KEY (city, day))
+				PARTITION BY RANGE (day);
+			CREATE TABLE measure_2025 PARTITION OF measure
+				FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
+			CREATE TABLE measure_2025_eu PARTITION OF measure_2025 FOR VALUES IN ('eu');
+			CREATE TABLE measure_2025_rest PARTITION OF measure_2025 DEFAULT;
+			CREATE TABLE measure_2026 PARTITION OF measure FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+			CREATE INDEX measure_city ON measure (city, day);
+		`
+		assertRoundtrip(t, fromSQL, toSQL)
+	})
+
 	t.Run("roundtrip composite type add field", func(t *testing.T) {
 		fromSQL := `CREATE TYPE address AS (street text, city text);`
 		toSQL := `CREATE TYPE address AS (street text, city text, zip varchar(10));`

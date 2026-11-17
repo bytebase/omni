@@ -107,6 +107,7 @@ ALTER TABLE app.customer OWNER TO corpus_owner;
 COMMENT ON TABLE app.customer IS 'who buys';
 COMMENT ON COLUMN app.customer.email IS 'unique email';
 COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 CREATE INDEX customer_tags ON app.customer USING gin (tags);
 CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -129,6 +130,7 @@ CREATE TABLE app.orders (
     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 );
+COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 
 CREATE TABLE app.booking (
     room int,
@@ -158,6 +160,8 @@ CREATE TABLE app.measurement (
     region text NOT NULL,
     peak int CHECK (peak > -100)
 ) PARTITION BY RANGE (logdate);
+-- Before the partitions, so their clones of the constraint carry it too.
+COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -167,10 +171,25 @@ CREATE TABLE app.measurement_2026 PARTITION OF app.measurement
 CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 COMMENT ON TABLE app.measurement_2026 IS 'this year';
+COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 
 CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
 CREATE TABLE app.sharded_1 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 1);
+
+-- A partition's own name can be quoted and mixed case, its bounds can be
+-- multi-column with MINVALUE and MAXVALUE, and a table created on its own can
+-- be attached with a CHECK and an index of its own.
+CREATE TABLE app."Own Measure" ("Id" int NOT NULL, "On" date NOT NULL) PARTITION BY RANGE ("On");
+CREATE TABLE app."Own Measure 2025" PARTITION OF app."Own Measure" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+CREATE INDEX own_measure_id ON app."Own Measure" ("Id");
+CREATE TABLE app.multi_bound (a int NOT NULL, b int NOT NULL) PARTITION BY RANGE (a, b);
+CREATE TABLE app.multi_bound_low PARTITION OF app.multi_bound FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
+CREATE TABLE app.multi_bound_high PARTITION OF app.multi_bound FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+CREATE TABLE app.attached (id int NOT NULL, v text) PARTITION BY LIST (v);
+CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
+ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
+CREATE INDEX attached_x_id ON app.attached_x (id);
 
 -- Views, dependencies, rules, triggers on views.
 CREATE VIEW app.happy_customer AS

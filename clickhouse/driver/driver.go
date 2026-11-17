@@ -34,13 +34,33 @@
 // statement with EXPLAIN, and JSON with `indexes = 1`; a statement that already
 // starts with EXPLAIN runs as written. QueryOptions.MaskingEnabled does
 // nothing: a ClickHouse query returns only the columns its statement traces.
-// Result.Plan stays nil because ClickHouse answers a plan as rows and nothing
-// here states its format.
+// Result.Plan is set for a statement that is a plan, whatever asked for it: its
+// Format is the one the statement states, and its Executed is true only for
+// EXPLAIN ANALYZE, which is the one kind that runs what it plans. The rows are
+// the plan, so Content stays empty.
 //
 // ExecuteOptions.CreateDatabase and ExecuteOptions.MaxRetries do nothing:
 // Bytebase ignored them. ExecuteOptions.Isolation is passed to the client when
 // it is set; ClickHouse's transactions are limited and clickhouse-go's begin is
 // a no-op, so it may have no effect.
+//
+// A statement's error unwraps to *clickhouse.Exception, which carries the
+// server's error code and message. A connection the server refuses, as for a
+// database it does not have (UNKNOWN_DATABASE, 81), fails with the same type
+// before any statement is sent.
+//
+// Result.AffectedRows is nil for every statement that returns no rows, and
+// Execute answers 0, because the client states no count on the path this driver
+// holds. ClickHouse does count what a statement wrote, and says so twice: the
+// native protocol's Progress packet carries written rows, which the HTTP
+// interface reports as X-ClickHouse-Summary's written_rows. Neither reaches this
+// driver's session: the packets go to a callback registered on the statement's
+// context, and database/sql's own result states RowsAffected() = 0 with no error
+// for every statement, INSERT included, so that 0 is not a count it has. Reading
+// the callback would also make an answer depend on whether a recording or a
+// replay was underneath, since a tape holds the statements and rows and not the
+// packets, and nil is the answer both give. A statement that states no count and
+// one whose count is unreachable therefore read the same here.
 package driver
 
 import (

@@ -31,6 +31,11 @@ CREATE INDEX idx_mv_email ON mv_accounts (email); -- not restorable: TestDumpGap
 CREATE VIEW v_open_accounts AS
 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 
+CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+
+CREATE VIEW v_named_cols_ref AS
+	SELECT renamed_id FROM v_named_cols;
+
 CREATE FUNCTION fn_format_tag(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT)
 RETURNS VARCHAR(64) CHARSET utf8mb4 COLLATE utf8mb4_general_ci
 DETERMINISTIC

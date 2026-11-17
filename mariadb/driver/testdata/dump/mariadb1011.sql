@@ -2,6 +2,18 @@ SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 SET @OLD_EXPLICIT_DEFAULTS_FOR_TIMESTAMP=@@EXPLICIT_DEFAULTS_FOR_TIMESTAMP, EXPLICIT_DEFAULTS_FOR_TIMESTAMP=1;
 --
+-- Temporary view structure for `v_named_cols`
+--
+CREATE VIEW `v_named_cols` AS SELECT
+  1 AS `renamed_id`;
+
+--
+-- Temporary view structure for `v_named_cols_ref`
+--
+CREATE VIEW `v_named_cols_ref` AS SELECT
+  1 AS `renamed_id`;
+
+--
 -- Temporary view structure for `v_open_accounts`
 --
 CREATE VIEW `v_open_accounts` AS SELECT
@@ -118,6 +130,16 @@ END;;
 DELIMITER ;
 
 SET character_set_client = @saved_cs_client, character_set_results = @saved_cs_results, collation_connection = @saved_col_connection, sql_mode = @saved_sql_mode;
+--
+-- View structure for `v_named_cols`
+--
+CREATE OR REPLACE VIEW `v_named_cols` AS select `accounts`.`id` AS `renamed_id` from `accounts`;
+
+--
+-- View structure for `v_named_cols_ref`
+--
+CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`;
+
 --
 -- View structure for `v_open_accounts`
 --

@@ -648,6 +648,86 @@ func TestQuerySpan_WithinGroupColumns(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// Subquery expressions in the SELECT list
+// ---------------------------------------------------------------------------
+//
+// A scalar subquery or EXISTS in a target expression is extracted as its own
+// span, so every table it reads belongs to the enclosing span's Sources. Its
+// lineage is deliberately kept out of the result column: without a catalog a
+// bare column reference inside the subquery cannot be told apart from a
+// correlated reference to an enclosing query, and guessing a table would
+// under-attribute for masking.
+
+func TestQuerySpan_ScalarSubqueryReadsAreReported(t *testing.T) {
+	span := mustExtract(t, "SELECT (SELECT MAX(inner_col) FROM inner_t) AS m FROM outer_t")
+
+	for _, want := range []string{"..INNER_T.*", "..INNER_T.INNER_COL"} {
+		if !hasSrcKey(span, want) {
+			t.Errorf("expected %s in sources, got %v", want, sourceKeys(span))
+		}
+	}
+	// Documented limitation: the scalar subquery's lineage stays out of the
+	// result column, while its table reads are still reported above.
+	if got := resultSourceKeys(span, 0); len(got) != 0 {
+		t.Errorf("result lineage: got %v, want none (subquery lineage is not traced)", got)
+	}
+}
+
+func TestQuerySpan_SubqueryReadDoesNotSuppressDirectLineage(t *testing.T) {
+	// The subquery's read of T.A must not make the direct T.A reference look
+	// already-seen: result lineage and subquery reads are separate sets.
+	span := mustExtract(t, "SELECT (SELECT MAX(a) FROM t) + t.a AS x FROM t")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.A"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+}
+
+func TestQuerySpan_ExistsSubqueryReadsAreReported(t *testing.T) {
+	span := mustExtract(t, "SELECT EXISTS (SELECT 1 FROM inner_t) AS present FROM outer_t")
+
+	if !hasSrcKey(span, "..INNER_T.*") {
+		t.Errorf("expected ..INNER_T.* in sources, got %v", sourceKeys(span))
+	}
+}
+
+func TestQuerySpan_NestedSubqueryReadsAreReported(t *testing.T) {
+	span := mustExtract(t, "SELECT (SELECT (SELECT MAX(x) FROM inner_t) FROM middle_t) AS m FROM outer_t")
+
+	for _, want := range []string{"..MIDDLE_T.*", "..INNER_T.*"} {
+		if !hasSrcKey(span, want) {
+			t.Errorf("expected %s in sources, got %v", want, sourceKeys(span))
+		}
+	}
+}
+
+func TestQuerySpan_SubqueryInFromReadsAreReported(t *testing.T) {
+	span := mustExtract(t, "SELECT s.col1 FROM (SELECT a AS col1 FROM inner_table) AS s")
+
+	if !hasSrcKey(span, "..INNER_TABLE.*") {
+		t.Errorf("expected ..INNER_TABLE.* in sources, got %v", sourceKeys(span))
+	}
+}
+
+func TestQuerySpan_NestedSubqueryInFromReadsAreReported(t *testing.T) {
+	span := mustExtract(t, "SELECT * FROM (SELECT * FROM (SELECT a FROM deep_table) AS x) AS y")
+
+	if !hasSrcKey(span, "..DEEP_TABLE.*") {
+		t.Errorf("expected ..DEEP_TABLE.* in sources, got %v", sourceKeys(span))
+	}
+}
+
+func TestQuerySpan_CTEBaseTableReadsAreReported(t *testing.T) {
+	span := mustExtract(t, "WITH c AS (SELECT a FROM real_table) SELECT * FROM c")
+
+	if !hasSrcKey(span, "..REAL_TABLE.*") {
+		t.Errorf("expected ..REAL_TABLE.* in sources, got %v", sourceKeys(span))
+	}
+}
+
+// ---------------------------------------------------------------------------
 // PIVOT / UNPIVOT: opaque-derived relations (masking soundness)
 // ---------------------------------------------------------------------------
 //
@@ -763,6 +843,54 @@ func TestQuerySpan_PivotOverCTE(t *testing.T) {
 	// name (consistent with how non-pivoted CTE references are reported).
 	keys := resultSourceKeys(span, 0)
 	want := []string{"..C.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// MATCH_RECOGNIZE: opaque-derived relations (masking soundness)
+// ---------------------------------------------------------------------------
+//
+// MATCH_RECOGNIZE replaces or extends the relation's output with measures and
+// partition/order columns. Without catalog information the clause's projection
+// cannot be enumerated, so every column resolved through the relation must
+// attribute to the source's whole-relation ("*") sources. Fabricating
+// T.SECRET for a measure FIRST(T.A) AS SECRET would under-attribute for
+// masking. The catalog-backed resolver rejects the shape instead, because it
+// can report the error; the catalog-less extractor has no error channel here.
+
+func TestQuerySpan_MatchRecognizeBareRefIsOpaque(t *testing.T) {
+	span := mustExtract(t, "SELECT secret FROM t MATCH_RECOGNIZE (MEASURES FIRST(a) AS secret ONE ROW PER MATCH PATTERN (x) DEFINE x AS TRUE)")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	if hasSrcKey(span, "..T.SECRET") {
+		t.Error("fabricated base-column attribution for a MATCH_RECOGNIZE measure")
+	}
+}
+
+func TestQuerySpan_MatchRecognizeQualifiedRefIsOpaque(t *testing.T) {
+	span := mustExtract(t, "SELECT m.secret FROM t MATCH_RECOGNIZE (MEASURES FIRST(a) AS secret ONE ROW PER MATCH PATTERN (x) DEFINE x AS TRUE) m")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.*"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+	if hasSrcKey(span, "..M.SECRET") {
+		t.Error("MATCH_RECOGNIZE alias fabricated as a source table")
+	}
+}
+
+func TestQuerySpan_MatchRecognizeOverSubquery(t *testing.T) {
+	span := mustExtract(t, "SELECT secret FROM (SELECT a FROM real_table) MATCH_RECOGNIZE (MEASURES FIRST(a) AS secret ONE ROW PER MATCH PATTERN (x) DEFINE x AS TRUE) m")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{".._subquery.*"}
 	if len(keys) != 1 || keys[0] != want[0] {
 		t.Fatalf("result sources: got %v, want %v", keys, want)
 	}

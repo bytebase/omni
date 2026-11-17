@@ -78,6 +78,18 @@
 < raw
 | {}
 > raw
+| {"op":"exec","statement":"-- One row of every CQL type holding NULL, and one holding the type's zero\n-- value: the contract's Null and a zero value must not read alike. A collection\n-- is the exception: Cassandra stores an empty list, set or map as NULL, so those\n-- three stay NULL in the zero row and Null is what the driver reads.\nCREATE TABLE omni_nulls (\n    id int PRIMARY KEY,\n    n int,\n    txt text,\n    ascii_col ascii,\n    vc varchar,\n    flag boolean,\n    bi bigint,\n    ti tinyint,\n    si smallint,\n    dbl double,\n    flt float,\n    dec decimal,\n    vi varint,\n    ts timestamp,\n    dt date,\n    tm time,\n    uid uuid,\n    tuid timeuuid,\n    bl blob,\n    dur duration,\n    lst list\u003cint\u003e,\n    st set\u003ctext\u003e,\n    mp map\u003ctext,int\u003e,\n    addr inet,\n    tup tuple\u003cint, text\u003e\n)"}
+< raw
+| {}
+> raw
+| {"op":"exec","statement":"INSERT INTO omni_nulls (id) VALUES (1)"}
+< raw
+| {}
+> raw
+| {"op":"exec","statement":"INSERT INTO omni_nulls (\n    id, n, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup\n) VALUES (\n    2, 0, '', '', '', false, 0, 0, 0, 0, 0, 0, 0, 0, '1970-01-01', 0,\n    00000000-0000-0000-0000-000000000000, 00000000-0000-1000-0000-000000000000,\n    0x, 0s, NULL, NULL, NULL, '0.0.0.0', (0, '')\n)"}
+< raw
+| {}
+> raw
 | {"op":"query","statement":"SELECT bucket, event_id, payload FROM omni_events WHERE group_id = 1","pageSize":2}
 < raw
 | {"columns":[{"name":"bucket","type":9},{"name":"event_id","type":9},{"name":"payload","type":13}],"rowColumns":["bucket","event_id","payload"],"rows":[[{"kind":"int","text":"2"},{"kind":"int","text":"3"},{"kind":"string","text":"p1"}],[{"kind":"int","text":"1"},{"kind":"int","text":"4"},{"kind":"string","text":"p2"}]],"pageState":"AAsABAAAAAEEAAAABPB////98H////0="}

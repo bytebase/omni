@@ -126,13 +126,141 @@
 > exec
 |
 |
+| -- A primary key and a unique constraint each reusing an index the schema
+| -- already had, which stays non-unique: the index and the constraint are two
+| -- objects with two names, and ALL_INDEXES lists the index alone.
+| CREATE TABLE OMNI_APP.REUSED (
+| 	ID NUMBER NOT NULL,
+| 	CODE VARCHAR2(20) NOT NULL
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX OMNI_APP.REUSED_ID_IDX ON OMNI_APP.REUSED (ID)
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX OMNI_APP.REUSED_CODE_IDX ON OMNI_APP.REUSED (CODE)
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.REUSED ADD CONSTRAINT REUSED_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.REUSED_ID_IDX
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.REUSED ADD CONSTRAINT REUSED_CODE_UK UNIQUE (CODE) USING INDEX OMNI_APP.REUSED_CODE_IDX
+< ok 0 0
+> exec
+|
+|
+| -- An invisible index enforces the primary key, and the metadata says the index
+| -- is invisible.
+| CREATE TABLE OMNI_APP.HIDDEN_IDX (
+| 	ID NUMBER NOT NULL
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX OMNI_APP.HIDDEN_IDX_PK_IDX ON OMNI_APP.HIDDEN_IDX (ID) INVISIBLE
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.HIDDEN_IDX ADD CONSTRAINT HIDDEN_IDX_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.HIDDEN_IDX_PK_IDX
+< ok 0 0
+> exec
+|
+|
+| -- A unique constraint the user did not name: Oracle names the constraint and
+| -- its index SYS_C<n>, which the sync lists though it skips the SYS_ indexes of
+| -- LOBs and IOTs.
+| CREATE TABLE OMNI_APP.UNNAMED_UK (
+| 	A NUMBER UNIQUE
+| )
+< ok 0 0
+> exec
+|
+|
+| -- A disabled primary key has no index at all (ALL_CONSTRAINTS.INDEX_NAME is
+| -- null), so the constraint is what the sync lists.
+| CREATE TABLE OMNI_APP.DISABLED_PK (
+| 	A NUMBER
+| )
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.DISABLED_PK ADD CONSTRAINT DISABLED_PK PRIMARY KEY (A) DISABLE
+< ok 0 0
+> exec
+|
+|
+| -- A unique constraint on a virtual column, enforced by the function-based
+| -- index on the expression the column holds.
+| CREATE TABLE OMNI_APP.VIRTUAL_UK (
+| 	EMAIL VARCHAR2(40) NOT NULL,
+| 	UPPER_EMAIL AS (UPPER(EMAIL))
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE UNIQUE INDEX OMNI_APP.VIRTUAL_UK_IDX ON OMNI_APP.VIRTUAL_UK (UPPER(EMAIL))
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.VIRTUAL_UK ADD CONSTRAINT VIRTUAL_UK_UK UNIQUE (UPPER_EMAIL) USING INDEX OMNI_APP.VIRTUAL_UK_IDX
+< ok 0 0
+> exec
+|
+|
 | CREATE VIEW OMNI_APP.PARENT_VIEW AS SELECT ID, NAME FROM OMNI_APP.PARENT
 < ok 0 0
 > exec
 |
 |
+| -- A view is commented with COMMENT ON TABLE: COMMENT ON VIEW is refused with
+| -- ORA-32594.
+| COMMENT ON TABLE OMNI_APP.PARENT_VIEW IS 'the parents, without the quantity'
+< ok 0 0
+> exec
+|
+|
+| -- Every fact ALL_SEQUENCES states, less the START WITH it does not keep.
 | CREATE SEQUENCE OMNI_APP.ORDER_SEQ START WITH 10 INCREMENT BY 2 CACHE 20
 < ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE OMNI_APP.DOWN_SEQ START WITH -3 INCREMENT BY -2 MINVALUE -100 MAXVALUE -1
+< ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE OMNI_APP.CYCLE_SEQ MAXVALUE 5 CACHE 3 CYCLE
+< ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE OMNI_APP.NOCACHE_SEQ NOCACHE
+< ok 0 0
+> exec
+|
+|
+| -- LAST_NUMBER is the next number the dictionary will hand out, which one
+| -- NEXTVAL moves past the cache it allocated: 1 to 11 for CACHE 10.
+| DECLARE
+| 	V NUMBER;
+| BEGIN
+| 	SELECT OMNI_APP.CYCLE_SEQ.NEXTVAL INTO V FROM DUAL;
+| END;
+< ok 1 0
 > exec
 |
 |
@@ -151,12 +279,17 @@
 > exec
 |
 |
+| COMMENT ON MATERIALIZED VIEW OMNI_APP.PARENT_MV IS 'the parents, kept'
+< ok 0 0
+> exec
+|
+|
 | CREATE PROCEDURE OMNI_APP.TOUCH (P_ID IN NUMBER) AS BEGIN NULL; END;
 < ok 0 0
 > query
 | SELECT BANNER FROM v$version WHERE banner LIKE 'Oracle%'
 < result
-< column "BANNER" "NCHAR"
+< column "BANNER" "NCHAR" "string"
 < row
 : string
 | Oracle AI Database 26ai Free Release 23.26.3.0.0 - Develop, Learn, and Run for Free
@@ -167,7 +300,7 @@
 | 		SELECT username FROM all_users
 | 		WHERE username NOT IN ('ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSFWUSER','DBSNMP','DGPDB_INT','DIP','DVF','DVSYS','GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMROOTUSER','GSMUSER','LBACSYS','MDDATA','MDSYS','OPS$ORACLE','ORACLE_OCM','OUTLN','REMOTE_SCHEDULER_AGENT','SYS','SYS$UMF','SYSBACKUP','SYSDG','SYSKM','SYSRAC','SYSTEM','XDB','XS$NULL','XS$$NULL','FLOWS_FILES','HR','MDSYS','EXFSYS','MGMT_VIEW','OLAPSYS','ORDDATA','ORDPLUGINS','ORDSYS','OWBSYS','OWBSYS_AUDIT','SCOTT','SI_INFORMTN_SCHEMA','SPATIAL_CSW_ADMIN_USR','SPATIAL_WFS_ADMIN_USR','SYSMAN','WMSYS','OJVMSYS') AND username NOT LIKE 'APEX_%' ORDER BY username
 < result
-< column "USERNAME" "NCHAR"
+< column "USERNAME" "NCHAR" "string"
 < row
 : string
 | BAASSYS

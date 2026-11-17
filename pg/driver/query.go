@@ -75,7 +75,8 @@ func (s *session) takeMessages() []driver.Message {
 
 // Query runs each non-empty statement of script in order on the session's
 // connection. Errors wrapping PostgreSQL server errors unwrap to
-// *pgconn.PgError.
+// *pgconn.PgError. A script the parser cannot read is the call's error and no
+// statement of it runs: every statement is parsed before the first is sent.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	segments := omnipg.Split(script)
 	var statements []string
@@ -175,18 +176,74 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		return res, nil
 	}
 
+	// database/sql's Result states a count for every statement, so it cannot
+	// tell a statement that reported none (CREATE TABLE, SET) from one that
+	// reported 0 (UPDATE 0). Read PostgreSQL's command tag through pgx, as the
+	// executor does; a tape's connection has no pgx underneath, so fall back to
+	// database/sql there.
+	var result *driver.Result
+	usedPgx := false
+	err := s.conn.Raw(func(driverConn any) error {
+		sc, ok := driverConn.(*stdlib.Conn)
+		if !ok {
+			return nil
+		}
+		usedPgx = true
+		mrr := sc.Conn().PgConn().Exec(ctx, statement)
+		result = &driver.Result{}
+		var affectedRows int64
+		var reported bool
+		for mrr.NextResult() {
+			// Close drains any rows without retaining them: a DML statement with
+			// RETURNING, or a SELECT with a data-modifying CTE, is classified as
+			// not returning data, but can still answer with a large result set.
+			tag, err := mrr.ResultReader().Close()
+			if err != nil {
+				_ = mrr.Close()
+				return err
+			}
+			if n, ok := commandTagRowsAffected(tag); ok {
+				affectedRows += n
+				reported = true
+			}
+		}
+		if err := mrr.Close(); err != nil {
+			return err
+		}
+		if reported {
+			result.AffectedRows = &affectedRows
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	if usedPgx {
+		result.Messages = s.takeMessages()
+		return result, nil
+	}
+
 	sqlResult, err := s.conn.ExecContext(ctx, statement)
 	if err != nil {
 		return nil, err
 	}
-	affectedRows, err := sqlResult.RowsAffected()
-	if err != nil {
-		affectedRows = 0
+	res := &driver.Result{Messages: s.takeMessages()}
+	if affectedRows, err := sqlResult.RowsAffected(); err == nil {
+		res.AffectedRows = &affectedRows
 	}
-	return &driver.Result{
-		AffectedRows: &affectedRows,
-		Messages:     s.takeMessages(),
-	}, nil
+	return res, nil
+}
+
+// commandTagRowsAffected returns the row count a command tag carries, and false
+// when it carries none. PostgreSQL ends a counted tag (INSERT 0 3, UPDATE 3,
+// SELECT 3, COPY 3) with the count and a tag with no count (CREATE TABLE,
+// ALTER TABLE, TRUNCATE TABLE, SET) with a word.
+func commandTagRowsAffected(tag pgconn.CommandTag) (int64, bool) {
+	s := tag.String()
+	if s == "" || s[len(s)-1] < '0' || s[len(s)-1] > '9' {
+		return 0, false
+	}
+	return tag.RowsAffected(), true
 }
 
 func readRows(rows *sql.Rows, location *time.Location, maxResultBytes int64) (*driver.Result, error) {

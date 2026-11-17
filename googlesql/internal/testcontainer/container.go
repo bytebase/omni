@@ -173,10 +173,9 @@ func start(ctx context.Context, pin enginetest.Pin) (err error) {
 	if err := buildHarness(); err != nil {
 		return err
 	}
-	image, _, _ := strings.Cut(pin.Image, ":")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        image + "@" + pin.Digest,
+			Image:        pin.ImageRef(),
 			ExposedPorts: []string{"9010/tcp"},
 			WaitingFor:   wait.ForListeningPort("9010/tcp").WithStartupTimeout(2 * time.Minute),
 		},

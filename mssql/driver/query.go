@@ -55,7 +55,9 @@ func (s *session) Close() error { return s.conn.Close() }
 // statement. A statement that fails ends the script: its Result carries the
 // error, and the error returned is nil. Errors wrapping SQL Server's own
 // unwrap to gomssqldb.Error, whose text the driver unpacks to every message
-// the server sent.
+// the server sent. A batch the parser cannot read, and a statement it can read
+// but not classify (control flow), is the call's error, with the results of the
+// batches before it.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	var results []*driver.Result
 	batch := mssqlanalysis.NewBatcher(script)
@@ -159,6 +161,7 @@ func (s *session) explainBatch(ctx context.Context, statements []omnimssql.State
 			results = append(results, result)
 			return results, true, nil
 		}
+		result.Plan = &driver.Plan{Format: showplanFormat(opts.ExplainFormat)}
 		results = append(results, result)
 	}
 	return results, false, nil
@@ -174,15 +177,25 @@ func showplanStatistic(format string) string {
 	return "SHOWPLAN_ALL"
 }
 
+// showplanFormat names the plan showplanStatistic asks for: SHOWPLAN_XML answers
+// one XML document, and SHOWPLAN_ALL a row per operator.
+func showplanFormat(format string) string {
+	if strings.EqualFold(format, "XML") {
+		return "XML"
+	}
+	return "TEXT"
+}
+
 // runBatch runs the batch and returns one result per statement: a statement
 // that returns rows yields the result set the server returned for it, and a
 // statement that reports only a count yields that count.
 //
 // A batch of more than one statement is sent as one request, so what SQL Server
 // scopes to a batch (a DECLARE'd variable, a table variable) holds across its
-// statements. It reports such a batch's affected rows only through a collector
-// on the request, which a recorded exchange cannot hold, so only a lone
-// statement's count is read.
+// statements. It reports such a batch's affected rows only through the
+// *sqlexp.ReturnMessage message loop, whose MsgRowsAffected values are
+// interleaved with MsgNext and MsgNextResultSet; a tape cannot carry the message
+// object or that order, so only a lone statement's count is read.
 func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
 	if len(statements) == 1 {
 		results, err := s.runStatementAlone(ctx, statements[0], opts)
@@ -208,10 +221,13 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 	}
 	start := time.Now()
 	var results []*driver.Result
-	if t&stmtTypeResultSetGenerating != 0 || t&stmtTypeProcedure != 0 {
+	switch {
+	case t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0:
 		results, err = s.queryStatement(ctx, text, opts)
-	} else {
+	case t&stmtTypeRowCountGenerating != 0:
 		results, err = s.execStatement(ctx, text)
+	default:
+		results, err = s.runStatementWithoutACount(ctx, text)
 	}
 	if err != nil {
 		return []*driver.Result{{Statement: text, Err: unpackMSSQLError(err), Latency: time.Since(start)}}, nil
@@ -381,6 +397,16 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 		return results, err
 	}
 	return results, nil
+}
+
+// runStatementWithoutACount runs one statement that reports neither rows nor a
+// count, such as DDL, SET, DECLARE or SELECT @v = ...: its result is empty, so
+// AffectedRows stays nil rather than claiming that it changed no rows.
+func (s *session) runStatementWithoutACount(ctx context.Context, statement string) ([]*driver.Result, error) {
+	if _, err := s.conn.ExecContext(ctx, statement); err != nil {
+		return nil, err
+	}
+	return []*driver.Result{{}}, nil
 }
 
 // execStatement runs one statement that reports no rows, as its affected count.

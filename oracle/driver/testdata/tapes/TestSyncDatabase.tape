@@ -126,13 +126,141 @@
 > exec
 |
 |
+| -- A primary key and a unique constraint each reusing an index the schema
+| -- already had, which stays non-unique: the index and the constraint are two
+| -- objects with two names, and ALL_INDEXES lists the index alone.
+| CREATE TABLE OMNI_APP.REUSED (
+| 	ID NUMBER NOT NULL,
+| 	CODE VARCHAR2(20) NOT NULL
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX OMNI_APP.REUSED_ID_IDX ON OMNI_APP.REUSED (ID)
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX OMNI_APP.REUSED_CODE_IDX ON OMNI_APP.REUSED (CODE)
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.REUSED ADD CONSTRAINT REUSED_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.REUSED_ID_IDX
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.REUSED ADD CONSTRAINT REUSED_CODE_UK UNIQUE (CODE) USING INDEX OMNI_APP.REUSED_CODE_IDX
+< ok 0 0
+> exec
+|
+|
+| -- An invisible index enforces the primary key, and the metadata says the index
+| -- is invisible.
+| CREATE TABLE OMNI_APP.HIDDEN_IDX (
+| 	ID NUMBER NOT NULL
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX OMNI_APP.HIDDEN_IDX_PK_IDX ON OMNI_APP.HIDDEN_IDX (ID) INVISIBLE
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.HIDDEN_IDX ADD CONSTRAINT HIDDEN_IDX_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.HIDDEN_IDX_PK_IDX
+< ok 0 0
+> exec
+|
+|
+| -- A unique constraint the user did not name: Oracle names the constraint and
+| -- its index SYS_C<n>, which the sync lists though it skips the SYS_ indexes of
+| -- LOBs and IOTs.
+| CREATE TABLE OMNI_APP.UNNAMED_UK (
+| 	A NUMBER UNIQUE
+| )
+< ok 0 0
+> exec
+|
+|
+| -- A disabled primary key has no index at all (ALL_CONSTRAINTS.INDEX_NAME is
+| -- null), so the constraint is what the sync lists.
+| CREATE TABLE OMNI_APP.DISABLED_PK (
+| 	A NUMBER
+| )
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.DISABLED_PK ADD CONSTRAINT DISABLED_PK PRIMARY KEY (A) DISABLE
+< ok 0 0
+> exec
+|
+|
+| -- A unique constraint on a virtual column, enforced by the function-based
+| -- index on the expression the column holds.
+| CREATE TABLE OMNI_APP.VIRTUAL_UK (
+| 	EMAIL VARCHAR2(40) NOT NULL,
+| 	UPPER_EMAIL AS (UPPER(EMAIL))
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE UNIQUE INDEX OMNI_APP.VIRTUAL_UK_IDX ON OMNI_APP.VIRTUAL_UK (UPPER(EMAIL))
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE OMNI_APP.VIRTUAL_UK ADD CONSTRAINT VIRTUAL_UK_UK UNIQUE (UPPER_EMAIL) USING INDEX OMNI_APP.VIRTUAL_UK_IDX
+< ok 0 0
+> exec
+|
+|
 | CREATE VIEW OMNI_APP.PARENT_VIEW AS SELECT ID, NAME FROM OMNI_APP.PARENT
 < ok 0 0
 > exec
 |
 |
+| -- A view is commented with COMMENT ON TABLE: COMMENT ON VIEW is refused with
+| -- ORA-32594.
+| COMMENT ON TABLE OMNI_APP.PARENT_VIEW IS 'the parents, without the quantity'
+< ok 0 0
+> exec
+|
+|
+| -- Every fact ALL_SEQUENCES states, less the START WITH it does not keep.
 | CREATE SEQUENCE OMNI_APP.ORDER_SEQ START WITH 10 INCREMENT BY 2 CACHE 20
 < ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE OMNI_APP.DOWN_SEQ START WITH -3 INCREMENT BY -2 MINVALUE -100 MAXVALUE -1
+< ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE OMNI_APP.CYCLE_SEQ MAXVALUE 5 CACHE 3 CYCLE
+< ok 0 0
+> exec
+|
+|
+| CREATE SEQUENCE OMNI_APP.NOCACHE_SEQ NOCACHE
+< ok 0 0
+> exec
+|
+|
+| -- LAST_NUMBER is the next number the dictionary will hand out, which one
+| -- NEXTVAL moves past the cache it allocated: 1 to 11 for CACHE 10.
+| DECLARE
+| 	V NUMBER;
+| BEGIN
+| 	SELECT OMNI_APP.CYCLE_SEQ.NEXTVAL INTO V FROM DUAL;
+| END;
+< ok 1 0
 > exec
 |
 |
@@ -151,12 +279,17 @@
 > exec
 |
 |
+| COMMENT ON MATERIALIZED VIEW OMNI_APP.PARENT_MV IS 'the parents, kept'
+< ok 0 0
+> exec
+|
+|
 | CREATE PROCEDURE OMNI_APP.TOUCH (P_ID IN NUMBER) AS BEGIN NULL; END;
 < ok 0 0
 > query
 | SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
 < result
-< column "VERSION_FULL" "NCHAR"
+< column "VERSION_FULL" "NCHAR" "string"
 < row
 : string
 | 23.26.3.0.0
@@ -168,10 +301,10 @@
 | 		FROM all_tab_identity_cols
 | 		WHERE OWNER = 'OMNI_APP'
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "GENERATION_TYPE" "NCHAR"
-< column "IDENTITY_OPTIONS" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "GENERATION_TYPE" "NCHAR" "string"
+< column "IDENTITY_OPTIONS" "NCHAR" "string"
 < row
 : string
 | IDENT
@@ -213,22 +346,22 @@
 | 		WHERE OWNER = 'OMNI_APP' AND USER_GENERATED = 'YES'
 | 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "DATA_TYPE" "NCHAR"
-< column "DATA_LENGTH" "NUMBER"
-< column "DATA_PRECISION" "NUMBER"
-< column "DATA_SCALE" "NUMBER"
-< column "CHAR_USED" "NCHAR"
-< column "CHAR_LENGTH" "NUMBER"
-< column "COLUMN_ID" "NUMBER"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "DATA_LENGTH" "NUMBER" "float64" precision 38 scale 255
+< column "DATA_PRECISION" "NUMBER" "float64" precision 38 scale 255
+< column "DATA_SCALE" "NUMBER" "float64" precision 38 scale 255
+< column "CHAR_USED" "NCHAR" "string"
+< column "CHAR_LENGTH" "NUMBER" "float64" precision 38 scale 255
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
 < column "DATA_DEFAULT" "LONG"
-< column "NULLABLE" "NCHAR"
-< column "COLLATION" "NCHAR"
-< column "DEFAULT_ON_NULL" "NCHAR"
-< column "VIRTUAL_COLUMN" "NCHAR"
-< column "IDENTITY_COLUMN" "NCHAR"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLLATION" "NCHAR" "string"
+< column "DEFAULT_ON_NULL" "NCHAR" "string"
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
@@ -393,6 +526,62 @@
 : null
 : string
 | Y
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| DISABLED_PK
+: string
+| A
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| HIDDEN_IDX
+: string
+| ID
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| N
 : null
 : string
 | NO
@@ -793,6 +982,64 @@
 | B
 : string
 | 40
+: string
+| 2
+: null
+: string
+| N
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| REUSED
+: string
+| ID
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| REUSED
+: string
+| CODE
+: string
+| VARCHAR2
+: string
+| 20
+: null
+: null
+: string
+| B
+: string
+| 20
 : string
 | 2
 : null
@@ -1337,17 +1584,95 @@
 | NO
 : string
 | NO
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< row
+: string
+| OMNI_APP
+: string
+| UNNAMED_UK
+: string
+| A
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| Y
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK
+: string
+| EMAIL
+: string
+| VARCHAR2
+: string
+| 40
+: null
+: null
+: string
+| B
+: string
+| 40
+: string
+| 1
+: null
+: string
+| N
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK
+: string
+| UPPER_EMAIL
+: string
+| VARCHAR2
+: string
+| 40
+: null
+: null
+: string
+| B
+: string
+| 40
+: string
+| 2
+: string
+| UPPER("EMAIL")
+: string
+| Y
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| YES
+: string
+| NO
 > query
 |
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
@@ -1355,13 +1680,13 @@
 | 		WHERE OWNER = 'OMNI_APP' AND TABLE_OWNER = 'OMNI_APP' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
 | 		ORDER BY TRIGGER_NAME
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DESCRIPTION" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DESCRIPTION" "NCHAR" "string"
 < column "TRIGGER_BODY" "LONG"
-< column "BASE_OBJECT_TYPE" "NCHAR"
-< column "TRIGGER_TYPE" "NCHAR"
-< column "TRIGGERING_EVENT" "NCHAR"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
+< column "TRIGGER_TYPE" "NCHAR" "string"
+< column "TRIGGERING_EVENT" "NCHAR" "string"
 < row
 : string
 | PARENT_TRG
@@ -1387,9 +1712,9 @@
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME, POSITION
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
 < row
 : string
 | CHILD
@@ -1462,6 +1787,27 @@
 | B
 < row
 : string
+| DISABLED_PK
+: string
+| DISABLED_PK
+: string
+| A
+< row
+: string
+| HIDDEN_IDX
+: string
+| HIDDEN_IDX_PK
+: string
+| ID
+< row
+: string
+| HIDDEN_IDX
+: string
+| SYS_C9000007
+: string
+| ID
+< row
+: string
 | IDENT
 : string
 | IDENT_PK
@@ -1471,14 +1817,14 @@
 : string
 | IDENT
 : string
-| SYS_C9000007
+| SYS_C9000008
 : string
 | ID
 < row
 : string
 | IDENT_DEFAULT
 : string
-| SYS_C9000008
+| SYS_C9000009
 : string
 | ID
 < row
@@ -1499,49 +1845,77 @@
 : string
 | PARENT
 : string
-| SYS_C9000009
+| SYS_C9000010
 : string
 | ID
 < row
 : string
 | PARENT
 : string
-| SYS_C9000010
-: string
-| NAME
-< row
-: string
-| PARENT_MV
-: string
 | SYS_C9000011
 : string
-| ID
+| NAME
 < row
 : string
 | PARENT_MV
 : string
 | SYS_C9000012
 : string
+| ID
+< row
+: string
+| PARENT_MV
+: string
+| SYS_C9000013
+: string
 | NAME
 < row
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000013PARENT_PK
+| SYS_C_SNAP$_9000014PARENT_PK
 : string
 | ID
 < row
 : string
-| TYPES
+| REUSED
 : string
-| SYS_C9000014
+| REUSED_CODE_UK
+: string
+| CODE
+< row
+: string
+| REUSED
+: string
+| REUSED_PK
 : string
 | ID
 < row
 : string
-| TYPES
+| REUSED
 : string
 | SYS_C9000015
+: string
+| ID
+< row
+: string
+| REUSED
+: string
+| SYS_C9000016
+: string
+| CODE
+< row
+: string
+| TYPES
+: string
+| SYS_C9000017
+: string
+| ID
+< row
+: string
+| TYPES
+: string
+| SYS_C9000018
 : string
 | AMOUNT
 < row
@@ -1551,6 +1925,27 @@
 | TYPES_PK
 : string
 | ID
+< row
+: string
+| UNNAMED_UK
+: string
+| SYS_C9000019
+: string
+| A
+< row
+: string
+| VIRTUAL_UK
+: string
+| SYS_C9000020
+: string
+| EMAIL
+< row
+: string
+| VIRTUAL_UK
+: string
+| VIRTUAL_UK_UK
+: string
+| UPPER_EMAIL
 > query
 |
 | 		SELECT
@@ -1560,18 +1955,22 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
 < column "SEARCH_CONDITION" "LONG"
-< column "R_OWNER" "NCHAR"
-< column "R_CONSTRAINT_NAME" "NCHAR"
-< column "DELETE_RULE" "NCHAR"
+< column "R_OWNER" "NCHAR" "string"
+< column "R_CONSTRAINT_NAME" "NCHAR" "string"
+< column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | CHILD
@@ -1586,6 +1985,8 @@
 | PARENT_PK
 : string
 | CASCADE
+: null
+: null
 < row
 : string
 | CHILD
@@ -1597,6 +1998,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| CHILD_PK
 < row
 : string
 | CHILD
@@ -1606,6 +2011,8 @@
 | C
 : string
 | QTY > 0
+: null
+: null
 : null
 : null
 : null
@@ -1621,6 +2028,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | CHILD
@@ -1630,6 +2039,8 @@
 | C
 : string
 | "PARENT_ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1644,6 +2055,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| COMPOSITE_C_UK
 < row
 : string
 | COMPOSITE
@@ -1655,6 +2070,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| COMPOSITE_PK
 < row
 : string
 | COMPOSITE
@@ -1664,6 +2083,8 @@
 | C
 : string
 | "A" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1679,6 +2100,50 @@
 : null
 : null
 : null
+: null
+: null
+< row
+: string
+| DISABLED_PK
+: string
+| DISABLED_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| HIDDEN_IDX
+: string
+| HIDDEN_IDX_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| HIDDEN_IDX_PK_IDX
+< row
+: string
+| HIDDEN_IDX
+: string
+| SYS_C9000007
+: string
+| C
+: string
+| "ID" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
 < row
 : string
 | IDENT
@@ -1690,15 +2155,21 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| IDENT_PK
 < row
 : string
 | IDENT
 : string
-| SYS_C9000007
+| SYS_C9000008
 : string
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1706,11 +2177,13 @@
 : string
 | IDENT_DEFAULT
 : string
-| SYS_C9000008
+| SYS_C9000009
 : string
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1725,6 +2198,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| PARENT_NAME_UK
 < row
 : string
 | PARENT
@@ -1736,18 +2213,10 @@
 : null
 : null
 : null
-< row
 : string
-| PARENT
+| OMNI_APP
 : string
-| SYS_C9000009
-: string
-| C
-: string
-| "ID" IS NOT NULL
-: null
-: null
-: null
+| PARENT_PK
 < row
 : string
 | PARENT
@@ -1756,19 +2225,23 @@
 : string
 | C
 : string
-| "NAME" IS NOT NULL
+| "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
 < row
 : string
-| PARENT_MV
+| PARENT
 : string
 | SYS_C9000011
 : string
 | C
 : string
-| "ID" IS NOT NULL
+| "NAME" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1780,7 +2253,9 @@
 : string
 | C
 : string
-| "NAME" IS NOT NULL
+| "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1788,18 +2263,66 @@
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000013PARENT_PK
+| SYS_C9000013
 : string
-| P
+| C
+: string
+| "NAME" IS NOT NULL
+: null
 : null
 : null
 : null
 : null
 < row
 : string
-| TYPES
+| PARENT_MV
 : string
-| SYS_C9000014
+| SYS_C_SNAP$_9000014PARENT_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| SYS_C_SNAP$_9000014PARENT_PK
+< row
+: string
+| REUSED
+: string
+| REUSED_CODE_UK
+: string
+| U
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| REUSED_CODE_IDX
+< row
+: string
+| REUSED
+: string
+| REUSED_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| REUSED_ID_IDX
+< row
+: string
+| REUSED
+: string
+| SYS_C9000015
 : string
 | C
 : string
@@ -1807,15 +2330,47 @@
 : null
 : null
 : null
+: null
+: null
+< row
+: string
+| REUSED
+: string
+| SYS_C9000016
+: string
+| C
+: string
+| "CODE" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
 < row
 : string
 | TYPES
 : string
-| SYS_C9000015
+| SYS_C9000017
+: string
+| C
+: string
+| "ID" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| TYPES
+: string
+| SYS_C9000018
 : string
 | C
 : string
 | "AMOUNT" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -1830,6 +2385,54 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| TYPES_PK
+< row
+: string
+| UNNAMED_UK
+: string
+| SYS_C9000019
+: string
+| U
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| SYS_C9000019
+< row
+: string
+| VIRTUAL_UK
+: string
+| SYS_C9000020
+: string
+| C
+: string
+| "EMAIL" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| VIRTUAL_UK
+: string
+| VIRTUAL_UK_UK
+: string
+| U
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK_IDX
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -1837,11 +2440,11 @@
 | 		WHERE TABLE_OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "DESCEND" "NCHAR"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DESCEND" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
@@ -1901,6 +2504,17 @@
 : string
 | OMNI_APP
 : string
+| HIDDEN_IDX
+: string
+| HIDDEN_IDX_PK_IDX
+: string
+| ID
+: string
+| ASC
+< row
+: string
+| OMNI_APP
+: string
 | IDENT
 : string
 | IDENT_PK
@@ -1947,7 +2561,29 @@
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000013PARENT_PK
+| SYS_C_SNAP$_9000014PARENT_PK
+: string
+| ID
+: string
+| ASC
+< row
+: string
+| OMNI_APP
+: string
+| REUSED
+: string
+| REUSED_CODE_IDX
+: string
+| CODE
+: string
+| ASC
+< row
+: string
+| OMNI_APP
+: string
+| REUSED
+: string
+| REUSED_ID_IDX
 : string
 | ID
 : string
@@ -1963,6 +2599,28 @@
 | ID
 : string
 | ASC
+< row
+: string
+| OMNI_APP
+: string
+| UNNAMED_UK
+: string
+| SYS_C9000019
+: string
+| A
+: string
+| ASC
+< row
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK
+: string
+| VIRTUAL_UK_IDX
+: string
+| UPPER_EMAIL
+: string
+| ASC
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
@@ -1970,9 +2628,9 @@
 | 		WHERE TABLE_OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_EXPRESSION" "LONG"
 < row
 : string
@@ -1983,6 +2641,15 @@
 | PARENT_UPPER_NAME_IDX
 : string
 | UPPER("NAME")
+< row
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK
+: string
+| VIRTUAL_UK_IDX
+: string
+| UPPER("EMAIL")
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, INDEX_NAME, UNIQUENESS, INDEX_TYPE, VISIBILITY
@@ -1990,12 +2657,12 @@
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, INDEX_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "UNIQUENESS" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
-< column "VISIBILITY" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "UNIQUENESS" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
+< column "VISIBILITY" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
@@ -2048,6 +2715,19 @@
 | NORMAL
 : string
 | VISIBLE
+< row
+: string
+| OMNI_APP
+: string
+| HIDDEN_IDX
+: string
+| HIDDEN_IDX_PK_IDX
+: string
+| NONUNIQUE
+: string
+| NORMAL
+: string
+| INVISIBLE
 < row
 : string
 | OMNI_APP
@@ -2106,9 +2786,35 @@
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000013PARENT_PK
+| SYS_C_SNAP$_9000014PARENT_PK
 : string
 | UNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_APP
+: string
+| REUSED
+: string
+| REUSED_CODE_IDX
+: string
+| NONUNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_APP
+: string
+| REUSED
+: string
+| REUSED_ID_IDX
+: string
+| NONUNIQUE
 : string
 | NORMAL
 : string
@@ -2126,6 +2832,32 @@
 | NORMAL
 : string
 | VISIBLE
+< row
+: string
+| OMNI_APP
+: string
+| UNNAMED_UK
+: string
+| SYS_C9000019
+: string
+| UNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK
+: string
+| VIRTUAL_UK_IDX
+: string
+| UNIQUE
+: string
+| FUNCTION-BASED NORMAL
+: string
+| VISIBLE
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COLUMN_NAME, COMMENTS
@@ -2133,10 +2865,10 @@
 | 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
 | 		ORDER BY TABLE_NAME, COLUMN_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
@@ -2171,9 +2903,16 @@
 | 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
+< row
+: string
+| OMNI_APP
+: string
+| PARENT_VIEW
+: string
+| the parents, without the quantity
 < row
 : string
 | OMNI_APP
@@ -2191,9 +2930,9 @@
 | 		)
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "NUM_ROWS" "NUMBER"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | OMNI_APP
@@ -2205,6 +2944,18 @@
 | OMNI_APP
 : string
 | COMPOSITE
+: null
+< row
+: string
+| OMNI_APP
+: string
+| DISABLED_PK
+: null
+< row
+: string
+| OMNI_APP
+: string
+| HIDDEN_IDX
 : null
 < row
 : string
@@ -2234,7 +2985,25 @@
 : string
 | OMNI_APP
 : string
+| REUSED
+: null
+< row
+: string
+| OMNI_APP
+: string
 | TYPES
+: null
+< row
+: string
+| OMNI_APP
+: string
+| UNNAMED_UK
+: null
+< row
+: string
+| OMNI_APP
+: string
+| VIRTUAL_UK
 : null
 > query
 |
@@ -2246,9 +3015,9 @@
 | 		)
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "NUM_ROWS" "NUMBER"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS
@@ -2257,9 +3026,16 @@
 | 		AND TABLE_TYPE = 'VIEW'
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
+< row
+: string
+| OMNI_APP
+: string
+| PARENT_VIEW
+: string
+| the parents, without the quantity
 > query
 |
 | 		SELECT OWNER, VIEW_NAME, TEXT
@@ -2268,8 +3044,8 @@
 | 		ORDER BY view_name
 | 	
 < result
-< column "OWNER" "NCHAR"
-< column "VIEW_NAME" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "VIEW_NAME" "NCHAR" "string"
 < column "TEXT" "LONG"
 < row
 : string
@@ -2292,10 +3068,10 @@
 | 		ORDER BY NAME, REFERENCED_OWNER, REFERENCED_NAME
 | 	
 < result
-< column "VIEW_NAME" "NCHAR"
-< column "SOURCE_SCHEMA" "NCHAR"
-< column "SOURCE_TABLE" "NCHAR"
-< column "COLUMN_NAME" "CHAR"
+< column "VIEW_NAME" "NCHAR" "string"
+< column "SOURCE_SCHEMA" "NCHAR" "string"
+< column "SOURCE_TABLE" "NCHAR" "string"
+< column "COLUMN_NAME" "CHAR" "string"
 < row
 : string
 | PARENT_VIEW
@@ -2307,51 +3083,244 @@
 | *
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_APP'
 | 		ORDER BY SEQUENCE_NAME
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
+< row
+: string
+| CYCLE_SEQ
+: string
+| 1
+: string
+| 5
+: string
+| 1
+: string
+| Y
+: string
+| N
+: string
+| 3
+: string
+| 4
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+< row
+: string
+| DOWN_SEQ
+: string
+| -100
+: string
+| -1
+: string
+| -2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| -3
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 < row
 : string
 | ISEQ$$_9000001
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 < row
 : string
 | ISEQ$$_9000002
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 5
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 100
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+< row
+: string
+| NOCACHE_SEQ
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| 0
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 < row
 : string
 | ORDER_SEQ
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 2
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 10
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
 | 	FROM all_db_links
 | 	ORDER BY DB_LINK
 < result
-< column "DB_LINK" "NCHAR"
-< column "HOST" "NCHAR"
-< column "USERNAME" "NCHAR"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "DB_LINK" "NCHAR" "string"
+< column "HOST" "NCHAR" "string"
+< column "USERNAME" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -2365,9 +3334,9 @@
 | 			OWNER = 'OMNI_APP'
 | 		ORDER BY NAME, TYPE, LINE
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
-< column "TEXT" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
+< column "TEXT" "NCHAR" "string"
 < row
 : string
 | TOUCH
@@ -2382,16 +3351,16 @@
 | 		WHERE OWNER = 'OMNI_APP' AND COMMENTS IS NOT NULL
 | 		ORDER BY MVIEW_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "MVIEW_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "MVIEW_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
 < row
 : string
 | OMNI_APP
 : string
 | PARENT_MV
 : string
-| snapshot table for snapshot OMNI_APP.PARENT_MV
+| the parents, kept
 > query
 |
 | 		SELECT OWNER, MVIEW_NAME, QUERY
@@ -2400,8 +3369,8 @@
 | 		ORDER BY MVIEW_NAME
 | 	
 < result
-< column "OWNER" "NCHAR"
-< column "MVIEW_NAME" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "MVIEW_NAME" "NCHAR" "string"
 < column "QUERY" "LONG"
 < row
 : string
@@ -2424,10 +3393,10 @@
 | 		ORDER BY NAME, REFERENCED_OWNER, REFERENCED_NAME
 | 	
 < result
-< column "MVIEW_NAME" "NCHAR"
-< column "SOURCE_SCHEMA" "NCHAR"
-< column "SOURCE_TABLE" "NCHAR"
-< column "COLUMN_NAME" "CHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
+< column "SOURCE_SCHEMA" "NCHAR" "string"
+< column "SOURCE_TABLE" "NCHAR" "string"
+< column "COLUMN_NAME" "CHAR" "string"
 < row
 : string
 | PARENT_MV
@@ -2455,10 +3424,10 @@
 : string
 | OMNI_APP
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | PARENT_SYN
@@ -2471,10 +3440,10 @@
 : string
 | PUBLIC
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | ABSPATH

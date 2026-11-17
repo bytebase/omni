@@ -168,6 +168,9 @@ END;
 	if physicalOpIndex < 0 {
 		t.Fatalf("explain plan has no PhysicalOp column: %+v", plan[0].Columns)
 	}
+	if plan[0].Plan == nil || plan[0].Plan.Format != "TEXT" || plan[0].Plan.Executed || plan[0].Plan.Content != "" {
+		t.Errorf("tabular plan = %+v, want a TEXT plan in the rows that did not run the statement", plan[0].Plan)
+	}
 	var physicalOps []string
 	for _, row := range plan[0].Rows {
 		if op := row[physicalOpIndex].String; op != "" {
@@ -183,6 +186,9 @@ END;
 	}
 	if !strings.Contains(xmlPlan[0].Rows[0][0].String, "ShowPlanXML") {
 		t.Errorf("xml plan = %q", xmlPlan[0].Rows[0][0].String)
+	}
+	if xmlPlan[0].Plan == nil || xmlPlan[0].Plan.Format != "XML" {
+		t.Errorf("xml plan metadata = %+v, want XML", xmlPlan[0].Plan)
 	}
 
 	// A batch keeps what SQL Server scopes to it: a DECLARE'd variable holds
@@ -223,11 +229,18 @@ END;
 		t.Fatalf("columnless batch = %+v, %v", batchy, err)
 	}
 
-	// A limit bounds a result set, so it leaves a SELECT ... INTO materialising
-	// every row as it would.
-	if _, err := sess.Query(ctx, "CREATE TABLE q_archive (id INT, note NVARCHAR(100));", driver.QueryOptions{}); err != nil {
+	// A statement that reports no count is not a write of zero rows: DDL, SET and
+	// SELECT @v = ... report nothing, so the result carries no count at all.
+	created, err := sess.Query(ctx, "CREATE TABLE q_archive (id INT, note NVARCHAR(100));", driver.QueryOptions{})
+	if err != nil {
 		t.Fatal(err)
 	}
+	if len(created) != 1 || created[0].AffectedRows != nil {
+		t.Fatalf("DDL result = %+v, want no affected count", created)
+	}
+
+	// A limit bounds a result set, so it leaves a SELECT ... INTO materialising
+	// every row as it would.
 	into, err := sess.Query(ctx, "SELECT id, note INTO q_archive2 FROM q_items;", driver.QueryOptions{Limit: 1})
 	if err != nil || len(into) != 1 || into[0].Err != nil {
 		t.Fatalf("SELECT INTO = %+v, %v", into, err)
@@ -250,8 +263,9 @@ END;
 	}
 
 	// A batch of more than one statement yields an empty result for a statement
-	// that reports only a count, since the server reports those through a
-	// collector the contract's shape has no room for.
+	// that reports only a count: SQL Server states those in the ReturnMessage
+	// message loop, which a tape cannot carry, having no message argument and no
+	// ordered counts beside its result sets.
 	inserted, err = sess.Query(ctx, "INSERT INTO q_items (id, note, flag) VALUES (5, N'e', 1);\nSELECT 1 AS after_insert;", driver.QueryOptions{})
 	if err != nil || len(inserted) != 2 || inserted[0].AffectedRows != nil || inserted[1].Rows[0][0].Int64 != 1 {
 		t.Fatalf("batched insert = %+v, %v", inserted, err)

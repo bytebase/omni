@@ -10,7 +10,9 @@ import (
 )
 
 func restoreTable() (*metadata.TableMetadata, *metadata.IndexMetadata) {
-	pk := &metadata.IndexMetadata{Name: "PK", Primary: true, Unique: true, Expressions: []string{"ID"}}
+	// The sync writes a key column quoted, which is what the merge statement and
+	// the nullability check must read as the column.
+	pk := &metadata.IndexMetadata{Name: "PK", Primary: true, Unique: true, Expressions: []string{`"ID"`}}
 	return &metadata.TableMetadata{
 		Name: "T",
 		Columns: []*metadata.ColumnMetadata{
@@ -20,8 +22,8 @@ func restoreTable() (*metadata.TableMetadata, *metadata.IndexMetadata) {
 		},
 		Indexes: []*metadata.IndexMetadata{
 			pk,
-			{Name: "UK", Unique: true, Expressions: []string{"B"}},
-			{Name: "FUK", Unique: true, Type: "FUNCTION-BASED NORMAL", Expressions: []string{"A"}},
+			{Name: "UK", Unique: true, Expressions: []string{`"B"`}},
+			{Name: "FUK", Unique: true, Type: "FUNCTION-BASED NORMAL", Expressions: []string{`"A"`}},
 		},
 	}, pk
 }
@@ -69,6 +71,63 @@ func TestRestoreSQL(t *testing.T) {
 	table.Columns[2].Nullable = true
 	_, err = RestoreSQL("UPDATE t SET id = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
 	require.EqualError(t, err, "no disjoint unique key found for DB.T")
+
+	// A unique constraint on a non-unique index enforces uniqueness all the
+	// same, so its keys key the MERGE although the index is not unique.
+	table = &metadata.TableMetadata{
+		Name:    "T",
+		Columns: []*metadata.ColumnMetadata{{Name: "ID"}, {Name: "A"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "IX", IsConstraint: true, Expressions: []string{`"ID"`}}},
+	}
+	node, err = FindFirstDML("UPDATE t SET a = 1")
+	require.NoError(t, err)
+	got, err = RestoreSQL("UPDATE t SET a = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	require.NoError(t, err)
+	require.Contains(t, got, `ON( t."ID" = b."ID")`)
+
+	// An index two constraints share offers each constraint's keys: the unique
+	// constraint's are a subset of the index's, so they can be disjoint where
+	// the index's are not.
+	table = &metadata.TableMetadata{
+		Name:    "T",
+		Columns: []*metadata.ColumnMetadata{{Name: "A"}, {Name: "B"}},
+		Indexes: []*metadata.IndexMetadata{{
+			Name:         "IX",
+			IsConstraint: true,
+			Primary:      true,
+			Expressions:  []string{`"A"`, `"B"`},
+			Constraints: []*metadata.IndexConstraintMetadata{
+				{Name: "PK", Primary: true, Columns: []string{`"A"`, `"B"`}},
+				{Name: "UK", Columns: []string{`"A"`}},
+			},
+		}},
+	}
+	node, err = FindFirstDML("UPDATE t SET b = 1")
+	require.NoError(t, err)
+	got, err = RestoreSQL("UPDATE t SET b = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	require.NoError(t, err)
+	require.Contains(t, got, `ON( t."A" = b."A")`)
+
+	// A unique constraint on a virtual column is enforced by a function-based
+	// index, and the constraint's keys are the column's: they can key a MERGE,
+	// where the index's expressions cannot.
+	table = &metadata.TableMetadata{
+		Name:    "T",
+		Columns: []*metadata.ColumnMetadata{{Name: "UPPER_A"}, {Name: "OTHER", Nullable: true}},
+		Indexes: []*metadata.IndexMetadata{{
+			Name:         "IX",
+			Type:         "FUNCTION-BASED NORMAL",
+			Unique:       true,
+			IsConstraint: true,
+			Expressions:  []string{`UPPER("A")`},
+			Constraints:  []*metadata.IndexConstraintMetadata{{Name: "UK", Columns: []string{`"UPPER_A"`}}},
+		}},
+	}
+	node, err = FindFirstDML("UPDATE t SET other = 1")
+	require.NoError(t, err)
+	got, err = RestoreSQL("UPDATE t SET other = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	require.NoError(t, err)
+	require.Contains(t, got, `ON( t."UPPER_A" = b."UPPER_A")`)
 
 	// SET VALUE (t) replaces whole rows, whose columns the restore cannot
 	// list.

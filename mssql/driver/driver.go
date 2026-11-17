@@ -3,15 +3,26 @@
 // server's metadata into omni/metadata, and runs interactive queries and
 // change scripts.
 //
-// It implements Driver, Syncer, Querier, Executor, planner row estimates, and
-// the live probes the reviews run. It does not implement Dumper: SQL Server DDL
-// rendering still lives in Bytebase's schema package until omni has an
-// mssql/catalog.
+// It implements Driver, Syncer, Dumper, Querier, Executor, planner row estimates,
+// and the live probes the reviews run. The catalog owns SQL Server DDL
+// rendering; Dump passes synced metadata through it.
 //
 // A batch is sent as one request, so what SQL Server scopes to it holds across
-// its statements. The server reports a batch's per-statement row counts only
-// through a collector on the request, which a recorded exchange cannot hold, so
-// only a lone statement's count is read.
+// its statements. SQL Server reports a batch's per-statement row counts only
+// through the *sqlexp.ReturnMessage message loop: MsgRowsAffected arrives
+// interleaved with MsgNext and MsgNextResultSet. A tape holds a request's
+// result sets in order and one affected count for an exec, and it can carry
+// neither the message object the counts are delivered on nor their order
+// beside the result sets, so only a lone statement's count is read. A batch's
+// row-count statements therefore carry no AffectedRows.
+//
+// A statement that reports no count at all (DDL, SET, SELECT @v = ...) has a
+// Result with no AffectedRows, rather than a count of zero.
+//
+// QueryOptions.Explain turns the session's plan output on for the statement, so
+// a plan is the statement's rows: Result.Plan names the output the request
+// asked for (XML for SHOWPLAN_XML, TEXT for SHOWPLAN_ALL) and records that the
+// statement did not run.
 //
 // Config.TLS supplies the TLS configuration for one host, which the driver
 // hands to the client as is; a certificate authority is material the client
@@ -43,6 +54,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )

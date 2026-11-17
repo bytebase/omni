@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/trino/internal/testcontainer"
 )
@@ -60,6 +62,11 @@ func TestSyncDatabase(t *testing.T) {
 	got, err := d.SyncDatabase(context.Background())
 	if err != nil {
 		t.Fatal(err)
+	}
+	for _, schema := range got.Schemas {
+		if schema.Name == "information_schema" {
+			t.Errorf("the sync reported the catalog's information_schema as a schema of its own")
+		}
 	}
 	writeOrCompareGolden(t, filepath.Join("testdata", "sync", "database.json"), got)
 }
@@ -138,4 +145,16 @@ func readGolden(t *testing.T, path string) *metadatapb.DatabaseSchemaMetadata {
 		t.Fatalf("%s: %v", path, err)
 	}
 	return metadata
+}
+
+// TestSyncDatabaseMissing holds that a catalog the caller names and Trino does
+// not have is driver.ErrNotFound, not a failed sync.
+func TestSyncDatabaseMissing(t *testing.T) {
+	db := testcontainer.OpenDB(t, testCatalog, "")
+	t.Cleanup(func() { db.Close() })
+	d := &Driver{db: db, databaseName: "omni_no_such_catalog"}
+
+	if _, err := d.SyncDatabase(context.Background()); !errors.Is(err, driver.ErrNotFound) {
+		t.Fatalf("SyncDatabase = %v, want driver.ErrNotFound", err)
+	}
 }

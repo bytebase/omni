@@ -1,0 +1,3276 @@
+package catalog
+
+import (
+	"cmp"
+	"fmt"
+	"slices"
+	"strings"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	oracleparser "github.com/bytebase/omni/oracle/parser"
+)
+
+// GenerateMigration renders the DDL that turns from into to.
+func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
+	if diff == nil {
+		diff = Diff(from, to)
+	}
+	text, _ := generateMigration(diff)
+	return &MigrationPlan{ops: []MigrationOp{{SQL: text}}}
+}
+
+func generateMigration(diff *MetadataDiff) (string, error) {
+	var buf strings.Builder
+	renames := findConstraintRenames(diff)
+	detached := findDetachedIncomingForeignKeys(diff, renames)
+	diff.preAltered = map[*ColumnDiff]bool{}
+	diff.preAdded = map[*ColumnDiff]bool{}
+	diff.alterHandled = map[*TableDiff]bool{}
+
+	// Safe order for migrations:
+	// 1. Drop dependent objects first (in reverse dependency order)
+	//    - Use topological sort to drop in safe order
+	// 2. Create/Alter objects (in dependency order)
+	//    - Use topological sort to create in safe order
+
+	// Phase 1: Drop dependent objects using topological sort
+	dropObjectsInOrder(diff, &buf, renames, detached)
+
+	// Only add blank line if we have drops AND we're about to create something
+	dropPhaseHasContent := buf.Len() > 0
+	createPhaseWillHaveContent := hasCreateOrAlterObjects(diff)
+
+	if dropPhaseHasContent && createPhaseWillHaveContent {
+		_, _ = buf.WriteString("\n")
+	}
+
+	// Phase 2: Create/Alter objects using topological sort
+	createObjectsInOrder(diff, &buf, renames, detached)
+
+	return buf.String(), nil
+}
+
+// dropObjectsInOrder drops all objects in reverse topological order (most dependent first)
+func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet, detached incomingForeignKeySet) {
+	// Build dependency graph for all objects being dropped or altered
+	graph := newGraph()
+	for _, incoming := range detached.sorted() {
+		writeDropForeignKey(buf, incoming.schema, incoming.table, incoming.foreignKey.GetName())
+	}
+
+	// Maps to store different object types
+	viewMap := make(map[string]*ViewDiff)
+	materializedViewMap := make(map[string]*MaterializedViewDiff)
+	tableMap := make(map[string]*TableDiff)
+	functionMap := make(map[string]*FunctionDiff)
+	procedureMap := make(map[string]*ProcedureDiff)
+	sequenceMap := make(map[string]*SequenceDiff)
+
+	// Track all object IDs for dependency resolution
+	allObjects := make(map[string]bool)
+
+	// Collect schemas being dropped to ensure their objects are dropped first
+	schemasBeingDropped := make(map[string]bool)
+	for _, schemaDiff := range diff.SchemaChanges {
+		if schemaDiff.Action == DiffActionDrop {
+			schemasBeingDropped[schemaDiff.SchemaName] = true
+		}
+	}
+
+	// Add views to graph
+	for _, viewDiff := range diff.ViewChanges {
+		if viewDiff.Action == DiffActionDrop || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+			viewID := getMigrationObjectID(viewDiff.SchemaName, viewDiff.ViewName)
+			graph.AddNode(viewID)
+			viewMap[viewID] = viewDiff
+			allObjects[viewID] = true
+		}
+	}
+
+	// Add materialized views to graph
+	for _, mvDiff := range diff.MaterializedViewChanges {
+		if mvDiff.Action == DiffActionDrop || (mvDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(mvDiff.OldMaterializedView, mvDiff.NewMaterializedView)) {
+			mvID := getMigrationObjectID(mvDiff.SchemaName, mvDiff.MaterializedViewName)
+			graph.AddNode(mvID)
+			materializedViewMap[mvID] = mvDiff
+			allObjects[mvID] = true
+		}
+	}
+
+	// Add functions to graph
+	for _, funcDiff := range diff.FunctionChanges {
+		if funcDiff.Action == DiffActionDrop {
+			funcID := getMigrationObjectID(funcDiff.SchemaName, funcDiff.FunctionName)
+			graph.AddNode(funcID)
+			functionMap[funcID] = funcDiff
+			allObjects[funcID] = true
+		}
+	}
+
+	// Add procedures to graph
+	for _, procDiff := range diff.ProcedureChanges {
+		if procDiff.Action == DiffActionDrop {
+			procID := getMigrationObjectID(procDiff.SchemaName, procDiff.ProcedureName)
+			graph.AddNode(procID)
+			procedureMap[procID] = procDiff
+			allObjects[procID] = true
+		}
+	}
+
+	// Add tables to graph
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action == DiffActionDrop {
+			tableID := getMigrationObjectID(tableDiff.SchemaName, tableDiff.TableName)
+			graph.AddNode(tableID)
+			tableMap[tableID] = tableDiff
+			allObjects[tableID] = true
+		}
+	}
+
+	// Add sequences to graph
+	for _, seqDiff := range diff.SequenceChanges {
+		if seqDiff.Action == DiffActionDrop {
+			// Skip system-generated sequences that cannot be manually dropped
+			if isSystemGeneratedSequence(seqDiff.SequenceName) {
+				continue
+			}
+			seqID := getMigrationObjectID(seqDiff.SchemaName, seqDiff.SequenceName)
+			graph.AddNode(seqID)
+			sequenceMap[seqID] = seqDiff
+			allObjects[seqID] = true
+		}
+	}
+
+	// Add dependency edges
+	// For views depending on tables/views
+	for viewID, viewDiff := range viewMap {
+		if viewDiff.OldView != nil {
+			for _, dep := range viewDiff.OldView.DependencyColumns {
+				depID := getMigrationObjectID(dep.Schema, dep.Table)
+				if allObjects[depID] {
+					// Edge from dependent to dependency (view depends on table/view)
+					graph.AddEdge(viewID, depID)
+				}
+			}
+		}
+	}
+
+	// For materialized views depending on tables/views
+	for mvID, mvDiff := range materializedViewMap {
+		if mvDiff.OldMaterializedView != nil {
+			for _, dep := range mvDiff.OldMaterializedView.DependencyColumns {
+				depID := getMigrationObjectID(dep.Schema, dep.Table)
+				if allObjects[depID] {
+					// Edge from dependent to dependency
+					graph.AddEdge(mvID, depID)
+				}
+			}
+		}
+	}
+
+	// For functions depending on tables
+	for funcID, funcDiff := range functionMap {
+		if funcDiff.OldFunction != nil {
+			for _, dep := range funcDiff.OldFunction.DependencyTables {
+				depID := getMigrationObjectID(dep.Schema, dep.Table)
+				if allObjects[depID] {
+					// Edge from function to table
+					graph.AddEdge(funcID, depID)
+				}
+			}
+		}
+	}
+
+	// For tables with foreign keys depending on other tables
+	for tableID, tableDiff := range tableMap {
+		if tableDiff.OldTable != nil {
+			for _, fk := range tableDiff.OldTable.ForeignKeys {
+				referencedSchema := fk.ReferencedSchema
+				if referencedSchema == "" {
+					referencedSchema = tableDiff.SchemaName
+				}
+				depID := getMigrationObjectID(referencedSchema, fk.ReferencedTable)
+				if allObjects[depID] && depID != tableID {
+					// Edge from table with FK to referenced table
+					graph.AddEdge(tableID, depID)
+				}
+			}
+		}
+	}
+
+	// Get topological order
+	orderedList, err := graph.TopologicalSort()
+	if err != nil {
+		// If there's a cycle, fall back to a safe order
+		// First drop foreign keys from ALTER operations that might reference tables being dropped
+		for _, tableDiff := range diff.TableChanges {
+			if tableDiff.Action == DiffActionAlter {
+				for _, fkDiff := range tableDiff.ForeignKeyChanges {
+					if fkDiff.Action == DiffActionDrop {
+						writeDropForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.OldForeignKey.Name)
+					}
+				}
+			}
+		}
+
+		// Drop foreign keys from tables being dropped
+		for _, tableDiff := range diff.TableChanges {
+			if tableDiff.Action == DiffActionDrop && tableDiff.OldTable != nil {
+				for _, fk := range tableDiff.OldTable.ForeignKeys {
+					writeDropForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk.Name)
+				}
+			}
+		}
+
+		// Drop views
+		for _, viewDiff := range viewMap {
+			writeDropView(buf, viewDiff.SchemaName, viewDiff.ViewName)
+		}
+
+		// Drop materialized views
+		for _, mvDiff := range materializedViewMap {
+			writeDropMaterializedView(buf, mvDiff.SchemaName, mvDiff.MaterializedViewName)
+		}
+
+		// Drop functions
+		for _, funcDiff := range functionMap {
+			writeDropFunction(buf, funcDiff.SchemaName, funcDiff.FunctionName)
+		}
+
+		// Drop procedures
+		for _, procDiff := range procedureMap {
+			writeDropProcedure(buf, procDiff.SchemaName, procDiff.ProcedureName)
+		}
+
+		// Drop tables
+		for _, tableDiff := range tableMap {
+			writeDropTable(buf, tableDiff.SchemaName, tableDiff.TableName)
+		}
+
+		// Drop sequences
+		for _, seqDiff := range sequenceMap {
+			writeDropSequence(buf, seqDiff.SchemaName, seqDiff.SequenceName)
+		}
+
+		// Handle remaining ALTER table operations (constraints, indexes, columns)
+		for _, tableDiff := range diff.TableChanges {
+			if tableDiff.Action == DiffActionAlter {
+				// Drop check constraints
+				for _, checkDiff := range tableDiff.CheckConstraintChanges {
+					if checkDiff.Action == DiffActionDrop {
+						writeDropCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+					}
+				}
+
+				// Drop indexes
+				for _, indexDiff := range tableDiff.IndexChanges {
+					if indexDiff.Action == DiffActionDrop {
+						if indexDiff.OldIndex.IsConstraint {
+							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
+								continue
+							}
+							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
+						} else {
+							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
+						}
+					}
+				}
+
+				preAlterDependentVirtualColumns(buf, diff, tableDiff)
+				// Drop dependent virtual columns before ordinary columns.
+				for _, colDiff := range orderedColumnDrops(tableDiff.ColumnChanges) {
+					writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
+				}
+
+				// Drop triggers
+				for _, triggerDiff := range tableDiff.TriggerChanges {
+					if triggerDiff.Action == DiffActionDrop {
+						writeDropTrigger(buf, triggerDiff.OldTrigger.Name)
+					}
+				}
+			}
+		}
+	} else {
+		// First, handle ALTER table drops (foreign keys that might reference tables being dropped)
+		for _, tableDiff := range diff.TableChanges {
+			if tableDiff.Action == DiffActionAlter {
+				// Drop foreign keys first
+				for _, fkDiff := range tableDiff.ForeignKeyChanges {
+					if fkDiff.Action == DiffActionDrop {
+						writeDropForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.OldForeignKey.Name)
+					}
+				}
+			}
+		}
+
+		// Drop in topological order (most dependent first)
+		for _, objID := range orderedList {
+			// Drop the object itself
+			if viewDiff, ok := viewMap[objID]; ok {
+				writeDropView(buf, viewDiff.SchemaName, viewDiff.ViewName)
+			} else if mvDiff, ok := materializedViewMap[objID]; ok {
+				writeDropMaterializedView(buf, mvDiff.SchemaName, mvDiff.MaterializedViewName)
+			} else if funcDiff, ok := functionMap[objID]; ok {
+				writeDropFunction(buf, funcDiff.SchemaName, funcDiff.FunctionName)
+			} else if procDiff, ok := procedureMap[objID]; ok {
+				writeDropProcedure(buf, procDiff.SchemaName, procDiff.ProcedureName)
+			} else if tableDiff, ok := tableMap[objID]; ok {
+				// Drop foreign keys before table
+				if tableDiff.OldTable != nil {
+					for _, fk := range tableDiff.OldTable.ForeignKeys {
+						writeDropForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk.Name)
+					}
+				}
+				writeDropTable(buf, tableDiff.SchemaName, tableDiff.TableName)
+			} else if seqDiff, ok := sequenceMap[objID]; ok {
+				writeDropSequence(buf, seqDiff.SchemaName, seqDiff.SequenceName)
+			}
+		}
+
+		// Handle remaining ALTER table drops (constraints, indexes, columns)
+		for _, tableDiff := range diff.TableChanges {
+			if tableDiff.Action == DiffActionAlter {
+				// Drop check constraints
+				for _, checkDiff := range tableDiff.CheckConstraintChanges {
+					if checkDiff.Action == DiffActionDrop {
+						writeDropCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.OldCheckConstraint.Name)
+					}
+				}
+
+				// Drop indexes
+				for _, indexDiff := range tableDiff.IndexChanges {
+					if indexDiff.Action == DiffActionDrop {
+						if indexDiff.OldIndex.IsConstraint {
+							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
+								continue
+							}
+							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
+						} else {
+							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
+						}
+					}
+				}
+
+				preAlterDependentVirtualColumns(buf, diff, tableDiff)
+				// Drop dependent virtual columns before ordinary columns.
+				for _, colDiff := range orderedColumnDrops(tableDiff.ColumnChanges) {
+					writeDropColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.OldColumn.Name)
+				}
+
+				// Drop triggers
+				for _, triggerDiff := range tableDiff.TriggerChanges {
+					if triggerDiff.Action == DiffActionDrop {
+						writeDropTrigger(buf, triggerDiff.OldTrigger.Name)
+					}
+				}
+			}
+		}
+	}
+
+	// Drop schemas (must be empty)
+	for _, schemaDiff := range diff.SchemaChanges {
+		if schemaDiff.Action == DiffActionDrop {
+			// Before dropping a schema, we need to drop all objects inside it
+			// This handles cases where the diff doesn't include objects within a schema being dropped
+			if schemaDiff.OldSchema != nil {
+				// Drop all objects in the schema in the correct order
+
+				// Drop views first (they might depend on tables)
+				for _, view := range schemaDiff.OldSchema.Views {
+					writeDropView(buf, schemaDiff.SchemaName, view.Name)
+				}
+
+				// Drop materialized views
+				for _, mv := range schemaDiff.OldSchema.MaterializedViews {
+					writeDropMaterializedView(buf, schemaDiff.SchemaName, mv.Name)
+				}
+
+				// Drop functions
+				for _, fn := range schemaDiff.OldSchema.Functions {
+					writeDropFunction(buf, schemaDiff.SchemaName, fn.Name)
+				}
+
+				// Drop procedures
+				for _, proc := range schemaDiff.OldSchema.Procedures {
+					writeDropProcedure(buf, schemaDiff.SchemaName, proc.Name)
+				}
+
+				// A schema drop has no per-table diff to order the drops, so the
+				// schema's foreign keys go first.
+				for _, table := range schemaDiff.OldSchema.Tables {
+					for _, fk := range table.ForeignKeys {
+						writeDropForeignKey(buf, schemaDiff.SchemaName, table.Name, fk.Name)
+					}
+				}
+
+				// Drop tables.
+				for _, table := range schemaDiff.OldSchema.Tables {
+					writeDropTable(buf, schemaDiff.SchemaName, table.Name)
+				}
+
+				// Drop sequences
+				for _, seq := range schemaDiff.OldSchema.Sequences {
+					writeDropSequence(buf, schemaDiff.SchemaName, seq.Name)
+				}
+			}
+
+			if schemaDiff.SchemaName != "" {
+				writeDropSchema(buf, schemaDiff.SchemaName)
+			}
+		}
+	}
+}
+
+// createObjectsInOrder creates all objects in topological order (dependencies first)
+func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constraintRenameSet, detached incomingForeignKeySet) {
+	// First create schemas (they don't have dependencies)
+	var schemasToCreate []string
+	for _, schemaDiff := range diff.SchemaChanges {
+		if schemaDiff.Action == DiffActionCreate && schemaDiff.SchemaName != "" {
+			schemasToCreate = append(schemasToCreate, schemaDiff.SchemaName)
+		}
+	}
+	slices.Sort(schemasToCreate)
+	for _, schemaName := range schemasToCreate {
+		writeCreateSchema(buf, schemaName)
+	}
+
+	// Add blank line after schema creation only if we have schemas and more content follows
+	if len(schemasToCreate) > 0 && (hasCreateOrAlterTables(diff) || hasCreateViewsOrFunctions(diff)) {
+		_, _ = buf.WriteString("\n")
+	}
+
+	// Create sequences (before tables as they might be used in column defaults)
+	for _, seqDiff := range diff.SequenceChanges {
+		if seqDiff.Action == DiffActionCreate {
+			// Skip system-generated sequences that are automatically created by Oracle
+			if isSystemGeneratedSequence(seqDiff.SequenceName) {
+				continue
+			}
+			writeMigrationCreateSequence(buf, seqDiff.SchemaName, seqDiff.NewSequence)
+		}
+	}
+	for _, seqDiff := range diff.SequenceChanges {
+		if seqDiff.Action == DiffActionAlter && !isSystemGeneratedSequence(seqDiff.SequenceName) {
+			writeMigrationAlterSequence(buf, seqDiff.SchemaName, seqDiff.OldSequence, seqDiff.NewSequence)
+		}
+	}
+
+	// Build dependency graph for all objects being created or altered
+	graph := newGraph()
+
+	// Maps to store different object types
+	viewMap := make(map[string]*ViewDiff)
+	materializedViewMap := make(map[string]*MaterializedViewDiff)
+	tableMap := make(map[string]*TableDiff)
+	functionMap := make(map[string]*FunctionDiff)
+	procedureMap := make(map[string]*ProcedureDiff)
+
+	// Track all object IDs for dependency resolution
+	allObjects := make(map[string]bool)
+
+	// Add tables to graph (both CREATE and ALTER for column additions)
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action == DiffActionCreate || tableDiff.Action == DiffActionAlter {
+			tableID := getMigrationObjectID(tableDiff.SchemaName, tableDiff.TableName)
+			graph.AddNode(tableID)
+			tableMap[tableID] = tableDiff
+			allObjects[tableID] = true
+		}
+	}
+
+	// Add views to graph
+	for _, viewDiff := range diff.ViewChanges {
+		if viewDiff.Action == DiffActionCreate || viewDiff.Action == DiffActionAlter {
+			viewID := getMigrationObjectID(viewDiff.SchemaName, viewDiff.ViewName)
+			graph.AddNode(viewID)
+			viewMap[viewID] = viewDiff
+			allObjects[viewID] = true
+		}
+	}
+
+	// Add materialized views to graph
+	for _, mvDiff := range diff.MaterializedViewChanges {
+		if mvDiff.Action == DiffActionCreate || mvDiff.Action == DiffActionAlter {
+			mvID := getMigrationObjectID(mvDiff.SchemaName, mvDiff.MaterializedViewName)
+			graph.AddNode(mvID)
+			materializedViewMap[mvID] = mvDiff
+			allObjects[mvID] = true
+		}
+	}
+
+	// Add functions to graph
+	for _, funcDiff := range diff.FunctionChanges {
+		if funcDiff.Action == DiffActionCreate || funcDiff.Action == DiffActionAlter {
+			funcID := getMigrationObjectID(funcDiff.SchemaName, funcDiff.FunctionName)
+			graph.AddNode(funcID)
+			functionMap[funcID] = funcDiff
+			allObjects[funcID] = true
+		}
+	}
+
+	// Add procedures to graph for creation
+	for _, procDiff := range diff.ProcedureChanges {
+		if procDiff.Action == DiffActionCreate || procDiff.Action == DiffActionAlter {
+			procID := getMigrationObjectID(procDiff.SchemaName, procDiff.ProcedureName)
+			graph.AddNode(procID)
+			procedureMap[procID] = procDiff
+			allObjects[procID] = true
+		}
+	}
+
+	// Views and virtual columns can call functions, so the function must exist
+	// first.
+	for viewID, viewDiff := range viewMap {
+		view := viewDiff.NewView
+		if view == nil {
+			view = viewDiff.OldView
+		}
+		if view == nil {
+			continue
+		}
+		for functionID, functionDiff := range functionMap {
+			function := functionDiff.NewFunction
+			if function == nil {
+				function = functionDiff.OldFunction
+			}
+			if function != nil && expressionReferencesFunction(view.Definition, function.Name) {
+				graph.AddEdge(functionID, viewID)
+			}
+		}
+	}
+	for viewID, viewDiff := range materializedViewMap {
+		view := viewDiff.NewMaterializedView
+		if view == nil {
+			view = viewDiff.OldMaterializedView
+		}
+		if view == nil {
+			continue
+		}
+		for functionID, functionDiff := range functionMap {
+			function := functionDiff.NewFunction
+			if function == nil {
+				function = functionDiff.OldFunction
+			}
+			if function != nil && expressionReferencesFunction(view.Definition, function.Name) {
+				graph.AddEdge(functionID, viewID)
+			}
+		}
+	}
+	for tableID, tableDiff := range tableMap {
+		if tableDiff.NewTable == nil {
+			continue
+		}
+		for _, column := range tableDiff.NewTable.Columns {
+			if column.GetGeneration() == nil {
+				continue
+			}
+			for functionID, functionDiff := range functionMap {
+				function := functionDiff.NewFunction
+				if function == nil {
+					function = functionDiff.OldFunction
+				}
+				if function != nil && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
+					graph.AddEdge(functionID, tableID)
+				}
+			}
+		}
+	}
+
+	// Add dependency edges
+	// For tables with foreign keys depending on other tables (only for CREATE operations)
+	for tableID, tableDiff := range tableMap {
+		if tableDiff.Action == DiffActionCreate && tableDiff.NewTable != nil {
+			for _, fk := range tableDiff.NewTable.ForeignKeys {
+				referencedSchema := fk.ReferencedSchema
+				if referencedSchema == "" {
+					referencedSchema = tableDiff.SchemaName
+				}
+				depID := getMigrationObjectID(referencedSchema, fk.ReferencedTable)
+				if depID != tableID {
+					// Edge from dependency to dependent (referenced table to table with FK)
+					graph.AddEdge(depID, tableID)
+				}
+			}
+		}
+	}
+
+	// For views depending on tables/views
+	for viewID, viewDiff := range viewMap {
+		if viewDiff.NewView != nil {
+			for _, dep := range viewDiff.NewView.DependencyColumns {
+				schema := dep.Schema
+				if schema == "" {
+					schema = viewDiff.SchemaName
+				}
+				depID := getMigrationObjectID(schema, dep.Table)
+				// Only add edge if the dependency exists in our objects being created
+				if allObjects[depID] {
+					// Edge from dependency to dependent (table/view to view)
+					graph.AddEdge(depID, viewID)
+				} else {
+					// Try with empty schema if the dependency schema doesn't match
+					depIDNoSchema := getMigrationObjectID("", dep.Table)
+					if allObjects[depIDNoSchema] {
+						// Edge from dependency to dependent (table/view to view)
+						graph.AddEdge(depIDNoSchema, viewID)
+					}
+				}
+			}
+		}
+	}
+
+	// For materialized views depending on tables/views
+	for mvID, mvDiff := range materializedViewMap {
+		if mvDiff.NewMaterializedView != nil {
+			for _, dep := range mvDiff.NewMaterializedView.DependencyColumns {
+				schema := dep.Schema
+				if schema == "" {
+					schema = mvDiff.SchemaName
+				}
+				depID := getMigrationObjectID(schema, dep.Table)
+				// Only add edge if the dependency exists in our objects being created
+				if allObjects[depID] {
+					// Edge from dependency to dependent
+					graph.AddEdge(depID, mvID)
+				}
+			}
+		}
+	}
+
+	// For functions depending on tables
+	for funcID, funcDiff := range functionMap {
+		if funcDiff.NewFunction != nil {
+			for _, dep := range funcDiff.NewFunction.DependencyTables {
+				depID := getMigrationObjectID(dep.Schema, dep.Table)
+				// Only add edge if the dependency exists in our objects being created
+				if allObjects[depID] {
+					// Edge from table to function
+					graph.AddEdge(depID, funcID)
+				}
+			}
+		}
+	}
+
+	earlyAlteredTables := map[string]bool{}
+	for _, viewDiff := range viewMap {
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+			for _, dependency := range viewDiff.NewView.GetDependencyColumns() {
+				owner := dependency.GetSchema()
+				if owner == "" {
+					owner = viewDiff.SchemaName
+				}
+				earlyAlteredTables[owner+"\x00"+dependency.GetTable()] = true
+			}
+		}
+	}
+	for _, viewDiff := range materializedViewMap {
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
+			for _, dependency := range viewDiff.NewMaterializedView.GetDependencyColumns() {
+				owner := dependency.GetSchema()
+				if owner == "" {
+					owner = viewDiff.SchemaName
+				}
+				earlyAlteredTables[owner+"\x00"+dependency.GetTable()] = true
+			}
+		}
+	}
+
+	// Get topological order
+	orderedList, err := graph.TopologicalSort()
+	if err != nil {
+		// If there's a cycle, fall back to a safe order. Functions a virtual
+		// column calls must exist before their table.
+		prewrittenFunctions := map[string]bool{}
+		for _, tableDiff := range tableMap {
+			if tableDiff.NewTable == nil {
+				continue
+			}
+			for _, column := range tableDiff.NewTable.Columns {
+				if column.GetGeneration() == nil {
+					continue
+				}
+				for functionID, functionDiff := range functionMap {
+					function := functionDiff.NewFunction
+					if function == nil {
+						function = functionDiff.OldFunction
+					}
+					if function != nil && !prewrittenFunctions[functionID] && expressionReferencesFunction(column.GetGeneration().GetExpression(), function.Name) {
+						writeFunctionDiff(buf, functionDiff)
+						prewrittenFunctions[functionID] = true
+					}
+				}
+			}
+		}
+		// Create tables first (without foreign keys)
+		for _, tableDiff := range tableMap {
+			if tableDiff.Action == DiffActionCreate {
+				createTableSQL, err := generateCreateTable(tableDiff.SchemaName, tableDiff.TableName, tableDiff.NewTable, false)
+				if err != nil {
+					return
+				}
+				_, _ = buf.WriteString(createTableSQL)
+				if createTableSQL != "" {
+					_, _ = buf.WriteString("\n")
+				}
+			}
+		}
+
+		// Handle column additions for ALTER operations (only columns in topological order)
+		for _, tableDiff := range tableMap {
+			if tableDiff.Action == DiffActionAlter {
+				for _, colDiff := range tableDiff.ColumnChanges {
+					if colDiff.Action == DiffActionCreate && !diff.preAdded[colDiff] {
+						writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn)
+					}
+				}
+				if earlyAlteredTables[tableDiff.SchemaName+"\x00"+tableDiff.TableName] {
+					writeAlterColumns(buf, diff, tableDiff, detached)
+					diff.alterHandled[tableDiff] = true
+				}
+			}
+		}
+
+		// A view that calls a function needs it first, as a virtual column does.
+		for _, functionDiff := range functionMap {
+			function := functionDiff.NewFunction
+			if function == nil {
+				function = functionDiff.OldFunction
+			}
+			if function == nil || prewrittenFunctions[functionDiff.SchemaName+"."+function.Name] {
+				continue
+			}
+			called := false
+			for _, viewDiff := range viewMap {
+				view := viewDiff.NewView
+				if view == nil {
+					view = viewDiff.OldView
+				}
+				if view != nil && expressionReferencesFunction(view.Definition, function.Name) {
+					called = true
+				}
+			}
+			for _, viewDiff := range materializedViewMap {
+				view := viewDiff.NewMaterializedView
+				if view == nil {
+					view = viewDiff.OldMaterializedView
+				}
+				if view != nil && expressionReferencesFunction(view.Definition, function.Name) {
+					called = true
+				}
+			}
+			if called {
+				writeFunctionDiff(buf, functionDiff)
+				prewrittenFunctions[functionDiff.SchemaName+"."+function.Name] = true
+			}
+		}
+
+		writeMigrationViewsInDependencyOrder(buf, viewMap, materializedViewMap)
+
+		// Create functions
+		for functionID, funcDiff := range functionMap {
+			if prewrittenFunctions[functionID] || prewrittenFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
+				continue
+			}
+			writeFunctionDiff(buf, funcDiff)
+		}
+
+		// Create procedures
+		for _, procDiff := range procedureMap {
+			writeProcedureDiff(buf, procDiff)
+		}
+
+		// Add foreign keys (only for CREATE operations)
+		for _, tableDiff := range tableMap {
+			if tableDiff.Action == DiffActionCreate && tableDiff.NewTable != nil {
+				for _, fk := range tableDiff.NewTable.ForeignKeys {
+					if !waitsForRebuild(diff, tableDiff.SchemaName, fk) && !waitsForKeyAddition(diff, tableDiff.SchemaName, fk) {
+						writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk)
+					}
+				}
+			}
+		}
+	} else {
+		// Create in topological order (dependencies first)
+		for _, objID := range orderedList {
+			if tableDiff, ok := tableMap[objID]; ok {
+				switch tableDiff.Action {
+				case DiffActionCreate:
+					// Create table without foreign keys
+					createTableSQL, err := generateCreateTable(tableDiff.SchemaName, tableDiff.TableName, tableDiff.NewTable, false)
+					if err != nil {
+						return
+					}
+					_, _ = buf.WriteString(createTableSQL)
+					if createTableSQL != "" {
+						_, _ = buf.WriteString("\n")
+					}
+				case DiffActionAlter:
+					// Handle column additions and the rest of the table's changes
+					// before dependent views are created.
+					for _, colDiff := range tableDiff.ColumnChanges {
+						if colDiff.Action == DiffActionCreate && !diff.preAdded[colDiff] {
+							writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn)
+						}
+					}
+					if earlyAlteredTables[tableDiff.SchemaName+"\x00"+tableDiff.TableName] {
+						writeAlterColumns(buf, diff, tableDiff, detached)
+						diff.alterHandled[tableDiff] = true
+					}
+				default:
+					// No action needed
+				}
+			} else if viewDiff, ok := viewMap[objID]; ok {
+				if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+					writeMigrationView(buf, viewDiff.SchemaName, viewDiff.NewView)
+				}
+			} else if mvDiff, ok := materializedViewMap[objID]; ok {
+				if mvDiff.Action == DiffActionCreate || (mvDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(mvDiff.OldMaterializedView, mvDiff.NewMaterializedView)) {
+					writeMigrationMaterializedView(buf, mvDiff.SchemaName, mvDiff.NewMaterializedView)
+				}
+			} else if funcDiff, ok := functionMap[objID]; ok {
+				writeFunctionDiff(buf, funcDiff)
+			} else if procDiff, ok := procedureMap[objID]; ok {
+				writeProcedureDiff(buf, procDiff)
+			}
+		}
+
+		// Add foreign keys after all tables are created (only for CREATE operations)
+		for _, tableDiff := range tableMap {
+			if tableDiff.Action == DiffActionCreate && tableDiff.NewTable != nil {
+				for _, fk := range tableDiff.NewTable.ForeignKeys {
+					if !waitsForRebuild(diff, tableDiff.SchemaName, fk) && !waitsForKeyAddition(diff, tableDiff.SchemaName, fk) {
+						writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk)
+					}
+				}
+			}
+		}
+	}
+
+	// Handle remaining ALTER table operations (not columns, which are handled in topological order)
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action == DiffActionAlter {
+			// Skip column additions (already handled in topological order)
+			// Handle other ALTER operations
+
+			// Alter columns (type changes, nullability, etc.) unless already done
+			// before dependent views.
+			if !diff.alterHandled[tableDiff] {
+				writeAlterColumns(buf, diff, tableDiff, detached)
+			}
+
+			// Add indexes
+			for _, indexDiff := range tableDiff.IndexChanges {
+				if indexDiff.Action == DiffActionCreate {
+					if oldName := renames.oldNameForNew(tableDiff, indexDiff.NewIndex.Name); oldName != "" {
+						writeRenameConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, oldName, indexDiff.NewIndex.Name)
+						continue
+					}
+					if indexDiff.NewIndex.IsConstraint {
+						// Add constraint (primary key or unique constraint)
+						if indexDiff.NewIndex.Primary {
+							writeMigrationPrimaryKey(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
+						} else if indexDiff.NewIndex.Unique {
+							writeMigrationUniqueKey(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
+						}
+					} else {
+						writeMigrationIndex(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
+					}
+				}
+			}
+
+			// Add check constraints
+			for _, checkDiff := range tableDiff.CheckConstraintChanges {
+				if checkDiff.Action == DiffActionCreate {
+					writeAddCheckConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, checkDiff.NewCheckConstraint)
+				}
+			}
+
+			// Add foreign keys, except those that wait for a key this migration adds.
+			for _, fkDiff := range tableDiff.ForeignKeyChanges {
+				if fkDiff.Action == DiffActionCreate &&
+					!waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) &&
+					!waitsForRebuild(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) {
+					writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey)
+				}
+			}
+
+			// Add triggers
+			for _, triggerDiff := range tableDiff.TriggerChanges {
+				if triggerDiff.Action == DiffActionCreate {
+					writeMigrationTrigger(buf, triggerDiff.NewTrigger)
+				}
+			}
+
+			// Handle table comment changes
+			generateTableCommentChanges(buf, tableDiff)
+
+			// Handle column comment changes
+			generateColumnCommentChanges(buf, tableDiff)
+
+		}
+	}
+
+	for _, incoming := range detached.sorted() {
+		writeMigrationForeignKey(buf, incoming.schema, incoming.table, incoming.foreignKey)
+	}
+
+	// Foreign keys that wait for a key added by this migration come after every
+	// ALTER that adds one.
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action == DiffActionAlter {
+			for _, fkDiff := range tableDiff.ForeignKeyChanges {
+				if fkDiff.Action == DiffActionCreate &&
+					(waitsForKeyAddition(diff, tableDiff.SchemaName, fkDiff.NewForeignKey) ||
+						waitsForRebuild(diff, tableDiff.SchemaName, fkDiff.NewForeignKey)) {
+					writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fkDiff.NewForeignKey)
+				}
+			}
+			continue
+		}
+		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
+			continue
+		}
+		for _, fk := range tableDiff.NewTable.ForeignKeys {
+			if waitsForRebuild(diff, tableDiff.SchemaName, fk) || waitsForKeyAddition(diff, tableDiff.SchemaName, fk) {
+				writeMigrationForeignKey(buf, tableDiff.SchemaName, tableDiff.TableName, fk)
+			}
+		}
+	}
+
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionCreate || tableDiff.NewTable == nil {
+			continue
+		}
+		for _, index := range tableDiff.NewTable.Indexes {
+			if !index.IsConstraint && strings.Contains(index.Type, "FUNCTION-BASED") {
+				writeMigrationIndex(buf, tableDiff.SchemaName, tableDiff.TableName, index)
+			}
+		}
+	}
+	for _, viewDiff := range diff.MaterializedViewChanges {
+		if viewDiff.NewMaterializedView == nil {
+			continue
+		}
+		if viewDiff.Action != DiffActionCreate && !(viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
+			continue
+		}
+		for _, index := range viewDiff.NewMaterializedView.Indexes {
+			if strings.Contains(index.GetType(), "FUNCTION-BASED") {
+				writeMigrationIndex(buf, viewDiff.SchemaName, viewDiff.NewMaterializedView.Name, index)
+			}
+		}
+	}
+
+	rebuildFunctionBasedIndexes(buf, diff)
+
+	// Comment changes for the other objects Oracle takes here: a view (through
+	// COMMENT ON TABLE) and a materialized view. A sequence, routine and index
+	// are not among them -- COMMENT ON each is ORA-32594, "invalid object
+	// category" -- so a metadata comment on one has no statement to render.
+	generateViewCommentChanges(buf, diff)
+	generateMaterializedViewCommentChanges(buf, diff)
+}
+
+func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMetadata, includeForeignKeys bool) (string, error) {
+	var buf strings.Builder
+
+	writeMigrationCreateTable(&buf, schemaName, tableName, table.Columns, table.CheckConstraints)
+
+	if _, err := buf.WriteString(";\n"); err != nil {
+		return "", err
+	}
+
+	// Add constraints (primary key, unique)
+	for _, index := range table.Indexes {
+		if index.Primary {
+			writeMigrationPrimaryKey(&buf, schemaName, tableName, index)
+		} else if index.Unique && index.IsConstraint {
+			writeMigrationUniqueKey(&buf, schemaName, tableName, index)
+		}
+	}
+
+	// Add non-constraint indexes
+	for _, index := range table.Indexes {
+		if !index.IsConstraint && !strings.Contains(index.Type, "FUNCTION-BASED") {
+			writeMigrationIndex(&buf, schemaName, tableName, index)
+		}
+	}
+
+	// Add table comment if present
+	if table.Comment != "" {
+		writeTableComment(&buf, schemaName, tableName, table.Comment)
+	}
+
+	// Add column comments if present
+	for _, col := range table.Columns {
+		if col.Comment != "" {
+			writeColumnComment(&buf, schemaName, tableName, col.Name, col.Comment)
+		}
+	}
+
+	// Optionally add foreign keys
+	if includeForeignKeys && table != nil {
+		for _, fk := range table.ForeignKeys {
+			writeMigrationForeignKey(&buf, schemaName, tableName, fk)
+		}
+	}
+
+	// Add triggers
+	for _, trigger := range table.Triggers {
+		writeMigrationTrigger(&buf, trigger)
+	}
+
+	return buf.String(), nil
+}
+
+func preAlterDependentVirtualColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff) {
+	dropped := map[string]bool{}
+	for _, change := range tableDiff.ColumnChanges {
+		if change.Action == DiffActionDrop && change.OldColumn != nil {
+			dropped[change.OldColumn.GetName()] = true
+		}
+	}
+	if len(dropped) == 0 {
+		return
+	}
+	for _, change := range tableDiff.ColumnChanges {
+		if change.Action != DiffActionAlter || change.OldColumn == nil || change.OldColumn.GetGeneration() == nil {
+			continue
+		}
+		expression := change.OldColumn.GetGeneration().GetExpression()
+		for column := range dropped {
+			if !expressionReferencesColumn(expression, column) {
+				continue
+			}
+			if change.NewColumn.GetGeneration() != nil {
+				required := change.NewColumn.GetGeneration().GetExpression()
+				for _, candidate := range tableDiff.ColumnChanges {
+					if candidate.Action != DiffActionCreate || candidate.NewColumn == nil || diff.preAdded[candidate] {
+						continue
+					}
+					if expressionReferencesColumn(required, candidate.NewColumn.GetName()) {
+						writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, candidate.NewColumn)
+						diff.preAdded[candidate] = true
+					}
+				}
+			}
+			handled := diffObjectNames(tableDiff, DiffActionDrop)
+			for name := range diffObjectNames(tableDiff, DiffActionCreate) {
+				handled[name] = true
+			}
+			dependents := findColumnDependents(tableDiff.OldTable, []string{change.OldColumn.GetName()}, handled)
+			dependents.writeDrops(buf, tableDiff.SchemaName, tableDiff.TableName)
+			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, change, columnNotNull{}))
+			dependents.writeCreates(buf, tableDiff.SchemaName, tableDiff.TableName)
+			diff.preAltered[change] = true
+			break
+		}
+	}
+}
+
+func orderedColumnDrops(changes []*ColumnDiff) []*ColumnDiff {
+	var virtual, ordinary []*ColumnDiff
+	for _, change := range changes {
+		if change.Action != DiffActionDrop || change.OldColumn == nil {
+			continue
+		}
+		if change.OldColumn.GetGeneration() != nil {
+			virtual = append(virtual, change)
+		} else {
+			ordinary = append(ordinary, change)
+		}
+	}
+	return append(virtual, ordinary...)
+}
+
+func columnIdentityAlterClause(oldColumn, newColumn *metadatapb.ColumnMetadata) string {
+	mode := " GENERATED ALWAYS AS IDENTITY"
+	if newColumn.GetIdentityGeneration() == metadatapb.ColumnMetadata_BY_DEFAULT {
+		mode = " GENERATED BY DEFAULT"
+		if newColumn.GetDefaultOnNull() {
+			mode += " ON NULL"
+		}
+		mode += " AS IDENTITY"
+	}
+	var options []string
+	if oldColumn.GetIdentitySeed() != newColumn.GetIdentitySeed() && newColumn.GetIdentitySeed() != 0 {
+		options = append(options, fmt.Sprintf("START WITH %d", newColumn.GetIdentitySeed()))
+	}
+	if oldColumn.GetIdentityIncrement() != newColumn.GetIdentityIncrement() && newColumn.GetIdentityIncrement() != 0 {
+		options = append(options, fmt.Sprintf("INCREMENT BY %d", newColumn.GetIdentityIncrement()))
+	}
+	if len(options) > 0 {
+		mode += " (" + strings.Join(options, " ") + ")"
+	}
+	return mode
+}
+
+func mergeColumnDependents(into *columnDependents, from columnDependents) {
+	mergeIndexes := func(source []*metadatapb.IndexMetadata) {
+		for _, candidate := range source {
+			found := false
+			for _, existing := range into.indexes {
+				if existing.GetName() == candidate.GetName() {
+					found = true
+				}
+			}
+			if !found {
+				into.indexes = append(into.indexes, candidate)
+			}
+		}
+	}
+	mergeIndexes(from.indexes)
+	for _, candidate := range from.checks {
+		found := false
+		for _, existing := range into.checks {
+			if existing.GetName() == candidate.GetName() {
+				found = true
+			}
+		}
+		if !found {
+			into.checks = append(into.checks, candidate)
+		}
+	}
+	for _, candidate := range from.notNulls {
+		found := false
+		for _, existing := range into.notNulls {
+			if existing.GetName() == candidate.GetName() {
+				found = true
+			}
+		}
+		if !found {
+			into.notNulls = append(into.notNulls, candidate)
+		}
+	}
+	for _, candidate := range from.foreignKeys {
+		found := false
+		for _, existing := range into.foreignKeys {
+			if existing.GetName() == candidate.GetName() {
+				found = true
+			}
+		}
+		if !found {
+			into.foreignKeys = append(into.foreignKeys, candidate)
+		}
+	}
+}
+
+// writeAlterColumns writes one table's column alterations. A rebuilt column
+// cannot change while an index or a constraint is on it (ORA-12991, ORA-54022,
+// ORA-54023), so those of every rebuilt column are dropped before any column
+// changes and made again once all have, each once: a constraint shared by two
+// rebuilt columns is checked only against the finished table.
+func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *TableDiff, detached incomingForeignKeySet) {
+	schemaName, tableName := tableDiff.SchemaName, tableDiff.TableName
+	created := diffObjectNames(tableDiff, DiffActionCreate)
+	typeChanged := map[string]bool{}
+	ordinaryTypeChanged := map[string]bool{}
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
+			typeChanged[colDiff.OldColumn.GetName()] = true
+			if !rebuildsColumn(colDiff) {
+				ordinaryTypeChanged[colDiff.OldColumn.GetName()] = true
+			}
+		}
+	}
+	// A virtual column that reads a column whose datatype changes is dropped
+	// with that column's dependents and added again with its target expression
+	// and comment: Oracle refuses the source change while the virtual column is
+	// attached (ORA-54033), whether or not its own expression changes.
+	var virtualDependents []*metadatapb.ColumnMetadata
+	var virtualColumns []string
+	var allVirtualDependents columnDependents
+	if rebuilt := virtualColumnsRebuiltByTypeChanges(tableDiff); len(rebuilt) > 0 {
+		handled := diffObjectNames(tableDiff, DiffActionDrop)
+		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
+			handled[name] = true
+		}
+		for _, column := range rebuilt {
+			if column.diff != nil {
+				if diff.preAltered[column.diff] {
+					// An earlier pass already detached it for a column drop.
+					continue
+				}
+				diff.preAltered[column.diff] = true
+			}
+			dependents := findColumnDependents(tableDiff.OldTable, []string{column.column.GetName()}, handled)
+			mergeColumnDependents(&allVirtualDependents, dependents)
+			virtualDependents = append(virtualDependents, column.column)
+			virtualColumns = append(virtualColumns, column.column.GetName())
+		}
+		// Another table's foreign key on a key of a detached virtual column
+		// goes first, or Oracle refuses to drop that key (ORA-02273), and comes
+		// back once the column and its dependents exist again.
+		for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, virtualColumns, DiffActionDrop) {
+			if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+				continue
+			}
+			writeDropForeignKey(buf, schemaName, incoming.table, incoming.foreignKey.GetName())
+		}
+		allVirtualDependents.writeDrops(buf, schemaName, tableName)
+		for _, column := range virtualDependents {
+			writeDropColumn(buf, schemaName, tableName, column.GetName())
+		}
+	}
+
+	var oldColumns, newColumns []string
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if diff.preAltered[colDiff] {
+			continue
+		}
+		if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) {
+			oldColumns = append(oldColumns, colDiff.OldColumn.Name)
+			newColumns = append(newColumns, colDiff.NewColumn.Name)
+		}
+	}
+
+	// Oracle refuses a datatype change under a function-based index (ORA-30556)
+	// but rebuilds the ordinary indexes itself, so only those detach around it.
+	var rebuiltFunctionIndexes []*metadatapb.IndexMetadata
+	if len(ordinaryTypeChanged) > 0 {
+		handled := diffObjectNames(tableDiff, DiffActionDrop)
+		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
+			handled[name] = true
+		}
+		for _, index := range tableDiff.OldTable.GetIndexes() {
+			if index.GetIsConstraint() || handled[index.GetName()] || !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+				continue
+			}
+			if indexReferencesColumns(index, ordinaryTypeChanged) {
+				rebuiltFunctionIndexes = append(rebuiltFunctionIndexes, index)
+			}
+		}
+		for _, index := range rebuiltFunctionIndexes {
+			writeDropIndex(buf, schemaName, index.GetName())
+		}
+	}
+
+	// Other tables' foreign keys on a rebuilt key go first, or dropping the key
+	// fails (ORA-02273), and come back after it.
+	for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, oldColumns, DiffActionDrop) {
+		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+			continue
+		}
+		writeDropForeignKey(buf, schemaName, incoming.table, incoming.foreignKey.Name)
+	}
+	findColumnDependents(tableDiff.OldTable, oldColumns, diffObjectNames(tableDiff, DiffActionDrop)).writeDrops(buf, schemaName, tableName)
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if colDiff.Action != DiffActionAlter || diff.preAltered[colDiff] {
+			continue
+		}
+		// A named NOT NULL went with the dependents. One the diff creates is
+		// left to it.
+		notNull := columnNotNull{dropped: notNullConstraintName(tableDiff.OldTable, colDiff.OldColumn.Name) != ""}
+		if name := notNullConstraintName(tableDiff.NewTable, colDiff.NewColumn.Name); !created[name] {
+			notNull.name = name
+		}
+		_, _ = buf.WriteString(generateAlterColumn(schemaName, tableName, colDiff, notNull))
+	}
+	findColumnDependents(tableDiff.NewTable, newColumns, created).writeCreates(buf, schemaName, tableName)
+	for _, column := range virtualDependents {
+		writeAddColumn(buf, schemaName, tableName, column)
+		if column.GetComment() != "" {
+			writeColumnComment(buf, schemaName, tableName, column.GetName(), column.GetComment())
+		}
+	}
+	allVirtualDependents.writeCreates(buf, schemaName, tableName)
+	for _, index := range rebuiltFunctionIndexes {
+		definition := index
+		for _, candidate := range tableDiff.NewTable.GetIndexes() {
+			if candidate.GetName() == index.GetName() {
+				definition = candidate
+			}
+		}
+		writeMigrationIndex(buf, schemaName, tableName, definition)
+	}
+	restoredColumns := append(append([]string(nil), newColumns...), virtualColumns...)
+	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, restoredColumns, DiffActionCreate) {
+		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+			continue
+		}
+		writeMigrationForeignKey(buf, schemaName, incoming.table, incoming.foreignKey)
+	}
+}
+
+// virtualRebuild is a virtual column a datatype change detaches: the column to
+// add again, and its diff when it has one.
+type virtualRebuild struct {
+	column *metadatapb.ColumnMetadata
+	diff   *ColumnDiff
+}
+
+// virtualColumnsRebuiltByTypeChanges lists the virtual columns of tableDiff that
+// read a column whose datatype changes. A virtual column the diff creates needs
+// no detachment, and a virtual one the diff drops is already gone.
+func virtualColumnsRebuiltByTypeChanges(tableDiff *TableDiff) []virtualRebuild {
+	typeChanged := map[string]bool{}
+	diffs := map[string]*ColumnDiff{}
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
+			typeChanged[colDiff.OldColumn.GetName()] = true
+		}
+		if colDiff.Action == DiffActionDrop || colDiff.Action == DiffActionCreate {
+			continue
+		}
+		diffs[colDiff.NewColumn.GetName()] = colDiff
+	}
+	if len(typeChanged) == 0 {
+		return nil
+	}
+	oldExpressions := map[string]string{}
+	for _, column := range tableDiff.OldTable.GetColumns() {
+		if column.GetGeneration() != nil {
+			oldExpressions[column.GetName()] = column.GetGeneration().GetExpression()
+		}
+	}
+	var result []virtualRebuild
+	for _, column := range tableDiff.NewTable.GetColumns() {
+		if column.GetGeneration() == nil {
+			continue
+		}
+		if colDiff := diffs[column.GetName()]; colDiff != nil && colDiff.Action == DiffActionDrop {
+			continue
+		}
+		// The source change is refused while the existing virtual column still
+		// reads it (ORA-54033), and while the target one does after the change.
+		if !indexReferencesColumnsInExpression(column.GetGeneration().GetExpression(), typeChanged) &&
+			!indexReferencesColumnsInExpression(oldExpressions[column.GetName()], typeChanged) {
+			continue
+		}
+		result = append(result, virtualRebuild{column: column, diff: diffs[column.GetName()]})
+	}
+	return result
+}
+
+func indexReferencesColumns(index *metadatapb.IndexMetadata, columns map[string]bool) bool {
+	for _, expression := range index.GetExpressions() {
+		if indexReferencesColumnsInExpression(expression, columns) {
+			return true
+		}
+	}
+	return false
+}
+
+func indexReferencesColumnsInExpression(expression string, columns map[string]bool) bool {
+	for column := range columns {
+		if expressionReferencesColumn(expression, column) {
+			return true
+		}
+	}
+	return false
+}
+
+// incomingForeignKey is another table's foreign key on a rebuilt column.
+type incomingForeignKey struct {
+	schema     string
+	table      string
+	foreignKey *metadatapb.ForeignKeyMetadata
+}
+
+// findIncomingForeignKeys lists the foreign keys of the database's other tables
+// that reference any of the columns of tableDiff's table. It leaves out those
+// the diff handles itself: on a table it creates or drops, or that it creates
+// or drops, as action says.
+func findIncomingForeignKeys(diff *MetadataDiff, database *metadatapb.DatabaseSchemaMetadata, tableDiff *TableDiff, columns []string, action DiffAction) []incomingForeignKey {
+	if len(columns) == 0 || database == nil {
+		return nil
+	}
+	var schemaMetadata *metadatapb.SchemaMetadata
+	for _, candidate := range database.GetSchemas() {
+		if candidate.GetName() == tableDiff.SchemaName {
+			schemaMetadata = candidate
+			break
+		}
+	}
+	if schemaMetadata == nil && tableDiff.SchemaName == database.GetName() {
+		for _, candidate := range database.GetSchemas() {
+			if candidate.GetName() == "" {
+				schemaMetadata = candidate
+				break
+			}
+		}
+	}
+	if schemaMetadata == nil {
+		return nil
+	}
+	tableDiffs := make(map[string]*TableDiff)
+	for _, other := range diff.TableChanges {
+		if other.SchemaName == tableDiff.SchemaName {
+			tableDiffs[other.TableName] = other
+		}
+	}
+	var result []incomingForeignKey
+	for _, table := range schemaMetadata.GetTables() {
+		if table.GetName() == tableDiff.TableName {
+			continue
+		}
+		var handled map[string]bool
+		switch other := tableDiffs[table.GetName()]; {
+		case other == nil:
+		case other.Action == DiffActionCreate && action == DiffActionCreate:
+			// A new table's foreign keys on a rebuilt key are added after it.
+			continue
+		case other.Action != DiffActionAlter:
+			continue
+		default:
+			handled = diffObjectNames(other, action)
+		}
+		for _, fk := range table.GetForeignKeys() {
+			if !handled[fk.GetName()] && referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, columns) {
+				result = append(result, incomingForeignKey{schema: tableDiff.SchemaName, table: table.GetName(), foreignKey: fk})
+			}
+		}
+	}
+	return result
+}
+
+// waitsForRebuild reports whether a new table's foreign key references a column
+// the diff rebuilds. writeAlterColumns adds it after the rebuild: added with
+// the table, it would hold the key the rebuild drops (ORA-02273).
+func waitsForRebuild(diff *MetadataDiff, schemaName string, fk *metadatapb.ForeignKeyMetadata) bool {
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter || tableDiff.SchemaName != schemaName {
+			continue
+		}
+		for _, colDiff := range tableDiff.ColumnChanges {
+			if colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff) &&
+				referencesColumns(fk, schemaName, diff.DatabaseName, tableDiff.TableName, []string{colDiff.NewColumn.Name}) {
+				return true
+			}
+		}
+		for _, rebuilt := range virtualColumnsRebuiltByTypeChanges(tableDiff) {
+			if referencesColumns(fk, schemaName, diff.DatabaseName, tableDiff.TableName, []string{rebuilt.column.GetName()}) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// referencesColumns reports whether the foreign key references any of the
+// columns of the table, which the sync names without a schema when it is the
+// foreign key's own.
+func referencesColumns(fk *metadatapb.ForeignKeyMetadata, schemaName, databaseName, tableName string, columns []string) bool {
+	if fk.ReferencedTable != tableName || (fk.ReferencedSchema != "" && fk.ReferencedSchema != schemaName && fk.ReferencedSchema != databaseName) {
+		return false
+	}
+	return slices.ContainsFunc(fk.ReferencedColumns, func(column string) bool { return slices.Contains(columns, column) })
+}
+
+// rebuildsColumn reports whether Oracle must drop and add the column again, or
+// give it a new virtual type or expression.
+func rebuildsColumn(colDiff *ColumnDiff) bool {
+	oldGeneration, newGeneration := colDiff.OldColumn.Generation, colDiff.NewColumn.Generation
+	if (oldGeneration == nil) != (newGeneration == nil) {
+		return true
+	}
+	return newGeneration != nil && (oldGeneration.Expression != newGeneration.Expression || colDiff.OldColumn.Type != colDiff.NewColumn.Type)
+}
+
+// columnNotNull is how a rebuilt column's NOT NULL is handled: dropped means a
+// named one was dropped with the dependents, and name is the one to restore.
+type columnNotNull struct {
+	dropped bool
+	name    string
+}
+
+func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notNull columnNotNull) string {
+	var buf strings.Builder
+
+	// Oracle cannot turn a stored column into a virtual one or back, so the
+	// column is dropped and added again, comment included.
+	oldGeneration, newGeneration := colDiff.OldColumn.Generation, colDiff.NewColumn.Generation
+	if (oldGeneration == nil) != (newGeneration == nil) {
+		writeDropColumn(&buf, schemaName, tableName, colDiff.OldColumn.Name)
+		if notNull.name == "" {
+			writeAddColumn(&buf, schemaName, tableName, colDiff.NewColumn)
+		} else {
+			// Added nullable, so that NOT NULL comes back under its name.
+			column := cloneColumn(colDiff.NewColumn)
+			column.Nullable = true
+			writeAddColumn(&buf, schemaName, tableName, column)
+			writeSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn, notNull.name)
+		}
+		if colDiff.NewColumn.Comment != "" {
+			writeColumnComment(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Comment)
+		}
+		return buf.String()
+	}
+
+	// Oracle changes a virtual column's type only with its expression
+	// (ORA-54027), and NOT NULL blocks both (ORA-54023).
+	virtualChanged := newGeneration != nil && (oldGeneration.Expression != newGeneration.Expression || colDiff.OldColumn.Type != colDiff.NewColumn.Type)
+	if virtualChanged && !colDiff.OldColumn.Nullable && !notNull.dropped {
+		writeAlterColumnDropNotNull(&buf, schemaName, tableName, colDiff.OldColumn.Name)
+	}
+
+	// In Oracle, we need to handle different aspects of column changes separately
+
+	// If type changed, alter the column type
+	if !virtualChanged && colDiff.OldColumn.Type != colDiff.NewColumn.Type {
+		writeAlterColumnType(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
+	}
+
+	identityDropped := false
+	if colDiff.OldColumn.GetIsIdentity() && !colDiff.NewColumn.GetIsIdentity() {
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "DROP IDENTITY")
+		identityDropped = true
+	}
+	oldDefaultDropped := false
+	// Oracle refuses to relax NOT NULL while DEFAULT ON NULL remains, so remove
+	// that default first.
+	if colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable && colDiff.NewColumn.Nullable &&
+		colDiff.OldColumn.GetDefaultOnNull() && !colDiff.NewColumn.GetDefaultOnNull() && hasDefaultValue(colDiff.OldColumn) {
+		writeAlterColumnDropDefault(&buf, schemaName, tableName, colDiff.OldColumn.Name)
+		oldDefaultDropped = true
+	}
+	// If nullability changed
+	if !virtualChanged && colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable {
+		if colDiff.NewColumn.Nullable {
+			writeAlterColumnDropNotNull(&buf, schemaName, tableName, colDiff.NewColumn.Name)
+		} else {
+			writeAlterColumnSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn.Name)
+		}
+	}
+
+	identityChanged := colDiff.OldColumn.GetIsIdentity() != colDiff.NewColumn.GetIsIdentity()
+	if colDiff.OldColumn.GetIsIdentity() && colDiff.NewColumn.GetIsIdentity() {
+		identityChanged = identityChanged ||
+			colDiff.OldColumn.GetIdentityGeneration() != colDiff.NewColumn.GetIdentityGeneration() ||
+			colDiff.OldColumn.GetIdentitySeed() != colDiff.NewColumn.GetIdentitySeed() ||
+			colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() ||
+			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull()
+	}
+	if identityChanged && !identityDropped {
+		switch {
+		case colDiff.NewColumn.GetIsIdentity() && !colDiff.OldColumn.GetIsIdentity():
+			_, _ = buf.WriteString("-- oracle/catalog: converting an ordinary column to identity is not supported\n")
+		case colDiff.NewColumn.GetIsIdentity():
+			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, strings.TrimSpace(columnIdentityAlterClause(colDiff.OldColumn, colDiff.NewColumn)))
+		default:
+			writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "DROP IDENTITY")
+		}
+	}
+
+	// Handle default value changes. An old identity's backing-sequence default
+	// disappears with DROP IDENTITY, so only the new column's ordinary default
+	// matters.
+	oldHasDefault := hasDefaultValue(colDiff.OldColumn) && !colDiff.OldColumn.GetIsIdentity()
+	newHasDefault := hasDefaultValue(colDiff.NewColumn) && !colDiff.NewColumn.GetIsIdentity()
+	if oldHasDefault || newHasDefault {
+		if !defaultValuesEqual(colDiff.OldColumn, colDiff.NewColumn) {
+			if oldHasDefault && !oldDefaultDropped {
+				writeAlterColumnDropDefault(&buf, schemaName, tableName, colDiff.OldColumn.Name)
+			}
+			if newHasDefault {
+				defaultExpr := getDefaultExpression(colDiff.NewColumn)
+				writeAlterColumnSetDefault(&buf, schemaName, tableName, colDiff.NewColumn.Name, defaultExpr, colDiff.NewColumn.DefaultOnNull)
+			}
+		}
+	}
+
+	if virtualChanged {
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type+" AS ("+newGeneration.Expression+")")
+		writeSetNotNull(&buf, schemaName, tableName, colDiff.NewColumn, notNull.name)
+	}
+
+	if colDiff.OldColumn.IsInvisible != colDiff.NewColumn.IsInvisible {
+		visibility := "VISIBLE"
+		if colDiff.NewColumn.IsInvisible {
+			visibility = "INVISIBLE"
+		}
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, visibility)
+	}
+
+	return buf.String()
+}
+
+// writeSetNotNull restores a rebuilt column's NOT NULL, under its name when it
+// had one.
+func writeSetNotNull(out *strings.Builder, schemaName, tableName string, column *metadatapb.ColumnMetadata, name string) {
+	switch {
+	case column.Nullable:
+	case name != "":
+		writeModifyColumn(out, schemaName, tableName, column.Name, `CONSTRAINT "`+name+`" NOT NULL`)
+	default:
+		writeAlterColumnSetNotNull(out, schemaName, tableName, column.Name)
+	}
+}
+
+// notNullConstraintName returns the name of the column's named NOT NULL
+// constraint, which the sync lists as a check on "<column>" IS NOT NULL.
+func notNullConstraintName(table *metadatapb.TableMetadata, column string) string {
+	want := `"` + column + `" IS NOT NULL`
+	for _, check := range table.GetCheckConstraints() {
+		if strings.Join(strings.Fields(check.Expression), " ") == want {
+			return check.Name
+		}
+	}
+	return ""
+}
+
+// columnDependents are a table's indexes and constraints on some of its
+// columns. notNulls are named NOT NULL constraints: they are dropped with the
+// rest, but restored by the column's own MODIFY, since a CHECK does not make
+// a column NOT NULL.
+type columnDependents struct {
+	indexes     []*metadatapb.IndexMetadata
+	checks      []*metadatapb.CheckConstraintMetadata
+	notNulls    []*metadatapb.CheckConstraintMetadata
+	foreignKeys []*metadatapb.ForeignKeyMetadata
+}
+
+// findColumnDependents lists the table's indexes and constraints on any of the
+// columns, each once, less those named in skip.
+func findColumnDependents(table *metadatapb.TableMetadata, columns []string, skip map[string]bool) columnDependents {
+	var dependents columnDependents
+	if len(columns) == 0 {
+		return dependents
+	}
+	references := func(expression string) bool {
+		return slices.ContainsFunc(columns, func(column string) bool { return expressionReferencesColumn(expression, column) })
+	}
+	// A primary or unique key lists column names as Oracle stores them, not
+	// SQL, so they compare as they are.
+	isColumn := func(name string) bool { return slices.Contains(columns, strings.Trim(name, `"`)) }
+	for _, index := range table.GetIndexes() {
+		matches := references
+		if index.IsConstraint {
+			matches = isColumn
+		}
+		if !skip[index.Name] && slices.ContainsFunc(index.Expressions, matches) {
+			dependents.indexes = append(dependents.indexes, index)
+		}
+	}
+	for _, check := range table.GetCheckConstraints() {
+		switch {
+		case skip[check.Name] || !references(check.Expression):
+		case slices.ContainsFunc(columns, func(column string) bool { return notNullConstraintName(table, column) == check.Name }):
+			dependents.notNulls = append(dependents.notNulls, check)
+		default:
+			dependents.checks = append(dependents.checks, check)
+		}
+	}
+	for _, fk := range table.GetForeignKeys() {
+		onColumn := slices.ContainsFunc(fk.Columns, func(column string) bool { return slices.Contains(columns, column) })
+		// A foreign key of the table on its own rebuilt key goes with the key.
+		if !skip[fk.Name] && (onColumn || referencesColumns(fk, "", "", table.Name, columns)) {
+			dependents.foreignKeys = append(dependents.foreignKeys, fk)
+		}
+	}
+	return dependents
+}
+
+// diffObjectNames returns the names of the indexes and constraints the diff
+// drops, or creates, on the table itself.
+func diffObjectNames(tableDiff *TableDiff, action DiffAction) map[string]bool {
+	names := make(map[string]bool)
+	for _, indexDiff := range tableDiff.IndexChanges {
+		if indexDiff.Action == action {
+			names[cmp.Or(indexDiff.NewIndex, indexDiff.OldIndex).GetName()] = true
+		}
+	}
+	for _, checkDiff := range tableDiff.CheckConstraintChanges {
+		if checkDiff.Action == action {
+			names[cmp.Or(checkDiff.NewCheckConstraint, checkDiff.OldCheckConstraint).GetName()] = true
+		}
+	}
+	for _, fkDiff := range tableDiff.ForeignKeyChanges {
+		if fkDiff.Action == action {
+			names[cmp.Or(fkDiff.NewForeignKey, fkDiff.OldForeignKey).GetName()] = true
+		}
+	}
+	return names
+}
+
+func (d columnDependents) writeDrops(out *strings.Builder, schemaName, tableName string) {
+	for _, fk := range d.foreignKeys {
+		writeDropForeignKey(out, schemaName, tableName, fk.Name)
+	}
+	for _, check := range slices.Concat(d.checks, d.notNulls) {
+		writeDropCheckConstraint(out, schemaName, tableName, check.Name)
+	}
+	for _, index := range d.indexes {
+		if index.IsConstraint {
+			writeDropConstraint(out, schemaName, tableName, index.Name)
+		} else {
+			writeDropIndex(out, schemaName, index.Name)
+		}
+	}
+}
+
+func (d columnDependents) writeCreates(out *strings.Builder, schemaName, tableName string) {
+	for _, index := range d.indexes {
+		switch {
+		case index.Primary:
+			writeMigrationPrimaryKey(out, schemaName, tableName, index)
+		case index.IsConstraint:
+			writeMigrationUniqueKey(out, schemaName, tableName, index)
+		default:
+			writeMigrationIndex(out, schemaName, tableName, index)
+		}
+	}
+	for _, check := range d.checks {
+		writeAddCheckConstraint(out, schemaName, tableName, check)
+	}
+	for _, fk := range d.foreignKeys {
+		writeMigrationForeignKey(out, schemaName, tableName, fk)
+	}
+}
+
+// expressionReferencesColumn reports whether an index or check expression
+// names the column, quoted or as an unquoted identifier. String literals are
+// skipped.
+func expressionReferencesColumn(expression, column string) bool {
+	isIdentifierChar := func(c byte) bool {
+		return c == '_' || c == '$' || c == '#' || ('0' <= c && c <= '9') || ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')
+	}
+	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			i = end
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '-' && expression[i+1] == '-' {
+			if end := strings.IndexByte(expression[i:], '\n'); end >= 0 {
+				i += end + 1
+			} else {
+				return false
+			}
+			continue
+		}
+		if i+1 < len(expression) && expression[i] == '/' && expression[i+1] == '*' {
+			if end := strings.Index(expression[i+2:], "*/"); end >= 0 {
+				i += end + 4
+			} else {
+				return false
+			}
+			continue
+		}
+		switch c := expression[i]; {
+		case c == '\'' || c == '"':
+			end := strings.IndexByte(expression[i+1:], c)
+			if end < 0 {
+				return false
+			}
+			if c == '"' && expression[i+1:i+1+end] == column {
+				return true
+			}
+			i += end + 2
+		case isIdentifierChar(c):
+			j := i + 1
+			for j < len(expression) && isIdentifierChar(expression[j]) {
+				j++
+			}
+			// A run that starts with a digit is a number, such as 1E5.
+			if (c < '0' || c > '9') && strings.ToUpper(expression[i:j]) == column {
+				next := j
+				for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t') {
+					next++
+				}
+				if next >= len(expression) || expression[next] != '(' {
+					return true
+				}
+			}
+			i = j
+		default:
+			i++
+		}
+	}
+	return false
+}
+
+// hasDefaultValue checks if a column has any default value
+func hasDefaultValue(column *metadatapb.ColumnMetadata) bool {
+	if column == nil {
+		return false
+	}
+	return column.GetDefault() != ""
+}
+
+// defaultValuesEqual checks if two columns have the same default value
+func defaultValuesEqual(col1, col2 *metadatapb.ColumnMetadata) bool {
+	if col1 == nil || col2 == nil {
+		return col1 == col2
+	}
+
+	// Check default value
+	if col1.GetDefaultOnNull() != col2.GetDefaultOnNull() {
+		return false
+	}
+	def1 := col1.GetDefault()
+	def2 := col2.GetDefault()
+	return def1 == def2
+}
+
+// getDefaultExpression returns the SQL expression for a column's default value
+func getDefaultExpression(column *metadatapb.ColumnMetadata) string {
+	if column == nil {
+		return ""
+	}
+
+	if column.Default != "" {
+		return column.Default
+	}
+
+	return ""
+}
+
+// Write functions for various DDL statements
+
+func writeDropForeignKey(out *strings.Builder, schema, table, constraint string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" DROP CONSTRAINT "`)
+	_, _ = out.WriteString(constraint)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropFunction(out *strings.Builder, schema, function string) {
+	_, _ = out.WriteString(`DROP FUNCTION `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(function)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropProcedure(out *strings.Builder, schema, procedure string) {
+	_, _ = out.WriteString(`DROP PROCEDURE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(procedure)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropView(out *strings.Builder, schema, view string) {
+	_, _ = out.WriteString(`DROP VIEW `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(view)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropMaterializedView(out *strings.Builder, schema, view string) {
+	_, _ = out.WriteString(`DROP MATERIALIZED VIEW `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(view)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropCheckConstraint(out *strings.Builder, schema, table, constraint string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" DROP CONSTRAINT "`)
+	_, _ = out.WriteString(constraint)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropConstraint(out *strings.Builder, schema, table, constraint string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" DROP CONSTRAINT "`)
+	_, _ = out.WriteString(constraint)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropIndex(out *strings.Builder, schema, index string) {
+	_, _ = out.WriteString(`DROP INDEX `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(index)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropColumn(out *strings.Builder, schema, table, column string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" DROP COLUMN "`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropTable(out *strings.Builder, schema, table string) {
+	_, _ = out.WriteString(`DROP TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropSequence(out *strings.Builder, schema, sequence string) {
+	_, _ = out.WriteString(`DROP SEQUENCE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(sequence)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeDropSchema(out *strings.Builder, schema string) {
+	_, _ = out.WriteString(`DROP USER "`)
+	_, _ = out.WriteString(schema)
+	_, _ = out.WriteString(`" CASCADE;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeCreateSchema(out *strings.Builder, schema string) {
+	_, _ = out.WriteString(`CREATE USER "`)
+	_, _ = out.WriteString(schema)
+	_, _ = out.WriteString(`" NO AUTHENTICATION;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAddColumn(out *strings.Builder, schema, table string, column *metadatapb.ColumnMetadata) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" ADD "`)
+	_, _ = out.WriteString(column.Name)
+	_, _ = out.WriteString(`" `)
+	_, _ = out.WriteString(column.Type)
+	writeColumnAttributes(out, column)
+
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeColumnAttributes writes what follows a column's type in CREATE TABLE
+// and ADD: visibility, then the virtual expression or the default, then NOT NULL.
+func writeColumnAttributes(out *strings.Builder, column *metadatapb.ColumnMetadata) {
+	if column.IsInvisible {
+		_, _ = out.WriteString(` INVISIBLE`)
+	}
+	if column.IsIdentity {
+		_, _ = out.WriteString(columnIdentityClause(column))
+	} else if column.Generation != nil {
+		_, _ = out.WriteString(virtualColumnClause(column.Generation))
+	} else if defaultExpr := getDefaultExpression(column); defaultExpr != "" {
+		_, _ = out.WriteString(` DEFAULT `)
+		if column.DefaultOnNull {
+			_, _ = out.WriteString(`ON NULL `)
+		}
+		_, _ = out.WriteString(defaultExpr)
+	}
+	if !column.Nullable {
+		_, _ = out.WriteString(` NOT NULL`)
+	}
+}
+
+// writeModifyColumn writes ALTER TABLE ... MODIFY ("column" clause).
+func writeModifyColumn(out *strings.Builder, schema, table, column, clause string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" MODIFY ("`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" `)
+	_, _ = out.WriteString(clause)
+	_, _ = out.WriteString(`);`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAlterColumnType(out *strings.Builder, schema, table, column, newType string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" MODIFY "`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" `)
+	_, _ = out.WriteString(newType)
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAlterColumnSetNotNull(out *strings.Builder, schema, table, column string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" MODIFY "`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" NOT NULL;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAlterColumnDropNotNull(out *strings.Builder, schema, table, column string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" MODIFY "`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" NULL;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAlterColumnSetDefault(out *strings.Builder, schema, table, column, defaultExpr string, defaultOnNull bool) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" MODIFY "`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" DEFAULT `)
+	if defaultOnNull {
+		_, _ = out.WriteString(`ON NULL `)
+	}
+	_, _ = out.WriteString(defaultExpr)
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAlterColumnDropDefault(out *strings.Builder, schema, table, column string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" MODIFY "`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" DEFAULT NULL;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeAddCheckConstraint(out *strings.Builder, schema, table string, check *metadatapb.CheckConstraintMetadata) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" ADD CONSTRAINT "`)
+	_, _ = out.WriteString(check.Name)
+	_, _ = out.WriteString(`" CHECK (`)
+	_, _ = out.WriteString(check.Expression)
+	_, _ = out.WriteString(`);`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeFunctionDiff(out *strings.Builder, funcDiff *FunctionDiff) {
+	switch funcDiff.Action {
+	case DiffActionCreate:
+		definition := funcDiff.NewFunction.Definition
+		// If the definition doesn't start with CREATE, add the CREATE OR REPLACE prefix
+		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(definition)), "CREATE") {
+			_, _ = out.WriteString("CREATE OR REPLACE ")
+		}
+		_, _ = out.WriteString(definition)
+		if !strings.HasSuffix(strings.TrimSpace(definition), ";") {
+			_, _ = out.WriteString(";")
+		}
+		_, _ = out.WriteString("\n")
+
+		_, _ = out.WriteString("\n")
+	case DiffActionAlter:
+		// Oracle requires CREATE OR REPLACE for functions
+		definition := funcDiff.NewFunction.Definition
+		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(definition)), "CREATE") {
+			_, _ = out.WriteString("CREATE OR REPLACE ")
+		} else {
+			definition = alterRoutineDefinition(definition)
+		}
+		_, _ = out.WriteString(definition)
+		if !strings.HasSuffix(strings.TrimSpace(definition), ";") {
+			_, _ = out.WriteString(";")
+		}
+		_, _ = out.WriteString("\n")
+
+		_, _ = out.WriteString("\n")
+	default:
+		// Handle other actions if needed
+	}
+}
+
+// Helper functions to check if diff contains certain types of changes
+func hasCreateOrAlterObjects(diff *MetadataDiff) bool {
+	return hasCreateOrAlterTables(diff) || hasCreateViewsOrFunctions(diff)
+}
+
+func hasCreateOrAlterTables(diff *MetadataDiff) bool {
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action == DiffActionCreate || tableDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	for _, seqDiff := range diff.SequenceChanges {
+		if seqDiff.Action == DiffActionCreate {
+			// Skip system-generated sequences
+			if !isSystemGeneratedSequence(seqDiff.SequenceName) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func hasCreateViewsOrFunctions(diff *MetadataDiff) bool {
+	for _, viewDiff := range diff.ViewChanges {
+		if viewDiff.Action == DiffActionCreate || viewDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	for _, mvDiff := range diff.MaterializedViewChanges {
+		if mvDiff.Action == DiffActionCreate || mvDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	for _, funcDiff := range diff.FunctionChanges {
+		if funcDiff.Action == DiffActionCreate || funcDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	for _, procDiff := range diff.ProcedureChanges {
+		if procDiff.Action == DiffActionCreate || procDiff.Action == DiffActionAlter {
+			return true
+		}
+	}
+	return false
+}
+
+// getObjectID generates a unique identifier for database objects
+func getMigrationObjectID(schema, name string) string {
+	return fmt.Sprintf("%s.%s", schema, name)
+}
+
+// isSystemGeneratedSequence checks if a sequence is system-generated and should not be included in migration DDL
+func isSystemGeneratedSequence(sequenceName string) bool {
+	// Oracle automatically creates sequences for IDENTITY columns with names like ISEQ$$_*
+	return strings.HasPrefix(sequenceName, "ISEQ$$_")
+}
+
+// writeCreateSequence writes a CREATE SEQUENCE statement
+func writeMigrationCreateSequence(out *strings.Builder, schema string, seq *metadatapb.SequenceMetadata) {
+	_, _ = out.WriteString(`CREATE SEQUENCE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(seq.Name)
+	_, _ = out.WriteString(`"`)
+
+	if seq.Start != "" {
+		_, _ = out.WriteString(` START WITH `)
+		_, _ = out.WriteString(seq.Start)
+	}
+	if seq.Increment != "" {
+		_, _ = out.WriteString(` INCREMENT BY `)
+		_, _ = out.WriteString(seq.Increment)
+	}
+	if seq.MinValue != "" {
+		_, _ = out.WriteString(` MINVALUE `)
+		_, _ = out.WriteString(seq.MinValue)
+	}
+	if seq.MaxValue != "" {
+		_, _ = out.WriteString(` MAXVALUE `)
+		_, _ = out.WriteString(seq.MaxValue)
+	}
+	if seq.CacheSize == "0" {
+		_, _ = out.WriteString(` NOCACHE`)
+	} else if seq.CacheSize != "" {
+		_, _ = out.WriteString(` CACHE `)
+		_, _ = out.WriteString(seq.CacheSize)
+	}
+	if seq.Cycle {
+		_, _ = out.WriteString(` CYCLE`)
+	}
+
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// rebuildFunctionBasedIndexes rebuilds the retained function-based indexes of
+// a function this migration replaces. Oracle disables them with the function,
+// and a disabled index fails every write until it is rebuilt.
+func rebuildFunctionBasedIndexes(out *strings.Builder, diff *MetadataDiff) {
+	replaced := map[string]bool{}
+	for _, funcDiff := range diff.FunctionChanges {
+		if funcDiff.Action == DiffActionAlter && funcDiff.NewFunction != nil {
+			replaced[funcDiff.NewFunction.GetName()] = true
+		}
+	}
+	if len(replaced) == 0 {
+		return
+	}
+	recreated := map[string]bool{}
+	for _, tableDiff := range diff.TableChanges {
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action == DiffActionCreate && indexDiff.NewIndex != nil {
+				recreated[indexDiff.NewIndex.GetName()] = true
+			}
+		}
+	}
+	recreatedViews := map[string]bool{}
+	for _, viewDiff := range diff.MaterializedViewChanges {
+		if viewDiff.NewMaterializedView == nil {
+			continue
+		}
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
+			recreatedViews[viewDiff.NewMaterializedView.GetName()] = true
+		}
+	}
+	for _, schema := range diff.NewDatabase.GetSchemas() {
+		for _, table := range schema.GetTables() {
+			for _, index := range table.GetIndexes() {
+				if index.GetIsConstraint() || recreated[index.GetName()] || !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+					continue
+				}
+				if indexReferencesFunction(index, replaced) {
+					writeAlterIndexRebuild(out, schema.GetName(), index.GetName())
+				}
+			}
+		}
+		for _, view := range schema.GetMaterializedViews() {
+			if recreatedViews[view.GetName()] {
+				continue
+			}
+			for _, index := range materializedViewIndexes(view.GetIndexes()) {
+				if !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+					continue
+				}
+				if indexReferencesFunction(index, replaced) {
+					writeAlterIndexRebuild(out, schema.GetName(), index.GetName())
+				}
+			}
+		}
+	}
+}
+
+func indexReferencesFunction(index *metadatapb.IndexMetadata, functions map[string]bool) bool {
+	for _, expression := range index.GetExpressions() {
+		for function := range functions {
+			if expressionReferencesFunction(expression, function) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func writeAlterIndexRebuild(out *strings.Builder, schema, index string) {
+	_, _ = out.WriteString(`ALTER INDEX `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(index)
+	_, _ = out.WriteString(`" REBUILD;`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeProcedureDiff(out *strings.Builder, procDiff *ProcedureDiff) {
+	switch procDiff.Action {
+	case DiffActionCreate:
+		definition := procDiff.NewProcedure.Definition
+		// If the definition doesn't start with CREATE, add the CREATE OR REPLACE prefix
+		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(definition)), "CREATE") {
+			_, _ = out.WriteString("CREATE OR REPLACE ")
+		}
+		_, _ = out.WriteString(definition)
+		if !strings.HasSuffix(strings.TrimSpace(definition), ";") {
+			_, _ = out.WriteString(";")
+		}
+		_, _ = out.WriteString("\n")
+		// Note: ProcedureMetadata doesn't have a comment field in the protobuf,
+		// so we don't add procedure comments here
+		_, _ = out.WriteString("\n")
+	case DiffActionAlter:
+		// Oracle requires CREATE OR REPLACE for procedures
+		definition := procDiff.NewProcedure.Definition
+		if !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(definition)), "CREATE") {
+			_, _ = out.WriteString("CREATE OR REPLACE ")
+		} else {
+			definition = alterRoutineDefinition(definition)
+		}
+		_, _ = out.WriteString(definition)
+		if !strings.HasSuffix(strings.TrimSpace(definition), ";") {
+			_, _ = out.WriteString(";")
+		}
+		_, _ = out.WriteString("\n")
+		// Note: ProcedureMetadata doesn't have a comment field in the protobuf,
+		// so we don't add procedure comments here
+		_, _ = out.WriteString("\n")
+	default:
+		// Handle other actions if needed
+	}
+}
+
+func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string]*ViewDiff, materializedViews map[string]*MaterializedViewDiff) {
+	graph := newGraph()
+	for key, diff := range views {
+		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView)) {
+			graph.AddNode("v:" + key)
+		}
+	}
+	for key, diff := range materializedViews {
+		if diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && materializedViewNeedsRecreate(diff.OldMaterializedView, diff.NewMaterializedView)) {
+			graph.AddNode("m:" + key)
+		}
+	}
+	addEdges := func(destination, owner string, dependencies []*metadatapb.DependencyColumn) {
+		for _, dependency := range dependencies {
+			schema := dependency.GetSchema()
+			if schema == "" {
+				schema = owner
+			}
+			for _, candidate := range []string{"v:" + getMigrationObjectID(schema, dependency.Table), "m:" + getMigrationObjectID(schema, dependency.Table)} {
+				graph.AddEdge(candidate, destination)
+			}
+		}
+	}
+	for key, diff := range views {
+		view := diff.NewView
+		if view == nil {
+			view = diff.OldView
+		}
+		if view != nil {
+			addEdges("v:"+key, diff.SchemaName, view.DependencyColumns)
+		}
+	}
+	for key, diff := range materializedViews {
+		view := diff.NewMaterializedView
+		if view == nil {
+			view = diff.OldMaterializedView
+		}
+		if view != nil {
+			addEdges("m:"+key, diff.SchemaName, view.DependencyColumns)
+		}
+	}
+	ordered, err := graph.TopologicalSort()
+	if err != nil {
+		ordered = nil
+		for key := range views {
+			ordered = append(ordered, "v:"+key)
+		}
+		for key := range materializedViews {
+			ordered = append(ordered, "m:"+key)
+		}
+		slices.Sort(ordered)
+	}
+	for _, node := range ordered {
+		if strings.HasPrefix(node, "v:") {
+			key := strings.TrimPrefix(node, "v:")
+			if diff := views[key]; diff != nil &&
+				(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && viewNeedsRecreate(diff.OldView, diff.NewView))) {
+				writeMigrationView(out, diff.SchemaName, diff.NewView)
+			}
+			continue
+		}
+		key := strings.TrimPrefix(node, "m:")
+		if diff := materializedViews[key]; diff != nil &&
+			(diff.Action == DiffActionCreate || (diff.Action == DiffActionAlter && materializedViewNeedsRecreate(diff.OldMaterializedView, diff.NewMaterializedView))) {
+			writeMigrationMaterializedView(out, diff.SchemaName, diff.NewMaterializedView)
+		}
+	}
+}
+
+// writeView writes a CREATE VIEW statement
+func writeMigrationView(out *strings.Builder, schema string, view *metadatapb.ViewMetadata) {
+	_, _ = out.WriteString(`CREATE VIEW `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(view.Name)
+	_, _ = out.WriteString(`"`)
+	if materializedViewDefinitionHasClause(view.Definition) {
+		_, _ = out.WriteString(` `)
+	} else {
+		_, _ = out.WriteString(` AS `)
+	}
+	_, _ = out.WriteString(view.Definition)
+	if !strings.HasSuffix(strings.TrimSpace(view.Definition), ";") {
+		_, _ = out.WriteString(`;`)
+	}
+	_, _ = out.WriteString("\n")
+
+	// Add comment if present
+	if view.Comment != "" {
+		writeViewComment(out, schema, view.Name, view.Comment)
+	}
+	for _, trigger := range view.Triggers {
+		writeMigrationTrigger(out, trigger)
+	}
+}
+
+// writeMaterializedView writes a CREATE MATERIALIZED VIEW statement
+func writeMigrationMaterializedView(out *strings.Builder, schema string, view *metadatapb.MaterializedViewMetadata) {
+	_, _ = out.WriteString(`CREATE MATERIALIZED VIEW `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(view.Name)
+	_, _ = out.WriteString(`"`)
+	if materializedViewDefinitionHasClause(view.Definition) {
+		_, _ = out.WriteString(` `)
+	} else {
+		_, _ = out.WriteString(` AS `)
+	}
+	_, _ = out.WriteString(view.Definition)
+	if !strings.HasSuffix(strings.TrimSpace(view.Definition), ";") {
+		_, _ = out.WriteString(`;`)
+	}
+	_, _ = out.WriteString("\n")
+
+	// Add comment if present
+	if view.Comment != "" {
+		writeMaterializedViewComment(out, schema, view.Name, view.Comment)
+	}
+	for _, trigger := range view.Triggers {
+		writeMigrationTrigger(out, trigger)
+	}
+	for _, index := range materializedViewIndexes(view.Indexes) {
+		if strings.Contains(index.GetType(), "FUNCTION-BASED") {
+			continue
+		}
+		writeMigrationIndex(out, schema, view.Name, index)
+	}
+}
+
+// writeForeignKey writes an ALTER TABLE ADD CONSTRAINT statement for a foreign key
+func writeMigrationForeignKey(out *strings.Builder, schema, table string, fk *metadatapb.ForeignKeyMetadata) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" ADD CONSTRAINT "`)
+	_, _ = out.WriteString(fk.Name)
+	_, _ = out.WriteString(`" FOREIGN KEY (`)
+
+	for i, col := range fk.Columns {
+		if i > 0 {
+			_, _ = out.WriteString(`, `)
+		}
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(col)
+		_, _ = out.WriteString(`"`)
+	}
+
+	_, _ = out.WriteString(`) REFERENCES `)
+	if fk.ReferencedSchema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(fk.ReferencedSchema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(fk.ReferencedTable)
+	_, _ = out.WriteString(`"`)
+	if len(fk.ReferencedColumns) > 0 {
+		_, _ = out.WriteString(` (`)
+		for i, col := range fk.ReferencedColumns {
+			if i > 0 {
+				_, _ = out.WriteString(`, `)
+			}
+			_, _ = out.WriteString(`"`)
+			_, _ = out.WriteString(col)
+			_, _ = out.WriteString(`"`)
+		}
+		_, _ = out.WriteString(`)`)
+	}
+
+	if fk.OnUpdate != "" {
+		_, _ = out.WriteString(` ON UPDATE `)
+		_, _ = out.WriteString(fk.OnUpdate)
+	}
+	if fk.OnDelete != "" {
+		_, _ = out.WriteString(` ON DELETE `)
+		_, _ = out.WriteString(fk.OnDelete)
+	}
+
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeCreateTable writes a CREATE TABLE statement
+func writeMigrationCreateTable(out *strings.Builder, schema, table string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata) {
+	_, _ = out.WriteString(`CREATE TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" (`)
+	_, _ = out.WriteString("\n")
+
+	// Write columns
+	for i, col := range columns {
+		if i > 0 {
+			_, _ = out.WriteString(",\n")
+		}
+		_, _ = out.WriteString("    \"")
+		_, _ = out.WriteString(col.Name)
+		_, _ = out.WriteString("\" ")
+		_, _ = out.WriteString(col.Type)
+		writeColumnAttributes(out, col)
+	}
+
+	// Write check constraints
+	for _, check := range checks {
+		_, _ = out.WriteString(",\n")
+		_, _ = out.WriteString("    CONSTRAINT \"")
+		_, _ = out.WriteString(check.Name)
+		_, _ = out.WriteString("\" CHECK (")
+		_, _ = out.WriteString(check.Expression)
+		_, _ = out.WriteString(")")
+	}
+
+	_, _ = out.WriteString("\n)")
+}
+
+// writePrimaryKey writes an ALTER TABLE ADD PRIMARY KEY statement
+func writeMigrationPrimaryKey(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" ADD CONSTRAINT "`)
+	_, _ = out.WriteString(index.Name)
+	_, _ = out.WriteString(`" PRIMARY KEY (`)
+
+	for i, expr := range index.Expressions {
+		if i > 0 {
+			_, _ = out.WriteString(`, `)
+		}
+		writeConstraintColumn(out, expr)
+	}
+
+	_, _ = out.WriteString(`);`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeUniqueKey writes an ALTER TABLE ADD UNIQUE statement
+func writeMigrationUniqueKey(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" ADD CONSTRAINT "`)
+	_, _ = out.WriteString(index.Name)
+	_, _ = out.WriteString(`" UNIQUE (`)
+
+	for i, expr := range index.Expressions {
+		if i > 0 {
+			_, _ = out.WriteString(`, `)
+		}
+		writeConstraintColumn(out, expr)
+	}
+
+	_, _ = out.WriteString(`);`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeIndex writes a CREATE INDEX statement
+func writeMigrationIndex(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	_, _ = out.WriteString(`CREATE `)
+	if strings.Contains(index.Type, "BITMAP") {
+		_, _ = out.WriteString(`BITMAP `)
+	}
+	if index.Unique {
+		_, _ = out.WriteString(`UNIQUE `)
+	}
+	_, _ = out.WriteString(`INDEX `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(index.Name)
+	_, _ = out.WriteString(`" ON `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" (`)
+
+	// Handle FUNCTION-BASED indexes differently from normal indexes
+	if strings.Contains(index.Type, "FUNCTION-BASED") {
+		for i, expression := range index.Expressions {
+			if i > 0 {
+				_, _ = out.WriteString(`, `)
+			}
+			_, _ = out.WriteString(expression)
+
+			// For function-based indexes, always add explicit ASC/DESC
+			if i < len(index.Descending) && index.Descending[i] {
+				_, _ = out.WriteString(` DESC`)
+			} else {
+				_, _ = out.WriteString(` ASC`)
+			}
+		}
+	} else {
+		for i, column := range index.Expressions {
+			if i > 0 {
+				_, _ = out.WriteString(`, `)
+			}
+			// Remove quotes if they already exist to avoid double quoting
+			cleanColumn := column
+			if strings.HasPrefix(column, `"`) && strings.HasSuffix(column, `"`) {
+				cleanColumn = column[1 : len(column)-1]
+			}
+			_, _ = out.WriteString(`"`)
+			_, _ = out.WriteString(cleanColumn)
+			_, _ = out.WriteString(`"`)
+
+			// For normal indexes, add explicit ASC/DESC
+			if i < len(index.Descending) && index.Descending[i] {
+				_, _ = out.WriteString(` DESC`)
+			} else {
+				_, _ = out.WriteString(` ASC`)
+			}
+		}
+	}
+	_, _ = out.WriteString(`)`)
+	if !index.Visible {
+		_, _ = out.WriteString(` INVISIBLE`)
+	}
+
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// Comment writing helper functions
+
+// writeViewComment writes a COMMENT ON VIEW statement
+func writeViewComment(out *strings.Builder, schema, viewName, comment string) {
+	_, _ = out.WriteString(`COMMENT ON TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(viewName)
+	_, _ = out.WriteString(`" IS `)
+	if comment == "" {
+		_, _ = out.WriteString(`''`)
+	} else {
+		_, _ = out.WriteString(`'`)
+		// Escape single quotes in the comment
+		escapedComment := strings.ReplaceAll(comment, "'", "''")
+		_, _ = out.WriteString(escapedComment)
+		_, _ = out.WriteString(`'`)
+	}
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeMaterializedViewComment writes a COMMENT ON MATERIALIZED VIEW statement
+func writeMaterializedViewComment(out *strings.Builder, schema, viewName, comment string) {
+	_, _ = out.WriteString(`COMMENT ON MATERIALIZED VIEW `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(viewName)
+	_, _ = out.WriteString(`" IS `)
+	if comment == "" {
+		_, _ = out.WriteString(`''`)
+	} else {
+		_, _ = out.WriteString(`'`)
+		// Escape single quotes in the comment
+		escapedComment := strings.ReplaceAll(comment, "'", "''")
+		_, _ = out.WriteString(escapedComment)
+		_, _ = out.WriteString(`'`)
+	}
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// Comment generation functions for Oracle migration DDL
+
+// generateTableCommentChanges generates COMMENT ON TABLE statements for table comment changes
+func generateTableCommentChanges(buf *strings.Builder, tableDiff *TableDiff) {
+	if tableDiff.OldTable == nil || tableDiff.NewTable == nil {
+		return
+	}
+
+	oldComment := tableDiff.OldTable.Comment
+	newComment := tableDiff.NewTable.Comment
+
+	// If comments are different, generate COMMENT ON TABLE statement
+	if oldComment != newComment {
+		writeTableComment(buf, tableDiff.SchemaName, tableDiff.TableName, newComment)
+	}
+}
+
+// generateColumnCommentChanges generates COMMENT ON COLUMN statements for column comment changes
+func generateColumnCommentChanges(buf *strings.Builder, tableDiff *TableDiff) {
+	if tableDiff.OldTable == nil || tableDiff.NewTable == nil {
+		return
+	}
+
+	// Build maps for efficient lookup
+	oldColumnMap := make(map[string]*metadatapb.ColumnMetadata)
+	for _, col := range tableDiff.OldTable.Columns {
+		oldColumnMap[col.Name] = col
+	}
+
+	newColumnMap := make(map[string]*metadatapb.ColumnMetadata)
+	for _, col := range tableDiff.NewTable.Columns {
+		newColumnMap[col.Name] = col
+	}
+
+	// Check for columns that exist in both old and new (column modifications/comment changes)
+	for _, newCol := range tableDiff.NewTable.Columns {
+		if oldCol, exists := oldColumnMap[newCol.Name]; exists {
+			// Column exists in both, check if comment changed
+			if oldCol.Comment != newCol.Comment {
+				writeColumnComment(buf, tableDiff.SchemaName, tableDiff.TableName, newCol.Name, newCol.Comment)
+			}
+		} else {
+			// New column, add comment if it has one
+			if newCol.Comment != "" {
+				writeColumnComment(buf, tableDiff.SchemaName, tableDiff.TableName, newCol.Name, newCol.Comment)
+			}
+		}
+	}
+
+	// Handle explicit column changes in the diff
+	for _, colDiff := range tableDiff.ColumnChanges {
+		if colDiff.Action == DiffActionCreate && colDiff.NewColumn != nil && colDiff.NewColumn.Comment != "" {
+			writeColumnComment(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn.Name, colDiff.NewColumn.Comment)
+		} else if colDiff.Action == DiffActionAlter && colDiff.OldColumn != nil && colDiff.NewColumn != nil {
+			if colDiff.OldColumn.Comment != colDiff.NewColumn.Comment {
+				writeColumnComment(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn.Name, colDiff.NewColumn.Comment)
+			}
+		}
+	}
+}
+
+// generateViewCommentChanges generates COMMENT ON VIEW statements for view comment changes
+func generateViewCommentChanges(buf *strings.Builder, diff *MetadataDiff) {
+	for _, viewDiff := range diff.ViewChanges {
+		if viewDiff.Action == DiffActionAlter {
+			if viewDiff.OldView == nil || viewDiff.NewView == nil {
+				continue
+			}
+
+			oldComment := viewDiff.OldView.Comment
+			newComment := viewDiff.NewView.Comment
+
+			// If comments are different, generate COMMENT ON VIEW statement
+			if oldComment != newComment {
+				writeViewComment(buf, viewDiff.SchemaName, viewDiff.ViewName, newComment)
+			}
+		} else if viewDiff.Action == DiffActionCreate && viewDiff.NewView != nil && viewDiff.NewView.Comment != "" {
+			// New view with comment
+			writeViewComment(buf, viewDiff.SchemaName, viewDiff.ViewName, viewDiff.NewView.Comment)
+		}
+	}
+}
+
+// generateMaterializedViewCommentChanges generates COMMENT ON MATERIALIZED VIEW statements
+func generateMaterializedViewCommentChanges(buf *strings.Builder, diff *MetadataDiff) {
+	for _, mvDiff := range diff.MaterializedViewChanges {
+		if mvDiff.Action == DiffActionAlter {
+			if mvDiff.OldMaterializedView == nil || mvDiff.NewMaterializedView == nil {
+				continue
+			}
+
+			oldComment := mvDiff.OldMaterializedView.Comment
+			newComment := mvDiff.NewMaterializedView.Comment
+
+			// If comments are different, generate COMMENT ON MATERIALIZED VIEW statement
+			if oldComment != newComment {
+				writeMaterializedViewComment(buf, mvDiff.SchemaName, mvDiff.MaterializedViewName, newComment)
+			}
+		} else if mvDiff.Action == DiffActionCreate && mvDiff.NewMaterializedView != nil && mvDiff.NewMaterializedView.Comment != "" {
+			// New materialized view with comment
+			writeMaterializedViewComment(buf, mvDiff.SchemaName, mvDiff.MaterializedViewName, mvDiff.NewMaterializedView.Comment)
+		}
+	}
+}
+
+// Helper functions to write comment statements for different object types
+
+// writeTableComment writes a COMMENT ON TABLE statement
+func writeTableComment(out *strings.Builder, schema, table, comment string) {
+	_, _ = out.WriteString(`COMMENT ON TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" IS `)
+	if comment == "" {
+		_, _ = out.WriteString(`''`)
+	} else {
+		_, _ = out.WriteString(`'`)
+		// Escape single quotes in the comment
+		escapedComment := strings.ReplaceAll(comment, "'", "''")
+		_, _ = out.WriteString(escapedComment)
+		_, _ = out.WriteString(`'`)
+	}
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeColumnComment writes a COMMENT ON COLUMN statement
+func writeColumnComment(out *strings.Builder, schema, table, column, comment string) {
+	_, _ = out.WriteString(`COMMENT ON COLUMN `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`"."`)
+	_, _ = out.WriteString(column)
+	_, _ = out.WriteString(`" IS `)
+	if comment == "" {
+		_, _ = out.WriteString(`''`)
+	} else {
+		_, _ = out.WriteString(`'`)
+		// Escape single quotes in the comment
+		escapedComment := strings.ReplaceAll(comment, "'", "''")
+		_, _ = out.WriteString(escapedComment)
+		_, _ = out.WriteString(`'`)
+	}
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeMigrationTrigger writes a CREATE TRIGGER statement for migration
+func writeMigrationTrigger(out *strings.Builder, trigger *metadatapb.TriggerMetadata) {
+	if trigger == nil {
+		return
+	}
+	_, _ = out.WriteString(trigger.Body)
+	if !strings.HasSuffix(strings.TrimSpace(trigger.Body), ";") {
+		_, _ = out.WriteString(";")
+	}
+	_, _ = out.WriteString("\n")
+}
+
+// writeDropTrigger writes a DROP TRIGGER statement
+func writeDropTrigger(out *strings.Builder, triggerName string) {
+	_, _ = out.WriteString(`DROP TRIGGER "`)
+	_, _ = out.WriteString(triggerName)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+// constraintRenameSet pairs a dropped primary or unique constraint with the
+// identical constraint that replaces it under a new name. Renaming keeps the
+// incoming foreign keys attached, where DROP would fail with ORA-02273.
+type constraintRenameSet struct {
+	oldToNew map[*TableDiff]map[string]string
+	newToOld map[*TableDiff]map[string]string
+}
+
+func (r constraintRenameSet) oldName(table *TableDiff, name string) string {
+	return r.oldToNew[table][name]
+}
+
+func (r constraintRenameSet) oldNameForNew(table *TableDiff, name string) string {
+	return r.newToOld[table][name]
+}
+
+func findConstraintRenames(diff *MetadataDiff) constraintRenameSet {
+	set := constraintRenameSet{
+		oldToNew: make(map[*TableDiff]map[string]string),
+		newToOld: make(map[*TableDiff]map[string]string),
+	}
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter {
+			continue
+		}
+		oldConstraintNames := map[string]bool{}
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action == DiffActionDrop && indexDiff.OldIndex.GetIsConstraint() {
+				oldConstraintNames[indexDiff.OldIndex.GetName()] = true
+			}
+		}
+		for _, drop := range tableDiff.IndexChanges {
+			if drop.Action != DiffActionDrop || !drop.OldIndex.GetIsConstraint() {
+				continue
+			}
+			for _, create := range tableDiff.IndexChanges {
+				if create.Action != DiffActionCreate || !create.NewIndex.GetIsConstraint() || create.NewIndex.GetName() == drop.OldIndex.GetName() {
+					continue
+				}
+				if !indexEqual(drop.OldIndex, create.NewIndex) {
+					continue
+				}
+				if oldConstraintNames[create.NewIndex.GetName()] && create.NewIndex.GetName() != drop.OldIndex.GetName() {
+					continue
+				}
+				if set.oldToNew[tableDiff] == nil {
+					set.oldToNew[tableDiff] = make(map[string]string)
+					set.newToOld[tableDiff] = make(map[string]string)
+				}
+				set.oldToNew[tableDiff][drop.OldIndex.GetName()] = create.NewIndex.GetName()
+				set.newToOld[tableDiff][create.NewIndex.GetName()] = drop.OldIndex.GetName()
+			}
+		}
+	}
+	return set
+}
+
+func incomingForeignKeyKey(table, name string) string { return table + "\x00" + name }
+
+type incomingForeignKeySet map[string]incomingForeignKey
+
+func (s incomingForeignKeySet) sorted() []incomingForeignKey {
+	keys := make([]string, 0, len(s))
+	for key := range s {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+	result := make([]incomingForeignKey, 0, len(keys))
+	for _, key := range keys {
+		result = append(result, s[key])
+	}
+	return result
+}
+
+func findDetachedIncomingForeignKeys(diff *MetadataDiff, renames constraintRenameSet) incomingForeignKeySet {
+	detached := incomingForeignKeySet{}
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter {
+			continue
+		}
+		handledForeignKeys := map[string]bool{}
+		for _, fkDiff := range tableDiff.ForeignKeyChanges {
+			handledForeignKeys[strings.TrimSpace(cmp.Or(fkDiff.NewForeignKey, fkDiff.OldForeignKey).GetName())] = true
+		}
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action != DiffActionDrop || !indexDiff.OldIndex.GetIsConstraint() || renames.oldName(tableDiff, indexDiff.OldIndex.GetName()) != "" {
+				continue
+			}
+			for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, indexDiff.OldIndex.GetExpressions(), DiffActionDrop) {
+				detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())] = incoming
+			}
+			for _, fk := range tableDiff.OldTable.GetForeignKeys() {
+				if handledForeignKeys[fk.GetName()] {
+					continue
+				}
+				if fk.GetReferencedTable() == tableDiff.TableName &&
+					referencesColumns(fk, tableDiff.SchemaName, diff.DatabaseName, tableDiff.TableName, indexDiff.OldIndex.GetExpressions()) {
+					detached[incomingForeignKeyKey(tableDiff.TableName, fk.GetName())] = incomingForeignKey{schema: tableDiff.SchemaName, table: tableDiff.TableName, foreignKey: fk}
+				}
+			}
+		}
+	}
+	return detached
+}
+
+func writeRenameConstraint(out *strings.Builder, schema, table, oldName, newName string) {
+	_, _ = out.WriteString(`ALTER TABLE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(table)
+	_, _ = out.WriteString(`" RENAME CONSTRAINT "`)
+	_, _ = out.WriteString(oldName)
+	_, _ = out.WriteString(`" TO "`)
+	_, _ = out.WriteString(newName)
+	_, _ = out.WriteString(`";`)
+	_, _ = out.WriteString("\n")
+}
+
+func writeMigrationAlterSequence(out *strings.Builder, schema string, oldSeq, newSeq *metadatapb.SequenceMetadata) {
+	var clauses []string
+	if oldSeq.GetStart() != "" && oldSeq.GetStart() != newSeq.GetStart() && newSeq.GetStart() != "" {
+		clauses = append(clauses, "RESTART START WITH "+newSeq.GetStart())
+	}
+	oldIncrement, newIncrement := oldSeq.GetIncrement(), newSeq.GetIncrement()
+	if oldIncrement == "" {
+		oldIncrement = "1"
+	}
+	if newIncrement == "" {
+		newIncrement = "1"
+	}
+	if oldIncrement != newIncrement {
+		clauses = append(clauses, "INCREMENT BY "+newIncrement)
+	}
+	if oldSeq.GetMinValue() != newSeq.GetMinValue() {
+		if newSeq.GetMinValue() == "" {
+			clauses = append(clauses, "NOMINVALUE")
+		} else {
+			clauses = append(clauses, "MINVALUE "+newSeq.GetMinValue())
+		}
+	}
+	if oldSeq.GetMaxValue() != newSeq.GetMaxValue() {
+		if newSeq.GetMaxValue() == "" {
+			clauses = append(clauses, "NOMAXVALUE")
+		} else {
+			clauses = append(clauses, "MAXVALUE "+newSeq.GetMaxValue())
+		}
+	}
+	if oldSeq.GetCacheSize() != newSeq.GetCacheSize() {
+		switch newSeq.GetCacheSize() {
+		case "0":
+			clauses = append(clauses, "NOCACHE")
+		case "":
+			clauses = append(clauses, "CACHE 20")
+		default:
+			clauses = append(clauses, "CACHE "+newSeq.GetCacheSize())
+		}
+	}
+	if oldSeq.GetCycle() != newSeq.GetCycle() {
+		if newSeq.GetCycle() {
+			clauses = append(clauses, "CYCLE")
+		} else {
+			clauses = append(clauses, "NOCYCLE")
+		}
+	}
+	if len(clauses) == 0 {
+		return
+	}
+	_, _ = out.WriteString(`ALTER SEQUENCE `)
+	if schema != "" {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(schema)
+		_, _ = out.WriteString(`".`)
+	}
+	_, _ = out.WriteString(`"`)
+	_, _ = out.WriteString(newSeq.GetName())
+	_, _ = out.WriteString(`" `)
+	_, _ = out.WriteString(strings.Join(clauses, " "))
+	_, _ = out.WriteString(`;`)
+	_, _ = out.WriteString("\n")
+}
+
+// writeConstraintColumn quotes a key column whose spelling Oracle would fold.
+// An expression is left as written.
+func writeConstraintColumn(out *strings.Builder, expression string) {
+	if len(expression) >= 2 && expression[0] == '"' && expression[len(expression)-1] == '"' {
+		_, _ = out.WriteString(expression)
+		return
+	}
+	if needsConstraintQuotes(expression) {
+		_, _ = out.WriteString(`"`)
+		_, _ = out.WriteString(strings.ReplaceAll(expression, `"`, `""`))
+		_, _ = out.WriteString(`"`)
+		return
+	}
+	_, _ = out.WriteString(expression)
+}
+
+func isSimpleIdentifier(expression string) bool {
+	if expression == "" {
+		return false
+	}
+	for i, c := range expression {
+		switch {
+		case c == '_' || c == '$' || c == '#':
+		case c >= 'A' && c <= 'Z':
+		case c >= 'a' && c <= 'z':
+		case c >= '0' && c <= '9' && i > 0:
+		default:
+			return false
+		}
+	}
+	c := expression[0]
+	return !(c >= '0' && c <= '9')
+}
+
+// alterRoutineDefinition turns a plain CREATE declaration into CREATE OR
+// REPLACE, which is what ALTERing an existing routine needs.
+func alterRoutineDefinition(definition string) string {
+	trimmed := strings.TrimSpace(definition)
+	words, ends := leadingWords(trimmed, 3)
+	if len(words) >= 3 && words[0] == "CREATE" && words[1] == "OR" && words[2] == "REPLACE" {
+		return definition
+	}
+	if len(words) >= 1 && words[0] == "CREATE" {
+		// The declaration may put any SQL whitespace, a newline included,
+		// between CREATE and the object kind.
+		return trimmed[:ends[0]] + " OR REPLACE" + trimmed[ends[0]:]
+	}
+	return definition
+}
+
+// leadingWords reads the first count words of a declaration, uppercased, with
+// the offset just past each one.
+func leadingWords(declaration string, count int) ([]string, []int) {
+	var words []string
+	var ends []int
+	for i := 0; i < len(declaration) && len(words) < count; {
+		for i < len(declaration) && (declaration[i] == ' ' || declaration[i] == '\t' || declaration[i] == '\n' || declaration[i] == '\r') {
+			i++
+		}
+		start := i
+		for i < len(declaration) && isIdentifierByte(declaration[i]) {
+			i++
+		}
+		if i == start {
+			break
+		}
+		words = append(words, strings.ToUpper(declaration[start:i]))
+		ends = append(ends, i)
+	}
+	return words, ends
+}
+
+// waitsForKeyAddition reports whether a new table's foreign key references a
+// key this migration adds to an existing table.
+func waitsForKeyAddition(diff *MetadataDiff, schemaName string, fk *metadatapb.ForeignKeyMetadata) bool {
+	if len(fk.GetReferencedColumns()) == 0 {
+		return false
+	}
+	for _, tableDiff := range diff.TableChanges {
+		if tableDiff.Action != DiffActionAlter || tableDiff.TableName != fk.GetReferencedTable() {
+			continue
+		}
+		if fk.GetReferencedSchema() != "" && fk.GetReferencedSchema() != tableDiff.SchemaName && fk.GetReferencedSchema() != schemaName {
+			continue
+		}
+		for _, indexDiff := range tableDiff.IndexChanges {
+			if indexDiff.Action != DiffActionCreate || !indexDiff.NewIndex.GetIsConstraint() {
+				continue
+			}
+			all := true
+			for _, column := range fk.GetReferencedColumns() {
+				if !slices.Contains(indexDiff.NewIndex.GetExpressions(), column) {
+					all = false
+					break
+				}
+			}
+			if all {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func needsConstraintQuotes(expression string) bool {
+	if !isSimpleIdentifier(expression) {
+		return true
+	}
+	if expression != strings.ToUpper(expression) {
+		return true
+	}
+	return oracleparser.IsReservedKeyword(expression)
+}

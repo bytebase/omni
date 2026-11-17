@@ -34,14 +34,24 @@ import (
 //	|   `a` int DEFAULT NULL
 //	| )
 //
+// A column may name the Go type its rows scan into (a quoted string after the
+// database type), its precision ("precision <digits>" after that) and its
+// scale ("scale <digits>" after the precision); all are optional, so a tape
+// written before they existed still replays.
+//
 // Every line starts with a sigil, so SQL and values never need escaping:
 // "| " carries one line of text, and "|q " a whole text as a Go quoted
 // string where the raw form would not survive an editor (a carriage return,
 // a control character, invalid UTF-8). A request is "> exec" or "> query"
-// with its text and then one ": " value per argument, or "> begin",
-// "> commit", "> rollback". An answer is "< ok", "< ok <rows affected>
-// <last insert id>", "< error" with the codec's text, "< badconn", or one
-// "< result" per result set with its columns and rows.
+// with its text and then one ": " value per argument, "> begin",
+// "> commit", "> rollback", or "> connect". An answer is "< ok", "< ok
+// <rows affected> <last insert id>", "< error" with the codec's text,
+// "< badconn", or one "< result" per result set with its columns and rows.
+//
+// A connection the engine refused is a "> connect" request and its error, so a
+// test of a connect-time failure replays like any other. A connection that
+// succeeds writes nothing, so a tape recorded before connect answers existed
+// replays unchanged.
 //
 // A protocol that is not database/sql records an engine's client library
 // instead: "> raw" with the request's text and "< raw" with the answer's,
@@ -61,7 +71,7 @@ type exchange struct {
 }
 
 type request struct {
-	kind string // exec, query, begin, commit, rollback, raw
+	kind string // exec, query, begin, commit, rollback, raw, connect
 	text string
 	sum  string // in place of a text over digestOver: its digest
 	args []value
@@ -86,10 +96,11 @@ type resultSet struct {
 }
 
 // A column carries the database type name and, when the live driver states
-// one, the Go type its rows scan into. The scan type is optional so tapes
-// recorded before it existed still replay with the default any.
+// them, the Go type its rows scan into, its precision and its scale. All three
+// are optional so tapes recorded before they existed still replay with the
+// default any and without a precision.
 type column struct {
-	name, typ, scan string
+	name, typ, scan, precision, scale string
 }
 
 // A value is a driver.Value as text: null, int, int8, int16, int32, int64,
@@ -318,6 +329,12 @@ func writeAnswer(b *strings.Builder, a answer) {
 				if c.scan != "" {
 					b.WriteString(" " + strconv.Quote(c.scan))
 				}
+				if c.precision != "" {
+					b.WriteString(" precision " + c.precision)
+				}
+				if c.scale != "" {
+					b.WriteString(" scale " + c.scale)
+				}
 				b.WriteString("\n")
 			}
 			for _, row := range s.rows {
@@ -520,7 +537,7 @@ func (p *parser) exchange(prev *request) (exchange, error) {
 			}
 			e.req.args = append(e.req.args, v)
 		}
-	case "begin", "commit", "rollback":
+	case "begin", "commit", "rollback", "connect":
 		if same {
 			return e, p.errorf("^ after %s, which has no text", kind)
 		}
@@ -603,12 +620,34 @@ func (p *parser) column() (column, error) {
 	n, _ := strconv.Unquote(name)
 	t, _ := strconv.Unquote(typ)
 	c := column{name: n, typ: t}
-	if rest != "" {
+	if rest != "" && !strings.HasPrefix(rest, "precision ") {
 		scan, err := strconv.QuotedPrefix(rest)
 		if err != nil {
 			return column{}, p.errorf("a column's scan type: %v", err)
 		}
 		c.scan, _ = strconv.Unquote(scan)
+		rest = strings.TrimPrefix(rest[len(scan):], " ")
+	}
+	if rest != "" {
+		precision, ok := strings.CutPrefix(rest, "precision ")
+		if !ok {
+			return column{}, p.errorf("a column's precision: %q", rest)
+		}
+		precision, rest, _ = strings.Cut(precision, " ")
+		if _, err := strconv.ParseInt(precision, 10, 32); err != nil {
+			return column{}, p.errorf("a column's precision: %v", err)
+		}
+		c.precision = precision
+	}
+	if rest != "" {
+		scale, ok := strings.CutPrefix(rest, "scale ")
+		if !ok {
+			return column{}, p.errorf("a column's scale: %q", rest)
+		}
+		if _, err := strconv.ParseInt(scale, 10, 32); err != nil {
+			return column{}, p.errorf("a column's scale: %v", err)
+		}
+		c.scale = scale
 	}
 	p.i++
 	return c, nil

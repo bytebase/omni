@@ -4,17 +4,21 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"testing"
 
+	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 
 	"github.com/bytebase/omni/clickhouse/internal/testcontainer"
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
@@ -178,5 +182,43 @@ func TestSyncInstance(t *testing.T) {
 	}
 	if diff := cmp.Diff(string(want), got); diff != "" {
 		t.Errorf("SyncInstance differs from %s (-want +got):\n%s", golden, diff)
+	}
+}
+
+// TestSyncDatabaseMissing holds that a database ClickHouse says it does not have
+// is driver.ErrNotFound, on the connection the client cannot make: the handshake
+// is refused, before any statement reaches the server.
+func TestSyncDatabaseMissing(t *testing.T) {
+	db := testcontainer.OpenMissingDatabase(t, missingDatabase)
+	t.Cleanup(func() { _ = db.Close() })
+
+	// What the server answered, with the client's own error type, as a replay
+	// holds it.
+	err := db.PingContext(context.Background())
+	var engineError *clickhouse.Exception
+	if !errors.As(err, &engineError) || engineError.Code != unknownDatabase {
+		t.Fatalf("Ping = %v, want a ClickHouse exception 81", err)
+	}
+
+	d := &Driver{db: db, databaseName: missingDatabase}
+	if _, err := d.SyncDatabase(context.Background()); !errors.Is(err, driver.ErrNotFound) {
+		t.Fatalf("SyncDatabase = %v, want driver.ErrNotFound", err)
+	}
+}
+
+// missingDatabase is a database no test creates, so a recording's server does
+// not have it.
+const missingDatabase = "omni_no_such_database"
+
+// TestWrapSyncError holds that UNKNOWN_DATABASE is driver.ErrNotFound and that a
+// failure of another kind keeps its own error.
+func TestWrapSyncError(t *testing.T) {
+	err := wrapSyncError(fmt.Errorf("failed to execute query: %w", &clickhouse.Exception{Code: unknownDatabase, Message: "Database omni_no_such_database does not exist"}))
+	if !errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapSyncError(81) = %v, want driver.ErrNotFound", err)
+	}
+	other := &clickhouse.Exception{Code: 60, Message: "Unknown table"}
+	if err := wrapSyncError(other); errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapSyncError(60) = %v, want the engine's own error", err)
 	}
 }

@@ -58,8 +58,9 @@
 // it also holds. QueryOptions.Limit rewrites a query's outermost LIMIT with
 // googlesql/analysis.RewriteResultLimit, and also caps the rows read when the
 // rewrite cannot (a non-literal LIMIT, a shape the parser does not read).
-// QueryOptions.MaxResultBytes stops the reading once the rows kept pass it and
-// sets Result.Truncated.
+// QueryOptions.MaxResultBytes stops the reading at the first row that takes the
+// rows kept past the cap and sets Result.Truncated: the kept rows are the most
+// that fit and the one that crossed, so they exceed the cap by at most that row.
 //
 // QueryOptions.Explain asks for the plan Spanner would run. The plan is a JSON
 // document in the result's rows, as Bytebase rendered it, and Result.Plan says
@@ -100,6 +101,14 @@
 // metadata argument is therefore read by nothing, and a caller that left a table
 // or a view out of it still dumps every object the server holds, exactly as
 // Bytebase's driver did.
+//
+// A statement's error is the client's own, as it returned it. A failure the
+// server reported is a *spanner.Error, which holds the *apierror.APIError the
+// RPC answered; the client deprecates *spanner.Error and tells a caller to read
+// the API error instead, so what is stable is the gRPC status both state:
+// status.FromError reports it and spanner.ErrCode reads its Code, which is
+// codes.InvalidArgument for a statement the server refused — a table that is not
+// there included — and codes.NotFound for a database the admin API does not have.
 //
 // The emulator note. A recording's server is the Cloud Spanner emulator, pinned
 // in spanner/testdata/pins.tsv and started by spanner/internal/testcontainer. The

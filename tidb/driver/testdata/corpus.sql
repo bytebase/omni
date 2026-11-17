@@ -32,7 +32,12 @@ CREATE TABLE metrics_range (
 	PARTITION p_high VALUES LESS THAN MAXVALUE
 );
 
-CREATE SEQUENCE seq_orders START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CACHE 50 CYCLE COMMENT='order seq'; -- not restorable: TestDumpGaps
+CREATE SEQUENCE seq_orders START WITH 10 INCREMENT BY 2 MINVALUE 1 MAXVALUE 10000 CACHE 50 CYCLE COMMENT='order seq';
 
 CREATE VIEW v_open_accounts AS
 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
+
+CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+
+CREATE VIEW v_named_cols_ref AS
+	SELECT renamed_id FROM v_named_cols;

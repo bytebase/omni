@@ -554,6 +554,16 @@ func (r *whereFunctionRule) normalizeIdent(name string) string {
 	return strings.ToLower(name)
 }
 
+// indexColumn folds an index expression as the column reference it names. The
+// parser strips the quotes of a reference and the sync writes a key column
+// quoted, so an expression's quotes come off before the fold the reference took.
+func (r *whereFunctionRule) indexColumn(expression string) string {
+	if len(expression) >= 2 && strings.HasPrefix(expression, `"`) && strings.HasSuffix(expression, `"`) {
+		expression = expression[1 : len(expression)-1]
+	}
+	return r.normalizeIdent(expression)
+}
+
 // tableMetadata returns the table ref names. The snapshot holds only the
 // connected owner's objects, in currentSchema, so a ref qualified with
 // another owner resolves to nothing.
@@ -577,7 +587,7 @@ func (r *whereFunctionRule) indexedColumns(ref whereTableRef) map[string]bool {
 	cols := make(map[string]bool)
 	for _, idx := range table.GetIndexes() {
 		for _, expr := range idx.GetExpressions() {
-			cols[r.normalizeIdent(expr)] = true
+			cols[r.indexColumn(expr)] = true
 		}
 	}
 	if len(cols) == 0 {

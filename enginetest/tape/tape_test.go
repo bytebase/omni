@@ -189,6 +189,161 @@ func TestRecordThenReplay(t *testing.T) {
 	}
 }
 
+// A connection the engine refused is a request and its error, like any other
+// exchange: a recording writes it down, and a replay answers the pool's first
+// use with the codec's rebuilding of it, the driver's own error type included.
+func TestConnectFailureRecordsAndReplays(t *testing.T) {
+	srv, e := harness(t)
+	e.refuse = &fakeError{4060, "Cannot open database"}
+	ping := func(t testing.TB) []string {
+		err := Open(t, srv, "default").Ping()
+		var fe *fakeError
+		as := errors.As(err, &fe) && fe.code == 4060
+		return []string{fmt.Sprintf("%v, as fakeError: %v", err, as)}
+	}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", ping)
+	if len(errs) > 0 {
+		t.Fatalf("recording failed: %v", errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "== TestFake default#1\n> connect\n< error\n| 4060 Cannot open database\n"; !strings.Contains(string(b), want) {
+		t.Errorf("the tape lacks %q:\n%s", want, b)
+	}
+
+	replay(t)
+	srv.Live = func(t testing.TB, _ enginetest.Pin) driver.Connector {
+		t.Fatalf("a replay reached the server")
+		return nil
+	}
+	replayed, errs := run(t, "TestFake", ping)
+	if len(errs) > 0 {
+		t.Fatalf("replay failed: %v", errs)
+	}
+	if strings.Join(replayed, "\n") != strings.Join(recorded, "\n") {
+		t.Errorf("a replay differs from its recording:\nrecorded:\n%s\nreplayed:\n%s", strings.Join(recorded, "\n"), strings.Join(replayed, "\n"))
+	}
+	if want := "Error 4060: Cannot open database, as fakeError: true"; strings.Join(replayed, "\n") != want {
+		t.Errorf("a replay answered %q, want %q", replayed, want)
+	}
+}
+
+// A connection that succeeds writes no request, so a tape recorded before a
+// refused connect could be held replays unchanged: a replay asks nothing of the
+// tape and makes the connection as it always did.
+func TestATapeWithoutAConnectAnswerStillConnects(t *testing.T) {
+	srv, _ := harness(t)
+	exec := func(t testing.TB) []string {
+		_, err := Open(t, srv, "default").Exec("CREATE TABLE t (a INT)")
+		return []string{fmt.Sprint(err)}
+	}
+
+	record(t)
+	if _, errs := run(t, "TestFake", exec); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "> connect") {
+		t.Errorf("a connection that succeeded wrote a request:\n%s", b)
+	}
+
+	// The tape as a recorder that knew no connect answer wrote it.
+	old := "-- pin: default img:1 sha256:1 1\n\n== TestFake default#1\n> exec\n| CREATE TABLE t (a INT)\n< ok 0 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "TestFake.tape"), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replay(t)
+	if _, errs := run(t, "TestFake", exec); len(errs) > 0 {
+		t.Errorf("a tape without a connect answer: %q", errs)
+	}
+}
+
+// A recording compares a refused connect with the committed one as it does
+// every other answer, so an engine that answers differently fails the test
+// rather than rewriting what a replay would hold.
+func TestARefusedConnectThatDiffersFailsTheRecording(t *testing.T) {
+	srv, e := harness(t)
+	ping := func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	}
+	e.refuse = &fakeError{4060, "Cannot open database"}
+	record(t)
+	if _, errs := run(t, "TestFake", ping); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	resetRegistry()
+	e.refuse = &fakeError{911, "Database does not exist"}
+	if _, errs := run(t, "TestFake", ping); len(errs) != 1 || !strings.Contains(errs[0], "answered request 1 (connect) differently") {
+		t.Errorf("got %q", errs)
+	}
+}
+
+// A connect attempt that failed for a reason that is not the engine's, such as
+// a timeout, is not recorded: a replay would hand it to the test as the
+// engine's verdict, and the committed tape stays as it was.
+func TestAnUnrecordableConnectKeepsTheCommittedTape(t *testing.T) {
+	srv, e := harness(t)
+	e.refuse = errors.New("i/o timeout")
+	record(t)
+	log, errs := run(t, "TestFake", func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], "i/o timeout is not an answer from the engine") {
+		t.Errorf("got %q", errs)
+	}
+	if len(log) != 1 || log[0] != "i/o timeout" {
+		t.Errorf("the test got %q, want the driver's own error", log)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "TestFake.tape")); !os.IsNotExist(err) {
+		t.Errorf("a failed recording wrote a tape")
+	}
+}
+
+// A replay that never connects leaves the tape's connect answer unread, and the
+// harness says so, as it does for any other request.
+func TestAConnectAnswerTheTestNeverAskedForIsReported(t *testing.T) {
+	srv, e := harness(t)
+	e.refuse = &fakeError{4060, "Cannot open database"}
+	record(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	}); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		return nil
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], "holds 1 recorded requests the test never sent, starting with connect") {
+		t.Errorf("got %q", errs)
+	}
+}
+
+// A tape holds a connect answer only when the engine refused the connection:
+// nothing else could have been recorded there, so a replay refuses another.
+func TestAReplayRefusesAConnectThatWasNotRefused(t *testing.T) {
+	srv, _ := harness(t)
+	tape := "-- pin: default img:1 sha256:1 1\n\n== TestFake default#1\n> connect\n< ok\n"
+	if err := os.WriteFile(filepath.Join(dir, "TestFake.tape"), []byte(tape), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], `stream "TestFake default#1" answers connect with "ok"`) {
+		t.Errorf("got %q", errs)
+	}
+}
+
 func TestReplayFailsOnAnUnrecordedRequest(t *testing.T) {
 	srv, _ := harness(t)
 	record(t)
@@ -771,6 +926,125 @@ func TestReproducesAllowsANewScanType(t *testing.T) {
 	}
 }
 
+// A recording that adds the optional precision to a tape that predates it
+// still records: the metadata is not an engine answer that changed.
+func TestReproducesAllowsANewPrecision(t *testing.T) {
+	f := &fakeT{TB: t, name: "TestFake"}
+	req := request{kind: "query", text: "SELECT a"}
+	old := answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a", typ: "DECIMAL"}}, rows: [][]value{{{kind: "string", text: "1.25"}}}}}}
+	now := answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a", typ: "DECIMAL", precision: "5", scale: "2"}}, rows: [][]value{{{kind: "string", text: "1.25"}}}}}}
+	s := &session{t: f, name: "TestFake", want: []exchange{{req, old}}, got: []exchange{{req, now}}}
+	s.reproduces()
+	if len(f.errs) != 0 {
+		t.Fatalf("reproduces reported %q", f.errs)
+	}
+	if got := s.want[0].ans.sets[0].cols[0].precision; got != "" {
+		t.Errorf("reproduces changed the committed answer's precision to %q", got)
+	}
+	if got := s.got[0].ans.sets[0].cols[0].precision; got != "5" {
+		t.Errorf("reproduces changed the recording's precision to %q", got)
+	}
+	if got := s.got[0].ans.sets[0].cols[0].scale; got != "2" {
+		t.Errorf("reproduces changed the recording's scale to %q", got)
+	}
+}
+
+// The precision a live driver reports is written down and replayed.
+func TestColumnPrecisionReplays(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT precision")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		types, _ := rows.ColumnTypes()
+		if len(types) != 1 {
+			return []string{fmt.Sprintf("%d columns", len(types))}
+		}
+		precision, scale, ok := types[0].DecimalSize()
+		return []string{fmt.Sprintf("%d %d %v", precision, scale, ok)}
+	}
+	const want = "5 2 true"
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(recorded) != 1 || recorded[0] != want {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := "< column \"d\" \"DECIMAL\" precision 5 scale 2\n"; !strings.Contains(string(b), line) {
+		t.Errorf("the tape lacks %q:\n%s", line, b)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(replayed) != 1 || replayed[0] != want {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
+// untypedRows answers one column whose scan type the client cannot name, as
+// go-ora cannot for the LONG that oracle/driver reads DATA_DEFAULT as.
+type untypedRows struct{ sent bool }
+
+func (r *untypedRows) Columns() []string                     { return []string{"a"} }
+func (r *untypedRows) ColumnTypeDatabaseTypeName(int) string { return "LONG" }
+func (r *untypedRows) ColumnTypeScanType(int) reflect.Type   { return nil }
+func (r *untypedRows) Close() error                          { return nil }
+func (r *untypedRows) Next(dest []driver.Value) error {
+	if r.sent {
+		return io.EOF
+	}
+	dest[0], r.sent = []byte("x"), true
+	return nil
+}
+
+// A column whose client names no scan type records without one, and replays:
+// the type is optional metadata, and naming it must not panic the recording.
+func TestAColumnWithNoScanTypeRecords(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT untyped")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var v string
+			if err := rows.Scan(&v); err != nil {
+				return []string{err.Error()}
+			}
+			out = append(out, v)
+		}
+		return out
+	}
+	want := []string{"x"}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(recorded, want) {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := "< column \"a\" \"LONG\"\n"; !strings.Contains(string(b), line) {
+		t.Errorf("the tape lacks %q:\n%s", line, b)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(replayed, want) {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
@@ -784,6 +1058,7 @@ func TestParseRejects(t *testing.T) {
 		{"a stray line", "== s\nhello\n", "unexpected line"},
 		{"a ditto with nothing before it", "== s\n> exec ^\n< ok 0 0\n", "no exec before it"},
 		{"a ditto of another kind", "== s\n> query\n| x\n< badconn\n> exec ^\n< ok 0 0\n", "no exec before it"},
+		{"a ditto after connect", "== s\n> connect ^\n< error\n| 4060 x\n", "^ after connect, which has no text"},
 		{"a digest in an answer", "== s\n> query\n| x\n< result\n< column \"a\" \"TEXT\"\n< row\n: bytes\n|# sha256:ab 70000\n", "answers are kept whole"},
 	} {
 		if _, err := parse("x.tape", c.tape); err == nil || !strings.Contains(err.Error(), c.want) {
@@ -797,10 +1072,11 @@ func TestFormatRoundTrips(t *testing.T) {
 		name: "TestX/sub name default#1",
 		exchanges: []exchange{
 			{request{kind: "query", text: "", args: []value{{kind: "string", text: ""}, {kind: "float64", text: "1.5"}, {kind: "bool", text: "true"}, {kind: "time", text: "2026-11-12T00:00:00Z"}}},
-				answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a \"b\"", typ: "UNSIGNED BIGINT"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
+				answer{kind: "rows", sets: []resultSet{{cols: []column{{name: "a \"b\"", typ: "UNSIGNED BIGINT", precision: "3", scale: "1"}}, rows: [][]value{{{kind: "bytes", text: "\n"}}, {{kind: "bytes", text: "\x00\xff"}}, {{kind: "string", text: "| q"}}, {{kind: "uint64", text: "18446744073709551615"}}}}, {}}}},
 			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
 			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
+			{request{kind: "connect"}, answer{kind: "error", err: "4060 Cannot open database\n911 in a second line"}},
 		},
 	}}}
 	text := f.encode()
@@ -818,12 +1094,20 @@ func TestFormatRoundTrips(t *testing.T) {
 type fakeEngine struct {
 	now  int
 	made map[string]bool // the names it made up and has not dropped
+	// refuse, when set, is what a connection attempt answers instead of a
+	// connection.
+	refuse error
 }
 
 type fakeConnector struct{ e *fakeEngine }
 
-func (c fakeConnector) Connect(context.Context) (driver.Conn, error) { return &fakeConn{c.e}, nil }
-func (c fakeConnector) Driver() driver.Driver                        { return nil }
+func (c fakeConnector) Connect(context.Context) (driver.Conn, error) {
+	if c.e.refuse != nil {
+		return nil, c.e.refuse
+	}
+	return &fakeConn{c.e}, nil
+}
+func (c fakeConnector) Driver() driver.Driver { return nil }
 
 type fakeConn struct{ e *fakeEngine }
 
@@ -868,6 +1152,10 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 			[]string{"INT", "INT8", "INT16", "INT32", "INT64", "UINT", "UINT8", "UINT16", "UINT32", "UINT64", "FLOAT32", "FLOAT64"},
 			[][]driver.Value{{int(-1), int8(-8), int16(-16), int32(-32), int64(-64), uint(1), uint8(8), uint16(16), uint32(32), uint64(64), float32(1.5), float64(2.5)}},
 		}}}, nil
+	case "SELECT precision":
+		return &fakeRows{sets: []fakeSet{{[]string{"d"}, []string{"DECIMAL"}, [][]driver.Value{{"1.25"}}}}}, nil
+	case "SELECT untyped":
+		return &untypedRows{}, nil
 	case "SELECT now":
 		c.e.now++
 		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil
@@ -900,8 +1188,14 @@ type fakeRows struct {
 
 func (r *fakeRows) Columns() []string                       { return r.sets[r.set].cols }
 func (r *fakeRows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].types[i] }
-func (r *fakeRows) Close() error                            { return nil }
-func (r *fakeRows) HasNextResultSet() bool                  { return r.set+1 < len(r.sets) }
+func (r *fakeRows) ColumnTypePrecisionScale(i int) (int64, int64, bool) {
+	if r.sets[r.set].types[i] == "DECIMAL" {
+		return 5, 2, true
+	}
+	return 0, 0, false
+}
+func (r *fakeRows) Close() error           { return nil }
+func (r *fakeRows) HasNextResultSet() bool { return r.set+1 < len(r.sets) }
 func (r *fakeRows) NextResultSet() error {
 	if !r.HasNextResultSet() {
 		return io.EOF
