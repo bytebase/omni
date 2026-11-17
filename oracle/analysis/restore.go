@@ -206,7 +206,10 @@ func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 		if index.Primary {
 			continue
 		}
-		if !index.Unique {
+		// A unique constraint on a non-unique index enforces uniqueness all the
+		// same, which is what the metadata says of the index the constraint
+		// reuses: the index is not unique, and the constraint is.
+		if !index.Unique && !index.IsConstraint {
 			continue
 		}
 		if strings.Contains(index.Type, "FUNCTION-BASED") {

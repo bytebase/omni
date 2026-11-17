@@ -72,6 +72,19 @@ func TestRestoreSQL(t *testing.T) {
 	_, err = RestoreSQL("UPDATE t SET id = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table, PrimaryKey: pk})
 	require.EqualError(t, err, "no disjoint unique key found for DB.T")
 
+	// A unique constraint on a non-unique index enforces uniqueness all the
+	// same, so its keys key the MERGE although the index is not unique.
+	table = &metadata.TableMetadata{
+		Name:    "T",
+		Columns: []*metadata.ColumnMetadata{{Name: "ID"}, {Name: "A"}},
+		Indexes: []*metadata.IndexMetadata{{Name: "IX", IsConstraint: true, Expressions: []string{`"ID"`}}},
+	}
+	node, err = FindFirstDML("UPDATE t SET a = 1")
+	require.NoError(t, err)
+	got, err = RestoreSQL("UPDATE t SET a = 1", node, RestoreOptions{SourceDatabase: "DB", SourceTable: "T", BackupDatabase: "BB", BackupTable: "B", Table: table})
+	require.NoError(t, err)
+	require.Contains(t, got, `ON( t."ID" = b."ID")`)
+
 	// SET VALUE (t) replaces whole rows, whose columns the restore cannot
 	// list.
 	_, err = restore(t, "UPDATE t x SET VALUE(x) = typ(1, 2)")
