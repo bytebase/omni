@@ -91,16 +91,16 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	metadata, err := d.syncDatabase(ctx)
 	if err != nil {
-		return nil, wrapSyncError(err)
+		return nil, wrapDatabaseNotFound(err)
 	}
 	return metadata, nil
 }
 
-// wrapSyncError reports a database ClickHouse says it does not have as
-// driver.ErrNotFound: a sync names the database it reads, so its absence is the
-// object the call asked for and not a failure of the sync. The client answers
-// UNKNOWN_DATABASE for the database its connection opens on.
-func wrapSyncError(err error) error {
+// wrapDatabaseNotFound reports a database ClickHouse says it does not have as
+// driver.ErrNotFound: a sync and a dump name the database they read, so its
+// absence is the object the call asked for and not a failure of the read. The
+// client answers UNKNOWN_DATABASE for the database its connection opens on.
+func wrapDatabaseNotFound(err error) error {
 	var engineError *clickhouse.Exception
 	if errors.As(err, &engineError) && engineError.Code == unknownDatabase {
 		return fmt.Errorf("%w: %s", driver.ErrNotFound, engineError.Message)

@@ -71,6 +71,37 @@ func TestDumpRestores(t *testing.T) {
 	}
 }
 
+// TestDumpRestoresCollationRules checks that an ICU collation's rules restore.
+// PostgreSQL 16 states them in collicurules and 17 in collrules, and a restore
+// that lost them would still create a collation, one that sorts differently.
+func TestDumpRestoresCollationRules(t *testing.T) {
+	setup := "CREATE COLLATION public.tailored (provider = icu, locale = 'und', rules = '&V << w <<< W');\n" +
+		"CREATE TABLE public.t (v text COLLATE public.tailored);"
+	for _, role := range []string{"pg16", testcontainer.Default} {
+		t.Run(role, func(t *testing.T) {
+			source, restored := restoreDump(t, role, "omni_collation_rules", setup)
+			if diff := restoreDiff(source, restored); diff != "" {
+				t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestDumpRestoresRangeOverRange checks that the dump orders a type after the
+// types it is declared over: a range over a range, a range over another range's
+// multirange type, and a composite type whose attribute is a range. The names
+// sort the other way round on purpose.
+func TestDumpRestoresRangeOverRange(t *testing.T) {
+	setup := "CREATE TYPE public.z_range AS RANGE (subtype = integer, multirange_type_name = public.z_multi);\n" +
+		"CREATE TYPE public.a_range AS RANGE (subtype = public.z_range);\n" +
+		"CREATE TYPE public.b_range AS RANGE (subtype = public.z_multi);\n" +
+		"CREATE TYPE public.a_composite AS (v public.z_range);"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_range_over_range", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
 // TestDumpRestoresGeneratedColumnFunction checks that a STORED generated
 // column whose expression calls a user function restores: the dump must
 // create the function before the table, though the table's name sorts first.
@@ -278,17 +309,6 @@ func TestDumpGaps(t *testing.T) {
 		// answers, for a gap the synced snapshot holds nothing of.
 		lost, want string
 	}{
-		// Range types are not synced, but their constructor functions are,
-		// as functions of the internal language, which do not restore.
-		{"range type", "omni_gap_range", "CREATE TYPE float_range AS RANGE (subtype = float8);", "syntax error at or near", "", ""},
-		// A user-defined collation is not a synced object, so its CREATE
-		// COLLATION is never emitted and a column that uses it cannot restore.
-		{
-			"user-defined collation", "omni_gap_collation",
-			"CREATE COLLATION c (provider = icu, locale = 'und-u-ks-level2', deterministic = false);\n" +
-				"CREATE TABLE t (v text COLLATE c);",
-			"does not exist", "", "",
-		},
 		// A foreign table's server and its options are not synced, so the
 		// dump omits the server and the foreign table; the table's synced
 		// external_database_name is the local database besides, which a

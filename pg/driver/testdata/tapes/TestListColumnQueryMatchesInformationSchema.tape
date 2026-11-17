@@ -101,6 +101,7 @@
 | 	cols.generation_expression,
 | 	cols.is_nullable,
 | 	cols.collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
 | 	cols.udt_schema,
 | 	cols.udt_name,
 | 	cols.identity_generation,
@@ -109,6 +110,8 @@
 | LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 | LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
 | LEFT JOIN pg_attribute pa ON pa.attrelid = c.oid AND pa.attname = cols.column_name AND NOT pa.attisdropped
+| LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 	ON pa.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
 | WHERE cols.table_schema NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |   AND cols.table_schema NOT LIKE 'pg_temp%'
 |   AND cols.table_schema NOT LIKE 'pg_toast%'
@@ -128,6 +131,7 @@
 < column "generation_expression" "VARCHAR"
 < column "is_nullable" "VARCHAR"
 < column "collation_name" "NAME"
+< column "collation_schema" "NAME"
 < column "udt_schema" "NAME"
 < column "udt_name" "NAME"
 < column "identity_generation" "VARCHAR"
@@ -152,6 +156,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -181,6 +186,7 @@
 : string
 | NO
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -209,6 +215,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -236,6 +243,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -266,6 +274,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -292,6 +301,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -320,6 +330,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -346,6 +357,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -374,6 +386,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -400,6 +413,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -428,6 +442,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -454,6 +469,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -482,6 +498,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -509,6 +526,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -535,6 +553,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -564,6 +583,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -592,6 +612,7 @@
 | YES
 : string
 | C
+: null
 : string
 | pg_catalog
 : string
@@ -618,6 +639,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -647,6 +669,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -673,6 +696,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -701,6 +725,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -727,6 +752,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -755,6 +781,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -781,6 +808,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -809,6 +837,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -835,6 +864,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -864,6 +894,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -890,6 +921,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -918,6 +950,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -944,6 +977,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -972,6 +1006,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -998,6 +1033,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1027,6 +1063,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1053,6 +1090,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1081,6 +1119,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1107,6 +1146,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1135,6 +1175,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1161,6 +1202,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1189,6 +1231,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1215,6 +1258,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1243,6 +1287,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1269,6 +1314,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1297,6 +1343,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1323,6 +1370,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1352,6 +1400,7 @@
 : string
 | YES
 : null
+: null
 : string
 | app
 : string
@@ -1378,6 +1427,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | public
@@ -1406,6 +1456,7 @@
 : string
 | YES
 : null
+: null
 : string
 | app
 : string
@@ -1432,6 +1483,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -1461,6 +1513,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1487,6 +1540,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1515,6 +1569,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1541,6 +1596,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1569,6 +1625,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1595,6 +1652,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1624,6 +1682,7 @@
 | YES
 : string
 | C
+: null
 : string
 | pg_catalog
 : string
@@ -1650,6 +1709,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1679,6 +1739,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1705,6 +1766,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1733,6 +1795,7 @@
 : string
 | NO
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1760,6 +1823,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1786,6 +1850,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -1814,6 +1879,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1840,6 +1906,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1869,6 +1936,7 @@
 | YES
 : string
 | C
+: null
 : string
 | pg_catalog
 : string
@@ -1897,6 +1965,7 @@
 : string
 | NO
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -1923,6 +1992,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -1960,6 +2030,7 @@
 | 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
 | 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 | 	co.collname AS collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
@@ -1996,6 +2067,7 @@
 < column "generation_expression" "TEXT"
 < column "is_nullable" "TEXT"
 < column "collation_name" "NAME"
+< column "collation_schema" "NAME"
 < column "udt_schema" "NAME"
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
@@ -2020,6 +2092,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -2049,6 +2122,7 @@
 : string
 | NO
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2077,6 +2151,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2104,6 +2179,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -2134,6 +2210,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2160,6 +2237,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2188,6 +2266,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2214,6 +2293,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2242,6 +2322,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2268,6 +2349,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2296,6 +2378,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2322,6 +2405,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2350,6 +2434,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2377,6 +2462,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2403,6 +2489,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2432,6 +2519,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2460,6 +2548,7 @@
 | YES
 : string
 | C
+: null
 : string
 | pg_catalog
 : string
@@ -2486,6 +2575,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2515,6 +2605,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2541,6 +2632,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2569,6 +2661,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2595,6 +2688,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2623,6 +2717,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2649,6 +2744,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2677,6 +2773,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2703,6 +2800,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2732,6 +2830,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2758,6 +2857,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2786,6 +2886,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2812,6 +2913,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2840,6 +2942,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2866,6 +2969,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2895,6 +2999,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2921,6 +3026,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -2949,6 +3055,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -2975,6 +3082,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3003,6 +3111,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3029,6 +3138,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3057,6 +3167,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3083,6 +3194,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3111,6 +3223,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3137,6 +3250,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3165,6 +3279,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3191,6 +3306,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3220,6 +3336,7 @@
 : string
 | YES
 : null
+: null
 : string
 | app
 : string
@@ -3246,6 +3363,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | public
@@ -3274,6 +3392,7 @@
 : string
 | YES
 : null
+: null
 : string
 | app
 : string
@@ -3300,6 +3419,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -3329,6 +3449,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3355,6 +3476,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3383,6 +3505,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3409,6 +3532,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3437,6 +3561,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3463,6 +3588,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3492,6 +3618,7 @@
 | YES
 : string
 | C
+: null
 : string
 | pg_catalog
 : string
@@ -3518,6 +3645,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3547,6 +3675,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3573,6 +3702,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3601,6 +3731,7 @@
 : string
 | NO
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3628,6 +3759,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3654,6 +3786,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -3682,6 +3815,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3708,6 +3842,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -3737,6 +3872,7 @@
 | YES
 : string
 | C
+: null
 : string
 | pg_catalog
 : string
@@ -3765,6 +3901,7 @@
 : string
 | NO
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -3791,6 +3928,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog

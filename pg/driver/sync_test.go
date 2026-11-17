@@ -454,7 +454,9 @@ CREATE TYPE coll_qualified AS (v text COLLATE locale.mycoll);`)
 
 // legacyListColumnQuery is the information_schema.columns query the
 // pg_catalog one replaced; for a user with every privilege the two must
-// return the same rows.
+// return the same rows. information_schema.columns names a column's collation
+// but not the schema it lives in, so the query reads that beside it, as the
+// pg_catalog one does.
 var legacyListColumnQuery = `
 SELECT
 	cols.table_schema,
@@ -471,6 +473,7 @@ SELECT
 	cols.generation_expression,
 	cols.is_nullable,
 	cols.collation_name,
+	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
 	cols.udt_schema,
 	cols.udt_name,
 	cols.identity_generation,
@@ -478,7 +481,9 @@ SELECT
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')
-LEFT JOIN pg_attribute pa ON pa.attrelid = c.oid AND pa.attname = cols.column_name AND NOT pa.attisdropped` + fmt.Sprintf(`
+LEFT JOIN pg_attribute pa ON pa.attrelid = c.oid AND pa.attname = cols.column_name AND NOT pa.attisdropped
+LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+	ON pa.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')` + fmt.Sprintf(`
 WHERE cols.table_schema NOT IN (%s)
   AND cols.table_schema NOT LIKE 'pg_temp%%'
   AND cols.table_schema NOT LIKE 'pg_toast%%'
