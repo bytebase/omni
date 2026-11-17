@@ -77,13 +77,15 @@
 < ok - -
 > exec
 | -- A view whose comment SHOW CREATE TABLE leaves out, and the quote in it, which
-| -- a replay escapes rather than doubling.
-| CREATE VIEW omni_dump.z_users COMMENT 'the users\' rows' AS SELECT id, name FROM omni_dump.ext_users
+| -- a replay escapes rather than doubling. Its query names a column with an alias
+| -- SHOW CREATE TABLE has to quote: the statement the server states is the one a
+| -- replay takes, whatever the query could not be restated from.
+| CREATE VIEW omni_dump.z_users COMMENT 'the users\' rows' AS SELECT id AS 1bad, name FROM omni_dump.ext_users
 < ok - -
 > exec
 | -- A materialized view over that view, named so that name order alone would place
 | -- it before the view it resolves.
-| CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT id FROM omni_dump.z_users
+| CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad` FROM omni_dump.z_users
 < ok - -
 > query
 | SHOW TABLES IN `OMNI_DUMP`
@@ -286,7 +288,7 @@
 < column "comment" "STRING"
 < row
 : string
-| id
+| 1bad
 : string
 | int
 : string
@@ -360,7 +362,7 @@
 : string
 | COLUMN_STATS_ACCURATE
 : string
-| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"id\":\"true\"}}
+| {\"BASIC_STATS\":\"true\",\"COLUMN_STATS\":{\"1bad\":\"true\"}}
 < row
 : string
 |
@@ -476,13 +478,13 @@
 : string
 | Original Query:     
 : string
-| SELECT id FROM omni_dump.z_users
+| SELECT 1bad FROM omni_dump.z_users
 : null
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_users`.`id` FROM `omni_dump`.`z_users`
+| SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
 : null
 < row
 : string
@@ -518,6 +520,52 @@
 : string
 | N/A
 : null
+> query
+| SHOW CREATE TABLE `omni_dump`.`a_users_mv`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE TABLE `omni_dump`.`a_users_mv`(
+< row
+: string
+|   `1bad` int)
+< row
+: string
+| COMMENT 'the users materialized'
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/a_users_mv'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
 > query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`events`
 < result
@@ -2038,11 +2086,6 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW PARTITIONS `omni_dump`.`orders`
-< error
-| 10241
-| Error while compiling statement: FAILED: Execution Error, return code 10241 from org.apache.hadoop.hive.ql.ddl.DDLTask. Table omni_dump.orders is not a partitioned table
-> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -2222,7 +2265,7 @@
 < column "comment" "STRING"
 < row
 : string
-| id
+| 1bad
 : string
 | int
 : string
@@ -2378,13 +2421,13 @@
 : string
 | Original Query:     
 : string
-| SELECT id, name FROM omni_dump.ext_users
+| SELECT id AS 1bad, name FROM omni_dump.ext_users
 : null
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`
+| SELECT `ext_users`.`id` AS `1bad`, `ext_users`.`name` FROM `omni_dump`.`ext_users`
 : null
 > query
 | SHOW CREATE TABLE `omni_dump`.`z_users`
@@ -2392,7 +2435,7 @@
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`z_users` AS SELECT `ext_users`.`id`, `ext_users`.`name` FROM `omni_dump`.`ext_users`
+| CREATE VIEW `omni_dump`.`z_users` AS SELECT `ext_users`.`id` AS `1bad`, `ext_users`.`name` FROM `omni_dump`.`ext_users`
 > query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`a_top`
 < result

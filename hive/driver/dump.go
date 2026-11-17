@@ -145,26 +145,44 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 	switch info.tableType {
 	case "VIRTUAL_VIEW":
 		object.kind = dumpView
-		stmt, err := d.dumpViewStatement(ctx, database, name, info)
+		stmt, err := d.dumpStatement(ctx, database, name)
 		if err != nil {
 			return nil, err
 		}
 		object.stmts = []string{stmt}
+		// SHOW CREATE TABLE states a view's query and no comment, and CREATE
+		// VIEW takes one only before the query: the statement that states a
+		// view's comment is the ALTER that sets it as a table parameter.
+		if info.comment != "" {
+			object.stmts = append(object.stmts, "ALTER VIEW "+quoteBacktick(database)+"."+quoteBacktick(name)+
+				" SET TBLPROPERTIES('comment'="+dumpString(info.comment)+")")
+		}
 	case "MATERIALIZED_VIEW":
 		// SHOW CREATE TABLE states a materialized view as a plain CREATE TABLE:
-		// its columns, storage and comment, not the query it materializes.
-		// DESCRIBE FORMATTED states the query, and only CREATE MATERIALIZED VIEW
-		// takes it.
+		// its comment and storage, and not the query it materializes. Its
+		// clauses are the ones CREATE MATERIALIZED VIEW takes, in that order,
+		// but for the column list it refuses; DESCRIBE FORMATTED states the
+		// query with every identifier quoted, which is the text a replay takes.
 		//
-		// Whenever Hive refuses to enable rewriting on a table no transaction
-		// manager covers — every table of a server without ACID — it refuses
-		// CREATE MATERIALIZED VIEW without DISABLE REWRITE, and the metadata
-		// carries no field for the flag DESCRIBE FORMATTED states, so the dump
-		// writes DISABLE REWRITE for every materialized view.
+		// Hive refuses CREATE MATERIALIZED VIEW without DISABLE REWRITE when a
+		// table the view reads is not transactional, and the metadata carries no
+		// field for the flag DESCRIBE FORMATTED states, so the dump writes
+		// DISABLE REWRITE for every materialized view.
+		stmt, err := d.dumpStatement(ctx, database, name)
+		if err != nil {
+			return nil, err
+		}
+		clauses, err := dumpClauseStart(stmt)
+		if err != nil {
+			return nil, fmt.Errorf("materialized view %s: %w", name, err)
+		}
+		if info.expandedViewDef == "" {
+			return nil, fmt.Errorf("materialized view %s: DESCRIBE FORMATTED states no query", name)
+		}
 		object.kind = dumpMaterializedView
 		object.stmts = []string{
 			"CREATE MATERIALIZED VIEW " + quoteBacktick(database) + "." + quoteBacktick(name) +
-				" DISABLE REWRITE" + dumpComment(info.comment) + " AS " + info.viewDef,
+				" DISABLE REWRITE" + stmt[clauses:] + "\nAS " + info.expandedViewDef,
 		}
 	case "MANAGED_TABLE":
 		object.kind = dumpTable
@@ -179,11 +197,13 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		// the table external, and only the ALTER stores it managed.
 		object.stmts = append(object.stmts,
 			"ALTER TABLE "+quoteBacktick(database)+"."+quoteBacktick(name)+" SET TBLPROPERTIES('EXTERNAL'='FALSE')")
-		partitions, err := d.dumpPartitions(ctx, database, name)
-		if err != nil {
-			return nil, err
+		if info.partitioned {
+			partitions, err := d.dumpPartitions(ctx, database, name)
+			if err != nil {
+				return nil, err
+			}
+			object.stmts = append(object.stmts, partitions...)
 		}
-		object.stmts = append(object.stmts, partitions...)
 	default:
 		object.kind = dumpTable
 		stmt, err := d.dumpStatement(ctx, database, name)
@@ -195,29 +215,56 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 	return object, nil
 }
 
-// dumpViewStatement is the statement that recreates a view: the one SHOW CREATE
-// TABLE states, which is the view's expanded query, unless the view has a
-// comment — SHOW CREATE TABLE states none, and CREATE VIEW takes one only
-// before AS.
-func (d *Driver) dumpViewStatement(ctx context.Context, database, name string, info *TableInfo) (string, error) {
-	stmt, err := d.dumpStatement(ctx, database, name)
-	if err != nil {
-		return "", err
+// dumpClauseStart returns the index in a stated CREATE TABLE of the first
+// clause after the column list. A name, a type and a comment may each hold a
+// parenthesis, so the list opens at the first parenthesis outside a quoted
+// identifier or literal and ends at the one that closes it.
+func dumpClauseStart(stmt string) (int, error) {
+	depth := 0
+	for i := 0; i < len(stmt); i++ {
+		switch stmt[i] {
+		case '`':
+			// Hive spells an identifier's own backquote as two.
+			for i++; i < len(stmt); i++ {
+				if stmt[i] != '`' {
+					continue
+				}
+				if i+1 < len(stmt) && stmt[i+1] == '`' {
+					i++
+					continue
+				}
+				break
+			}
+			if i >= len(stmt) {
+				return 0, fmt.Errorf("the stated CREATE TABLE has an unterminated identifier")
+			}
+		case '\'':
+			// A backslash escapes the character after it, a quote included.
+			for i++; i < len(stmt); i++ {
+				if stmt[i] == '\\' {
+					i++
+					continue
+				}
+				if stmt[i] == '\'' {
+					break
+				}
+			}
+			if i >= len(stmt) {
+				return 0, fmt.Errorf("the stated CREATE TABLE has an unterminated literal")
+			}
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return i + 1, nil
+			}
+			if depth < 0 {
+				return 0, fmt.Errorf("the stated CREATE TABLE has a parenthesis before its column list")
+			}
+		}
 	}
-	if info.comment == "" {
-		return stmt, nil
-	}
-	return "CREATE VIEW " + quoteBacktick(database) + "." + quoteBacktick(name) +
-		dumpComment(info.comment) + " AS " + info.viewDef, nil
-}
-
-// dumpComment states a comment as CREATE VIEW and CREATE MATERIALIZED VIEW take
-// one, or nothing for an object without.
-func dumpComment(comment string) string {
-	if comment == "" {
-		return ""
-	}
-	return " COMMENT " + dumpString(comment)
+	return 0, fmt.Errorf("the stated CREATE TABLE has no end to its column list")
 }
 
 // dumpString renders s as a Hive string literal. Hive concatenates adjacent
@@ -292,12 +339,7 @@ func (d *Driver) dumpPartitions(ctx context.Context, database, name string) ([]s
 	query := "SHOW PARTITIONS " + quoteBacktick(database) + "." + quoteBacktick(name)
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
-		// A table that is not partitioned answers with an error, which is the
-		// same as having no partitions.
-		if ctx.Err() != nil {
-			return nil, fmt.Errorf("%s: %w", query, err)
-		}
-		return nil, nil
+		return nil, fmt.Errorf("%s: %w", query, err)
 	}
 	defer rows.Close()
 	var names []string

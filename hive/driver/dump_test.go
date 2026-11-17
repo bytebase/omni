@@ -93,15 +93,19 @@ func TestDumpRestores(t *testing.T) {
 	require.Equal(t, dump.String(), again.String(), "the restored database dumps to a different script")
 }
 
-// restoreDiff compares two synced databases apart from a view's definition
-// text. Hive stores a view as the statement that created it, and a view the dump
-// recreates is stored as the rendering its CREATE stated — the same view, whose
-// query the server writes another way. The dump itself round-trips exactly,
-// which the second dump holds. A table's size and row count are the rows it
-// holds, which a dump of the schema does not carry.
+// restoreDiff compares two synced databases apart from the definition text of a
+// view and a materialized view. Hive stores a view as the statement that created
+// it, and one the dump recreates is stored as the rendering its CREATE stated —
+// the same view, whose query the server writes another way. A materialized view
+// is replayed from the query DESCRIBE FORMATTED expands, which the server then
+// renders as the view's original query, so the two texts name the same query.
+// The dump itself round-trips exactly, which the second dump holds. A table's
+// size and row count are the rows it holds, which a dump of the schema does not
+// carry.
 func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {
 	return cmp.Diff(source.GetSchemas(), restored.GetSchemas(), protocmp.Transform(),
 		protocmp.IgnoreFields(&metadatapb.ViewMetadata{}, "definition"),
+		protocmp.IgnoreFields(&metadatapb.MaterializedViewMetadata{}, "definition"),
 		protocmp.IgnoreFields(&metadatapb.TableMetadata{}, "data_size", "row_count"),
 	)
 }
@@ -296,5 +300,46 @@ func TestDumpPartitionSpec(t *testing.T) {
 		spec, ok := dumpPartitionSpec(partition.name)
 		require.Equal(t, partition.ok, ok, partition.name)
 		require.Equal(t, partition.spec, spec, partition.name)
+	}
+}
+
+// TestDumpClauseStart holds where a stated CREATE TABLE's column list ends: at
+// the parenthesis that closes it, past the parentheses a column type and a
+// column comment hold.
+func TestDumpClauseStart(t *testing.T) {
+	for _, stmt := range []struct {
+		name   string
+		stmt   string
+		clause string
+	}{
+		{
+			name:   "a plain column list",
+			stmt:   "CREATE TABLE `db`.`t`(\n  `id` int)\nROW FORMAT SERDE \n  'x'",
+			clause: "\nROW FORMAT SERDE \n  'x'",
+		},
+		{
+			name:   "a type holding parentheses",
+			stmt:   "CREATE TABLE `db`.`t`(\n  `amount` decimal(10,2))\nLOCATION\n  'x'",
+			clause: "\nLOCATION\n  'x'",
+		},
+		{
+			name:   "a comment holding a parenthesis and a quote",
+			stmt:   "CREATE TABLE `db`.`t`(\n  `note` string COMMENT 'a ) note, it\\'s')\nCOMMENT 'the table'",
+			clause: "\nCOMMENT 'the table'",
+		},
+		{
+			name:   "a name holding a parenthesis",
+			stmt:   "CREATE TABLE `db`.`a (b`(\n  `id` int)\nLOCATION\n  'x'",
+			clause: "\nLOCATION\n  'x'",
+		},
+		{
+			name:   "a column named with a backquote",
+			stmt:   "CREATE TABLE `db`.`t`(\n  `a``b` int)\nLOCATION\n  'x'",
+			clause: "\nLOCATION\n  'x'",
+		},
+	} {
+		clause, err := dumpClauseStart(stmt.stmt)
+		require.NoError(t, err, stmt.name)
+		require.Equal(t, stmt.clause, stmt.stmt[clause:], stmt.name)
 	}
 }

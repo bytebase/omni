@@ -56,9 +56,11 @@ ALTER TABLE omni_dump.events ADD PARTITION (dt='2024-01-02') LOCATION 'file:/tmp
 INSERT INTO omni_dump.events PARTITION (dt='2024-01-01') VALUES (1, 'x'), (2, 'y')
 
 -- A view whose comment SHOW CREATE TABLE leaves out, and the quote in it, which
--- a replay escapes rather than doubling.
-CREATE VIEW omni_dump.z_users COMMENT 'the users\' rows' AS SELECT id, name FROM omni_dump.ext_users
+-- a replay escapes rather than doubling. Its query names a column with an alias
+-- SHOW CREATE TABLE has to quote: the statement the server states is the one a
+-- replay takes, whatever the query could not be restated from.
+CREATE VIEW omni_dump.z_users COMMENT 'the users\' rows' AS SELECT id AS 1bad, name FROM omni_dump.ext_users
 
 -- A materialized view over that view, named so that name order alone would place
 -- it before the view it resolves.
-CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT id FROM omni_dump.z_users
+CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad` FROM omni_dump.z_users

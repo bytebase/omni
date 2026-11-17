@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strconv"
 	"strings"
 
@@ -166,9 +165,15 @@ func (d *Driver) getTables(ctx context.Context, databaseName string) (
 				Columns: tableInfo.colMetadatas,
 			})
 		case "MANAGED_TABLE":
-			// A table without partitions answers SHOW PARTITIONS with an error,
-			// which is why a table carries no partitions rather than no rows.
-			partitions := d.getPartitions(ctx, databaseName, tableName)
+			// Only a partitioned table has partitions to read, and Hive answers
+			// SHOW PARTITIONS on any other table with an error.
+			var partitions []*metadatapb.TablePartitionMetadata
+			if tableInfo.partitioned {
+				partitions, err = d.getPartitions(ctx, databaseName, tableName)
+				if err != nil {
+					return nil, nil, nil, nil, fmt.Errorf("failed to get partitions of table %s: %w", tableName, err)
+				}
+			}
 			tableMetadatas = append(tableMetadatas, &metadatapb.TableMetadata{
 				Engine:     "HDFS",
 				Comment:    tableInfo.comment,
@@ -186,13 +191,12 @@ func (d *Driver) getTables(ctx context.Context, databaseName string) (
 	return tableMetadatas, extTableMetadatas, viewMetadatas, mtViewMetadatas, nil
 }
 
-// getPartitions reads a managed table's partitions. Hive answers a table that
-// is not partitioned with an error, which is the same as having none.
-func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName string) []*metadatapb.TablePartitionMetadata {
-	result, err := d.queryStatement(ctx, fmt.Sprintf("SHOW PARTITIONS `%s`.`%s`", databaseName, tableName), 0)
+// getPartitions reads a partitioned managed table's partitions.
+func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName string) ([]*metadatapb.TablePartitionMetadata, error) {
+	query := fmt.Sprintf("SHOW PARTITIONS `%s`.`%s`", databaseName, tableName)
+	result, err := d.queryStatement(ctx, query, 0)
 	if err != nil {
-		slog.Debug("failed to get partitions", "error", err)
-		return nil
+		return nil, fmt.Errorf("%s: %w", query, err)
 	}
 	partitions := make([]*metadatapb.TablePartitionMetadata, 0, len(result.Rows))
 	for _, row := range result.Rows {
@@ -203,7 +207,7 @@ func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName stri
 			Name: row[0].String,
 		})
 	}
-	return partitions
+	return partitions, nil
 }
 
 // This function gets certain database info by name.
@@ -225,13 +229,21 @@ func (d *Driver) getDatabaseInfoByName(ctx context.Context, databaseName string)
 
 // TableInfo is what one DESCRIBE FORMATTED answer says about a table.
 type TableInfo struct {
-	database     string
+	database string
+	// tableType is the type DESCRIBE FORMATTED states, such as MANAGED_TABLE.
 	tableType    string
 	colMetadatas []*metadatapb.ColumnMetadata
 	numRows      int
-	viewDef      string
-	totalSize    int
-	comment      string
+	// viewDef is the query a view or materialized view was created with.
+	viewDef string
+	// expandedViewDef is the query as the server renders it, with every
+	// identifier quoted: the text a dump replays.
+	expandedViewDef string
+	totalSize       int
+	comment         string
+	// partitioned is whether the table states partition columns, which only a
+	// partitioned table does.
+	partitioned bool
 }
 
 const (
@@ -281,6 +293,10 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			// A materialized view states its query under its own heading, which
 			// is where the definition of the view comes from.
 			section = viewSection
+		case strings.HasPrefix(colNameValue, "# Partition Information"):
+			// Only a partitioned table states its partition columns, which the
+			// rows under the heading carry like the table's own.
+			tableInfo.partitioned = true
 		default:
 			// No action needed for other cases
 		}
@@ -327,6 +343,8 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 				tableInfo.viewDef = trimField(dataTypeValue)
 			case strings.HasPrefix(colNameValue, "Original Query:"):
 				tableInfo.viewDef = trimField(dataTypeValue)
+			case strings.HasPrefix(colNameValue, "Expanded Query:"):
+				tableInfo.expandedViewDef = trimField(dataTypeValue)
 			default:
 				// No action needed for other view fields
 			}

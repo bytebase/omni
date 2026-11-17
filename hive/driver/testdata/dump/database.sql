@@ -101,7 +101,9 @@ CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' A
 --
 -- View structure for `z_users`
 --
-CREATE VIEW `omni_dump`.`z_users` COMMENT 'the users\' rows' AS SELECT id, name FROM omni_dump.ext_users;
+CREATE VIEW `omni_dump`.`z_users` AS SELECT `ext_users`.`id` AS `1bad`, `ext_users`.`name` FROM `omni_dump`.`ext_users`;
+
+ALTER VIEW `omni_dump`.`z_users` SET TBLPROPERTIES('comment'='the users\' rows');
 
 --
 -- View structure for `a_top`
@@ -111,5 +113,18 @@ CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_oth
 --
 -- Materialized view structure for `a_users_mv`
 --
-CREATE MATERIALIZED VIEW `omni_dump`.`a_users_mv` DISABLE REWRITE COMMENT 'the users materialized' AS SELECT id FROM omni_dump.z_users;
+CREATE MATERIALIZED VIEW `omni_dump`.`a_users_mv` DISABLE REWRITE
+COMMENT 'the users materialized'
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  'file:/opt/hive/data/warehouse/omni_dump.db/a_users_mv'
+TBLPROPERTIES (
+  'bucketing_version'='2', 
+  'transient_lastDdlTime'='1000000000')
+AS SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`;
 
