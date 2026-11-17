@@ -116,15 +116,17 @@ func (codec) EncodeError(error) (string, bool) { return "", false }
 func (codec) DecodeError(text string) error { return fmt.Errorf("%s", text) } //nolint:revive // an answer's text, not a cause to wrap
 
 // madeUp matches the two values an endpoint makes up that a tape holds as
-// stand-ins: a page token and the request ID of an error's text.
-var madeUp = regexp.MustCompile(`"nextToken":"[A-Za-z0-9+/=]+"|RequestID: [0-9a-f-]{36}`)
+// stand-ins: a page token and the request ID of an error's text. A request ID
+// is a UUID from DynamoDB Local and 52 upper-case letters and digits from the
+// real service, which a recording asks when it is not made from the container.
+var madeUp = regexp.MustCompile(`"nextToken":"[A-Za-z0-9+/=]+"|RequestID: (?:[0-9a-f-]{36}|[A-Z0-9]{52})`)
 
 func (codec) MadeUp() *regexp.Regexp { return madeUp }
 
 // StandIn is a made-up value's stand-in, counting n from 1. A token becomes one
 // that says it is a stand-in, base64-encoded as the endpoint's own tokens are;
-// a request ID becomes the all-zero one, since a UUID a test reads means
-// nothing.
+// a request ID becomes the all-zero UUID, since the ID a test reads means
+// nothing whatever shape the service wrote it in.
 func (codec) StandIn(name string, n int) string {
 	if strings.HasPrefix(name, `"nextToken"`) {
 		token := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("omni-token-%d", n)))
