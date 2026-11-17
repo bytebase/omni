@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"strings"
 	"time"
 
@@ -35,8 +36,21 @@ type session struct {
 	connID uint64
 }
 
+// Close discards the physical connection: see discardConn.
 func (s *session) Close() error {
-	return s.conn.Close()
+	discardConn(s.conn)
+	return nil
+}
+
+// discardConn closes conn's physical connection instead of returning it to the
+// pool. MySQL's session state outlives a statement — the default database,
+// session variables, temporary tables, an open transaction — and
+// go-sql-driver's ResetSession only checks that the connection is alive, so a
+// pooled connection would hand that state to the next caller. Returning
+// ErrBadConn from Raw makes database/sql close it, and marks the Conn used up,
+// so no further call is needed.
+func discardConn(conn *sql.Conn) {
+	_ = conn.Raw(func(any) error { return sqldriver.ErrBadConn })
 }
 
 // Query runs each non-empty statement of script in order on the session's

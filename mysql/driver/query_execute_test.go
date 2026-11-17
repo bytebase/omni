@@ -468,8 +468,13 @@ INSERT INTO sitems VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');`, driver.Execu
 			if err != nil || estimate != 1 {
 				t.Fatalf("CountAffectedRows of a key lookup = (%d, %v)", estimate, err)
 			}
-			if _, err := d.CountAffectedRows(ctx, "SELECT 1;"); err == nil {
-				t.Error("CountAffectedRows accepted a statement that changes nothing")
+			// A statement that changes nothing is refused before any plan is
+			// read, so a SELECT of a table cannot report the rows it reads as
+			// rows it modifies.
+			for _, statement := range []string{"SELECT 1;", "SELECT * FROM sitems;"} {
+				if _, err := d.CountAffectedRows(ctx, statement); err == nil || !strings.Contains(err.Error(), "expected an INSERT, UPDATE or DELETE") {
+					t.Errorf("CountAffectedRows(%q) err = %v", statement, err)
+				}
 			}
 			if _, err := d.CountAffectedRows(ctx, "DELETE FROM sitems WHERE id <= 2; SELECT 1;"); err == nil || !strings.Contains(err.Error(), "exactly one statement") {
 				t.Errorf("CountAffectedRows of a script err = %v", err)

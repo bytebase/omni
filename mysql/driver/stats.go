@@ -28,6 +28,14 @@ func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64
 	if list == nil || len(list.Items) != 1 {
 		return 0, errors.New("expected exactly one statement")
 	}
+	// Only a statement that changes rows has an estimate. The tabular fallback
+	// below stands in for a plan that carries none, so without this check a
+	// SELECT of a table would report the rows it reads as rows it modifies.
+	switch list.Items[0].(type) {
+	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt:
+	default:
+		return 0, fmt.Errorf("expected an INSERT, UPDATE or DELETE statement, got %T", list.Items[0])
+	}
 	query := mysqlanalysis.AffectedRowsQuery(list.Items[0], statement)
 	plan, err := d.ExplainJSON(ctx, query)
 	if err != nil {

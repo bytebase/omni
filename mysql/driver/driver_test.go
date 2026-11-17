@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -412,4 +413,191 @@ func connClosed(c net.Conn) <-chan struct{} {
 		_, _ = c.Read(b[:])
 	}()
 	return ch
+}
+
+func TestBuildExecuteCommandsDelimiterAndBounds(t *testing.T) {
+	const procedure = "DELIMITER //\nCREATE PROCEDURE p()\nBEGIN\n  SELECT 1;\nEND//\nDELIMITER ;\n"
+	commands := buildExecuteCommands(procedure)
+	if len(commands) != 1 || strings.Contains(commands[0].Text, "DELIMITER") || !strings.Contains(commands[0].Text, "CREATE PROCEDURE p()") {
+		t.Fatalf("delimiter script commands = %+v", commands)
+	}
+
+	var many strings.Builder
+	for range maxSplitCommands + 5 {
+		many.WriteString("SELECT 1;\n")
+	}
+	if got := buildExecuteCommands(many.String()); len(got) != 1 || got[0].Text != many.String() {
+		t.Fatalf("too-many-commands fallback = %d commands", len(got))
+	}
+
+	large := "SELECT 1;\n" + strings.Repeat(" ", maxSheetCheckBytes)
+	if got := buildExecuteCommands(large); len(got) != 1 || got[0].Text != large {
+		t.Fatalf("large-sheet fallback = %d commands", len(got))
+	}
+
+	// A script with directives stays split past both limits: the directives
+	// cannot reach the server.
+	var manyProcedures strings.Builder
+	manyProcedures.WriteString("DELIMITER //\n")
+	for range maxSplitCommands + 5 {
+		manyProcedures.WriteString("SELECT 1//\n")
+	}
+	manyProcedures.WriteString("DELIMITER ;\n")
+	got := buildExecuteCommands(manyProcedures.String())
+	if len(got) != maxSplitCommands+5 {
+		t.Fatalf("delimiter script past the command limit = %d commands, want %d", len(got), maxSplitCommands+5)
+	}
+	for _, command := range got {
+		if strings.Contains(strings.ToUpper(command.Text), "DELIMITER") {
+			t.Fatalf("command holds a directive: %q", command.Text)
+		}
+	}
+
+	if got := buildExecuteCommands("  ;\n-- nothing\n"); len(got) != 0 {
+		t.Fatalf("empty script = %+v", got)
+	}
+}
+
+// TestSessionCloseDiscardsTheConnection pins that a session that selected
+// another database does not hand it to the pool: a later Execute on the same
+// driver still writes the driver's database.
+func TestSessionCloseDiscardsTheConnection(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	var (
+		mu         sync.Mutex
+		handshakes int
+		statements []string
+	)
+	appendPacket := func(dst []byte, seq byte, payload []byte) []byte {
+		dst = append(dst, byte(len(payload)), byte(len(payload)>>8), byte(len(payload)>>16), seq)
+		return append(dst, payload...)
+	}
+	readPacket := func(conn net.Conn) ([]byte, error) {
+		var hdr [4]byte
+		if _, err := io.ReadFull(conn, hdr[:]); err != nil {
+			return nil, err
+		}
+		n := int(hdr[0]) | int(hdr[1])<<8 | int(hdr[2])<<16
+		buf := make([]byte, n)
+		if _, err := io.ReadFull(conn, buf); err != nil {
+			return nil, err
+		}
+		return buf, nil
+	}
+	writeSingleCell := func(c net.Conn, val string) {
+		var out []byte
+		out = appendPacket(out, 1, []byte{1})
+		col := []byte{3, 'd', 'e', 'f', 0, 0, 0, 2, 'i', 'd', 0, 0x0c, 0x21, 0x00, 10, 0, 0, 0, 0xfd, 0x00, 0x00, 0x00, 0x00, 0x00}
+		out = appendPacket(out, 2, col)
+		out = appendPacket(out, 3, []byte{0xfe, 0, 0, 0x02, 0x00})
+		row := append([]byte{byte(len(val))}, val...)
+		out = appendPacket(out, 4, row)
+		out = appendPacket(out, 5, []byte{0xfe, 0, 0, 0x02, 0x00})
+		_, _ = c.Write(out)
+	}
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				_ = c.SetDeadline(time.Now().Add(5 * time.Second))
+				mu.Lock()
+				handshakes++
+				mu.Unlock()
+
+				var greeting []byte
+				greeting = append(greeting, 0x0a)
+				greeting = append(greeting, "8.0.46\x00"...)
+				greeting = append(greeting, 1, 0, 0, 0)
+				greeting = append(greeting, "12345678"...)
+				greeting = append(greeting, 0x00, 0x09, 0x82, 0x21, 0x02, 0x00, 0x08, 0x00, 21)
+				greeting = append(greeting, make([]byte, 10)...)
+				greeting = append(greeting, "123456789012\x00"...)
+				greeting = append(greeting, "mysql_native_password\x00"...)
+				if _, err := c.Write(appendPacket(nil, 0, greeting)); err != nil {
+					return
+				}
+				if _, err := readPacket(c); err != nil {
+					return
+				}
+				if _, err := c.Write(appendPacket(nil, 2, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00})); err != nil {
+					return
+				}
+				for {
+					pkt, err := readPacket(c)
+					if err != nil || len(pkt) == 0 || pkt[0] == 0x01 {
+						return
+					}
+					if pkt[0] != 0x03 {
+						_, _ = c.Write(appendPacket(nil, 1, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00}))
+						continue
+					}
+					sql := string(pkt[1:])
+					mu.Lock()
+					statements = append(statements, sql)
+					mu.Unlock()
+					if strings.Contains(sql, "max_allowed_packet") {
+						writeSingleCell(c, "67108864")
+						continue
+					}
+					if strings.Contains(sql, "CONNECTION_ID()") {
+						writeSingleCell(c, "7")
+						continue
+					}
+					_, _ = c.Write(appendPacket(nil, 1, []byte{0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00}))
+				}
+			}(conn)
+		}
+	}()
+
+	host, port, _ := net.SplitHostPort(ln.Addr().String())
+	d, err := Open(context.Background(), driver.Config{Host: host, Port: port, User: "root", Database: "app"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = d.Close() }()
+
+	sess, err := d.Session(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := sess.Query(context.Background(), "USE other;", driver.QueryOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := sess.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.Execute(context.Background(), "UPDATE t SET a = 1;", driver.ExecuteOptions{Transaction: driver.AutoCommit}); err != nil {
+		t.Fatal(err)
+	}
+	// A script that changes the session is not pooled either.
+	if _, err := d.Execute(context.Background(), "UPDATE t SET a = 2;", driver.ExecuteOptions{Transaction: driver.AutoCommit}); err != nil {
+		t.Fatal(err)
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if handshakes < 3 {
+		t.Errorf("handshakes = %d, want each execute and the session to open a connection of its own", handshakes)
+	}
+	var sawUse bool
+	for _, statement := range statements {
+		if strings.Contains(statement, "USE other") {
+			sawUse = true
+		}
+	}
+	if !sawUse {
+		t.Errorf("statements = %v", statements)
+	}
+	if last := statements[len(statements)-1]; !strings.Contains(last, "UPDATE t SET a = 2") {
+		t.Errorf("last statement = %q", last)
+	}
 }

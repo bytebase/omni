@@ -108,52 +108,6 @@
 < error
 | 1193 HY000 Unknown system variable 'explain_json_format_version'
 > query
-| EXPLAIN FORMAT=JSON SELECT 1;
-< result
-< column "EXPLAIN" "VARCHAR" "string"
-< row
-: bytes
-| {
-|   "query_block": {
-|     "select_id": 1,
-|     "message": "No tables used"
-|   }
-| }
-> query
-| EXPLAIN FORMAT=TRADITIONAL SELECT 1;
-< result
-< column "id" "UNSIGNED BIGINT" "uint64"
-< column "select_type" "VARCHAR" "string"
-< column "table" "VARCHAR"
-< column "partitions" "MEDIUMTEXT"
-< column "type" "VARCHAR"
-< column "possible_keys" "VARCHAR"
-< column "key" "VARCHAR"
-< column "key_len" "VARCHAR"
-< column "ref" "VARCHAR"
-< column "rows" "UNSIGNED BIGINT"
-< column "filtered" "DOUBLE" precision 9223372036854775807 scale 2
-< column "Extra" "VARCHAR" "string"
-< row
-: uint64 1
-: bytes
-| SIMPLE
-: null
-: null
-: null
-: null
-: null
-: null
-: null
-: null
-: null
-: bytes
-| No tables used
-> exec
-| SET SESSION explain_json_format_version = 1
-< error
-| 1193 HY000 Unknown system variable 'explain_json_format_version'
-> query
 | EXPLAIN FORMAT=JSON SELECT * FROM sitems
 < result
 < column "EXPLAIN" "VARCHAR" "string"
@@ -331,54 +285,6 @@
 > exec
 | SET SESSION explain_json_format_version = DEFAULT
 < ok 0 0
-> exec
-| SET SESSION explain_json_format_version = 1
-< ok 0 0
-> query
-| EXPLAIN FORMAT=JSON SELECT 1;
-< result
-< column "EXPLAIN" "VARCHAR" "string"
-< row
-: bytes
-| {
-|   "query_block": {
-|     "select_id": 1,
-|     "message": "No tables used"
-|   }
-| }
-> exec
-| SET SESSION explain_json_format_version = DEFAULT
-< ok 0 0
-> query
-| EXPLAIN FORMAT=TRADITIONAL SELECT 1;
-< result
-< column "id" "UNSIGNED BIGINT" "uint64"
-< column "select_type" "VARCHAR" "string"
-< column "table" "VARCHAR"
-< column "partitions" "MEDIUMTEXT"
-< column "type" "VARCHAR"
-< column "possible_keys" "VARCHAR"
-< column "key" "VARCHAR"
-< column "key_len" "VARCHAR"
-< column "ref" "VARCHAR"
-< column "rows" "UNSIGNED BIGINT"
-< column "filtered" "DOUBLE" precision 9223372036854775807 scale 2
-< column "Extra" "VARCHAR" "string"
-< row
-: uint64 1
-: bytes
-| SIMPLE
-: null
-: null
-: null
-: null
-: null
-: null
-: null
-: null
-: null
-: bytes
-| No tables used
 > exec
 | SET SESSION explain_json_format_version = 1
 < ok 0 0

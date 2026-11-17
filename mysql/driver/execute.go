@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	sqldriver "database/sql/driver"
 	"fmt"
+	"regexp"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
@@ -37,15 +38,22 @@ func splitCommands(script string) []driver.Command {
 	return commands
 }
 
+// delimiterDirective matches the client-side directive that changes the
+// statement terminator. The server never sees one, so a script holding a
+// directive runs only as the commands the splitter normalized: one command of
+// the raw text would send "DELIMITER //" to MySQL, which rejects it.
+var delimiterDirective = regexp.MustCompile(`(?i)(^|[\s;])DELIMITER\s`)
+
+// buildExecuteCommands splits script into the commands Execute sends. A script
+// too large or holding too many statements is sent whole, so that a huge sheet
+// does not turn into hundreds of logged steps or a transaction of them; a
+// script that sets a DELIMITER is split either way.
 func buildExecuteCommands(script string) []driver.Command {
-	if len(script) > maxSheetCheckBytes {
-		return []driver.Command{{Text: script, ByteStart: 0, ByteEnd: len(script)}}
-	}
 	commands := splitCommands(script)
-	if len(commands) == 0 {
-		return nil
+	if delimiterDirective.MatchString(script) {
+		return commands
 	}
-	if len(commands) > maxSplitCommands {
+	if len(script) > maxSheetCheckBytes || len(commands) > maxSplitCommands {
 		return []driver.Command{{Text: script, ByteStart: 0, ByteEnd: len(script)}}
 	}
 	return commands
@@ -84,7 +92,9 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	if err != nil {
 		return 0, err
 	}
-	defer conn.Close()
+	// A script may select a database or set session variables, so the
+	// connection is not poolable afterwards either: see discardConn.
+	defer discardConn(conn)
 
 	connID, err := d.readConnectionID(ctx, conn)
 	if err != nil {
