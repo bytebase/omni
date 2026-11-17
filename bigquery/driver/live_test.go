@@ -11,8 +11,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/driver"
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // The live tests ask a real BigQuery project and are the only tests in this
@@ -278,6 +281,21 @@ func TestLiveSyncDatabase(t *testing.T) {
 	if !found {
 		t.Error("Tables does not hold the corpus's customers table")
 	}
+
+	// The synced metadata is held to the golden the recording committed: a column's
+	// position, a table's row count or a dataset's listing moving is a change to
+	// what every BigQuery instance's metadata says.
+	body, err := os.ReadFile(filepath.Join("testdata", "sync", d.databaseName+".json"))
+	if err != nil {
+		t.Fatalf("read the sync golden: %v", err)
+	}
+	want := &metadatapb.DatabaseSchemaMetadata{}
+	if err := protojson.Unmarshal(body, want); err != nil {
+		t.Fatalf("read the sync golden: %v", err)
+	}
+	if !proto.Equal(database, want) {
+		t.Errorf("SyncDatabase = %v, want testdata/sync/%s.json", database, d.databaseName)
+	}
 }
 
 // missingDataset is the dataset name the not-found test asks for. It is fixed
@@ -392,6 +410,22 @@ func TestLiveQuery(t *testing.T) {
 	}
 	if len(capped) != 1 || !capped[0].Truncated {
 		t.Errorf("capped results = %+v, want Truncated", capped)
+	}
+
+	// A statement the analysis cannot read that answered no rows still reports the
+	// columns it declares, which is what a command-path result must not drop.
+	emptyPipe, err := session.Query(ctx, "SELECT 1 AS n |> WHERE n = 2", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query of an empty pipe statement: %v", err)
+	}
+	if len(emptyPipe) != 1 || emptyPipe[0].Err != nil {
+		t.Fatalf("empty pipe results = %+v", emptyPipe)
+	}
+	if len(emptyPipe[0].Columns) != 1 || emptyPipe[0].Columns[0].Name != "n" {
+		t.Errorf("Columns = %+v, want the column the empty pipe query declares", emptyPipe[0].Columns)
+	}
+	if len(emptyPipe[0].Rows) != 0 || emptyPipe[0].AffectedRows != nil {
+		t.Errorf("rows = %d affected = %v, want no rows and no affected count", len(emptyPipe[0].Rows), emptyPipe[0].AffectedRows)
 	}
 
 	requireValidated(t, ctx, session, "SELECT COUNT(*) AS n FROM UNNEST([1, 2, 3])")

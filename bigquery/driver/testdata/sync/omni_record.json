@@ -1,0 +1,81 @@
+{
+  "name": "omni_record",
+  "schemas": [
+    {
+      "tables": [
+        {
+          "name": "customers",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "NULL",
+              "type": "INT64"
+            },
+            {
+              "name": "city",
+              "position": 2,
+              "default": "NULL",
+              "nullable": true,
+              "type": "STRING"
+            },
+            {
+              "name": "signed_up",
+              "position": 3,
+              "default": "NULL",
+              "nullable": true,
+              "type": "TIMESTAMP"
+            },
+            {
+              "name": "score",
+              "position": 4,
+              "default": "NULL",
+              "nullable": true,
+              "type": "NUMERIC"
+            },
+            {
+              "name": "tags",
+              "position": 5,
+              "default": "NULL",
+              "type": "ARRAY<STRING>"
+            }
+          ],
+          "rowCount": "3",
+          "dataSize": "113",
+          "comment": "a synced comment"
+        },
+        {
+          "name": "partitioned",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "NULL",
+              "nullable": true,
+              "type": "INT64"
+            }
+          ]
+        },
+        {
+          "name": "recent",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "NULL",
+              "nullable": true,
+              "type": "INT64"
+            },
+            {
+              "name": "city",
+              "position": 2,
+              "default": "NULL",
+              "nullable": true,
+              "type": "STRING"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

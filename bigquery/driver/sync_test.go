@@ -57,6 +57,30 @@ func TestColumnMetadata(t *testing.T) {
 	require.Contains(t, err.Error(), `unrecognized is_nullable value "MAYBE"`)
 }
 
+// TestColumnMetadataReadsTheNullTextAsNoValue covers what the service states for a
+// column that has neither a collation nor a default: the text "NULL" in both views,
+// which the client decodes as a value, so a collation read without it would say every
+// column in the dataset is collated "NULL".
+func TestColumnMetadataReadsTheNullTextAsNoValue(t *testing.T) {
+	column, err := columnMetadata(columnRow{
+		TableName:       "customers",
+		ColumnName:      "city",
+		OrdinalPosition: bigquery.NullInt64{Int64: 2, Valid: true},
+		IsNullable:      "YES",
+		DataType:        "STRING",
+		CollationName:   bigquery.NullString{StringVal: noValueText, Valid: true},
+		ColumnDefault:   bigquery.NullString{StringVal: noValueText, Valid: true},
+	})
+	require.NoError(t, err)
+	require.Equal(t, &metadatapb.ColumnMetadata{
+		Name:     "city",
+		Position: 2,
+		Nullable: true,
+		Type:     "STRING",
+		Default:  noValueText,
+	}, column)
+}
+
 // TestConvertYesNo pins the two answers INFORMATION_SCHEMA states.
 func TestConvertYesNo(t *testing.T) {
 	yes, err := convertYesNo("YES")

@@ -101,7 +101,7 @@ func limitStatement(statement string, limit int) string {
 // statistics report the rows it affected.
 func (s *session) run(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
 	if !returnsRows(statement) {
-		return s.command(ctx, statement, opts)
+		return s.command(ctx, statement, opts, unclassified(statement))
 	}
 	text := statement
 	if opts.Limit > 0 {
@@ -198,8 +198,9 @@ func columnsOf(schema bigquery.Schema) []driver.Column {
 // A statement googlesql/analysis cannot read runs this way too, and omni's
 // parser has gaps a valid statement may hit (a pipe query is one). When the job
 // answered a result set, its rows are read rather than dropped; one that answered
-// none reports the rows it affected.
-func (s *session) command(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
+// none reports the rows it affected, and reading the job's result is what tells the
+// two apart.
+func (s *session) command(ctx context.Context, statement string, opts driver.QueryOptions, unclassified bool) (*driver.Result, error) {
 	job, err := s.driver.query(statement).Run(ctx)
 	if err != nil {
 		return nil, err
@@ -215,11 +216,11 @@ func (s *session) command(ctx context.Context, statement string, opts driver.Que
 	if !ok {
 		return nil, errors.New("the job's status carries no query statistics")
 	}
-	if jobReturnsRows(stats) {
-		it, err := job.Read(ctx)
-		if err != nil {
-			return nil, err
-		}
+	it, err := job.Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if jobReturnsRows(stats.StatementType, len(it.Schema) > 0, unclassified) {
 		return s.readRows(ctx, it, opts)
 	}
 	affected := stats.NumDMLAffectedRows
@@ -230,19 +231,33 @@ func (s *session) command(ctx context.Context, statement string, opts driver.Que
 // answered rows.
 const selectStatementType = "SELECT"
 
+// unclassified reports whether googlesql/analysis could read nothing about
+// statement, which is when the service's own answer is what says whether it
+// returned rows: a pipe query, a CALL and a BEGIN block are all valid BigQuery
+// that omni's parser does not read yet.
+func unclassified(statement string) bool {
+	return googlesqlanalysis.ClassifySQL(statement, googlesqlanalysis.DialectBigQuery) == googlesqlanalysis.Unknown
+}
+
 // jobReturnsRows reports whether a finished job answered a result set.
 //
-// A plain query's job statistics state no result schema at all, so the schema
-// alone would report every statement the analysis could not classify as having
-// answered no rows; its statement type is what says it is a query, which is the
-// answer the client's own storage read uses. A script states the schema of the
-// last statement it ran and no statement type beyond SCRIPT, so a script whose
-// last statement returned rows is read from that schema.
-func jobReturnsRows(stats *bigquery.QueryStatistics) bool {
-	if stats == nil {
-		return false
+// A plain query's job statistics state no result schema at all, so its statement
+// type is what says it is a query, which is the answer the client's own storage
+// read uses; it says so whether the query returned rows or none.
+//
+// A statement the analysis read as DDL or DML is a command: a DDL job states a
+// result schema of its own that no rows came back for (a CREATE TABLE stated one
+// column), and a DML states the count it affected, so neither is read as rows.
+//
+// A statement the analysis could read nothing about is the service's to answer. Its
+// result schema is what says it answered a result set — one that came back with no
+// rows still reports its columns — and a statement that answered none, as an ASSERT
+// does, reports zero rows affected.
+func jobReturnsRows(statementType string, hasResultSchema bool, unclassified bool) bool {
+	if statementType == selectStatementType {
+		return true
 	}
-	return stats.StatementType == selectStatementType || len(stats.Schema) > 0
+	return unclassified && hasResultSchema
 }
 
 // dryRun answers what a statement would do without running it, which is what

@@ -11,25 +11,25 @@ emulator that answers its API — there is no local BigQuery — so every live t
 skips with `BIGQUERY_CREDENTIALS`' name, and no tape, golden, `testdata` fixture or
 pin row exists beside this package. Unlike `redshift/driver`, the obstacle is not
 proprietary catalog views but the service itself: a recording needs a Google Cloud
-project, a service account and a dataset. One run on 2026-11-17 had the first two
-and not the third; what it answered, and what it left blocked, is in [the project
+project, a service account and a dataset. The run on 2026-11-17 has all three and
+answers every live test; what it answered, and what is left, is in [the project
 this run used](#the-project-this-run-used-on-2026-11-17) below.
 
 ## What is here, and what is missing
 
 | capability | state |
 | --- | --- |
-| `SyncInstance` (the project's datasets) | ported from `backend/plugin/db/bigquery`, needs a project |
-| `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and each table's metadata) | ported, needs a dataset |
-| `Session.Query` (decode, limit wrap, dry-run explain, `MaxResultBytes`, plan) | ported, needs a project |
-| `Execute` (one job for the whole script) | ported, needs a project |
+| `SyncInstance` (the project's datasets) | ported from `backend/plugin/db/bigquery`, run against a real project |
+| `SyncDatabase` (INFORMATION_SCHEMA.COLUMNS and each table's metadata) | ported, run against a real dataset; `testdata/sync/omni_record.json` is what it built |
+| `Session.Query` (decode, limit wrap, dry-run explain, `MaxResultBytes`, plan) | ported, run against a real project |
+| `Execute` (one job for the whole script) | ported, run against a real dataset |
 | `Dump` | ported as a **no-op**: `googlesql` has no catalog, and Bytebase's BigQuery `Dump` wrote nothing |
 | row-estimate (`CountAffectedRows`) | **not ported**: BigQuery has no EXPLAIN to read one from, and Bytebase counted none |
 | client seam for tapes | **absent**: `Open` builds the real `*bigquery.Client`; step 4 adds the seam |
-| tapes (`testdata/tapes`) | **none**: nothing has been recorded |
-| sync goldens (`testdata/sync`) | **none**: same reason |
-| `driver` row in `bigquery/testdata/pins.tsv` | **none**: no project to pin yet |
-| live tests (`live_test.go`) | run against `bytebase-dev` on 2026-11-17: the instance listing, the reads, the dry run, the result cap, the plans and the not-found mapping ask a real project and agree with the port apart from the three defects that run found and fixed. The dataset sync and the writes stay blocked on a dataset grant |
+| tapes (`testdata/tapes`) | **none**: they need step 4's seam, which is not built |
+| sync goldens (`testdata/sync`) | `omni_record.json`, what the dataset's sync built on 2026-11-17, compared with `proto.Equal` by `TestLiveSyncDatabase` |
+| `driver` row in `bigquery/testdata/pins.tsv` | **added**: `bytebase-dev`, `US`, digests of the dataset `datasets.get` stated |
+| live tests (`live_test.go`) | **all seven pass** against `bytebase-dev:omni_record` on 2026-11-17, after the six defects they found were fixed |
 
 The unit tests that do run cover the client configuration and the four credential
 document types, statement classification, the result-limit wrap, the cell
@@ -90,49 +90,42 @@ that asked (`Ping`, the first call an open driver makes) rather than skipping it
 ## The project this run used, on 2026-11-17
 
 `bytebase-dev` is a Google Cloud project with a service account attached to the
-machine that ran this, `devbox@bytebase-dev.iam.gserviceaccount.com`. It has no
-dataset, so the run could not record anything; it asked everything that needs no
-dataset, and its answers are below.
+machine that ran this, `devbox@bytebase-dev.iam.gserviceaccount.com`. The account
+was granted the whole BigQuery data role on the project for this run, so the run
+created a scratch dataset named `omni_record` in `US`, loaded the corpus from step
+2 into it, ran every live test, and dropped it again: nothing of the run is left
+on the project.
 
-What the account holds, measured with `projects.testIamPermissions`:
+What the account first held, measured with `projects.testIamPermissions` before the
+grant, is worth recording because it is the smallest grant that runs half of this
+plan: `bigquery.jobs.create` alone, which every statement needs and which reads
+`bigquery-public-data` — that project grants reads to all authenticated users —
+while `datasets.list` answers 200 with no datasets, `datasets.get` answers 404 for
+every name, and `bq mk --dataset` is refused.
 
-- `bigquery.jobs.create` on the project. Every statement is a job, so every
-  statement runs, and `bigquery-public-data` — which grants reads to all
-  authenticated users — is readable through it.
-- Nothing else: no `bigquery.datasets.create`, no `bigquery.tables.getData`, no
-  `bigquery.tables.create`, no `bigquery.datasets.get`. `datasets.list` answers 200
-  with no datasets, `datasets.get` answers 404 for every name in the project, and
-  `bq mk --dataset` is refused.
-
-The grant that unblocks the rest, on a dataset named `omni_record` in `US`:
-
-- `roles/bigquery.dataEditor` on the dataset. It carries the
-  `bigquery.tables.getData` the corpus's reads and `INFORMATION_SCHEMA` need and
-  the `bigquery.tables.create`, `bigquery.tables.updateData` and
-  `bigquery.tables.delete` the probe tables, the corpus and `Execute`'s writes
-  need, so it is the one role to grant. `roles/bigquery.dataViewer` beside it is
-  the read half alone, for a grantor who prefers the two apart.
-- `roles/bigquery.dataOwner` on the project instead, if the recording is to create
-  and drop `omni_record` itself: `bigquery.datasets.create` alone creates the
-  dataset without granting anything inside it, and leaves it behind, which this
-  plan forbids.
-
-`roles/bigquery.jobUser` is already held and needs no change.
+The run then held `bigquery.datasets.create`, `.get`, `.update` and `.delete` and
+`bigquery.tables.create`, `.get`, `.list`, `.getData`, `.updateData` and `.delete`:
+`roles/bigquery.dataOwner` on the project, or `roles/bigquery.dataEditor` on an
+existing dataset plus a creator for the dataset itself. An account that is only to
+*record* against a dataset somebody else made needs `roles/bigquery.dataEditor` on
+that dataset — the reads `INFORMATION_SCHEMA` asks for and the create, write and
+drop the probe tables and `Execute` need — with `roles/bigquery.jobUser` for the
+jobs. `roles/bigquery.dataViewer` beside it is the read half alone.
 
 ### What ran, and what it answered
 
 | test | result |
 | --- | --- |
-| `TestLiveSyncInstance` | **ran**: the project lists zero datasets. The same call lists 382 from `bigquery-public-data`, in name order, and returns the service's `404 notFound` for a project that does not exist, so the empty answer is the service's and not a swallowed error. The test still fails, because it requires the project to hold the dataset the driver is open on |
-| `TestLiveQuery` | **passes**: `SELECT 1`, a pipe query's rows, a pipe query under `Limit`, the CTE wrap of two statements, `MaxResultBytes` truncation, a dry run of a statement that touches no table, and the service's refusal of `SELEKT 1`. Nothing it asks needs a dataset |
-| `TestLiveQueryWrites` | **blocked**: `CREATE TABLE omni_query_probe` needs a dataset, and the dry run and the missing-table error that follow it need that table. It was split out of `TestLiveQuery` for exactly this reason: before the split, its `Fatalf` hid the assertions that would have passed here |
-| `TestLiveSyncDatabaseMissing` | **ran**: a dataset the project does not have is `driver.ErrNotFound`. It failed before `fix(bigquery): report a missing dataset as not found` (see below) |
-| `TestLiveSyncDatabase` | **blocked**: `omni_record` does not exist, which the sync now reports as `404 notFound` wrapped in `driver.ErrNotFound` |
-| `TestLiveExecute` | **blocked**: `CREATE TABLE omni_execute_probe` needs a dataset |
+| `TestLiveSyncInstance` | **passes**: the project's one dataset, in name order, with no version and no roles. The same call lists 382 from `bigquery-public-data` and returns the service's `404 notFound` for a project that does not exist, so an empty answer would be the service's and not a swallowed error |
+| `TestLiveSyncDatabase` | **passes**: `customers` with its comment, its three rows and its five columns, `partitioned` with the `_PARTITIONTIME` pseudo-column left out, the view `recent`, and the golden `testdata/sync/omni_record.json` |
+| `TestLiveSyncDatabaseMissing` | **passes**: a dataset the project does not have is `driver.ErrNotFound` |
+| `TestLiveQuery` | **passes**: `SELECT 1`, a pipe query's rows, a pipe query under `Limit`, the CTE wrap of two statements, `MaxResultBytes` truncation, a dry run, and the service's refusal of `SELEKT 1` |
+| `TestLiveQueryWrites` | **passes**: a `CREATE TABLE`'s zero affected rows, the dry run of that table, and the missing-table error |
+| `TestLiveExecute` | **passes**: one job for the probe table's creation and insertion, two rows affected, a script whose second statement fails, and the row it left committed |
 
-Nothing was recorded: no tape, no sync golden, no pin row. Step 4's seam and
-`bigquery/internal/testcontainer` do not exist yet, and a tape needs a dataset to
-record.
+No tape was recorded: step 4's seam and `bigquery/internal/testcontainer` do not
+exist, and a tape needs them before it can hold an answer. Everything else the
+plan asks of a project has run.
 
 ### What the service answers, kept here until a tape holds it
 
@@ -233,6 +226,16 @@ Each is fixed, tested and committed on the branch that recorded this.
    literal the service states, and an ARRAY or a RECORD is its elements in order,
    each by the rule its own cell states. Fixed in `fix(bigquery): render a range and
    an array as the service states them`.
+5. **A DDL reported a result set instead of the rows it affected.** A DDL job states
+   a result schema of its own with no rows, so `CREATE TABLE omni_query_probe` came
+   back with one column, no rows and no affected count, where a caller waits for
+   zero. Fixed in `fix(bigquery): report a DDL's rows affected, and read "NULL" as
+   no collation`.
+6. **Every synced column was collated "NULL".** `INFORMATION_SCHEMA.COLUMNS`
+   states the text `NULL` for a column with no collation, and the client decodes
+   that text as a value, so every column of every dataset claimed a collation named
+   `NULL`. Fixed in `fix(bigquery): report a DDL's rows affected, and read "NULL"
+   as no collation`.
 
 A further commit, `test(bigquery): let the live gate name the default credential
 chain`, is what lets a machine with no key run any of this: `BIGQUERY_CREDENTIALS`
@@ -242,13 +245,15 @@ honestly instead of stopping at the first `CREATE TABLE`.
 
 ### What is still unverified
 
-- `SyncDatabase`'s column mapping, its table metadata read and the sync golden: a
-  dataset is needed.
-- `Execute`'s `numDmlAffectedRows`, the write half of the corpus, and a script
-  whose earlier statements stay committed: a dataset is needed.
 - A dataset that exists and cannot be read: the sync should report the service's
-  `403`, not `driver.ErrNotFound`. Unverified, because no dataset exists to try it
-  on.
+  `403`, not `driver.ErrNotFound`. Unverified, because the run's account could read
+  everything it opened.
+- Step 4's seam and the tapes it would allow: not built, so CI still runs none of
+  this. It is the one piece of the plan a project is not needed for, and the run
+  left the answers it would hold in this file.
+- Two of step 8's seven mutations: the service states no plan stage for the queries
+  asked, and states the text `NULL` rather than an absent default, so neither is
+  observable on this project.
 - A plan with more than one stage, so an `inputStages` list and the ratio fields
   the port leaves out: unverified, and public tables did not state one.
 - A RECORD's field names, which the client does not hand over with its values: a
@@ -297,18 +302,26 @@ that is good enough for a viewer, and pin whichever answer holds.
 
 ## Step 3 — the pin row
 
-BigQuery states no version, so the pin is the project and dataset the answers were
-recorded from. Add `bigquery/testdata/pins.tsv` with one row:
+BigQuery states no version, so the pin is the project and dataset the answers came
+from. `bigquery/testdata/pins.tsv` holds it, spelled as `databricks/testdata/pins.tsv`
+spells its own account service:
 
 ```
-# columns: role, image, digest, source tag
-default	gcp:bigquery:<project-id>:<dataset-location>	sha256:<digest of `datasets.get`'s id, location and creationTime>	<yyyy-mm-dd>
+driver	gcp:bigquery:bytebase-dev:US	sha256:c74c7e88...a88ac7d75	2026-11-17
 ```
 
-The digest column has no image digest to hold, and `datasets.get` is the closest
-thing to a server identity: a dataset recreated elsewhere changes `creationTime`
-and fails the pin instead of quietly replaying. Decide the exact spelling in the
-recording PR; nothing in this package depends on it today.
+The role is `driver`, the image column names the project and the dataset's location
+because there is no image, and the digest is the SHA-256 of what `datasets.get`
+states as `<id> <location> <creationTime>` — the closest thing to a server identity,
+since a dataset recreated anywhere else answers another `creationTime` and so
+another digest instead of quietly replaying. The source tag is the day the answers
+were recorded. The service account is never part of a pin.
+
+The dataset was dropped after the run, so the digest cannot be re-read; a later
+recording creates `omni_record` again, its `creationTime` moves, and its pin row
+moves with it. Nothing in this package reads the row today.
+
+## Step 4 — the tape harness, which needs a seam first
 
 ## Step 4 — the tape harness, which needs a seam first
 
@@ -399,9 +412,16 @@ edit a tape.
 
 ## Step 6 — the sync golden
 
-After the tapes, commit `bigquery/driver/testdata/sync/<dataset>.json`: the
-protojson of `SyncDatabase`'s output, compared with `proto.Equal` in the test
-rather than byte for byte, because protojson spacing moves between builds.
+`bigquery/driver/testdata/sync/omni_record.json` is the protojson of
+`SyncDatabase`'s output on 2026-11-17, compared with `proto.Equal` in
+`TestLiveSyncDatabase` rather than byte for byte, because protojson spacing moves
+between builds. It holds the corpus's `customers` with its comment, three rows and
+five columns, `partitioned` without its `_PARTITIONTIME` pseudo-column, and the
+view `recent` — the dataset's whole contents, which is why the corpus is the only
+thing in the dataset.
+
+Unlike the plan's order, the golden is committed before the tapes: the dataset had
+to be dropped, and the golden is what a later recording compares against.
 
 ## Step 7 — the dump
 
@@ -479,6 +499,46 @@ test), and require a failure; then `git checkout -- bigquery/`:
 6. return the API's 404 unchanged instead of `driver.ErrNotFound`;
 7. stop sorting the dataset listing.
 
+### What the harness of 2026-11-17 showed
+
+The harness ran on `bytebase-dev:omni_record` and on a dataset it created for the
+sync comparison (`omni_parity_sync`, without the partitioned table), and passed:
+the dataset names as a set and in name order, the whole synced schema, the rows,
+columns and type names of every statement, the rewritten limit statement, the
+affected rows of a `CREATE` and an `INSERT`, `Execute`'s count and its error on a
+failing script, `Dump`'s zero bytes, and the not-found mapping. The differences it
+found are exactly the ones listed above as expected, plus a fifth:
+
+- a NUMERIC arrives as `12.5` here and `25/2` there, and a TIMESTAMP as the
+  contract's `TimestampTZ` rather than a Go time string — the fixes of step 10
+  against the driver this replaces.
+
+Its two findings a tape could not have made:
+
+- **Bytebase cannot sync a dataset holding an ingestion-time partitioned table.**
+  `INFORMATION_SCHEMA.COLUMNS` states no ordinal position for `_PARTITIONTIME`,
+  and Bytebase's `int32` cannot take the NULL: `bigquery: NULL cannot be assigned
+  to field OrdinalPosition of type int32`. The whole dataset fails. The port's
+  nullable position is what makes `omni_record` syncable, so the parity comparison
+  runs on a dataset without that table and the difference is recorded here.
+- **No query asked in this run stated a plan stage**, on either driver, so the plan
+  mapping was not exercised against the service: `SELECT 1` and a public-data
+  aggregate both stated none, and Bytebase sends an empty plan where this package
+  sends none.
+
+Two of the seven mutations are therefore unobservable, and the rest fail the
+harness as they must:
+
+| mutation | harness |
+| --- | --- |
+| invert `is_nullable` | fails, `synced schema` differs |
+| drop the `"NULL"` default | **invisible**: the service states the text `NULL` for a column with no default, so both sides report `NULL` whatever the struct starts as |
+| classify `INSERT` as returning rows | fails, `INSERT affected rows` differs |
+| a bare `LIMIT` instead of the CTE wrap | fails, `limited statement` differs |
+| the plan's last stage, or `Executed: false` | **invisible**: no plan stages were stated, so `queryPlan` returns nothing to mutate |
+| return the 404 unchanged | fails, `driver.ErrNotFound` is not `Is` |
+| stop sorting the dataset listing | fails, the listing is out of order |
+
 ## Step 9 — what a failure means
 
 - **The service rejects a statement this package sends.** A sync query is wrong.
@@ -496,20 +556,29 @@ test), and require a failure; then `git checkout -- bigquery/`:
 
 ## Step 10 — after the recording lands
 
-- `docs/engine-test-matrix.md`: the `bigquery` row says "no server" today; it
-  becomes the pinned project and dataset, and the tapes, the golden and the parity
-  result are named there.
-- The package doc's "Unverified against a project" section is deleted, not
-  softened, in the PR that records.
+Done in the run of 2026-11-17, which had a project and a dataset but no seam:
+
+- `docs/engine-test-matrix.md`'s `bigquery` row names the pinned project, the
+  golden and the live result, and says what a tape still waits for.
+- The package doc's "Unverified against a project" section is replaced by what the
+  project confirmed and what it did not, rather than deleted: the sync, the reads,
+  the writes and the not-found mapping ran; nothing replays.
+- The conversion gap that is left is pinned against the statements in [what the
+  service answers](#what-the-service-answers-kept-here-until-a-tape-holds-it).
+
+Still open, because they need step 4's seam and not a project:
+
 - `AGENTS.md`'s list of engines whose tests replay a tape gains `bigquery`, and the
   sentence naming `tape.OpenRaw`'s engines gains `bigquery/driver`.
-- The conversion gap that is left is pinned against the statements in [what the
-  service answers](#what-the-service-answers-kept-here-until-a-tape-holds-it): a
-  DATE, TIME, JSON, GEOGRAPHY and INTERVAL are still Go's rendering of the client's
-  value, and a record reads as a list of its values because the client hands over no
-  field names with them. TIMESTAMP, DATETIME, NUMERIC, BIGNUMERIC and RANGE no
-  longer do, and an ARRAY or a RECORD is rendered element by element rather than as
-  Go's rendering of a `[]bigquery.Value`.
+- The parity harness of step 8 and its seven mutations.
+
+The conversion gap that is left is pinned against the statements in [what the
+service answers](#what-the-service-answers-kept-here-until-a-tape-holds-it): a
+DATE, TIME, JSON, GEOGRAPHY and INTERVAL are still Go's rendering of the client's
+value, and a record reads as a list of its values because the client hands over no
+field names with them. TIMESTAMP, DATETIME, NUMERIC, BIGNUMERIC and RANGE no longer
+do, and an ARRAY or a RECORD is rendered element by element rather than as Go's
+rendering of a `[]bigquery.Value`.
 
 ## Differences from Bytebase's driver, each to confirm on a project
 

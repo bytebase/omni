@@ -8,22 +8,20 @@
 //
 // The package is a port of Bytebase's backend/plugin/db/bigquery, whose tests
 // reached one pure helper and no service, and BigQuery has no image omni can start
-// in a container and no emulator that answers its REST API. One run against the
-// Google Cloud project bytebase-dev, on 2026-11-17, asked everything that needs no
-// dataset, and VERIFY.md holds what it answered: the instance listing, which
-// reports the project's empty set of datasets, the reads — a query's rows, a pipe
-// query's rows, the result limit, MaxResultBytes, a query that returns no rows, a
-// dry run, a refused statement's error and the plan of a finished read — and the
-// not-found mapping, which that run corrected along with three other defects.
+// in a container and no emulator that answers its REST API. The Google Cloud
+// project bytebase-dev answered every live test on 2026-11-17, against a scratch
+// dataset the run created for the corpus in VERIFY.md: the instance listing, the
+// dataset's synced columns, comments, row counts and sizes, every read the session
+// sends (a query's rows, a pipe query's rows, the result limit, MaxResultBytes, a
+// dry run, a refused statement and the plan of a finished read), a command's
+// affected rows, Execute's script and its DML count, and the not-found mapping. The
+// six defects those runs found are fixed, and testdata/sync/omni_record.json holds
+// the synced metadata the service stated.
 //
-// The rest is unconfirmed. SyncDatabase has never read a dataset, so its column
-// and table mapping is the port's own reading of INFORMATION_SCHEMA; Execute has
-// never written a table; and no sync, execute or dump golden exists. There is no
-// tape and no pin row either, so CI runs none of this: a live test skips while
-// BIGQUERY_CREDENTIALS is unset, and nothing here records an answer to replay.
-// VERIFY.md holds the recording plan — the dataset and the grant that would open
-// it, the corpus, the tests to record in what order, and the parity harness that
-// holds this package to the driver it replaces.
+// What CI still cannot check is all of it: no tape records these answers, because
+// the seam that would hold one (VERIFY.md's step 4) is not built, so a live test
+// skips while BIGQUERY_CREDENTIALS is unset and nothing here replays. VERIFY.md
+// holds the recording plan and what that run answered.
 //
 // Its tests cover everything that needs no project: the client configuration and
 // the credential types it accepts, the live gate itself, statement
