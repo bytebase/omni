@@ -384,7 +384,7 @@ func dumpReferences(stmt, database, name string) bool {
 	// anyway — so every spelling is looked for.
 	for _, db := range []string{database, dumpIdentifier(database)} {
 		for _, object := range []string{name, dumpIdentifier(name)} {
-			if dumpNamesOutsideString(stmt, db+"."+object) {
+			if dumpNamesUnquoted(stmt, db+"."+object) {
 				return true
 			}
 		}
@@ -392,9 +392,9 @@ func dumpReferences(stmt, database, name string) bool {
 	return false
 }
 
-// dumpNamesOutsideString reports whether stmt holds reference outside a string
-// literal, and not as the tail of a longer identifier.
-func dumpNamesOutsideString(stmt, reference string) bool {
+// dumpNamesUnquoted reports whether stmt holds reference outside a quote, and not
+// as the tail of a longer identifier.
+func dumpNamesUnquoted(stmt, reference string) bool {
 	for offset := 0; offset < len(stmt); {
 		start := strings.Index(stmt[offset:], reference)
 		if start < 0 {
