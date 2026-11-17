@@ -288,7 +288,7 @@ func databaseSDL(metadata *metadatapb.DatabaseSchemaMetadata) (string, error) {
 			}
 
 			// Write each partition's own indexes, attached to the parent's.
-			if err := writePartitionIndexesSDL(&buf, schema.Name, table.Partitions); err != nil {
+			if err := writePartitionIndexesSDL(&buf, schema.Name, table); err != nil {
 				return "", err
 			}
 
@@ -961,10 +961,10 @@ func writePartitionSDL(out io.Writer, schemaName string, parent sdltable, partit
 		return err
 	}
 
-	if _, err := fmt.Fprintf(out, `CREATE TABLE "%s"."%s" PARTITION OF "%s"."%s"`, schemaName, partition.Name, schemaName, parent.name); err != nil {
+	if _, err := fmt.Fprintf(out, `CREATE TABLE "%s"."%s" PARTITION OF "%s"."%s"`, escapeIdentifier(schemaName), escapeIdentifier(partition.Name), escapeIdentifier(schemaName), escapeIdentifier(parent.name)); err != nil {
 		return err
 	}
-	if err := writePartitionConstraintsSDL(out, parent, partition); err != nil {
+	if err := writePartitionElementsSDL(out, parent, partition); err != nil {
 		return err
 	}
 	if _, err := fmt.Fprintf(out, " %s", partition.Value); err != nil {
@@ -980,10 +980,10 @@ func writePartitionSDL(out io.Writer, schemaName string, parent sdltable, partit
 	return err
 }
 
-// writePartitionConstraintsSDL writes the constraint element list of a
-// partition's CREATE TABLE ... PARTITION OF: the constraints the partition does
-// not inherit, which are the ones named unlike its parent's.
-func writePartitionConstraintsSDL(out io.Writer, parent sdltable, partition *metadatapb.TablePartitionMetadata) error {
+// writePartitionElementsSDL writes the element list of a partition's CREATE
+// TABLE ... PARTITION OF: the constraints the partition does not inherit, which
+// are the ones named unlike its parent's, and any key it holds alone.
+func writePartitionElementsSDL(out io.Writer, parent sdltable, partition *metadatapb.TablePartitionMetadata) error {
 	inherited := make(map[string]bool, len(parent.checks)+len(parent.excludes))
 	for _, check := range parent.checks {
 		inherited[check.Name] = true
@@ -1003,6 +1003,26 @@ func writePartitionConstraintsSDL(out io.Writer, parent sdltable, partition *met
 		return err
 	}
 
+	// A partition can hold a primary key or unique constraint of its own, which
+	// a snapshot records among its indexes with no parent's index to attach it
+	// to; the parent's copies are attached and come with PARTITION OF.
+	for _, index := range partition.Indexes {
+		if index.ParentIndexName != "" || (!index.Primary && !index.IsConstraint) {
+			continue
+		}
+		if err := writeItemSep(); err != nil {
+			return err
+		}
+		if index.Primary {
+			if err := writePrimaryKeyConstraintSDL(out, index); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := writeUniqueKeyConstraintSDL(out, index); err != nil {
+			return err
+		}
+	}
 	for _, check := range partition.CheckConstraints {
 		if inherited[check.Name] {
 			continue
@@ -1035,10 +1055,17 @@ func writePartitionConstraintsSDL(out io.Writer, parent sdltable, partition *met
 
 // writePartitionIndexesSDL writes the indexes of each partition and attaches
 // each to the parent's index it belongs to: a partitioned index is one index
-// per partition, and only the attachment makes the parent's complete. A
-// constraint of a partition is its parent's, cloned with the partition, so it
-// is not written again.
-func writePartitionIndexesSDL(out io.Writer, schemaName string, partitions []*metadatapb.TablePartitionMetadata) error {
+// per partition, and only the attachment makes the parent's complete. A key
+// constraint is written with the partition's definition instead.
+func writePartitionIndexesSDL(out io.Writer, schemaName string, table *metadatapb.TableMetadata) error {
+	if tableMissingColumnMetadata(table) {
+		// The partitions were not written, so no table holds their indexes.
+		return nil
+	}
+	return writeSubPartitionIndexesSDL(out, schemaName, table.Partitions)
+}
+
+func writeSubPartitionIndexesSDL(out io.Writer, schemaName string, partitions []*metadatapb.TablePartitionMetadata) error {
 	for _, partition := range partitions {
 		for _, index := range partition.Indexes {
 			if index.Primary || index.IsConstraint {
@@ -1059,7 +1086,7 @@ func writePartitionIndexesSDL(out io.Writer, schemaName string, partitions []*me
 				return err
 			}
 		}
-		if err := writePartitionIndexesSDL(out, schemaName, partition.Subpartitions); err != nil {
+		if err := writeSubPartitionIndexesSDL(out, schemaName, partition.Subpartitions); err != nil {
 			return err
 		}
 	}

@@ -33,8 +33,10 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 			ParentIndexSchema: "app",
 		}
 	}
-	primaryKey := func(name string) *metadatapb.IndexMetadata {
-		return &metadatapb.IndexMetadata{
+	// primaryKey is a partitioned table's primary key: the parent's index, or
+	// the copy a partition inherits, which is attached to the parent's.
+	primaryKey := func(name, parentName string) *metadatapb.IndexMetadata {
+		index := &metadatapb.IndexMetadata{
 			Name:         name,
 			Expressions:  []string{`"City"`, `"Day"`},
 			Type:         "btree",
@@ -43,6 +45,11 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 			IsConstraint: true,
 			OpclassNames: []string{"int4_ops", "date_ops"},
 		}
+		if parentName != "" {
+			index.ParentIndexName = parentName
+			index.ParentIndexSchema = "app"
+		}
+		return index
 	}
 	check := func(name, expression string) *metadatapb.CheckConstraintMetadata {
 		return &metadatapb.CheckConstraintMetadata{Name: name, Expression: expression}
@@ -65,7 +72,7 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 							check("Measure_city_check", `("City" > 0)`),
 						},
 						Indexes: []*metadatapb.IndexMetadata{
-							primaryKey("Measure_pkey"),
+							primaryKey("Measure_pkey", ""),
 							parentIndex("measure_city", `"City"`, `"Day"`),
 						},
 						Partitions: []*metadatapb.TablePartitionMetadata{
@@ -81,7 +88,7 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 									check("Measure 2025_city_check", `("City" < 1000)`),
 								},
 								Indexes: []*metadatapb.IndexMetadata{
-									primaryKey("Measure 2025_pkey"),
+									primaryKey("Measure 2025_pkey", "Measure_pkey"),
 									childIndex("Measure 2025_city_day_idx", "measure_city", `"City"`, `"Day"`),
 								},
 								Subpartitions: []*metadatapb.TablePartitionMetadata{
@@ -95,7 +102,7 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 											check("Measure 2025_city_check", `("City" < 1000)`),
 										},
 										Indexes: []*metadatapb.IndexMetadata{
-											primaryKey("Measure 2025 EU_pkey"),
+											primaryKey("Measure 2025 EU_pkey", "Measure 2025_pkey"),
 											childIndex("Measure 2025 EU_city_day_idx", "Measure 2025_city_day_idx", `"City"`, `"Day"`),
 											// A partition's own index.
 											parentIndex("Measure 2025 EU_region_idx", `"Region"`),
@@ -111,7 +118,7 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 											check("Measure 2025_city_check", `("City" < 1000)`),
 										},
 										Indexes: []*metadatapb.IndexMetadata{
-											primaryKey("Measure 2025 Other_pkey"),
+											primaryKey("Measure 2025 Other_pkey", "Measure 2025_pkey"),
 											childIndex("Measure 2025 Other_city_day_idx", "Measure 2025_city_day_idx", `"City"`, `"Day"`),
 										},
 									},
@@ -126,7 +133,7 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 									check("Measure_city_check", `("City" > 0)`),
 								},
 								Indexes: []*metadatapb.IndexMetadata{
-									primaryKey("Measure 2026_pkey"),
+									primaryKey("Measure 2026_pkey", "Measure_pkey"),
 									childIndex("Measure 2026_city_day_idx", "measure_city", `"City"`, `"Day"`),
 								},
 							},
@@ -144,7 +151,8 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 					{
 						Name: "Shard",
 						Columns: []*metadatapb.ColumnMetadata{
-							{Name: "id", Type: "integer", Nullable: true},
+							{Name: "id", Type: "integer", Nullable: false},
+							{Name: "v", Type: "text", Nullable: false},
 						},
 						Partitions: []*metadatapb.TablePartitionMetadata{
 							{
@@ -152,6 +160,24 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 								Type:       metadatapb.TablePartitionMetadata_HASH,
 								Expression: "HASH (id)",
 								Value:      "FOR VALUES WITH (modulus 2, remainder 0)",
+								Indexes: []*metadatapb.IndexMetadata{
+									// A key the partition holds alone.
+									{
+										Name:         "Shard_0_pkey",
+										Expressions:  []string{"id"},
+										Type:         "btree",
+										Primary:      true,
+										Unique:       true,
+										IsConstraint: true,
+									},
+									{
+										Name:         "Shard_0_v_key",
+										Expressions:  []string{"v"},
+										Type:         "btree",
+										Unique:       true,
+										IsConstraint: true,
+									},
+								},
 							},
 							{
 								Name:       "Shard_1",

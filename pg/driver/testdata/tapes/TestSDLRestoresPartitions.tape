@@ -37,6 +37,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -1567,6 +1568,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -2427,6 +2451,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -3991,6 +4016,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -4810,6 +4858,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -6340,6 +6389,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -7200,6 +7272,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -8764,6 +8837,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -9583,6 +9679,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -11113,6 +11210,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -11973,6 +12093,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -13537,6 +13658,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -14356,6 +14500,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -15886,6 +16031,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -16746,6 +16914,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -18310,6 +18479,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -19129,6 +19321,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -20659,6 +20852,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -21519,6 +21735,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -23083,6 +23300,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -23902,6 +24142,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -25432,6 +25673,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -26292,6 +26556,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -27856,6 +28121,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -28675,6 +28963,7 @@
 | CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
+| ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 |
 < ok 0 -
 > query
@@ -30205,6 +30494,29 @@
 : string
 | app
 : string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
 | pk
 : string
 | pk_pkey
@@ -31065,6 +31377,7 @@
 | ) PARTITION BY LIST (v);
 |
 | CREATE TABLE "app"."late_x" PARTITION OF "app"."late" (
+|     CONSTRAINT "late_x_pkey" PRIMARY KEY (id),
 |     CONSTRAINT "late_x_positive" CHECK (id > 0)
 | ) FOR VALUES IN ('x');
 |
@@ -32622,6 +32935,29 @@
 : string
 | {t}
 : bool false
+: null
+: string
+| 0
+< row
+: string
+| app
+: string
+| late_x
+: string
+| late_x_pkey
+: string
+| btree
+: bool true
+: bool true
+: string
+| CREATE UNIQUE INDEX late_x_pkey ON app.late_x USING btree (id)
+: string
+| {id}
+: string
+| {int4_ops}
+: string
+| {t}
+: bool true
 : null
 : string
 | 0

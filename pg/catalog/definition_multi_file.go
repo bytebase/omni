@@ -220,7 +220,7 @@ func MultiFileDefinition(metadata *metadatapb.DatabaseSchemaMetadata) ([]Definit
 			}
 
 			// Write each partition's own indexes, attached to the parent's.
-			if err := writePartitionIndexesSDL(&buf, schemaName, table.Partitions); err != nil {
+			if err := writePartitionIndexesSDL(&buf, schemaName, table); err != nil {
 				return nil, fmt.Errorf("failed to generate partition index SDL for %s.%s: %w", schemaName, table.Name, err)
 			}
 

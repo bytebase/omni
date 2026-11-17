@@ -208,7 +208,8 @@ func TestSDLRestoresPartitions(t *testing.T) {
 // sub-partitioned by list with a default partition, a partition whose bounds are
 // multi-column with MINVALUE and MAXVALUE, a hash partition, quoted mixed-case
 // names, a primary key every partition inherits, partitioned indexes, and a
-// table attached after it was created with a CHECK and an index of its own.
+// table attached after it was created with a CHECK, an index and a primary key
+// of its own.
 const partitionedSchema = `
 CREATE SCHEMA app;
 CREATE TABLE app."Measure" (
@@ -238,6 +239,7 @@ CREATE TABLE app.late (id integer NOT NULL, v text) PARTITION BY LIST (v);
 CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
 ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 CREATE INDEX late_x_id ON app.late_x (id);
+ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
 `
 
 // gapMarker ends a corpus line whose objects a dump cannot faithfully
