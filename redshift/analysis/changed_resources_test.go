@@ -4,6 +4,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -174,4 +175,20 @@ DELETE FROM x;`,
 			require.Equal(t, tc.insertCount, got.InsertCount)
 		})
 	}
+}
+
+func TestExtractChangedResourcesScalesLinearlyForManyDMLStatements(t *testing.T) {
+	smallDuration := timeExtractChangedResources(t, strings.Repeat("UPDATE t SET c = 1;\n", 1000))
+	largeDuration := timeExtractChangedResources(t, strings.Repeat("UPDATE t SET c = 1;\n", 20000))
+
+	require.Lessf(t, largeDuration, smallDuration*40, "20x more statements should not be 40x slower: %s vs %s", largeDuration, smallDuration)
+}
+
+func timeExtractChangedResources(t *testing.T, statement string) time.Duration {
+	t.Helper()
+	start := time.Now()
+	changes, err := ExtractChangedResources(statement, "db", "public")
+	require.NoError(t, err)
+	require.NotEmpty(t, changes.DMLStatements)
+	return time.Since(start)
 }

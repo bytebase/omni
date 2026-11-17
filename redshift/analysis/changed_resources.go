@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"sort"
 	"strings"
 
 	"github.com/bytebase/omni/redshift"
@@ -165,12 +166,13 @@ func sampleText(segments []redshift.Segment, stmt redshift.Statement) string {
 	if start < 0 {
 		return stmt.Text
 	}
-	for _, segment := range segments {
-		if segment.ByteStart <= start && start < segment.ByteEnd {
-			offset := start - segment.ByteStart
-			if offset >= 0 && offset <= len(segment.Text) {
-				return segment.Text[offset:]
-			}
+	// The segments are ordered by offset, so a script of many DML statements
+	// costs one binary search each rather than a scan from the beginning.
+	i := sort.Search(len(segments), func(i int) bool { return segments[i].ByteEnd > start })
+	if i < len(segments) && segments[i].ByteStart <= start {
+		segment := segments[i]
+		if offset := start - segment.ByteStart; offset <= len(segment.Text) {
+			return segment.Text[offset:]
 		}
 	}
 	return stmt.Text
