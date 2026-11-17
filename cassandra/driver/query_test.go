@@ -8,7 +8,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/bytebase/omni/cassandra/internal/testcontainer"
 	"github.com/bytebase/omni/driver"
+	"github.com/bytebase/omni/enginetest/tape"
 )
 
 // TestQuery reads a row of every kind the driver converts, a row whose columns
@@ -86,14 +88,113 @@ func TestQuery(t *testing.T) {
 	require.Equal(t, driver.String, row[23].Kind)
 	require.Equal(t, `[7,"seven"]`, row[23].String)
 
-	// A NULL column reads as its type's zero value: gocql hands back a pointer
-	// to the zero value, so Bytebase's nil check fired for the two types whose
-	// Go type is itself a pointer.
+	// A NULL column is the contract's Null, not the type's zero value: the tape
+	// held only the zero value before the row read could tell them apart.
 	nullRow := results[1].Rows[0]
 	require.Equal(t, int64(2), nullRow[0].Int64)
-	require.Equal(t, "", nullRow[1].String)
+	require.Equal(t, driver.Null, nullRow[1].Kind)
 	require.Equal(t, driver.Null, nullRow[2].Kind)
 	require.Equal(t, driver.Null, nullRow[3].Kind)
+}
+
+// TestQueryKeepsNullApartFromAZeroValue reads a row of every CQL type holding
+// NULL and a row holding each type's zero value: a NULL crosses as the
+// contract's Null, and a zero value as the value it is.
+func TestQueryKeepsNullApartFromAZeroValue(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.cql")))
+	checkNullAndZeroRows(t, openSession(t, d))
+}
+
+// TestLiveQueryKeepsNullApartFromAZeroValue holds the read the driver makes of a
+// live gocql session. A tape records what gocql answered through the read
+// cassandra/internal/testcontainer makes, so no replay reaches the driver's own
+// read: this test runs only against the pinned server.
+func TestLiveQueryKeepsNullApartFromAZeroValue(t *testing.T) {
+	tape.Live(t)
+	testcontainer.Reset(t,
+		"DROP KEYSPACE IF EXISTS "+testKeyspace,
+		"CREATE KEYSPACE "+testKeyspace+" WITH replication = {'class':'SimpleStrategy','replication_factor':1}",
+	)
+	d := &Driver{
+		client: &liveClient{session: testcontainer.LiveSession(t, testKeyspace)},
+		config: driver.Config{Database: testKeyspace},
+	}
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.cql")))
+	checkNullAndZeroRows(t, openSession(t, d))
+}
+
+// checkNullAndZeroRows holds a query of the corpus's NULL row and zero row to
+// what the contract calls each cell.
+func checkNullAndZeroRows(t *testing.T, sess driver.Session) {
+	t.Helper()
+	results, err := sess.Query(context.Background(), `
+		SELECT id, n, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup
+		FROM omni_nulls WHERE id = 1;
+		SELECT id, n, txt, ascii_col, vc, flag, bi, ti, si, dbl, flt, dec, vi, ts, dt, tm, uid, tuid, bl, dur, lst, st, mp, addr, tup
+		FROM omni_nulls WHERE id = 2;`, driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	require.NoError(t, results[0].Err)
+	require.NoError(t, results[1].Err)
+
+	columns := make([]string, 0, len(results[0].Columns))
+	for _, column := range results[0].Columns {
+		columns = append(columns, column.Name)
+	}
+	require.Equal(t, []string{
+		"id", "n", "txt", "ascii_col", "vc", "flag", "bi", "ti", "si", "dbl", "flt", "dec", "vi",
+		"ts", "dt", "tm", "uid", "tuid", "bl", "dur", "lst", "st", "mp", "addr", "tup",
+	}, columns)
+
+	require.Len(t, results[0].Rows, 1)
+	nullRow := results[0].Rows[0]
+	require.Len(t, nullRow, len(columns))
+	for i, column := range columns {
+		// id is the row's primary key, which a CQL table cannot hold NULL in.
+		if column == "id" {
+			require.Equal(t, int64(1), nullRow[i].Int64)
+			continue
+		}
+		require.Equal(t, driver.Null, nullRow[i].Kind, "%s holds NULL", column)
+	}
+
+	require.Len(t, results[1].Rows, 1)
+	zeroRow := results[1].Rows[0]
+	want := map[string]driver.Value{
+		"id":        {Kind: driver.Int64, Int64: 2},
+		"n":         {Kind: driver.Int64, Int64: 0},
+		"txt":       {Kind: driver.String},
+		"ascii_col": {Kind: driver.String},
+		"vc":        {Kind: driver.String},
+		"flag":      {Kind: driver.Bool},
+		"bi":        {Kind: driver.Int64},
+		"ti":        {Kind: driver.Int32},
+		"si":        {Kind: driver.Int32},
+		"dbl":       {Kind: driver.Float64},
+		"flt":       {Kind: driver.Float32},
+		"dec":       {Kind: driver.String, String: "0"},
+		"vi":        {Kind: driver.String, String: "0"},
+		"ts":        {Kind: driver.Timestamp, Time: time.Unix(0, 0).UTC(), Precision: 3},
+		"dt":        {Kind: driver.Timestamp, Time: time.Unix(0, 0).UTC(), Precision: 3},
+		"tm":        {Kind: driver.String, String: "00:00:00"},
+		"uid":       {Kind: driver.String, String: "00000000-0000-0000-0000-000000000000"},
+		"tuid":      {Kind: driver.String, String: "00000000-0000-1000-0000-000000000000"},
+		"bl":        {Kind: driver.Bytes},
+		"dur":       {Kind: driver.String, String: "0s"},
+		// Cassandra stores an empty collection as NULL, so a list, set or map
+		// has no zero value to hold: the NULL row pins it.
+		"lst":  {Kind: driver.Null},
+		"st":   {Kind: driver.Null},
+		"mp":   {Kind: driver.Null},
+		"addr": {Kind: driver.String, String: `"0.0.0.0"`},
+		"tup":  {Kind: driver.String, String: `[0,""]`},
+	}
+	for i, column := range columns {
+		value, ok := want[column]
+		require.True(t, ok, "%s has no expectation", column)
+		require.Equal(t, value, zeroRow[i], "%s holds its zero value", column)
+	}
 }
 
 // TestQueryLimit holds QueryOptions.Limit to the page size and the row count: a

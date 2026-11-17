@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"reflect"
 
 	gocql "github.com/apache/cassandra-gocql-driver/v2"
 )
@@ -13,8 +14,9 @@ import (
 //
 // Query returns the columns and rows the server described for one page,
 // ordered as it sent them, and the state that continues after that page, empty
-// on the last one. Every value is the pointer gocql's RowData hands back, so
-// the row conversion below is the driver's in a replay too.
+// on the last one. Every value is the pointer gocql's RowData hands back, read
+// one pointer deeper so that a NULL is nil rather than the column type's zero
+// value: the row conversion below is the driver's in a replay too.
 type client interface {
 	Query(ctx context.Context, statement string, pageSize int, pageState []byte) (columns []gocql.ColumnInfo, rows []gocql.RowData, nextPageState []byte, err error)
 	Exec(ctx context.Context, statement string) error
@@ -43,7 +45,7 @@ func (c *liveClient) Query(ctx context.Context, statement string, pageSize int, 
 		if err != nil {
 			return nil, nil, nil, err
 		}
-		if !iter.Scan(rowData.Values...) {
+		if !scanRow(iter, &rowData) {
 			break
 		}
 		rows = append(rows, rowData)
@@ -52,6 +54,26 @@ func (c *liveClient) Query(ctx context.Context, statement string, pageSize int, 
 		return nil, nil, nil, err
 	}
 	return iter.Columns(), rows, nextPageState, nil
+}
+
+// scanRow reads the iterator's current row into rowData and reports whether
+// there was one. RowData's values are pointers to each column type's zero
+// value, and gocql leaves them there for a NULL: a NULL int would read as 0
+// and a NULL text as "". A scan target one pointer deeper is set to nil for a
+// NULL and allocated for a value, and the row keeps what RowData's caller would
+// have read.
+func scanRow(iter *gocql.Iter, rowData *gocql.RowData) bool {
+	targets := make([]any, len(rowData.Values))
+	for i, value := range rowData.Values {
+		targets[i] = reflect.New(reflect.TypeOf(value)).Interface()
+	}
+	if !iter.Scan(targets...) {
+		return false
+	}
+	for i, target := range targets {
+		rowData.Values[i] = reflect.ValueOf(target).Elem().Interface()
+	}
+	return true
 }
 
 // Exec runs one statement for its effect.
