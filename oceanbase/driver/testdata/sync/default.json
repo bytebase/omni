@@ -261,6 +261,7 @@
               "type":  "varchar(10)",
               "characterSet":  "utf8mb4",
               "collation":  "utf8mb4_general_ci",
+              "comment":  "owner\\'s note",
               "generation":  {
                 "type":  "TYPE_STORED",
                 "expression":  "metadata$filecol2"

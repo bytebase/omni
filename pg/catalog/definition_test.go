@@ -1024,3 +1024,52 @@ func TestDatabaseDefinitionOrdersForeignKeyTableAfterArrayRowType(t *testing.T) 
 	assert.Contains(t, result, a)
 	assert.Less(t, strings.Index(result, z), strings.Index(result, a), "the array row type's table must be written first")
 }
+
+// TestDatabaseDefinitionChecksForeignPartitionOverloadsAgainstThePartition
+// checks that a foreign partition's default function dependencies are matched
+// against the partition, not the parent, so an unrelated row-type overload
+// does not close a cycle that puts the parent before the default's function.
+func TestDatabaseDefinitionChecksForeignPartitionOverloadsAgainstThePartition(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:       "pt",
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{Name: "pt_remote", Schema: "public", Value: "FOR VALUES FROM (0) TO (10)"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{
+				{
+					Name:       "f",
+					Signature:  "f(integer)",
+					Definition: "CREATE FUNCTION public.f(a integer) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+				},
+				{
+					Name:             "f",
+					Signature:        "f(public.pt_remote)",
+					Definition:       "CREATE FUNCTION public.f(r public.pt_remote) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+					DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "pt_remote"}},
+				},
+			},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "pt_remote",
+				ExternalServerName: "s",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "public.f(1)"}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	function := "CREATE FUNCTION public.f(a integer)"
+	table := `CREATE TABLE "public"."pt"`
+	assert.Contains(t, result, function)
+	assert.Contains(t, result, table)
+	assert.Less(t, strings.Index(result, function), strings.Index(result, table), "the default's function must be written before the parent")
+}

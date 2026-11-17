@@ -63,7 +63,7 @@ CREATE TABLE `orders` (
 --
 CREATE EXTERNAL TABLE `ext_feed` (
   `c1` int GENERATED ALWAYS AS (metadata$filecol1),
-  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2) COMMENT 'owner\'s note'
 )
 LOCATION = 'file:///tmp'
 PATTERN = '.*[.]csv'

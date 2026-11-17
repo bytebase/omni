@@ -2183,8 +2183,15 @@ func metadataFuncIdentity(f *metadatapb.FunctionMetadata) string {
 // the referenced overload never is and which would make a cycle that drops
 // the sort to its all-tables-then-all-functions fallback.
 func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata) {
-	tableID := getObjectID(schema, table.Name)
-	for _, column := range table.Columns {
+	addColumnFunctionEdgesTo(graph, functionMap, functionIDsByName, schema, table.Name, getObjectID(schema, table.Name), table.Columns)
+}
+
+// addColumnFunctionEdgesTo adds the edges for columns of a relation named
+// relation that is written as targetID. A foreign partition is written by its
+// parent, so its overload dependencies are checked against the partition while
+// the edge points at the parent.
+func addColumnFunctionEdgesTo(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, relation, targetID string, columns []*metadatapb.ColumnMetadata) {
+	for _, column := range columns {
 		var exprs []string
 		if column.Default != "" {
 			exprs = append(exprs, column.Default)
@@ -2200,10 +2207,10 @@ func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*meta
 			funcRefs, _, _ := collectExprDeps(node)
 			for _, ref := range funcRefs {
 				for _, funcID := range functionIDsByName[ref] {
-					if functionDependsOnTable(functionMap[funcID], schema, table.Name) {
+					if functionDependsOnTable(functionMap[funcID], schema, relation) {
 						continue
 					}
-					graph.AddEdge(funcID, tableID)
+					graph.AddEdge(funcID, targetID)
 				}
 			}
 		}
@@ -2264,7 +2271,10 @@ func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*me
 // addCheckFunctionEdges adds an edge from each user function a check expression
 // calls to the relation that states the check, so the function exists first.
 func addCheckFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, table string, checks []*metadatapb.CheckConstraintMetadata) {
-	tableID := getObjectID(schema, table)
+	addCheckFunctionEdgesTo(graph, functionMap, functionIDsByName, schema, table, getObjectID(schema, table), checks)
+}
+
+func addCheckFunctionEdgesTo(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, relation, targetID string, checks []*metadatapb.CheckConstraintMetadata) {
 	for _, check := range checks {
 		node, err := parseScalar("SELECT " + checkExpressionForDependencies(check.Expression))
 		if err != nil {
@@ -2273,10 +2283,10 @@ func addCheckFunctionEdges(graph *definitionGraph, functionMap map[string]*metad
 		funcRefs, _, _ := collectExprDeps(node)
 		for _, ref := range funcRefs {
 			for _, funcID := range functionIDsByName[ref] {
-				if functionDependsOnTable(functionMap[funcID], schema, table) {
+				if functionDependsOnTable(functionMap[funcID], schema, relation) {
 					continue
 				}
-				graph.AddEdge(funcID, tableID)
+				graph.AddEdge(funcID, targetID)
 			}
 		}
 	}
@@ -2502,11 +2512,8 @@ func addForeignPartitionEdges(graph *definitionGraph, functionMap map[string]*me
 		if externalTable == nil {
 			return
 		}
-		addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema, &metadatapb.TableMetadata{
-			Name:    table.Name,
-			Columns: externalTable.Columns,
-		})
-		addCheckFunctionEdges(graph, functionMap, functionIDsByName, schema, table.Name, externalTable.CheckConstraints)
+		addColumnFunctionEdgesTo(graph, functionMap, functionIDsByName, partitionSchema, partition.Name, parentID, externalTable.Columns)
+		addCheckFunctionEdgesTo(graph, functionMap, functionIDsByName, partitionSchema, partition.Name, parentID, externalTable.CheckConstraints)
 		if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
 			graph.AddEdge(serverID, parentID)
 		}

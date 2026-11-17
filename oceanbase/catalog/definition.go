@@ -599,7 +599,7 @@ func printExternalColumnClause(buf *strings.Builder, column *metadata.ColumnMeta
 		}
 	}
 	if column.Comment != "" {
-		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", quoteExternalTableString(column.Comment)); err != nil {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", column.Comment); err != nil {
 			return err
 		}
 	}

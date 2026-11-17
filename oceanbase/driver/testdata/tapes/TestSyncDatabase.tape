@@ -29,7 +29,7 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 < ok 0 0
 > exec
-| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' PATTERN = '.*[.]csv' FORMAT = (TYPE = 'CSV');
+| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10) COMMENT 'owner''s note') LOCATION = '/tmp' PATTERN = '.*[.]csv' FORMAT = (TYPE = 'CSV');
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW mv_accounts COMMENT 'owners'' materialized accounts' AS SELECT id, email FROM accounts;
@@ -580,7 +580,7 @@
 : bytes
 | utf8mb4_general_ci
 : bytes
-| ''
+| 'owner\'s note'
 : bytes
 | metadata$filecol2
 : bytes
@@ -1593,7 +1593,7 @@
 : bytes
 | CREATE EXTERNAL TABLE `ext_feed` (
 |   `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),
-|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2) COMMENT 'owner\'s note'
 | ) 
 | LOCATION='file:///tmp'
 | PATTERN='.*[.]csv'
