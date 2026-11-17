@@ -387,11 +387,24 @@ func stripDatashareQualifier(statement, databaseName string) string {
 	var b strings.Builder
 	last := 0
 	// inRelation is true while the tokens are a relation list, which is where
-	// the database qualifier belongs.
+	// the database qualifier belongs. parens records whether each open
+	// parenthesis holds an expression, where a FROM starts an argument
+	// (EXTRACT(x FROM y)) rather than a relation list.
 	inRelation := false
+	var parens []bool
 	for i, token := range tokens {
+		switch token.Type {
+		case '(':
+			parens = append(parens, i > 0 && opensExpression(tokens[i-1]))
+			continue
+		case ')':
+			if len(parens) > 0 {
+				parens = parens[:len(parens)-1]
+			}
+			continue
+		}
 		if relationListStart[token.Type] {
-			inRelation = true
+			inRelation = len(parens) == 0 || !parens[len(parens)-1]
 			continue
 		}
 		if relationListEnd[token.Type] {
@@ -442,3 +455,18 @@ func keywordTokens(names ...string) map[int]bool {
 	}
 	return tokens
 }
+
+// opensExpression reports whether the token before a parenthesis makes it an
+// expression's rather than a subquery's. A name, a literal or a closing
+// parenthesis does, so EXTRACT(x FROM y) and TRIM(BOTH ... FROM y) are
+// expressions; only the keywords and commas that open a query or a relation
+// list do not.
+func opensExpression(previous redshiftparser.Token) bool {
+	if previous.Type == ',' {
+		return false
+	}
+	return !subqueryParenBefore[previous.Type]
+}
+
+// subqueryParenBefore are the tokens a subquery or a grouping follows.
+var subqueryParenBefore = keywordTokens("SELECT", "WITH", "VALUES", "FROM", "JOIN", "IN", "EXISTS", "ANY", "ALL", "SOME", "UNION", "INTERSECT", "EXCEPT", "WHERE", "AND", "OR", "NOT", "ON", "USING", "TABLE")

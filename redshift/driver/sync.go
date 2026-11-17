@@ -319,7 +319,8 @@ func (d *Driver) getDatashareTableColumns(txn *sql.Tx) (map[tableKey][]*metadata
 		numeric_precision,
 		numeric_scale
 	FROM SVV_ALL_COLUMNS
-	WHERE database_name = $1;`
+	WHERE database_name = $1
+	ORDER BY schema_name, table_name, ordinal_position;`
 	rows, err := txn.Query(query, d.databaseName)
 	if err != nil {
 		return nil, err
@@ -625,18 +626,32 @@ func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []st
 	return columnList, referencedColumnList, nil
 }
 
-// getColumnList splits a comma-separated, possibly quoted, column list.
+// getColumnList splits a comma-separated column list, where a name may be
+// quoted and a quoted name may hold a comma or a doubled quote.
 func getColumnList(definition string) ([]string, error) {
-	list := strings.Split(definition, ",")
-	if len(list) == 0 {
+	var result []string
+	var name strings.Builder
+	quoted := false
+	for i := 0; i < len(definition); i++ {
+		switch c := definition[i]; {
+		case c == '"':
+			if quoted && i+1 < len(definition) && definition[i+1] == '"' {
+				name.WriteByte('"')
+				i++
+				continue
+			}
+			quoted = !quoted
+		case c == ',' && !quoted:
+			result = append(result, strings.TrimSpace(name.String()))
+			name.Reset()
+		default:
+			name.WriteByte(c)
+		}
+	}
+	if quoted {
 		return nil, fmt.Errorf("invalid column list definition: %q", definition)
 	}
-	var result []string
-	for _, name := range list {
-		name = strings.TrimSpace(name)
-		name = strings.Trim(name, `"`)
-		result = append(result, name)
-	}
+	result = append(result, strings.TrimSpace(name.String()))
 	return result, nil
 }
 

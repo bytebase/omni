@@ -133,6 +133,36 @@ func TestForeignKeyColumnsFromDefinition(t *testing.T) {
 	}
 }
 
+// TestColumnListSplit covers a name a plain split on commas would break: one
+// holding a comma, and one holding a quote.
+func TestColumnListSplit(t *testing.T) {
+	for _, tc := range []struct {
+		definition string
+		want       []string
+	}{
+		{definition: `a, b`, want: []string{"a", "b"}},
+		{definition: `"a,b", c`, want: []string{"a,b", "c"}},
+		{definition: `"a""b"`, want: []string{`a"b`}},
+		{definition: `"B b"`, want: []string{"B b"}},
+	} {
+		got, err := getColumnList(tc.definition)
+		if err != nil {
+			t.Fatalf("getColumnList(%q): %v", tc.definition, err)
+		}
+		if len(got) != len(tc.want) {
+			t.Fatalf("getColumnList(%q) = %q, want %q", tc.definition, got, tc.want)
+		}
+		for i := range tc.want {
+			if got[i] != tc.want[i] {
+				t.Errorf("getColumnList(%q)[%d] = %q, want %q", tc.definition, i, got[i], tc.want[i])
+			}
+		}
+	}
+	if _, err := getColumnList(`"unterminated`); err == nil {
+		t.Error("an unbalanced quoted identifier was accepted")
+	}
+}
+
 // TestColumnType holds a synced column's declared type to the base name
 // INFORMATION_SCHEMA.COLUMNS reports and the modifiers it reports apart.
 func TestColumnType(t *testing.T) {

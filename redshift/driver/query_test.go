@@ -339,6 +339,21 @@ func TestStripDatashareQualifier(t *testing.T) {
 			statement: `SELECT * FROM "SHARED".facts`,
 			want:      `SELECT * FROM "SHARED".facts`,
 		},
+		{
+			name:      "an expression's FROM does not open a relation list",
+			statement: `SELECT EXTRACT(day FROM shared.ts) FROM app.a AS shared`,
+			want:      `SELECT EXTRACT(day FROM shared.ts) FROM app.a AS shared`,
+		},
+		{
+			name:      "a relation inside a subquery is rewritten",
+			statement: `SELECT z FROM app.a WHERE id IN (SELECT id FROM shared.b)`,
+			want:      `SELECT z FROM app.a WHERE id IN (SELECT id FROM b)`,
+		},
+		{
+			name:      "a function call before a relation does not hide it",
+			statement: `SELECT EXTRACT(day FROM shared.ts) FROM shared.facts`,
+			want:      `SELECT EXTRACT(day FROM shared.ts) FROM facts`,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			if got := stripDatashareQualifier(tc.statement, "shared"); got != tc.want {
