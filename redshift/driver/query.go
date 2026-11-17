@@ -399,6 +399,10 @@ func stripDatashareQualifier(statement, databaseName string) string {
 		return statement
 	}
 	tokens := redshiftparser.Tokenize(statement)
+	// A relation's alias or name begins a column reference, which is not a
+	// database qualifier: FROM app.orders AS shared, shared.products reads a
+	// SUPER column of the aliased relation.
+	qualifiers := relationQualifiers(tokens)
 	var b strings.Builder
 	last := 0
 	// inRelation is true while the tokens are a relation list, which is where
@@ -450,6 +454,9 @@ func stripDatashareQualifier(statement, databaseName string) string {
 		if tokens[i+1].Type != '.' || !redshiftparser.IsIdentifierTokenType(referenced.Type) {
 			continue
 		}
+		if qualifiers[strings.ToLower(token.Str)] {
+			continue
+		}
 		if token.Loc < len(statement) && statement[token.Loc] == '"' {
 			// A quoted identifier keeps its case, so only the same spelling
 			// names the database.
@@ -475,7 +482,60 @@ func stripDatashareQualifier(statement, databaseName string) string {
 var (
 	relationListStart = keywordTokens("FROM", "JOIN", "INTO", "UPDATE")
 	relationListEnd   = keywordTokens("SELECT", "WHERE", "ON", "USING", "SET", "HAVING", "QUALIFY", "WINDOW", "RETURNING", "UNION", "EXCEPT", "INTERSECT", "GROUP", "ORDER", "LIMIT", "OFFSET", "FETCH", "FOR", "CONNECT", "START", "VALUES")
+	asKeyword         = keywordToken("AS")
 )
+
+// relationQualifiers returns the names a statement gives its relations: each
+// relation's own name and its alias, lowercased.
+func relationQualifiers(tokens []redshiftparser.Token) map[string]bool {
+	names := make(map[string]bool)
+	inRelation := false
+	expectName := false
+	for i := 0; i < len(tokens); i++ {
+		token := tokens[i]
+		switch {
+		case relationListStart[token.Type]:
+			inRelation, expectName = true, true
+		case relationListEnd[token.Type]:
+			inRelation, expectName = false, false
+		case !inRelation:
+		case token.Type == ',':
+			expectName = true
+		case expectName:
+			// The relation's own name, possibly qualified, ends at its last
+			// identifier.
+			for i+2 < len(tokens) && tokens[i].Type == redshiftparser.IDENT && tokens[i+1].Type == '.' && redshiftparser.IsIdentifierTokenType(tokens[i+2].Type) {
+				i += 2
+			}
+			if tokens[i].Type == redshiftparser.IDENT {
+				names[strings.ToLower(tokens[i].Str)] = true
+			}
+			expectName = false
+			if i+1 < len(tokens) && tokens[i+1].Type == '(' {
+				// A table function's arguments hold no relation name.
+				continue
+			}
+			j := i + 1
+			if j < len(tokens) && tokens[j].Type == asKeyword {
+				j++
+			}
+			if j < len(tokens) && tokens[j].Type == redshiftparser.IDENT {
+				names[strings.ToLower(tokens[j].Str)] = true
+				i = j
+			}
+		}
+	}
+	return names
+}
+
+// keywordToken returns a keyword's token type, as the lexer reports it, or -1
+// when the keyword is not one.
+func keywordToken(name string) int {
+	if keyword := redshiftparser.LookupKeyword(name); keyword != nil {
+		return keyword.Token
+	}
+	return -1
+}
 
 // keywordTokens maps each keyword's token type, as the lexer reports it.
 func keywordTokens(names ...string) map[int]bool {

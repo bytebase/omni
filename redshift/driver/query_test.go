@@ -365,6 +365,18 @@ func TestStripDatashareQualifier(t *testing.T) {
 			want:      `SELECT * FROM (SELECT 1) AS x, t`,
 		},
 		{
+			name:      "a relation alias's SUPER column is not the database's name",
+			statement: `SELECT p FROM app.orders AS shared, shared.products AS p`,
+			want:      `SELECT p FROM app.orders AS shared, shared.products AS p`,
+		},
+		{
+			// A qualifier that names an alias is left alone: the alias could be
+			// a relation's column, so the database's name is not assumed.
+			name:      "a bare alias's name is left alone too",
+			statement: `SELECT shared.id FROM app.orders shared, shared.facts`,
+			want:      `SELECT shared.id FROM app.orders shared, shared.facts`,
+		},
+		{
 			name:      "a function argument is not a relation list",
 			statement: `SELECT up.product FROM app.orders AS shared, UNNEST(shared.products) AS up(product)`,
 			want:      `SELECT up.product FROM app.orders AS shared, UNNEST(shared.products) AS up(product)`,

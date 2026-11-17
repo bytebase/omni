@@ -155,8 +155,24 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, script string) error
 			return nil
 		}
 	}
-	for _, statement := range statements {
-		if _, err := d.db.ExecContext(ctx, statement); err != nil {
+	if _, err := d.db.ExecContext(ctx, statements[0]); err != nil {
+		return err
+	}
+	if len(statements) == 1 {
+		return nil
+	}
+	// The statements after CREATE DATABASE initialize it, so they run on a
+	// connection to it; this driver is open on the database the step started
+	// from, and would otherwise create them there.
+	cfg := d.config
+	cfg.Database = databaseName
+	created, err := Open(ctx, cfg)
+	if err != nil {
+		return err
+	}
+	defer created.Close()
+	for _, statement := range statements[1:] {
+		if _, err := created.db.ExecContext(ctx, statement); err != nil {
 			return err
 		}
 	}

@@ -305,7 +305,7 @@ mutation in the omni worktree, run the parity test, and require a failure; then
 
 ## Differences from Bytebase's driver, each to confirm on a cluster
 
-The port is close to `backend/plugin/db/redshift` and diverges in fifteen places.
+The port is close to `backend/plugin/db/redshift` and diverges in seventeen places.
 Every one is a decision the recording settles.
 
 | difference | why |
@@ -325,6 +325,8 @@ Every one is a decision the recording settles.
 | a view's definition is read from `SHOW VIEW`, not `PG_VIEWS.definition` | `PG_VIEWS` states it in a varchar(256) and truncates a longer one, and a truncated definition is not the view; the recording settles what `SHOW VIEW` answers and that a long view's text comes back whole |
 | a procedure call is read as a query though it is not read-only | `CALL` answers its OUT and INOUT parameters as one row, which the classification now says independently of whether the statement may run read-only |
 | a procedure call's rows are withheld from a caller that masks columns | an OUT or INOUT value has no column lineage to trace, so a masked caller is given the affected-row count instead |
+| a reference that begins with a relation's alias or name is left alone | `FROM app.orders AS shared, shared.products` reads a SUPER column of the aliased relation, so its text is not the database's name |
+| the statements after `CREATE DATABASE` run on a connection to the new database | they initialize it; the driver is open on the database the step started from, and would otherwise create them there |
 
 ## What would unblock it
 

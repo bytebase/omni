@@ -229,8 +229,10 @@ func TestLiveQuery(t *testing.T) {
 	if result.Err != nil {
 		t.Fatalf("result error: %v", result.Err)
 	}
-	if len(result.Columns) != 1 || result.Columns[0].Name != "n" || result.Columns[0].TypeName != "INT8" {
-		t.Errorf("Columns = %+v, want one INT8 column n", result.Columns)
+	// Redshift reads an integer literal as INT4, which the session still scans
+	// and reports as a 64-bit value.
+	if len(result.Columns) != 1 || result.Columns[0].Name != "n" || result.Columns[0].TypeName != "INT4" {
+		t.Errorf("Columns = %+v, want one INT4 column n", result.Columns)
 	}
 	if len(result.Rows) != 1 || len(result.Rows[0]) != 1 || result.Rows[0][0].Kind != driver.Int64 || result.Rows[0][0].Int64 != 1 {
 		t.Errorf("Rows = %+v, want one row holding int64 1", result.Rows)
