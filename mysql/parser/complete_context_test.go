@@ -625,6 +625,21 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {"a"}}},
 		},
 		{
+			name: "interval unit is not an implicit alias",
+			sql:  "SELECT * FROM (SELECT NOW() + INTERVAL 1 DAY FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
+			name: "interval expression keeps its explicit alias",
+			sql:  "SELECT NOW() + INTERVAL 1 DAY AS x FROM t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"x"}},
+		},
+		{
+			name: "delete star target before from",
+			sql:  "DELETE a.* FROM db.t a WHERE a.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"a"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "a"}, {database: "db", table: "t", alias: "a"}}, dml: "->a"},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},

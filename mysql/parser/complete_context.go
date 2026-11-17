@@ -492,25 +492,70 @@ func collectVisibleCTEs(tokens []completionScopeToken, cursorOffset int) []Range
 	return collectWithDefinitions(tokens, cursorOffset, true)
 }
 
-// collectWithDefinitions reads the definitions of every WITH clause whose query
-// block holds the cursor, outer blocks first, an inner clause shadowing an outer
-// one. onlyVisible also drops a definition that does not bind a name at the
-// cursor yet, which is what resolving a table source needs: a later CTE of the
-// same clause is not in scope inside an earlier definition.
-func collectWithDefinitions(tokens []completionScopeToken, cursorOffset int, onlyVisible bool) []RangeReference {
+// completionCTEBlock is one WITH clause of a statement: the query block it
+// governs and the definitions it carries, parsed once.
+type completionCTEBlock struct {
+	withIdx   int
+	end       int
+	recursive bool
+	defs      []RangeReference
+}
+
+// collectCTEBlocks parses every WITH clause of a statement once. A frame's CTE
+// environment is then a filter over these blocks rather than a rescan of the
+// statement per frame.
+func collectCTEBlocks(tokens []completionScopeToken) []completionCTEBlock {
+	ends := completionBlockEnds(tokens)
+	var blocks []completionCTEBlock
+	for i, tok := range tokens {
+		if tok.Type != kwWITH {
+			continue
+		}
+		defs, _ := collectCTEsAt(tokens, i, 0)
+		blocks = append(blocks, completionCTEBlock{
+			withIdx:   i,
+			end:       ends[i],
+			recursive: withIsRecursive(tokens, i),
+			defs:      defs,
+		})
+	}
+	return blocks
+}
+
+// completionBlockEnds returns, for every token, the index of the first token to
+// its right with a smaller depth: the token past the group holding it, or the
+// end of the statement. One pass, with a monotonic stack.
+func completionBlockEnds(tokens []completionScopeToken) []int {
+	ends := make([]int, len(tokens))
+	stack := make([]int, 0, len(tokens))
+	for i := len(tokens) - 1; i >= 0; i-- {
+		for len(stack) > 0 && tokens[stack[len(stack)-1]].depth >= tokens[i].depth {
+			stack = stack[:len(stack)-1]
+		}
+		if len(stack) == 0 {
+			ends[i] = len(tokens)
+		} else {
+			ends[i] = stack[len(stack)-1]
+		}
+		stack = append(stack, i)
+	}
+	return ends
+}
+
+// ctesVisibleAt returns the definitions of the blocks holding token idx, outer
+// blocks first, an inner clause shadowing an outer one. onlyVisible also drops
+// a definition that does not bind a name at the cursor yet, which is what
+// resolving a table source needs: a later CTE of the same clause is not in
+// scope inside an earlier definition.
+func ctesVisibleAt(blocks []completionCTEBlock, tokens []completionScopeToken, idx, cursorOffset int, onlyVisible bool) []RangeReference {
 	var ctes []RangeReference
 	index := make(map[string]int)
-	for i, tok := range tokens {
-		if tok.Type != kwWITH || tok.Loc > cursorOffset {
+	for _, block := range blocks {
+		if block.withIdx > idx || idx >= block.end {
 			continue
 		}
-		if end := completionBlockEnd(tokens, i, tok.depth); end < len(tokens) && tokens[end].Loc < cursorOffset {
-			continue
-		}
-		recursive := withIsRecursive(tokens, i)
-		defs, _ := collectCTEsAt(tokens, i, 0)
-		for _, def := range defs {
-			if onlyVisible && !cteDefinitionVisible(def, cursorOffset, recursive) {
+		for _, def := range block.defs {
+			if onlyVisible && !cteDefinitionVisible(def, cursorOffset, block.recursive) {
 				continue
 			}
 			name := foldName(def.Table)
@@ -523,6 +568,25 @@ func collectWithDefinitions(tokens []completionScopeToken, cursorOffset int, onl
 		}
 	}
 	return ctes
+}
+
+// tokenIndexAtOrBefore returns the index of the last token starting at or
+// before offset, or -1 when the offset is before the first token.
+func tokenIndexAtOrBefore(tokens []completionScopeToken, offset int) int {
+	idx := -1
+	for i, tok := range tokens {
+		if tok.Loc > offset {
+			break
+		}
+		idx = i
+	}
+	return idx
+}
+
+// collectWithDefinitions reads the definitions of every WITH clause whose query
+// block holds the cursor.
+func collectWithDefinitions(tokens []completionScopeToken, cursorOffset int, onlyVisible bool) []RangeReference {
+	return ctesVisibleAt(collectCTEBlocks(tokens), tokens, tokenIndexAtOrBefore(tokens, cursorOffset), cursorOffset, onlyVisible)
 }
 
 // withIsRecursive reports whether the WITH clause at withIdx is RECURSIVE.
@@ -828,7 +892,7 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 	// DELETE t1, t2 FROM table_references: the list before FROM names what is
 	// deleted, and the FROM clause is the whole table list.
 	if fromIdx > idx {
-		targets := parseFromReferences(tokens, idx, fromIdx, depth, ctes, 0)
+		targets, _ := parseDeleteTargets(tokens, idx, depth)
 		if len(targets) == 0 {
 			return nil, nil, false
 		}
@@ -1060,6 +1124,7 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 		}
 	}
 	var frames []completionSelectFrame
+	blocks := collectCTEBlocks(tokens)
 	for i, tok := range tokens {
 		if tok.Loc > cursorOffset {
 			break
@@ -1091,13 +1156,12 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			continue
 		}
 		var local []RangeReference
+		frameCTEs := rangeReferenceMap(ctesVisibleAt(blocks, tokens, i, tok.Loc, true))
 		if tablePrimary {
-			frameCTEs := rangeReferenceMap(collectVisibleCTEs(tokens, tok.Loc))
 			if sources, _, ok := parseTableSource(tokens, i+1, frameCTEs); ok {
 				local = sources
 			}
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
-			frameCTEs := rangeReferenceMap(collectVisibleCTEs(tokens, tok.Loc))
 			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs, 0)
 			if onIdx := onPredicateToken(tokens, cursorOffset, depth); onIdx >= 0 {
 				// A join condition names only the operands before it: the
@@ -1892,10 +1956,41 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 	if end-start < 2 {
 		return SelectAlias{}, false
 	}
-	if prev := tokens[end-2]; prev.Type != kwAS && !endsSelectExpression(prev) {
-		return SelectAlias{}, false
+	prev := tokens[end-2]
+	if prev.Type != kwAS {
+		if !endsSelectExpression(prev) {
+			return SelectAlias{}, false
+		}
+		// INTERVAL 1 DAY ends in its unit, not in an alias the item declares.
+		if intervalUnitAt(tokens, start, end, depth, last) {
+			return SelectAlias{}, false
+		}
 	}
 	return SelectAlias{Name: last.Str, Loc: tokenLoc(last, last)}, true
+}
+
+// intervalUnitAt reports whether last, the trailing identifier of a select
+// item, is the unit of an INTERVAL expression: a literal before it and an
+// INTERVAL keyword before that, with no AS alias in between.
+func intervalUnitAt(tokens []completionScopeToken, start, end, depth int, last completionScopeToken) bool {
+	if last.Type == tokSCONST {
+		return false
+	}
+	unit := last.Loc
+	for i := end - 2; i >= start; i-- {
+		if tokens[i].depth != depth {
+			continue
+		}
+		if tokens[i].Type == kwAS {
+			return false
+		}
+		if tokens[i].Type == kwINTERVAL {
+			// The unit is the identifier right after the literal; an item that
+			// ends elsewhere is not an interval's unit.
+			return unit > tokens[i].Loc
+		}
+	}
+	return false
 }
 
 // endsSelectExpression reports whether tok can end a select item's expression,
