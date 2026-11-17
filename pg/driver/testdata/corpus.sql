@@ -107,6 +107,7 @@ ALTER TABLE app.customer OWNER TO corpus_owner;
 COMMENT ON TABLE app.customer IS 'who buys';
 COMMENT ON COLUMN app.customer.email IS 'unique email';
 COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 CREATE INDEX customer_tags ON app.customer USING gin (tags);
 CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -129,6 +130,7 @@ CREATE TABLE app.orders (
     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 );
+COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 
 CREATE TABLE app.booking (
     room int,

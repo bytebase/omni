@@ -517,7 +517,8 @@
             },
             {
               "name":  "customer_name_check",
-              "expression":  "(length(name) > 0)"
+              "expression":  "(length(name) > 0)",
+              "comment":  "the name a customer is known by"
             }
           ],
           "owner":  "corpus_owner",
@@ -973,7 +974,8 @@
               ],
               "onDelete":  "CASCADE",
               "onUpdate":  "SET NULL",
-              "matchType":  "SIMPLE"
+              "matchType":  "SIMPLE",
+              "comment":  "an order belongs to a customer"
             }
           ],
           "owner":  "postgres"

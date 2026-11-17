@@ -439,3 +439,75 @@ $$;`,
 		})
 	}
 }
+
+// TestDatabaseDefinitionConstraintComments: a check constraint's and a
+// foreign key's comment, which pg/driver carries from COMMENT ON CONSTRAINT,
+// are written beside their constraint and read back by the catalog.
+func TestDatabaseDefinitionConstraintComments(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{
+				{
+					Name:    "parent",
+					Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Nullable: false}},
+					Indexes: []*metadatapb.IndexMetadata{{
+						Name: "parent_pkey", Type: "btree", Expressions: []string{`"id"`},
+						Unique: true, Primary: true, IsConstraint: true,
+					}},
+				},
+				{
+					Name: "child",
+					Columns: []*metadatapb.ColumnMetadata{
+						{Name: "id", Type: "integer", Nullable: false},
+						{Name: "parent_id", Type: "integer", Nullable: true},
+					},
+					CheckConstraints: []*metadatapb.CheckConstraintMetadata{
+						{Name: "child_id_check", Expression: "(id > 0)", Comment: "a child has a positive id"},
+						{Name: "child_id_cap", Expression: "(id < 1000000)"},
+					},
+					ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+						Name: "child_parent_fk", Columns: []string{"parent_id"},
+						ReferencedSchema: "public", ReferencedTable: "parent", ReferencedColumns: []string{"id"},
+						OnDelete: "NO ACTION", OnUpdate: "NO ACTION", Comment: "the parent of a child",
+					}},
+				},
+			},
+		}},
+	}
+	ddl, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	for _, want := range []string{
+		`COMMENT ON CONSTRAINT "child_id_check" ON "public"."child" IS 'a child has a positive id';`,
+		`COMMENT ON CONSTRAINT "child_parent_fk" ON "public"."child" IS 'the parent of a child';`,
+	} {
+		assert.Contains(t, ddl, want)
+	}
+	// A constraint the engine states no comment beside writes none.
+	assert.NotContains(t, ddl, `COMMENT ON CONSTRAINT "child_id_cap"`)
+
+	c := New()
+	_, err = c.Exec(ddl, &ExecOptions{ContinueOnError: true})
+	require.NoError(t, err)
+	_, rel, err := c.findRelation("public", "child")
+	require.NoError(t, err)
+	for name, want := range map[string]string{
+		"child_id_check":  "a child has a positive id",
+		"child_parent_fk": "the parent of a child",
+	} {
+		var found bool
+		for _, con := range c.consByRel[rel.OID] {
+			if con.Name != name {
+				continue
+			}
+			found = true
+			if got, ok := c.GetComment('c', con.OID, 0); !ok || got != want {
+				t.Errorf("%s's comment is %q (present=%v), want %q", name, got, ok, want)
+			}
+		}
+		if !found {
+			t.Errorf("constraint %s is not in the catalog", name)
+		}
+	}
+}

@@ -117,6 +117,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -139,6 +140,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -4633,7 +4635,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -4646,6 +4649,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -4655,6 +4659,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -4664,6 +4669,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -4673,6 +4679,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -4682,6 +4690,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -4691,6 +4700,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -4700,6 +4710,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -4709,6 +4720,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -4718,6 +4730,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -4727,6 +4740,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -4762,7 +4776,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -4787,6 +4802,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -4806,6 +4822,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -4825,6 +4843,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -11597,6 +11616,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -11619,6 +11639,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -16065,7 +16086,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -16078,6 +16100,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -16087,6 +16110,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -16096,6 +16120,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -16105,6 +16130,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -16114,6 +16141,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -16123,6 +16151,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -16132,6 +16161,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -16141,6 +16171,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -16150,6 +16181,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -16159,6 +16191,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -16194,7 +16227,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -16219,6 +16253,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -16238,6 +16273,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -16257,6 +16294,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -22952,6 +22990,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -22974,6 +23013,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -27422,7 +27462,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -27435,6 +27476,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -27444,6 +27486,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -27453,6 +27496,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -27462,6 +27506,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -27471,6 +27517,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -27480,6 +27527,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -27489,6 +27537,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -27498,6 +27547,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -27507,6 +27557,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -27516,6 +27567,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -27551,7 +27603,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -27576,6 +27629,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -27595,6 +27649,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -27614,6 +27670,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -34325,6 +34382,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -34347,6 +34405,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -38799,7 +38858,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -38812,6 +38872,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -38821,6 +38882,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -38830,6 +38892,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -38839,6 +38902,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -38848,6 +38913,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -38857,6 +38923,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -38866,6 +38933,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -38875,6 +38943,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -38884,6 +38953,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -38893,6 +38963,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -38928,7 +38999,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -38953,6 +39025,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -38972,6 +39045,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -38991,6 +39066,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -45607,6 +45683,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -45629,6 +45706,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -50105,7 +50183,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -50118,6 +50197,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -50127,6 +50207,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -50136,6 +50217,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -50145,6 +50227,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -50154,6 +50238,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -50163,6 +50248,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -50172,6 +50258,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -50181,6 +50268,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -50190,6 +50278,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -50199,6 +50288,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -50234,7 +50324,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -50259,6 +50350,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -50278,6 +50370,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -50297,6 +50391,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -57069,6 +57164,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -57091,6 +57187,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -61567,7 +61664,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -61580,6 +61678,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -61589,6 +61688,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -61598,6 +61698,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -61607,6 +61708,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -61616,6 +61719,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -61625,6 +61729,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -61634,6 +61739,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -61643,6 +61749,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -61652,6 +61759,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -61661,6 +61769,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -61696,7 +61805,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -61721,6 +61831,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -61740,6 +61851,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -61759,6 +61872,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -68531,6 +68645,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -68553,6 +68668,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -73095,7 +73211,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -73108,6 +73225,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -73117,6 +73235,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -73126,6 +73245,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -73135,6 +73255,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -73144,6 +73266,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -73153,6 +73276,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -73162,6 +73286,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -73171,6 +73296,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -73180,6 +73306,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -73189,6 +73316,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -73224,7 +73352,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -73249,6 +73378,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -73268,6 +73398,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -73287,6 +73419,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
