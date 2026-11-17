@@ -76,10 +76,17 @@ func (c *Catalog) ListSchemaNames() []string {
 
 // GetTable returns the named table in the named schema, or nil.
 func (c *Catalog) GetTable(schemaName, tableName string) *metadata.TableMetadata {
-	if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil {
+	if table := c.tableByName[tableKey{schema: schemaName, table: tableName}]; table != nil && table.Name == tableName {
 		return table
 	}
-	return c.tableByName[tableKey{schema: normalize(schemaName), table: normalize(tableName)}]
+	table := c.tableByName[tableKey{schema: normalize(schemaName), table: normalize(tableName)}]
+	if table != nil && table.Name == tableName {
+		return table
+	}
+	if caseTable := c.tableByName[tableKey{schema: "case:" + normalize(schemaName), table: "case:" + tableName}]; caseTable != nil {
+		return caseTable
+	}
+	return table
 }
 
 // Metadata returns a copy of the catalog as the metadata snapshot Bytebase

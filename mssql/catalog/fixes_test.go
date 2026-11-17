@@ -1,10 +1,12 @@
 package catalog
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/metadata"
 )
@@ -791,4 +793,49 @@ func TestMigrationSeparatesTableDropFromRoutineCreation(t *testing.T) {
 	require.GreaterOrEqual(t, goAt, 0)
 	require.GreaterOrEqual(t, createAt, 0)
 	require.Less(t, dropAt+goAt, createAt)
+}
+
+func TestGetTableResolvesCaseDistinctNames(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[Foo] ([a] int); CREATE TABLE [dbo].[foo] ([b] int);`)
+	require.NoError(t, err)
+	require.Equal(t, "Foo", c.GetTable("dbo", "Foo").Name)
+	require.Equal(t, "foo", c.GetTable("dbo", "foo").Name)
+}
+
+func TestMigrationUpdatesViewComments(t *testing.T) {
+	from, err := LoadSQL(`
+CREATE VIEW [dbo].[v] AS SELECT 1 AS n;
+GO
+EXEC sp_addextendedproperty 'MS_Description', N'old', 'SCHEMA', 'dbo', 'VIEW', 'v';
+`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`
+CREATE VIEW [dbo].[v] AS SELECT 1 AS n;
+GO
+EXEC sp_addextendedproperty 'MS_Description', N'new', 'SCHEMA', 'dbo', 'VIEW', 'v';
+`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP VIEW [dbo].[v]")
+	require.Contains(t, sql, "sp_addextendedproperty")
+	require.Contains(t, sql, "N'new'")
+}
+
+func TestMigrationKeepsSkippedTrigger(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int", Nullable: false}},
+			Triggers: []*metadata.TriggerMetadata{{
+				Name: "trg", SkipDump: true, Body: "CREATE TRIGGER [dbo].[trg] ON [dbo].[t] AFTER INSERT AS SELECT 1",
+			}},
+		}},
+	}}}
+	from := New()
+	require.NoError(t, from.LoadMetadata(context.Background(), meta))
+	to := New()
+	require.NoError(t, to.LoadMetadata(context.Background(), proto.Clone(meta).(*metadata.DatabaseSchemaMetadata)))
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.NotContains(t, sql, "DROP TRIGGER")
 }

@@ -750,10 +750,16 @@ func compareTriggers(oldTriggers, newTriggers []*metadata.TriggerMetadata) []*Tr
 	var changes []*TriggerDiffEntry
 	oldMap := make(map[string]*metadata.TriggerMetadata)
 	for _, trigger := range oldTriggers {
+		if trigger.GetSkipDump() {
+			continue
+		}
 		oldMap[trigger.Name] = trigger
 	}
 	newMap := make(map[string]*metadata.TriggerMetadata)
 	for _, trigger := range newTriggers {
+		if trigger.GetSkipDump() {
+			continue
+		}
 		newMap[trigger.Name] = trigger
 	}
 	for name, oldTrigger := range oldMap {
@@ -815,7 +821,7 @@ func compareViews(diff *SchemaDiff, schemaName string, oldSchema, newSchema *met
 			diff.Views = append(diff.Views, &ViewDiffEntry{Action: DiffCreate, SchemaName: schemaName, ViewName: name, NewView: newView})
 			continue
 		}
-		if !oldView.GetSkipDump() && (oldView.Definition != newView.Definition || !triggerListsEqual(oldView.Triggers, newView.Triggers)) {
+		if !oldView.GetSkipDump() && (oldView.Definition != newView.Definition || oldView.Comment != newView.Comment || !triggerListsEqual(oldView.Triggers, newView.Triggers)) {
 			diff.Views = append(diff.Views, &ViewDiffEntry{Action: DiffAlter, SchemaName: schemaName, ViewName: name, OldView: oldView, NewView: newView})
 		}
 	}

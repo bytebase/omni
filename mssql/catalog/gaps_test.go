@@ -221,6 +221,36 @@ CREATE FUNCTION [dbo].[f]() RETURNS int WITH SCHEMABINDING AS BEGIN RETURN (SELE
 		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
 		require.Contains(t, sql, "COLLATE Latin1_General_CI_AS", "gap closed: resolve an omitted collation to the database default")
 	})
+
+	t.Run("function used by an unchanged CHECK constraint", func(t *testing.T) {
+		// Only changed tables are inspected, so a retained CHECK that calls the
+		// replaced function does not block the drop.
+		from, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() > 0));
+`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`
+CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 2 END;
+GO
+CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() > 0));
+`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "DROP FUNCTION [dbo].[f]", "gap closed: inspect unchanged tables for function CHECK dependencies")
+	})
+
+	t.Run("omitted type precision", func(t *testing.T) {
+		// SQL Server stores datetime2 as datetime2(7), so a desired column
+		// written without the parameter never compares equal.
+		from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] datetime2 NULL);`)
+		require.NoError(t, err)
+		to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([v] datetime2(7) NULL);`)
+		require.NoError(t, err)
+		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+		require.Contains(t, sql, "ALTER COLUMN [v] datetime2(7)", "gap closed: normalize implicit type parameters")
+	})
 }
 
 func commentRebuildMetadata(computedType string) *metadata.DatabaseSchemaMetadata {
