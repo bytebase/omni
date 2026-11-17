@@ -78,11 +78,6 @@ CREATE TYPE "app"."float_range" AS RANGE (
 
 CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
 
-CREATE FOREIGN TABLE "audit"."remote_orders" (
-    "id" integer NOT NULL,
-    "note" character varying(30)
-) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
-
 CREATE SEQUENCE "app"."counter"
     AS integer
 	START WITH 10
@@ -556,6 +551,11 @@ BEGIN
 END
 $function$
 ;
+
+CREATE FOREIGN TABLE "audit"."remote_orders" (
+    "id" integer NOT NULL,
+    "note" character varying(30)
+) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 
 CREATE TABLE "audit"."scratch" (
     "note" text

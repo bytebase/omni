@@ -100,20 +100,10 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	}
 
 	// Construct foreign servers after the extensions that provide their
-	// wrappers, then the foreign tables that name them.
+	// wrappers.
 	for _, server := range metadata.ForeignServers {
 		if err := writeForeignServer(&buf, server); err != nil {
 			return "", err
-		}
-	}
-	for _, schema := range metadata.Schemas {
-		if schema.SkipDump {
-			continue
-		}
-		for _, externalTable := range schema.ExternalTables {
-			if err := writeForeignTable(&buf, schema.Name, externalTable); err != nil {
-				return "", err
-			}
 		}
 	}
 
@@ -123,6 +113,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	tableMap := make(map[string]*metadatapb.TableMetadata)
 	viewMap := make(map[string]*metadatapb.ViewMetadata)
 	materializedViewMap := make(map[string]*metadatapb.MaterializedViewMetadata)
+	foreignTableMap := make(map[string]*metadatapb.ExternalTableMetadata)
+	externalTables := collectExternalTables(metadata.Schemas)
+	foreignPartitions := collectForeignPartitionIDs(metadata.Schemas, externalTables)
 
 	// Construct functions.
 	functionIDsByName := make(map[string][]string)
@@ -192,6 +185,25 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			tableMap[tableID] = table
 			graph.AddNode(tableID)
 			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table)
+			addForeignPartitionFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table, externalTables)
+		}
+
+		for _, externalTable := range schema.ExternalTables {
+			if schema.SkipDump {
+				continue
+			}
+			externalTableID := getObjectID(schema.Name, externalTable.Name)
+			if foreignPartitions[externalTableID] {
+				// A foreign partition is created with its parent, so it is not a
+				// node of its own.
+				continue
+			}
+			foreignTableMap[externalTableID] = externalTable
+			graph.AddNode(externalTableID)
+			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, &metadatapb.TableMetadata{
+				Name:    externalTable.Name,
+				Columns: externalTable.Columns,
+			})
 		}
 
 		for _, view := range schema.Views {
@@ -225,7 +237,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	if err != nil {
 		// If topological sort fails (e.g., due to circular dependencies),
 		// fall back to a safe dependency order: tables -> views -> materialized views -> functions
-		orderedList = make([]string, 0, len(functionMap)+len(tableMap)+len(viewMap)+len(materializedViewMap))
+		orderedList = make([]string, 0, len(functionMap)+len(tableMap)+len(viewMap)+len(materializedViewMap)+len(foreignTableMap))
 
 		// Add tables first (sorted alphabetically within each category)
 		var tableIDs []string
@@ -234,6 +246,14 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 		slices.Sort(tableIDs)
 		orderedList = append(orderedList, tableIDs...)
+
+		// Add foreign tables, whose defaults may call functions, before views.
+		var foreignTableIDs []string
+		for id := range foreignTableMap {
+			foreignTableIDs = append(foreignTableIDs, id)
+		}
+		slices.Sort(foreignTableIDs)
+		orderedList = append(orderedList, foreignTableIDs...)
 
 		// Add views second
 		var viewIDs []string
@@ -269,7 +289,12 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			continue
 		}
 		if table, ok := tableMap[objectID]; ok {
-			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID]); err != nil {
+			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID], externalTables); err != nil {
+				return "", err
+			}
+		}
+		if externalTable, ok := foreignTableMap[objectID]; ok {
+			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable); err != nil {
 				return "", err
 			}
 		}
@@ -483,7 +508,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 			continue
 		}
 		if table, ok := tableMap[objectID]; ok {
-			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID]); err != nil {
+			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID], collectExternalTables([]*metadatapb.SchemaMetadata{schema})); err != nil {
 				return "", err
 			}
 		}
@@ -520,7 +545,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 
 func TableDefinition(schema string, table *metadatapb.TableMetadata, sequences []*metadatapb.SequenceMetadata) (string, error) {
 	var buf strings.Builder
-	if err := writeTable(&buf, schema, table, sequences); err != nil {
+	if err := writeTable(&buf, schema, table, sequences, nil); err != nil {
 		return "", err
 	}
 	// Skip triggers, rules, and foreign keys for a table without column
@@ -2072,6 +2097,57 @@ func functionDependsOnTable(function *metadatapb.FunctionMetadata, schema, table
 	return false
 }
 
+// collectExternalTables indexes every foreign table by object ID.
+func collectExternalTables(schemas []*metadatapb.SchemaMetadata) map[string]*metadatapb.ExternalTableMetadata {
+	externalTables := make(map[string]*metadatapb.ExternalTableMetadata)
+	for _, schema := range schemas {
+		for _, externalTable := range schema.ExternalTables {
+			externalTables[getObjectID(schema.Name, externalTable.Name)] = externalTable
+		}
+	}
+	return externalTables
+}
+
+// collectForeignPartitionIDs names the foreign tables that a table's partition
+// list also holds, so they are rendered with their parent rather than twice.
+func collectForeignPartitionIDs(schemas []*metadatapb.SchemaMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) map[string]bool {
+	ids := make(map[string]bool)
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			walkPartitions(schema.Name, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
+				id := getObjectID(partitionSchema, partition.Name)
+				if externalTables[id] != nil {
+					ids[id] = true
+				}
+			})
+		}
+	}
+	return ids
+}
+
+func walkPartitions(schema string, partitions []*metadatapb.TablePartitionMetadata, visit func(string, *metadatapb.TablePartitionMetadata)) {
+	for _, partition := range partitions {
+		partitionSchema := partitionSchemaName(schema, partition)
+		visit(partitionSchema, partition)
+		walkPartitions(partitionSchema, partition.Subpartitions, visit)
+	}
+}
+
+// addForeignPartitionFunctionEdges makes the functions a foreign partition's
+// columns call precede the parent table that creates the partition.
+func addForeignPartitionFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) {
+	walkPartitions(schema, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
+		externalTable := externalTables[getObjectID(partitionSchema, partition.Name)]
+		if externalTable == nil {
+			return
+		}
+		addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema, &metadatapb.TableMetadata{
+			Name:    table.Name,
+			Columns: externalTable.Columns,
+		})
+	})
+}
+
 func getObjectID(schema string, object string) string {
 	var buf strings.Builder
 	_, _ = buf.WriteString(schema)
@@ -2405,7 +2481,7 @@ func writeSchemaForeignKeys(out io.Writer, schema *metadatapb.SchemaMetadata, ta
 	return nil
 }
 
-func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, sequences []*metadatapb.SequenceMetadata) error {
+func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, sequences []*metadatapb.SequenceMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) error {
 	if tableMissingColumnMetadata(table) {
 		// Emit a bare CREATE TABLE so the table still exists on replay, and
 		// skip constraints, indexes, partitions, and sequence ownership —
@@ -2486,9 +2562,17 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 		}
 	}
 
-	// Construct partition tables.
+	// Construct partition tables. A foreign partition is created as a foreign
+	// table, and the attach below attaches it to its parent.
 	for _, partition := range table.Partitions {
-		if err := writePartitionTable(out, schema, table.Columns, partition); err != nil {
+		partitionSchema := partitionSchemaName(schema, partition)
+		if externalTable, ok := externalTables[getObjectID(partitionSchema, partition.Name)]; ok {
+			if err := writeForeignTable(out, partitionSchema, externalTable); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := writePartitionTable(out, schema, table.Columns, partition, externalTables); err != nil {
 			return err
 		}
 	}
@@ -3124,7 +3208,7 @@ func writeAttachPartition(out io.Writer, parentSchema string, tableName string, 
 	return err
 }
 
-func writePartitionTable(out io.Writer, parentSchema string, columns []*metadatapb.ColumnMetadata, partition *metadatapb.TablePartitionMetadata) error {
+func writePartitionTable(out io.Writer, parentSchema string, columns []*metadatapb.ColumnMetadata, partition *metadatapb.TablePartitionMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) error {
 	schema := partitionSchemaName(parentSchema, partition)
 	if err := writeCreateTable(out, schema, partition.Name, columns, partition.CheckConstraints, partition.ExcludeConstraints); err != nil {
 		return err
@@ -3157,9 +3241,17 @@ func writePartitionTable(out io.Writer, parentSchema string, columns []*metadata
 		}
 	}
 
-	// Construct subpartition tables.
+	// Construct subpartition tables. A foreign subpartition is created as a
+	// foreign table, and the attach below attaches it.
 	for _, subpartition := range partition.Subpartitions {
-		if err := writePartitionTable(out, schema, columns, subpartition); err != nil {
+		subpartitionSchema := partitionSchemaName(schema, subpartition)
+		if externalTable, ok := externalTables[getObjectID(subpartitionSchema, subpartition.Name)]; ok {
+			if err := writeForeignTable(out, subpartitionSchema, externalTable); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := writePartitionTable(out, schema, columns, subpartition, externalTables); err != nil {
 			return err
 		}
 	}

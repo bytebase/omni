@@ -128,6 +128,38 @@ func TestDumpRestoresOverloadedFunctionDefault(t *testing.T) {
 	}
 }
 
+// TestDumpRestoresForeignTableDefaults checks that a foreign table follows the
+// sequence and function its column defaults name: those are created through the
+// same dependency order as an ordinary table's.
+func TestDumpRestoresForeignTableDefaults(t *testing.T) {
+	setup := "CREATE EXTENSION postgres_fdw;\n" +
+		"CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE SEQUENCE public.remote_id;\n" +
+		"CREATE FUNCTION public.remote_token() RETURNS text LANGUAGE sql AS $$ SELECT 'x'::text $$;\n" +
+		"CREATE FOREIGN TABLE public.remote_defaults (\n" +
+		"    id bigint DEFAULT nextval('public.remote_id'),\n" +
+		"    token text DEFAULT public.remote_token()\n" +
+		") SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_default", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
+// TestDumpRestoresForeignPartition checks that a foreign table that is also a
+// partition is created once, as a foreign table, and attached to its parent.
+func TestDumpRestoresForeignPartition(t *testing.T) {
+	setup := "CREATE EXTENSION postgres_fdw;\n" +
+		"CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE TABLE public.pt (id integer) PARTITION BY RANGE (id);\n" +
+		"CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)\n" +
+		"    SERVER loopback OPTIONS (schema_name 'public', table_name 'x');"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_partition", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
 // restoreDiff compares a source database and its dump's restore, ignoring
 // what a restore cannot carry: the database name, a table's physical sizes
 // and row estimate, and the column positions the source's dropped columns
