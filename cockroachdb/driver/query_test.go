@@ -108,6 +108,9 @@ INSERT INTO other.thing VALUES (7);`)
 		if len(res.Rows) != 1 || res.Rows[0][0].Kind != driver.String || !strings.Contains(res.Rows[0][0].String, "processors") {
 			t.Fatalf("plan = %+v, want the decoded DISTSQL JSON", res.Rows)
 		}
+		if res.Plan == nil || res.Plan.Format != "JSON" || res.Plan.Executed {
+			t.Errorf("plan metadata = %+v, want a JSON plan that did not execute", res.Plan)
+		}
 	})
 
 	t.Run("schema", func(t *testing.T) {
@@ -290,6 +293,25 @@ func TestValidateQueryCockroachSyntax(t *testing.T) {
 		}
 		if !returnsData {
 			t.Errorf("%s: returnsData = false, want true", statement)
+		}
+	}
+}
+
+func TestDescribeExplain(t *testing.T) {
+	for _, tc := range []struct {
+		statement string
+		format    string
+		executed  bool
+		ok        bool
+	}{
+		{"SELECT 1", "", false, false},
+		{"EXPLAIN SELECT 1", "TEXT", false, true},
+		{"EXPLAIN (DISTSQL) SELECT 1", "TEXT", false, true},
+		{"EXPLAIN ANALYZE SELECT 1", "TEXT", true, true},
+	} {
+		format, executed, ok := describeExplain(tc.statement)
+		if format != tc.format || executed != tc.executed || ok != tc.ok {
+			t.Errorf("%s: got (%q,%v,%v), want (%q,%v,%v)", tc.statement, format, executed, ok, tc.format, tc.executed, tc.ok)
 		}
 	}
 }

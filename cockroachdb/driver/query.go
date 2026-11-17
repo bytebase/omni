@@ -61,6 +61,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		text        string
 		returnsData bool
 		planAsJSON  bool
+		plan        *driver.Plan
 	}
 	prepared := make([]preparedStmt, 0, len(split))
 	for _, single := range split {
@@ -81,7 +82,17 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		if err != nil {
 			return nil, err
 		}
-		prepared = append(prepared, preparedStmt{text: statement, returnsData: returnsData, planAsJSON: planAsJSON})
+		var plan *driver.Plan
+		if opts.Explain {
+			format := "TEXT"
+			if planAsJSON {
+				format = "JSON"
+			}
+			plan = &driver.Plan{Format: format}
+		} else if format, executed, ok := describeExplain(statement); ok {
+			plan = &driver.Plan{Format: format, Executed: executed}
+		}
+		prepared = append(prepared, preparedStmt{text: statement, returnsData: returnsData, planAsJSON: planAsJSON, plan: plan})
 	}
 
 	var results []*driver.Result
@@ -142,6 +153,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			stop = true
 		}
 		queryResult.Statement = stmt.text
+		if queryResult.Err == nil {
+			queryResult.Plan = stmt.plan
+		}
 		queryResult.Latency = time.Since(startTime)
 		results = append(results, queryResult)
 		if stop {
@@ -179,6 +193,29 @@ func validateQuery(statement string) (readOnly, returnsData bool, err error) {
 		readOnly, _ = pganalysis.ValidateQuery(nodes)
 	}
 	return readOnly, returnsData, nil
+}
+
+// describeExplain reports a directly submitted EXPLAIN's format and whether
+// it executed the statement it plans.
+func describeExplain(statement string) (format string, executed bool, ok bool) {
+	parsed, err := crrawparser.Parse(statement)
+	if err != nil || len(parsed) != 1 {
+		return "", false, false
+	}
+	switch node := parsed[0].AST.(type) {
+	case *crrawparsertree.Explain:
+		return explainFormat(node.ExplainOptions), false, true
+	case *crrawparsertree.ExplainAnalyze:
+		return explainFormat(node.ExplainOptions), true, true
+	}
+	return "", false, false
+}
+
+func explainFormat(opts crrawparsertree.ExplainOptions) string {
+	if opts.Flags[crrawparsertree.ExplainFlagJSON] {
+		return "JSON"
+	}
+	return "TEXT"
 }
 
 func statementWithResultLimit(statement string, limit int) string {

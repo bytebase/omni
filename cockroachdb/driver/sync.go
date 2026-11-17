@@ -258,15 +258,15 @@ func convertForeignKeyActionCode(in string) string {
 }
 
 func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []string, error) {
-	keyIndex := strings.Index(strings.ToUpper(definition), "FOREIGN KEY")
+	keyIndex := keywordOutsideQuotes(definition, "FOREIGN KEY", 0)
 	if keyIndex < 0 {
 		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
 	}
-	columns, _, ok := parenthesized(definition, keyIndex+len("FOREIGN KEY"))
+	columns, next, ok := parenthesized(definition, keyIndex+len("FOREIGN KEY"))
 	if !ok {
 		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
 	}
-	referencesIndex := strings.Index(strings.ToUpper(definition), "REFERENCES")
+	referencesIndex := keywordOutsideQuotes(definition, "REFERENCES", next)
 	if referencesIndex < 0 {
 		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
 	}
@@ -283,6 +283,32 @@ func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []st
 		return nil, nil, fmt.Errorf("invalid foreign key definition %q: %w", definition, err)
 	}
 	return columnList, referencedColumnList, nil
+}
+
+// keywordOutsideQuotes finds keyword in s at or after start, skipping quoted
+// identifiers so a name such as "references" is not mistaken for the keyword.
+func keywordOutsideQuotes(s, keyword string, start int) int {
+	upper := strings.ToUpper(s)
+	for i := start; i+len(keyword) <= len(s); i++ {
+		if s[i] == '"' {
+			i++
+			for i < len(s) {
+				if s[i] == '"' {
+					if i+1 < len(s) && s[i+1] == '"' {
+						i++
+					} else {
+						break
+					}
+				}
+				i++
+			}
+			continue
+		}
+		if strings.HasPrefix(upper[i:], keyword) {
+			return i
+		}
+	}
+	return -1
 }
 
 // parenthesized returns the text inside the first parenthesis at or after

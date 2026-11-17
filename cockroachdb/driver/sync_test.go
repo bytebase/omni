@@ -216,7 +216,9 @@ CREATE SCHEMA app;
 CREATE TABLE app.parent_comma ("last,first" INT8 PRIMARY KEY);
 CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("last,first"));
 CREATE TABLE app.parent_paren ("x(y" INT8 PRIMARY KEY);
-CREATE TABLE app.child_paren ("x(y" INT8 REFERENCES app.parent_paren("x(y"));`)
+CREATE TABLE app.child_paren ("x(y" INT8 REFERENCES app.parent_paren("x(y"));
+CREATE TABLE app.parent_ref ("references" INT8 PRIMARY KEY);
+CREATE TABLE app.child_ref ("references" INT8 REFERENCES app.parent_ref("references"));`)
 
 	got, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -260,6 +262,17 @@ CREATE TABLE app.child_paren ("x(y" INT8 REFERENCES app.parent_paren("x(y"));`)
 					}
 					if len(fk.ReferencedColumns) != 1 || fk.ReferencedColumns[0] != "x(y" {
 						t.Errorf("referenced columns = %+v, want x(y", fk.ReferencedColumns)
+					}
+				case "child_ref":
+					if len(table.ForeignKeys) != 1 {
+						t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
+					}
+					fk := table.ForeignKeys[0]
+					if len(fk.Columns) != 1 || fk.Columns[0] != "references" {
+						t.Errorf("columns = %+v, want references", fk.Columns)
+					}
+					if len(fk.ReferencedColumns) != 1 || fk.ReferencedColumns[0] != "references" {
+						t.Errorf("referenced columns = %+v, want references", fk.ReferencedColumns)
 					}
 				}
 			}
