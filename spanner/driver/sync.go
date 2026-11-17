@@ -228,8 +228,12 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	defer tx.Close()
 
 	// A PostgreSQL database answers a catalog of its own spelling, and the sync
-	// asks the one the server just named.
-	queries := catalogFor(dialectOf(database.Dialect))
+	// asks the one the server just named. The answer is also what a query splits
+	// by afterwards, so the driver records it: Open may have found no database to
+	// ask, and a sync is the later truth.
+	parsed := dialectOf(database.Dialect)
+	d.setDialect(parsed)
+	queries := catalogFor(parsed)
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name: d.databaseName,
 	}

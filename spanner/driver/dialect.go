@@ -21,3 +21,12 @@ func dialectOf(name string) dialect {
 	}
 	return googleSQL
 }
+
+// dialectName is the dialect as the admin API spells it, and empty for the API's
+// own, GoogleSQL, which is what a creation asks for when it names nothing.
+func dialectName(d dialect) string {
+	if d == postgresSQL {
+		return DialectPostgresSQL
+	}
+	return ""
+}

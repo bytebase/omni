@@ -136,22 +136,44 @@ func TestFirstTwoKeywordsPostgres(t *testing.T) {
 	}
 }
 
-// TestCreateDatabaseDialect reads the dialect a creation script asks for: the
-// quoting of its name is the only signal it carries.
-func TestCreateDatabaseDialect(t *testing.T) {
-	tests := map[string]string{
-		`CREATE DATABASE "d"`:                        DialectPostgresSQL,
-		`create database "d"`:                        DialectPostgresSQL,
-		"-- a note\nCREATE DATABASE /* x */ \"d\"":   DialectPostgresSQL,
-		"CREATE DATABASE `d`":                        "",
-		`CREATE DATABASE d`:                          "",
-		`CREATE DATABASE "d" WITH VERSION READ_ONLY`: DialectPostgresSQL,
-		`CREATE TABLE t (id bigint)`:                 "",
-		`-- only a note`:                             "",
+// TestCreateDatabaseStatement reads the dialect and the name a creation script
+// gives, including the comments either dialect may put before it: GoogleSQL's
+// `#` line comment and PostgreSQL's nested block comment.
+func TestCreateDatabaseStatement(t *testing.T) {
+	tests := []struct {
+		script  string
+		dialect dialect
+		name    string
+	}{
+		{script: `CREATE DATABASE "d"`, dialect: postgresSQL, name: "d"},
+		{script: `create database "d"`, dialect: postgresSQL, name: "d"},
+		{script: "-- a note\nCREATE DATABASE /* x */ \"d\"", dialect: postgresSQL, name: "d"},
+		// GoogleSQL reads a `#` line, where PostgreSQL's lexer would read three
+		// tokens and take the comment's quoted word for the name.
+		{script: "# a note with \"quotes\"\nCREATE DATABASE `d`", dialect: googleSQL, name: "d"},
+		// PostgreSQL reads a nested block comment, where GoogleSQL's lexer would
+		// end the comment early.
+		{script: "/* a /* nested */ note */\nCREATE DATABASE \"d\"", dialect: postgresSQL, name: "d"},
+		{script: "CREATE DATABASE `d`", dialect: googleSQL, name: "d"},
+		{script: `CREATE DATABASE d`, dialect: googleSQL, name: "d"},
+		{script: `CREATE DATABASE "d" WITH VERSION READ_ONLY`, dialect: postgresSQL, name: "d"},
+		{script: `CREATE TABLE t (id bigint)`, dialect: googleSQL},
+		{script: `-- only a note`, dialect: googleSQL},
 	}
-	for text, want := range tests {
-		require.Equal(t, want, createDatabaseDialect(text), text)
+	for _, tc := range tests {
+		t.Run(tc.script, func(t *testing.T) {
+			d, name := createDatabaseStatement(tc.script)
+			require.Equal(t, tc.dialect, d)
+			require.Equal(t, tc.name, name)
+		})
 	}
+}
+
+// TestDialectName is the admin API's spelling of a creation's dialect: empty is
+// its own, GoogleSQL, which is what a creation asks for when it names nothing.
+func TestDialectName(t *testing.T) {
+	require.Equal(t, DialectPostgresSQL, dialectName(postgresSQL))
+	require.Empty(t, dialectName(googleSQL))
 }
 
 // TestDialectOf reads the admin API's spelling.

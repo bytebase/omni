@@ -125,18 +125,11 @@ func classifyStatement(text string, d dialect) (statementKind, bool) {
 // that holds only comments: each dialect's lexer skips its own comments, a
 // PostgreSQL nested block comment included.
 func firstKeyword(text string, d dialect) string {
-	if d == postgresSQL {
-		tok := pgparser.NewLexer(text).NextToken()
-		if tok.End <= tok.Loc {
-			return ""
-		}
-		return text[tok.Loc:tok.End]
-	}
-	tok := parser.NewLexer(text).NextToken()
-	if tok.Loc.End <= tok.Loc.Start {
+	tokens := firstTokens(text, d, 1)
+	if len(tokens) == 0 {
 		return ""
 	}
-	return text[tok.Loc.Start:tok.Loc.End]
+	return tokens[0]
 }
 
 // firstTwoKeywords returns text's first two keywords as they are written, upper
@@ -144,26 +137,39 @@ func firstKeyword(text string, d dialect) string {
 // words answers what it has.
 func firstTwoKeywords(text string, d dialect) [2]string {
 	var keywords [2]string
+	tokens := firstTokens(text, d, len(keywords))
+	for i := range keywords {
+		if i < len(tokens) {
+			keywords[i] = strings.ToUpper(tokens[i])
+		}
+	}
+	return keywords
+}
+
+// firstTokens returns text's first count tokens as they are written, with the
+// dialect's lexer skipping its comments, and stops at the end of the text.
+func firstTokens(text string, d dialect, count int) []string {
+	tokens := make([]string, 0, count)
 	if d == postgresSQL {
 		lexer := pgparser.NewLexer(text)
-		for i := range keywords {
+		for len(tokens) < count {
 			tok := lexer.NextToken()
 			if tok.End <= tok.Loc {
 				break
 			}
-			keywords[i] = strings.ToUpper(text[tok.Loc:tok.End])
+			tokens = append(tokens, text[tok.Loc:tok.End])
 		}
-		return keywords
+		return tokens
 	}
 	lexer := parser.NewLexer(text)
-	for i := range keywords {
+	for len(tokens) < count {
 		tok := lexer.NextToken()
 		if tok.Loc.End <= tok.Loc.Start {
 			break
 		}
-		keywords[i] = strings.ToUpper(text[tok.Loc.Start:tok.Loc.End])
+		tokens = append(tokens, text[tok.Loc.Start:tok.Loc.End])
 	}
-	return keywords
+	return tokens
 }
 
 // rewriteResultLimit lowers statement's outermost LIMIT with the dialect's own
@@ -191,7 +197,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	}
 
 	var results []*driver.Result
-	for _, statement := range statements(script, s.driver.dialect) {
+	for _, statement := range statements(script, s.driver.getDialect()) {
 		startTime := time.Now()
 		result, err := s.run(ctx, statement, opts)
 		stop := false
@@ -220,7 +226,7 @@ func (s *session) run(ctx context.Context, statement statement, opts driver.Quer
 	case query:
 		text := statement.Text
 		if opts.Limit > 0 {
-			text = rewriteResultLimit(text, opts.Limit, s.driver.dialect)
+			text = rewriteResultLimit(text, opts.Limit, s.driver.getDialect())
 		}
 		result, err := s.queryStatement(ctx, text, opts)
 		if result != nil {
@@ -296,7 +302,7 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 // showed.
 func (s *session) explainStatement(ctx context.Context, script string, _ driver.QueryOptions) ([]*driver.Result, error) {
 	var results []*driver.Result
-	for _, statement := range statements(script, s.driver.dialect) {
+	for _, statement := range statements(script, s.driver.getDialect()) {
 		startTime := time.Now()
 		result, err := func() (*driver.Result, error) {
 			// Spanner refuses DML in a single-use read-only transaction, so

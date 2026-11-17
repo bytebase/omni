@@ -246,3 +246,50 @@ func TestExecuteCreateDatabasePostgres(t *testing.T) {
 	a.Len(metadata.Schemas[0].Tables, 1)
 	a.Equal("written", metadata.Schemas[0].Tables[0].Name)
 }
+
+// TestExecuteCreateDatabaseWithAHashHeader creates a database from a GoogleSQL
+// script that begins with a `#` line comment: the dialect is read with
+// GoogleSQL's lexer first, which skips that comment rather than taking a quoted
+// word in it for the database name.
+func TestExecuteCreateDatabaseWithAHashHeader(t *testing.T) {
+	a := require.New(t)
+	testcontainer.Create(t, "createdb", "createdb", nil, nil)
+	d := openDriver(t, "createdb", "createdb")
+	defer d.Close()
+
+	count, err := d.Execute(context.Background(),
+		"# provision the \"warehouse\"\nCREATE DATABASE `createdhash`; CREATE TABLE Written (Id INT64 NOT NULL) PRIMARY KEY (Id)",
+		driver.ExecuteOptions{CreateDatabase: true})
+	a.NoError(err)
+	a.Equal(int64(0), count)
+
+	created := openDriver(t, "createdb", "createdhash")
+	defer created.Close()
+	var dumped strings.Builder
+	a.NoError(created.Dump(context.Background(), &dumped, nil))
+	a.Contains(dumped.String(), "CREATE TABLE Written")
+}
+
+// TestExecuteCreateDatabaseRefreshesTheDialect creates the database the driver is
+// open on with a PostgreSQL creation script. Open found no database to read a
+// dialect from and left GoogleSQL, so the creation is what the query after it
+// splits by: a dollar-quoted string with a semicolon in it stays one statement.
+func TestExecuteCreateDatabaseRefreshesTheDialect(t *testing.T) {
+	a := require.New(t)
+	// The instance exists; the database the driver is opened on does not.
+	testcontainer.CreatePostgres(t, "pgfresh", "seed", nil, nil)
+	d := openDriverWithDialect(t, "pgfresh", "pgfresh", googleSQL)
+	defer d.Close()
+
+	count, err := d.Execute(context.Background(),
+		`CREATE DATABASE "pgfresh"`, driver.ExecuteOptions{CreateDatabase: true})
+	a.NoError(err)
+	a.Equal(int64(0), count)
+
+	results, err := sessionOf(t, d).Query(context.Background(),
+		`SELECT $$a;b$$ AS x`, driver.QueryOptions{MaxResultBytes: maxResultBytes})
+	a.NoError(err)
+	a.Len(results, 1)
+	a.NoError(results[0].Err)
+	a.Equal([]driver.Value{{Kind: driver.String, String: "a;b"}}, results[0].Rows[0])
+}

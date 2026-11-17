@@ -158,6 +158,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sync/atomic"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -192,8 +193,20 @@ type Driver struct {
 	databaseName string
 	// instancePath is projects/<project>/instances/<instance>.
 	instancePath string
-	// dialect is the database's dialect, read by Open.
-	dialect dialect
+	// dialect is the database's dialect. Open reads it, and a creation or a sync
+	// of the database refreshes it, so it is read atomically: a Driver is safe
+	// for concurrent use.
+	dialect atomic.Int32
+}
+
+// getDialect returns the database's dialect.
+func (d *Driver) getDialect() dialect {
+	return dialect(d.dialect.Load())
+}
+
+// setDialect records the database's dialect.
+func (d *Driver) setDialect(value dialect) {
+	d.dialect.Store(int32(value))
 }
 
 // Open returns a driver for the instance and database cfg names. It reads the
@@ -219,11 +232,12 @@ func Open(ctx context.Context, cfg driver.Config) (*Driver, error) {
 		database, err := c.GetDatabase(ctx, d.databasePath(""))
 		switch {
 		case err == nil:
-			d.dialect = dialectOf(database.Dialect)
+			d.setDialect(dialectOf(database.Dialect))
 		case status.Code(err) == codes.NotFound:
 			// A database that is not there is not Open's error: a caller may open
 			// one to drop it, and SyncDatabase reports it as driver.ErrNotFound.
-			// Its dialect stays GoogleSQL.
+			// Its dialect stays GoogleSQL until a creation or a sync of that
+			// database reads it.
 		default:
 			_ = c.Close()
 			return nil, fmt.Errorf("failed to read the dialect of database %q: %w", cfg.Database, err)

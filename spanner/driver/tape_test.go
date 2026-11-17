@@ -33,12 +33,13 @@ func openDriver(t testing.TB, instance, database string) *Driver {
 // openDriverWithDialect is openDriver for a fixture of a named dialect.
 func openDriverWithDialect(t testing.TB, instance, database string, d dialect) *Driver {
 	t.Helper()
-	return &Driver{
+	driver := &Driver{
 		client:       OpenTape(t, instance, database),
 		databaseName: database,
 		instancePath: testcontainer.InstancePath(instance),
-		dialect:      d,
 	}
+	driver.setDialect(d)
+	return driver
 }
 
 // OpenTape returns t's client to database on instance: a replay of its tape or,
