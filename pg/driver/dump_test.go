@@ -128,6 +128,68 @@ func TestDumpRestoresOverloadedFunctionDefault(t *testing.T) {
 	}
 }
 
+// TestDumpRestoresForeignTableDefaults checks that a foreign table follows the
+// sequence and function its column defaults name: those are created through the
+// same dependency order as an ordinary table's.
+func TestDumpRestoresForeignTableDefaults(t *testing.T) {
+	setup := "CREATE EXTENSION postgres_fdw;\n" +
+		"CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE SEQUENCE public.remote_id;\n" +
+		"CREATE FUNCTION public.remote_token() RETURNS text LANGUAGE sql AS $$ SELECT 'x'::text $$;\n" +
+		"CREATE FOREIGN TABLE public.remote_defaults (\n" +
+		"    id bigint OPTIONS (column_name 'remote_id') DEFAULT nextval('public.remote_id'),\n" +
+		"    token text DEFAULT public.remote_token(),\n" +
+		"    CONSTRAINT remote_positive CHECK (id > 0)\n" +
+		") SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');\n" +
+		"CREATE SEQUENCE public.remote_owned_seq OWNED BY public.remote_defaults.id;\n" +
+		"COMMENT ON COLUMN public.remote_defaults.token IS 'remote token';\n" +
+		"COMMENT ON CONSTRAINT remote_positive ON public.remote_defaults IS 'remote positive';\n" +
+		"CREATE FUNCTION public.remote_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\n" +
+		"CREATE TRIGGER remote_defaults_trg BEFORE INSERT ON public.remote_defaults FOR EACH ROW EXECUTE FUNCTION public.remote_audit();\n" +
+		"CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_default", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
+// TestDumpRestoresForeignPartition checks that a foreign table that is also a
+// partition is created once, as a foreign table, and attached to its parent.
+func TestDumpRestoresForeignPartition(t *testing.T) {
+	setup := "CREATE EXTENSION postgres_fdw;\n" +
+		"CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE TABLE public.pt (id integer CHECK (id > 0)) PARTITION BY RANGE (id);\n" +
+		"CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)\n" +
+		"    SERVER loopback OPTIONS (schema_name 'public', table_name 'x');\n" +
+		"COMMENT ON FOREIGN TABLE public.pt_remote IS 'remote partition';\n" +
+		"COMMENT ON CONSTRAINT pt_id_check ON public.pt_remote IS 'remote check';\n" +
+		"CREATE FUNCTION public.pt_audit() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NEW; END $$;\n" +
+		"CREATE TRIGGER pt_trg BEFORE INSERT ON public.pt FOR EACH ROW EXECUTE FUNCTION public.pt_audit();\n" +
+		"CREATE SEQUENCE public.pt_remote_seq OWNED BY public.pt_remote.id;"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_partition", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
+// TestDumpRestoresForeignDataWrapper checks that a wrapper the database
+// declares itself is written before the server that names it, with its handler,
+// validator and options.
+func TestDumpRestoresForeignDataWrapper(t *testing.T) {
+	setup := "CREATE EXTENSION postgres_fdw;\n" +
+		"CREATE FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE SERVER bare_server FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE FOREIGN DATA WRAPPER handled_fdw HANDLER postgres_fdw_handler VALIDATOR postgres_fdw_validator;\n" +
+		"CREATE SERVER handled_server FOREIGN DATA WRAPPER handled_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE SERVER typed_server TYPE 'foo' VERSION '1' FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE SERVER empty_server TYPE '' VERSION '' FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE FOREIGN TABLE public.handled_remote (id integer) SERVER handled_server OPTIONS (schema_name 'public', table_name 'x');"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_wrapper", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
 // restoreDiff compares a source database and its dump's restore, ignoring
 // what a restore cannot carry: the database name, a table's physical sizes
 // and row estimate, and the column positions the source's dropped columns
@@ -183,17 +245,6 @@ func restoreDefinition(t *testing.T, role, sourceName, setup string, render rend
 		t.Fatalf("syncing the restored database: %v", err)
 	}
 	return m, restoredMeta
-}
-
-// dumpAndRestore syncs setup into sourceName on the server of role, dumps
-// it, and restores the dump into sourceName+"_restored", returning the
-// source metadata, the restored database's name, and the server's restore
-// error. Each caller names its own source so that a package's databases hold
-// nothing another test made.
-func dumpAndRestore(t *testing.T, role, sourceName, setup string) (*metadatapb.DatabaseSchemaMetadata, string, error) {
-	t.Helper()
-	m, restoredName, err := renderAndRestore(t, role, sourceName, setup, dumpDefinition)
-	return m, restoredName, err
 }
 
 // renderAndRestore syncs setup into sourceName, restores render(snapshot) into
@@ -291,64 +342,4 @@ func restorable(corpus string) string {
 		}
 	}
 	return strings.Join(kept, "\n")
-}
-
-// TestDumpGaps holds what a dump cannot faithfully restore yet. A gap whose
-// wantErr is set is one the server refuses outright; a gap with an empty
-// wantErr restores but loses what the metadata cannot carry, so the
-// round-trip differs. A gap that names what the restored server answers lost
-// is one the metadata cannot carry at all: the round trip agrees, and only the
-// server shows what the source had. A gap that closes fails here: move its
-// corpus line back into TestDumpRestores by dropping its gapMarker.
-func TestDumpGaps(t *testing.T) {
-	for _, gap := range []struct {
-		// db names the gap's own source database, so one gap's objects never
-		// reach another's sync.
-		name, db, setup, wantErr string
-		// lost is a query the restored database answers, and want what it
-		// answers, for a gap the synced snapshot holds nothing of.
-		lost, want string
-	}{
-		// A foreign table's server and its options are not synced, so the
-		// dump omits the server and the foreign table; the table's synced
-		// external_database_name is the local database besides, which a
-		// restore into another database could not reproduce.
-		{
-			"foreign table", "omni_gap_foreign",
-			"CREATE EXTENSION postgres_fdw;\n" +
-				"CREATE SERVER srv FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
-				"CREATE FOREIGN TABLE ft (id int) SERVER srv OPTIONS (schema_name 'public', table_name 'x');",
-			"", "", "",
-		},
-	} {
-		t.Run(gap.name, func(t *testing.T) {
-			if gap.wantErr != "" {
-				_, _, err := dumpAndRestore(t, testcontainer.Default, gap.db, gap.setup)
-				if err == nil || !strings.Contains(err.Error(), gap.wantErr) {
-					t.Fatalf("restoring the dump: %v, want an error containing %q; if the gap closed, remove it", err, gap.wantErr)
-				}
-				return
-			}
-			source, restored := restoreDump(t, testcontainer.Default, gap.db, gap.setup)
-			diff := restoreDiff(source, restored)
-			if gap.lost == "" {
-				if diff == "" {
-					t.Fatalf("the restore reproduced the source; if the gap closed, remove it")
-				}
-				return
-			}
-			if diff != "" {
-				t.Fatalf("the restore differs from the source, so the snapshot does carry what the gap names; if the gap closed, remove it:\n%s", diff)
-			}
-			db := testcontainer.OpenDatabase(t, testcontainer.Default, gap.db+"_restored")
-			defer db.Close()
-			var got string
-			if err := db.QueryRow(gap.lost).Scan(&got); err != nil {
-				t.Fatalf("reading the restored database: %v", err)
-			}
-			if got != gap.want {
-				t.Fatalf("the restore answered %q, want %q; if the gap closed, remove it", got, gap.want)
-			}
-		})
-	}
 }

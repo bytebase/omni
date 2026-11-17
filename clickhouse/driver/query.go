@@ -70,7 +70,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			statement = statementWithResultLimit(statement, opts.Limit)
 		}
 		startTime := time.Now()
-		allQuery, err := validateSQLForEditor(statement)
+		withRows, err := statementReadsRows(statement)
 		if err != nil {
 			results = append(results, &driver.Result{Statement: statement, Err: err, Latency: time.Since(startTime)})
 			break
@@ -78,7 +78,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 
 		var result *driver.Result
 		var queryErr error
-		if allQuery {
+		if withRows {
 			result, queryErr = s.runQuery(ctx, statement, opts.MaxResultBytes)
 		} else {
 			result, queryErr = s.runExec(ctx, statement)

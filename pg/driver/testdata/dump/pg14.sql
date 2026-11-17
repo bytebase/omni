@@ -134,6 +134,8 @@ CREATE SEQUENCE "public"."plain_a_seq"
 
 SET default_tablespace = '';
 
+CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+
 CREATE TABLE "Mixed Case"."Table" (
     "Id" integer NOT NULL,
     "Value" text
@@ -570,6 +572,11 @@ CREATE TABLE "public"."z_source" (
 );
 
 ALTER TABLE "public"."z_source" OWNER TO "postgres";
+
+CREATE FOREIGN TABLE "audit"."remote_orders" (
+    "id" integer NOT NULL,
+    "note" character varying(30)
+) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 
 CREATE VIEW "app"."customer_names" AS 
  SELECT customer.id,

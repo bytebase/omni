@@ -345,6 +345,19 @@ func pastBlockComment(s string) (string, bool) {
 	return "", false
 }
 
+// statementReadsRows reports whether the server answers statement with rows.
+// The editor's read-only classification calls EXPLAIN ANALYZE a write, because
+// it runs what it plans, yet the server answers with the plan: a statement that
+// starts with EXPLAIN is read back with Query whichever kind it names, so the
+// plan is not thrown away and then reported as Result.Plan.
+func statementReadsRows(statement string) (bool, error) {
+	query, err := validateSQLForEditor(statement)
+	if err != nil {
+		return false, err
+	}
+	return query || startsWithExplain(statement), nil
+}
+
 // validateSQLForEditor reports whether statement is a read-only query the
 // editor may run with Query rather than Exec. It removes quoted text and
 // comments, then classifies the leading keyword: SELECT, EXPLAIN (not EXPLAIN

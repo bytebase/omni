@@ -15,15 +15,33 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
-// TestDumpRestores syncs a corpus, dumps it, empties the schema, applies the
-// dump, and requires the resynced database to equal the source.
+// TestDumpRestores syncs a corpus, dumps it, checks the renderings a restore
+// cannot judge, empties the schema, applies the dump, and requires the resynced
+// database to equal the source.
 func TestDumpRestores(t *testing.T) {
 	corpus, err := os.ReadFile(filepath.Join("testdata", "dump", "corpus.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	d := openTestDriver(t)
-	source, restored, _ := dumpAndRestore(t, d, string(corpus))
+	ctx := context.Background()
+	execCorpus(t, d.db, string(corpus))
+	source, err := d.SyncDatabase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var script strings.Builder
+	if err := d.Dump(ctx, &script, source); err != nil {
+		t.Fatal(err)
+	}
+	dump := script.String()
+	assertRendering(t, dump)
+	execCorpus(t, d.db, dropScript(source))
+	execCorpus(t, d.db, dump)
+	restored, err := d.SyncDatabase(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("restored database differs from source (-source +restored):\n%s", diff)
 	}
@@ -107,25 +125,29 @@ GO
 	}
 }
 
-func dumpAndRestore(t *testing.T, d *Driver, setup string) (*metadatapb.DatabaseSchemaMetadata, *metadatapb.DatabaseSchemaMetadata, string) {
+// assertRendering pins what restoring the dump cannot judge. A filtered index
+// restored without its predicate, and a view followed by a second semicolon,
+// both execute and resync into a database SQL Server treats as the source's,
+// so only the script's text holds the shapes Dump renders.
+func assertRendering(t *testing.T, dump string) {
 	t.Helper()
-	ctx := context.Background()
-	execCorpus(t, d.db, setup)
-	source, err := d.SyncDatabase(ctx)
-	if err != nil {
-		t.Fatal(err)
+	// The predicate is SQL Server's text, brackets and term order kept, and it
+	// follows the key and INCLUDE lists as part of the index.
+	const filteredIndex = ") INCLUDE ([status])\nWHERE ([parent_id]>(0) AND [note] IS NOT NULL);"
+	if !strings.Contains(dump, filteredIndex) {
+		t.Errorf("the filtered index does not render its predicate after its INCLUDE list; restoring the dump then drops the filter. Want:\n%s", filteredIndex)
 	}
-	var dump strings.Builder
-	if err := d.Dump(ctx, &dump, source); err != nil {
-		t.Fatal(err)
+	// A synced view definition keeps the trailing semicolon the CREATE VIEW was
+	// run with, so the dump trims it and adds one back. Appending
+	// unconditionally would grow a semicolon on every restore.
+	const view = "CREATE VIEW [dump].[v_parents] AS\n" +
+		"\tSELECT [id], [name] FROM [dump].[parents];\n" +
+		"\nGO\n\n" +
+		"EXEC sp_addextendedproperty 'MS_Description', N'view note', 'SCHEMA', 'dump', 'VIEW', 'v_parents';\n" +
+		"GO\n"
+	if !strings.Contains(dump, view) {
+		t.Errorf("the view does not render its body once, ending in one semicolon, with its comment in the next batch. Want:\n%s", view)
 	}
-	execCorpus(t, d.db, dropScript(source))
-	execCorpus(t, d.db, dump.String())
-	restored, err := d.SyncDatabase(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return source, restored, dump.String()
 }
 
 func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {

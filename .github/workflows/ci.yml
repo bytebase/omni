@@ -55,6 +55,13 @@ jobs:
       - name: Build
         run: go build ./...
 
+      # A document's recording command must name a real test: a -run pattern
+      # that matches nothing exits 0, records nothing, and reads as a pass in a
+      # file meant to be executed later. It runs here, not under affected
+      # packages, because a Markdown-only change tests no package there.
+      - name: Documented recording commands name real tests
+        run: go test -count=1 ./enginetest/ -run '^TestDocumentedRecordingCommands$'
+
       # Fails an edited judge's answer, a regression committed as omni's
       # verdict, and a pin bump that also changes code (enginetest/compat.Guard).
       - name: Engine answers change only by recording
