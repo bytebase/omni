@@ -327,11 +327,13 @@ Every one is a decision the recording settles.
 | a procedure call's rows are withheld from a caller that masks columns | an OUT or INOUT value has no column lineage to trace, so a masked caller is given the affected-row count instead |
 | a reference that begins with a relation's alias or name is left alone | `FROM app.orders AS shared, shared.products` reads a SUPER column of the aliased relation, so its text is not the database's name |
 | the statements after `CREATE DATABASE` run on a connection to the new database | they initialize it; the driver is open on the database the step started from, and would otherwise create them there |
-| a transactional script refuses TRUNCATE, VACUUM and a database statement | Redshift commits those on their own, so a script holding one cannot be rolled back as a whole; the caller runs it in autocommit mode |
+| a transactional script refuses TRUNCATE, VACUUM, a database statement and its own transaction control | Redshift commits the first three on their own and the last would end the transaction the call owns, so the script cannot be rolled back as a whole; the caller runs it in autocommit mode |
 | a `dbname` in Params is the database the connection uses | Params are applied last, so their value overrides Config.Database and Redshift's default |
 | a derived table's alias is collected like a base table's | the alias after a subquery names the derived table, so a reference beginning with it is a column, not the database |
 | the initialization connection drops a `dbname` in Params | the statements after CREATE DATABASE run in the database just created, and a Params override would send them to the one the step started from |
 | a `dbname` in Params is read as pgx parsed it, quotes included in the libpq value | the parameter is connection-string text, so `'analytics'` names `analytics` |
+| a transactional script refuses its own transaction control | a `BEGIN`, `COMMIT`, `END` or `ROLLBACK` in the script would decide the transaction the call promised to own |
+| a `user` or `password` in Params is the login the connection uses | Params are applied last, so their values override Config's, and require no Config user |
 
 ## What would unblock it
 

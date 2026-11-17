@@ -58,10 +58,10 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	return d.executeInTransactionMode(ctx, commands, opts.Log)
 }
 
-// refuseImplicitCommit reports the statements Redshift commits on its own,
-// which a transactional script cannot promise to roll back: TRUNCATE and
-// VACUUM commit the transaction they run in, and a database statement cannot
-// run inside one at all.
+// refuseImplicitCommit reports the statements a transactional script cannot
+// hold: TRUNCATE and VACUUM commit the transaction they run in, a database
+// statement cannot run inside one at all, and a transaction-control statement
+// would commit or end the transaction this call promised to own.
 func refuseImplicitCommit(statement string) error {
 	stmts, err := redshift.Parse(statement)
 	if err != nil {
@@ -71,6 +71,10 @@ func refuseImplicitCommit(statement string) error {
 		switch stmt.AST.(type) {
 		case *ast.TruncateStmt, *ast.VacuumStmt, *ast.CreatedbStmt, *ast.DropdbStmt:
 			return fmt.Errorf("the script holds a statement Redshift commits on its own (%s), so it cannot run in one transaction; run it in autocommit mode", stmt.Text)
+		case *ast.TransactionStmt:
+			// BEGIN, COMMIT, END and ROLLBACK in a script would decide the
+			// transaction this call promised to own.
+			return fmt.Errorf("the script holds its own transaction control (%s), so it cannot run in one transaction; run it in autocommit mode", stmt.Text)
 		}
 	}
 	return nil

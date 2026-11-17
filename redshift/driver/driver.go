@@ -163,7 +163,7 @@ func isDatashare(cfg driver.Config) bool {
 // queries run with default_query_exec_mode=exec and no statement cache, which
 // connection poolers in front of a cluster need.
 func connConfig(cfg driver.Config) (*pgx.ConnConfig, error) {
-	if cfg.User == "" {
+	if cfg.User == "" && cfg.Params["user"] == "" {
 		return nil, fmt.Errorf("user must be set")
 	}
 	var dsn []string
@@ -194,8 +194,15 @@ func connConfig(cfg driver.Config) (*pgx.ConnConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	connConfig.User = cfg.User
-	connConfig.Password = cfg.Password
+	// Params are applied last, so a user or password they name is the login the
+	// connection uses — as pgx parsed it, since the value is libpq text.
+	// Config's are the next choice.
+	if _, ok := cfg.Params["user"]; !ok {
+		connConfig.User = cfg.User
+	}
+	if _, ok := cfg.Params["password"]; !ok {
+		connConfig.Password = cfg.Password
+	}
 	// Params are applied last, so a dbname they name is the database the
 	// connection uses — as pgx parsed it, since the value is libpq text.
 	// Config.Database is the next choice, and Redshift's own default the last.

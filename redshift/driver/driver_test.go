@@ -140,6 +140,37 @@ func TestConnConfigBuildsTheConnection(t *testing.T) {
 			},
 		},
 		{
+			name: "a user and a password in Params are the login",
+			cfg: driver.Config{
+				User:     "dba",
+				Password: "configured",
+				Host:     "redshift.example.com",
+				Port:     "5439",
+				Params:   map[string]string{"user": "loader", "password": "'fr0m-par4ms'"},
+			},
+			want: func(t *testing.T, got *pgx.ConnConfig) {
+				if got.User != "loader" {
+					t.Errorf("User = %q, want loader: Params are applied last", got.User)
+				}
+				if got.Password != "fr0m-par4ms" {
+					t.Errorf("Password = %q, want the libpq value decoded", got.Password)
+				}
+			},
+		},
+		{
+			name: "a user in Params needs no Config user",
+			cfg: driver.Config{
+				Host:   "redshift.example.com",
+				Port:   "5439",
+				Params: map[string]string{"user": "loader"},
+			},
+			want: func(t *testing.T, got *pgx.ConnConfig) {
+				if got.User != "loader" {
+					t.Errorf("User = %q, want loader", got.User)
+				}
+			},
+		},
+		{
 			name: "a quoted dbname in Params is read as pgx reads it",
 			cfg: driver.Config{
 				User:     "dba",

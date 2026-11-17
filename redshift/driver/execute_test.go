@@ -40,6 +40,9 @@ func TestRefuseImplicitCommit(t *testing.T) {
 		{statement: "vacuum full facts", want: true},
 		{statement: "CREATE DATABASE other", want: true},
 		{statement: "DROP DATABASE other", want: true},
+		{statement: "COMMIT", want: true},
+		{statement: "END", want: true},
+		{statement: "BEGIN", want: true},
 	} {
 		err := refuseImplicitCommit(tc.statement)
 		if tc.want && err == nil {
