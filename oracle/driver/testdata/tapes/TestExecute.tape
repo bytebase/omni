@@ -52,7 +52,7 @@
 > query
 | SELECT LABEL FROM OMNI_APP.Q WHERE ID = 4
 < result
-< column "LABEL" "NCHAR"
+< column "LABEL" "NCHAR" "string"
 < row
 : string
 | e

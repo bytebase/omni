@@ -18,6 +18,11 @@
 // supports (Syncer, Dumper, Querier, Executor). Open does not reach the
 // server; Ping does. A Driver is safe for concurrent use.
 //
+// A capability only some engines have, or one that a session rather than the
+// driver answers, is a probe interface in probe.go: a caller that must know it
+// asks the driver, or the session it got from Querier.Session, for the
+// interface by name.
+//
 // Identifiers that a caller maps onto its own enums cross as strings equal
 // to those enum names (Message.Level, TransactionOp), so the two sides
 // tolerate being on different versions: a name one side does not know is
@@ -62,7 +67,9 @@ type Config struct {
 
 	// Dial opens the network connection in place of net.Dialer: an SSH
 	// tunnel or a cloud connector. The driver still speaks the engine's
-	// protocol, TLS included, over what Dial returns.
+	// protocol, TLS included, over what Dial returns. A driver whose engine's
+	// client cannot hold a dialer says so in its package doc and names what a
+	// caller must do instead (hive: forward a local port).
 	Dial func(ctx context.Context, network, address string) (net.Conn, error)
 
 	// Params are connection parameters in the engine's own vocabulary and
@@ -105,13 +112,15 @@ type Syncer interface {
 	SyncDatabase(ctx context.Context) (*metadata.DatabaseSchemaMetadata, error)
 }
 
-// Dumper renders a synced schema as the engine's DDL. A dump renders the
-// metadata it is given and nothing else: a caller that leaves schemas out
-// removes them first. An engine whose server states its own DDL and has no
-// catalog to render metadata with dumps that instead, and its package says the
-// metadata narrows nothing (Spanner). An engine whose metadata cannot recreate
-// its objects dumps nothing and reports no error, so that a caller's dump and
-// restore runs and restores nothing; its package says what the metadata lacks.
+// Dumper renders a synced schema as the engine's DDL. An implementation falls
+// into one of the three cases below.
+//
+// A metadata-rendered dump renders the metadata it is given and nothing else: a
+// caller that leaves schemas out removes them first. A server-DDL dump states
+// the server's own definition of every object in the database the driver is
+// open on and ignores the argument, so an edited or narrowed metadata changes
+// nothing in what it writes. A no-op dump writes nothing and returns no error,
+// and its package doc says why the engine has no DDL to render.
 type Dumper interface {
 	Dump(ctx context.Context, w io.Writer, db *metadata.DatabaseSchemaMetadata) error
 }

@@ -4,9 +4,12 @@
 // scripts.
 //
 // It implements Driver, Syncer, Dumper, Querier, Executor, planner row
-// estimates, and the live probes the reviews run. Dump renders the snapshot
-// through oracle/catalog; docs/migration/oracle/catalog.md lists what that
-// catalog restores and what it cannot.
+// estimates, and the live probes the reviews run. Dump is metadata-rendered:
+// oracle/catalog renders a table's, sequence's, index's or constraint's DDL from
+// the snapshot's fields, and writes a view's, materialized view's, routine's or
+// trigger's statement from the server's stored text that the snapshot carries.
+// Dump reads no server, so an edit or omission in the snapshot reaches the dump;
+// docs/migration/oracle/catalog.md lists what that snapshot cannot carry.
 //
 // A Config.Database names the schema every session switches to
 // (ALTER SESSION SET CURRENT_SCHEMA), which is how an Oracle connection selects

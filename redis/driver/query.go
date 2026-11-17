@@ -24,8 +24,9 @@ func (d *Driver) Session(ctx context.Context) (driver.Session, error) {
 }
 
 // Session runs a Redis script's commands on one connection. It implements
-// driver.Session, and adds QueryAllNodes for the all-nodes choice Bytebase's query
-// API offers per request, which the contract's QueryOptions has no field for.
+// driver.Session, and driver.AllNodesQuerier for the all-nodes choice Bytebase's
+// query API offers per request, which the contract's QueryOptions has no field
+// for.
 type Session struct {
 	driver  *Driver
 	session int
@@ -33,6 +34,8 @@ type Session struct {
 	// for concurrent use.
 	mu sync.Mutex
 }
+
+var _ driver.AllNodesQuerier = (*Session)(nil)
 
 // Close returns the session's connection to the pool.
 func (s *Session) Close() error {

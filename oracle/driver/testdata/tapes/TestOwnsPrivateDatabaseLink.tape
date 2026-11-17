@@ -8,7 +8,7 @@
 > query
 | SELECT COUNT(*) FROM SYS.USER_DB_LINKS
 < result
-< column "COUNT(*)" "NUMBER"
+< column "COUNT(*)" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | 0
@@ -18,7 +18,7 @@
 > query
 | SELECT COUNT(*) FROM SYS.USER_DB_LINKS
 < result
-< column "COUNT(*)" "NUMBER"
+< column "COUNT(*)" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | 1

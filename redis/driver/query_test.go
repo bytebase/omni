@@ -24,13 +24,22 @@ func query(t *testing.T, d *Driver, script string, opts driver.QueryOptions) []*
 	return results
 }
 
+// allNodes asks the session a caller holds for the contract's all-nodes
+// probe, which is the only way a cutover reaches QueryAllNodes.
+func allNodes(t *testing.T, session driver.Session) driver.AllNodesQuerier {
+	t.Helper()
+	probe, ok := session.(driver.AllNodesQuerier)
+	require.True(t, ok, "%T does not implement driver.AllNodesQuerier", session)
+	return probe
+}
+
 // queryAllNodes is query through Session's all-nodes path.
 func queryAllNodes(t *testing.T, d *Driver, script string, opts driver.QueryOptions) []*driver.Result {
 	t.Helper()
 	session, err := d.Session(context.Background())
 	require.NoError(t, err)
 	defer func() { require.NoError(t, session.Close()) }()
-	results, err := session.(*Session).QueryAllNodes(context.Background(), script, opts)
+	results, err := allNodes(t, session).QueryAllNodes(context.Background(), script, opts)
 	require.NoError(t, err)
 	return results
 }
@@ -231,9 +240,26 @@ func queryShards(t *testing.T, client client, script string, opts driver.QueryOp
 	d := &Driver{client: client}
 	session, err := d.Session(context.Background())
 	require.NoError(t, err)
-	results, err := session.(*Session).QueryAllNodes(context.Background(), script, opts)
+	results, err := allNodes(t, session).QueryAllNodes(context.Background(), script, opts)
 	require.NoError(t, err)
 	return results
+}
+
+// TestSessionIsAllNodesQuerier holds the all-nodes choice to the contract: the
+// session a Querier hands out answers the probe, and running it there is what a
+// caller sees.
+func TestSessionIsAllNodesQuerier(t *testing.T) {
+	d := &Driver{client: &shardClient{answers: [][]any{{"pong"}}, errs: [][]error{{nil}}}}
+	session, err := d.Session(context.Background())
+	require.NoError(t, err)
+	defer func() { require.NoError(t, session.Close()) }()
+
+	results, err := allNodes(t, session).QueryAllNodes(context.Background(), "PING", driver.QueryOptions{})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	require.Len(t, results[0].Rows, 1)
+	_, value := row(t, results[0].Rows[0])
+	require.Equal(t, "pong", value)
 }
 
 // TestQueryAllNodesAcrossShards holds a command's rows to every node's answers, in
