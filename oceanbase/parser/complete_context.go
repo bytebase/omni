@@ -626,7 +626,11 @@ func cteDefinitionVisible(def RangeReference, at int, recursive bool) bool {
 	if def.BodyLoc.End >= 0 && def.BodyLoc.End <= at {
 		return true
 	}
-	return recursive && def.BodyLoc.Start >= 0 && def.BodyLoc.Start <= at && at <= def.BodyLoc.End
+	if !recursive || def.BodyLoc.Start < 0 || at < def.BodyLoc.Start {
+		return false
+	}
+	// An unterminated body runs to the end of the fragment.
+	return def.BodyLoc.End < 0 || at <= def.BodyLoc.End
 }
 
 // completionBlockEnd returns where the query block starting at idx ends: the
@@ -689,7 +693,20 @@ func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int) ([]Range
 		}
 		closeIdx := matchingParen(tokens, idx)
 		if closeIdx < 0 {
-			break
+			// The body is still being typed: the definition is there, with
+			// whatever columns the text already names, and its body runs to
+			// the end of the fragment.
+			if len(columns) == 0 {
+				columns = selectListColumns(tokens, idx+1, len(tokens), nesting+1)
+			}
+			ctes = append(ctes, RangeReference{
+				Kind:    RangeReferenceCTE,
+				Table:   name,
+				Columns: columns,
+				Loc:     tokenLoc(tokens[withIdx], tokens[len(tokens)-1]),
+				BodyLoc: nodes.Loc{Start: tokens[idx].Loc, End: -1},
+			})
+			return ctes, len(tokens)
 		}
 		if len(columns) == 0 {
 			columns = selectListColumns(tokens, idx+1, closeIdx, nesting+1)
@@ -832,6 +849,41 @@ func collectDMLScope(tokens []completionScopeToken, ctes cteLookup) (*RangeRefer
 
 // collectDDLScope returns the table an ALTER TABLE, TRUNCATE, or CREATE INDEX
 // statement names. Its clauses take that table's columns.
+// triggerRowScope returns the trigger's table under the NEW and OLD row
+// aliases: CREATE TRIGGER name {BEFORE|AFTER} event ON table FOR EACH ROW ...
+func triggerRowScope(tokens []completionScopeToken, idx, depth int) []RangeReference {
+	onIdx := findKeywordAtDepth(tokens, kwON, idx, len(tokens), depth)
+	if onIdx < 0 {
+		return nil
+	}
+	ref, next, ok := parseRangeReference(tokens, onIdx+1)
+	if !ok {
+		return nil
+	}
+	loc := tokenLoc(tokens[onIdx+1], tokens[next-1])
+	// INSERT provides NEW only and DELETE OLD only, as the parser's
+	// refuseTriggerRowRead enforces; UPDATE provides both.
+	aliases := []string{"NEW", "OLD"}
+	for i := idx; i < onIdx; i++ {
+		switch tokens[i].Type {
+		case kwINSERT:
+			aliases = []string{"NEW"}
+		case kwDELETE:
+			aliases = []string{"OLD"}
+		case kwUPDATE:
+			aliases = []string{"NEW", "OLD"}
+		}
+	}
+	var refs []RangeReference
+	for _, alias := range aliases {
+		row := ref
+		row.Alias = alias
+		row.Loc = loc
+		refs = append(refs, row)
+	}
+	return refs
+}
+
 func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeReference {
 	first := statementVerb(tokens)
 	if first < 0 {
@@ -869,6 +921,9 @@ func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeRef
 				continue
 			}
 			break
+		}
+		if idx < len(tokens) && tokens[idx].Type == kwTRIGGER {
+			return triggerRowScope(tokens, idx+1, depth)
 		}
 		if idx >= len(tokens) || tokens[idx].Type != kwINDEX {
 			return nil
@@ -911,7 +966,10 @@ func foreignKeyParentAt(tokens []completionScopeToken, first, depth, cursorOffse
 		}
 		closeIdx := matchingParen(tokens, next)
 		if closeIdx < 0 {
-			continue
+			// The column list is still being typed and runs to the end.
+			ref.Alias = ref.Table
+			ref.Loc = tokenLoc(tokens[i+1], tokens[len(tokens)-1])
+			return ref, true
 		}
 		if cursorOffset < tokens[next].Loc || cursorOffset > tokens[closeIdx].End {
 			// Another constraint's reference: the cursor is not in it.
@@ -1197,21 +1255,35 @@ func joinOperandRefs(tokens []completionScopeToken, refs []RangeReference, onIdx
 	if joinIdx < 0 {
 		return referencesBefore(refs, tokens[onIdx].Loc)
 	}
-	var out []RangeReference
-	if joinIdx > 0 && tokens[joinIdx-1].Type == ')' {
-		if open := openParenBefore(tokens, joinIdx-1); open >= 0 {
-			for _, ref := range refs {
-				if ref.Loc.Start >= tokens[open].Loc && ref.Loc.End <= tokens[joinIdx].Loc {
-					out = append(out, ref)
+	// The left operand is the whole join tree of this FROM item: everything
+	// since the last comma at the join's depth, not just the table before the
+	// keyword.
+	listStart := 0
+	for i := joinIdx - 1; i >= 0; i-- {
+		if tokens[i].depth != depth {
+			continue
+		}
+		if tokens[i].Type == ',' {
+			listStart = tokens[i].End
+			break
+		}
+	}
+	if depth > 0 {
+		// A parenthesized group bounds the operand too: the join's left side
+		// cannot reach past the '(' that opened the group holding the join.
+		for i := joinIdx; i >= 0; i-- {
+			if tokens[i].Type == '(' && tokens[i].close > joinIdx {
+				if tokens[i].End > listStart {
+					listStart = tokens[i].End
 				}
+				break
 			}
 		}
 	}
-	if len(out) == 0 {
-		for _, ref := range refs {
-			if ref.Loc.End <= tokens[joinIdx].Loc {
-				out = []RangeReference{ref}
-			}
+	var out []RangeReference
+	for _, ref := range refs {
+		if ref.Loc.Start >= listStart && ref.Loc.End <= tokens[joinIdx].Loc {
+			out = append(out, ref)
 		}
 	}
 	for _, ref := range refs {
