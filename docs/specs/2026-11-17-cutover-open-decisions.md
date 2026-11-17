@@ -46,13 +46,13 @@ bigquery, databricks).
 On main the parameter is named and used by thirteen implementations (`pg`, `mysql`, `tidb`,
 `oceanbase`, `doris`, `starrocks`, `clickhouse`, `mssql`, `oracle`, `snowflake`, `redshift`,
 `cockroachdb`, `trino`); the other ten take `_ *sql.Conn`. Of the thirteen, eleven use it only as
-the place to run the statement — the thing omni's `Session` replaces. Two use it for something the
-call cannot express without it:
+the place to run one statement — the thing omni's `Session` replaces. Two need the connection
+itself, not just somewhere to run a statement:
 
 | Engine | Why the handle is real |
 | --- | --- |
 | `mysql` (also serves `MARIADB`) | `getConnectionID` before the query, so `StopConnectionByID` can cancel the query from another goroutine (`mysql/mysql.go:620-691`; `tidb`, `oceanbase`, `doris`, `starrocks` copy it) |
-| `mssql` | `queryBatch` needs the connection for each batch of a multi-result script (`mssql/mssql.go:439-473`) |
+| `mssql` | `queryBatch` runs each statement of a multi-result script on the same connection, so the batch shares the session (`mssql/mssql.go:439-473`) |
 
 Three `sql_service` sites open the handle from `GetDB()` and pass it
 (`backend/api/v1/sql_service.go:117`, `:404`, `:1347`, reaching `:1218`). Each already branches on
@@ -127,7 +127,7 @@ no binlog-status method.
 Adopt `SQLDBProvider` for the migration, and retire the seven sites as each has a driver
 counterpart, not as each engine cuts over:
 
-- the three `sql_service` sites go with the session change (wave 2 of the dispatch plan);
+- the three `sql_service` sites go with wave 2's `GetDB` retirement;
 - `rollout_service` goes when it asks the driver for its activity instead of holding a conn;
 - the two cleanups move to `driver.Execute` in the change that cuts mysql over — they are plain
   SQL, need no session, and then no engine needs a handle to clean up gh-ost;
@@ -171,8 +171,8 @@ message. The contract already decided that "the result size cap is measured by o
   old row counts needs the caller to supply both the accounting and the stop point — for example a
   `QueryOptions` hook that gets each row and answers stop/continue, or a caller-supplied size
   function. A `Result.Size()` method cannot fix it, because the driver decides when to stop.
-  Cost: a contract addition, a per-driver read-loop change, and API knowledge inside a package that
-  is supposed to import only the standard library and `metadata`.
+  Cost: a contract addition, a per-driver read-loop change, and API knowledge inside `driver/`,
+  which imports only the standard library and `metadata`.
 - **Raise Bytebase's cap to compensate.** Ships more bytes than the policy allows; not a fix.
 
 ### Recommendation
