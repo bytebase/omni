@@ -775,6 +775,61 @@ func TestCollectCompletionSignals(t *testing.T) {
 			sql:  "WITH c AS (WITH d AS (SELECT 1 AS x) SELECT x AS y FROM d) SELECT c.| FROM c",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"y"}}, cols: map[string][]string{"c": {"y"}}},
 		},
+		{
+			name: "nested set operation names its own first arm",
+			sql:  "SELECT 1 AS outer_alias WHERE EXISTS (SELECT a AS inner_first FROM t UNION SELECT b AS inner_second FROM u ORDER BY |)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "u"}}, aliases: []string{"inner_first"}},
+		},
+		{
+			name: "derived table set operation after a with clause",
+			sql:  "SELECT * FROM (WITH c AS (SELECT 1 AS wrong) SELECT a AS actual FROM t UNION SELECT b FROM u ORDER BY |) d",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "u"}}, ctes: map[string][]string{"c": {"wrong"}}, aliases: []string{"actual"}},
+		},
+		{
+			name: "derived table set operation names its own first arm",
+			sql:  "SELECT * FROM (SELECT a AS x FROM t UNION SELECT b AS y FROM u ORDER BY |) d",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "u"}}, aliases: []string{"x"}},
+		},
+		{
+			name: "trigger expression subquery names the row",
+			sql:  "CREATE TRIGGER tr BEFORE INSERT ON db.t FOR EACH ROW SET NEW.a = (SELECT NEW.|)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"NEW"}, outer: [][]ref{{{database: "db", table: "t", alias: "NEW"}}}},
+		},
+		{
+			name: "definer trigger subquery names both rows",
+			sql:  "CREATE DEFINER = 'root'@'localhost' TRIGGER tr AFTER UPDATE ON db.t FOR EACH ROW SET OLD.a = (SELECT OLD.|)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"OLD"}, outer: [][]ref{{{database: "db", table: "t", alias: "NEW"}, {database: "db", table: "t", alias: "OLD"}}}},
+		},
+		{
+			name: "unterminated parenthesized join keeps its members",
+			sql:  "SELECT * FROM (t1 JOIN t2 ON |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t1"}, {table: "t2"}}},
+		},
+		{
+			name: "unterminated nested parenthesized join keeps its members",
+			sql:  "SELECT * FROM ((t1 JOIN t2 ON |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t1"}, {table: "t2"}}},
+		},
+		{
+			name: "insert select alias is not the incoming row",
+			sql:  "INSERT INTO dst(a) SELECT b AS projected FROM src ON DUPLICATE KEY UPDATE a = |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "src"}}, outer: [][]ref{{{table: "dst"}}}, aliases: []string{"projected"}, dml: "->dst"},
+		},
+		{
+			name: "incoming row alias after a set clause",
+			sql:  "INSERT INTO dst SET a = 1 AS incoming ON DUPLICATE KEY UPDATE a = incoming.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"incoming"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "dst"}, {table: "dst", alias: "incoming"}}, dml: "->dst"},
+		},
+		{
+			name: "end case keeps the next statement",
+			sql:  "CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN SET @a = 1; END CASE; IF 1 THEN UPDATE t SET a = |; END IF; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "end loop keeps the next statement",
+			sql:  "CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; UPDATE t SET a = |; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
 	}
 
 	for _, tc := range cases {
@@ -943,6 +998,10 @@ func TestCollectCompletionEveryOffset(t *testing.T) {
 		"SELECT * FROM (SELECT a FROM t1, t2 LEFT JOIN t3 ON t2.a = t3.a) d WHERE d.a IN (SELECT b FROM u)",
 		"UPDATE t1 a JOIN t2 b ON a.id = b.id SET a.x = 1 WHERE a.y = 2",
 		"DELETE t1, t2 FROM t1 JOIN t2 ON t1.a = t2.a WHERE t1.b = 1",
+		"SELECT * FROM (t1 JOIN t2 ON t1.a = t2.a",
+		"INSERT INTO dst (a) SELECT b AS c FROM src ON DUPLICATE KEY UPDATE a = 1",
+		"CREATE TRIGGER tr BEFORE INSERT ON db.t FOR EACH ROW BEGIN SET NEW.a = 1; IF NEW.b THEN SET NEW.c = 2; END IF; END",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN SET @a = 1; END CASE; IF 1 THEN UPDATE t SET a = 1; END IF; END",
 		"INSERT INTO t (a, b) VALUES (1, 2) ON DUPLICATE KEY UPDATE a = 3",
 		"CREATE TABLE t (a INT, b VARCHAR(10), PRIMARY KEY (a), KEY i (b)) ENGINE = InnoDB",
 		"SELECT 'unterminated FROM t WHERE `x",

@@ -305,8 +305,10 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	// query blocks the cursor may be in.
 	cteMap := mapCTELookup(rangeReferenceMap(collectVisibleCTEs(stmtTokens, cursorOffset)))
 	// A routine body holds statements of its own: the cursor's is the one the
-	// DML dispatch and its outer references read.
-	if bodyStart := cursorStatementStart(stmtTokens, cursorOffset); bodyStart > mainStart {
+	// DML dispatch and its outer references read. It is read from the whole
+	// statement, because a branch's ';' ends the bounds before the body
+	// statement, and the keyword that opens one sits before that.
+	if bodyStart := cursorStatementStart(tokens, cursorOffset) - start; bodyStart > mainStart {
 		mainStart = bodyStart
 	}
 	mainTokens := sliceScopeTokens(stmtTokens, mainStart, len(stmtTokens))
@@ -330,18 +332,23 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 		}
 	}
 	scope := collectSelectScope(stmtTokens, cursorOffset, enclosing, enclosingFromNested)
+	// The statement the cursor is in starts after one of a routine body's own
+	// ';', and the declaration around it carries what its clauses name: a
+	// trigger's ON table, which NEW and OLD stand for.
+	declTokens := sliceScopeTokens(tokens, 0, end)
 	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
-		// are what its clauses name. One of a routine body's statements starts
-		// after the body's own ';', and the declaration around it carries what
-		// its clauses name, such as a trigger's ON table, which NEW and OLD
-		// stand for.
-		declTokens := sliceScopeTokens(tokens, 0, end)
+		// are what its clauses name.
 		refs := append(append([]RangeReference{}, dmlRefs...), collectDDLScope(declTokens, cursorOffset)...)
 		scope = &ScopeSnapshot{
 			LocalReferences: refs,
 			References:      append([]RangeReference{}, refs...),
 		}
+	} else if rows := collectTriggerRows(declTokens); len(rows) > 0 {
+		// A trigger's rows are visible in every query block of its body, so a
+		// subquery of the body still names NEW and OLD.
+		scope.OuterReferences = append(scope.OuterReferences, rows)
+		scope.References = append(scope.References, rows...)
 	}
 	if target != nil {
 		scope.DMLTarget = target
@@ -402,6 +409,11 @@ func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
 		// are statement lists, and only those THENs start a statement.
 		switch tok.Type {
 		case kwCASE:
+			if i > 0 && tokens[i-1].Type == kwEND {
+				// END CASE's own CASE token: the END above popped its frame,
+				// and counting this one would suppress the next statement.
+				continue
+			}
 			caseForms = append(caseForms, startsCaseStatement(tokens, i, start))
 		case kwEND:
 			if i+1 < len(tokens) && tokens[i+1].Type == kwCASE {
@@ -942,29 +954,14 @@ func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeRef
 		}
 		return []RangeReference{ref}
 	case kwCREATE:
-		// CREATE [UNIQUE | FULLTEXT | SPATIAL] INDEX name ON table
-		idx := first + 1
-		for idx < len(tokens) && tokens[idx].depth == depth {
-			switch tokens[idx].Type {
-			case kwUNIQUE, kwFULLTEXT, kwSPATIAL:
-				idx++
-				continue
-			}
-			break
+		idx := createObjectIndex(tokens)
+		if idx < 0 {
+			return nil
 		}
-		if idx < len(tokens) && tokens[idx].depth == depth && tokens[idx].Type == kwDEFINER {
-			// CREATE DEFINER = user TRIGGER ...: the clause sits between the
-			// verb and the object type.
-			idx++
-			for n := 0; n < 6 && idx < len(tokens) && tokens[idx].depth == depth &&
-				tokens[idx].Type != kwTRIGGER && tokens[idx].Type != kwINDEX; n++ {
-				idx++
-			}
-		}
-		if idx < len(tokens) && tokens[idx].Type == kwTRIGGER {
+		if tokens[idx].Type == kwTRIGGER {
 			return triggerRowScope(tokens, idx+1, depth)
 		}
-		if idx >= len(tokens) || tokens[idx].Type != kwINDEX {
+		if tokens[idx].Type != kwINDEX {
 			return nil
 		}
 		return indexTable(tokens, idx+1, depth)
@@ -986,6 +983,50 @@ func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeRef
 		return indexTable(tokens, idx+1, depth)
 	}
 	return nil
+}
+
+// createObjectIndex returns the index of the object keyword a CREATE statement
+// declares, past the index modifiers and a DEFINER clause, or -1 when the
+// statement is not a CREATE.
+func createObjectIndex(tokens []completionScopeToken) int {
+	first := statementVerb(tokens)
+	if first < 0 || tokens[first].Type != kwCREATE {
+		return -1
+	}
+	depth := tokens[first].depth
+	idx := first + 1
+	for idx < len(tokens) && tokens[idx].depth == depth {
+		switch tokens[idx].Type {
+		case kwUNIQUE, kwFULLTEXT, kwSPATIAL:
+			idx++
+			continue
+		}
+		break
+	}
+	if idx < len(tokens) && tokens[idx].depth == depth && tokens[idx].Type == kwDEFINER {
+		// CREATE DEFINER = user TRIGGER ...: the clause sits between the verb
+		// and the object type.
+		idx++
+		for n := 0; n < 6 && idx < len(tokens) && tokens[idx].depth == depth &&
+			tokens[idx].Type != kwTRIGGER && tokens[idx].Type != kwINDEX; n++ {
+			idx++
+		}
+	}
+	if idx >= len(tokens) {
+		return -1
+	}
+	return idx
+}
+
+// collectTriggerRows returns the NEW and OLD rows a CREATE TRIGGER declares.
+// The rows are visible in every query block of the body, not only where the
+// declaration's own clauses are read.
+func collectTriggerRows(tokens []completionScopeToken) []RangeReference {
+	idx := createObjectIndex(tokens)
+	if idx < 0 || tokens[idx].Type != kwTRIGGER {
+		return nil
+	}
+	return triggerRowScope(tokens, idx+1, tokens[idx].depth)
 }
 
 // foreignKeyParentAt returns the table a REFERENCES clause names when the
@@ -1116,7 +1157,22 @@ func insertRowAlias(tokens []completionScopeToken, depth int, target RangeRefere
 	if onIdx < 0 {
 		return RangeReference{}, false
 	}
-	for i := onIdx - 1; i >= 0; i-- {
+	// A row alias follows the VALUES or SET clause, never a SELECT's own
+	// select list: a source alias such as SELECT b AS projected is not a name
+	// for the new row.
+	valuesIdx := -1
+	for i := 0; i < onIdx; i++ {
+		if tokens[i].depth != depth {
+			continue
+		}
+		if tokens[i].Type == kwVALUES || tokens[i].Type == kwVALUE || tokens[i].Type == kwSET {
+			valuesIdx = i
+		}
+	}
+	if valuesIdx < 0 {
+		return RangeReference{}, false
+	}
+	for i := onIdx - 1; i > valuesIdx; i-- {
 		if tokens[i].depth != depth || tokens[i].Type != kwAS {
 			continue
 		}
@@ -1830,7 +1886,10 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 				Lateral: lateral,
 			}}, len(tokens), true
 		}
-		return nil, idx + 1, false
+		// A parenthesized join still being typed names its members up to the
+		// text's end, so a condition at the cursor keeps its operands.
+		inner := parseFromReferences(tokens, idx+1, len(tokens), tokens[idx].depth+1, ctes, 0)
+		return inner, len(tokens), len(inner) > 0
 	}
 	depth := tokens[idx].depth
 	isQuery := parenOpensQuery(tokens, idx)
@@ -2242,10 +2301,11 @@ func collectSelectAliases(sql string, cursorOffset int) []SelectAlias {
 		selectIdx = frames[len(frames)-1].selectIdx + start
 		if inSetOperationGlobalClause(tokens, cursorOffset, tokens[selectIdx].depth) {
 			// The ORDER BY or LIMIT after a UNION belongs to the result, whose
-			// column names come from the first arm, parenthesized or not.
-			armStart := start
-			if _, main := collectCTEs(tokens[start:end]); main > 0 {
-				armStart = start + main
+			// column names come from the first arm of the frame's own query
+			// block, parenthesized or not.
+			armStart := completionBlockStart(tokens, selectIdx, tokens[selectIdx].depth)
+			if _, main := collectCTEs(sliceScopeTokens(tokens, armStart, end)); main > 0 {
+				armStart += main
 			}
 			if first := firstSetOperationArm(tokens, armStart, cursorOffset, tokens[selectIdx].depth); first >= 0 {
 				selectIdx = first
@@ -2261,7 +2321,7 @@ func collectSelectAliases(sql string, cursorOffset int) []SelectAlias {
 		}
 		if inSetOperationGlobalClause(tokens, cursorOffset, depth) {
 			armStart := start
-			if _, main := collectCTEs(tokens[start:end]); main > 0 {
+			if _, main := collectCTEs(sliceScopeTokens(tokens, start, end)); main > 0 {
 				armStart = start + main
 			}
 			selectIdx = firstSetOperationArm(tokens, armStart, cursorOffset, depth)
@@ -2329,6 +2389,19 @@ func hasSetOperatorBefore(tokens []completionScopeToken, idx, depth int) bool {
 		}
 	}
 	return false
+}
+
+// completionBlockStart returns the index where the query block holding the
+// token at idx begins: the token after the '(' that opened its group, or the
+// statement's first token. A set operation's result is named inside its own
+// block, not by an enclosing query's arms.
+func completionBlockStart(tokens []completionScopeToken, idx, depth int) int {
+	for i := idx - 1; i >= 0; i-- {
+		if tokens[i].depth < depth || (tokens[i].depth == depth && tokens[i].Type == ';') {
+			return i + 1
+		}
+	}
+	return 0
 }
 
 // firstSetOperationArm returns the first arm's SELECT of the set operation at

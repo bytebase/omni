@@ -47,11 +47,12 @@ computed once; group recursion stops at `maxNestingDepth`).
 
 ## The corpus and every disagreement
 
-`mysql/parser/complete_context_test.go` holds 135 cases over `sql` × cursor positions, plus a
-sweep of every cursor offset in eight scripts and a nesting-limit test. Each fork's corpus is that
-corpus with its dialect cases (133 for MariaDB, 134 for OceanBase, 133 for TiDB at parking, one
-parent fix behind), and the engine-rejected cases become comments: MariaDB and TiDB lose the
-`TABLE t` query primary and the two INSERT row-alias cases, OceanBase only `TABLE t`.
+`mysql/parser/complete_context_test.go` holds 143 cases over `sql` × cursor positions, plus a
+sweep of every cursor offset in twelve scripts, a nesting-limit test, and a test that a statement
+nested in `WITH` bodies is read once per clause. Each fork's corpus is that corpus with its
+dialect cases (133 for MariaDB, 134 for OceanBase, 133 for TiDB at parking, several parent fixes
+behind), and the engine-rejected cases become comments: MariaDB and TiDB lose the `TABLE t` query
+primary and the two INSERT row-alias cases, OceanBase only `TABLE t`.
 
 Parity against Bytebase's own corpus (`backend/plugin/parser/<engine>/test-data/test_completion.yaml`,
 200 cases, candidate lists excluded because the metadata fixture would prove the fixture and not the
@@ -118,14 +119,17 @@ differ. Verified dialect facts, each a recorded engine verdict:
 
 ## What a resumed session must do first
 
-1. **Port the parent's last five fixes to the three forks.** They are the commit
-   `fix(mysql): read DEFINER triggers, CTE-prefixed set operations, and CASE ends`
-   (`6ec94763`): a `CREATE DEFINER` clause before the object type; the first arm of a set
-   operation starting after the statement's `WITH`; the owning ON found through expression
-   parentheses while a collapsed reference keeps its own condition; an unfinished `REFERENCES`
-   list binding the parent only when the cursor is inside it; and a `CASE` terminator not being an
-   implicit alias. Copy the reader body from the parent, keep each fork's header comment, re-splice
-   the fork's dialect cases, and drop the cases the engine rejects (the corpus comments list them).
+1. **Port the parent's reader as it stands after this PR merges.** Copy `complete_context.go` and
+   `complete_context_test.go` from the merged parent, keep each fork's header comment, re-splice the
+   fork's dialect cases, and drop the cases the engine rejects (the corpus comments list them). The
+   parent gained a lot after the forks were cut — a `CREATE DEFINER` clause before the object type,
+   the first arm of a set operation after the statement's `WITH` and inside its own query block, an
+   unfinished `REFERENCES` list binding the parent only from inside it, a `CASE` terminator not being
+   an implicit alias, a join condition that stops narrowing at the next clause, a trigger's `NEW` and
+   `OLD` rows visible in a query block of its body, an unterminated parenthesized join keeping its
+   members, an INSERT row alias only after `VALUES` or `SET`, `END CASE` not swallowing the next
+   statement, and a `WITH` body read once per clause — so a fork copied from an older head carries
+   roughly a dozen defects the merged corpus already pins.
 2. Re-run per fork: the corpus and nesting tests, the six mutation checks (the parent's list is
    in #1291's body), and the 200-case parity replay. Update the parity table if it moves.
 3. **Work the fork review threads** (25–27 per PR at parking). They are the same classes of
