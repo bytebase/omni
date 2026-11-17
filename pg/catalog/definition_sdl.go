@@ -1005,9 +1005,11 @@ func writePartitionElementsSDL(out io.Writer, parent sdltable, partition *metada
 
 	// A partition can hold a primary key or unique constraint of its own, which
 	// a snapshot records among its indexes with no parent's index to attach it
-	// to; the parent's copies are attached and come with PARTITION OF.
+	// to; the parent's copies are attached and come with PARTITION OF. An
+	// EXCLUDE constraint is written below, and a unique index that backs no
+	// constraint is written as the index it is.
 	for _, index := range partition.Indexes {
-		if index.ParentIndexName != "" || (!index.Primary && !index.Unique) {
+		if index.ParentIndexName != "" || (!index.Primary && !(index.Unique && index.IsConstraint)) {
 			continue
 		}
 		if err := writeItemSep(); err != nil {

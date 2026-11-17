@@ -13,7 +13,8 @@ import (
 // by list with a default partition, a hash partition, a primary key that the
 // partition key completes, an index on each partitioned table, a partition
 // whose bounds are multi-column with MINVALUE and MAXVALUE, and a partition
-// with a CHECK and an index of its own. Names are quoted and mixed case, which
+// with a CHECK, a key, a unique index and an index of its own. Names are quoted
+// and mixed case, which
 // is what a dump that writes them inside double quotes must keep, and the
 // expressions carry the quoting the server answered with.
 func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
@@ -184,6 +185,16 @@ func partitionedMetadata() *metadatapb.DatabaseSchemaMetadata {
 								Type:       metadatapb.TablePartitionMetadata_HASH,
 								Expression: "HASH (id)",
 								Value:      "FOR VALUES WITH (modulus 2, remainder 1)",
+								Indexes: []*metadatapb.IndexMetadata{
+									// A unique index the partition holds alone, which
+									// is not a constraint.
+									{
+										Name:        "Shard_1_v_idx",
+										Expressions: []string{"v"},
+										Type:        "btree",
+										Unique:      true,
+									},
+								},
 							},
 						},
 					},
