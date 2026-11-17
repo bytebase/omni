@@ -193,6 +193,13 @@ PROPERTIES (
 );
 
 --
+-- View structure for `cyc_parent`
+--
+CREATE VIEW `cyc_parent`
+(k)
+ AS WITH `cyc_child` AS (SELECT 1 AS `k`) SELECT `cyc_child`.`k` AS `k` FROM cyc_child;
+
+--
 -- Materialized view structure for `z_parent_mv`
 --
 CREATE MATERIALIZED VIEW z_parent_mv
@@ -279,6 +286,13 @@ CREATE VIEW `ac_subquery_view`
 CREATE VIEW `b_mv_view`
 (k,s)
  AS SELECT `internal`.`omni_dump_corpus`.`z_parent_mv`.`k` AS `k`, `internal`.`omni_dump_corpus`.`z_parent_mv`.`s` AS `s` FROM `internal`.`omni_dump_corpus`.`z_parent_mv`;
+
+--
+-- View structure for `cyc_child`
+--
+CREATE VIEW `cyc_child`
+(k)
+ AS SELECT `internal`.`omni_dump_corpus`.`cyc_parent`.`k` AS `k` FROM `internal`.`omni_dump_corpus`.`cyc_parent`;
 
 --
 -- Procedure structure for `PROC_WITH_BODY`

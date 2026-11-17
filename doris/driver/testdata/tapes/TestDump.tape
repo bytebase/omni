@@ -126,6 +126,16 @@
 | CREATE VIEW ac_subquery_view (k) AS SELECT (SELECT max(k) FROM z_parent_view) AS k;
 < ok 0 0
 > exec
+| -- A CTE that shares a name with a dumped view is not a dependency on it:
+| -- cyc_parent's WITH clause defines cyc_child, and the view cyc_child reads
+| -- cyc_parent. Taking the CTE for an object makes the pair a reference cycle,
+| -- which falls back to name order, cyc_child first, and cannot restore.
+| CREATE VIEW cyc_parent (k) AS WITH cyc_child AS (SELECT 1 AS k) SELECT k FROM cyc_child;
+< ok 0 0
+> exec
+| CREATE VIEW cyc_child (k) AS SELECT k FROM cyc_parent;
+< ok 0 0
+> exec
 | CREATE PROCEDURE proc_with_body(IN a INT) COMMENT 'doris procedure'
 | BEGIN
 | 	SET @first = a + 1;
@@ -196,6 +206,16 @@
 < row
 : bytes
 | b_mv_view
+: bytes
+| VIEW
+< row
+: bytes
+| cyc_child
+: bytes
+| VIEW
+< row
+: bytes
+| cyc_parent
 : bytes
 | VIEW
 < row
@@ -430,6 +450,42 @@
 | CREATE VIEW `b_mv_view`
 | (k,s)
 |  AS SELECT `internal`.`omni_dump_corpus`.`z_parent_mv`.`k` AS `k`, `internal`.`omni_dump_corpus`.`z_parent_mv`.`s` AS `s` FROM `internal`.`omni_dump_corpus`.`z_parent_mv`;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_bin
+> query
+| SHOW CREATE VIEW `omni_dump_corpus`.`cyc_child`
+< result
+< column "View" "CHAR"
+< column "Create View" "CHAR"
+< column "character_set_client" "CHAR"
+< column "collation_connection" "CHAR"
+< row
+: bytes
+| cyc_child
+: bytes
+| CREATE VIEW `cyc_child`
+| (k)
+|  AS SELECT `internal`.`omni_dump_corpus`.`cyc_parent`.`k` AS `k` FROM `internal`.`omni_dump_corpus`.`cyc_parent`;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_bin
+> query
+| SHOW CREATE VIEW `omni_dump_corpus`.`cyc_parent`
+< result
+< column "View" "CHAR"
+< column "Create View" "CHAR"
+< column "character_set_client" "CHAR"
+< column "collation_connection" "CHAR"
+< row
+: bytes
+| cyc_parent
+: bytes
+| CREATE VIEW `cyc_parent`
+| (k)
+|  AS WITH `cyc_child` AS (SELECT 1 AS `k`) SELECT `cyc_child`.`k` AS `k` FROM cyc_child;
 : bytes
 | utf8mb4
 : bytes

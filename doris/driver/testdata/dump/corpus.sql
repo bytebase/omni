@@ -106,6 +106,14 @@ CREATE VIEW ab_cte_view (k) AS WITH c AS (SELECT k FROM z_parent_view) SELECT k 
 
 CREATE VIEW ac_subquery_view (k) AS SELECT (SELECT max(k) FROM z_parent_view) AS k;
 
+-- A CTE that shares a name with a dumped view is not a dependency on it:
+-- cyc_parent's WITH clause defines cyc_child, and the view cyc_child reads
+-- cyc_parent. Taking the CTE for an object makes the pair a reference cycle,
+-- which falls back to name order, cyc_child first, and cannot restore.
+CREATE VIEW cyc_parent (k) AS WITH cyc_child AS (SELECT 1 AS k) SELECT k FROM cyc_child;
+
+CREATE VIEW cyc_child (k) AS SELECT k FROM cyc_parent;
+
 DELIMITER //
 CREATE PROCEDURE proc_with_body(IN a INT) COMMENT 'doris procedure'
 BEGIN

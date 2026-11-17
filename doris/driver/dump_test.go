@@ -264,6 +264,18 @@ func TestDumpDefinitionReads(t *testing.T) {
 			want:     nil,
 		},
 		{
+			name:     "a CTE is not an object",
+			stmt:     "CREATE VIEW `v` (k) AS WITH `w` AS (SELECT 1 AS k) SELECT k FROM w",
+			database: "db",
+			want:     nil,
+		},
+		{
+			name:     "a CTE body reads a view",
+			stmt:     "CREATE VIEW `v` (k) AS WITH `c` AS (SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w`) SELECT `c`.`k` AS `k` FROM c",
+			database: "db",
+			want:     []string{"w"},
+		},
+		{
 			name:     "a set operation's operand reads a view",
 			stmt:     "CREATE VIEW `v` (k) AS SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w` UNION ALL SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w`",
 			database: "db",

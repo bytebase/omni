@@ -298,11 +298,13 @@ func dumpDefinitionReads(stmt, database string) ([]string, error) {
 
 // dumpReferencedName returns the object a table reference names when it is in
 // database, and "" when it is not: a reference to another database is not the
-// dump's to create.
+// dump's to create. SHOW CREATE qualifies every object a view or materialized
+// view reads, so an unqualified name is a CTE or a table-valued function, and
+// taking one for an object would invent a dependency that can reverse a real
+// one: a view named like a CTE in another definition's WITH clause would read
+// that definition and be read by it.
 func dumpReferencedName(name *ast.ObjectName, database string) string {
 	switch len(name.Parts) {
-	case 1:
-		return name.Parts[0]
 	case 2:
 		if strings.EqualFold(name.Parts[0], database) {
 			return name.Parts[1]
