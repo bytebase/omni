@@ -80,6 +80,15 @@ Methods Bytebase reaches on concrete drivers (pg's `GetCurrentDatabaseOwner`,
   `sslmode=prefer` as today.
 - **The version is detected; the passed one is a fallback.** Bytebase's pg sync already prefers
   the live `server_version_num` because the cached one can be empty or stale.
+- **A federated token is a func, not the client's connector.**
+  `TokenProvider func(ctx context.Context) (string, error)` sits beside `TLS` and `Dial`: the
+  caller resolves the token, and the engine hands it to its client's native token path. For
+  mssql, Bytebase passes an Entra ID access token for `https://database.windows.net/.default`,
+  from its Azure client-secret credential or default credential chain, and the driver opens
+  go-mssqldb's security-token connector. `User` may be empty for a token login and `Password` is
+  unused. The engine's own connector or token provider cannot cross the contract: it would put
+  the client type in `driver/`, and mssql's DSN-only Azure AD connector cannot also carry
+  `Config.TLS` and `Config.Dial`.
 - **Results are Go structs, not a proto.** They cross no process or storage boundary, so
   `driver.Result` needs no wire tolerance; Bytebase converts it field by field into
   `v1pb.QueryResult`. `Value` keeps every `RowValue` kind distinct (FLOAT vs DOUBLE, INT32 vs

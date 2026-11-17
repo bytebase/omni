@@ -58,6 +58,12 @@ type Config struct {
 	User     string
 	Password string
 
+	// TokenProvider returns a federated authentication token for one
+	// connection, for an engine whose login is a token instead of User and
+	// Password (mssql: an Entra ID access token for Azure SQL). It is called
+	// for each new connection. Nil means User and Password authenticate.
+	TokenProvider func(ctx context.Context) (string, error)
+
 	// TLS returns the TLS settings for one host the driver dials. Nil means
 	// the engine's default negotiation, which Params may tune (pg: libpq's
 	// sslmode, prefer when absent). Non-nil means TLS is required; the driver

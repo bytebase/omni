@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	gomssqldb "github.com/microsoft/go-mssqldb"
 	"github.com/microsoft/go-mssqldb/msdsn"
 
 	"github.com/bytebase/omni/driver"
@@ -199,5 +200,39 @@ func TestOpenDoesNotConnect(t *testing.T) {
 	}
 	if err := d.Close(); err != nil {
 		t.Error(err)
+	}
+}
+
+// A token login needs no user, and its provider must reach the client's
+// security-token connector rather than stay in this package.
+func TestOpenUsesTokenProvider(t *testing.T) {
+	cfg := baseConfig()
+	cfg.User = ""
+	wantToken := "token-for-azure-sql"
+	cfg.TokenProvider = func(context.Context) (string, error) { return wantToken, nil }
+
+	original := newSecurityTokenConnector
+	defer func() { newSecurityTokenConnector = original }()
+	var gotConfig msdsn.Config
+	var gotProvider func(context.Context) (string, error)
+	newSecurityTokenConnector = func(config msdsn.Config, provider func(context.Context) (string, error)) (*gomssqldb.Connector, error) {
+		gotConfig, gotProvider = config, provider
+		return gomssqldb.NewConnectorConfig(config), nil
+	}
+
+	d, err := Open(context.Background(), cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	if gotProvider == nil {
+		t.Fatal("the token provider did not reach the client's connector")
+	}
+	token, err := gotProvider(context.Background())
+	if err != nil || token != wantToken {
+		t.Fatalf("token %q, err %v, want %q", token, err, wantToken)
+	}
+	if gotConfig.Host != "db.example.com" || gotConfig.User != "" {
+		t.Fatalf("connector host %q user %q, want db.example.com and no user", gotConfig.Host, gotConfig.User)
 	}
 }
