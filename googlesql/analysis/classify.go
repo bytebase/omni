@@ -1,9 +1,13 @@
 // Package analysis provides Bytebase-facing query analysis for GoogleSQL — the
-// SQL dialect shared by Google BigQuery and Google Cloud Spanner. It ships two
+// SQL dialect shared by Google BigQuery and Google Cloud Spanner. It ships the
 // concerns the legacy plugin/parser/{bigquery,spanner} packages provide today:
 //
 //   - statement classification (the legacy queryTypeListener: Select / DML /
-//     DDL / Explain / SelectInfoSchema), and
+//     DDL / Explain / SelectInfoSchema),
+//   - fine-grained statement types (the legacy AST-to-storepb switch approval
+//     rules and risk levels read),
+//   - result-limit rewriting (BigQuery's CTE wrap, Spanner's in-place LIMIT),
+//     and
 //   - query-span extraction (table/column lineage for masking and SQL-editor
 //     access tracking — the legacy querySpanExtractor + accessTableListener).
 //

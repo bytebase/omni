@@ -87,3 +87,65 @@ func TestRewriteResultLimit(t *testing.T) {
 		})
 	}
 }
+
+// TestStatementWithResultLimit holds the dialect dispatch: BigQuery wraps
+// unconditionally because its caller already confirmed a SELECT, and Spanner
+// keeps RewriteResultLimit's in-place rewrite. The corpus is the BigQuery
+// adapter's cases recorded from the package that shipped them.
+func TestStatementWithResultLimit(t *testing.T) {
+	tests := []struct {
+		name      string
+		statement string
+		limit     int
+		dialect   Dialect
+		want      string
+	}{
+		{
+			name:      "bigquery wraps a select",
+			statement: "SELECT * FROM t",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "WITH result AS (SELECT * FROM t) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			name:      "bigquery trims the trailing semicolon",
+			statement: "SELECT * FROM t;",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "WITH result AS (SELECT * FROM t) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			name:      "bigquery trims surrounding whitespace",
+			statement: "  SELECT * FROM t;  ",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "WITH result AS (SELECT * FROM t) SELECT * FROM result LIMIT 10;",
+		},
+		{
+			name:      "bigquery omits a zero limit",
+			statement: "SELECT * FROM t",
+			limit:     0,
+			dialect:   DialectBigQuery,
+			want:      "WITH result AS (SELECT * FROM t) SELECT * FROM result;",
+		},
+		{
+			name:      "bigquery omits a negative limit",
+			statement: "SELECT * FROM t",
+			limit:     -1,
+			dialect:   DialectBigQuery,
+			want:      "WITH result AS (SELECT * FROM t) SELECT * FROM result;",
+		},
+		{
+			name:      "spanner rewrites in place",
+			statement: "SELECT * FROM t",
+			limit:     10,
+			dialect:   DialectSpanner,
+			want:      "SELECT * FROM t LIMIT 10",
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, StatementWithResultLimit(tc.statement, tc.limit, tc.dialect))
+		})
+	}
+}

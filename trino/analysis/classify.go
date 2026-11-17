@@ -1,9 +1,11 @@
 // Package analysis provides Bytebase-facing query analysis for Trino SQL:
-// statement classification (the query_type / validateQuery contract) and query
-// span extraction (table/column lineage for masking and access tracking).
+// statement classification (the query_type / validateQuery contract), editor
+// diagnostics, and query span extraction (table/column lineage for masking and
+// access tracking).
 //
 // It is the omni counterpart of bytebase's legacy plugin/parser/trino
-// getQueryType + GetQuerySpan, built on the hand-written trino/parser AST.
+// getQueryType + validateQuery + Diagnose + GetQuerySpan, built on the
+// hand-written trino/parser AST.
 package analysis
 
 import (
