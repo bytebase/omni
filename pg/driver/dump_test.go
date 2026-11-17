@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 
 	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/pg/catalog"
 	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
@@ -108,15 +109,38 @@ func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {
 	)
 }
 
+// renderer writes a synced snapshot as the text a restore executes.
+type renderer func(*metadatapb.DatabaseSchemaMetadata) (string, error)
+
+// dumpDefinition renders the pg_dump-style script pg/driver writes.
+func dumpDefinition(m *metadatapb.DatabaseSchemaMetadata) (string, error) {
+	var dump strings.Builder
+	if err := (&Driver{}).Dump(context.Background(), &dump, m); err != nil {
+		return "", err
+	}
+	return dump.String(), nil
+}
+
+// sdlDefinition renders the declarative form of the same snapshot.
+func sdlDefinition(m *metadatapb.DatabaseSchemaMetadata) (string, error) {
+	return catalog.DatabaseDefinition(m, catalog.DefinitionOptions{SDLFormat: true})
+}
+
 // restoreDump syncs setup into sourceName on the server of role, dumps it,
-// restores the dump into an empty database, and syncs that database,
-// returning the source and restored metadata. A restore the server refuses
-// fails t.
+// restores the dump into an empty database, and syncs that database, returning
+// the source and restored metadata. A restore the server refuses fails t.
 func restoreDump(t *testing.T, role, sourceName, setup string) (source, restored *metadatapb.DatabaseSchemaMetadata) {
 	t.Helper()
-	m, restoredName, err := dumpAndRestore(t, role, sourceName, setup)
+	return restoreDefinition(t, role, sourceName, setup, dumpDefinition)
+}
+
+// restoreDefinition is restoreDump with the form of the definition chosen: the
+// text it restores is render(source).
+func restoreDefinition(t *testing.T, role, sourceName, setup string, render renderer) (source, restored *metadatapb.DatabaseSchemaMetadata) {
+	t.Helper()
+	m, restoredName, err := renderAndRestore(t, role, sourceName, setup, render)
 	if err != nil {
-		t.Fatalf("restoring the dump: %v", err)
+		t.Fatalf("restoring the definition: %v", err)
 	}
 	// Sync on a connection of its own: the dump's header set the restoring
 	// connection's search_path, which a sync reads before its own transaction.
@@ -137,6 +161,15 @@ func restoreDump(t *testing.T, role, sourceName, setup string) (source, restored
 // nothing another test made.
 func dumpAndRestore(t *testing.T, role, sourceName, setup string) (*metadatapb.DatabaseSchemaMetadata, string, error) {
 	t.Helper()
+	m, restoredName, err := renderAndRestore(t, role, sourceName, setup, dumpDefinition)
+	return m, restoredName, err
+}
+
+// renderAndRestore syncs setup into sourceName, restores render(snapshot) into
+// sourceName+"_restored", and returns the source metadata, the restored
+// database's name, and the server's restore error.
+func renderAndRestore(t *testing.T, role, sourceName, setup string, render renderer) (*metadatapb.DatabaseSchemaMetadata, string, error) {
+	t.Helper()
 	ctx := context.Background()
 	src := &Driver{db: testcontainer.OpenDatabaseNumberingOIDs(t, role, sourceName), databaseName: sourceName}
 	t.Cleanup(func() { src.db.Close() })
@@ -145,16 +178,69 @@ func dumpAndRestore(t *testing.T, role, sourceName, setup string) (*metadatapb.D
 	if err != nil {
 		t.Fatal(err)
 	}
-	var dump strings.Builder
-	if err := src.Dump(ctx, &dump, m); err != nil {
+	text, err := render(m)
+	if err != nil {
 		t.Fatal(err)
 	}
 	restoredName := sourceName + "_restored"
 	db := testcontainer.OpenDatabase(t, role, restoredName)
 	t.Cleanup(func() { db.Close() })
-	_, err = db.ExecContext(ctx, dump.String())
+	_, err = db.ExecContext(ctx, text)
 	return m, restoredName, err
 }
+
+// TestSDLRestoresPartitions restores a partitioned schema from its SDL instead
+// of its dump. SDL is what a schema is written down as, so it must name every
+// partition, its bound and its index attachment: a restore that misses one
+// loses the partitioning the sync read.
+func TestSDLRestoresPartitions(t *testing.T) {
+	for _, role := range versions {
+		t.Run(role, func(t *testing.T) {
+			source, restored := restoreDefinition(t, role, "omni_sdl_partition", partitionedSchema, sdlDefinition)
+			if diff := restoreDiff(source, restored); diff != "" {
+				t.Errorf("the schema the SDL restores differs from the source (-source +restored):\n%s", diff)
+			}
+		})
+	}
+}
+
+// partitionedSchema is the schema the SDL restore is held to: a range partition
+// sub-partitioned by list with a default partition, a partition whose bounds are
+// multi-column with MINVALUE and MAXVALUE, a hash partition, quoted mixed-case
+// names, a primary key every partition inherits, partitioned indexes, and a
+// table attached after it was created with a CHECK, an index and a primary key
+// of its own.
+const partitionedSchema = `
+CREATE SCHEMA app;
+CREATE TABLE app."Measure" (
+    "City" integer NOT NULL,
+    "Day" date NOT NULL,
+    "Region" text NOT NULL,
+    CONSTRAINT measure_city_check CHECK ("City" > 0)
+) PARTITION BY RANGE ("Day");
+CREATE TABLE app."Measure 2025" PARTITION OF app."Measure"
+    FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST ("Region");
+CREATE TABLE app."Measure 2025 EU" PARTITION OF app."Measure 2025" FOR VALUES IN ('eu');
+CREATE TABLE app."Measure 2025 Other" PARTITION OF app."Measure 2025" DEFAULT;
+CREATE TABLE app."Measure 2026" PARTITION OF app."Measure"
+    FOR VALUES FROM ('2026-01-01') TO ('2027-01-01');
+CREATE INDEX measure_city ON app."Measure" ("City", "Day");
+CREATE UNIQUE INDEX measure_key ON app."Measure" ("City", "Day", "Region");
+CREATE TABLE app.bounds (a integer NOT NULL, b integer NOT NULL) PARTITION BY RANGE (a, b);
+CREATE TABLE app.bounds_low PARTITION OF app.bounds FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
+CREATE TABLE app.bounds_high PARTITION OF app.bounds FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+CREATE TABLE app.sharded (id integer) PARTITION BY HASH (id);
+CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
+CREATE TABLE app.sharded_1 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 1);
+CREATE TABLE app.pk (id integer NOT NULL, d date NOT NULL, PRIMARY KEY (id, d)) PARTITION BY RANGE (d);
+CREATE TABLE app.pk_1 PARTITION OF app.pk FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+CREATE TABLE app.pk_2 PARTITION OF app.pk DEFAULT;
+CREATE TABLE app.late (id integer NOT NULL, v text) PARTITION BY LIST (v);
+CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x_positive CHECK (id > 0));
+ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
+CREATE INDEX late_x_id ON app.late_x (id);
+ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+`
 
 // gapMarker ends a corpus line whose objects a dump cannot faithfully
 // restore yet, so TestDumpRestores leaves it out; TestDumpGaps holds each
@@ -175,24 +261,29 @@ func restorable(corpus string) string {
 // TestDumpGaps holds what a dump cannot faithfully restore yet. A gap whose
 // wantErr is set is one the server refuses outright; a gap with an empty
 // wantErr restores but loses what the metadata cannot carry, so the
-// round-trip differs. A gap that closes fails here: move its corpus line
-// back into TestDumpRestores by dropping its gapMarker.
+// round-trip differs. A gap that names what the restored server answers lost
+// is one the metadata cannot carry at all: the round trip agrees, and only the
+// server shows what the source had. A gap that closes fails here: move its
+// corpus line back into TestDumpRestores by dropping its gapMarker.
 func TestDumpGaps(t *testing.T) {
 	for _, gap := range []struct {
 		// db names the gap's own source database, so one gap's objects never
 		// reach another's sync.
 		name, db, setup, wantErr string
+		// lost is a query the restored database answers, and want what it
+		// answers, for a gap the synced snapshot holds nothing of.
+		lost, want string
 	}{
 		// Range types are not synced, but their constructor functions are,
 		// as functions of the internal language, which do not restore.
-		{"range type", "omni_gap_range", "CREATE TYPE float_range AS RANGE (subtype = float8);", "syntax error at or near"},
+		{"range type", "omni_gap_range", "CREATE TYPE float_range AS RANGE (subtype = float8);", "syntax error at or near", "", ""},
 		// A user-defined collation is not a synced object, so its CREATE
 		// COLLATION is never emitted and a column that uses it cannot restore.
 		{
 			"user-defined collation", "omni_gap_collation",
 			"CREATE COLLATION c (provider = icu, locale = 'und-u-ks-level2', deterministic = false);\n" +
 				"CREATE TABLE t (v text COLLATE c);",
-			"does not exist",
+			"does not exist", "", "",
 		},
 		// A foreign table's server and its options are not synced, so the
 		// dump omits the server and the foreign table; the table's synced
@@ -203,7 +294,23 @@ func TestDumpGaps(t *testing.T) {
 			"CREATE EXTENSION postgres_fdw;\n" +
 				"CREATE SERVER srv FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
 				"CREATE FOREIGN TABLE ft (id int) SERVER srv OPTIONS (schema_name 'public', table_name 'x');",
+			"", "", "",
+		},
+		// TablePartitionMetadata carries a partition's name, type, bound,
+		// indexes and constraints, but neither the schema it lives in nor its
+		// comment, so the dump recreates a partition beside its parent without
+		// what the source said about it. The sync reads neither, so the round
+		// trip agrees and only the server shows the loss.
+		{
+			"partition beside its parent", "omni_gap_partition",
+			"CREATE SCHEMA app;\n" +
+				"CREATE SCHEMA other;\n" +
+				"CREATE TABLE app.p (id int, v text) PARTITION BY LIST (v);\n" +
+				"CREATE TABLE other.p_a PARTITION OF app.p FOR VALUES IN ('a');\n" +
+				"COMMENT ON TABLE other.p_a IS 'remote';",
 			"",
+			"SELECT n.nspname || ':' || coalesce(obj_description(c.oid, 'pg_class'), '') FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'p_a'",
+			"app:",
 		},
 	} {
 		t.Run(gap.name, func(t *testing.T) {
@@ -215,8 +322,24 @@ func TestDumpGaps(t *testing.T) {
 				return
 			}
 			source, restored := restoreDump(t, testcontainer.Default, gap.db, gap.setup)
-			if diff := restoreDiff(source, restored); diff == "" {
-				t.Fatalf("the restore reproduced the source; if the gap closed, remove it")
+			diff := restoreDiff(source, restored)
+			if gap.lost == "" {
+				if diff == "" {
+					t.Fatalf("the restore reproduced the source; if the gap closed, remove it")
+				}
+				return
+			}
+			if diff != "" {
+				t.Fatalf("the restore differs from the source, so the snapshot does carry what the gap names; if the gap closed, remove it:\n%s", diff)
+			}
+			db := testcontainer.OpenDatabase(t, testcontainer.Default, gap.db+"_restored")
+			defer db.Close()
+			var got string
+			if err := db.QueryRow(gap.lost).Scan(&got); err != nil {
+				t.Fatalf("reading the restored database: %v", err)
+			}
+			if got != gap.want {
+				t.Fatalf("the restore answered %q, want %q; if the gap closed, remove it", got, gap.want)
 			}
 		})
 	}
