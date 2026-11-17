@@ -2,6 +2,9 @@
 // github.com/bytebase/omni/driver: it connects through pgx, syncs a
 // server's metadata into omni/metadata, dumps it as DDL, and runs interactive
 // queries and change scripts.
+//
+// Ping on a Config.Database the server does not have fails before any statement
+// reaches it, with pgx's own error, a *pgconn.PgError whose SQLSTATE is 3D000.
 package driver
 
 import (

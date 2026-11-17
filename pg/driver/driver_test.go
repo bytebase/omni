@@ -3,14 +3,17 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"net"
 	"slices"
 	"strings"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/bytebase/omni/driver"
+	"github.com/bytebase/omni/pg/internal/testcontainer"
 )
 
 func baseConfig() driver.Config {
@@ -220,6 +223,25 @@ func TestConnConfigDialWithoutHost(t *testing.T) {
 		t.Error("DialFunc is not the caller's")
 	}
 }
+
+// TestPingMissingDatabase holds what PostgreSQL answers for a database the
+// caller named and the server does not have: the connection is refused, before
+// any statement reaches it, with pgx's own error. The tape replays the refusal.
+func TestPingMissingDatabase(t *testing.T) {
+	db := testcontainer.OpenMissingDatabase(t, testcontainer.Default, missingDatabase)
+	t.Cleanup(func() { _ = db.Close() })
+	d := &Driver{db: db, databaseName: missingDatabase}
+
+	err := d.Ping(context.Background())
+	var engineError *pgconn.PgError
+	if !errors.As(err, &engineError) || engineError.Code != "3D000" {
+		t.Fatalf("Ping = %v, want a PostgreSQL error 3D000", err)
+	}
+}
+
+// missingDatabase is a database no test creates, so a recording's server does
+// not have it.
+const missingDatabase = "omni_no_such_database"
 
 // TestOpenDoesNotConnect: Open only prepares the pool, and a failed config
 // opens nothing.
