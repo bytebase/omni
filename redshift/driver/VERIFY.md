@@ -311,9 +311,9 @@ Every one is a decision the recording settles.
 | autocommit `Execute` runs the whole script on one connection | each call would borrow a pooled connection of its own, so a `SET search_path` or a temporary table would not hold for the statements after it |
 | a datashare statement loses the database's name from the relations its `FROM` and `JOIN` clauses name, and from nothing else | Bytebase replaced the text everywhere, including inside a literal and in a column qualifier |
 | a foreign key's table names are the `pg_class.relname` the constraint joins, not the tail of a quoted `schema.table` | a schema holding a period broke that split, so the constraint was filed under a table that does not exist and dropped from the sync |
-| a foreign key's column lists are split on the commas between identifiers, not inside a quoted name | a column named `a,b` was read as two columns, and `a"b` kept its doubled quote |
+| a foreign key's column lists are found by their parentheses and split between identifiers | a column named `a,b` was read as two columns, `a"b` kept its doubled quote, and a name holding a parenthesis ended the list early |
 | a datashare's columns are read in ordinal order | `SVV_ALL_COLUMNS` answers in no order a tape can hold, and the catalog consumes the slice's order |
-| an expression's `FROM` is not a relation list | `EXTRACT(x FROM db.t)` holds a `FROM` that opens an argument, so the datashare rewrite leaves the column qualifier alone |
+| an expression's `FROM` is not a relation list, and the list ends at the clause that follows it, `QUALIFY` included | `EXTRACT(x FROM db.t)` holds a `FROM` that opens an argument, and `QUALIFY` after a `FROM` holds column qualifiers, so the datashare rewrite leaves both alone |
 | a synced column keeps its numeric precision and scale | `data_type` states `numeric` alone, so `numeric(12,2)` and `numeric(8,4)` synced alike |
 
 ## What would unblock it

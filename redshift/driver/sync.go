@@ -605,25 +605,104 @@ func convertForeignKeyActionCode(in string) string {
 	}
 }
 
-var foreignKeyDefinitionRegexp = regexp.MustCompile(`FOREIGN KEY \((.*)\) REFERENCES (.*)\((.*)\)`)
-
 // getForeignKeyColumnsAndReferencedColumns reads the two column lists out of a
 // constraint definition such as
-// "FOREIGN KEY (a, b) REFERENCES s.t(x, y)".
+// "FOREIGN KEY (a, b) REFERENCES s.t(x, y)". The lists are found by their
+// parentheses rather than by a pattern, because a quoted identifier may hold a
+// parenthesis or a comma.
 func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []string, error) {
-	matches := foreignKeyDefinitionRegexp.FindStringSubmatch(definition)
-	if len(matches) != 4 {
+	columnList, rest, err := parenthesizedList(definition, "FOREIGN KEY")
+	if err != nil {
+		return nil, nil, err
+	}
+	const references = "REFERENCES"
+	rest = strings.TrimSpace(rest)
+	if len(rest) < len(references) || !strings.EqualFold(rest[:len(references)], references) {
 		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
 	}
-	columnList, err := getColumnList(matches[1])
+	rest = rest[len(references):]
+	open := indexOutsideQuotes(rest, '(')
+	if open < 0 {
+		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
+	}
+	referencedList, _, err := parentheses(rest[open:])
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid foreign key definition %q: %w", definition, err)
 	}
-	referencedColumnList, err := getColumnList(matches[3])
+
+	columns, err := getColumnList(columnList)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid foreign key definition %q: %w", definition, err)
 	}
-	return columnList, referencedColumnList, nil
+	referencedColumns, err := getColumnList(referencedList)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid foreign key definition %q: %w", definition, err)
+	}
+	return columns, referencedColumns, nil
+}
+
+// parenthesizedList reads the parenthesis group a definition opens with after
+// prefix.
+func parenthesizedList(definition, prefix string) (string, string, error) {
+	trimmed := strings.TrimSpace(definition)
+	if len(trimmed) < len(prefix) || !strings.EqualFold(trimmed[:len(prefix)], prefix) {
+		return "", "", fmt.Errorf("invalid foreign key definition: %q", definition)
+	}
+	inner, rest, err := parentheses(trimmed[len(prefix):])
+	if err != nil {
+		return "", "", fmt.Errorf("invalid foreign key definition: %q", definition)
+	}
+	return inner, rest, nil
+}
+
+// parentheses reads a balanced parenthesis group and returns what it holds and
+// what follows it, skipping the bytes a quoted identifier holds.
+func parentheses(s string) (string, string, error) {
+	s = strings.TrimSpace(s)
+	if s == "" || s[0] != '(' {
+		return "", "", fmt.Errorf("no parenthesized list: %q", s)
+	}
+	depth := 0
+	quoted := false
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"':
+			if quoted && i+1 < len(s) && s[i+1] == '"' {
+				i++
+				continue
+			}
+			quoted = !quoted
+		case quoted:
+		case c == '(':
+			depth++
+		case c == ')':
+			depth--
+			if depth == 0 {
+				return s[1:i], s[i+1:], nil
+			}
+		}
+	}
+	return "", "", fmt.Errorf("unbalanced parenthesis: %q", s)
+}
+
+// indexOutsideQuotes returns the offset of target in s, skipping the bytes a
+// quoted identifier holds, or -1 when it is not there.
+func indexOutsideQuotes(s string, target byte) int {
+	quoted := false
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"':
+			if quoted && i+1 < len(s) && s[i+1] == '"' {
+				i++
+				continue
+			}
+			quoted = !quoted
+		case quoted:
+		case c == target:
+			return i
+		}
+	}
+	return -1
 }
 
 // getColumnList splits a comma-separated column list, where a name may be

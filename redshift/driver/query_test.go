@@ -360,6 +360,11 @@ func TestStripDatashareQualifier(t *testing.T) {
 			want:      `SELECT * FROM (SELECT 1) AS x, t`,
 		},
 		{
+			name:      "QUALIFY ends the relation list",
+			statement: `SELECT shared.id FROM app.a AS shared, app.b AS b QUALIFY ROW_NUMBER() OVER (PARTITION BY shared.id ORDER BY shared.id) = 1`,
+			want:      `SELECT shared.id FROM app.a AS shared, app.b AS b QUALIFY ROW_NUMBER() OVER (PARTITION BY shared.id ORDER BY shared.id) = 1`,
+		},
+		{
 			name:      "a relation after a joined subquery is rewritten",
 			statement: `SELECT * FROM shared.a JOIN (SELECT 1 AS n) AS s ON true JOIN shared.b ON true`,
 			want:      `SELECT * FROM a JOIN (SELECT 1 AS n) AS s ON true JOIN b ON true`,

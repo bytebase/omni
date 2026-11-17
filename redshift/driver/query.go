@@ -448,7 +448,7 @@ func stripDatashareQualifier(statement, databaseName string) string {
 // the next clause or SELECT ends them.
 var (
 	relationListStart = keywordTokens("FROM", "JOIN", "INTO", "UPDATE")
-	relationListEnd   = keywordTokens("SELECT", "WHERE", "ON", "USING", "SET", "HAVING", "WINDOW", "RETURNING", "UNION", "EXCEPT", "INTERSECT", "GROUP", "ORDER", "LIMIT", "OFFSET", "VALUES")
+	relationListEnd   = keywordTokens("SELECT", "WHERE", "ON", "USING", "SET", "HAVING", "QUALIFY", "WINDOW", "RETURNING", "UNION", "EXCEPT", "INTERSECT", "GROUP", "ORDER", "LIMIT", "OFFSET", "FETCH", "FOR", "CONNECT", "START", "VALUES")
 )
 
 // keywordTokens maps each keyword's token type, as the lexer reports it.

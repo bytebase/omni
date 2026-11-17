@@ -131,6 +131,29 @@ func TestForeignKeyColumnsFromDefinition(t *testing.T) {
 	if _, _, err := getForeignKeyColumnsAndReferencedColumns("FOREIGN KEY (a) REFERENCES t"); err == nil {
 		t.Error("a definition without the referenced columns was accepted")
 	}
+
+	// A quoted name may hold the parenthesis a naive read would end the list at.
+	columns, referenced, err = getForeignKeyColumnsAndReferencedColumns(`FOREIGN KEY (id) REFERENCES parent("a(b)")`)
+	if err != nil {
+		t.Fatalf("getForeignKeyColumnsAndReferencedColumns: %v", err)
+	}
+	if len(columns) != 1 || columns[0] != "id" {
+		t.Errorf("columns = %q, want [id]", columns)
+	}
+	if len(referenced) != 1 || referenced[0] != "a(b)" {
+		t.Errorf("referenced = %q, want [a(b)]", referenced)
+	}
+
+	columns, referenced, err = getForeignKeyColumnsAndReferencedColumns(`FOREIGN KEY ("a(b)") REFERENCES "s(p)".t(x)`)
+	if err != nil {
+		t.Fatalf("getForeignKeyColumnsAndReferencedColumns: %v", err)
+	}
+	if len(columns) != 1 || columns[0] != "a(b)" {
+		t.Errorf("columns = %q, want [a(b)]", columns)
+	}
+	if len(referenced) != 1 || referenced[0] != "x" {
+		t.Errorf("referenced = %q, want [x]", referenced)
+	}
 }
 
 // TestColumnListSplit covers a name a plain split on commas would break: one
