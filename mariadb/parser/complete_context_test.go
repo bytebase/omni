@@ -190,7 +190,7 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{},
 		},
 		// MariaDB rejects the INSERT row alias ("not supported in MariaDB"),
-		// so that case is MySQL's and OceanBase's, not this corpus's.
+		// so these cases are MySQL's and OceanBase's, not this corpus's.
 		{
 			name: "update inside a routine body",
 			sql:  "CREATE PROCEDURE p() BEGIN UPDATE t SET x = |; END",
@@ -598,6 +598,88 @@ func TestCollectCompletionSignals(t *testing.T) {
 			sql:  "UPDATE LOW_PRIORITY IGNORE t SET x = |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
 		},
+		{
+			name: "function arguments keep the order by clause",
+			sql:  "SELECT a AS total FROM t ORDER BY COALESCE(a, |)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"total"}},
+		},
+		{
+			name: "case expression then is not a statement boundary",
+			sql:  "UPDATE t SET x = CASE WHEN y = 1 THEN | ELSE 0 END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "insert select duplicate key update sees the destination",
+			sql:  "INSERT INTO t (a) SELECT a FROM s ON DUPLICATE KEY UPDATE a = |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "s"}}, outer: [][]ref{{{table: "t"}}}, dml: "->t"},
+		},
+		{
+			name: "distinctrow is a select option",
+			sql:  "SELECT * FROM (SELECT DISTINCTROW a FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {"a"}}},
+		},
+		{
+			name: "interval unit is not an implicit alias",
+			sql:  "SELECT * FROM (SELECT NOW() + INTERVAL 1 DAY FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
+			name: "interval expression keeps its explicit alias",
+			sql:  "SELECT NOW() + INTERVAL 1 DAY AS x FROM t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"x"}},
+		},
+		{
+			name: "delete star target before from",
+			sql:  "DELETE a.* FROM db.t a WHERE a.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"a"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "a"}, {database: "db", table: "t", alias: "a"}}, dml: "->a"},
+		},
+		{
+			name: "adjacent text literals concatenate",
+			sql:  "SELECT * FROM (SELECT 'a' 'b') d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
+			name: "explicit string alias",
+			sql:  "SELECT 'a' AS 'b' FROM t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"b"}},
+		},
+		{
+			name: "alias after an interval expression",
+			sql:  "SELECT * FROM (SELECT NOW() + INTERVAL 1 DAY next_day FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {"next_day"}}},
+		},
+		{
+			name: "case expression inside a routine body",
+			sql:  "CREATE PROCEDURE p() BEGIN UPDATE t SET x = CASE WHEN y = 1 THEN | ELSE 0 END; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "parenthesized set operation names the first arm",
+			sql:  "(SELECT a AS x FROM t) UNION (SELECT b AS y FROM u) ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, aliases: []string{"x"}},
+		},
+		{
+			name: "comma item is not part of a join condition",
+			sql:  "SELECT * FROM t1, t2 JOIN t3 ON |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "nested join condition sees its operands",
+			sql:  "SELECT * FROM t1 JOIN (t2 JOIN t3 ON |) ON t1.x = 2",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "wrapped with body names its output after the clause",
+			sql:  "WITH c AS ((WITH d AS (SELECT 1 AS wrong) SELECT 2 AS actual)) SELECT c.| FROM c",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"actual"}}, cols: map[string][]string{"c": {"actual"}}},
+		},
+		{
+			name: "unterminated derived table hides its siblings",
+			sql:  "SELECT * FROM t, (SELECT |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}},
+		},
+		// MariaDB rejects the INSERT row alias ("not supported in MariaDB"),
+		// so these cases are MySQL's and OceanBase's, not this corpus's.
 		{
 			name: "intersect arms keep their own scope",
 			sql:  "SELECT a FROM t1 INTERSECT SELECT b FROM t2 WHERE |",
