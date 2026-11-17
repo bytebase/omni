@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math/big"
+	"reflect"
 	"strings"
 	"time"
 
@@ -190,8 +191,21 @@ func tupleArity(info gocql.TypeInfo) int {
 }
 
 // convertTuple reads a tuple column's elements as the JSON spelling the column
-// shows, the way a list or a user-defined type is read.
+// shows, the way a list or a user-defined type is read. gocql expands a tuple
+// into one value per element and leaves each nil for a NULL, so a tuple whose
+// every element is NULL is read as NULL: gocql cannot say whether the column
+// itself was NULL, and a tuple of NULLs is the one case the contract loses.
 func convertTuple(values []any) driver.Value {
+	allNull := true
+	for _, value := range values {
+		if !isNull(value) {
+			allNull = false
+			break
+		}
+	}
+	if allNull {
+		return driver.Value{Kind: driver.Null}
+	}
 	encoded, err := json.Marshal(values)
 	if err != nil {
 		return driver.Value{Kind: driver.String, String: fmt.Sprintf("%v", values)}
@@ -213,78 +227,56 @@ func holdsNoStatement(text string) bool {
 // fetched in.
 const pageSizeForACappedRead = 1000
 
+// isNull reports whether a value gocql handed back is a NULL.
+func isNull(v any) bool {
+	if v == nil {
+		return true
+	}
+	rv := reflect.ValueOf(v)
+	return rv.Kind() == reflect.Ptr && rv.IsNil()
+}
+
 // convertRowValue reads one cell gocql handed back. gocql allocates a pointer
 // per column from the CQL type's Go type, and a list, map, set, tuple or UDT
-// value is read as its JSON spelling, which is what Bytebase showed.
+// value is read as its JSON spelling, which is what Bytebase showed. A NULL is
+// that pointer left nil: a nil decimal or varint is a nil pointer one level
+// down, as its Go type is a pointer itself.
 func convertRowValue(v any) driver.Value {
+	if isNull(v) {
+		return driver.Value{Kind: driver.Null}
+	}
 	switch v := v.(type) {
 	case *string:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.String, String: *v}
 	case *int64:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Int64, Int64: *v}
 	case *time.Duration:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.String, String: timeOfDayString(*v)}
 	case *time.Time:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Timestamp, Time: *v, Precision: 3}
 	case *[]byte:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Bytes, Bytes: *v}
 	case *bool:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Bool, Bool: *v}
 	case *float32:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Float32, Float64: float64(*v)}
 	case *float64:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Float64, Float64: *v}
 	case *int:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Int64, Int64: int64(*v)}
 	case *int16:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Int32, Int64: int64(*v)}
 	case *int8:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.Int32, Int64: int64(*v)}
 	case *gocql.UUID:
-		if v == nil {
-			return driver.Value{Kind: driver.Null}
-		}
 		return driver.Value{Kind: driver.String, String: v.String()}
 	case **inf.Dec:
-		if v == nil || *v == nil {
+		if *v == nil {
 			return driver.Value{Kind: driver.Null}
 		}
 		return driver.Value{Kind: driver.String, String: (*v).String()}
 	case **big.Int:
-		if v == nil || *v == nil {
+		if *v == nil {
 			return driver.Value{Kind: driver.Null}
 		}
 		return driver.Value{Kind: driver.String, String: (*v).String()}

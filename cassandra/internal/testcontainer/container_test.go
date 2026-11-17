@@ -37,6 +37,7 @@ func TestTheTapeHoldsEveryCellKind(t *testing.T) {
 		new(float32(1.25)),
 		new(float64(-1.5)),
 		&blob,
+		new([]byte),
 		&timestamp,
 		new(2*time.Hour + 3*time.Second),
 		new(gocql.Duration{Months: 1, Days: 2, Nanoseconds: 3}),
@@ -60,6 +61,27 @@ func TestTheTapeHoldsEveryCellKind(t *testing.T) {
 		reencoded, err := encodeCell(decoded)
 		require.NoError(t, err, "%T", value)
 		require.Equal(t, encoded, reencoded, "%T did not survive the tape", value)
+	}
+
+	// A NULL is one cell kind, whatever the column's Go type: the tape names no
+	// type for a value that has none.
+	nulls := []any{
+		nil,
+		(*string)(nil),
+		(*int64)(nil),
+		(*[]byte)(nil),
+		(*[]int)(nil),
+		(*map[string]any)(nil),
+		new(*inf.Dec),
+		new(*big.Int),
+	}
+	for _, value := range nulls {
+		encoded, err := encodeCell(value)
+		require.NoError(t, err, "%T", value)
+		require.Equal(t, cell{Kind: kindNull}, encoded, "%T", value)
+		decoded, err := decodeCell(encoded)
+		require.NoError(t, err, "%T", value)
+		require.Nil(t, decoded, "%T", value)
 	}
 }
 
