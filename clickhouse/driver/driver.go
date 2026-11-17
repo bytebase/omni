@@ -1,16 +1,25 @@
 // Package driver is ClickHouse's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it connects through clickhouse-go/v2,
 // syncs a server's databases, users and a database's tables, views and
-// data-skipping indexes into omni/metadata, runs interactive queries, and
-// executes change scripts.
+// data-skipping indexes into omni/metadata, dumps a database's DDL as the
+// server states it, runs interactive queries, and executes change scripts.
 //
-// It implements Driver, Syncer, Querier and Executor. There is no Dumper:
-// omni's clickhouse tree has no catalog, so nothing renders synced metadata as
-// ClickHouse DDL. Bytebase's driver has a Dump, but it renders from the
-// metadata a sync produced, so it moves when a clickhouse/catalog exists. There
-// is also no clickhouse/parser or clickhouse/analysis yet, so the statement
-// handling the driver needs — splitting, limit and explain rewriting, and the
-// read-only check — lives in this package until that tree holds it.
+// It implements Driver, Syncer, Dumper, Querier and Executor. Dump asks the
+// server to state each object with SHOW CREATE TABLE, which answers a
+// dictionary's CREATE DICTIONARY and a view's or a materialized view's own
+// statement, because omni's clickhouse tree has no catalog, so nothing renders
+// a synced schema as ClickHouse DDL. The metadata it is given is not read: a
+// caller that edits a synced schema changes nothing in the dump, and a caller
+// that leaves part of the schema out narrows nothing either. The statements are
+// the server's own, so each names its object in the database it was read from
+// and a dump restores into a database of that name; the database itself is the
+// caller's to create, since only SHOW CREATE DATABASE states its engine and
+// comment. A definition's secret is written as the server states it: the dump
+// asks the server to show one in full, which it does only with its
+// display_secrets_in_show_and_select setting and the displaySecretsInShowAndSelect
+// privilege, and writes ClickHouse's [HIDDEN] placeholder otherwise. There is no clickhouse/parser or clickhouse/analysis yet, so the
+// statement handling the driver needs — splitting, limit and explain rewriting,
+// and the read-only check — lives in this package until that tree holds it.
 //
 // Config.Host and Config.Port name the native endpoint, port 9000. Config.Database
 // is the database a sync reads and a query runs in. Config.User and
