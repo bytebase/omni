@@ -95,12 +95,14 @@ func TestDumpRestores(t *testing.T) {
 
 // restoreDiff compares two synced databases apart from a view's definition
 // text. Hive stores a view as the statement that created it, and a view the dump
-// recreates is stored as the rendering SHOW CREATE stated — the same view, whose
+// recreates is stored as the rendering its CREATE stated — the same view, whose
 // query the server writes another way. The dump itself round-trips exactly,
-// which the second dump holds.
+// which the second dump holds. A table's size and row count are the rows it
+// holds, which a dump of the schema does not carry.
 func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {
 	return cmp.Diff(source.GetSchemas(), restored.GetSchemas(), protocmp.Transform(),
 		protocmp.IgnoreFields(&metadatapb.ViewMetadata{}, "definition"),
+		protocmp.IgnoreFields(&metadatapb.TableMetadata{}, "data_size", "row_count"),
 	)
 }
 
@@ -141,132 +143,60 @@ func TestDumpGaps(t *testing.T) {
 		check    func(t *testing.T, g gapResult)
 	}{
 		{
-			// Hive 4 stores a CREATE TABLE as an external table, and only
-			// ALTER TABLE ... SET TBLPROPERTIES('EXTERNAL'='FALSE') makes one
-			// managed — which is how the pinned server, with strict managed
-			// tables off so a sync has a managed table to read, makes the two.
-			// SHOW CREATE TABLE states the CREATE and nothing of the ALTER, so
-			// the table a replay creates is external.
-			name:     "a table Hive made managed by an ALTER",
-			database: "omni_gap_managed",
+			// A view whose source is gone keeps the statement the server states,
+			// and the server refuses to create it again: Hive resolves a view's
+			// query when it creates the view, and the table it reads is not
+			// there. The dump carries the view, ordered by name because the
+			// server cannot say what it reads.
+			name:     "a view whose source is gone",
+			database: "omni_gap_broken_view",
 			setup: []string{
-				"CREATE TABLE `omni_gap_managed`.orders (id BIGINT) STORED AS PARQUET",
-				"ALTER TABLE `omni_gap_managed`.orders SET TBLPROPERTIES('EXTERNAL'='FALSE')",
+				"CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET",
+				"CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t",
+				"DROP TABLE `omni_gap_broken_view`.t",
 			},
-			check: func(t *testing.T, g gapResult) {
-				t.Helper()
-				if tables := g.source.Schemas[0].Tables; len(tables) != 1 || len(tables[0].Partitions) != 0 {
-					t.Fatalf("the source has %d managed tables; the fixture is not what the gap names", len(tables))
-				}
-				if tables := g.restored.Schemas[0].Tables; len(tables) != 0 {
-					t.Fatalf("the dump restored the table as managed; if the gap closed, remove it")
-				}
-				if tables := g.restored.Schemas[0].ExternalTables; len(tables) != 1 {
-					t.Fatalf("the restore has %d external tables; the gap is about the one it made", len(tables))
-				}
-			},
+			wantErr: true,
 		},
 		{
-			// SHOW CREATE TABLE states a partitioned table's PARTITIONED BY
-			// columns and not its partitions: those are metastore rows an
-			// ALTER TABLE ADD PARTITION writes, and the dump restates only what
-			// SHOW CREATE states.
-			name:     "a partitioned table's partitions",
-			database: "omni_gap_partition",
+			// Hive names the partition a null value lives in for the value it
+			// has lost — dt=__HIVE_DEFAULT_PARTITION__ — and takes neither
+			// statement that would state it: ALTER TABLE ... ADD PARTITION with
+			// the name as a literal fails on the reserved substring (error
+			// 10111), and dt=null fails as a partition column of type void
+			// (error 10248). The dump therefore leaves the partition out.
+			name:     "a partition whose value is null",
+			database: "omni_gap_null_partition",
 			setup: []string{
-				"CREATE TABLE `omni_gap_partition`.events (id INT) PARTITIONED BY (dt STRING) STORED AS PARQUET",
-				"ALTER TABLE `omni_gap_partition`.events SET TBLPROPERTIES('EXTERNAL'='FALSE')",
-				"ALTER TABLE `omni_gap_partition`.events ADD PARTITION (dt='2024-01-01')",
+				"CREATE TABLE `omni_gap_null_partition`.p (id INT) PARTITIONED BY (dt STRING) STORED AS PARQUET",
+				"ALTER TABLE `omni_gap_null_partition`.p SET TBLPROPERTIES('EXTERNAL'='FALSE')",
+				"INSERT INTO `omni_gap_null_partition`.p VALUES (1, null)",
 			},
 			check: func(t *testing.T, g gapResult) {
 				t.Helper()
 				partitions := g.source.Schemas[0].Tables[0].Partitions
-				if len(partitions) != 1 {
-					t.Fatalf("the source has %d partitions; the fixture is not what the gap names", len(partitions))
+				if len(partitions) != 1 || partitions[0].Name != "dt=__HIVE_DEFAULT_PARTITION__" {
+					t.Fatalf("the source's partitions are %v; the fixture is not what the gap names", partitions)
 				}
-				if strings.Contains(g.dumped, partitions[0].Name) {
-					t.Fatalf("the dump names the partition %q; if the gap closed, remove it", partitions[0].Name)
+				if restored := g.restored.Schemas[0].Tables[0].Partitions; len(restored) != 0 {
+					t.Fatalf("the dump restored %d partitions; if the gap closed, remove it", len(restored))
 				}
-			},
-		},
-		{
-			// A view's comment is a table parameter, and SHOW CREATE TABLE
-			// states a view's query and no parameters, so a restored view comes
-			// back without it.
-			name:     "a view's comment",
-			database: "omni_gap_view_comment",
-			setup: []string{
-				"CREATE TABLE `omni_gap_view_comment`.t (id INT) STORED AS PARQUET",
-				"CREATE VIEW `omni_gap_view_comment`.v COMMENT 'a comment the dump leaves out' AS SELECT id FROM `omni_gap_view_comment`.t",
-			},
-			check: func(t *testing.T, g gapResult) {
-				t.Helper()
-				before := g.source.Schemas[0].Views
-				after := g.restored.Schemas[0].Views
-				if len(before) != 1 || before[0].Comment == "" {
-					t.Fatalf("the source view has no comment; the fixture is not what the gap names")
-				}
-				if len(after) != 1 || after[0].Comment != "" {
-					t.Fatalf("the dump restored the view's comment; if the gap closed, remove it")
+				for _, statement := range []string{
+					"ALTER TABLE `omni_gap_null_partition`.p ADD PARTITION (dt='__HIVE_DEFAULT_PARTITION__')",
+					"ALTER TABLE `omni_gap_null_partition`.p ADD PARTITION (dt=null)",
+				} {
+					if _, err := g.driver.db.ExecContext(context.Background(), statement); err == nil {
+						t.Fatalf("%s is a statement the server takes; if the gap closed, remove it", statement)
+					}
 				}
 			},
-		},
-		{
-			// SHOW CREATE TABLE states a materialized view as a plain CREATE
-			// TABLE: Hive keeps the view's query out of it, so the object a
-			// restore creates is the table the statement says.
-			name:     "a materialized view's definition",
-			database: "omni_gap_materialized_view",
-			setup: []string{
-				"CREATE TABLE `omni_gap_materialized_view`.src (id INT) STORED AS PARQUET",
-				"CREATE MATERIALIZED VIEW `omni_gap_materialized_view`.mv DISABLE REWRITE AS SELECT id FROM `omni_gap_materialized_view`.src",
-			},
-			check: func(t *testing.T, g gapResult) {
-				t.Helper()
-				if views := g.source.Schemas[0].MaterializedViews; len(views) != 1 {
-					t.Fatalf("the source has %d materialized views; the fixture is not what the gap names", len(views))
-				}
-				if views := g.restored.Schemas[0].MaterializedViews; len(views) != 0 {
-					t.Fatalf("the dump restored the materialized view; if the gap closed, remove it")
-				}
-			},
-		},
-		{
-			// A view whose source is gone keeps the statement the server states,
-			// and the server refuses to create it again: Hive resolves a view's
-			// query when it creates the view, and the table it reads is not
-			// there. The dump carries the view, ordered by name because the
-			// server cannot say what it reads.
-			name:     "a view whose source is gone",
-			database: "omni_gap_broken_view",
-			setup: []string{
-				"CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET",
-				"CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t",
-				"DROP TABLE `omni_gap_broken_view`.t",
-			},
-			wantErr: true,
-		},
-		{
-			// A view whose source is gone keeps the statement the server states,
-			// and the server refuses to create it again: Hive resolves a view's
-			// query when it creates the view, and the table it reads is not
-			// there. The dump carries the view, ordered by name because the
-			// server cannot say what it reads.
-			name:     "a view whose source is gone",
-			database: "omni_gap_broken_view",
-			setup: []string{
-				"CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET",
-				"CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t",
-				"DROP TABLE `omni_gap_broken_view`.t",
-			},
-			wantErr: true,
 		},
 		{
 			// The dump carries a database's objects, not the database: SHOW
 			// CREATE DATABASE states its comment, owner and location, and the
-			// caller creates the database a restore goes into. A dump that
-			// carried the CREATE DATABASE would either fail on the database the
-			// restore already made or bring the comment back.
+			// caller creates the database a restore goes into. The metadata
+			// cannot carry them either — DatabaseSchemaMetadata holds the name,
+			// the schemas and the extension list — so the loss needs a field
+			// before a dump could state it.
 			name:     "the database itself",
 			database: "omni_gap_database",
 			setup: []string{
@@ -276,11 +206,14 @@ func TestDumpGaps(t *testing.T) {
 			},
 			check: func(t *testing.T, g gapResult) {
 				t.Helper()
+				if strings.Contains(g.dumped, "CREATE DATABASE") {
+					t.Fatalf("the dump carries the database; if the gap closed, remove it:\n%s", g.dumped)
+				}
 				var statement string
 				require.NoError(t, g.driver.db.QueryRowContext(context.Background(),
 					"SHOW CREATE DATABASE "+quoteBacktick("omni_gap_database")).Scan(&statement))
 				if strings.Contains(statement, "a comment the dump leaves out") {
-					t.Fatalf("the dump restored the database's comment; if the gap closed, remove it:\n%s", statement)
+					t.Fatalf("the database's comment came back; if the gap closed, remove it:\n%s", statement)
 				}
 			},
 		},
@@ -334,4 +267,34 @@ func syncDatabase(t *testing.T, d *Driver) *metadatapb.DatabaseSchemaMetadata {
 	metadata, err := d.SyncDatabase(context.Background())
 	require.NoError(t, err)
 	return metadata
+}
+
+// TestDumpPartitionSpec holds what a partition name states: the columns and
+// values ADD PARTITION takes, Hive's escapes read back, and nothing for the
+// partition a null value lives in.
+func TestDumpPartitionSpec(t *testing.T) {
+	for _, partition := range []struct {
+		name string
+		spec string
+		ok   bool
+	}{
+		{name: "dt=2024-01-01", spec: "`dt`='2024-01-01'", ok: true},
+		{name: "dt=2024-01-01/hr=05", spec: "`dt`='2024-01-01', `hr`='05'", ok: true},
+		// Hive escapes the characters that would end a level, name one, or spell
+		// an escape, so a value holding any of them reads back whole.
+		{name: "dt=a%2Fb", spec: "`dt`='a/b'", ok: true},
+		{name: "dt=a%3Db/hr=a%2Fb", spec: "`dt`='a=b', `hr`='a/b'", ok: true},
+		{name: "dt=a%25b", spec: "`dt`='a%b'", ok: true},
+		{name: "dt=a%23b", spec: "`dt`='a#b'", ok: true},
+		// A value's quote and backslash are the two a replay escapes again.
+		{name: "dt=a%27b", spec: "`dt`='a\\'b'", ok: true},
+		{name: "dt=a%5Cb", spec: "`dt`='a\\\\b'", ok: true},
+		{name: "dt=__HIVE_DEFAULT_PARTITION__", ok: false},
+		{name: "dt=a/dt=__HIVE_DEFAULT_PARTITION__", ok: false},
+		{name: "dt", ok: false},
+	} {
+		spec, ok := dumpPartitionSpec(partition.name)
+		require.Equal(t, partition.ok, ok, partition.name)
+		require.Equal(t, partition.spec, spec, partition.name)
+	}
 }

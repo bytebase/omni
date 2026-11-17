@@ -225,6 +225,7 @@ func (d *Driver) getDatabaseInfoByName(ctx context.Context, databaseName string)
 
 // TableInfo is what one DESCRIBE FORMATTED answer says about a table.
 type TableInfo struct {
+	database     string
 	tableType    string
 	colMetadatas []*metadatapb.ColumnMetadata
 	numRows      int
@@ -276,6 +277,10 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			section = storageSection
 		case strings.HasPrefix(colNameValue, "# View Information"):
 			section = viewSection
+		case strings.HasPrefix(colNameValue, "# Materialized View Information"):
+			// A materialized view states its query under its own heading, which
+			// is where the definition of the view comes from.
+			section = viewSection
 		default:
 			// No action needed for other cases
 		}
@@ -293,6 +298,10 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			}
 		case tableInfoSection:
 			switch {
+			case trimField(colNameValue) == "Database:":
+				// The database as the server stores its name, which a statement
+				// the dump writes qualifies with.
+				tableInfo.database = trimField(dataTypeValue)
 			case trimField(colNameValue) == "Table Type:":
 				tableInfo.tableType = trimField(dataTypeValue)
 			case trimField(dataTypeValue) == "numRows":

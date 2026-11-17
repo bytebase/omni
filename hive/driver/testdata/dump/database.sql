@@ -22,6 +22,12 @@ TBLPROPERTIES (
   'last_modified_time'='1000000000', 
   'transient_lastDdlTime'='1000000000');
 
+ALTER TABLE `omni_dump`.`events` SET TBLPROPERTIES('EXTERNAL'='FALSE');
+
+ALTER TABLE `omni_dump`.`events` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/opt/hive/data/warehouse/omni_dump.db/events/dt=2024-01-01';
+
+ALTER TABLE `omni_dump`.`events` ADD PARTITION (`dt`='2024-01-02') LOCATION 'file:/tmp/omni/dump_events_dt_2024-01-02';
+
 --
 -- Table structure for `events__`
 --
@@ -85,13 +91,25 @@ TBLPROPERTIES (
   'last_modified_time'='1000000000', 
   'transient_lastDdlTime'='1000000000');
 
+ALTER TABLE `omni_dump`.`orders` SET TBLPROPERTIES('EXTERNAL'='FALSE');
+
 --
 -- View structure for `z_base`
 --
 CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`;
 
 --
+-- View structure for `z_users`
+--
+CREATE VIEW `omni_dump`.`z_users` COMMENT 'the users\' rows' AS SELECT id, name FROM omni_dump.ext_users;
+
+--
 -- View structure for `a_top`
 --
 CREATE VIEW `omni_dump`.`a_top` AS SELECT `middle`.`id` AS `it's` FROM `omni_other`.`middle`;
+
+--
+-- Materialized view structure for `a_users_mv`
+--
+CREATE MATERIALIZED VIEW `omni_dump`.`a_users_mv` DISABLE REWRITE COMMENT 'the users materialized' AS SELECT id FROM omni_dump.z_users;
 
