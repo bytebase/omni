@@ -1961,3 +1961,38 @@ func TestSequenceRestartRequiresKnownOldStart(t *testing.T) {
 		t.Fatalf("restart inferred from unknown start:\n%s", sql)
 	}
 }
+
+func TestColumnAlterationBeforeDependentView(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "DATE", Position: 1}}}
+	view := &metadatapb.ViewMetadata{Name: "V", Definition: "SELECT EXTRACT(YEAR FROM C) AS Y FROM T", DependencyColumns: []*metadatapb.DependencyColumn{{Table: "T", Column: "C"}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}, Views: []*metadatapb.ViewMetadata{view}}))
+	alter := strings.Index(sql, `MODIFY "C" DATE`)
+	create := strings.Index(sql, `CREATE VIEW "V"`)
+	if alter < 0 || create < 0 || alter > create {
+		t.Fatalf("view created before column alteration:\n%s", sql)
+	}
+}
+
+func TestEarlyVirtualAlterExcludesDroppedIndex(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "D", Type: "NUMBER", Position: 2}, {Name: "V", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}}, Indexes: []*metadatapb.IndexMetadata{{Name: "I", Expressions: []string{"V"}, Visible: true}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "D", Type: "NUMBER", Position: 2}, {Name: "V", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "D+1"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if strings.Count(sql, `DROP INDEX "I"`) != 1 || strings.Contains(sql, `CREATE INDEX "I"`) {
+		t.Fatalf("already-dropped index handled twice:\n%s", sql)
+	}
+}
+
+func TestMaterializedViewKeepsRefreshSchedule(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C NUMBER); CREATE MATERIALIZED VIEW MV REFRESH COMPLETE START WITH SYSDATE NEXT SYSDATE + 1 AS SELECT C FROM T`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, "START WITH SYSDATE NEXT SYSDATE + 1") {
+		t.Fatalf("refresh schedule missing:\n%s", definition)
+	}
+}

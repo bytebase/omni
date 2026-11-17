@@ -25,6 +25,7 @@ func generateMigration(diff *MetadataDiff) (string, error) {
 	detached := findDetachedIncomingForeignKeys(diff, renames)
 	diff.preAltered = map[*ColumnDiff]bool{}
 	diff.preAdded = map[*ColumnDiff]bool{}
+	diff.alterHandled = map[*TableDiff]bool{}
 
 	// Safe order for migrations:
 	// 1. Drop dependent objects first (in reverse dependency order)
@@ -643,6 +644,22 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 
+	earlyAlteredTables := map[string]bool{}
+	for _, viewDiff := range viewMap {
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
+			for _, dependency := range viewDiff.NewView.GetDependencyColumns() {
+				earlyAlteredTables[dependency.GetSchema()+"\x00"+dependency.GetTable()] = true
+			}
+		}
+	}
+	for _, viewDiff := range materializedViewMap {
+		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
+			for _, dependency := range viewDiff.NewMaterializedView.GetDependencyColumns() {
+				earlyAlteredTables[dependency.GetSchema()+"\x00"+dependency.GetTable()] = true
+			}
+		}
+	}
+
 	// Get topological order
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
@@ -691,6 +708,10 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 						writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn)
 					}
 				}
+				if earlyAlteredTables[tableDiff.SchemaName+"\x00"+tableDiff.TableName] {
+					writeAlterColumns(buf, diff, tableDiff, detached)
+					diff.alterHandled[tableDiff] = true
+				}
 			}
 		}
 
@@ -735,11 +756,16 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 						_, _ = buf.WriteString("\n")
 					}
 				case DiffActionAlter:
-					// Handle column additions for ALTER operations (only columns in topological order)
+					// Handle column additions and the rest of the table's changes
+					// before dependent views are created.
 					for _, colDiff := range tableDiff.ColumnChanges {
 						if colDiff.Action == DiffActionCreate && !diff.preAdded[colDiff] {
 							writeAddColumn(buf, tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn)
 						}
+					}
+					if earlyAlteredTables[tableDiff.SchemaName+"\x00"+tableDiff.TableName] {
+						writeAlterColumns(buf, diff, tableDiff, detached)
+						diff.alterHandled[tableDiff] = true
 					}
 				default:
 					// No action needed
@@ -777,8 +803,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			// Skip column additions (already handled in topological order)
 			// Handle other ALTER operations
 
-			// Alter columns (type changes, nullability, etc.)
-			writeAlterColumns(buf, diff, tableDiff, detached)
+			// Alter columns (type changes, nullability, etc.) unless already done
+			// before dependent views.
+			if !diff.alterHandled[tableDiff] {
+				writeAlterColumns(buf, diff, tableDiff, detached)
+			}
 
 			// Add indexes
 			for _, indexDiff := range tableDiff.IndexChanges {
@@ -962,7 +991,11 @@ func preAlterDependentVirtualColumns(buf *strings.Builder, diff *MetadataDiff, t
 					}
 				}
 			}
-			dependents := findColumnDependents(tableDiff.OldTable, []string{change.OldColumn.GetName()}, nil)
+			handled := diffObjectNames(tableDiff, DiffActionDrop)
+			for name := range diffObjectNames(tableDiff, DiffActionCreate) {
+				handled[name] = true
+			}
+			dependents := findColumnDependents(tableDiff.OldTable, []string{change.OldColumn.GetName()}, handled)
 			dependents.writeDrops(buf, tableDiff.SchemaName, tableDiff.TableName)
 			buf.WriteString(generateAlterColumn(tableDiff.SchemaName, tableDiff.TableName, change, columnNotNull{}))
 			dependents.writeCreates(buf, tableDiff.SchemaName, tableDiff.TableName)

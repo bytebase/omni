@@ -1437,7 +1437,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 		definition = strings.TrimSpace(definition) + restriction
 	}
 	if n.Materialized {
-		if prefix := materializedViewPrefix(n); prefix != "" {
+		if prefix := e.materializedViewPrefix(n); prefix != "" {
 			definition = prefix + " AS " + strings.TrimSpace(definition)
 		}
 		materializedView := &metadatapb.MaterializedViewMetadata{
@@ -1469,7 +1469,7 @@ func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
 	e.views[viewName] = view
 }
 
-func materializedViewPrefix(n *ast.CreateViewStmt) string {
+func (e *oracleMetadataExtractor) materializedViewPrefix(n *ast.CreateViewStmt) string {
 	var parts []string
 	if n.BuildMode != "" {
 		parts = append(parts, "BUILD "+strings.ToUpper(n.BuildMode))
@@ -1481,6 +1481,12 @@ func materializedViewPrefix(n *ast.CreateViewStmt) string {
 		}
 		if n.RefreshMode != "" {
 			refresh += " " + strings.ToUpper(n.RefreshMode)
+		}
+		if n.StartWith != nil {
+			refresh += " START WITH " + e.nodeText(n.StartWith)
+		}
+		if n.Next != nil {
+			refresh += " NEXT " + e.nodeText(n.Next)
 		}
 		parts = append(parts, refresh)
 	}

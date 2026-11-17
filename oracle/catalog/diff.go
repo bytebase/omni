@@ -127,8 +127,9 @@ type MetadataDiff struct {
 	ProcedureChanges        []*ProcedureDiff
 	SequenceChanges         []*SequenceDiff
 
-	preAltered map[*ColumnDiff]bool
-	preAdded   map[*ColumnDiff]bool
+	preAltered   map[*ColumnDiff]bool
+	preAdded     map[*ColumnDiff]bool
+	alterHandled map[*TableDiff]bool
 }
 
 // SchemaDiff is the diff Diff returns.
