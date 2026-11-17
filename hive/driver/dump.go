@@ -1,0 +1,269 @@
+package driver
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"io"
+	"sort"
+	"strings"
+
+	"github.com/bytebase/omni/driver"
+	metadatapb "github.com/bytebase/omni/metadata"
+)
+
+var _ driver.Dumper = (*Driver)(nil)
+
+// dumpViewPrefix begins every statement SHOW CREATE TABLE states for a view.
+const dumpViewPrefix = "CREATE VIEW "
+
+// dumpObject is one object a dump writes: the name the server lists, the
+// statement the server states for it, whether that statement is a view's, and
+// the views in the same database that creating it resolves, which orders the
+// views.
+type dumpObject struct {
+	name   string
+	stmt   string
+	isView bool
+	reads  []string
+}
+
+// Dump writes the database's DDL as the server states it. The metadata is not
+// rendered and does not narrow the dump: DESCRIBE FORMATTED reports a table's
+// type, columns, row count and partitions but not the row format, the input and
+// output formats, the serde properties, the storage handler, the skew or bucket
+// definition, or the table properties, so a synced schema cannot be turned back
+// into HiveQL. SHOW CREATE TABLE states all of them, and it is what the caller
+// gets. The caller creates the database; the dump carries the objects in it, in
+// an order that replays.
+func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.DatabaseSchemaMetadata) error {
+	objects, err := d.dumpObjects(ctx, d.databaseNameOrDefault())
+	if err != nil {
+		return err
+	}
+	for _, o := range orderDumpObjects(objects) {
+		label := "Table"
+		if o.isView {
+			label = "View"
+		}
+		if _, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n%s;\n\n", label, quoteBacktick(o.name), o.stmt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// dumpObjects reads the database's tables and views and the statement the
+// server states for each.
+func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObject, error) {
+	names, err := d.dumpNames(ctx, database)
+	if err != nil {
+		return nil, err
+	}
+	var objects []*dumpObject
+	for _, name := range names {
+		stmt, err := d.dumpStatement(ctx, database, name)
+		if err != nil {
+			return nil, err
+		}
+		objects = append(objects, &dumpObject{
+			name:   name,
+			stmt:   stmt,
+			isView: strings.HasPrefix(stmt, dumpViewPrefix),
+		})
+	}
+	views := make(map[string]bool, len(objects))
+	for _, o := range objects {
+		if o.isView {
+			views[o.name] = true
+		}
+	}
+	for _, o := range objects {
+		if !o.isView {
+			continue
+		}
+		reads, err := d.dumpReads(ctx, database, o.name, views)
+		if err != nil {
+			// Hive answers a view whose source is gone with an error here: the
+			// statement it states is still the view's, so the dump carries it,
+			// ordered by name like any definition the server cannot place. A
+			// call that was cancelled or timed out is not that view.
+			if ctx.Err() != nil {
+				return nil, err
+			}
+			continue
+		}
+		o.reads = reads
+	}
+	return objects, nil
+}
+
+// dumpNames returns the database's object names, in name order. Every name SHOW
+// TABLES answers is an object to dump: Hive 4 parses no CREATE INDEX, so no name
+// is one of Hive's own index tables.
+func (d *Driver) dumpNames(ctx context.Context, database string) ([]string, error) {
+	query := "SHOW TABLES IN " + quoteBacktick(database)
+	rows, err := d.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	var names []string
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err != nil {
+			return nil, fmt.Errorf("%s: %w", query, err)
+		}
+		names = append(names, name)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	sort.Strings(names)
+	return names, nil
+}
+
+// dumpStatement returns the statement SHOW CREATE TABLE states for one object,
+// without its terminating semicolon. Hive states it in one row; a server that
+// states it a line per row is joined back into one statement.
+func (d *Driver) dumpStatement(ctx context.Context, database, name string) (string, error) {
+	query := "SHOW CREATE TABLE " + quoteBacktick(database) + "." + quoteBacktick(name)
+	rows, err := d.db.QueryContext(ctx, query)
+	if err != nil {
+		return "", fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	var lines []string
+	for rows.Next() {
+		var line sql.NullString
+		if err := rows.Scan(&line); err != nil {
+			return "", fmt.Errorf("%s: %w", query, err)
+		}
+		if line.String != "" {
+			lines = append(lines, line.String)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return "", fmt.Errorf("%s: %w", query, err)
+	}
+	if len(lines) == 0 {
+		return "", fmt.Errorf("%s: no statement", query)
+	}
+	return strings.TrimSuffix(strings.TrimSpace(strings.Join(lines, "\n")), ";"), nil
+}
+
+// orderDumpObjects puts the objects in the order a restore replays them: every
+// object that is not a view first, since a table states no dependency and a
+// materialized view is stated as one, then the views, each after the views in
+// its database it reads. Hive resolves a view's query when it creates the view
+// and states no dependency anywhere, so the order comes from the statements.
+func orderDumpObjects(objects []*dumpObject) []*dumpObject {
+	var other, views []*dumpObject
+	for _, o := range objects {
+		if o.isView {
+			views = append(views, o)
+		} else {
+			other = append(other, o)
+		}
+	}
+	return append(sortDumpObjects(other), orderDumpViews(views)...)
+}
+
+// orderDumpViews orders views so that a view follows every view in its database
+// it reads, names breaking ties so the dump is deterministic. A reference cycle
+// cannot exist on the server, which refuses the creation that would close it;
+// were one found anyway, the remaining views are written in name order so the
+// dump still carries them.
+func orderDumpViews(views []*dumpObject) []*dumpObject {
+	pending := sortDumpObjects(views)
+	names := make(map[string]bool, len(pending))
+	for _, o := range pending {
+		names[o.name] = true
+	}
+	emitted := make(map[string]bool, len(pending))
+	ordered := make([]*dumpObject, 0, len(pending))
+	for len(pending) > 0 {
+		progress := false
+		for i := 0; i < len(pending); {
+			ready := true
+			for _, read := range pending[i].reads {
+				if names[read] && !emitted[read] {
+					ready = false
+					break
+				}
+			}
+			if !ready {
+				i++
+				continue
+			}
+			ordered = append(ordered, pending[i])
+			emitted[pending[i].name] = true
+			pending = append(pending[:i], pending[i+1:]...)
+			progress = true
+		}
+		if progress {
+			continue
+		}
+		ordered = append(ordered, pending[0])
+		emitted[pending[0].name] = true
+		pending = pending[1:]
+	}
+	return ordered
+}
+
+func sortDumpObjects(objects []*dumpObject) []*dumpObject {
+	sorted := append([]*dumpObject(nil), objects...)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].name < sorted[j].name })
+	return sorted
+}
+
+// dumpReads returns the views in views that creating o resolves, as the server
+// states them: the views of this database that the query reaches, which is what
+// EXPLAIN DEPENDENCY names. The statement Hive renders cannot be read for this:
+// a qualified column of a table aliased with the database's name is spelled like
+// a reference to another view, and so is a name inside a string literal.
+func (d *Driver) dumpReads(ctx context.Context, database, name string, views map[string]bool) ([]string, error) {
+	query := "EXPLAIN DEPENDENCY SELECT * FROM " + quoteBacktick(database) + "." + quoteBacktick(name)
+	rows, err := d.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	var dependencies dumpDependencies
+	if rows.Next() {
+		var text string
+		if err := rows.Scan(&text); err != nil {
+			return nil, fmt.Errorf("%s: %w", query, err)
+		}
+		if err := json.Unmarshal([]byte(text), &dependencies); err != nil {
+			return nil, fmt.Errorf("%s: %w", query, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+
+	// Hive states each table as database@table, in whatever case it was created,
+	// and the list holds everything the query reaches, through a view in another
+	// database included. Only the views of this database order the dump, and
+	// every one the query reaches has to be there before it.
+	var reads []string
+	for _, table := range dependencies.InputTables {
+		readDatabase, readName, ok := strings.Cut(table.Name, "@")
+		if !ok || !strings.EqualFold(readDatabase, database) || readName == name || !views[readName] {
+			continue
+		}
+		reads = append(reads, readName)
+	}
+	sort.Strings(reads)
+	return reads, nil
+}
+
+// dumpDependencies is what EXPLAIN DEPENDENCY answers: every table a query
+// reaches, as database@table.
+type dumpDependencies struct {
+	InputTables []struct {
+		Name string `json:"tablename"`
+	} `json:"input_tables"`
+}

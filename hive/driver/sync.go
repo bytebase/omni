@@ -41,13 +41,18 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 	return &instanceMetadata, nil
 }
 
-// SyncDatabase reads the full schema of d.databaseName, or of the server's
-// default database when none was named.
-func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	dbName := d.databaseName
-	if dbName == "" {
-		dbName = "default"
+// databaseNameOrDefault is the database a sync or a dump reads: the one the
+// driver was opened on, or Hive's own default.
+func (d *Driver) databaseNameOrDefault() string {
+	if d.databaseName != "" {
+		return d.databaseName
 	}
+	return "default"
+}
+
+// SyncDatabase reads the full schema of the database the driver reads.
+func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	dbName := d.databaseNameOrDefault()
 
 	schemaMetadata, err := d.getDatabaseInfoByName(ctx, dbName)
 	if err != nil {
