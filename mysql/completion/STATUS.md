@@ -1,6 +1,7 @@
 # Completion cut: status
 
-2026-11-17 · Parked, not merged. This file is the resume point.
+2026-11-17 · Resume point. This branch's PR replaces #1291, which was parked after Codex's review
+quota ran out; the code is identical.
 
 The completion cut is "omni emits parser-native token/rule/scope/intent signals; Bytebase resolves
 live metadata into product `Candidate` values" (`docs/specs/2026-11-16-completion-cut-design.md`).
@@ -11,7 +12,7 @@ Bytebase's own completion corpus is classified. What is left is review capacity,
 
 | PR | engine | head at parking | state |
 |---|---|---|---|
-| #1291 | MySQL | `6ec94763` | draft, CI green, 0 open review threads (79 resolved) |
+| replacement for #1291 | MySQL | this branch | the active PR; #1291 closed as superseded, 0 open review threads (79 resolved) |
 | #1299 | MariaDB | `bcf7a157` | draft, CI green, 25–27 open threads |
 | #1300 | OceanBase | `98a69482` | draft, CI green, 25–27 open threads |
 | #1302 | TiDB | `6e3f51f6` | draft, CI green, 25–27 open threads |
@@ -152,9 +153,10 @@ worktree between agents.
 
 ## Parking notes
 
-- Drafted on purpose: the cut is not switched on in Bytebase yet, so nothing forces a merge, and
-  merging with open findings would ship answers that differ from Bytebase's in classified but
-  unreviewed ways.
+- The branch was parked, then recreated as a fresh PR against the same change, because #1291's
+  Codex review quota ran out: a new PR gets a new review run once the quota resets, and a `failed`
+  review is neither a pass nor a finding. The cut is still not switched on in Bytebase, so nothing
+  forces a premature merge.
 - Do not retry Codex while its usage limit is exhausted. A `failed` review is not a finding.
 - The Mongo design is merged (`docs/specs/2026-11-17-mongo-completion-cut-design.md`); it is its own
   cut and needs a `Signals` struct of shell contexts, not a copy of this reader.
