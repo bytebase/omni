@@ -402,3 +402,136 @@ func TestDumpMaterializedViewClauses(t *testing.T) {
 		require.Equal(t, clauses.out, out, clauses.name)
 	}
 }
+
+// TestDumpMaterializedViewQuery holds the text a materialized view's query
+// replays from: the expansion, which quotes every name and, for a partitioned
+// view, wraps the query in the projection Hive reads the partitions through, or
+// the text the view was created with, which its normalisation may have left
+// without the backquotes a name needs.
+func TestDumpMaterializedViewQuery(t *testing.T) {
+	// p_events_mv's pair, as the pinned server states them.
+	const (
+		partitionedOriginal = "SELECT id, dt FROM omni_dump.events"
+		partitionedExpanded = "SELECT `id`, `dt` FROM (SELECT `events`.`id`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`"
+	)
+	for _, query := range []struct {
+		name        string
+		original    string
+		expanded    string
+		partitioned bool
+		want        string
+	}{
+		{
+			name:     "a view whose partitions are not its own",
+			original: "SELECT 1bad\nFROM omni_dump.z_users",
+			expanded: "SELECT `z_users`.`1bad`\n\nFROM `omni_dump`.`z_users`",
+			want:     "SELECT `z_users`.`1bad`\n\nFROM `omni_dump`.`z_users`",
+		},
+		{
+			name:        "a partitioned view whose expansion quotes only names the text states",
+			original:    partitionedOriginal,
+			expanded:    partitionedExpanded,
+			partitioned: true,
+			want:        partitionedOriginal,
+		},
+		{
+			name:        "a partitioned view whose expansion quotes a name the text lost",
+			original:    "SELECT id AS it's, dt FROM omni_dump.events",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id` AS `it's`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`",
+			partitioned: true,
+			want:        "SELECT `events`.`id` AS `it's`, `events`.`dt` FROM `omni_dump`.`events`",
+		},
+		{
+			name:        "a partitioned view whose expansion is no projection",
+			original:    partitionedOriginal,
+			expanded:    "SELECT `id`, `dt` FROM `omni_dump`.`events`",
+			partitioned: true,
+			want:        partitionedOriginal,
+		},
+		{
+			name:        "a projection over a query of its own",
+			expanded:    "SELECT `a`, `dt` FROM (SELECT `x`.`a`, `x`.`dt` FROM (SELECT `b` AS `a`, `c` AS `dt` FROM `db`.`t`) `x`) `mv`",
+			partitioned: true,
+			want:        "SELECT `x`.`a`, `x`.`dt` FROM (SELECT `b` AS `a`, `c` AS `dt` FROM `db`.`t`) `x`",
+		},
+		{
+			name:        "a query holding a parenthesis in a literal",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `id`, `dt` FROM `db`.`t` WHERE `note` = 'a ) note') `mv`",
+			partitioned: true,
+			want:        "SELECT `id`, `dt` FROM `db`.`t` WHERE `note` = 'a ) note'",
+		},
+	} {
+		require.Equal(t, query.want, dumpMaterializedViewQuery(query.original, query.expanded, query.partitioned), query.name)
+	}
+}
+
+// TestDumpEscapesLineBreak holds a value Hive states with a line break in it: the
+// literal escapes the break, so a restore reaches the statement whole instead of
+// the splitter cutting it at the value's own semicolon.
+func TestDumpEscapesLineBreak(t *testing.T) {
+	// Hive names the partition by its directory and percent-encodes the break.
+	spec, ok := dumpPartitionSpec("dt=a%3B%0Ab")
+	require.True(t, ok)
+	require.Equal(t, "`dt`='a;\\nb'", spec)
+
+	script := "ALTER TABLE `db`.`t` ADD PARTITION (" + spec + ") LOCATION 'file:/tmp/db/t/dt=a%3B%0Ab';\n"
+	commands, err := splitCommands(script)
+	require.NoError(t, err)
+	require.Len(t, commands, 1)
+	require.Equal(t, strings.TrimSuffix(script, "\n"), commands[0].Text)
+}
+
+// TestDumpStorageDiff holds what a partition's storage states that the table's
+// does not: the classes a restore cannot carry, which ADD PARTITION takes from
+// the table.
+func TestDumpStorageDiff(t *testing.T) {
+	const (
+		parquetSerde = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+		parquetIn    = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+		parquetOut   = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+		orcSerde     = "org.apache.hadoop.hive.ql.io.orc.OrcSerde"
+		orcIn        = "org.apache.hadoop.hive.ql.io.orc.OrcInputFormat"
+		orcOut       = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
+	)
+	storage := func(rows ...[3]string) dumpStorage {
+		var s dumpStorage
+		for _, row := range rows {
+			dumpStorageField(&s, row[0], row[1])
+		}
+		return s
+	}
+	table := storage(
+		[3]string{"SerDe Library:", parquetSerde},
+		[3]string{"InputFormat:", parquetIn},
+		[3]string{"OutputFormat:", parquetOut},
+		// A row the storage section states that is not one of the three.
+		[3]string{"Compressed:", "No"},
+	)
+	require.Equal(t, "", dumpStorageDiff(table, table), "a partition reading as the table does")
+	require.Equal(t, "SerDe Library "+orcSerde, dumpStorageDiff(table, storage(
+		[3]string{"SerDe Library:", orcSerde},
+		[3]string{"InputFormat:", parquetIn},
+		[3]string{"OutputFormat:", parquetOut},
+	)))
+	orc := storage(
+		[3]string{"SerDe Library:", orcSerde},
+		[3]string{"InputFormat:", orcIn},
+		[3]string{"OutputFormat:", orcOut},
+	)
+	require.Equal(t,
+		"SerDe Library "+orcSerde+", InputFormat "+orcIn+", OutputFormat "+orcOut,
+		dumpStorageDiff(table, orc),
+	)
+
+	// A partition reading its files as the table does is the statement the dump
+	// writes; one that states its own storage is what the dump refuses instead of
+	// registering it under the table's.
+	stmt, err := dumpPartitionStatement("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, table)
+	require.NoError(t, err)
+	require.Equal(t,
+		"ALTER TABLE `db`.`t` ADD PARTITION (`dt`='2024-01-01') LOCATION 'file:/tmp/db/t/dt=2024-01-01'", stmt)
+	_, err = dumpPartitionStatement("db", "t", "dt=2024-01-01", "`dt`='2024-01-01'", "file:/tmp/db/t/dt=2024-01-01", table, orc)
+	require.EqualError(t, err,
+		"partition dt=2024-01-01 of db.t states its own SerDe Library "+orcSerde+
+			", InputFormat "+orcIn+", OutputFormat "+orcOut+", which ADD PARTITION does not carry")
+}

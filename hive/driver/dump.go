@@ -176,15 +176,7 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		if err != nil {
 			return nil, fmt.Errorf("materialized view %s: %w", name, err)
 		}
-		// A partitioned materialized view's expanded query holds the partition
-		// projection Hive forms around the query it was given, so replaying that
-		// text nests the projection; the query the view was created with is the
-		// text Hive expands. Every other view replays the expanded query, which
-		// quotes the identifiers the original one may not.
-		query := info.expandedViewDef
-		if dumpStatesPartitions(stmt) {
-			query = info.viewDef
-		}
+		query := dumpMaterializedViewQuery(info.viewDef, info.expandedViewDef, dumpStatesPartitions(stmt))
 		if query == "" {
 			return nil, fmt.Errorf("materialized view %s: DESCRIBE FORMATTED states no query", name)
 		}
@@ -213,7 +205,7 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		// The statement declares the partitions, which DESCRIBE FORMATTED
 		// states only under a setting a session can turn off.
 		if dumpStatesPartitions(stmt) {
-			partitions, err := d.dumpPartitions(ctx, database, name)
+			partitions, err := d.dumpPartitions(ctx, database, name, info.storage)
 			if err != nil {
 				return nil, err
 			}
@@ -321,6 +313,118 @@ func dumpKeyword(stmt, keyword string) (int, bool) {
 	return 0, false
 }
 
+// dumpMaterializedViewQuery returns the text a CREATE MATERIALIZED VIEW replays
+// as its query. Hive states it two ways: the text the view was created with,
+// and an expansion that writes every table and column with its qualifier and
+// backquotes and, for a partitioned view, wraps the query in the projection
+// Hive reads the partitions through. Replaying the expansion of a partitioned
+// view would nest that projection, and replaying the text the server states
+// loses a name whose backquotes its normalisation dropped, so the expansion
+// stands without its projection where it states such a name.
+func dumpMaterializedViewQuery(original, expanded string, partitioned bool) string {
+	if !partitioned {
+		return expanded
+	}
+	inner := dumpQueryInProjection(expanded)
+	if inner == "" {
+		return original
+	}
+	if original == "" || dumpStatesQuotedName(inner) {
+		return inner
+	}
+	return original
+}
+
+// dumpQueryInProjection returns the query an expanded definition wraps in
+// Hive's partition projection: the text inside the parenthesis its FROM opens,
+// and "" when the definition is not a projection over the query.
+func dumpQueryInProjection(expanded string) string {
+	text := strings.TrimSpace(expanded)
+	if !strings.HasPrefix(strings.ToUpper(text), "SELECT ") {
+		return ""
+	}
+	var open, close int
+	depth := 0
+	for i := 0; i < len(text); i++ {
+		switch text[i] {
+		case '`', '\'':
+			end, err := dumpQuotedEnd(text, i)
+			if err != nil {
+				return ""
+			}
+			i = end
+		case '(':
+			if depth == 0 {
+				open = i
+			}
+			depth++
+		case ')':
+			depth--
+			if depth < 0 {
+				return ""
+			}
+			if depth == 0 {
+				close = i
+			}
+		}
+	}
+	if close == 0 || !strings.HasSuffix(strings.TrimSpace(text[:open]), "FROM") {
+		return ""
+	}
+	if !dumpStatesAlias(strings.TrimSpace(text[close+1:])) {
+		return ""
+	}
+	return strings.TrimSpace(text[open+1 : close])
+}
+
+// dumpStatesAlias reports whether text is the one name a projection states
+// after the query it wraps: the view's own name, quoted or not.
+func dumpStatesAlias(text string) bool {
+	if text == "" {
+		return false
+	}
+	if text[0] == '`' {
+		end, err := dumpQuotedEnd(text, 0)
+		return err == nil && end == len(text)-1
+	}
+	return !strings.ContainsAny(text, "`'() \t\n")
+}
+
+// dumpStatesQuotedName reports whether text states a backquoted name Hive
+// cannot read plain, which is the name a statement's own text may have lost the
+// backquotes of.
+func dumpStatesQuotedName(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] != '`' {
+			continue
+		}
+		end, err := dumpQuotedEnd(text, i)
+		if err != nil {
+			return true
+		}
+		if !dumpPlainName(text[i+1 : end]) {
+			return true
+		}
+		i = end
+	}
+	return false
+}
+
+// dumpPlainName reports whether name is one Hive reads without backquotes.
+func dumpPlainName(name string) bool {
+	if name == "" {
+		return false
+	}
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if c == '_' || c == '$' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
 // dumpMaterializedViewClauses rewrites the clauses a stated CREATE TABLE holds
 // after its column list into the ones CREATE MATERIALIZED VIEW takes: the
 // partition clause names its columns without their types, as PARTITIONED ON.
@@ -414,10 +518,13 @@ func dumpColumnName(column string) (string, error) {
 
 // dumpString renders s as a Hive string literal. Hive concatenates adjacent
 // literals rather than failing on them, so doubling a quote would lose it; the
-// backslash escapes the two characters that would otherwise end the literal.
+// backslash escapes the characters that would otherwise end the literal or the
+// line it is on, which the splitter cuts a statement at.
 func dumpString(s string) string {
 	escaped := strings.ReplaceAll(s, `\`, `\\`)
 	escaped = strings.ReplaceAll(escaped, `'`, `\'`)
+	escaped = strings.ReplaceAll(escaped, "\r", `\r`)
+	escaped = strings.ReplaceAll(escaped, "\n", `\n`)
 	return "'" + escaped + "'"
 }
 
@@ -479,8 +586,10 @@ func (d *Driver) dumpStatement(ctx context.Context, database, name string) (stri
 // answers carry the values, and DESCRIBE FORMATTED carries the location each
 // one lives at, which a partition added with its own LOCATION does not share
 // with the table. A partition whose value is null has no statement the server
-// takes and is left out.
-func (d *Driver) dumpPartitions(ctx context.Context, database, name string) ([]string, error) {
+// takes and is left out, and one that reads its files otherwise than the table
+// does has no statement ADD PARTITION carries either, so it fails the dump
+// rather than coming back with the table's storage.
+func (d *Driver) dumpPartitions(ctx context.Context, database, name string, table dumpStorage) ([]string, error) {
 	query := "SHOW PARTITIONS " + quoteBacktick(database) + "." + quoteBacktick(name)
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
@@ -505,42 +614,102 @@ func (d *Driver) dumpPartitions(ctx context.Context, database, name string) ([]s
 		if !ok {
 			continue
 		}
-		location, err := d.dumpPartitionLocation(ctx, database, name, spec)
+		location, storage, err := d.dumpPartition(ctx, database, name, spec)
 		if err != nil {
 			return nil, err
 		}
-		stmts = append(stmts, "ALTER TABLE "+quoteBacktick(database)+"."+quoteBacktick(name)+
-			" ADD PARTITION ("+spec+") LOCATION "+dumpString(location))
+		stmt, err := dumpPartitionStatement(database, name, partition, spec, location, table, storage)
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, stmt)
 	}
 	return stmts, nil
 }
 
-// dumpPartitionLocation reads the location a partition lives at, which
-// DESCRIBE FORMATTED states for the partition and not for the table.
-func (d *Driver) dumpPartitionLocation(ctx context.Context, database, name, spec string) (string, error) {
+// dumpPartitionStatement states one partition of a managed table where it lives.
+// A partition that reads its files otherwise than the table does states nothing
+// here: ADD PARTITION carries the table's storage, so the statement would
+// register it under a format its files are not in.
+func dumpPartitionStatement(database, name, partition, spec, location string, table, storage dumpStorage) (string, error) {
+	if diff := dumpStorageDiff(table, storage); diff != "" {
+		return "", fmt.Errorf("partition %s of %s.%s states its own %s, which ADD PARTITION does not carry",
+			partition, database, name, diff)
+	}
+	return "ALTER TABLE " + quoteBacktick(database) + "." + quoteBacktick(name) +
+		" ADD PARTITION (" + spec + ") LOCATION " + dumpString(location), nil
+}
+
+// dumpPartition reads the location a partition lives at, which DESCRIBE
+// FORMATTED states for the partition and not for the table, and the storage it
+// reads its files with.
+func (d *Driver) dumpPartition(ctx context.Context, database, name, spec string) (string, dumpStorage, error) {
 	query := "DESCRIBE FORMATTED " + quoteBacktick(database) + "." + quoteBacktick(name) + " PARTITION (" + spec + ")"
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
-		return "", fmt.Errorf("%s: %w", query, err)
+		return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
 	}
 	defer rows.Close()
+	var storage dumpStorage
 	location := ""
 	for rows.Next() {
-		var colName, dataType sql.NullString
-		if err := rows.Scan(&colName, &dataType, new(sql.NullString)); err != nil {
-			return "", fmt.Errorf("%s: %w", query, err)
+		var colName, dataType, comment sql.NullString
+		if err := rows.Scan(&colName, &dataType, &comment); err != nil {
+			return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
 		}
 		if strings.TrimSpace(colName.String) == "Location:" {
 			location = strings.TrimSpace(dataType.String)
+			continue
 		}
+		dumpStorageField(&storage, strings.TrimSpace(colName.String), strings.TrimSpace(dataType.String))
 	}
 	if err := rows.Err(); err != nil {
-		return "", fmt.Errorf("%s: %w", query, err)
+		return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
 	}
 	if location == "" {
-		return "", fmt.Errorf("%s: no location", query)
+		return "", dumpStorage{}, fmt.Errorf("%s: no location", query)
 	}
-	return location, nil
+	return location, storage, nil
+}
+
+// dumpStorage is what DESCRIBE FORMATTED states about an object's storage: the
+// classes Hive reads and writes its files with.
+type dumpStorage struct {
+	serde        string
+	inputFormat  string
+	outputFormat string
+}
+
+// dumpStorageField reads one row of a DESCRIBE FORMATTED storage section into
+// storage, and reports whether the row stated one of the three.
+func dumpStorageField(storage *dumpStorage, label, value string) bool {
+	switch label {
+	case "SerDe Library:":
+		storage.serde = value
+	case "InputFormat:":
+		storage.inputFormat = value
+	case "OutputFormat:":
+		storage.outputFormat = value
+	default:
+		return false
+	}
+	return true
+}
+
+// dumpStorageDiff names what a partition's storage states that the table's does
+// not, and is "" when the partition reads its files as the table does.
+func dumpStorageDiff(table, partition dumpStorage) string {
+	var differ []string
+	if partition.serde != table.serde {
+		differ = append(differ, "SerDe Library "+partition.serde)
+	}
+	if partition.inputFormat != table.inputFormat {
+		differ = append(differ, "InputFormat "+partition.inputFormat)
+	}
+	if partition.outputFormat != table.outputFormat {
+		differ = append(differ, "OutputFormat "+partition.outputFormat)
+	}
+	return strings.Join(differ, ", ")
 }
 
 // dumpPartitionSpec renders a partition name as the specification ADD PARTITION

@@ -237,6 +237,9 @@ type TableInfo struct {
 	expandedViewDef string
 	totalSize       int
 	comment         string
+	// storage is what DESCRIBE FORMATTED states about how the table reads its
+	// files, which a dump compares each partition's against.
+	storage dumpStorage
 }
 
 const (
@@ -329,6 +332,8 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			default:
 				// No action needed for other table info fields
 			}
+		case storageSection:
+			dumpStorageField(&tableInfo.storage, trimField(colNameValue), trimField(dataTypeValue))
 		case viewSection:
 			switch {
 			case strings.HasPrefix(colNameValue, "View Original Text:"):
