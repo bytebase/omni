@@ -42,6 +42,8 @@ CREATE EXTENSION IF NOT EXISTS "postgres_fdw" WITH SCHEMA "public" VERSION '1.0'
 
 COMMENT ON EXTENSION "postgres_fdw" IS 'foreign-data wrapper for remote PostgreSQL servers';
 
+CREATE COLLATION "app"."ci" (provider = icu, locale = 'und-u-ks-level2', deterministic = false);
+
 CREATE TYPE "app"."mood" AS ENUM (
     'happy',
     'sad',
@@ -67,6 +69,10 @@ CREATE TYPE "app"."addresses" AS (
 
 CREATE TYPE "app"."empty_type" AS (
 
+);
+
+CREATE TYPE "app"."float_range" AS RANGE (
+    subtype = double precision
 );
 
 CREATE SEQUENCE "app"."counter"
@@ -226,7 +232,7 @@ CREATE TABLE "app"."customer" (
     "alt_id" integer NOT NULL,
     "email" public.citext NOT NULL,
     "name" text COLLATE "C" DEFAULT 'anon'::text NOT NULL,
-    "nick" text COLLATE "ci",
+    "nick" text COLLATE "app"."ci",
     "mood" app.mood DEFAULT 'happy'::app.mood,
     "home" app.address,
     "tags" _text DEFAULT '{}'::text[],
@@ -322,10 +328,6 @@ CREATE TABLE "app"."dog" (
 );
 
 ALTER TABLE "app"."dog" OWNER TO "postgres";
-
-range_constructor2;
-
-range_constructor3;
 
 CREATE OR REPLACE FUNCTION app.items_named(p text)
  RETURNS SETOF text

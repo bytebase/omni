@@ -1,0 +1,3494 @@
+-- pin: default postgres:17.12-alpine sha256:34261f594522cf41dfcb76aefd42b9d201098b0e6b23c9c68733f169e4218b6f REL_17_12
+-- pin: pg16 postgres:16.16-alpine sha256:0adbf25a9e96d38823bb813f3ac0ed41fadb665c88f1df7fe6dbfb060cbdc106 REL_16_16
+
+== TestDumpRestoresCollationRules/default default#1
+> exec
+| CREATE COLLATION public.tailored (provider = icu, locale = 'und', rules = '&V << w <<< W');
+| CREATE TABLE public.t (v text COLLATE public.tailored);
+< ok 0 -
+> query
+| SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
+< result
+< column "datname" "NAME"
+< column "pg_encoding_to_char" "NAME"
+< column "datcollate" "TEXT"
+< column "db_owner" "NAME"
+< row
+: string
+| omni_collation_rules
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| postgres
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template0
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template1
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+> query
+| SHOW server_version_num
+< result
+< column "server_version_num" "TEXT"
+< row
+: string
+| 170012
+> query
+| SHOW search_path
+< result
+< column "search_path" "TEXT"
+< row
+: string
+| "$user", public
+> begin
+< ok
+> exec
+| SELECT pg_catalog.set_config('search_path', $1, true);
+: string
+|
+< ok 1 -
+> query
+|
+| SELECT
+| 	objid
+| FROM
+| 	pg_depend
+| WHERE
+| 	deptype = 'e'
+| ORDER BY objid
+|
+< result
+< column "objid" "OID"
+< row
+: int64 13668
+< row
+: int64 13669
+< row
+: int64 13670
+< row
+: int64 13671
+> query
+|
+| SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
+|        obj_description(oid, 'pg_namespace') as schema_comment
+| FROM pg_catalog.pg_namespace
+| WHERE nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND nspname NOT LIKE 'pg_temp%'
+|   AND nspname NOT LIKE 'pg_toast%'
+| ORDER BY nspname;
+|
+< result
+< column "oid" "OID"
+< column "nspname" "NAME"
+< column "schema_owner" "NAME"
+< column "schema_comment" "TEXT"
+< row
+: int64 2200
+: string
+| public
+: string
+| pg_database_owner
+: string
+| standard public schema
+> query
+|
+| SELECT
+| 	nc.nspname AS table_schema,
+| 	c.relname AS table_name,
+| 	a.attname AS column_name,
+| 	CASE
+| 		WHEN t.typtype = 'd' THEN
+| 			CASE
+| 				WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN 'ARRAY'
+| 				WHEN nbt.nspname = 'pg_catalog' THEN pg_catalog.format_type(t.typbasetype, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 		ELSE
+| 			CASE
+| 				WHEN t.typelem <> 0 AND t.typlen = -1 THEN 'ARRAY'
+| 				WHEN nt.nspname = 'pg_catalog' THEN pg_catalog.format_type(a.atttypid, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 	END AS data_type,
+| 	information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS character_maximum_length,
+| 	information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_precision,
+| 	information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_scale,
+| 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
+| 	a.attnum AS ordinal_position,
+| 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
+| 	a.attgenerated AS generation_kind,
+| 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
+| 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
+| 	co.collname AS collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
+| 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
+| 	COALESCE(bt.typname, t.typname) AS udt_name,
+| 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| FROM pg_catalog.pg_attribute a
+| 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
+| 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+| 	JOIN pg_catalog.pg_namespace nc ON c.relnamespace = nc.oid
+| 	JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+| 	JOIN pg_catalog.pg_namespace nt ON t.typnamespace = nt.oid
+| 	LEFT JOIN (pg_catalog.pg_type bt JOIN pg_catalog.pg_namespace nbt ON bt.typnamespace = nbt.oid)
+| 		ON t.typtype = 'd' AND t.typbasetype = bt.oid
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| WHERE a.attnum > 0
+| 	AND NOT a.attisdropped
+| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND nc.nspname NOT LIKE 'pg_temp%'
+| 	AND nc.nspname NOT LIKE 'pg_toast%'
+| ORDER BY nc.nspname, c.relname, a.attnum;
+< result
+< column "table_schema" "NAME"
+< column "table_name" "NAME"
+< column "column_name" "NAME"
+< column "data_type" "TEXT"
+< column "character_maximum_length" "INT4"
+< column "numeric_precision" "INT4"
+< column "numeric_scale" "INT4"
+< column "datetime_precision" "INT4"
+< column "ordinal_position" "INT2"
+< column "column_default" "TEXT"
+< column "generation_kind" "CHAR"
+< column "generation_expression" "TEXT"
+< column "is_nullable" "TEXT"
+< column "collation_name" "NAME"
+< column "collation_schema" "NAME"
+< column "udt_schema" "NAME"
+< column "udt_name" "NAME"
+< column "identity_generation" "TEXT"
+< column "column_comment" "TEXT"
+< row
+: string
+| public
+: string
+| t
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: string
+| tailored
+: string
+| public
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+> query
+|
+| SELECT
+|   sc.nspname,
+|   cc.relname,
+|   sp.nspname,
+|   cp.relname
+| FROM
+|   pg_catalog.pg_inherits i
+|   left JOIN pg_catalog.pg_class cp ON cp.oid = i.inhparent
+|   left join pg_catalog.pg_class cc ON cc.oid = i.inhrelid
+|   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
+|   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
+| WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
+|
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "nspname" "NAME"
+< column "relname" "NAME"
+> query
+|
+| SELECT 
+|     n.nspname as schema_name,
+|     t.relname as table_name,
+|     i.relname as index_name,
+|     am.amname as index_method,
+|     ix.indisunique as is_unique,
+|     ix.indisprimary as is_primary,
+|     pg_get_indexdef(i.oid) as index_definition,
+|     -- Get array of key expressions
+|     (SELECT array_agg(pg_get_indexdef(i.oid, k + 1, true) ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_expressions,
+|     (SELECT array_agg(op.opcname ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_names,
+|     (SELECT array_agg(op.opcdefault ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_defaults,
+|     -- Check if it's a constraint (primary key, unique, or exclude constraint)
+|     CASE
+|         WHEN ix.indisprimary THEN true
+|         WHEN EXISTS (
+|             SELECT 1 FROM pg_constraint c
+|             WHERE c.conindid = i.oid AND c.contype IN ('u', 'p', 'x')
+|         ) THEN true
+|         ELSE false
+|     END as is_constraint,
+|     obj_description(i.oid) as comment,
+|     -- Extract indoption array for sort order information (ASC/DESC, NULLS FIRST/LAST)
+|     ix.indoption as index_options
+| FROM pg_class i
+| JOIN pg_index ix ON i.oid = ix.indexrelid
+| JOIN pg_class t ON ix.indrelid = t.oid
+| JOIN pg_namespace n ON t.relnamespace = n.oid
+| JOIN pg_am am ON i.relam = am.oid
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.relname, i.relname;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "index_name" "NAME"
+< column "index_method" "NAME"
+< column "is_unique" "BOOL"
+< column "is_primary" "BOOL"
+< column "index_definition" "TEXT"
+< column "key_expressions" "_TEXT"
+< column "key_opclass_names" "_NAME"
+< column "key_opclass_defaults" "_BOOL"
+< column "is_constraint" "BOOL"
+< column "comment" "TEXT"
+< column "index_options" "-"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pc.relname as table_name,
+| 		pt.tgname as trigger_name,
+| 		pg_get_triggerdef(pt.oid) as trigger_def,
+| 		obj_description(pt.oid) as trigger_comment
+| 	FROM pg_trigger as pt
+| 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
+| 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	ORDER BY pn.nspname, pc.relname, pt.tgname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "trigger_name" "NAME"
+< column "trigger_def" "TEXT"
+< column "trigger_comment" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'c' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+> query
+|
+| SELECT
+| 	n.nspname AS fk_schema,
+| 	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+| 	conname AS fk_name,
+| 	ref_nsp.nspname AS fk_ref_schema,
+| 	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+| 	confdeltype AS delete_option,
+| 	confupdtype AS update_option,
+| 	confmatchtype AS match_option,
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
+| FROM
+| 	pg_constraint c
+| 	JOIN pg_namespace n ON n.oid = c.connamespace
+| 	JOIN pg_class fk_cls ON fk_cls.oid = c.conrelid
+| 	JOIN pg_namespace fk_nsp ON fk_nsp.oid = fk_cls.relnamespace
+| 	JOIN pg_class ref_cls ON ref_cls.oid = c.confrelid
+| 	JOIN pg_namespace ref_nsp ON ref_nsp.oid = ref_cls.relnamespace
+| WHERE
+| 	n.nspname NOT IN('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND c.contype = 'f'
+| 	AND c.conparentid = 0
+| ORDER BY fk_schema, fk_table, fk_name;
+< result
+< column "fk_schema" "NAME"
+< column "fk_table" "TEXT"
+< column "fk_name" "NAME"
+< column "fk_ref_schema" "NAME"
+< column "fk_ref_table" "TEXT"
+< column "delete_option" "CHAR"
+< column "update_option" "CHAR"
+< column "match_option" "CHAR"
+< column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
+> query
+| SELECT
+| 		n.nspname AS foreign_table_schema,
+| 		c.relname AS foreign_table_name,
+| 		current_database() AS foreign_server_catalog,
+| 		s.srvname AS foreign_server_name
+| 	FROM pg_catalog.pg_foreign_table t
+| 		JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		JOIN pg_catalog.pg_foreign_server s ON s.oid = t.ftserver
+| 	WHERE c.relkind = 'f'
+| 	ORDER BY n.nspname, c.relname;
+< result
+< column "foreign_table_schema" "NAME"
+< column "foreign_table_name" "NAME"
+< column "foreign_server_catalog" "NAME"
+< column "foreign_server_name" "NAME"
+> query
+|
+| 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
+| 		pg_table_size(pc.oid),
+| 		pg_indexes_size(pc.oid),
+| 		GREATEST(pc.reltuples::bigint, 0::BIGINT) AS estimate,
+| 		obj_description(pc.oid) AS comment,
+| 		tbl.tableowner
+| 	FROM pg_catalog.pg_tables tbl
+| 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')
+| 	WHERE tbl.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND tbl.schemaname NOT LIKE 'pg_temp%'
+| 	  AND tbl.schemaname NOT LIKE 'pg_toast%' AND pc.relispartition IS FALSE
+| 	ORDER BY tbl.schemaname, tbl.tablename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "tablename" "NAME"
+< column "pg_table_size" "INT8"
+< column "pg_indexes_size" "INT8"
+< column "estimate" "INT8"
+< column "comment" "TEXT"
+< column "tableowner" "NAME"
+< row
+: int64 4294967297
+: string
+| public
+: string
+| t
+: int64 8192
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+> query
+|
+| SELECT
+| 	n.nspname AS schema_name,
+| 	c.relname AS table_name,
+| 	i2.nspname AS inh_schema_name,
+| 	i2.relname AS inh_table_name,
+| 	i2.partstrat AS partition_type,
+| 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
+| FROM
+| 	pg_catalog.pg_class c
+| 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+|     LEFT JOIN (
+| 		pg_inherits i 
+| 		INNER JOIN pg_class c2 ON i.inhparent = c2.oid 
+| 		LEFT JOIN pg_namespace n2 ON n2.oid = c2.relnamespace
+| 		LEFT JOIN pg_partitioned_table p ON p.partrelid = c2.oid
+| 	) i2 ON i2.inhrelid = c.oid 
+| WHERE
+| 	((c.relkind = 'r'::"char") OR (c.relkind = 'f'::"char") OR (c.relkind = 'p'::"char"))
+| 	AND c.relispartition IS TRUE 
+| 	AND n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY c.oid;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "inh_schema_name" "NAME"
+< column "inh_table_name" "NAME"
+< column "partition_type" "CHAR"
+< column "rel_part_bound" "TEXT"
+< column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
+> query
+|
+| SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_views v
+| 	LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = v.viewname AND pc.relnamespace = n.oid AND pc.relkind = 'v'
+| WHERE v.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND v.schemaname NOT LIKE 'pg_temp%'
+|   AND v.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY v.schemaname, v.viewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "viewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| 		WITH rule_data AS (
+| 			SELECT
+| 				n.nspname AS schema_name,
+| 				c.relname AS table_name,
+| 				r.rulename AS rule_name,
+| 				r.ev_type,
+| 				r.is_instead,
+| 				r.ev_enabled,
+| 				pg_get_ruledef(r.oid, true) AS definition
+| 			FROM pg_rewrite r
+| 			JOIN pg_class c ON c.oid = r.ev_class
+| 			JOIN pg_namespace n ON n.oid = c.relnamespace
+| 			WHERE r.rulename NOT IN ('_RETURN', '_NOTHING')
+| 				AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+| 		)
+| 		SELECT
+| 			schema_name,
+| 			table_name,
+| 			rule_name,
+| 			CASE ev_type
+| 				WHEN '1' THEN 'SELECT'
+| 				WHEN '2' THEN 'UPDATE'
+| 				WHEN '3' THEN 'INSERT'
+| 				WHEN '4' THEN 'DELETE'
+| 			END AS event,
+| 			is_instead,
+| 			ev_enabled != 'D' AS is_enabled,
+| 			CASE
+| 				WHEN position(' WHERE ' IN definition) > 0
+| 					AND position(' WHERE ' IN definition) < position(' DO ' IN definition) THEN
+| 					trim(substring(
+| 						definition
+| 						FROM position(' WHERE ' IN definition) + 7
+| 						FOR position(' DO ' IN definition) - position(' WHERE ' IN definition) - 7
+| 					))
+| 				ELSE NULL
+| 			END AS condition,
+| 			definition
+| 		FROM rule_data
+| 		ORDER BY schema_name, table_name, rule_name;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "rule_name" "NAME"
+< column "event" "TEXT"
+< column "is_instead" "BOOL"
+< column "is_enabled" "BOOL"
+< column "condition" "TEXT"
+< column "definition" "TEXT"
+> query
+|
+| SELECT pc.oid, m.schemaname, m.matviewname, m.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_matviews m
+| 	LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = m.matviewname AND pc.relnamespace = n.oid AND pc.relkind = 'm'
+| WHERE m.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND m.schemaname NOT LIKE 'pg_temp%'
+|   AND m.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY m.schemaname, m.matviewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "matviewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| select
+| 	p.oid as function_oid,
+| 	pt.typrelid as table_oid
+| from pg_proc p
+| 	left join pg_depend d on p.oid = d.objid
+| 	left join pg_type pt on d.refobjid = pt.oid
+| 	left join pg_namespace n on p.pronamespace = n.oid
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
+|
+< result
+< column "function_oid" "OID"
+< column "table_oid" "OID"
+> query
+|
+| select p.oid, n.nspname as function_schema,
+| 	p.proname as function_name,
+| 	pg_catalog.pg_get_function_identity_arguments(p.oid) as arguments,
+| 	case when l.lanname = 'internal' then p.prosrc
+| 			else pg_get_functiondef(p.oid)
+| 			end as definition,
+| 	pg_catalog.obj_description(p.oid) as comment
+| from pg_proc p
+| left join pg_namespace n on p.pronamespace = n.oid
+| left join pg_language l on p.prolang = l.oid
+| left join pg_type t on t.oid = p.prorettype
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND p.oid NOT IN (
+| 	SELECT d.objid
+| 	FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_proc'::regclass
+| 		AND d.refclassid = 'pg_type'::regclass
+| 		AND d.deptype = 'i'
+| 		AND d.refobjid IN (
+| 			SELECT rngtypid FROM pg_catalog.pg_range
+| 			UNION SELECT rngmultitypid FROM pg_catalog.pg_range WHERE rngmultitypid <> 0
+| 		)
+|   )
+| order by function_schema, function_name, arguments;
+< result
+< column "oid" "OID"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "arguments" "TEXT"
+< column "definition" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		c.oid,
+| 		refobjid AS owning_tab,
+| 		refobjsubid AS owning_col
+| 	FROM pg_class c
+|   		LEFT JOIN pg_depend d ON
+|   			(c.relkind =  'S' AND
+|                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
+|                 d.objsubid = 0 AND
+|                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
+< result
+< column "oid" "OID"
+< column "owning_tab" "OID"
+< column "owning_col" "INT4"
+> query
+|
+| 	SELECT
+| 		pc.oid,
+| 		s.schemaname,
+| 		s.sequencename,
+| 		s.data_type,
+| 		s.start_value,
+| 		s.min_value,
+| 		s.max_value,
+| 		s.increment_by,
+| 		s.cycle,
+| 		s.cache_size,
+| 		s.last_value,
+| 		pg_catalog.obj_description(pc.oid) as sequence_comment
+| 	FROM pg_sequences s
+| 		LEFT JOIN pg_namespace n ON n.nspname = s.schemaname
+| 		LEFT JOIN pg_class pc ON pc.relname = s.sequencename AND pc.relnamespace = n.oid AND pc.relkind = 'S'
+| 	WHERE s.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND s.schemaname NOT LIKE 'pg_temp%%'
+| 	  AND s.schemaname NOT LIKE 'pg_toast%%'
+| 	ORDER BY s.schemaname, s.sequencename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "sequencename" "NAME"
+< column "data_type" "-"
+< column "start_value" "INT8"
+< column "min_value" "INT8"
+< column "max_value" "INT8"
+< column "increment_by" "INT8"
+< column "cycle" "BOOL"
+< column "cache_size" "INT8"
+< column "last_value" "INT8"
+< column "sequence_comment" "TEXT"
+> query
+|
+| 		SELECT e.extname, e.extversion, n.nspname, c.description
+| 		FROM pg_catalog.pg_extension e
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+| 		LEFT JOIN pg_catalog.pg_description c ON c.objoid = e.oid AND c.classoid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+| 		WHERE n.nspname != 'pg_catalog'
+| 		ORDER BY e.extname;
+< result
+< column "extname" "NAME"
+< column "extversion" "TEXT"
+< column "nspname" "NAME"
+< column "description" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pt.typname as enum_name,
+| 		pe.enumlabel as enum_value,
+| 		pg_catalog.obj_description(pt.oid) as enum_comment
+| 	FROM pg_enum as pe
+| 		LEFT JOIN pg_type as pt ON pe.enumtypid = pt.oid
+| 		LEFT JOIN pg_namespace as pn ON pt.typnamespace = pn.oid
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, pe.enumsortorder;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "enum_name" "NAME"
+< column "enum_value" "NAME"
+< column "enum_comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pc.oid,
+| 		pn.nspname AS schema_name,
+| 		pt.typname AS type_name,
+| 		pg_catalog.obj_description(pt.oid) AS type_comment,
+| 		a.attname AS attribute_name,
+| 		CASE
+| 			WHEN en.nspname IS NOT NULL
+| 				AND en.nspname NOT IN ('pg_catalog', 'information_schema')
+| 				AND position(quote_ident(en.nspname) || '.' IN pg_catalog.format_type(a.atttypid, a.atttypmod)) <> 1
+| 			THEN quote_ident(en.nspname) || '.' || pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 			ELSE pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 		END AS attribute_type,
+| 		CASE
+| 			WHEN co.collname IS NULL THEN NULL
+| 			WHEN nco.nspname <> 'pg_catalog' THEN quote_ident(nco.nspname) || '.' || quote_ident(co.collname)
+| 			ELSE quote_ident(co.collname)
+| 		END AS attribute_collation,
+| 		pg_catalog.col_description(pc.oid, a.attnum) AS attribute_comment
+| 	FROM pg_type pt
+| 		JOIN pg_class pc ON pc.oid = pt.typrelid AND pc.relkind = 'c'
+| 		JOIN pg_namespace pn ON pn.oid = pt.typnamespace
+| 		LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attnum > 0 AND NOT a.attisdropped
+| 		LEFT JOIN pg_type at ON at.oid = a.atttypid
+| 		LEFT JOIN pg_type et ON et.oid = CASE WHEN at.typlen = -1 AND at.typelem <> 0 THEN at.typelem ELSE at.oid END
+| 		LEFT JOIN pg_namespace en ON en.oid = et.typnamespace
+| 		LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 			ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| 	WHERE pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, a.attnum;
+< result
+< column "oid" "OID"
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "type_comment" "TEXT"
+< column "attribute_name" "NAME"
+< column "attribute_type" "TEXT"
+< column "attribute_collation" "TEXT"
+< column "attribute_comment" "TEXT"
+> query
+|
+| SELECT
+| 	c.oid,
+| 	n.nspname AS collation_schema,
+| 	c.collname AS collation_name,
+| 	c.collprovider AS provider,
+| 	c.collcollate AS lc_collate,
+| 	c.collctype AS lc_ctype,
+| 	c.colllocale AS locale,
+| 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
+| 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
+| FROM pg_catalog.pg_collation c
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
+| ORDER BY n.nspname, c.collname;
+< result
+< column "oid" "OID"
+< column "collation_schema" "NAME"
+< column "collation_name" "NAME"
+< column "provider" "CHAR"
+< column "lc_collate" "TEXT"
+< column "lc_ctype" "TEXT"
+< column "locale" "TEXT"
+< column "deterministic" "BOOL"
+< column "rules" "TEXT"
+< column "comment" "TEXT"
+< row
+: int64 4294967298
+: string
+| public
+: string
+| tailored
+: string
+| i
+: null
+: null
+: string
+| und
+: bool true
+: string
+| &V << w <<< W
+: null
+> query
+|
+| SELECT
+| 	r.rngtypid AS oid,
+| 	n.nspname AS schema_name,
+| 	t.typname AS type_name,
+| 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
+| 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
+| 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
+| 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
+| 	NULLIF(r.rngsubdiff, 0)::regproc::text AS subtype_diff,
+| 	CASE WHEN r.rngmultitypid <> 0 THEN pg_catalog.format_type(r.rngmultitypid, NULL) END AS multirange_name,
+| 	pg_catalog.obj_description(r.rngtypid, 'pg_type') AS comment
+| FROM pg_catalog.pg_range r
+| 	JOIN pg_catalog.pg_type t ON t.oid = r.rngtypid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+| 	JOIN pg_catalog.pg_type st ON st.oid = r.rngsubtype
+| 	LEFT JOIN pg_catalog.pg_opclass o ON o.oid = r.rngsubopc
+| 	LEFT JOIN pg_catalog.pg_namespace opc_n ON opc_n.oid = o.opcnamespace
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace co_n ON co_n.oid = co.collnamespace)
+| 		ON co.oid = r.rngcollation
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.typname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "subtype" "TEXT"
+< column "subtype_opclass" "TEXT"
+< column "collation" "TEXT"
+< column "canonical" "TEXT"
+< column "subtype_diff" "TEXT"
+< column "multirange_name" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		et.oid,
+| 		et.evtname AS trigger_name,
+| 		et.evtevent AS event_type,
+| 		et.evttags AS tags,
+| 		n.nspname AS function_schema,
+| 		p.proname AS function_name,
+| 		et.evtenabled AS enabled,
+| 		obj_description(et.oid, 'pg_event_trigger') AS comment
+| 	FROM pg_event_trigger et
+| 	JOIN pg_proc p ON et.evtfoid = p.oid
+| 	JOIN pg_namespace n ON p.pronamespace = n.oid
+| 	ORDER BY et.evtname;
+< result
+< column "oid" "OID"
+< column "trigger_name" "NAME"
+< column "event_type" "NAME"
+< column "tags" "_TEXT"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "enabled" "CHAR"
+< column "comment" "TEXT"
+> commit
+< ok
+
+== TestDumpRestoresCollationRules/default default#2
+> exec
+|
+| SET statement_timeout = 0;
+| SET lock_timeout = 0;
+| SET idle_in_transaction_session_timeout = 0;
+| SET client_encoding = 'UTF8';
+| SET standard_conforming_strings = on;
+| SELECT pg_catalog.set_config('search_path', '', false);
+| SET check_function_bodies = false;
+| SET xmloption = content;
+| SET client_min_messages = warning;
+| SET row_security = off;
+|
+| COMMENT ON SCHEMA "public" IS 'standard public schema';
+|
+| CREATE COLLATION "public"."tailored" (provider = icu, locale = 'und', rules = '&V << w <<< W');
+|
+| SET default_tablespace = '';
+|
+| CREATE TABLE "public"."t" (
+|     "v" text COLLATE "public"."tailored"
+| );
+|
+| ALTER TABLE "public"."t" OWNER TO "postgres";
+|
+|
+< ok 0 -
+
+== TestDumpRestoresCollationRules/default default#3
+> query
+| SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
+< result
+< column "datname" "NAME"
+< column "pg_encoding_to_char" "NAME"
+< column "datcollate" "TEXT"
+< column "db_owner" "NAME"
+< row
+: string
+| omni_collation_rules
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| omni_collation_rules_restored
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| postgres
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template0
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template1
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+> query
+| SHOW server_version_num
+< result
+< column "server_version_num" "TEXT"
+< row
+: string
+| 170012
+> query
+| SHOW search_path
+< result
+< column "search_path" "TEXT"
+< row
+: string
+| "$user", public
+> begin
+< ok
+> exec
+| SELECT pg_catalog.set_config('search_path', $1, true);
+: string
+|
+< ok 1 -
+> query
+|
+| SELECT
+| 	objid
+| FROM
+| 	pg_depend
+| WHERE
+| 	deptype = 'e'
+| ORDER BY objid
+|
+< result
+< column "objid" "OID"
+< row
+: int64 13668
+< row
+: int64 13669
+< row
+: int64 13670
+< row
+: int64 13671
+> query
+|
+| SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
+|        obj_description(oid, 'pg_namespace') as schema_comment
+| FROM pg_catalog.pg_namespace
+| WHERE nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND nspname NOT LIKE 'pg_temp%'
+|   AND nspname NOT LIKE 'pg_toast%'
+| ORDER BY nspname;
+|
+< result
+< column "oid" "OID"
+< column "nspname" "NAME"
+< column "schema_owner" "NAME"
+< column "schema_comment" "TEXT"
+< row
+: int64 2200
+: string
+| public
+: string
+| pg_database_owner
+: string
+| standard public schema
+> query
+|
+| SELECT
+| 	nc.nspname AS table_schema,
+| 	c.relname AS table_name,
+| 	a.attname AS column_name,
+| 	CASE
+| 		WHEN t.typtype = 'd' THEN
+| 			CASE
+| 				WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN 'ARRAY'
+| 				WHEN nbt.nspname = 'pg_catalog' THEN pg_catalog.format_type(t.typbasetype, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 		ELSE
+| 			CASE
+| 				WHEN t.typelem <> 0 AND t.typlen = -1 THEN 'ARRAY'
+| 				WHEN nt.nspname = 'pg_catalog' THEN pg_catalog.format_type(a.atttypid, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 	END AS data_type,
+| 	information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS character_maximum_length,
+| 	information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_precision,
+| 	information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_scale,
+| 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
+| 	a.attnum AS ordinal_position,
+| 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
+| 	a.attgenerated AS generation_kind,
+| 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
+| 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
+| 	co.collname AS collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
+| 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
+| 	COALESCE(bt.typname, t.typname) AS udt_name,
+| 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| FROM pg_catalog.pg_attribute a
+| 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
+| 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+| 	JOIN pg_catalog.pg_namespace nc ON c.relnamespace = nc.oid
+| 	JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+| 	JOIN pg_catalog.pg_namespace nt ON t.typnamespace = nt.oid
+| 	LEFT JOIN (pg_catalog.pg_type bt JOIN pg_catalog.pg_namespace nbt ON bt.typnamespace = nbt.oid)
+| 		ON t.typtype = 'd' AND t.typbasetype = bt.oid
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| WHERE a.attnum > 0
+| 	AND NOT a.attisdropped
+| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND nc.nspname NOT LIKE 'pg_temp%'
+| 	AND nc.nspname NOT LIKE 'pg_toast%'
+| ORDER BY nc.nspname, c.relname, a.attnum;
+< result
+< column "table_schema" "NAME"
+< column "table_name" "NAME"
+< column "column_name" "NAME"
+< column "data_type" "TEXT"
+< column "character_maximum_length" "INT4"
+< column "numeric_precision" "INT4"
+< column "numeric_scale" "INT4"
+< column "datetime_precision" "INT4"
+< column "ordinal_position" "INT2"
+< column "column_default" "TEXT"
+< column "generation_kind" "CHAR"
+< column "generation_expression" "TEXT"
+< column "is_nullable" "TEXT"
+< column "collation_name" "NAME"
+< column "collation_schema" "NAME"
+< column "udt_schema" "NAME"
+< column "udt_name" "NAME"
+< column "identity_generation" "TEXT"
+< column "column_comment" "TEXT"
+< row
+: string
+| public
+: string
+| t
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: string
+| tailored
+: string
+| public
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+> query
+|
+| SELECT
+|   sc.nspname,
+|   cc.relname,
+|   sp.nspname,
+|   cp.relname
+| FROM
+|   pg_catalog.pg_inherits i
+|   left JOIN pg_catalog.pg_class cp ON cp.oid = i.inhparent
+|   left join pg_catalog.pg_class cc ON cc.oid = i.inhrelid
+|   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
+|   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
+| WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
+|
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "nspname" "NAME"
+< column "relname" "NAME"
+> query
+|
+| SELECT 
+|     n.nspname as schema_name,
+|     t.relname as table_name,
+|     i.relname as index_name,
+|     am.amname as index_method,
+|     ix.indisunique as is_unique,
+|     ix.indisprimary as is_primary,
+|     pg_get_indexdef(i.oid) as index_definition,
+|     -- Get array of key expressions
+|     (SELECT array_agg(pg_get_indexdef(i.oid, k + 1, true) ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_expressions,
+|     (SELECT array_agg(op.opcname ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_names,
+|     (SELECT array_agg(op.opcdefault ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_defaults,
+|     -- Check if it's a constraint (primary key, unique, or exclude constraint)
+|     CASE
+|         WHEN ix.indisprimary THEN true
+|         WHEN EXISTS (
+|             SELECT 1 FROM pg_constraint c
+|             WHERE c.conindid = i.oid AND c.contype IN ('u', 'p', 'x')
+|         ) THEN true
+|         ELSE false
+|     END as is_constraint,
+|     obj_description(i.oid) as comment,
+|     -- Extract indoption array for sort order information (ASC/DESC, NULLS FIRST/LAST)
+|     ix.indoption as index_options
+| FROM pg_class i
+| JOIN pg_index ix ON i.oid = ix.indexrelid
+| JOIN pg_class t ON ix.indrelid = t.oid
+| JOIN pg_namespace n ON t.relnamespace = n.oid
+| JOIN pg_am am ON i.relam = am.oid
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.relname, i.relname;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "index_name" "NAME"
+< column "index_method" "NAME"
+< column "is_unique" "BOOL"
+< column "is_primary" "BOOL"
+< column "index_definition" "TEXT"
+< column "key_expressions" "_TEXT"
+< column "key_opclass_names" "_NAME"
+< column "key_opclass_defaults" "_BOOL"
+< column "is_constraint" "BOOL"
+< column "comment" "TEXT"
+< column "index_options" "-"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pc.relname as table_name,
+| 		pt.tgname as trigger_name,
+| 		pg_get_triggerdef(pt.oid) as trigger_def,
+| 		obj_description(pt.oid) as trigger_comment
+| 	FROM pg_trigger as pt
+| 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
+| 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	ORDER BY pn.nspname, pc.relname, pt.tgname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "trigger_name" "NAME"
+< column "trigger_def" "TEXT"
+< column "trigger_comment" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'c' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+> query
+|
+| SELECT
+| 	n.nspname AS fk_schema,
+| 	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+| 	conname AS fk_name,
+| 	ref_nsp.nspname AS fk_ref_schema,
+| 	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+| 	confdeltype AS delete_option,
+| 	confupdtype AS update_option,
+| 	confmatchtype AS match_option,
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
+| FROM
+| 	pg_constraint c
+| 	JOIN pg_namespace n ON n.oid = c.connamespace
+| 	JOIN pg_class fk_cls ON fk_cls.oid = c.conrelid
+| 	JOIN pg_namespace fk_nsp ON fk_nsp.oid = fk_cls.relnamespace
+| 	JOIN pg_class ref_cls ON ref_cls.oid = c.confrelid
+| 	JOIN pg_namespace ref_nsp ON ref_nsp.oid = ref_cls.relnamespace
+| WHERE
+| 	n.nspname NOT IN('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND c.contype = 'f'
+| 	AND c.conparentid = 0
+| ORDER BY fk_schema, fk_table, fk_name;
+< result
+< column "fk_schema" "NAME"
+< column "fk_table" "TEXT"
+< column "fk_name" "NAME"
+< column "fk_ref_schema" "NAME"
+< column "fk_ref_table" "TEXT"
+< column "delete_option" "CHAR"
+< column "update_option" "CHAR"
+< column "match_option" "CHAR"
+< column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
+> query
+| SELECT
+| 		n.nspname AS foreign_table_schema,
+| 		c.relname AS foreign_table_name,
+| 		current_database() AS foreign_server_catalog,
+| 		s.srvname AS foreign_server_name
+| 	FROM pg_catalog.pg_foreign_table t
+| 		JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		JOIN pg_catalog.pg_foreign_server s ON s.oid = t.ftserver
+| 	WHERE c.relkind = 'f'
+| 	ORDER BY n.nspname, c.relname;
+< result
+< column "foreign_table_schema" "NAME"
+< column "foreign_table_name" "NAME"
+< column "foreign_server_catalog" "NAME"
+< column "foreign_server_name" "NAME"
+> query
+|
+| 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
+| 		pg_table_size(pc.oid),
+| 		pg_indexes_size(pc.oid),
+| 		GREATEST(pc.reltuples::bigint, 0::BIGINT) AS estimate,
+| 		obj_description(pc.oid) AS comment,
+| 		tbl.tableowner
+| 	FROM pg_catalog.pg_tables tbl
+| 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')
+| 	WHERE tbl.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND tbl.schemaname NOT LIKE 'pg_temp%'
+| 	  AND tbl.schemaname NOT LIKE 'pg_toast%' AND pc.relispartition IS FALSE
+| 	ORDER BY tbl.schemaname, tbl.tablename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "tablename" "NAME"
+< column "pg_table_size" "INT8"
+< column "pg_indexes_size" "INT8"
+< column "estimate" "INT8"
+< column "comment" "TEXT"
+< column "tableowner" "NAME"
+< row
+: int64 4294967299
+: string
+| public
+: string
+| t
+: int64 8192
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+> query
+|
+| SELECT
+| 	n.nspname AS schema_name,
+| 	c.relname AS table_name,
+| 	i2.nspname AS inh_schema_name,
+| 	i2.relname AS inh_table_name,
+| 	i2.partstrat AS partition_type,
+| 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
+| FROM
+| 	pg_catalog.pg_class c
+| 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+|     LEFT JOIN (
+| 		pg_inherits i 
+| 		INNER JOIN pg_class c2 ON i.inhparent = c2.oid 
+| 		LEFT JOIN pg_namespace n2 ON n2.oid = c2.relnamespace
+| 		LEFT JOIN pg_partitioned_table p ON p.partrelid = c2.oid
+| 	) i2 ON i2.inhrelid = c.oid 
+| WHERE
+| 	((c.relkind = 'r'::"char") OR (c.relkind = 'f'::"char") OR (c.relkind = 'p'::"char"))
+| 	AND c.relispartition IS TRUE 
+| 	AND n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY c.oid;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "inh_schema_name" "NAME"
+< column "inh_table_name" "NAME"
+< column "partition_type" "CHAR"
+< column "rel_part_bound" "TEXT"
+< column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
+> query
+|
+| SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_views v
+| 	LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = v.viewname AND pc.relnamespace = n.oid AND pc.relkind = 'v'
+| WHERE v.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND v.schemaname NOT LIKE 'pg_temp%'
+|   AND v.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY v.schemaname, v.viewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "viewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| 		WITH rule_data AS (
+| 			SELECT
+| 				n.nspname AS schema_name,
+| 				c.relname AS table_name,
+| 				r.rulename AS rule_name,
+| 				r.ev_type,
+| 				r.is_instead,
+| 				r.ev_enabled,
+| 				pg_get_ruledef(r.oid, true) AS definition
+| 			FROM pg_rewrite r
+| 			JOIN pg_class c ON c.oid = r.ev_class
+| 			JOIN pg_namespace n ON n.oid = c.relnamespace
+| 			WHERE r.rulename NOT IN ('_RETURN', '_NOTHING')
+| 				AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+| 		)
+| 		SELECT
+| 			schema_name,
+| 			table_name,
+| 			rule_name,
+| 			CASE ev_type
+| 				WHEN '1' THEN 'SELECT'
+| 				WHEN '2' THEN 'UPDATE'
+| 				WHEN '3' THEN 'INSERT'
+| 				WHEN '4' THEN 'DELETE'
+| 			END AS event,
+| 			is_instead,
+| 			ev_enabled != 'D' AS is_enabled,
+| 			CASE
+| 				WHEN position(' WHERE ' IN definition) > 0
+| 					AND position(' WHERE ' IN definition) < position(' DO ' IN definition) THEN
+| 					trim(substring(
+| 						definition
+| 						FROM position(' WHERE ' IN definition) + 7
+| 						FOR position(' DO ' IN definition) - position(' WHERE ' IN definition) - 7
+| 					))
+| 				ELSE NULL
+| 			END AS condition,
+| 			definition
+| 		FROM rule_data
+| 		ORDER BY schema_name, table_name, rule_name;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "rule_name" "NAME"
+< column "event" "TEXT"
+< column "is_instead" "BOOL"
+< column "is_enabled" "BOOL"
+< column "condition" "TEXT"
+< column "definition" "TEXT"
+> query
+|
+| SELECT pc.oid, m.schemaname, m.matviewname, m.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_matviews m
+| 	LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = m.matviewname AND pc.relnamespace = n.oid AND pc.relkind = 'm'
+| WHERE m.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND m.schemaname NOT LIKE 'pg_temp%'
+|   AND m.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY m.schemaname, m.matviewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "matviewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| select
+| 	p.oid as function_oid,
+| 	pt.typrelid as table_oid
+| from pg_proc p
+| 	left join pg_depend d on p.oid = d.objid
+| 	left join pg_type pt on d.refobjid = pt.oid
+| 	left join pg_namespace n on p.pronamespace = n.oid
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
+|
+< result
+< column "function_oid" "OID"
+< column "table_oid" "OID"
+> query
+|
+| select p.oid, n.nspname as function_schema,
+| 	p.proname as function_name,
+| 	pg_catalog.pg_get_function_identity_arguments(p.oid) as arguments,
+| 	case when l.lanname = 'internal' then p.prosrc
+| 			else pg_get_functiondef(p.oid)
+| 			end as definition,
+| 	pg_catalog.obj_description(p.oid) as comment
+| from pg_proc p
+| left join pg_namespace n on p.pronamespace = n.oid
+| left join pg_language l on p.prolang = l.oid
+| left join pg_type t on t.oid = p.prorettype
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND p.oid NOT IN (
+| 	SELECT d.objid
+| 	FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_proc'::regclass
+| 		AND d.refclassid = 'pg_type'::regclass
+| 		AND d.deptype = 'i'
+| 		AND d.refobjid IN (
+| 			SELECT rngtypid FROM pg_catalog.pg_range
+| 			UNION SELECT rngmultitypid FROM pg_catalog.pg_range WHERE rngmultitypid <> 0
+| 		)
+|   )
+| order by function_schema, function_name, arguments;
+< result
+< column "oid" "OID"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "arguments" "TEXT"
+< column "definition" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		c.oid,
+| 		refobjid AS owning_tab,
+| 		refobjsubid AS owning_col
+| 	FROM pg_class c
+|   		LEFT JOIN pg_depend d ON
+|   			(c.relkind =  'S' AND
+|                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
+|                 d.objsubid = 0 AND
+|                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
+< result
+< column "oid" "OID"
+< column "owning_tab" "OID"
+< column "owning_col" "INT4"
+> query
+|
+| 	SELECT
+| 		pc.oid,
+| 		s.schemaname,
+| 		s.sequencename,
+| 		s.data_type,
+| 		s.start_value,
+| 		s.min_value,
+| 		s.max_value,
+| 		s.increment_by,
+| 		s.cycle,
+| 		s.cache_size,
+| 		s.last_value,
+| 		pg_catalog.obj_description(pc.oid) as sequence_comment
+| 	FROM pg_sequences s
+| 		LEFT JOIN pg_namespace n ON n.nspname = s.schemaname
+| 		LEFT JOIN pg_class pc ON pc.relname = s.sequencename AND pc.relnamespace = n.oid AND pc.relkind = 'S'
+| 	WHERE s.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND s.schemaname NOT LIKE 'pg_temp%%'
+| 	  AND s.schemaname NOT LIKE 'pg_toast%%'
+| 	ORDER BY s.schemaname, s.sequencename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "sequencename" "NAME"
+< column "data_type" "-"
+< column "start_value" "INT8"
+< column "min_value" "INT8"
+< column "max_value" "INT8"
+< column "increment_by" "INT8"
+< column "cycle" "BOOL"
+< column "cache_size" "INT8"
+< column "last_value" "INT8"
+< column "sequence_comment" "TEXT"
+> query
+|
+| 		SELECT e.extname, e.extversion, n.nspname, c.description
+| 		FROM pg_catalog.pg_extension e
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+| 		LEFT JOIN pg_catalog.pg_description c ON c.objoid = e.oid AND c.classoid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+| 		WHERE n.nspname != 'pg_catalog'
+| 		ORDER BY e.extname;
+< result
+< column "extname" "NAME"
+< column "extversion" "TEXT"
+< column "nspname" "NAME"
+< column "description" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pt.typname as enum_name,
+| 		pe.enumlabel as enum_value,
+| 		pg_catalog.obj_description(pt.oid) as enum_comment
+| 	FROM pg_enum as pe
+| 		LEFT JOIN pg_type as pt ON pe.enumtypid = pt.oid
+| 		LEFT JOIN pg_namespace as pn ON pt.typnamespace = pn.oid
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, pe.enumsortorder;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "enum_name" "NAME"
+< column "enum_value" "NAME"
+< column "enum_comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pc.oid,
+| 		pn.nspname AS schema_name,
+| 		pt.typname AS type_name,
+| 		pg_catalog.obj_description(pt.oid) AS type_comment,
+| 		a.attname AS attribute_name,
+| 		CASE
+| 			WHEN en.nspname IS NOT NULL
+| 				AND en.nspname NOT IN ('pg_catalog', 'information_schema')
+| 				AND position(quote_ident(en.nspname) || '.' IN pg_catalog.format_type(a.atttypid, a.atttypmod)) <> 1
+| 			THEN quote_ident(en.nspname) || '.' || pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 			ELSE pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 		END AS attribute_type,
+| 		CASE
+| 			WHEN co.collname IS NULL THEN NULL
+| 			WHEN nco.nspname <> 'pg_catalog' THEN quote_ident(nco.nspname) || '.' || quote_ident(co.collname)
+| 			ELSE quote_ident(co.collname)
+| 		END AS attribute_collation,
+| 		pg_catalog.col_description(pc.oid, a.attnum) AS attribute_comment
+| 	FROM pg_type pt
+| 		JOIN pg_class pc ON pc.oid = pt.typrelid AND pc.relkind = 'c'
+| 		JOIN pg_namespace pn ON pn.oid = pt.typnamespace
+| 		LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attnum > 0 AND NOT a.attisdropped
+| 		LEFT JOIN pg_type at ON at.oid = a.atttypid
+| 		LEFT JOIN pg_type et ON et.oid = CASE WHEN at.typlen = -1 AND at.typelem <> 0 THEN at.typelem ELSE at.oid END
+| 		LEFT JOIN pg_namespace en ON en.oid = et.typnamespace
+| 		LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 			ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| 	WHERE pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, a.attnum;
+< result
+< column "oid" "OID"
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "type_comment" "TEXT"
+< column "attribute_name" "NAME"
+< column "attribute_type" "TEXT"
+< column "attribute_collation" "TEXT"
+< column "attribute_comment" "TEXT"
+> query
+|
+| SELECT
+| 	c.oid,
+| 	n.nspname AS collation_schema,
+| 	c.collname AS collation_name,
+| 	c.collprovider AS provider,
+| 	c.collcollate AS lc_collate,
+| 	c.collctype AS lc_ctype,
+| 	c.colllocale AS locale,
+| 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
+| 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
+| FROM pg_catalog.pg_collation c
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
+| ORDER BY n.nspname, c.collname;
+< result
+< column "oid" "OID"
+< column "collation_schema" "NAME"
+< column "collation_name" "NAME"
+< column "provider" "CHAR"
+< column "lc_collate" "TEXT"
+< column "lc_ctype" "TEXT"
+< column "locale" "TEXT"
+< column "deterministic" "BOOL"
+< column "rules" "TEXT"
+< column "comment" "TEXT"
+< row
+: int64 4294967300
+: string
+| public
+: string
+| tailored
+: string
+| i
+: null
+: null
+: string
+| und
+: bool true
+: string
+| &V << w <<< W
+: null
+> query
+|
+| SELECT
+| 	r.rngtypid AS oid,
+| 	n.nspname AS schema_name,
+| 	t.typname AS type_name,
+| 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
+| 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
+| 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
+| 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
+| 	NULLIF(r.rngsubdiff, 0)::regproc::text AS subtype_diff,
+| 	CASE WHEN r.rngmultitypid <> 0 THEN pg_catalog.format_type(r.rngmultitypid, NULL) END AS multirange_name,
+| 	pg_catalog.obj_description(r.rngtypid, 'pg_type') AS comment
+| FROM pg_catalog.pg_range r
+| 	JOIN pg_catalog.pg_type t ON t.oid = r.rngtypid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+| 	JOIN pg_catalog.pg_type st ON st.oid = r.rngsubtype
+| 	LEFT JOIN pg_catalog.pg_opclass o ON o.oid = r.rngsubopc
+| 	LEFT JOIN pg_catalog.pg_namespace opc_n ON opc_n.oid = o.opcnamespace
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace co_n ON co_n.oid = co.collnamespace)
+| 		ON co.oid = r.rngcollation
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.typname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "subtype" "TEXT"
+< column "subtype_opclass" "TEXT"
+< column "collation" "TEXT"
+< column "canonical" "TEXT"
+< column "subtype_diff" "TEXT"
+< column "multirange_name" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		et.oid,
+| 		et.evtname AS trigger_name,
+| 		et.evtevent AS event_type,
+| 		et.evttags AS tags,
+| 		n.nspname AS function_schema,
+| 		p.proname AS function_name,
+| 		et.evtenabled AS enabled,
+| 		obj_description(et.oid, 'pg_event_trigger') AS comment
+| 	FROM pg_event_trigger et
+| 	JOIN pg_proc p ON et.evtfoid = p.oid
+| 	JOIN pg_namespace n ON p.pronamespace = n.oid
+| 	ORDER BY et.evtname;
+< result
+< column "oid" "OID"
+< column "trigger_name" "NAME"
+< column "event_type" "NAME"
+< column "tags" "_TEXT"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "enabled" "CHAR"
+< column "comment" "TEXT"
+> commit
+< ok
+
+== TestDumpRestoresCollationRules/pg16 pg16#1
+> exec
+| CREATE COLLATION public.tailored (provider = icu, locale = 'und', rules = '&V << w <<< W');
+| CREATE TABLE public.t (v text COLLATE public.tailored);
+< ok 0 -
+> query
+| SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
+< result
+< column "datname" "NAME"
+< column "pg_encoding_to_char" "NAME"
+< column "datcollate" "TEXT"
+< column "db_owner" "NAME"
+< row
+: string
+| omni_collation_rules
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| postgres
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template0
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template1
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+> query
+| SHOW server_version_num
+< result
+< column "server_version_num" "TEXT"
+< row
+: string
+| 160016
+> query
+| SHOW search_path
+< result
+< column "search_path" "TEXT"
+< row
+: string
+| "$user", public
+> begin
+< ok
+> exec
+| SELECT pg_catalog.set_config('search_path', $1, true);
+: string
+|
+< ok 1 -
+> query
+|
+| SELECT
+| 	objid
+| FROM
+| 	pg_depend
+| WHERE
+| 	deptype = 'e'
+| ORDER BY objid
+|
+< result
+< column "objid" "OID"
+< row
+: int64 13663
+< row
+: int64 13664
+< row
+: int64 13665
+< row
+: int64 13666
+> query
+|
+| SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
+|        obj_description(oid, 'pg_namespace') as schema_comment
+| FROM pg_catalog.pg_namespace
+| WHERE nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND nspname NOT LIKE 'pg_temp%'
+|   AND nspname NOT LIKE 'pg_toast%'
+| ORDER BY nspname;
+|
+< result
+< column "oid" "OID"
+< column "nspname" "NAME"
+< column "schema_owner" "NAME"
+< column "schema_comment" "TEXT"
+< row
+: int64 2200
+: string
+| public
+: string
+| pg_database_owner
+: string
+| standard public schema
+> query
+|
+| SELECT
+| 	nc.nspname AS table_schema,
+| 	c.relname AS table_name,
+| 	a.attname AS column_name,
+| 	CASE
+| 		WHEN t.typtype = 'd' THEN
+| 			CASE
+| 				WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN 'ARRAY'
+| 				WHEN nbt.nspname = 'pg_catalog' THEN pg_catalog.format_type(t.typbasetype, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 		ELSE
+| 			CASE
+| 				WHEN t.typelem <> 0 AND t.typlen = -1 THEN 'ARRAY'
+| 				WHEN nt.nspname = 'pg_catalog' THEN pg_catalog.format_type(a.atttypid, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 	END AS data_type,
+| 	information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS character_maximum_length,
+| 	information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_precision,
+| 	information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_scale,
+| 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
+| 	a.attnum AS ordinal_position,
+| 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
+| 	a.attgenerated AS generation_kind,
+| 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
+| 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
+| 	co.collname AS collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
+| 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
+| 	COALESCE(bt.typname, t.typname) AS udt_name,
+| 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| FROM pg_catalog.pg_attribute a
+| 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
+| 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+| 	JOIN pg_catalog.pg_namespace nc ON c.relnamespace = nc.oid
+| 	JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+| 	JOIN pg_catalog.pg_namespace nt ON t.typnamespace = nt.oid
+| 	LEFT JOIN (pg_catalog.pg_type bt JOIN pg_catalog.pg_namespace nbt ON bt.typnamespace = nbt.oid)
+| 		ON t.typtype = 'd' AND t.typbasetype = bt.oid
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| WHERE a.attnum > 0
+| 	AND NOT a.attisdropped
+| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND nc.nspname NOT LIKE 'pg_temp%'
+| 	AND nc.nspname NOT LIKE 'pg_toast%'
+| ORDER BY nc.nspname, c.relname, a.attnum;
+< result
+< column "table_schema" "NAME"
+< column "table_name" "NAME"
+< column "column_name" "NAME"
+< column "data_type" "TEXT"
+< column "character_maximum_length" "INT4"
+< column "numeric_precision" "INT4"
+< column "numeric_scale" "INT4"
+< column "datetime_precision" "INT4"
+< column "ordinal_position" "INT2"
+< column "column_default" "TEXT"
+< column "generation_kind" "CHAR"
+< column "generation_expression" "TEXT"
+< column "is_nullable" "TEXT"
+< column "collation_name" "NAME"
+< column "collation_schema" "NAME"
+< column "udt_schema" "NAME"
+< column "udt_name" "NAME"
+< column "identity_generation" "TEXT"
+< column "column_comment" "TEXT"
+< row
+: string
+| public
+: string
+| t
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: string
+| tailored
+: string
+| public
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+> query
+|
+| SELECT
+|   sc.nspname,
+|   cc.relname,
+|   sp.nspname,
+|   cp.relname
+| FROM
+|   pg_catalog.pg_inherits i
+|   left JOIN pg_catalog.pg_class cp ON cp.oid = i.inhparent
+|   left join pg_catalog.pg_class cc ON cc.oid = i.inhrelid
+|   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
+|   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
+| WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
+|
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "nspname" "NAME"
+< column "relname" "NAME"
+> query
+|
+| SELECT 
+|     n.nspname as schema_name,
+|     t.relname as table_name,
+|     i.relname as index_name,
+|     am.amname as index_method,
+|     ix.indisunique as is_unique,
+|     ix.indisprimary as is_primary,
+|     pg_get_indexdef(i.oid) as index_definition,
+|     -- Get array of key expressions
+|     (SELECT array_agg(pg_get_indexdef(i.oid, k + 1, true) ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_expressions,
+|     (SELECT array_agg(op.opcname ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_names,
+|     (SELECT array_agg(op.opcdefault ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_defaults,
+|     -- Check if it's a constraint (primary key, unique, or exclude constraint)
+|     CASE
+|         WHEN ix.indisprimary THEN true
+|         WHEN EXISTS (
+|             SELECT 1 FROM pg_constraint c
+|             WHERE c.conindid = i.oid AND c.contype IN ('u', 'p', 'x')
+|         ) THEN true
+|         ELSE false
+|     END as is_constraint,
+|     obj_description(i.oid) as comment,
+|     -- Extract indoption array for sort order information (ASC/DESC, NULLS FIRST/LAST)
+|     ix.indoption as index_options
+| FROM pg_class i
+| JOIN pg_index ix ON i.oid = ix.indexrelid
+| JOIN pg_class t ON ix.indrelid = t.oid
+| JOIN pg_namespace n ON t.relnamespace = n.oid
+| JOIN pg_am am ON i.relam = am.oid
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.relname, i.relname;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "index_name" "NAME"
+< column "index_method" "NAME"
+< column "is_unique" "BOOL"
+< column "is_primary" "BOOL"
+< column "index_definition" "TEXT"
+< column "key_expressions" "_TEXT"
+< column "key_opclass_names" "_NAME"
+< column "key_opclass_defaults" "_BOOL"
+< column "is_constraint" "BOOL"
+< column "comment" "TEXT"
+< column "index_options" "-"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pc.relname as table_name,
+| 		pt.tgname as trigger_name,
+| 		pg_get_triggerdef(pt.oid) as trigger_def,
+| 		obj_description(pt.oid) as trigger_comment
+| 	FROM pg_trigger as pt
+| 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
+| 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	ORDER BY pn.nspname, pc.relname, pt.tgname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "trigger_name" "NAME"
+< column "trigger_def" "TEXT"
+< column "trigger_comment" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'c' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+> query
+|
+| SELECT
+| 	n.nspname AS fk_schema,
+| 	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+| 	conname AS fk_name,
+| 	ref_nsp.nspname AS fk_ref_schema,
+| 	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+| 	confdeltype AS delete_option,
+| 	confupdtype AS update_option,
+| 	confmatchtype AS match_option,
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
+| FROM
+| 	pg_constraint c
+| 	JOIN pg_namespace n ON n.oid = c.connamespace
+| 	JOIN pg_class fk_cls ON fk_cls.oid = c.conrelid
+| 	JOIN pg_namespace fk_nsp ON fk_nsp.oid = fk_cls.relnamespace
+| 	JOIN pg_class ref_cls ON ref_cls.oid = c.confrelid
+| 	JOIN pg_namespace ref_nsp ON ref_nsp.oid = ref_cls.relnamespace
+| WHERE
+| 	n.nspname NOT IN('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND c.contype = 'f'
+| 	AND c.conparentid = 0
+| ORDER BY fk_schema, fk_table, fk_name;
+< result
+< column "fk_schema" "NAME"
+< column "fk_table" "TEXT"
+< column "fk_name" "NAME"
+< column "fk_ref_schema" "NAME"
+< column "fk_ref_table" "TEXT"
+< column "delete_option" "CHAR"
+< column "update_option" "CHAR"
+< column "match_option" "CHAR"
+< column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
+> query
+| SELECT
+| 		n.nspname AS foreign_table_schema,
+| 		c.relname AS foreign_table_name,
+| 		current_database() AS foreign_server_catalog,
+| 		s.srvname AS foreign_server_name
+| 	FROM pg_catalog.pg_foreign_table t
+| 		JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		JOIN pg_catalog.pg_foreign_server s ON s.oid = t.ftserver
+| 	WHERE c.relkind = 'f'
+| 	ORDER BY n.nspname, c.relname;
+< result
+< column "foreign_table_schema" "NAME"
+< column "foreign_table_name" "NAME"
+< column "foreign_server_catalog" "NAME"
+< column "foreign_server_name" "NAME"
+> query
+|
+| 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
+| 		pg_table_size(pc.oid),
+| 		pg_indexes_size(pc.oid),
+| 		GREATEST(pc.reltuples::bigint, 0::BIGINT) AS estimate,
+| 		obj_description(pc.oid) AS comment,
+| 		tbl.tableowner
+| 	FROM pg_catalog.pg_tables tbl
+| 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')
+| 	WHERE tbl.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND tbl.schemaname NOT LIKE 'pg_temp%'
+| 	  AND tbl.schemaname NOT LIKE 'pg_toast%' AND pc.relispartition IS FALSE
+| 	ORDER BY tbl.schemaname, tbl.tablename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "tablename" "NAME"
+< column "pg_table_size" "INT8"
+< column "pg_indexes_size" "INT8"
+< column "estimate" "INT8"
+< column "comment" "TEXT"
+< column "tableowner" "NAME"
+< row
+: int64 4294967297
+: string
+| public
+: string
+| t
+: int64 8192
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+> query
+|
+| SELECT
+| 	n.nspname AS schema_name,
+| 	c.relname AS table_name,
+| 	i2.nspname AS inh_schema_name,
+| 	i2.relname AS inh_table_name,
+| 	i2.partstrat AS partition_type,
+| 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
+| FROM
+| 	pg_catalog.pg_class c
+| 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+|     LEFT JOIN (
+| 		pg_inherits i 
+| 		INNER JOIN pg_class c2 ON i.inhparent = c2.oid 
+| 		LEFT JOIN pg_namespace n2 ON n2.oid = c2.relnamespace
+| 		LEFT JOIN pg_partitioned_table p ON p.partrelid = c2.oid
+| 	) i2 ON i2.inhrelid = c.oid 
+| WHERE
+| 	((c.relkind = 'r'::"char") OR (c.relkind = 'f'::"char") OR (c.relkind = 'p'::"char"))
+| 	AND c.relispartition IS TRUE 
+| 	AND n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY c.oid;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "inh_schema_name" "NAME"
+< column "inh_table_name" "NAME"
+< column "partition_type" "CHAR"
+< column "rel_part_bound" "TEXT"
+< column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
+> query
+|
+| SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_views v
+| 	LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = v.viewname AND pc.relnamespace = n.oid AND pc.relkind = 'v'
+| WHERE v.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND v.schemaname NOT LIKE 'pg_temp%'
+|   AND v.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY v.schemaname, v.viewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "viewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| 		WITH rule_data AS (
+| 			SELECT
+| 				n.nspname AS schema_name,
+| 				c.relname AS table_name,
+| 				r.rulename AS rule_name,
+| 				r.ev_type,
+| 				r.is_instead,
+| 				r.ev_enabled,
+| 				pg_get_ruledef(r.oid, true) AS definition
+| 			FROM pg_rewrite r
+| 			JOIN pg_class c ON c.oid = r.ev_class
+| 			JOIN pg_namespace n ON n.oid = c.relnamespace
+| 			WHERE r.rulename NOT IN ('_RETURN', '_NOTHING')
+| 				AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+| 		)
+| 		SELECT
+| 			schema_name,
+| 			table_name,
+| 			rule_name,
+| 			CASE ev_type
+| 				WHEN '1' THEN 'SELECT'
+| 				WHEN '2' THEN 'UPDATE'
+| 				WHEN '3' THEN 'INSERT'
+| 				WHEN '4' THEN 'DELETE'
+| 			END AS event,
+| 			is_instead,
+| 			ev_enabled != 'D' AS is_enabled,
+| 			CASE
+| 				WHEN position(' WHERE ' IN definition) > 0
+| 					AND position(' WHERE ' IN definition) < position(' DO ' IN definition) THEN
+| 					trim(substring(
+| 						definition
+| 						FROM position(' WHERE ' IN definition) + 7
+| 						FOR position(' DO ' IN definition) - position(' WHERE ' IN definition) - 7
+| 					))
+| 				ELSE NULL
+| 			END AS condition,
+| 			definition
+| 		FROM rule_data
+| 		ORDER BY schema_name, table_name, rule_name;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "rule_name" "NAME"
+< column "event" "TEXT"
+< column "is_instead" "BOOL"
+< column "is_enabled" "BOOL"
+< column "condition" "TEXT"
+< column "definition" "TEXT"
+> query
+|
+| SELECT pc.oid, m.schemaname, m.matviewname, m.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_matviews m
+| 	LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = m.matviewname AND pc.relnamespace = n.oid AND pc.relkind = 'm'
+| WHERE m.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND m.schemaname NOT LIKE 'pg_temp%'
+|   AND m.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY m.schemaname, m.matviewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "matviewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| select
+| 	p.oid as function_oid,
+| 	pt.typrelid as table_oid
+| from pg_proc p
+| 	left join pg_depend d on p.oid = d.objid
+| 	left join pg_type pt on d.refobjid = pt.oid
+| 	left join pg_namespace n on p.pronamespace = n.oid
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
+|
+< result
+< column "function_oid" "OID"
+< column "table_oid" "OID"
+> query
+|
+| select p.oid, n.nspname as function_schema,
+| 	p.proname as function_name,
+| 	pg_catalog.pg_get_function_identity_arguments(p.oid) as arguments,
+| 	case when l.lanname = 'internal' then p.prosrc
+| 			else pg_get_functiondef(p.oid)
+| 			end as definition,
+| 	pg_catalog.obj_description(p.oid) as comment
+| from pg_proc p
+| left join pg_namespace n on p.pronamespace = n.oid
+| left join pg_language l on p.prolang = l.oid
+| left join pg_type t on t.oid = p.prorettype
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND p.oid NOT IN (
+| 	SELECT d.objid
+| 	FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_proc'::regclass
+| 		AND d.refclassid = 'pg_type'::regclass
+| 		AND d.deptype = 'i'
+| 		AND d.refobjid IN (
+| 			SELECT rngtypid FROM pg_catalog.pg_range
+| 			UNION SELECT rngmultitypid FROM pg_catalog.pg_range WHERE rngmultitypid <> 0
+| 		)
+|   )
+| order by function_schema, function_name, arguments;
+< result
+< column "oid" "OID"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "arguments" "TEXT"
+< column "definition" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		c.oid,
+| 		refobjid AS owning_tab,
+| 		refobjsubid AS owning_col
+| 	FROM pg_class c
+|   		LEFT JOIN pg_depend d ON
+|   			(c.relkind =  'S' AND
+|                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
+|                 d.objsubid = 0 AND
+|                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
+< result
+< column "oid" "OID"
+< column "owning_tab" "OID"
+< column "owning_col" "INT4"
+> query
+|
+| 	SELECT
+| 		pc.oid,
+| 		s.schemaname,
+| 		s.sequencename,
+| 		s.data_type,
+| 		s.start_value,
+| 		s.min_value,
+| 		s.max_value,
+| 		s.increment_by,
+| 		s.cycle,
+| 		s.cache_size,
+| 		s.last_value,
+| 		pg_catalog.obj_description(pc.oid) as sequence_comment
+| 	FROM pg_sequences s
+| 		LEFT JOIN pg_namespace n ON n.nspname = s.schemaname
+| 		LEFT JOIN pg_class pc ON pc.relname = s.sequencename AND pc.relnamespace = n.oid AND pc.relkind = 'S'
+| 	WHERE s.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND s.schemaname NOT LIKE 'pg_temp%%'
+| 	  AND s.schemaname NOT LIKE 'pg_toast%%'
+| 	ORDER BY s.schemaname, s.sequencename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "sequencename" "NAME"
+< column "data_type" "-"
+< column "start_value" "INT8"
+< column "min_value" "INT8"
+< column "max_value" "INT8"
+< column "increment_by" "INT8"
+< column "cycle" "BOOL"
+< column "cache_size" "INT8"
+< column "last_value" "INT8"
+< column "sequence_comment" "TEXT"
+> query
+|
+| 		SELECT e.extname, e.extversion, n.nspname, c.description
+| 		FROM pg_catalog.pg_extension e
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+| 		LEFT JOIN pg_catalog.pg_description c ON c.objoid = e.oid AND c.classoid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+| 		WHERE n.nspname != 'pg_catalog'
+| 		ORDER BY e.extname;
+< result
+< column "extname" "NAME"
+< column "extversion" "TEXT"
+< column "nspname" "NAME"
+< column "description" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pt.typname as enum_name,
+| 		pe.enumlabel as enum_value,
+| 		pg_catalog.obj_description(pt.oid) as enum_comment
+| 	FROM pg_enum as pe
+| 		LEFT JOIN pg_type as pt ON pe.enumtypid = pt.oid
+| 		LEFT JOIN pg_namespace as pn ON pt.typnamespace = pn.oid
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, pe.enumsortorder;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "enum_name" "NAME"
+< column "enum_value" "NAME"
+< column "enum_comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pc.oid,
+| 		pn.nspname AS schema_name,
+| 		pt.typname AS type_name,
+| 		pg_catalog.obj_description(pt.oid) AS type_comment,
+| 		a.attname AS attribute_name,
+| 		CASE
+| 			WHEN en.nspname IS NOT NULL
+| 				AND en.nspname NOT IN ('pg_catalog', 'information_schema')
+| 				AND position(quote_ident(en.nspname) || '.' IN pg_catalog.format_type(a.atttypid, a.atttypmod)) <> 1
+| 			THEN quote_ident(en.nspname) || '.' || pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 			ELSE pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 		END AS attribute_type,
+| 		CASE
+| 			WHEN co.collname IS NULL THEN NULL
+| 			WHEN nco.nspname <> 'pg_catalog' THEN quote_ident(nco.nspname) || '.' || quote_ident(co.collname)
+| 			ELSE quote_ident(co.collname)
+| 		END AS attribute_collation,
+| 		pg_catalog.col_description(pc.oid, a.attnum) AS attribute_comment
+| 	FROM pg_type pt
+| 		JOIN pg_class pc ON pc.oid = pt.typrelid AND pc.relkind = 'c'
+| 		JOIN pg_namespace pn ON pn.oid = pt.typnamespace
+| 		LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attnum > 0 AND NOT a.attisdropped
+| 		LEFT JOIN pg_type at ON at.oid = a.atttypid
+| 		LEFT JOIN pg_type et ON et.oid = CASE WHEN at.typlen = -1 AND at.typelem <> 0 THEN at.typelem ELSE at.oid END
+| 		LEFT JOIN pg_namespace en ON en.oid = et.typnamespace
+| 		LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 			ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| 	WHERE pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, a.attnum;
+< result
+< column "oid" "OID"
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "type_comment" "TEXT"
+< column "attribute_name" "NAME"
+< column "attribute_type" "TEXT"
+< column "attribute_collation" "TEXT"
+< column "attribute_comment" "TEXT"
+> query
+|
+| SELECT
+| 	c.oid,
+| 	n.nspname AS collation_schema,
+| 	c.collname AS collation_name,
+| 	c.collprovider AS provider,
+| 	c.collcollate AS lc_collate,
+| 	c.collctype AS lc_ctype,
+| 	c.colliculocale AS locale,
+| 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
+| 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
+| FROM pg_catalog.pg_collation c
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
+| ORDER BY n.nspname, c.collname;
+< result
+< column "oid" "OID"
+< column "collation_schema" "NAME"
+< column "collation_name" "NAME"
+< column "provider" "CHAR"
+< column "lc_collate" "TEXT"
+< column "lc_ctype" "TEXT"
+< column "locale" "TEXT"
+< column "deterministic" "BOOL"
+< column "rules" "TEXT"
+< column "comment" "TEXT"
+< row
+: int64 4294967298
+: string
+| public
+: string
+| tailored
+: string
+| i
+: null
+: null
+: string
+| und
+: bool true
+: string
+| &V << w <<< W
+: null
+> query
+|
+| SELECT
+| 	r.rngtypid AS oid,
+| 	n.nspname AS schema_name,
+| 	t.typname AS type_name,
+| 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
+| 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
+| 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
+| 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
+| 	NULLIF(r.rngsubdiff, 0)::regproc::text AS subtype_diff,
+| 	CASE WHEN r.rngmultitypid <> 0 THEN pg_catalog.format_type(r.rngmultitypid, NULL) END AS multirange_name,
+| 	pg_catalog.obj_description(r.rngtypid, 'pg_type') AS comment
+| FROM pg_catalog.pg_range r
+| 	JOIN pg_catalog.pg_type t ON t.oid = r.rngtypid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+| 	JOIN pg_catalog.pg_type st ON st.oid = r.rngsubtype
+| 	LEFT JOIN pg_catalog.pg_opclass o ON o.oid = r.rngsubopc
+| 	LEFT JOIN pg_catalog.pg_namespace opc_n ON opc_n.oid = o.opcnamespace
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace co_n ON co_n.oid = co.collnamespace)
+| 		ON co.oid = r.rngcollation
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.typname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "subtype" "TEXT"
+< column "subtype_opclass" "TEXT"
+< column "collation" "TEXT"
+< column "canonical" "TEXT"
+< column "subtype_diff" "TEXT"
+< column "multirange_name" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		et.oid,
+| 		et.evtname AS trigger_name,
+| 		et.evtevent AS event_type,
+| 		et.evttags AS tags,
+| 		n.nspname AS function_schema,
+| 		p.proname AS function_name,
+| 		et.evtenabled AS enabled,
+| 		obj_description(et.oid, 'pg_event_trigger') AS comment
+| 	FROM pg_event_trigger et
+| 	JOIN pg_proc p ON et.evtfoid = p.oid
+| 	JOIN pg_namespace n ON p.pronamespace = n.oid
+| 	ORDER BY et.evtname;
+< result
+< column "oid" "OID"
+< column "trigger_name" "NAME"
+< column "event_type" "NAME"
+< column "tags" "_TEXT"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "enabled" "CHAR"
+< column "comment" "TEXT"
+> commit
+< ok
+
+== TestDumpRestoresCollationRules/pg16 pg16#2
+> exec
+|
+| SET statement_timeout = 0;
+| SET lock_timeout = 0;
+| SET idle_in_transaction_session_timeout = 0;
+| SET client_encoding = 'UTF8';
+| SET standard_conforming_strings = on;
+| SELECT pg_catalog.set_config('search_path', '', false);
+| SET check_function_bodies = false;
+| SET xmloption = content;
+| SET client_min_messages = warning;
+| SET row_security = off;
+|
+| COMMENT ON SCHEMA "public" IS 'standard public schema';
+|
+| CREATE COLLATION "public"."tailored" (provider = icu, locale = 'und', rules = '&V << w <<< W');
+|
+| SET default_tablespace = '';
+|
+| CREATE TABLE "public"."t" (
+|     "v" text COLLATE "public"."tailored"
+| );
+|
+| ALTER TABLE "public"."t" OWNER TO "postgres";
+|
+|
+< ok 0 -
+
+== TestDumpRestoresCollationRules/pg16 pg16#3
+> query
+| SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
+< result
+< column "datname" "NAME"
+< column "pg_encoding_to_char" "NAME"
+< column "datcollate" "TEXT"
+< column "db_owner" "NAME"
+< row
+: string
+| omni_collation_rules
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| omni_collation_rules_restored
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| postgres
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template0
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+< row
+: string
+| template1
+: string
+| UTF8
+: string
+| en_US.utf8
+: string
+| postgres
+> query
+| SHOW server_version_num
+< result
+< column "server_version_num" "TEXT"
+< row
+: string
+| 160016
+> query
+| SHOW search_path
+< result
+< column "search_path" "TEXT"
+< row
+: string
+| "$user", public
+> begin
+< ok
+> exec
+| SELECT pg_catalog.set_config('search_path', $1, true);
+: string
+|
+< ok 1 -
+> query
+|
+| SELECT
+| 	objid
+| FROM
+| 	pg_depend
+| WHERE
+| 	deptype = 'e'
+| ORDER BY objid
+|
+< result
+< column "objid" "OID"
+< row
+: int64 13663
+< row
+: int64 13664
+< row
+: int64 13665
+< row
+: int64 13666
+> query
+|
+| SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
+|        obj_description(oid, 'pg_namespace') as schema_comment
+| FROM pg_catalog.pg_namespace
+| WHERE nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND nspname NOT LIKE 'pg_temp%'
+|   AND nspname NOT LIKE 'pg_toast%'
+| ORDER BY nspname;
+|
+< result
+< column "oid" "OID"
+< column "nspname" "NAME"
+< column "schema_owner" "NAME"
+< column "schema_comment" "TEXT"
+< row
+: int64 2200
+: string
+| public
+: string
+| pg_database_owner
+: string
+| standard public schema
+> query
+|
+| SELECT
+| 	nc.nspname AS table_schema,
+| 	c.relname AS table_name,
+| 	a.attname AS column_name,
+| 	CASE
+| 		WHEN t.typtype = 'd' THEN
+| 			CASE
+| 				WHEN bt.typelem <> 0 AND bt.typlen = -1 THEN 'ARRAY'
+| 				WHEN nbt.nspname = 'pg_catalog' THEN pg_catalog.format_type(t.typbasetype, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 		ELSE
+| 			CASE
+| 				WHEN t.typelem <> 0 AND t.typlen = -1 THEN 'ARRAY'
+| 				WHEN nt.nspname = 'pg_catalog' THEN pg_catalog.format_type(a.atttypid, NULL)
+| 				ELSE 'USER-DEFINED'
+| 			END
+| 	END AS data_type,
+| 	information_schema._pg_char_max_length(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS character_maximum_length,
+| 	information_schema._pg_numeric_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_precision,
+| 	information_schema._pg_numeric_scale(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS numeric_scale,
+| 	information_schema._pg_datetime_precision(information_schema._pg_truetypid(a.*, t.*), information_schema._pg_truetypmod(a.*, t.*)) AS datetime_precision,
+| 	a.attnum AS ordinal_position,
+| 	CASE WHEN a.attgenerated = '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS column_default,
+| 	a.attgenerated AS generation_kind,
+| 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
+| 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
+| 	co.collname AS collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
+| 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
+| 	COALESCE(bt.typname, t.typname) AS udt_name,
+| 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| FROM pg_catalog.pg_attribute a
+| 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
+| 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
+| 	JOIN pg_catalog.pg_namespace nc ON c.relnamespace = nc.oid
+| 	JOIN pg_catalog.pg_type t ON a.atttypid = t.oid
+| 	JOIN pg_catalog.pg_namespace nt ON t.typnamespace = nt.oid
+| 	LEFT JOIN (pg_catalog.pg_type bt JOIN pg_catalog.pg_namespace nbt ON bt.typnamespace = nbt.oid)
+| 		ON t.typtype = 'd' AND t.typbasetype = bt.oid
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 		ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| WHERE a.attnum > 0
+| 	AND NOT a.attisdropped
+| 	AND c.relkind IN ('r', 'v', 'f', 'p')
+| 	AND nc.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND nc.nspname NOT LIKE 'pg_temp%'
+| 	AND nc.nspname NOT LIKE 'pg_toast%'
+| ORDER BY nc.nspname, c.relname, a.attnum;
+< result
+< column "table_schema" "NAME"
+< column "table_name" "NAME"
+< column "column_name" "NAME"
+< column "data_type" "TEXT"
+< column "character_maximum_length" "INT4"
+< column "numeric_precision" "INT4"
+< column "numeric_scale" "INT4"
+< column "datetime_precision" "INT4"
+< column "ordinal_position" "INT2"
+< column "column_default" "TEXT"
+< column "generation_kind" "CHAR"
+< column "generation_expression" "TEXT"
+< column "is_nullable" "TEXT"
+< column "collation_name" "NAME"
+< column "collation_schema" "NAME"
+< column "udt_schema" "NAME"
+< column "udt_name" "NAME"
+< column "identity_generation" "TEXT"
+< column "column_comment" "TEXT"
+< row
+: string
+| public
+: string
+| t
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| YES
+: string
+| tailored
+: string
+| public
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+> query
+|
+| SELECT
+|   sc.nspname,
+|   cc.relname,
+|   sp.nspname,
+|   cp.relname
+| FROM
+|   pg_catalog.pg_inherits i
+|   left JOIN pg_catalog.pg_class cp ON cp.oid = i.inhparent
+|   left join pg_catalog.pg_class cc ON cc.oid = i.inhrelid
+|   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
+|   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
+| WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
+|
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "nspname" "NAME"
+< column "relname" "NAME"
+> query
+|
+| SELECT 
+|     n.nspname as schema_name,
+|     t.relname as table_name,
+|     i.relname as index_name,
+|     am.amname as index_method,
+|     ix.indisunique as is_unique,
+|     ix.indisprimary as is_primary,
+|     pg_get_indexdef(i.oid) as index_definition,
+|     -- Get array of key expressions
+|     (SELECT array_agg(pg_get_indexdef(i.oid, k + 1, true) ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_expressions,
+|     (SELECT array_agg(op.opcname ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_names,
+|     (SELECT array_agg(op.opcdefault ORDER BY k)
+|      FROM generate_subscripts(ix.indkey, 1) as k
+|      JOIN pg_opclass op ON ix.indclass[k] = op.oid
+|      WHERE k < ix.indnkeyatts  -- Only key columns, not included columns
+|     ) as key_opclass_defaults,
+|     -- Check if it's a constraint (primary key, unique, or exclude constraint)
+|     CASE
+|         WHEN ix.indisprimary THEN true
+|         WHEN EXISTS (
+|             SELECT 1 FROM pg_constraint c
+|             WHERE c.conindid = i.oid AND c.contype IN ('u', 'p', 'x')
+|         ) THEN true
+|         ELSE false
+|     END as is_constraint,
+|     obj_description(i.oid) as comment,
+|     -- Extract indoption array for sort order information (ASC/DESC, NULLS FIRST/LAST)
+|     ix.indoption as index_options
+| FROM pg_class i
+| JOIN pg_index ix ON i.oid = ix.indexrelid
+| JOIN pg_class t ON ix.indrelid = t.oid
+| JOIN pg_namespace n ON t.relnamespace = n.oid
+| JOIN pg_am am ON i.relam = am.oid
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.relname, i.relname;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "index_name" "NAME"
+< column "index_method" "NAME"
+< column "is_unique" "BOOL"
+< column "is_primary" "BOOL"
+< column "index_definition" "TEXT"
+< column "key_expressions" "_TEXT"
+< column "key_opclass_names" "_NAME"
+< column "key_opclass_defaults" "_BOOL"
+< column "is_constraint" "BOOL"
+< column "comment" "TEXT"
+< column "index_options" "-"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pc.relname as table_name,
+| 		pt.tgname as trigger_name,
+| 		pg_get_triggerdef(pt.oid) as trigger_def,
+| 		obj_description(pt.oid) as trigger_comment
+| 	FROM pg_trigger as pt
+| 		LEFT JOIN pg_class as pc ON pc.oid = pt.tgrelid
+| 		LEFT JOIN pg_namespace as pn ON pn.oid = pc.relnamespace
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information') AND pt.tgisinternal = false
+| 	ORDER BY pn.nspname, pc.relname, pt.tgname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "trigger_name" "NAME"
+< column "trigger_def" "TEXT"
+< column "trigger_comment" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'c' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+|     FROM pg_catalog.pg_constraint con
+|         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
+|         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
+|         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|         AND nsp.nspname NOT LIKE 'pg_temp%'
+|         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "conname" "NAME"
+< column "pg_get_constraintdef" "TEXT"
+> query
+|
+| SELECT
+| 	n.nspname AS fk_schema,
+| 	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+| 	conname AS fk_name,
+| 	ref_nsp.nspname AS fk_ref_schema,
+| 	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+| 	confdeltype AS delete_option,
+| 	confupdtype AS update_option,
+| 	confmatchtype AS match_option,
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
+| FROM
+| 	pg_constraint c
+| 	JOIN pg_namespace n ON n.oid = c.connamespace
+| 	JOIN pg_class fk_cls ON fk_cls.oid = c.conrelid
+| 	JOIN pg_namespace fk_nsp ON fk_nsp.oid = fk_cls.relnamespace
+| 	JOIN pg_class ref_cls ON ref_cls.oid = c.confrelid
+| 	JOIN pg_namespace ref_nsp ON ref_nsp.oid = ref_cls.relnamespace
+| WHERE
+| 	n.nspname NOT IN('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND c.contype = 'f'
+| 	AND c.conparentid = 0
+| ORDER BY fk_schema, fk_table, fk_name;
+< result
+< column "fk_schema" "NAME"
+< column "fk_table" "TEXT"
+< column "fk_name" "NAME"
+< column "fk_ref_schema" "NAME"
+< column "fk_ref_table" "TEXT"
+< column "delete_option" "CHAR"
+< column "update_option" "CHAR"
+< column "match_option" "CHAR"
+< column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
+> query
+| SELECT
+| 		n.nspname AS foreign_table_schema,
+| 		c.relname AS foreign_table_name,
+| 		current_database() AS foreign_server_catalog,
+| 		s.srvname AS foreign_server_name
+| 	FROM pg_catalog.pg_foreign_table t
+| 		JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 		JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| 		JOIN pg_catalog.pg_foreign_server s ON s.oid = t.ftserver
+| 	WHERE c.relkind = 'f'
+| 	ORDER BY n.nspname, c.relname;
+< result
+< column "foreign_table_schema" "NAME"
+< column "foreign_table_name" "NAME"
+< column "foreign_server_catalog" "NAME"
+< column "foreign_server_name" "NAME"
+> query
+|
+| 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
+| 		pg_table_size(pc.oid),
+| 		pg_indexes_size(pc.oid),
+| 		GREATEST(pc.reltuples::bigint, 0::BIGINT) AS estimate,
+| 		obj_description(pc.oid) AS comment,
+| 		tbl.tableowner
+| 	FROM pg_catalog.pg_tables tbl
+| 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')
+| 	WHERE tbl.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND tbl.schemaname NOT LIKE 'pg_temp%'
+| 	  AND tbl.schemaname NOT LIKE 'pg_toast%' AND pc.relispartition IS FALSE
+| 	ORDER BY tbl.schemaname, tbl.tablename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "tablename" "NAME"
+< column "pg_table_size" "INT8"
+< column "pg_indexes_size" "INT8"
+< column "estimate" "INT8"
+< column "comment" "TEXT"
+< column "tableowner" "NAME"
+< row
+: int64 4294967299
+: string
+| public
+: string
+| t
+: int64 8192
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+> query
+|
+| SELECT
+| 	n.nspname AS schema_name,
+| 	c.relname AS table_name,
+| 	i2.nspname AS inh_schema_name,
+| 	i2.relname AS inh_table_name,
+| 	i2.partstrat AS partition_type,
+| 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
+| FROM
+| 	pg_catalog.pg_class c
+| 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+|     LEFT JOIN (
+| 		pg_inherits i 
+| 		INNER JOIN pg_class c2 ON i.inhparent = c2.oid 
+| 		LEFT JOIN pg_namespace n2 ON n2.oid = c2.relnamespace
+| 		LEFT JOIN pg_partitioned_table p ON p.partrelid = c2.oid
+| 	) i2 ON i2.inhrelid = c.oid 
+| WHERE
+| 	((c.relkind = 'r'::"char") OR (c.relkind = 'f'::"char") OR (c.relkind = 'p'::"char"))
+| 	AND c.relispartition IS TRUE 
+| 	AND n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY c.oid;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "inh_schema_name" "NAME"
+< column "inh_table_name" "NAME"
+< column "partition_type" "CHAR"
+< column "rel_part_bound" "TEXT"
+< column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
+> query
+|
+| SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_views v
+| 	LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = v.viewname AND pc.relnamespace = n.oid AND pc.relkind = 'v'
+| WHERE v.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND v.schemaname NOT LIKE 'pg_temp%'
+|   AND v.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY v.schemaname, v.viewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "viewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| 		WITH rule_data AS (
+| 			SELECT
+| 				n.nspname AS schema_name,
+| 				c.relname AS table_name,
+| 				r.rulename AS rule_name,
+| 				r.ev_type,
+| 				r.is_instead,
+| 				r.ev_enabled,
+| 				pg_get_ruledef(r.oid, true) AS definition
+| 			FROM pg_rewrite r
+| 			JOIN pg_class c ON c.oid = r.ev_class
+| 			JOIN pg_namespace n ON n.oid = c.relnamespace
+| 			WHERE r.rulename NOT IN ('_RETURN', '_NOTHING')
+| 				AND n.nspname NOT IN ('pg_catalog', 'information_schema', 'pg_toast')
+| 		)
+| 		SELECT
+| 			schema_name,
+| 			table_name,
+| 			rule_name,
+| 			CASE ev_type
+| 				WHEN '1' THEN 'SELECT'
+| 				WHEN '2' THEN 'UPDATE'
+| 				WHEN '3' THEN 'INSERT'
+| 				WHEN '4' THEN 'DELETE'
+| 			END AS event,
+| 			is_instead,
+| 			ev_enabled != 'D' AS is_enabled,
+| 			CASE
+| 				WHEN position(' WHERE ' IN definition) > 0
+| 					AND position(' WHERE ' IN definition) < position(' DO ' IN definition) THEN
+| 					trim(substring(
+| 						definition
+| 						FROM position(' WHERE ' IN definition) + 7
+| 						FOR position(' DO ' IN definition) - position(' WHERE ' IN definition) - 7
+| 					))
+| 				ELSE NULL
+| 			END AS condition,
+| 			definition
+| 		FROM rule_data
+| 		ORDER BY schema_name, table_name, rule_name;
+< result
+< column "schema_name" "NAME"
+< column "table_name" "NAME"
+< column "rule_name" "NAME"
+< column "event" "TEXT"
+< column "is_instead" "BOOL"
+< column "is_enabled" "BOOL"
+< column "condition" "TEXT"
+< column "definition" "TEXT"
+> query
+|
+| SELECT pc.oid, m.schemaname, m.matviewname, m.definition, obj_description(pc.oid)
+| FROM pg_catalog.pg_matviews m
+| 	LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
+| 	LEFT JOIN pg_class pc ON pc.relname = m.matviewname AND pc.relnamespace = n.oid AND pc.relkind = 'm'
+| WHERE m.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND m.schemaname NOT LIKE 'pg_temp%'
+|   AND m.schemaname NOT LIKE 'pg_toast%'
+| ORDER BY m.schemaname, m.matviewname;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "matviewname" "NAME"
+< column "definition" "TEXT"
+< column "obj_description" "TEXT"
+> query
+|
+| select
+| 	p.oid as function_oid,
+| 	pt.typrelid as table_oid
+| from pg_proc p
+| 	left join pg_depend d on p.oid = d.objid
+| 	left join pg_type pt on d.refobjid = pt.oid
+| 	left join pg_namespace n on p.pronamespace = n.oid
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
+|
+< result
+< column "function_oid" "OID"
+< column "table_oid" "OID"
+> query
+|
+| select p.oid, n.nspname as function_schema,
+| 	p.proname as function_name,
+| 	pg_catalog.pg_get_function_identity_arguments(p.oid) as arguments,
+| 	case when l.lanname = 'internal' then p.prosrc
+| 			else pg_get_functiondef(p.oid)
+| 			end as definition,
+| 	pg_catalog.obj_description(p.oid) as comment
+| from pg_proc p
+| left join pg_namespace n on p.pronamespace = n.oid
+| left join pg_language l on p.prolang = l.oid
+| left join pg_type t on t.oid = p.prorettype
+| where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+|   AND n.nspname NOT LIKE 'pg_temp%'
+|   AND n.nspname NOT LIKE 'pg_toast%'
+|   AND p.prokind <> 'a'
+|   AND p.oid NOT IN (
+| 	SELECT d.objid
+| 	FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_proc'::regclass
+| 		AND d.refclassid = 'pg_type'::regclass
+| 		AND d.deptype = 'i'
+| 		AND d.refobjid IN (
+| 			SELECT rngtypid FROM pg_catalog.pg_range
+| 			UNION SELECT rngmultitypid FROM pg_catalog.pg_range WHERE rngmultitypid <> 0
+| 		)
+|   )
+| order by function_schema, function_name, arguments;
+< result
+< column "oid" "OID"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "arguments" "TEXT"
+< column "definition" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		c.oid,
+| 		refobjid AS owning_tab,
+| 		refobjsubid AS owning_col
+| 	FROM pg_class c
+|   		LEFT JOIN pg_depend d ON
+|   			(c.relkind =  'S' AND
+|                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
+|                 d.objsubid = 0 AND
+|                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
+< result
+< column "oid" "OID"
+< column "owning_tab" "OID"
+< column "owning_col" "INT4"
+> query
+|
+| 	SELECT
+| 		pc.oid,
+| 		s.schemaname,
+| 		s.sequencename,
+| 		s.data_type,
+| 		s.start_value,
+| 		s.min_value,
+| 		s.max_value,
+| 		s.increment_by,
+| 		s.cycle,
+| 		s.cache_size,
+| 		s.last_value,
+| 		pg_catalog.obj_description(pc.oid) as sequence_comment
+| 	FROM pg_sequences s
+| 		LEFT JOIN pg_namespace n ON n.nspname = s.schemaname
+| 		LEFT JOIN pg_class pc ON pc.relname = s.sequencename AND pc.relnamespace = n.oid AND pc.relkind = 'S'
+| 	WHERE s.schemaname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND s.schemaname NOT LIKE 'pg_temp%%'
+| 	  AND s.schemaname NOT LIKE 'pg_toast%%'
+| 	ORDER BY s.schemaname, s.sequencename;
+< result
+< column "oid" "OID"
+< column "schemaname" "NAME"
+< column "sequencename" "NAME"
+< column "data_type" "-"
+< column "start_value" "INT8"
+< column "min_value" "INT8"
+< column "max_value" "INT8"
+< column "increment_by" "INT8"
+< column "cycle" "BOOL"
+< column "cache_size" "INT8"
+< column "last_value" "INT8"
+< column "sequence_comment" "TEXT"
+> query
+|
+| 		SELECT e.extname, e.extversion, n.nspname, c.description
+| 		FROM pg_catalog.pg_extension e
+| 		LEFT JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+| 		LEFT JOIN pg_catalog.pg_description c ON c.objoid = e.oid AND c.classoid = 'pg_catalog.pg_extension'::pg_catalog.regclass
+| 		WHERE n.nspname != 'pg_catalog'
+| 		ORDER BY e.extname;
+< result
+< column "extname" "NAME"
+< column "extversion" "TEXT"
+< column "nspname" "NAME"
+< column "description" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pn.nspname as schema_name,
+| 		pt.typname as enum_name,
+| 		pe.enumlabel as enum_value,
+| 		pg_catalog.obj_description(pt.oid) as enum_comment
+| 	FROM pg_enum as pe
+| 		LEFT JOIN pg_type as pt ON pe.enumtypid = pt.oid
+| 		LEFT JOIN pg_namespace as pn ON pt.typnamespace = pn.oid
+| 	WHERE pn.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	  AND pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, pe.enumsortorder;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "enum_name" "NAME"
+< column "enum_value" "NAME"
+< column "enum_comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		pt.oid,
+| 		pc.oid,
+| 		pn.nspname AS schema_name,
+| 		pt.typname AS type_name,
+| 		pg_catalog.obj_description(pt.oid) AS type_comment,
+| 		a.attname AS attribute_name,
+| 		CASE
+| 			WHEN en.nspname IS NOT NULL
+| 				AND en.nspname NOT IN ('pg_catalog', 'information_schema')
+| 				AND position(quote_ident(en.nspname) || '.' IN pg_catalog.format_type(a.atttypid, a.atttypmod)) <> 1
+| 			THEN quote_ident(en.nspname) || '.' || pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 			ELSE pg_catalog.format_type(a.atttypid, a.atttypmod)
+| 		END AS attribute_type,
+| 		CASE
+| 			WHEN co.collname IS NULL THEN NULL
+| 			WHEN nco.nspname <> 'pg_catalog' THEN quote_ident(nco.nspname) || '.' || quote_ident(co.collname)
+| 			ELSE quote_ident(co.collname)
+| 		END AS attribute_collation,
+| 		pg_catalog.col_description(pc.oid, a.attnum) AS attribute_comment
+| 	FROM pg_type pt
+| 		JOIN pg_class pc ON pc.oid = pt.typrelid AND pc.relkind = 'c'
+| 		JOIN pg_namespace pn ON pn.oid = pt.typnamespace
+| 		LEFT JOIN pg_attribute a ON a.attrelid = pc.oid AND a.attnum > 0 AND NOT a.attisdropped
+| 		LEFT JOIN pg_type at ON at.oid = a.atttypid
+| 		LEFT JOIN pg_type et ON et.oid = CASE WHEN at.typlen = -1 AND at.typelem <> 0 THEN at.typelem ELSE at.oid END
+| 		LEFT JOIN pg_namespace en ON en.oid = et.typnamespace
+| 		LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace nco ON co.collnamespace = nco.oid)
+| 			ON a.attcollation = co.oid AND (nco.nspname <> 'pg_catalog' OR co.collname <> 'default')
+| 	WHERE pn.nspname NOT LIKE 'pg_temp%'
+| 	  AND pn.nspname NOT LIKE 'pg_toast%'
+| 	ORDER BY pn.nspname, pt.typname, a.attnum;
+< result
+< column "oid" "OID"
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "type_comment" "TEXT"
+< column "attribute_name" "NAME"
+< column "attribute_type" "TEXT"
+< column "attribute_collation" "TEXT"
+< column "attribute_comment" "TEXT"
+> query
+|
+| SELECT
+| 	c.oid,
+| 	n.nspname AS collation_schema,
+| 	c.collname AS collation_name,
+| 	c.collprovider AS provider,
+| 	c.collcollate AS lc_collate,
+| 	c.collctype AS lc_ctype,
+| 	c.colliculocale AS locale,
+| 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
+| 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
+| FROM pg_catalog.pg_collation c
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
+| ORDER BY n.nspname, c.collname;
+< result
+< column "oid" "OID"
+< column "collation_schema" "NAME"
+< column "collation_name" "NAME"
+< column "provider" "CHAR"
+< column "lc_collate" "TEXT"
+< column "lc_ctype" "TEXT"
+< column "locale" "TEXT"
+< column "deterministic" "BOOL"
+< column "rules" "TEXT"
+< column "comment" "TEXT"
+< row
+: int64 4294967300
+: string
+| public
+: string
+| tailored
+: string
+| i
+: null
+: null
+: string
+| und
+: bool true
+: string
+| &V << w <<< W
+: null
+> query
+|
+| SELECT
+| 	r.rngtypid AS oid,
+| 	n.nspname AS schema_name,
+| 	t.typname AS type_name,
+| 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
+| 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
+| 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
+| 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
+| 	NULLIF(r.rngsubdiff, 0)::regproc::text AS subtype_diff,
+| 	CASE WHEN r.rngmultitypid <> 0 THEN pg_catalog.format_type(r.rngmultitypid, NULL) END AS multirange_name,
+| 	pg_catalog.obj_description(r.rngtypid, 'pg_type') AS comment
+| FROM pg_catalog.pg_range r
+| 	JOIN pg_catalog.pg_type t ON t.oid = r.rngtypid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+| 	JOIN pg_catalog.pg_type st ON st.oid = r.rngsubtype
+| 	LEFT JOIN pg_catalog.pg_opclass o ON o.oid = r.rngsubopc
+| 	LEFT JOIN pg_catalog.pg_namespace opc_n ON opc_n.oid = o.opcnamespace
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace co_n ON co_n.oid = co.collnamespace)
+| 		ON co.oid = r.rngcollation
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.typname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "subtype" "TEXT"
+< column "subtype_opclass" "TEXT"
+< column "collation" "TEXT"
+< column "canonical" "TEXT"
+< column "subtype_diff" "TEXT"
+< column "multirange_name" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| 	SELECT
+| 		et.oid,
+| 		et.evtname AS trigger_name,
+| 		et.evtevent AS event_type,
+| 		et.evttags AS tags,
+| 		n.nspname AS function_schema,
+| 		p.proname AS function_name,
+| 		et.evtenabled AS enabled,
+| 		obj_description(et.oid, 'pg_event_trigger') AS comment
+| 	FROM pg_event_trigger et
+| 	JOIN pg_proc p ON et.evtfoid = p.oid
+| 	JOIN pg_namespace n ON p.pronamespace = n.oid
+| 	ORDER BY et.evtname;
+< result
+< column "oid" "OID"
+< column "trigger_name" "NAME"
+< column "event_type" "NAME"
+< column "tags" "_TEXT"
+< column "function_schema" "NAME"
+< column "function_name" "NAME"
+< column "enabled" "CHAR"
+< column "comment" "TEXT"
+> commit
+< ok
