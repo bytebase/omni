@@ -1326,6 +1326,11 @@ func getExtensions(txn *sql.Tx) ([]*metadatapb.ExtensionMetadata, error) {
 // listCollationQuery lists the collations a schema defines. PostgreSQL ships
 // its own in pg_catalog and information_schema, which an unqualified name
 // reaches; a column elsewhere names a collation this query lists.
+//
+// A collation applies to one encoding or, with -1, to every encoding, and
+// pg_import_system_collations makes one row per encoding, so the query keeps
+// the rows this database can use and leaves out the rest: a database restores
+// into one of its own encoding.
 var listCollationQuery = `
 SELECT
 	c.oid,
@@ -1336,17 +1341,20 @@ SELECT
 	c.collctype AS lc_ctype,
 	%s AS locale,
 	c.collisdeterministic AS deterministic,
+	%s AS rules,
 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
 FROM pg_catalog.pg_collation c
 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
 WHERE n.nspname NOT IN (%s)
 	AND n.nspname NOT LIKE 'pg_temp%%'
 	AND n.nspname NOT LIKE 'pg_toast%%'
+	AND (c.collencoding = -1
+		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
 ORDER BY n.nspname, c.collname;`
 
 // getCollations reads the schema's user-defined collations. PostgreSQL states
 // an ICU provider's locale in colliculocale from 15, renamed colllocale in 17,
-// and in collcollate before 15.
+// and in collcollate before 15; ICU rules arrive as collicurules in 16.
 func getCollations(txn *sql.Tx, engineVersion string, extensionDepend map[int]bool) (map[string][]*metadatapb.CollationMetadata, error) {
 	locale := "CASE WHEN c.collprovider = 'i' THEN c.collcollate END"
 	if isAtLeastMajorVersion(engineVersion, 15) {
@@ -1355,7 +1363,11 @@ func getCollations(txn *sql.Tx, engineVersion string, extensionDepend map[int]bo
 	if isAtLeastMajorVersion(engineVersion, 17) {
 		locale = "c.colllocale"
 	}
-	rows, err := txn.Query(fmt.Sprintf(listCollationQuery, locale, pganalysis.SystemSchemaWhereClause))
+	rules := "NULL"
+	if isAtLeastMajorVersion(engineVersion, 16) {
+		rules = "c.collicurules"
+	}
+	rows, err := txn.Query(fmt.Sprintf(listCollationQuery, locale, rules, pganalysis.SystemSchemaWhereClause))
 	if err != nil {
 		return nil, err
 	}
@@ -1365,15 +1377,16 @@ func getCollations(txn *sql.Tx, engineVersion string, extensionDepend map[int]bo
 	for rows.Next() {
 		collation := &metadatapb.CollationMetadata{}
 		var oid int
-		var schemaName, lcCollate, lcCtype, locale sql.NullString
+		var schemaName, lcCollate, lcCtype, locale, rules sql.NullString
 		var deterministic sql.NullBool
 		var comment sql.NullString
-		if err := rows.Scan(&oid, &schemaName, &collation.Name, &collation.Provider, &lcCollate, &lcCtype, &locale, &deterministic, &comment); err != nil {
+		if err := rows.Scan(&oid, &schemaName, &collation.Name, &collation.Provider, &lcCollate, &lcCtype, &locale, &deterministic, &rules, &comment); err != nil {
 			return nil, err
 		}
 		collation.LcCollate = lcCollate.String
 		collation.LcCtype = lcCtype.String
 		collation.Locale = locale.String
+		collation.Rules = rules.String
 		if deterministic.Valid && !deterministic.Bool {
 			collation.Deterministic = &deterministic.Bool
 		}

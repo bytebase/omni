@@ -71,6 +71,33 @@ func TestDumpRestores(t *testing.T) {
 	}
 }
 
+// TestDumpRestoresCollationRules checks that an ICU collation's rules restore.
+// PostgreSQL 16 states them in collicurules and 17 in collrules, and a restore
+// that lost them would still create a collation, one that sorts differently.
+func TestDumpRestoresCollationRules(t *testing.T) {
+	setup := "CREATE COLLATION public.tailored (provider = icu, locale = 'und', rules = '&V << w <<< W');\n" +
+		"CREATE TABLE public.t (v text COLLATE public.tailored);"
+	for _, role := range []string{"pg16", testcontainer.Default} {
+		t.Run(role, func(t *testing.T) {
+			source, restored := restoreDump(t, role, "omni_collation_rules", setup)
+			if diff := restoreDiff(source, restored); diff != "" {
+				t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestDumpRestoresRangeOverRange checks that a range type declared over another
+// range type restores: the dump must create the subtype's range first.
+func TestDumpRestoresRangeOverRange(t *testing.T) {
+	setup := "CREATE TYPE public.z_range AS RANGE (subtype = integer);\n" +
+		"CREATE TYPE public.a_range AS RANGE (subtype = public.z_range);"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_range_over_range", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
 // TestDumpRestoresGeneratedColumnFunction checks that a STORED generated
 // column whose expression calls a user function restores: the dump must
 // create the function before the table, though the table's name sorts first.

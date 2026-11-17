@@ -206,6 +206,12 @@ message CollationMetadata {
   // The collation belongs to an extension, so creating the extension creates
   // it and the dump leaves it out.
   bool skip_dump = 8;
+
+  // The ICU rules the collation tailors its locale with (CREATE COLLATION ...
+  // rules = '...'). PostgreSQL keeps them in collicurules from 16; a release
+  // before that cannot state rules, and a collation that declares none leaves
+  // the field empty.
+  string rules = 9;
 }
 
 // SynonymMetadata is a synonym: another name for an object, which the engine

@@ -118,15 +118,11 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		return "", err
 	}
 
-	// Construct range types, before the objects whose types are ranges.
-	for _, schema := range metadata.Schemas {
-		for _, rangeType := range schema.RangeTypes {
-			if rangeType.SkipDump {
-				continue
-			}
-			if err := writeRangeType(&buf, schema.Name, rangeType); err != nil {
-				return "", err
-			}
+	// Construct range types, before the objects whose types are ranges. A range
+	// over another range needs that one first.
+	for _, t := range sortRangeTypesTopologically(collectRangeTypes(metadata.Schemas)) {
+		if err := writeRangeType(&buf, t.Schema, t.RangeType); err != nil {
+			return "", err
 		}
 	}
 
@@ -385,12 +381,18 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 		return "", err
 	}
 
-	// Construct range types, before the objects whose types are ranges.
+	// Construct range types, before the objects whose types are ranges. A range
+	// over another range needs that one first; the schema's own list cannot
+	// name a range outside it, so this sorts only what it holds.
+	var ownRangeTypes []qualifiedRangeType
 	for _, rangeType := range schema.RangeTypes {
 		if rangeType.SkipDump {
 			continue
 		}
-		if err := writeRangeType(&buf, schema.Name, rangeType); err != nil {
+		ownRangeTypes = append(ownRangeTypes, qualifiedRangeType{Schema: schema.Name, RangeType: rangeType})
+	}
+	for _, t := range sortRangeTypesTopologically(ownRangeTypes) {
+		if err := writeRangeType(&buf, t.Schema, t.RangeType); err != nil {
 			return "", err
 		}
 	}
@@ -985,6 +987,100 @@ type qualifiedCompositeType struct {
 // collectCompositeTypes gathers the dumpable composite types of the given
 // schemas. Schemas with SkipDump never get a CREATE SCHEMA statement, so
 // their types must not be emitted either.
+// qualifiedRangeType pairs a range type with the schema it lives in, so a
+// subtype that names another one can be resolved.
+type qualifiedRangeType struct {
+	Schema    string
+	RangeType *metadatapb.RangeTypeMetadata
+}
+
+func collectRangeTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedRangeType {
+	var rangeTypes []qualifiedRangeType
+	for _, schema := range schemas {
+		if schema.SkipDump {
+			continue
+		}
+		for _, rangeType := range schema.RangeTypes {
+			if rangeType.SkipDump {
+				continue
+			}
+			rangeTypes = append(rangeTypes, qualifiedRangeType{Schema: schema.Name, RangeType: rangeType})
+		}
+	}
+	return rangeTypes
+}
+
+// sortRangeTypesTopologically orders range types so that one declared over
+// another comes after it. A subtype the list does not hold adds no edge, since
+// a pg_catalog type needs no statement. A cycle cannot reach the server, and the
+// rest of the list follows in name order if one did.
+func sortRangeTypesTopologically(rangeTypes []qualifiedRangeType) []qualifiedRangeType {
+	key := func(schema, name string) string { return schema + "\x00" + name }
+	nodes := make(map[string]qualifiedRangeType, len(rangeTypes))
+	for _, t := range rangeTypes {
+		nodes[key(t.Schema, t.RangeType.Name)] = t
+	}
+	inDegree := make(map[string]int, len(nodes))
+	dependents := make(map[string][]string, len(nodes))
+	for k := range nodes {
+		inDegree[k] = 0
+	}
+	for k, t := range nodes {
+		depSchema, depName, ok := parseQualifiedTypeIdent(t.RangeType.Subtype)
+		if !ok {
+			continue
+		}
+		depKey := key(depSchema, depName)
+		if depKey == k {
+			continue
+		}
+		if _, exists := nodes[depKey]; !exists {
+			continue
+		}
+		dependents[depKey] = append(dependents[depKey], k)
+		inDegree[k]++
+	}
+
+	var ready []string
+	for k, d := range inDegree {
+		if d == 0 {
+			ready = append(ready, k)
+		}
+	}
+	slices.Sort(ready)
+
+	ordered := make([]qualifiedRangeType, 0, len(nodes))
+	for len(ready) > 0 {
+		k := ready[0]
+		ready = ready[1:]
+		ordered = append(ordered, nodes[k])
+		delete(inDegree, k)
+		for _, dependent := range dependents[k] {
+			if _, remaining := inDegree[dependent]; !remaining {
+				continue
+			}
+			inDegree[dependent]--
+			if inDegree[dependent] == 0 {
+				ready = append(ready, dependent)
+			}
+		}
+		slices.Sort(ready)
+	}
+
+	if len(ordered) < len(nodes) {
+		var rest []string
+		for k := range inDegree {
+			rest = append(rest, k)
+		}
+		slices.Sort(rest)
+		for _, k := range rest {
+			ordered = append(ordered, nodes[k])
+		}
+	}
+
+	return ordered
+}
+
 func collectCompositeTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedCompositeType {
 	var compositeTypes []qualifiedCompositeType
 	for _, schema := range schemas {
@@ -1234,6 +1330,11 @@ func writeCollation(out io.Writer, schema string, collation *metadatapb.Collatio
 	if _, err := fmt.Fprintf(out, "CREATE COLLATION \"%s\".\"%s\" (provider = %s, %s",
 		escapeIdentifier(schema), escapeIdentifier(collation.Name), provider, locale); err != nil {
 		return err
+	}
+	if collation.Rules != "" {
+		if _, err := fmt.Fprintf(out, ", rules = '%s'", escapeSingleQuote(collation.Rules)); err != nil {
+			return err
+		}
 	}
 	if collation.Deterministic != nil {
 		if _, err := fmt.Fprintf(out, ", deterministic = %t", *collation.Deterministic); err != nil {

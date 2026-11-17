@@ -942,7 +942,12 @@ type CollationMetadata struct {
 	Comment string `protobuf:"bytes,7,opt,name=comment,proto3" json:"comment,omitempty"`
 	// The collation belongs to an extension, so creating the extension creates
 	// it and the dump leaves it out.
-	SkipDump      bool `protobuf:"varint,8,opt,name=skip_dump,json=skipDump,proto3" json:"skip_dump,omitempty"`
+	SkipDump bool `protobuf:"varint,8,opt,name=skip_dump,json=skipDump,proto3" json:"skip_dump,omitempty"`
+	// The ICU rules the collation tailors its locale with (CREATE COLLATION ...
+	// rules = '...'). PostgreSQL keeps them in collicurules from 16; a release
+	// before that cannot state rules, and a collation that declares none leaves
+	// the field empty.
+	Rules         string `protobuf:"bytes,9,opt,name=rules,proto3" json:"rules,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1031,6 +1036,13 @@ func (x *CollationMetadata) GetSkipDump() bool {
 		return x.SkipDump
 	}
 	return false
+}
+
+func (x *CollationMetadata) GetRules() string {
+	if x != nil {
+		return x.Rules
+	}
+	return ""
 }
 
 // SynonymMetadata is a synonym: another name for an object, which the engine
@@ -4756,7 +4768,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\fsubtype_diff\x18\x06 \x01(\tR\vsubtypeDiff\x12'\n" +
 	"\x0fmultirange_name\x18\a \x01(\tR\x0emultirangeName\x12\x18\n" +
 	"\acomment\x18\b \x01(\tR\acomment\x12\x1b\n" +
-	"\tskip_dump\x18\t \x01(\bR\bskipDump\"\x89\x02\n" +
+	"\tskip_dump\x18\t \x01(\bR\bskipDump\"\x9f\x02\n" +
 	"\x11CollationMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bprovider\x18\x02 \x01(\tR\bprovider\x12\x16\n" +
@@ -4766,7 +4778,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\blc_ctype\x18\x05 \x01(\tR\alcCtype\x12)\n" +
 	"\rdeterministic\x18\x06 \x01(\bH\x00R\rdeterministic\x88\x01\x01\x12\x18\n" +
 	"\acomment\x18\a \x01(\tR\acomment\x12\x1b\n" +
-	"\tskip_dump\x18\b \x01(\bR\bskipDumpB\x10\n" +
+	"\tskip_dump\x18\b \x01(\bR\bskipDump\x12\x14\n" +
+	"\x05rules\x18\t \x01(\tR\x05rulesB\x10\n" +
 	"\x0e_deterministic\"\xdf\x01\n" +
 	"\x0fSynonymMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12#\n" +

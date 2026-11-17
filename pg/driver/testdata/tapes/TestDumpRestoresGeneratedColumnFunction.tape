@@ -796,12 +796,15 @@
 | 	c.collctype AS lc_ctype,
 | 	c.colllocale AS locale,
 | 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
 | 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
 | FROM pg_catalog.pg_collation c
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
 | WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND n.nspname NOT LIKE 'pg_temp%'
 | 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
 | ORDER BY n.nspname, c.collname;
 < result
 < column "oid" "OID"
@@ -812,6 +815,7 @@
 < column "lc_ctype" "TEXT"
 < column "locale" "TEXT"
 < column "deterministic" "BOOL"
+< column "rules" "TEXT"
 < column "comment" "TEXT"
 > query
 |
@@ -1713,12 +1717,15 @@
 | 	c.collctype AS lc_ctype,
 | 	c.colllocale AS locale,
 | 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
 | 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
 | FROM pg_catalog.pg_collation c
 | 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
 | WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 | 	AND n.nspname NOT LIKE 'pg_temp%'
 | 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
 | ORDER BY n.nspname, c.collname;
 < result
 < column "oid" "OID"
@@ -1729,6 +1736,7 @@
 < column "lc_ctype" "TEXT"
 < column "locale" "TEXT"
 < column "deterministic" "BOOL"
+< column "rules" "TEXT"
 < column "comment" "TEXT"
 > query
 |
