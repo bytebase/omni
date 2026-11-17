@@ -66,6 +66,16 @@ func TestSplitCommands(t *testing.T) {
 			want:   []string{"SELECT 1 /*\n;\n*/ + 2;"},
 		},
 		{
+			name:   "a trailing comment after a terminator does not merge the next statement",
+			script: "SELECT 1; -- note\nSELECT 2;",
+			want:   []string{"SELECT 1; -- note", "\nSELECT 2;"},
+		},
+		{
+			name:   "a trailing block comment after a terminator does not merge the next statement",
+			script: "SELECT 1; /* note */\nSELECT 2;",
+			want:   []string{"SELECT 1; /* note */", "\nSELECT 2;"},
+		},
+		{
 			name:   "a block comment that ends its line",
 			script: "/* a comment */\nSELECT 1;",
 			want:   []string{"/* a comment */\nSELECT 1;"},

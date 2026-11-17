@@ -158,19 +158,16 @@ func scanLineQuotes(line string, quote *rune, inlineComment *bool) bool {
 		if *quote != 0 {
 			if c == '\\' && *quote == '\'' && i+1 < len(line) {
 				i += 2
-				last = 'x'
 				continue
 			}
 			if c == byte(*quote) {
 				if i+1 < len(line) && line[i+1] == c {
 					i += 2
-					last = c
 					continue
 				}
 				*quote = 0
 			}
 			i++
-			last = c
 			continue
 		}
 		if c == '-' && i+1 < len(line) && line[i+1] == '-' {
@@ -186,9 +183,13 @@ func scanLineQuotes(line string, quote *rune, inlineComment *bool) bool {
 		}
 		if c == '\'' || c == '"' || c == '`' {
 			*quote = rune(c)
+			i++
+			continue
+		}
+		if c != ' ' && c != '\t' && c != '\r' {
+			last = c
 		}
 		i++
-		last = c
 	}
 	return *quote == 0 && !*inlineComment && last == ';'
 }
