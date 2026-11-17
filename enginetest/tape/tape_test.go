@@ -987,6 +987,64 @@ func TestColumnPrecisionReplays(t *testing.T) {
 	}
 }
 
+// untypedRows answers one column whose scan type the client cannot name, as
+// go-ora cannot for the LONG that oracle/driver reads DATA_DEFAULT as.
+type untypedRows struct{ sent bool }
+
+func (r *untypedRows) Columns() []string                     { return []string{"a"} }
+func (r *untypedRows) ColumnTypeDatabaseTypeName(int) string { return "LONG" }
+func (r *untypedRows) ColumnTypeScanType(int) reflect.Type   { return nil }
+func (r *untypedRows) Close() error                          { return nil }
+func (r *untypedRows) Next(dest []driver.Value) error {
+	if r.sent {
+		return io.EOF
+	}
+	dest[0], r.sent = []byte("x"), true
+	return nil
+}
+
+// A column whose client names no scan type records without one, and replays:
+// the type is optional metadata, and naming it must not panic the recording.
+func TestAColumnWithNoScanTypeRecords(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT untyped")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		var out []string
+		for rows.Next() {
+			var v string
+			if err := rows.Scan(&v); err != nil {
+				return []string{err.Error()}
+			}
+			out = append(out, v)
+		}
+		return out
+	}
+	want := []string{"x"}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(recorded, want) {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := "< column \"a\" \"LONG\"\n"; !strings.Contains(string(b), line) {
+		t.Errorf("the tape lacks %q:\n%s", line, b)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(replayed, want) {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
 func TestParseRejects(t *testing.T) {
 	for _, c := range []struct{ name, tape, want string }{
 		{"a request before a stream", "> exec\n| x\n< ok\n", "before any stream"},
@@ -1096,6 +1154,8 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 		}}}, nil
 	case "SELECT precision":
 		return &fakeRows{sets: []fakeSet{{[]string{"d"}, []string{"DECIMAL"}, [][]driver.Value{{"1.25"}}}}}, nil
+	case "SELECT untyped":
+		return &untypedRows{}, nil
 	case "SELECT now":
 		c.e.now++
 		return &fakeRows{sets: []fakeSet{{[]string{"now"}, []string{"INT"}, [][]driver.Value{{int64(c.e.now)}}}}}, nil
