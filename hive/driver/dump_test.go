@@ -17,9 +17,11 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
-// dumpDatabase is the database the dump tests read. The corpus names it, since
-// a view's statement has to name the objects it reads.
-const dumpDatabase = "omni_dump"
+// dumpDatabase is the database the dump tests read, spelled as a caller may
+// spell it: Hive stores a database name in lower case and resolves it whatever
+// the case, so the corpus names it the way the server states it and the driver
+// is opened on the other spelling.
+const dumpDatabase = "OMNI_DUMP"
 
 // gapMarker ends a corpus line whose object a dump cannot faithfully restore
 // yet, so TestDumpRestores leaves it out; TestDumpGaps holds each such gap and

@@ -12,8 +12,9 @@ CREATE TABLE omni_dump.events__ (id INT) STORED AS PARQUET
 -- counting it would close a cycle with a_top's and leave the order to names.
 CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
 
--- Only the order of the views, not their names, can replay this one.
-CREATE VIEW omni_dump.a_top AS SELECT id FROM omni_dump.z_base
+-- Only the order of the views, not their names, can replay this one, and the
+-- backquoted alias holds a quote the scanner has to leave alone.
+CREATE VIEW omni_dump.a_top AS SELECT id AS `it's` FROM omni_dump.z_base
 
 -- A table Hive translated to external and then made managed: the only managed
 -- table the pinned server can make, and the one a dump cannot restore as

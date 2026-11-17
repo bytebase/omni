@@ -19,11 +19,12 @@
 | CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
 < ok - -
 > exec
-| -- Only the order of the views, not their names, can replay this one.
-| CREATE VIEW omni_dump.a_top AS SELECT id FROM omni_dump.z_base
+| -- Only the order of the views, not their names, can replay this one, and the
+| -- backquoted alias holds a quote the scanner has to leave alone.
+| CREATE VIEW omni_dump.a_top AS SELECT id AS `it's` FROM omni_dump.z_base
 < ok - -
 > query
-| SHOW TABLES FROM `omni_dump`
+| SHOW TABLES FROM `OMNI_DUMP`
 < result
 < column "tab_name" "STRING"
 < row
@@ -39,14 +40,14 @@
 : string
 | z_base
 > query
-| DESCRIBE FORMATTED `omni_dump`.`a_top`
+| DESCRIBE FORMATTED `OMNI_DUMP`.`a_top`
 < result
 < column "col_name" "STRING"
 < column "data_type" "STRING"
 < column "comment" "STRING"
 < row
 : string
-| id
+| it's
 : string
 | int
 : string
@@ -188,16 +189,16 @@
 : string
 | Original Query:     
 : string
-| SELECT id FROM omni_dump.z_base
+| SELECT id AS it's FROM omni_dump.z_base
 : null
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_base`.`id` FROM `omni_dump`.`z_base`
+| SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
 : null
 > query
-| DESCRIBE FORMATTED `omni_dump`.`ext_users`
+| DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
 < result
 < column "col_name" "STRING"
 < column "data_type" "STRING"
@@ -407,7 +408,7 @@
 : string
 | ,                   
 > query
-| DESCRIBE FORMATTED `omni_dump`.`z_base`
+| DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
 < column "data_type" "STRING"
@@ -572,7 +573,7 @@
 | SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`
 : null
 > query
-| SHOW TABLES IN `omni_dump`
+| SHOW TABLES IN `OMNI_DUMP`
 < result
 < column "tab_name" "STRING"
 < row
@@ -588,14 +589,14 @@
 : string
 | z_base
 > query
-| SHOW CREATE TABLE `omni_dump`.`a_top`
+| SHOW CREATE TABLE `OMNI_DUMP`.`a_top`
 < result
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
 > query
-| SHOW CREATE TABLE `omni_dump`.`events__`
+| SHOW CREATE TABLE `OMNI_DUMP`.`events__`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -644,7 +645,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`ext_users`
+| SHOW CREATE TABLE `OMNI_DUMP`.`ext_users`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -699,20 +700,20 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`z_base`
+| SHOW CREATE TABLE `OMNI_DUMP`.`z_base`
 < result
 < column "createtab_stmt" "STRING"
 < row
 : string
 | CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`
 > exec
-| DROP DATABASE IF EXISTS `omni_dump` CASCADE
+| DROP DATABASE IF EXISTS `OMNI_DUMP` CASCADE
 < ok - -
 > exec
-| CREATE DATABASE `omni_dump`
+| CREATE DATABASE `OMNI_DUMP`
 < ok - -
 > exec
-| USE `omni_dump`
+| USE `OMNI_DUMP`
 < ok - -
 > exec
 | --
@@ -772,10 +773,10 @@
 | --
 | -- View structure for `a_top`
 | --
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
 < ok - -
 > query
-| SHOW TABLES FROM `omni_dump`
+| SHOW TABLES FROM `OMNI_DUMP`
 < result
 < column "tab_name" "STRING"
 < row
@@ -791,14 +792,14 @@
 : string
 | z_base
 > query
-| DESCRIBE FORMATTED `omni_dump`.`a_top`
+| DESCRIBE FORMATTED `OMNI_DUMP`.`a_top`
 < result
 < column "col_name" "STRING"
 < column "data_type" "STRING"
 < column "comment" "STRING"
 < row
 : string
-| id
+| it's
 : string
 | int
 : string
@@ -940,16 +941,16 @@
 : string
 | Original Query:     
 : string
-| SELECT z_base.id FROM omni_dump.z_base
+| SELECT z_base.id AS it's FROM omni_dump.z_base
 : null
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_base`.`id` FROM `omni_dump`.`z_base`
+| SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
 : null
 > query
-| DESCRIBE FORMATTED `omni_dump`.`ext_users`
+| DESCRIBE FORMATTED `OMNI_DUMP`.`ext_users`
 < result
 < column "col_name" "STRING"
 < column "data_type" "STRING"
@@ -1159,7 +1160,7 @@
 : string
 | ,                   
 > query
-| DESCRIBE FORMATTED `omni_dump`.`z_base`
+| DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
 < column "data_type" "STRING"
@@ -1324,7 +1325,7 @@
 | SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`
 : null
 > query
-| SHOW TABLES IN `omni_dump`
+| SHOW TABLES IN `OMNI_DUMP`
 < result
 < column "tab_name" "STRING"
 < row
@@ -1340,14 +1341,14 @@
 : string
 | z_base
 > query
-| SHOW CREATE TABLE `omni_dump`.`a_top`
+| SHOW CREATE TABLE `OMNI_DUMP`.`a_top`
 < result
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
 > query
-| SHOW CREATE TABLE `omni_dump`.`events__`
+| SHOW CREATE TABLE `OMNI_DUMP`.`events__`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -1396,7 +1397,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`ext_users`
+| SHOW CREATE TABLE `OMNI_DUMP`.`ext_users`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -1451,7 +1452,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`z_base`
+| SHOW CREATE TABLE `OMNI_DUMP`.`z_base`
 < result
 < column "createtab_stmt" "STRING"
 < row

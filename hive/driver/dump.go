@@ -222,11 +222,14 @@ func dumpReads(o *dumpObject, database string, views map[string]bool) []string {
 
 // dumpReferences reports whether stmt names database.name outside a string
 // literal. A name inside a literal is not a read, and the edge it would add can
-// close a cycle and leave the order to names.
+// close a cycle and leave the order to names. Hive resolves an identifier
+// whatever its case and renders the stored one, so the reference is matched
+// without regard to case: a caller may spell the database another way than the
+// server stores it.
 func dumpReferences(stmt, database, name string) bool {
 	reference := quoteBacktick(database) + "." + quoteBacktick(name)
 	for offset := 0; offset < len(stmt); {
-		start := strings.Index(stmt[offset:], reference)
+		start := indexFold(stmt[offset:], reference)
 		if start < 0 {
 			return false
 		}
@@ -239,14 +242,25 @@ func dumpReferences(stmt, database, name string) bool {
 	return false
 }
 
+// indexFold returns the index of reference in s, ignoring ASCII case, or -1.
+func indexFold(s, reference string) int {
+	for i := 0; i+len(reference) <= len(s); i++ {
+		if strings.EqualFold(s[i:i+len(reference)], reference) {
+			return i
+		}
+	}
+	return -1
+}
+
 // dumpInString reports whether the byte at want is inside a string literal.
 // Hive's rendering quotes a string with ' or ", escapes with a backslash, and
-// writes a name in backquotes, where neither quote needs escaping.
+// writes a name in backquotes, where a quote is a character of the name and
+// needs no escaping.
 func dumpInString(stmt string, want int) bool {
 	quote := byte(0)
 	for i := 0; i < want && i < len(stmt); i++ {
 		switch c := stmt[i]; {
-		case quote == 0 && (c == '\'' || c == '"'):
+		case quote == 0 && (c == '\'' || c == '"' || c == '`'):
 			quote = c
 		case quote != 0 && c == '\\':
 			i++
@@ -254,5 +268,5 @@ func dumpInString(stmt string, want int) bool {
 			quote = 0
 		}
 	}
-	return quote != 0
+	return quote == '\'' || quote == '"'
 }

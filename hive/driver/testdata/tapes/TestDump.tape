@@ -19,8 +19,9 @@
 | CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
 < ok - -
 > exec
-| -- Only the order of the views, not their names, can replay this one.
-| CREATE VIEW omni_dump.a_top AS SELECT id FROM omni_dump.z_base
+| -- Only the order of the views, not their names, can replay this one, and the
+| -- backquoted alias holds a quote the scanner has to leave alone.
+| CREATE VIEW omni_dump.a_top AS SELECT id AS `it's` FROM omni_dump.z_base
 < ok - -
 > exec
 | -- A table Hive translated to external and then made managed: the only managed
@@ -48,7 +49,7 @@
 | INSERT INTO omni_dump.events PARTITION (dt='2024-01-01') VALUES (1, 'x'), (2, 'y') -- not restorable: TestDumpGaps
 < ok - -
 > query
-| SHOW TABLES IN `omni_dump`
+| SHOW TABLES IN `OMNI_DUMP`
 < result
 < column "tab_name" "STRING"
 < row
@@ -70,14 +71,14 @@
 : string
 | z_base
 > query
-| SHOW CREATE TABLE `omni_dump`.`a_top`
+| SHOW CREATE TABLE `OMNI_DUMP`.`a_top`
 < result
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` FROM `omni_dump`.`z_base`
+| CREATE VIEW `omni_dump`.`a_top` AS SELECT `z_base`.`id` AS `it's` FROM `omni_dump`.`z_base`
 > query
-| SHOW CREATE TABLE `omni_dump`.`events`
+| SHOW CREATE TABLE `OMNI_DUMP`.`events`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -141,7 +142,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`events__`
+| SHOW CREATE TABLE `OMNI_DUMP`.`events__`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -190,7 +191,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`ext_users`
+| SHOW CREATE TABLE `OMNI_DUMP`.`ext_users`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -245,7 +246,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`orders`
+| SHOW CREATE TABLE `OMNI_DUMP`.`orders`
 < result
 < column "createtab_stmt" "STRING"
 < row
@@ -306,7 +307,7 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
-| SHOW CREATE TABLE `omni_dump`.`z_base`
+| SHOW CREATE TABLE `OMNI_DUMP`.`z_base`
 < result
 < column "createtab_stmt" "STRING"
 < row
