@@ -1830,11 +1830,28 @@ func removeTriggerDisableClause(body string) string {
 			headerEnd = index
 		}
 	}
-	index := strings.Index(upper[:headerEnd], " DISABLE")
-	if index < 0 {
-		return body
+	for index := 0; index+len("DISABLE") <= headerEnd; index++ {
+		if upper[index:index+len("DISABLE")] != "DISABLE" {
+			continue
+		}
+		if index > 0 && isIdentifierByte(body[index-1]) {
+			continue
+		}
+		if index+len("DISABLE") < len(upper) && isIdentifierByte(body[index+len("DISABLE")]) {
+			continue
+		}
+		// The clause follows SQL whitespace, which may be a newline: take the
+		// run before the keyword with it and leave what follows in place.
+		start := index
+		for start > 0 && (body[start-1] == ' ' || body[start-1] == '\t' || body[start-1] == '\n' || body[start-1] == '\r') {
+			start--
+		}
+		if start == index {
+			continue
+		}
+		return body[:start] + body[index+len("DISABLE"):]
 	}
-	return body[:index] + body[index+len(" DISABLE"):]
+	return body
 }
 
 func triggerAttributes(n *ast.CreateTriggerStmt) (string, string) {

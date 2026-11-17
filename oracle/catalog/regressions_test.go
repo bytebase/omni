@@ -2476,3 +2476,75 @@ func TestDropUniqueKeepIndex(t *testing.T) {
 		t.Fatalf("kept index missing: %+v", table.Indexes)
 	}
 }
+
+func TestVirtualColumnDependentKeyDetachesIncomingForeignKey(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE T (C NUMBER, V AS (CAST(C AS NUMBER)), CONSTRAINT T_V_UK UNIQUE (V));
+CREATE TABLE CH (V NUMBER, CONSTRAINT CH_FK FOREIGN KEY (V) REFERENCES T (V))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE T (C BINARY_DOUBLE, V AS (CAST(C AS NUMBER)), CONSTRAINT T_V_UK UNIQUE (V));
+CREATE TABLE CH (V NUMBER, CONSTRAINT CH_FK FOREIGN KEY (V) REFERENCES T (V))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, from, to)
+	drop := strings.Index(sql, `ALTER TABLE "CH" DROP CONSTRAINT "CH_FK"`)
+	key := strings.Index(sql, `DROP CONSTRAINT "T_V_UK"`)
+	add := strings.Index(sql, `ADD CONSTRAINT "CH_FK"`)
+	if drop < 0 || key < 0 || add < 0 || !(drop < key && key < add) {
+		t.Fatalf("the child foreign key does not detach around the key's unique constraint (drop=%d key=%d add=%d):\n%s", drop, key, add, sql)
+	}
+}
+
+func TestDefinitionDefersMaterializedViewFunctionIndex(t *testing.T) {
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+			Name:       "A",
+			Definition: "SELECT C FROM T\n",
+			Indexes: []*metadatapb.IndexMetadata{{
+				Name:        "I",
+				Type:        "FUNCTION-BASED NORMAL",
+				Expressions: []string{"Z(C)"},
+			}},
+		}},
+		Functions: []*metadatapb.FunctionMetadata{{
+			Name:       "Z",
+			Definition: "CREATE OR REPLACE FUNCTION \"Z\" (C NUMBER) RETURN NUMBER AS BEGIN RETURN C; END;",
+		}},
+	})
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, `FUNCTION "Z"`)
+	index := strings.Index(definition, `CREATE INDEX "I"`)
+	if function < 0 || index < 0 || function > index {
+		t.Fatalf("the view's function-based index precedes its function (function=%d index=%d):\n%s", function, index, definition)
+	}
+}
+
+func TestTriggerDisableClauseSurvivesWhitespace(t *testing.T) {
+	c, err := LoadSQL("CREATE TABLE T (C NUMBER);\nCREATE TRIGGER TR BEFORE INSERT ON T\nDISABLE\nBEGIN NULL; END;")
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, "DISABLE") {
+		t.Fatalf("a disabled trigger's declaration lost its clause:\n%s", definition)
+	}
+	if _, err := c.Exec("ALTER TRIGGER TR ENABLE", nil); err != nil {
+		t.Fatal(err)
+	}
+	definition, err = DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(definition, "DISABLE") {
+		t.Fatalf("an enabled trigger kept the declaration's DISABLE clause:\n%s", definition)
+	}
+}

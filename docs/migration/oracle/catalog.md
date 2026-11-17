@@ -239,6 +239,11 @@ replay tests exercise.
   not hold is rejected.
 - A materialized view's refresh schedule renders even when it names no refresh
   method or mode, and a quoted function name counts as a call in a dependency.
+- A materialized view's function-based index is written after the functions it
+  calls, and a child foreign key detaches and returns around a rebuilt virtual
+  column's key.
+- A trigger declaration's `DISABLE` clause is removed with whatever whitespace
+  precedes it, so a later enable leaves no stale keyword.
 - A constraint backed by an index the statement names (`USING INDEX
   [schema.]index`) is rejected: the metadata holds the constraint's index, not
   the separate index it reuses, so a definition would create both.

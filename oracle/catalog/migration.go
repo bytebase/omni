@@ -1140,6 +1140,7 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	schemaName, tableName := tableDiff.SchemaName, tableDiff.TableName
 	created := diffObjectNames(tableDiff, DiffActionCreate)
 	var virtualDependents []*metadatapb.ColumnMetadata
+	var virtualColumns []string
 	var allVirtualDependents columnDependents
 	typeChanged := map[string]bool{}
 	for _, colDiff := range tableDiff.ColumnChanges {
@@ -1175,6 +1176,16 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 			dependents := findColumnDependents(tableDiff.OldTable, []string{column.GetName()}, handled)
 			mergeColumnDependents(&allVirtualDependents, dependents)
 			virtualDependents = append(virtualDependents, column)
+			virtualColumns = append(virtualColumns, column.GetName())
+		}
+		// Another table's foreign key on a key of a detached virtual column
+		// goes first, or Oracle refuses to drop that key (ORA-02273), and comes
+		// back once the column and its dependents exist again.
+		for _, incoming := range findIncomingForeignKeys(diff, diff.OldDatabase, tableDiff, virtualColumns, DiffActionDrop) {
+			if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
+				continue
+			}
+			writeDropForeignKey(buf, schemaName, incoming.table, incoming.foreignKey.GetName())
 		}
 		allVirtualDependents.writeDrops(buf, schemaName, tableName)
 		for _, column := range virtualDependents {
@@ -1207,7 +1218,8 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		writeAddColumn(buf, schemaName, tableName, column)
 	}
 	allVirtualDependents.writeCreates(buf, schemaName, tableName)
-	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, newColumns, DiffActionCreate) {
+	restoredColumns := append(append([]string(nil), newColumns...), virtualColumns...)
+	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, restoredColumns, DiffActionCreate) {
 		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
 			continue
 		}

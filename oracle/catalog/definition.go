@@ -194,6 +194,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		if err := writeDeferredFunctionIndexes(&buf, tables); err != nil {
 			return "", err
 		}
+		if err := writeDeferredMaterializedViewFunctionIndexes(&buf, schema.MaterializedViews); err != nil {
+			return "", err
+		}
 		return buf.String(), nil
 	}
 
@@ -226,6 +229,9 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 		}
 	}
 	if err := writeDeferredFunctionIndexes(&buf, tables); err != nil {
+		return "", err
+	}
+	if err := writeDeferredMaterializedViewFunctionIndexes(&buf, schema.MaterializedViews); err != nil {
 		return "", err
 	}
 
@@ -1053,8 +1059,30 @@ func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedVi
 		return err
 	}
 	for _, index := range materializedViewIndexes(view.Indexes) {
+		// A function-based index waits for the function it calls; the deferred
+		// pass after the functions writes it.
+		if strings.Contains(index.GetType(), "FUNCTION-BASED") {
+			continue
+		}
 		if err := writeIndex(buf, view.Name, index); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// writeDeferredMaterializedViewFunctionIndexes writes the function-based
+// indexes a materialized view's definition holds, after the functions they
+// call exist.
+func writeDeferredMaterializedViewFunctionIndexes(buf *strings.Builder, views []*metadatapb.MaterializedViewMetadata) error {
+	for _, view := range views {
+		for _, index := range materializedViewIndexes(view.Indexes) {
+			if !strings.Contains(index.GetType(), "FUNCTION-BASED") {
+				continue
+			}
+			if err := writeIndex(buf, view.Name, index); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
