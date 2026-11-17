@@ -7,10 +7,10 @@ import (
 	"github.com/bytebase/omni/driver"
 )
 
-// TestReturnsData pins which statements a Session runs as queries, and so which
-// it runs as commands that report affected rows. The decision is
+// TestClassify pins which statements a Session runs as queries, and so which it
+// runs as commands that report affected rows. The decision is
 // snowflake/analysis's; this test holds the wiring to it.
-func TestReturnsData(t *testing.T) {
+func TestClassify(t *testing.T) {
 	for _, tc := range []struct {
 		statement string
 		want      bool
@@ -27,17 +27,33 @@ func TestReturnsData(t *testing.T) {
 		{statement: "DELETE FROM t", want: false},
 		{statement: "MERGE INTO t USING s ON t.a = s.a WHEN MATCHED THEN UPDATE SET a = s.a", want: false},
 		{statement: "CREATE TABLE t (a INT)", want: false},
-		{statement: "CALL a_procedure(1)", want: false},
+		// A procedure call answers a value or a table, which the analysis
+		// counts as a statement that returns nothing.
+		{statement: "CALL a_procedure(1)", want: true},
 		{statement: "BEGIN SELECT 1; END", want: false},
 		// A statement omni cannot parse runs as a query: the answer is a hint
 		// about how to send it, and the server judges the statement.
 		{statement: "SELECT $1 FROM @s", want: true},
 	} {
 		t.Run(tc.statement, func(t *testing.T) {
-			if got := returnsData(tc.statement); got != tc.want {
-				t.Errorf("returnsData(%q) = %v, want %v", tc.statement, got, tc.want)
+			got, err := classify(tc.statement, false)
+			if err != nil {
+				t.Fatalf("classify(%q): %v", tc.statement, err)
+			}
+			if got != tc.want {
+				t.Errorf("classify(%q) = %v, want %v", tc.statement, got, tc.want)
 			}
 		})
+	}
+
+	// A caller that masks columns traces them through the statement, so it
+	// cannot run a statement the analysis could not read, and a procedure
+	// call's rows are withheld.
+	if _, err := classify("SELECT $1 FROM @s", true); err == nil {
+		t.Error("a statement the analysis cannot read was accepted with masking on")
+	}
+	if got, err := classify("CALL a_procedure(1)", true); err != nil || got {
+		t.Errorf("classify of a procedure call with masking on = %v, %v; want no rows and no error", got, err)
 	}
 }
 

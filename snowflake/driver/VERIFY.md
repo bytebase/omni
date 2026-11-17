@@ -428,6 +428,10 @@ means the harness is comparing something narrower than the driver does.
 | a string literal doubles a backslash | Snowflake reads a backslash as an escape inside a literal, so a name holding one reached `GET_DDL` as another name or did not resolve |
 | the sync's `INFORMATION_SCHEMA` path quotes the database once | the template quoted it too, so the query named `""DEMO_DB""` and the first schema read failed |
 | a dump's `CREATE OR REPLACE` and database qualifier are rewritten in the statement's head only | the earlier rewrite ran over the whole line, so a literal in a view's body that spelled either one came back changed |
+| a procedure call is read as a query, and its rows are withheld when the caller masks columns | `CALL` answers a value or a table, which the analysis counts as a statement that returns nothing; a masked caller traces columns, so it must not receive rows it cannot trace |
+| a statement omni cannot parse is refused when the caller masks columns | the driver runs such a statement as a query, which is a hint about how to send it; a caller that masks has to know the answer's columns, and an unparsed statement has none it can withhold |
+| a revoked role grant is not one of a user's roles | `GRANTS_TO_USERS` keeps a revoked grant with `DELETED_ON` set, so the instance sync reports what the user holds now |
+| the LIMIT wrapper starts a new line before its closing parenthesis | a trailing line comment in the statement would otherwise swallow the parenthesis and the outer limit |
 | a cell carries the contract's kind; Bytebase wrote every cell as text | its scan table names MySQL's and PostgreSQL's type names, which the client never reports, so the text fallback caught every column; a decimal still stays exact text |
 | an empty `BINARY` value is `Bytes` with no bytes, not NULL | Bytebase's shared converter turned an empty `[]byte` into NULL, which drops a value that is there |
 | `Config.Port` is honored; Bytebase read the data source's port nowhere and always dialed 443 | the contract has a port field, and a proxy endpoint may answer on another one |

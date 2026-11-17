@@ -66,10 +66,16 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			if rewritten, err := snowflakeanalysis.RewriteResultLimit(statement, opts.Limit); err == nil {
 				statement = rewritten
 			} else {
-				statement = fmt.Sprintf("SELECT * FROM (%s) LIMIT %d", trimStatement(statement), opts.Limit)
+				// The newline ends a trailing line comment inside the wrapper,
+				// which would otherwise swallow the closing parenthesis.
+				statement = fmt.Sprintf("SELECT * FROM (%s\n) LIMIT %d", trimStatement(statement), opts.Limit)
 			}
 		}
-		prepared = append(prepared, preparedStatement{text: statement, returnsData: returnsData(statement)})
+		returns, err := classify(statement, opts.MaskingEnabled)
+		if err != nil {
+			return nil, err
+		}
+		prepared = append(prepared, preparedStatement{text: statement, returnsData: returns})
 	}
 
 	var results []*driver.Result
@@ -103,18 +109,36 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	return results, nil
 }
 
-// returnsData reports whether the session runs statement as a query rather than
-// as a command reporting affected rows. The decision is
-// snowflake/analysis's; this function holds the wiring to it. A statement omni
-// cannot parse runs as a query, as Bytebase ran it: the answer is a hint about
-// how to send a statement, and the server decides whether the statement is
-// valid.
-func returnsData(statement string) bool {
+// classify reports whether the session runs statement as a query rather than as
+// a command reporting affected rows. The decision is snowflake/analysis's; this
+// function holds the wiring to it.
+//
+// A statement omni cannot parse runs as a query, as Bytebase ran it: the answer
+// is a hint about how to send a statement, and the server decides whether the
+// statement is valid. A caller that masks columns by tracing them through the
+// statement gets the parse error instead, because a statement the analysis
+// could not read is one whose answer it could not withhold rows from.
+//
+// A procedure call is a query when masking is off: CALL returns a value or a
+// table, which the analysis counts as a statement that returns nothing.
+func classify(statement string, maskingEnabled bool) (bool, error) {
 	_, returns, err := snowflakeanalysis.ValidateQuery(statement)
 	if err != nil {
-		return true
+		if maskingEnabled {
+			return false, err
+		}
+		return true, nil
 	}
-	return returns
+	if isProcedureCall(statement) {
+		return !maskingEnabled, nil
+	}
+	return returns, nil
+}
+
+// isProcedureCall reports whether statement calls a stored procedure.
+func isProcedureCall(statement string) bool {
+	fields := strings.Fields(statement)
+	return len(fields) > 0 && strings.EqualFold(fields[0], "CALL")
 }
 
 // statementContext returns ctx with the client's one-statement limit lifted. A

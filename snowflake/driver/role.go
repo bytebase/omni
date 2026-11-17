@@ -17,11 +17,14 @@ import (
 func (d *Driver) getInstanceRoles(ctx context.Context) ([]*driver.Role, error) {
 	// Ordered by grantee and role: a user's roles are one attribute, and the
 	// order the view happens to answer in is not the account's.
+	// A revoked grant stays in the view with DELETED_ON set, so it is not a role
+	// the user holds now.
 	const grantQuery = `
 		SELECT
 			GRANTEE_NAME,
 			ROLE
 		FROM SNOWFLAKE.ACCOUNT_USAGE.GRANTS_TO_USERS
+		WHERE DELETED_ON IS NULL
 		ORDER BY GRANTEE_NAME, ROLE`
 	grantRows, err := d.db.QueryContext(ctx, grantQuery)
 	if err != nil {
