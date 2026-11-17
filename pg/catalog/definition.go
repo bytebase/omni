@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"io"
@@ -79,29 +80,22 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 	}
 
-	// Construct enums.
+	// Construct user-defined collations, before the columns that sort with
+	// them.
 	for _, schema := range metadata.Schemas {
-		for _, enum := range schema.EnumTypes {
-			if enum.SkipDump {
+		for _, collation := range schema.Collations {
+			if collation.SkipDump {
 				continue
 			}
-			if err := writeEnum(&buf, schema.Name, enum); err != nil {
+			if err := writeCollation(&buf, schema.Name, collation); err != nil {
 				return "", err
-			}
-			if _, err := buf.WriteString(";\n\n"); err != nil {
-				return "", err
-			}
-			// Write enum comment if present
-			if len(enum.Comment) > 0 {
-				if err := writeEnumComment(&buf, schema.Name, enum); err != nil {
-					return "", err
-				}
 			}
 		}
 	}
 
-	// Construct composite types.
-	if err := writeCompositeTypesSection(&buf, collectCompositeTypes(metadata.Schemas)); err != nil {
+	// Construct enums, composite types and range types, each after the types it
+	// is declared over.
+	if err := writeTypesSection(&buf, collectTypes(metadata.Schemas)); err != nil {
 		return "", err
 	}
 
@@ -318,35 +312,20 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 		return "", err
 	}
 
-	// Construct enums.
-	for _, enum := range schema.EnumTypes {
-		if enum.SkipDump {
+	// Construct user-defined collations, before the columns that sort with them.
+	for _, collation := range schema.Collations {
+		if collation.SkipDump {
 			continue
 		}
-		if err := writeEnum(&buf, schema.Name, enum); err != nil {
+		if err := writeCollation(&buf, schema.Name, collation); err != nil {
 			return "", err
-		}
-		if _, err := buf.WriteString(";\n\n"); err != nil {
-			return "", err
-		}
-		// Write enum comment if present
-		if len(enum.Comment) > 0 {
-			if err := writeEnumComment(&buf, schema.Name, enum); err != nil {
-				return "", err
-			}
 		}
 	}
 
-	// Construct composite types. The schema-level SkipDump filter does not
-	// apply here: the caller asked for this specific schema's definition.
-	var compositeTypes []qualifiedCompositeType
-	for _, composite := range schema.CompositeTypes {
-		if composite.SkipDump {
-			continue
-		}
-		compositeTypes = append(compositeTypes, qualifiedCompositeType{Schema: schema.Name, Composite: composite})
-	}
-	if err := writeCompositeTypesSection(&buf, compositeTypes); err != nil {
+	// Construct enums, composite types and range types, each after the types it
+	// is declared over. The schema-level SkipDump filter does not apply here:
+	// the caller asked for this specific schema's definition.
+	if err := writeTypesSection(&buf, collectSchemaTypes(schema)); err != nil {
 		return "", err
 	}
 
@@ -940,6 +919,247 @@ type qualifiedCompositeType struct {
 // collectCompositeTypes gathers the dumpable composite types of the given
 // schemas. Schemas with SkipDump never get a CREATE SCHEMA statement, so
 // their types must not be emitted either.
+// qualifiedType is one enum, composite type or range type of the dumpable
+// snapshot, with the schema it lives in so the types it names can be resolved.
+type qualifiedType struct {
+	Schema    string
+	Enum      *metadatapb.EnumTypeMetadata
+	Composite *metadatapb.CompositeTypeMetadata
+	RangeType *metadatapb.RangeTypeMetadata
+}
+
+const (
+	typeKindEnum = iota
+	typeKindComposite
+	typeKindRange
+)
+
+func (t qualifiedType) kind() int {
+	switch {
+	case t.Enum != nil:
+		return typeKindEnum
+	case t.Composite != nil:
+		return typeKindComposite
+	default:
+		return typeKindRange
+	}
+}
+
+// name is the type's own name in its schema.
+func (t qualifiedType) name() string {
+	switch {
+	case t.Enum != nil:
+		return t.Enum.Name
+	case t.Composite != nil:
+		return t.Composite.Name
+	default:
+		return t.RangeType.Name
+	}
+}
+
+// skipDump reports whether creating the type is another statement's work: an
+// extension's, or a schema's the dump never creates.
+func (t qualifiedType) skipDump() bool {
+	switch {
+	case t.Enum != nil:
+		return t.Enum.SkipDump
+	case t.Composite != nil:
+		return t.Composite.SkipDump
+	default:
+		return t.RangeType.SkipDump
+	}
+}
+
+// collectTypes gathers the dumpable enums, composite types and range types of
+// the given schemas. Schemas with SkipDump never get a CREATE SCHEMA statement,
+// so their types must not be emitted either.
+func collectTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedType {
+	var kept []qualifiedType
+	for _, schema := range schemas {
+		if schema.SkipDump {
+			continue
+		}
+		kept = append(kept, collectSchemaTypes(schema)...)
+	}
+	return kept
+}
+
+// collectSchemaTypes gathers one schema's dumpable types whether or not the
+// schema itself is dumped: a caller that asked for this schema's definition gets
+// it, though a type an extension owns is still left out.
+func collectSchemaTypes(schema *metadatapb.SchemaMetadata) []qualifiedType {
+	var types []qualifiedType
+	for _, enum := range schema.EnumTypes {
+		types = append(types, qualifiedType{Schema: schema.Name, Enum: enum})
+	}
+	for _, composite := range schema.CompositeTypes {
+		types = append(types, qualifiedType{Schema: schema.Name, Composite: composite})
+	}
+	for _, rangeType := range schema.RangeTypes {
+		types = append(types, qualifiedType{Schema: schema.Name, RangeType: rangeType})
+	}
+	kept := types[:0]
+	for _, t := range types {
+		if !t.skipDump() {
+			kept = append(kept, t)
+		}
+	}
+	return kept
+}
+
+// orderTypes orders the types so that each comes after the types it is declared
+// over: a composite attribute's type, and a range's subtype, which may be
+// another range's multirange type. A type the list does not hold adds no edge,
+// since a pg_catalog type needs no statement. Ties go to enums, then composite
+// types, then range types, in name order, so the section reads the way it did
+// before the types could depend on each other. A cycle cannot reach the server;
+// the rest of the list follows in that order if one did.
+func orderTypes(types []qualifiedType) []qualifiedType {
+	key := func(schema, name string) string { return schema + "\x00" + name }
+	nodes := make(map[string]qualifiedType, len(types))
+	for _, t := range types {
+		nodes[key(t.Schema, t.name())] = t
+	}
+	// A range's multirange type is made by the range's own CREATE, so a subtype
+	// that names it depends on that range.
+	multiranges := make(map[string]string, len(nodes))
+	for k, t := range nodes {
+		if t.RangeType == nil || t.RangeType.MultirangeName == "" {
+			continue
+		}
+		schema, name, ok := parseQualifiedTypeIdent(t.RangeType.MultirangeName)
+		if !ok {
+			schema, name = t.Schema, t.RangeType.MultirangeName
+		}
+		multiranges[key(schema, name)] = k
+	}
+	inDegree := make(map[string]int, len(nodes))
+	dependents := make(map[string][]string, len(nodes))
+	for k := range nodes {
+		inDegree[k] = 0
+	}
+	addEdges := func(k string, references []string) {
+		for _, reference := range references {
+			depSchema, depName, ok := parseQualifiedTypeIdent(reference)
+			if !ok {
+				continue
+			}
+			depKey := key(depSchema, depName)
+			if owner, isMultirange := multiranges[depKey]; isMultirange {
+				depKey = owner
+			}
+			if depKey == k {
+				continue
+			}
+			if _, exists := nodes[depKey]; !exists {
+				continue
+			}
+			dependents[depKey] = append(dependents[depKey], k)
+			inDegree[k]++
+		}
+	}
+	for k, t := range nodes {
+		switch {
+		case t.Composite != nil:
+			var attributes []string
+			for _, attribute := range t.Composite.Attributes {
+				attributes = append(attributes, attribute.Type)
+			}
+			addEdges(k, attributes)
+		case t.RangeType != nil:
+			addEdges(k, []string{t.RangeType.Subtype})
+		}
+	}
+
+	ready := make([]string, 0, len(nodes))
+	for k, d := range inDegree {
+		if d == 0 {
+			ready = append(ready, k)
+		}
+	}
+	sortTypeKeys(ready, nodes)
+
+	ordered := make([]qualifiedType, 0, len(nodes))
+	for len(ready) > 0 {
+		k := ready[0]
+		ready = ready[1:]
+		ordered = append(ordered, nodes[k])
+		delete(inDegree, k)
+		for _, dependent := range dependents[k] {
+			if _, remaining := inDegree[dependent]; !remaining {
+				continue
+			}
+			inDegree[dependent]--
+			if inDegree[dependent] == 0 {
+				ready = append(ready, dependent)
+			}
+		}
+		sortTypeKeys(ready, nodes)
+	}
+
+	if len(ordered) < len(nodes) {
+		var rest []string
+		for k := range inDegree {
+			rest = append(rest, k)
+		}
+		sortTypeKeys(rest, nodes)
+		for _, k := range rest {
+			ordered = append(ordered, nodes[k])
+		}
+	}
+
+	return ordered
+}
+
+// sortTypeKeys orders type keys by kind, then name, so independent types keep a
+// stable order across runs.
+func sortTypeKeys(keys []string, nodes map[string]qualifiedType) {
+	slices.SortFunc(keys, func(a, b string) int {
+		if c := cmp.Compare(nodes[a].kind(), nodes[b].kind()); c != 0 {
+			return c
+		}
+		return strings.Compare(a, b)
+	})
+}
+
+// writeTypesSection emits the enums, composite types and range types in
+// dependency order, each with its comments.
+func writeTypesSection(out io.Writer, types []qualifiedType) error {
+	for _, t := range orderTypes(types) {
+		switch {
+		case t.Enum != nil:
+			if err := writeEnum(out, t.Schema, t.Enum); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(out, ";\n\n"); err != nil {
+				return err
+			}
+			if t.Enum.Comment != "" {
+				if err := writeEnumComment(out, t.Schema, t.Enum); err != nil {
+					return err
+				}
+			}
+		case t.Composite != nil:
+			if err := writeCompositeType(out, t.Schema, t.Composite); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(out, ";\n\n"); err != nil {
+				return err
+			}
+			if compositeTypeHasComments(t.Composite) {
+				if err := writeCompositeTypeComments(out, t.Schema, t.Composite); err != nil {
+					return err
+				}
+			}
+		default:
+			if err := writeRangeType(out, t.Schema, t.RangeType); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func collectCompositeTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedCompositeType {
 	var compositeTypes []qualifiedCompositeType
 	for _, schema := range schemas {
@@ -1166,6 +1386,86 @@ func signatureTypesOnly(signature string) string {
 	}
 
 	return funcName + "(" + strings.Join(typesOnly, ", ") + ")"
+}
+
+// writeCollation writes a user-defined collation and its comment. The provider
+// decides which locale fields PostgreSQL takes: ICU and builtin take a locale,
+// libc takes the pair it sorts and classifies with.
+func writeCollation(out io.Writer, schema string, collation *metadatapb.CollationMetadata) error {
+	var provider, locale string
+	switch collation.Provider {
+	case "i":
+		provider, locale = "icu", fmt.Sprintf("locale = '%s'", escapeSingleQuote(collation.Locale))
+	case "c":
+		provider = "libc"
+		locale = fmt.Sprintf("lc_collate = '%s', lc_ctype = '%s'", escapeSingleQuote(collation.LcCollate), escapeSingleQuote(collation.LcCtype))
+	case "b":
+		provider, locale = "builtin", fmt.Sprintf("locale = '%s'", escapeSingleQuote(collation.Locale))
+	default:
+		// A collation with no provider to state is one the server derives, which
+		// a restore cannot create.
+		return nil
+	}
+	if _, err := fmt.Fprintf(out, "CREATE COLLATION \"%s\".\"%s\" (provider = %s, %s",
+		escapeIdentifier(schema), escapeIdentifier(collation.Name), provider, locale); err != nil {
+		return err
+	}
+	if collation.Rules != "" {
+		if _, err := fmt.Fprintf(out, ", rules = '%s'", escapeSingleQuote(collation.Rules)); err != nil {
+			return err
+		}
+	}
+	if collation.Deterministic != nil {
+		if _, err := fmt.Fprintf(out, ", deterministic = %t", *collation.Deterministic); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, ");\n\n"); err != nil {
+		return err
+	}
+	if collation.Comment != "" {
+		if _, err := fmt.Fprintf(out, "COMMENT ON COLLATION \"%s\".\"%s\" IS '%s';\n\n",
+			escapeIdentifier(schema), escapeIdentifier(collation.Name), escapeSingleQuote(collation.Comment)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeRangeType writes CREATE TYPE ... AS RANGE and its comment. The subtype
+// is written as the server states it; the clauses it left out are the ones the
+// server derives, so writing only what pg_range filled keeps the restore to
+// what the source declared. canonical and subtype_diff are not written: a range
+// that declares one is created from a shell type, then the function, then the
+// full type, and that function's definition is a C symbol in a LANGUAGE
+// internal function, which a dump cannot write. The metadata carries both, so a
+// range that declares one shows the loss in the restored snapshot rather than
+// restoring a type that compares differently.
+func writeRangeType(out io.Writer, schema string, rangeType *metadatapb.RangeTypeMetadata) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "CREATE TYPE \"%s\".\"%s\" AS RANGE (\n    subtype = %s",
+		escapeIdentifier(schema), escapeIdentifier(rangeType.Name), rangeType.Subtype)
+	for _, clause := range []struct{ key, value string }{
+		{"subtype_opclass", rangeType.SubtypeOpclass},
+		{"collation", rangeType.Collation},
+		{"multirange_type_name", rangeType.MultirangeName},
+	} {
+		if clause.value == "" {
+			continue
+		}
+		fmt.Fprintf(&b, ",\n    %s = %s", clause.key, clause.value)
+	}
+	b.WriteString("\n);\n\n")
+	if _, err := io.WriteString(out, b.String()); err != nil {
+		return err
+	}
+	if rangeType.Comment != "" {
+		if _, err := fmt.Fprintf(out, "COMMENT ON TYPE \"%s\".\"%s\" IS '%s';\n\n",
+			escapeIdentifier(schema), escapeIdentifier(rangeType.Name), escapeSingleQuote(rangeType.Comment)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeEnumComment(out io.Writer, schema string, enum *metadatapb.EnumTypeMetadata) error {
@@ -1717,11 +2017,15 @@ func writeCreateTable(out io.Writer, schema string, tableName string, columns []
 			return err
 		}
 
-		// The collation is a bare name; a user-defined collation would need
-		// its schema, which the metadata does not carry, so only a built-in
-		// collation (pg_catalog, such as "C") round-trips.
+		// A user-defined collation is written with its schema: the dump restores
+		// under an empty search_path, so its bare name reaches only the collations
+		// pg_catalog holds.
 		if column.Collation != "" {
-			if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, column.Collation); err != nil {
+			if column.CollationSchema != "" {
+				if _, err := fmt.Fprintf(out, ` COLLATE "%s"."%s"`, escapeIdentifier(column.CollationSchema), escapeIdentifier(column.Collation)); err != nil {
+					return err
+				}
+			} else if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, escapeIdentifier(column.Collation)); err != nil {
 				return err
 			}
 		}
