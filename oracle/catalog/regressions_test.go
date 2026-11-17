@@ -2794,3 +2794,60 @@ func TestSyncedQuotedKeysMatchExtractedOnes(t *testing.T) {
 		t.Fatalf("a quoted key column read as a change:\n%s", migrationFor(t, raw, quoted))
 	}
 }
+
+// TestMigrationWritesOnlyCommentCategoriesOracleTakes pins the comment
+// statements a migration writes: COMMENT ON TABLE, which is how a view is
+// commented, and COMMENT ON MATERIALIZED VIEW. Oracle names no other category:
+// COMMENT ON SEQUENCE, FUNCTION and INDEX are ORA-32594, "invalid object
+// category", so a metadata comment on one of those has no statement to render
+// and must not produce one.
+func TestMigrationWritesOnlyCommentCategoriesOracleTakes(t *testing.T) {
+	columns := []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}
+	table := func(comment string) *metadatapb.TableMetadata {
+		return &metadatapb.TableMetadata{
+			Name: "T", Columns: columns,
+			// Function-based, so the index is created by a statement of its own.
+			Indexes: []*metadatapb.IndexMetadata{{Name: "T_FBI", Type: "FUNCTION-BASED NORMAL", Expressions: []string{"UPPER(C)"}, Visible: true, Comment: comment}},
+		}
+	}
+	sequence := func(comment string) *metadatapb.SequenceMetadata {
+		return &metadatapb.SequenceMetadata{Name: "S", Increment: "1", CacheSize: "20", Comment: comment}
+	}
+	function := func(comment string) *metadatapb.FunctionMetadata {
+		return &metadatapb.FunctionMetadata{Name: "F", Definition: "FUNCTION F RETURN NUMBER IS BEGIN RETURN 1; END;", Comment: comment}
+	}
+	view := func(comment string) *metadatapb.ViewMetadata {
+		return &metadatapb.ViewMetadata{Name: "V", Definition: "SELECT 1 AS X FROM DUAL", Comment: comment}
+	}
+	materializedView := func(comment string) *metadatapb.MaterializedViewMetadata {
+		return &metadatapb.MaterializedViewMetadata{Name: "MV", Definition: "SELECT 1 AS X FROM DUAL", Comment: comment}
+	}
+	emitted := []string{"COMMENT ON TABLE", "COMMENT ON MATERIALIZED VIEW"}
+	check := func(t *testing.T, sql string) {
+		t.Helper()
+		for _, statement := range emitted {
+			if !strings.Contains(sql, statement) {
+				t.Errorf("missing %q:\n%s", statement, sql)
+			}
+		}
+		for _, statement := range []string{"COMMENT ON INDEX", "COMMENT ON SEQUENCE", "COMMENT ON FUNCTION"} {
+			if strings.Contains(sql, statement) {
+				t.Errorf("wrote %q, which Oracle refuses with ORA-32594:\n%s", statement, sql)
+			}
+		}
+	}
+
+	commented := func(comment string) *Catalog {
+		return catalogFromSchema(&metadatapb.SchemaMetadata{
+			Tables:            []*metadatapb.TableMetadata{table(comment)},
+			Sequences:         []*metadatapb.SequenceMetadata{sequence(comment)},
+			Functions:         []*metadatapb.FunctionMetadata{function(comment)},
+			Views:             []*metadatapb.ViewMetadata{view(comment)},
+			MaterializedViews: []*metadatapb.MaterializedViewMetadata{materializedView(comment)},
+		})
+	}
+	// A comment that arrives on an object that exists, and one that arrives
+	// with the object itself.
+	check(t, migrationFor(t, commented(""), commented("a comment")))
+	check(t, migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{}), commented("a comment")))
+}

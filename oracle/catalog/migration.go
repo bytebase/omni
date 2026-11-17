@@ -908,8 +908,6 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			// Handle column comment changes
 			generateColumnCommentChanges(buf, tableDiff)
 
-			// Handle index comment changes
-			generateIndexCommentChanges(buf, tableDiff)
 		}
 	}
 
@@ -966,11 +964,12 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 
 	rebuildFunctionBasedIndexes(buf, diff)
 
-	// Handle comment changes for other object types
+	// Comment changes for the other objects Oracle takes here: a view (through
+	// COMMENT ON TABLE) and a materialized view. A sequence, routine and index
+	// are not among them -- COMMENT ON each is ORA-32594, "invalid object
+	// category" -- so a metadata comment on one has no statement to render.
 	generateViewCommentChanges(buf, diff)
 	generateMaterializedViewCommentChanges(buf, diff)
-	generateFunctionCommentChanges(buf, diff)
-	generateSequenceCommentChanges(buf, diff)
 }
 
 func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMetadata, includeForeignKeys bool) (string, error) {
@@ -2160,10 +2159,6 @@ func writeFunctionDiff(out *strings.Builder, funcDiff *FunctionDiff) {
 		}
 		_, _ = out.WriteString("\n")
 
-		// Add comment if present
-		if funcDiff.NewFunction.Comment != "" {
-			writeFunctionComment(out, funcDiff.SchemaName, funcDiff.FunctionName, funcDiff.NewFunction.Comment)
-		}
 		_, _ = out.WriteString("\n")
 	case DiffActionAlter:
 		// Oracle requires CREATE OR REPLACE for functions
@@ -2179,10 +2174,6 @@ func writeFunctionDiff(out *strings.Builder, funcDiff *FunctionDiff) {
 		}
 		_, _ = out.WriteString("\n")
 
-		// Add comment if present
-		if funcDiff.NewFunction.Comment != "" {
-			writeFunctionComment(out, funcDiff.SchemaName, funcDiff.FunctionName, funcDiff.NewFunction.Comment)
-		}
 		_, _ = out.WriteString("\n")
 	default:
 		// Handle other actions if needed
@@ -2286,11 +2277,6 @@ func writeMigrationCreateSequence(out *strings.Builder, schema string, seq *meta
 
 	_, _ = out.WriteString(`;`)
 	_, _ = out.WriteString("\n")
-
-	// Add comment if present
-	if seq.Comment != "" {
-		writeSequenceComment(out, schema, seq.Name, seq.Comment)
-	}
 }
 
 // rebuildFunctionBasedIndexes rebuilds the retained function-based indexes of
@@ -2761,11 +2747,6 @@ func writeMigrationIndex(out *strings.Builder, schema, table string, index *meta
 
 	_, _ = out.WriteString(`;`)
 	_, _ = out.WriteString("\n")
-
-	// Add comment if present
-	if index.Comment != "" {
-		writeIndexComment(out, schema, index.Name, index.Comment)
-	}
 }
 
 // Comment writing helper functions
@@ -2804,78 +2785,6 @@ func writeMaterializedViewComment(out *strings.Builder, schema, viewName, commen
 	}
 	_, _ = out.WriteString(`"`)
 	_, _ = out.WriteString(viewName)
-	_, _ = out.WriteString(`" IS `)
-	if comment == "" {
-		_, _ = out.WriteString(`''`)
-	} else {
-		_, _ = out.WriteString(`'`)
-		// Escape single quotes in the comment
-		escapedComment := strings.ReplaceAll(comment, "'", "''")
-		_, _ = out.WriteString(escapedComment)
-		_, _ = out.WriteString(`'`)
-	}
-	_, _ = out.WriteString(`;`)
-	_, _ = out.WriteString("\n")
-}
-
-// writeFunctionComment writes a COMMENT ON FUNCTION statement
-func writeFunctionComment(out *strings.Builder, schema, functionName, comment string) {
-	_, _ = out.WriteString(`COMMENT ON FUNCTION `)
-	if schema != "" {
-		_, _ = out.WriteString(`"`)
-		_, _ = out.WriteString(schema)
-		_, _ = out.WriteString(`".`)
-	}
-	_, _ = out.WriteString(`"`)
-	_, _ = out.WriteString(functionName)
-	_, _ = out.WriteString(`" IS `)
-	if comment == "" {
-		_, _ = out.WriteString(`''`)
-	} else {
-		_, _ = out.WriteString(`'`)
-		// Escape single quotes in the comment
-		escapedComment := strings.ReplaceAll(comment, "'", "''")
-		_, _ = out.WriteString(escapedComment)
-		_, _ = out.WriteString(`'`)
-	}
-	_, _ = out.WriteString(`;`)
-	_, _ = out.WriteString("\n")
-}
-
-// writeSequenceComment writes a COMMENT ON SEQUENCE statement
-func writeSequenceComment(out *strings.Builder, schema, sequenceName, comment string) {
-	_, _ = out.WriteString(`COMMENT ON SEQUENCE `)
-	if schema != "" {
-		_, _ = out.WriteString(`"`)
-		_, _ = out.WriteString(schema)
-		_, _ = out.WriteString(`".`)
-	}
-	_, _ = out.WriteString(`"`)
-	_, _ = out.WriteString(sequenceName)
-	_, _ = out.WriteString(`" IS `)
-	if comment == "" {
-		_, _ = out.WriteString(`''`)
-	} else {
-		_, _ = out.WriteString(`'`)
-		// Escape single quotes in the comment
-		escapedComment := strings.ReplaceAll(comment, "'", "''")
-		_, _ = out.WriteString(escapedComment)
-		_, _ = out.WriteString(`'`)
-	}
-	_, _ = out.WriteString(`;`)
-	_, _ = out.WriteString("\n")
-}
-
-// writeIndexComment writes a COMMENT ON INDEX statement
-func writeIndexComment(out *strings.Builder, schema, indexName, comment string) {
-	_, _ = out.WriteString(`COMMENT ON INDEX `)
-	if schema != "" {
-		_, _ = out.WriteString(`"`)
-		_, _ = out.WriteString(schema)
-		_, _ = out.WriteString(`".`)
-	}
-	_, _ = out.WriteString(`"`)
-	_, _ = out.WriteString(indexName)
 	_, _ = out.WriteString(`" IS `)
 	if comment == "" {
 		_, _ = out.WriteString(`''`)
@@ -2951,28 +2860,6 @@ func generateColumnCommentChanges(buf *strings.Builder, tableDiff *TableDiff) {
 	}
 }
 
-// generateIndexCommentChanges generates COMMENT ON INDEX statements for index comment changes within table diffs
-func generateIndexCommentChanges(buf *strings.Builder, tableDiff *TableDiff) {
-	for _, indexDiff := range tableDiff.IndexChanges {
-		if indexDiff.Action == DiffActionAlter {
-			if indexDiff.OldIndex == nil || indexDiff.NewIndex == nil {
-				continue
-			}
-
-			oldComment := indexDiff.OldIndex.Comment
-			newComment := indexDiff.NewIndex.Comment
-
-			// If comments are different, generate COMMENT ON INDEX statement
-			if oldComment != newComment {
-				writeIndexComment(buf, tableDiff.SchemaName, indexDiff.NewIndex.Name, newComment)
-			}
-		} else if indexDiff.Action == DiffActionCreate && indexDiff.NewIndex != nil && indexDiff.NewIndex.Comment != "" {
-			// New index with comment
-			writeIndexComment(buf, tableDiff.SchemaName, indexDiff.NewIndex.Name, indexDiff.NewIndex.Comment)
-		}
-	}
-}
-
 // generateViewCommentChanges generates COMMENT ON VIEW statements for view comment changes
 func generateViewCommentChanges(buf *strings.Builder, diff *MetadataDiff) {
 	for _, viewDiff := range diff.ViewChanges {
@@ -3013,50 +2900,6 @@ func generateMaterializedViewCommentChanges(buf *strings.Builder, diff *Metadata
 		} else if mvDiff.Action == DiffActionCreate && mvDiff.NewMaterializedView != nil && mvDiff.NewMaterializedView.Comment != "" {
 			// New materialized view with comment
 			writeMaterializedViewComment(buf, mvDiff.SchemaName, mvDiff.MaterializedViewName, mvDiff.NewMaterializedView.Comment)
-		}
-	}
-}
-
-// generateFunctionCommentChanges generates COMMENT ON FUNCTION statements for function comment changes
-func generateFunctionCommentChanges(buf *strings.Builder, diff *MetadataDiff) {
-	for _, funcDiff := range diff.FunctionChanges {
-		if funcDiff.Action == DiffActionAlter {
-			if funcDiff.OldFunction == nil || funcDiff.NewFunction == nil {
-				continue
-			}
-
-			oldComment := funcDiff.OldFunction.Comment
-			newComment := funcDiff.NewFunction.Comment
-
-			// If comments are different, generate COMMENT ON FUNCTION statement
-			if oldComment != newComment {
-				writeFunctionComment(buf, funcDiff.SchemaName, funcDiff.FunctionName, newComment)
-			}
-		} else if funcDiff.Action == DiffActionCreate && funcDiff.NewFunction != nil && funcDiff.NewFunction.Comment != "" {
-			// New function with comment
-			writeFunctionComment(buf, funcDiff.SchemaName, funcDiff.FunctionName, funcDiff.NewFunction.Comment)
-		}
-	}
-}
-
-// generateSequenceCommentChanges generates COMMENT ON SEQUENCE statements for sequence comment changes
-func generateSequenceCommentChanges(buf *strings.Builder, diff *MetadataDiff) {
-	for _, seqDiff := range diff.SequenceChanges {
-		if seqDiff.Action == DiffActionAlter {
-			if seqDiff.OldSequence == nil || seqDiff.NewSequence == nil {
-				continue
-			}
-
-			oldComment := seqDiff.OldSequence.Comment
-			newComment := seqDiff.NewSequence.Comment
-
-			// If comments are different, generate COMMENT ON SEQUENCE statement
-			if oldComment != newComment {
-				writeSequenceComment(buf, seqDiff.SchemaName, seqDiff.SequenceName, newComment)
-			}
-		} else if seqDiff.Action == DiffActionCreate && seqDiff.NewSequence != nil && seqDiff.NewSequence.Comment != "" {
-			// New sequence with comment
-			writeSequenceComment(buf, seqDiff.SchemaName, seqDiff.SequenceName, seqDiff.NewSequence.Comment)
 		}
 	}
 }
@@ -3316,9 +3159,6 @@ func writeMigrationAlterSequence(out *strings.Builder, schema string, oldSeq, ne
 	_, _ = out.WriteString(strings.Join(clauses, " "))
 	_, _ = out.WriteString(`;`)
 	_, _ = out.WriteString("\n")
-	if newSeq.GetComment() != "" && newSeq.GetComment() != oldSeq.GetComment() {
-		writeSequenceComment(out, schema, newSeq.GetName(), newSeq.GetComment())
-	}
 }
 
 // writeConstraintColumn quotes a key column whose spelling Oracle would fold.
