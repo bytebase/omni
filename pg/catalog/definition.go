@@ -393,7 +393,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 
 	// Construct triggers.
 	for _, schema := range metadata.Schemas {
-		if err := writeSchemaTriggers(&buf, schema); err != nil {
+		if err := writeSchemaTriggers(&buf, schema, true); err != nil {
 			return "", err
 		}
 	}
@@ -606,7 +606,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	}
 
 	// Construct triggers.
-	if err := writeSchemaTriggers(&buf, schema); err != nil {
+	if err := writeSchemaTriggers(&buf, schema, false); err != nil {
 		return "", err
 	}
 
@@ -2240,29 +2240,39 @@ func checkExpressionForDependencies(expression string) string {
 // table's row type, and the table that defines it must exist first.
 func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, tableMap map[string]*metadatapb.TableMetadata, partitionParents map[string]string) {
 	for id, table := range foreignTableMap {
-		for _, column := range table.Columns {
-			schema, name, ok := strings.Cut(column.Type, ".")
-			if !ok {
-				continue
+		addRelationTypeEdgesFor(graph, id, table.Columns, tableMap, foreignTableMap, partitionParents)
+	}
+	for id, table := range tableMap {
+		addRelationTypeEdgesFor(graph, id, table.Columns, tableMap, foreignTableMap, partitionParents)
+	}
+}
+
+func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metadatapb.ColumnMetadata, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
+	for _, column := range columns {
+		schema, name, ok := strings.Cut(column.Type, ".")
+		if !ok {
+			continue
+		}
+		// An array of a row type is named _<relation>, as in public._z.
+		names := []string{name}
+		if strings.HasPrefix(name, "_") {
+			names = append(names, name[1:])
+		}
+		for _, relationName := range names {
+			dependencyID := getObjectID(schema, relationName)
+			if parentID, ok := partitionParents[dependencyID]; ok {
+				dependencyID = parentID
 			}
-			// An array of a row type is named _<relation>, as in public._z.
-			names := []string{name}
-			if strings.HasPrefix(name, "_") {
-				names = append(names, name[1:])
+			if dependencyID == id {
+				break
 			}
-			for _, relationName := range names {
-				dependencyID := getObjectID(schema, relationName)
-				if parentID, ok := partitionParents[dependencyID]; ok {
-					dependencyID = parentID
-				}
-				if _, ok := tableMap[dependencyID]; ok {
-					graph.AddEdge(dependencyID, id)
-					break
-				}
-				if _, ok := foreignTableMap[dependencyID]; ok {
-					graph.AddEdge(dependencyID, id)
-					break
-				}
+			if _, ok := tableMap[dependencyID]; ok {
+				graph.AddEdge(dependencyID, id)
+				break
+			}
+			if _, ok := foreignTableMap[dependencyID]; ok {
+				graph.AddEdge(dependencyID, id)
+				break
 			}
 		}
 	}
@@ -2799,7 +2809,7 @@ func collectTables(schemas []*metadatapb.SchemaMetadata, include func(*metadatap
 // materialized view in the schema. Triggers on tables without column
 // metadata are skipped; their definitions (UPDATE OF, WHEN clauses) can
 // reference the missing columns.
-func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata) error {
+func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata, includeForeignTables bool) error {
 	for _, table := range schema.Tables {
 		if tableMissingColumnMetadata(table) {
 			continue
@@ -2836,16 +2846,18 @@ func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata) error
 		}
 	}
 
-	for _, externalTable := range schema.ExternalTables {
-		if externalTable.SkipDump {
-			continue
-		}
-		for _, trigger := range externalTable.Triggers {
-			if trigger.SkipDump {
+	if includeForeignTables {
+		for _, externalTable := range schema.ExternalTables {
+			if externalTable.SkipDump {
 				continue
 			}
-			if err := writeTrigger(out, schema.Name, externalTable.Name, trigger); err != nil {
-				return err
+			for _, trigger := range externalTable.Triggers {
+				if trigger.SkipDump {
+					continue
+				}
+				if err := writeTrigger(out, schema.Name, externalTable.Name, trigger); err != nil {
+					return err
+				}
 			}
 		}
 	}

@@ -1103,3 +1103,57 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedParenValidator(t *
 	assert.Contains(t, result, wrapper)
 	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the quoted-paren validator must be written before its wrapper")
 }
+
+// TestDatabaseDefinitionOrdersOrdinaryTableAfterForeignRowType checks that an
+// ordinary table using a foreign table's row type follows the foreign table.
+func TestDatabaseDefinitionOrdersOrdinaryTableAfterForeignRowType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "local",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "r", Type: "public.remote"}},
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "remote",
+				ExternalServerName: "s",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	remote := `CREATE FOREIGN TABLE "public"."remote"`
+	local := `CREATE TABLE "public"."local"`
+	assert.Contains(t, result, remote)
+	assert.Contains(t, result, local)
+	assert.Less(t, strings.Index(result, remote), strings.Index(result, local), "the row type's foreign table must be written first")
+}
+
+// TestSchemaDefinitionSkipsExternalTableTriggers checks that SchemaDefinition,
+// which does not create standalone foreign tables, does not write their
+// triggers either.
+func TestSchemaDefinitionSkipsExternalTableTriggers(t *testing.T) {
+	schema := &metadatapb.SchemaMetadata{
+		Name: "public",
+		ExternalTables: []*metadatapb.ExternalTableMetadata{{
+			Name:               "remote",
+			ExternalServerName: "s",
+			Triggers: []*metadatapb.TriggerMetadata{{
+				Name: "remote_trg",
+				Body: "CREATE TRIGGER remote_trg BEFORE INSERT ON public.remote FOR EACH ROW EXECUTE FUNCTION public.audit()",
+			}},
+		}},
+	}
+
+	result, err := SchemaDefinition(schema)
+	require.NoError(t, err)
+	assert.NotContains(t, result, "CREATE TRIGGER remote_trg")
+}
