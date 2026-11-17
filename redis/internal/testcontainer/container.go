@@ -849,8 +849,10 @@ var emptied struct {
 	done map[string]bool
 }
 
-// emptyOnce drops every key on t's top-level test's first live call, so what an
-// earlier test left behind cannot reach the tape.
+// emptyOnce drops every key and every ACL account but the image's default user
+// on t's top-level test's first live call, so what an earlier test left behind
+// cannot reach the tape. FLUSHALL clears keys alone; an account is the server's,
+// as Oracle's database links are the instance's.
 func emptyOnce(t testing.TB) {
 	t.Helper()
 	top := enginetest.TopName(t.Name())
@@ -864,10 +866,29 @@ func emptyOnce(t testing.TB) {
 	}
 	emptied.done[top] = true
 	client := clientFor(t, Login{}, false)
-	if err := client.OpenSession(context.Background(), pooledSession); err != nil {
+	ctx := context.Background()
+	if err := client.OpenSession(ctx, pooledSession); err != nil {
 		t.Fatalf("empty Redis: %v", err)
 	}
-	cmds, err := client.Do(context.Background(), pooledSession, [][]any{{"FLUSHALL"}})
+	cmds, err := client.Do(ctx, pooledSession, [][]any{{"ACL", "USERS"}})
+	if err != nil {
+		t.Fatalf("empty Redis: %v", err)
+	}
+	users, err := cmds[0].StringSlice()
+	if err != nil {
+		t.Fatalf("empty Redis: ACL USERS: %v", err)
+	}
+	var drop []any
+	for _, user := range users {
+		if user != "default" {
+			drop = append(drop, user)
+		}
+	}
+	commands := [][]any{{"FLUSHALL"}}
+	if len(drop) > 0 {
+		commands = append([][]any{append([]any{"ACL", "DELUSER"}, drop...)}, commands...)
+	}
+	cmds, err = client.Do(ctx, pooledSession, commands)
 	if err != nil {
 		t.Fatalf("empty Redis: %v", err)
 	}

@@ -79,8 +79,9 @@ END;`
 // recording. Each call is a session of its own, and the pool holds that one
 // session, so session state holds across statements. In a recording each
 // top-level test starts on a server that holds nothing another test made:
-// before its first session the users and public synonyms the image did not
-// start with are dropped, and so is what SYSTEM owns that it did not.
+// before its first session the users, public synonyms and database links the
+// image did not start with are dropped, and so is what SYSTEM owns that it
+// did not.
 func Open(t testing.TB, user string) *sql.DB {
 	t.Helper()
 	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
@@ -104,10 +105,17 @@ var server struct {
 }
 
 // imageState is what the pluggable database held when the server started,
-// which emptying leaves: its users, its public synonyms, and SYSTEM's
-// objects.
+// which emptying leaves: its users, its public synonyms, SYSTEM's objects, and
+// its database links.
 type imageState struct {
 	users, synonyms, systemObjects map[string]bool
+	links                          map[dbLink]bool
+}
+
+// dbLink is one database link's owner and name. DBA_DB_LINKS lists a public
+// link under PUBLIC, so the owner says which DROP removes it.
+type dbLink struct {
+	owner, name string
 }
 
 // live connects to the pinned server as user, emptying the server first on
@@ -198,11 +206,32 @@ func boot(ctx context.Context, pin enginetest.Pin) error {
 	if server.image.systemObjects, err = names(ctx, db, systemObjects); err != nil {
 		return err
 	}
+	if server.image.links, err = dbLinks(ctx, db); err != nil {
+		return err
+	}
 	return nil
 }
 
 // systemObjects lists the objects of SYSTEM's a test may make.
 const systemObjects = "SELECT object_type || ' ' || object_name FROM user_objects WHERE object_type IN ('TABLE', 'VIEW', 'SEQUENCE', 'SYNONYM', 'PROCEDURE', 'FUNCTION', 'PACKAGE', 'TYPE')"
+
+// dbLinks lists every database link in the database, public ones included.
+func dbLinks(ctx context.Context, db *sql.DB) (map[dbLink]bool, error) {
+	rows, err := db.QueryContext(ctx, "SELECT owner, db_link FROM dba_db_links")
+	if err != nil {
+		return nil, fmt.Errorf("SELECT owner, db_link FROM dba_db_links: %w", err)
+	}
+	defer rows.Close()
+	out := map[dbLink]bool{}
+	for rows.Next() {
+		var l dbLink
+		if err := rows.Scan(&l.owner, &l.name); err != nil {
+			return nil, err
+		}
+		out[l] = true
+	}
+	return out, rows.Err()
+}
 
 func names(ctx context.Context, db *sql.DB, query string) (map[string]bool, error) {
 	rows, err := db.QueryContext(ctx, query)
@@ -222,7 +251,7 @@ func names(ctx context.Context, db *sql.DB, query string) (map[string]bool, erro
 }
 
 // empty drops what tests made since the server started: users with all
-// they own, public synonyms, and SYSTEM's own objects.
+// they own, public synonyms, SYSTEM's own objects, and database links.
 func empty(ctx context.Context) error {
 	db := sql.OpenDB(connector("system", Password))
 	defer db.Close()
@@ -260,6 +289,23 @@ func empty(ctx context.Context) error {
 			stmts = append(stmts, stmt)
 		}
 	}
+	links, err := dbLinks(ctx, db)
+	if err != nil {
+		return err
+	}
+	for _, l := range sortedLinks(links) {
+		if server.image.links[l] {
+			continue
+		}
+		// A private link of a user a test made goes with that user's DROP
+		// USER CASCADE above; only its owner can drop it.
+		switch l.owner {
+		case "PUBLIC":
+			stmts = append(stmts, `DROP PUBLIC DATABASE LINK "`+l.name+`"`)
+		case "SYSTEM":
+			stmts = append(stmts, `DROP DATABASE LINK "`+l.name+`"`)
+		}
+	}
 	for _, stmt := range stmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {
 			return fmt.Errorf("%s: %w", stmt, err)
@@ -274,6 +320,20 @@ func sorted(m map[string]bool) []string {
 		out = append(out, k)
 	}
 	sort.Strings(out)
+	return out
+}
+
+func sortedLinks(m map[dbLink]bool) []dbLink {
+	out := make([]dbLink, 0, len(m))
+	for l := range m {
+		out = append(out, l)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].owner != out[j].owner {
+			return out[i].owner < out[j].owner
+		}
+		return out[i].name < out[j].name
+	})
 	return out
 }
 
