@@ -11,6 +11,8 @@ import (
 	"testing"
 
 	"github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/oceanbase/ast"
+	obparser "github.com/bytebase/omni/oceanbase/parser"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"gopkg.in/yaml.v3"
@@ -1083,5 +1085,42 @@ func TestLoadMetadataKeepsTableWhosePartitioningIsRefused(t *testing.T) {
 	requireIncomplete(t, report, []string{"table:sales"})
 	if tbl := requireTable(t, c, "sales"); tbl.Partitioning != nil || len(tbl.Indexes) != 1 {
 		t.Errorf("sales = partitioning %+v, %d indexes; want no partitioning and the index", tbl.Partitioning, len(tbl.Indexes))
+	}
+}
+
+// TestLoadMetadataMaterializedView pins that a snapshot's materialized view reaches the
+// catalog: the catalog models none, so it installs the view the query is, and a view that
+// reads the materialized view resolves its columns. The container table holds the rows, and
+// the sync no longer lists it as a table of the database.
+func TestLoadMetadataMaterializedView(t *testing.T) {
+	c, report := loadMySQLSnapshot(t, snapshot(&metadata.SchemaMetadata{
+		Tables: []*metadata.TableMetadata{{
+			Name:    "t",
+			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "int"}},
+		}},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{{
+			Name:       "mv",
+			Definition: "select `testdb`.`t`.`id` AS `id` from `testdb`.`t`",
+		}},
+		Views: []*metadata.ViewMetadata{{
+			Name:       "v_over_mv",
+			Definition: "select `testdb`.`mv`.`id` AS `id` from `testdb`.`mv`",
+		}},
+	}))
+	requireReport(t, report, nil, nil)
+
+	if mv := c.installedView("mv"); mv == nil {
+		t.Fatal("the materialized view is not installed")
+	}
+	sel, err := obparser.Parse("select id from v_over_mv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stmt, ok := sel.Items[0].(*nodes.SelectStmt)
+	if !ok {
+		t.Fatalf("not a select: %T", sel.Items[0])
+	}
+	if _, err := c.AnalyzeSelectStmt(stmt); err != nil {
+		t.Fatalf("a view reading the materialized view does not analyze: %v", err)
 	}
 }
