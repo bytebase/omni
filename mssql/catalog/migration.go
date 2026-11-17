@@ -396,6 +396,14 @@ func GenerateMigration(from, to *Catalog, diff *SchemaDiff) *MigrationPlan {
 					if colDiff.NewColumn != nil {
 						newComment = colDiff.NewColumn.Comment
 					}
+					if columnRequiresRebuild(colDiff) {
+						if newComment != "" {
+							buf.WriteString(generateColumnCommentSQL("ADD", tableDiff.SchemaName, tableDiff.TableName, colDiff.NewColumn.Name, newComment))
+							buf.WriteString(";\n")
+							hasCommentChanges = true
+						}
+						continue
+					}
 					if oldComment == newComment {
 						continue
 					}
@@ -918,8 +926,14 @@ func generateAlterTable(tableDiff *TableDiffEntry, droppedDefaults map[string]bo
 
 func blockingFunctionCheck(from, to *Catalog, diff *SchemaDiff) string {
 	replaced := make(map[string]bool)
+	created := make(map[string]bool)
 	for _, funcDiff := range diff.Functions {
-		if funcDiff.Action == DiffDrop || funcDiff.Action == DiffAlter {
+		if funcDiff.Action == DiffCreate {
+			created[strings.ToLower(funcDiff.FunctionName)] = true
+		}
+	}
+	for _, funcDiff := range diff.Functions {
+		if funcDiff.Action == DiffDrop && created[strings.ToLower(funcDiff.FunctionName)] {
 			replaced[strings.ToLower(funcDiff.FunctionName)] = true
 		}
 	}
@@ -938,6 +952,16 @@ func blockingFunctionCheck(from, to *Catalog, diff *SchemaDiff) string {
 				for name := range replaced {
 					if strings.Contains(strings.ToLower(function.Definition), name) {
 						return quote(schema.Name) + "." + quote(function.Name)
+					}
+				}
+			}
+			for _, view := range schema.Views {
+				if !strings.Contains(strings.ToUpper(view.Definition), "SCHEMABINDING") {
+					continue
+				}
+				for name := range replaced {
+					if strings.Contains(strings.ToLower(view.Definition), name) {
+						return quote(schema.Name) + "." + quote(view.Name)
 					}
 				}
 			}
@@ -1151,7 +1175,7 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 					continue
 				}
 				for name := range droppedFunctions {
-					if strings.Contains(strings.ToLower(column.Default), name) {
+					if defaultReferencesFunction(column.Default, name) {
 						fmt.Fprintf(buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schema.Name), quote(table.Name), quote(column.DefaultConstraintName))
 						removed[schema.Name+"."+column.DefaultConstraintName] = true
 						restore = append(restore, functionDefaultRef{
@@ -1167,6 +1191,90 @@ func dropFunctionDefaults(from *Catalog, diff *SchemaDiff, buf *strings.Builder)
 	}
 	return removed, restore
 }
+
+func defaultReferencesFunction(expression, functionName string) bool {
+	code := stripLiteralsAndComments(expression)
+	matches := functionCall.FindAllStringSubmatch(code, -1)
+	for _, match := range matches {
+		parts := strings.Split(match[1], ".")
+		for i := range parts {
+			parts[i] = strings.Trim(parts[i], "[]")
+		}
+		if len(parts) > 0 && strings.EqualFold(parts[len(parts)-1], functionName) {
+			return true
+		}
+	}
+	return false
+}
+
+func stripLiteralsAndComments(expression string) string {
+	var out strings.Builder
+	inSingle, inDouble, inBracket, inLine, inBlock := false, false, false, false, false
+	for i := 0; i < len(expression); i++ {
+		ch := expression[i]
+		switch {
+		case inLine:
+			if ch == '\n' {
+				inLine = false
+				out.WriteByte(' ')
+			}
+		case inBlock:
+			if ch == '*' && i+1 < len(expression) && expression[i+1] == '/' {
+				inBlock = false
+				i++
+				out.WriteByte(' ')
+			}
+		case inSingle:
+			if ch == '\'' {
+				if i+1 < len(expression) && expression[i+1] == '\'' {
+					i++
+					continue
+				}
+				inSingle = false
+				out.WriteByte(' ')
+			}
+		case inDouble:
+			if ch == '"' {
+				if i+1 < len(expression) && expression[i+1] == '"' {
+					i++
+					continue
+				}
+				inDouble = false
+				out.WriteByte(' ')
+			}
+		case inBracket:
+			out.WriteByte(ch)
+			if ch == ']' {
+				if i+1 < len(expression) && expression[i+1] == ']' {
+					i++
+					continue
+				}
+				inBracket = false
+			}
+		default:
+			switch {
+			case ch == '-' && i+1 < len(expression) && expression[i+1] == '-':
+				inLine = true
+				i++
+			case ch == '/' && i+1 < len(expression) && expression[i+1] == '*':
+				inBlock = true
+				i++
+			case ch == '\'':
+				inSingle = true
+			case ch == '"':
+				inDouble = true
+			case ch == '[':
+				inBracket = true
+				out.WriteByte(ch)
+			default:
+				out.WriteByte(ch)
+			}
+		}
+	}
+	return out.String()
+}
+
+var functionCall = regexp.MustCompile(`(?i)((?:\[[^\]]+\]|[A-Za-z0-9_]+)(?:\.(?:\[[^\]]+\]|[A-Za-z0-9_]+))*)\s*\(`)
 
 func defaultReferencesSequence(expression, schemaName, sequenceName string) bool {
 	matches := sequenceReference.FindAllStringSubmatch(expression, -1)

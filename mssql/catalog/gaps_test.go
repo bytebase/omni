@@ -124,8 +124,8 @@ CREATE TABLE [dbo].[t] ([v] int NOT NULL CONSTRAINT [CK_t_v] CHECK ([dbo].[f]() 
 	})
 
 	t.Run("function name inside a default literal", func(t *testing.T) {
-		// The cleanup matches the function name as a substring of the default,
-		// so a literal that spells the name also loses its constraint.
+		// The cleanup matches function calls outside literals, so a literal that
+		// spells the name keeps its constraint.
 		from, err := LoadSQL(`
 CREATE FUNCTION [dbo].[f]() RETURNS int AS BEGIN RETURN 1 END;
 GO
@@ -135,7 +135,7 @@ CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [
 		to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [DF_v] DEFAULT ('foo'), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
 		require.NoError(t, err)
 		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
-		require.Contains(t, sql, "DROP CONSTRAINT [DF_v]", "gap closed: match function references outside literals")
+		require.NotContains(t, sql, "DROP CONSTRAINT [DF_v]")
 	})
 
 	t.Run("computed column comment after its rebuild", func(t *testing.T) {
@@ -148,7 +148,7 @@ CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] varchar(20) NOT NULL CONSTRAINT [
 		require.NoError(t, to.LoadMetadata(context.Background(), commentRebuildMetadata("AS ([a] + 2) PERSISTED")))
 		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
 		require.Contains(t, sql, "DROP COLUMN [c]")
-		require.NotContains(t, sql, "sp_addextendedproperty", "gap closed: restore a rebuilt column's comment")
+		require.Contains(t, sql, "sp_addextendedproperty")
 	})
 
 	t.Run("schema-bound view calling a replaced function", func(t *testing.T) {
@@ -167,8 +167,8 @@ CREATE VIEW [dbo].[v] WITH SCHEMABINDING AS SELECT [dbo].[f]() AS n;
 `)
 		require.NoError(t, err)
 		sql := GenerateMigration(from, to, Diff(from, to)).SQL()
-		require.Contains(t, sql, "DROP FUNCTION [dbo].[f]")
-		require.NotContains(t, sql, "DROP VIEW [dbo].[v]", "gap closed: rebuild or refuse on a dependent schema-bound view")
+		require.Contains(t, sql, "UNSUPPORTED")
+		require.NotContains(t, sql, "DROP FUNCTION [dbo].[f]")
 	})
 }
 
