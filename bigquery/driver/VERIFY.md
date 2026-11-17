@@ -11,8 +11,9 @@ emulator that answers its API — there is no local BigQuery — so every live t
 skips with `BIGQUERY_CREDENTIALS`' name, and no tape, golden, `testdata` fixture or
 pin row exists beside this package. Unlike `redshift/driver`, the obstacle is not
 proprietary catalog views but the service itself: a recording needs a Google Cloud
-project, a service account and a dataset, which the machine that prepares this
-package does not have.
+project, a service account and a dataset. One run on 2026-11-17 had the first two
+and not the third; what it answered, and what it left blocked, is in [the project
+this run used](#the-project-this-run-used-on-2026-11-17) below.
 
 ## What is here, and what is missing
 
@@ -28,7 +29,7 @@ package does not have.
 | tapes (`testdata/tapes`) | **none**: nothing has been recorded |
 | sync goldens (`testdata/sync`) | **none**: same reason |
 | `driver` row in `bigquery/testdata/pins.tsv` | **none**: no project to pin yet |
-| live tests (`live_test.go`) | written, never run; skip without `BIGQUERY_CREDENTIALS` |
+| live tests (`live_test.go`) | run against `bytebase-dev` on 2026-11-17: the instance listing, the reads, the dry run, the result cap, the plans and the not-found mapping ask a real project and agree with the port apart from the three defects that run found and fixed. The dataset sync and the writes stay blocked on a dataset grant |
 
 The unit tests that do run cover the client configuration and the four credential
 document types, statement classification, the result-limit wrap, the cell
@@ -68,6 +69,167 @@ read. The credential reaches the driver as `driver.Config.Password` (the JSON
 document) and the project as `Config.Params["project"]`, which is the shape
 `spanner/driver` takes the same credential in: credential material crosses as a
 value, and the driver hands it to the client library.
+
+A machine whose credential is the Google authentication library's own default
+chain — an attached service account read from the metadata server, a
+`GOOGLE_APPLICATION_CREDENTIALS` file, the well-known file — has no key to name and
+no key file to point at. There the value is `default`, the one value reserved for
+it: it carries no document, so `Config.Password` stays empty and the driver leaves
+the chain to the library, and it names no project, so `BIGQUERY_PROJECT` has to:
+
+```bash
+export BIGQUERY_CREDENTIALS=default
+export BIGQUERY_PROJECT=bytebase-dev
+export BIGQUERY_DATASET=omni_record
+```
+
+A key file cannot be called `default`. An unset variable still skips; `default` is
+a credential of some kind, so a machine that named it and has none fails the test
+that asked (`Ping`, the first call an open driver makes) rather than skipping it.
+
+## The project this run used, on 2026-11-17
+
+`bytebase-dev` is a Google Cloud project with a service account attached to the
+machine that ran this, `devbox@bytebase-dev.iam.gserviceaccount.com`. It has no
+dataset, so the run could not record anything; it asked everything that needs no
+dataset, and its answers are below.
+
+What the account holds, measured with `projects.testIamPermissions`:
+
+- `bigquery.jobs.create` on the project. Every statement is a job, so every
+  statement runs, and `bigquery-public-data` — which grants reads to all
+  authenticated users — is readable through it.
+- Nothing else: no `bigquery.datasets.create`, no `bigquery.tables.getData`, no
+  `bigquery.tables.create`, no `bigquery.datasets.get`. `datasets.list` answers 200
+  with no datasets, `datasets.get` answers 404 for every name in the project, and
+  `bq mk --dataset` is refused.
+
+The grant that unblocks the rest, on a dataset named `omni_record` in `US`:
+
+- `roles/bigquery.dataEditor` on the dataset. It carries the
+  `bigquery.tables.getData` the corpus's reads and `INFORMATION_SCHEMA` need and
+  the `bigquery.tables.create`, `bigquery.tables.updateData` and
+  `bigquery.tables.delete` the probe tables, the corpus and `Execute`'s writes
+  need, so it is the one role to grant. `roles/bigquery.dataViewer` beside it is
+  the read half alone, for a grantor who prefers the two apart.
+- `roles/bigquery.dataOwner` on the project instead, if the recording is to create
+  and drop `omni_record` itself: `bigquery.datasets.create` alone creates the
+  dataset without granting anything inside it, and leaves it behind, which this
+  plan forbids.
+
+`roles/bigquery.jobUser` is already held and needs no change.
+
+### What ran, and what it answered
+
+| test | result |
+| --- | --- |
+| `TestLiveSyncInstance` | **ran**: the project lists zero datasets. The same call lists 382 from `bigquery-public-data`, in name order, and returns the service's `404 notFound` for a project that does not exist, so the empty answer is the service's and not a swallowed error. The test still fails, because it requires the project to hold the dataset the driver is open on |
+| `TestLiveQuery` | **ran to its first write**: `SELECT 1`, a pipe query's rows, a pipe query under `Limit`, the CTE wrap of two statements, `MaxResultBytes` truncation, a query that returns no rows and the dry run all pass. It fails at `CREATE TABLE omni_query_probe`, which needs a dataset, and the dry run after it fails with it |
+| `TestLiveSyncDatabaseMissing` | **ran**: a dataset the project does not have is `driver.ErrNotFound`. It failed before `fix(bigquery): report a missing dataset as not found` (see below) |
+| `TestLiveSyncDatabase` | **blocked**: `omni_record` does not exist, which the sync now reports as `404 notFound` wrapped in `driver.ErrNotFound` |
+| `TestLiveExecute` | **blocked**: `CREATE TABLE omni_execute_probe` needs a dataset |
+
+Nothing was recorded: no tape, no sync golden, no pin row. Step 4's seam and
+`bigquery/internal/testcontainer` do not exist yet, and a tape needs a dataset to
+record.
+
+### What the service answers, kept here until a tape holds it
+
+A query's job statistics state **no result schema**; only a script's last result
+leaves one there. `getQueryResults` has the schema either way, and the job's
+`statementType` is `SELECT` for a plain query and `SCRIPT` for a script — which is
+what `jobReturnsRows` reads.
+
+A query that returns no rows reports its columns and no rows (recorded with
+``SELECT name FROM `bigquery-public-data.usa_names.usa_1910_2013` WHERE 1 = 0``),
+and a read that passes `MaxResultBytes` sets `Truncated` and keeps the row that
+went over.
+
+A job the service refuses arrives as `*googleapi.Error` on the result's `Err`, with
+the call's own error nil, and never as `driver.ErrNotFound`:
+
+| statement | answer |
+| --- | --- |
+| ``SELECT * FROM `bigquery-public-data.usa_names.no_such_table` `` | `404 Not found: Table bigquery-public-data:usa_names.no_such_table was not found in location US, notFound` |
+| ``SELECT x FROM `bigquery-public-data.usa_names.usa_1910_2013` `` | `400 Unrecognized name: x at [1:8], invalidQuery` |
+| `SELEKT 1` | `400 Syntax error: Unexpected identifier "SELEKT" at [1:1], invalidQuery` |
+| `CREATE TABLE omni_query_probe (a INT64)` with no default dataset | `400 Table "omni_query_probe" must be qualified with a dataset (e.g. dataset.table)., invalid` |
+| `INSERT INTO bytebase-dev.omni_record.customers (id) VALUES (1)` | `404 Not found: Dataset bytebase-dev:omni_record was not found in location US, notFound` |
+
+The same answers come back from a dry run of a statement the service refuses,
+which then ends the dry run's script.
+
+A dataset that is not there answers two different things: `datasets.get` states
+`404 Not found: Dataset <project>:<dataset>, notFound`, and a read of its
+`INFORMATION_SCHEMA` states `403 Access Denied: Table
+<project>:<dataset>.INFORMATION_SCHEMA.COLUMNS: User does not have permission to
+query table ..., or perhaps it does not exist., accessDenied`. The sync therefore
+asks `datasets.get` first.
+
+A whole script is one job: `statementType` is `SCRIPT` and `numDmlAffectedRows` is
+zero even when its statements inserted rows, and a script whose second statement
+fails fails the job with `400 Query error: ... , invalidQuery`.
+
+A cell of each type, from `SELECT NUMERIC '12.50' AS num, BIGNUMERIC '-7.25' AS bn,
+NUMERIC '3' AS whole, DATE '2026-01-02' AS d, DATETIME '2026-01-02 03:04:05.123' AS
+dt, TIME '03:04:05' AS t, TIMESTAMP '2026-01-02 03:04:05.120000 UTC' AS ts, JSON
+'{"a":1}' AS j, [1,2] AS arr, STRUCT(1 AS a, 'x' AS b) AS st, ST_GEOGPOINT(1,2) AS
+g, INTERVAL 1 DAY AS iv, RANGE<DATE> '[2026-01-01, 2026-02-01)' AS r`: the client
+hands over a `*big.Rat`, a `civil.Date`, a `civil.DateTime`, a `civil.Time`, a
+`time.Time`, a `string` for JSON and GEOGRAPHY, `[]bigquery.Value` for an ARRAY and
+a RECORD, `*bigquery.IntervalValue` and `*bigquery.RangeValue`. The cells the driver
+maps:
+
+| column | kind | value |
+| --- | --- | --- |
+| `num`, `bn`, `whole` | `STRING` | `12.5`, `-7.25`, `3` |
+| `dt` | `TIMESTAMP` | `2026-01-02 03:04:05.123 UTC`, precision 6 |
+| `ts` | `TIMESTAMP_TZ` | `2026-01-02 03:04:05.120 UTC`, precision 6 |
+| `d`, `t` | `STRING` | `2026-01-02`, `03:04:05` — the literals |
+| `j`, `g` | `STRING` | `{"a":1}`, `POINT(1 2)` |
+| `arr`, `st` | `STRING` | `[1 2]`, `[1 x]` — Go's rendering |
+| `iv`, `r` | `STRING` | `0-0 1 0:0:0`, `&{2026-01-01 2026-02-01}` — Go's rendering |
+
+A plan arrives only for a query that ran as more than a constant: `SELECT 1`
+states none at all, and every query here stated one stage, so a plan's
+`inputStages` is still unexercised against the service.
+
+### The defects that run found
+
+Each is fixed, tested and committed on the branch that recorded this.
+
+1. **A statement the analysis could not classify lost its rows.** `command` read a
+   job's rows only when its statistics carried a result schema, which a plain query
+   never does, so a pipe query answered zero rows with an affected count of zero.
+   `SELECT 1 AS n |> WHERE n = 1` returned `n = 1` through the service and nothing
+   through the driver. Fixed in `fix(bigquery): keep the rows of a statement the
+   analysis cannot classify`.
+2. **A NUMERIC read as a ratio.** `NUMERIC '12.50'` is a `*big.Rat` whose own
+   rendering is `25/2`; a NUMERIC and a BIGNUMERIC are now the exact decimal text
+   the literal states. A TIMESTAMP and a DATETIME were Go's text as well, and are
+   now the contract's `TimestampTZ` and `Timestamp`. Fixed in `fix(bigquery): read a
+   numeric and a timestamp as their kinds`.
+3. **A missing dataset was not not-found.** The sync mapped a not-found answer from
+   the columns query, but the service answers that query with `403 accessDenied` for
+   a dataset that is not there. Fixed in `fix(bigquery): report a missing dataset as
+   not found`.
+
+A fourth commit, `test(bigquery): let the live gate name the default credential
+chain`, is what lets a machine with no key run any of this: `BIGQUERY_CREDENTIALS`
+now accepts `default`.
+
+### What is still unverified
+
+- `SyncDatabase`'s column mapping, its table metadata read and the sync golden: a
+  dataset is needed.
+- `Execute`'s `numDmlAffectedRows`, the write half of the corpus, and a script
+  whose earlier statements stay committed: a dataset is needed.
+- A dataset that exists and cannot be read: the sync should report the service's
+  `403`, not `driver.ErrNotFound`. Unverified, because no dataset exists to try it
+  on.
+- A plan with more than one stage, so an `inputStages` list and the ratio fields
+  the port leaves out: unverified.
+- `Dump`, which writes nothing: unit-tested, and nothing about it needs a project.
 
 ## Step 2 — the corpus
 
@@ -138,8 +300,9 @@ service:
 | --- | --- |
 | `Ping` | the `SELECT 1` job's rows |
 | `ListDatasets` | dataset ids, in name order |
+| `DatasetMetadata(dataset)` | the dataset's own identity: what tells a missing dataset from an empty one, because the columns query answers `403` for both |
 | `Read(statement)` | a job's columns and rows, every cell with the schema field type beside it, and the job's identity |
-| `Run(statement)` / `DryRun(statement)` | a job, its finished status, and the `QueryStatistics` block (DML row count, bytes processed, query plan) |
+| `Run(statement)` / `DryRun(statement)` | a job, its finished status, and the `QueryStatistics` block (`statementType`, DML row count, result schema, bytes processed, query plan) |
 | `TableMetadata(table)` | the table's description, row count and size |
 | `Status(job)` | the plan of the job that returned the rows |
 
@@ -155,7 +318,7 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 
 | order | test | what it records |
 | --- | --- | --- |
-| 1 | `TestSyncDatabase` | the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the dataset's table listing, each table's metadata read, and the metadata it builds |
+| 1 | `TestSyncDatabase` | the dataset's own metadata read, the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the dataset's table listing, each table's metadata read, and the metadata it builds |
 | 2 | `TestSyncInstance` | `datasets.list` and the order the sync reports |
 | 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows and its own `Limit` cap, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
 | 4 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
@@ -308,15 +471,17 @@ test), and require a failure; then `git checkout -- bigquery/`:
   softened, in the PR that records.
 - `AGENTS.md`'s list of engines whose tests replay a tape gains `bigquery`, and the
   sentence naming `tape.OpenRaw`'s engines gains `bigquery/driver`.
-- The conversion gap (TIMESTAMP, DATE, TIME, NUMERIC, BIGNUMERIC, GEOGRAPHY,
-  INTERVAL, JSON, RANGE, RECORD, ARRAY all fall back to Go's rendering) is either
-  fixed against the recorded values or pinned as a known gap with the statement
-  that shows it.
+- The conversion gap that is left is pinned against the statements in [what the
+  service answers](#what-the-service-answers-kept-here-until-a-tape-holds-it): a
+  DATE, TIME, JSON, GEOGRAPHY, INTERVAL, RANGE, RECORD and ARRAY are still Go's
+  rendering of the client's value, and a RANGE reads as `&{2026-01-01 2026-02-01}`
+  today. TIMESTAMP, DATETIME, NUMERIC and BIGNUMERIC no longer do.
 
 ## Differences from Bytebase's driver, each to confirm on a project
 
-The port is close to `backend/plugin/db/bigquery` and diverges in twelve places.
-Every one is a decision the recording settles.
+The port is close to `backend/plugin/db/bigquery` and diverges in fifteen places.
+Every one is a decision the recording settles; the three marked *(recorded)* were
+settled by the run on 2026-11-17.
 
 | difference | why |
 | --- | --- |
@@ -331,14 +496,17 @@ Every one is a decision the recording settles.
 | `Config.TLS` and `Config.Dial` do nothing | the client library owns its transport and holds no dialer; a caller that must tunnel forwards a local port and passes it as `Config.Host`/`Config.Port`, as hive's driver asks |
 | a synced column with no ordinal position is left out | an ingestion-time partitioned table's `_PARTITIONTIME` and `_PARTITIONDATE` are pseudo-columns the view states without a position, and the client cannot decode that NULL into a position |
 | the dataset the sync reads is quoted as a path, and the metadata reads are sorted | a dataset may be named a reserved keyword, which a path has to quote; the service's order is not part of an answer |
-| a statement `googlesql/analysis` cannot read keeps the rows the service answered | omni's parser does not read a pipe query yet, and Bytebase's classification of the same statement by its first word is not available here; the job's result schema is what says whether the service returned rows |
+| a statement `googlesql/analysis` cannot read keeps the rows the service answered *(recorded)* | omni's parser does not read a pipe query yet, and Bytebase's classification of the same statement by its first word is not available here. A plain query's job statistics state no result schema at all — only a script's last result does — so the job's `statementType` is what says whether the service returned rows |
+| a missing dataset is `driver.ErrNotFound`, from a `datasets.get` the sync asks for first *(recorded)* | the service answers a read of a missing dataset's `INFORMATION_SCHEMA` with `403 accessDenied`, so the mapping could never fire from the columns query alone; a caller that drops a database on `ErrNotFound` never dropped one |
+| a NUMERIC and a BIGNUMERIC cell is its exact decimal text, and a TIMESTAMP and a DATETIME are the contract's `TimestampTZ` and `Timestamp` *(recorded)* | the client renders a `*big.Rat` as a ratio (`25/2` for `NUMERIC '12.50'`) and a timestamp as Go's text (`2026-01-02 03:04:05 +0000 UTC`), which a viewer cannot read as either |
 
 ## What would unblock it
 
-A project: one Google Cloud project, one service account with the three roles
-above, one scratch dataset, and `BIGQUERY_CREDENTIALS` pointing at the key. The
-four recordings and the harness above take about a day; everything else in this
-package is written and gated. If no project is going to exist, the alternative is
-to drop BigQuery from the first wave and leave `backend/plugin/db/bigquery` where
-it is — it has run against real projects, which is more than this package can
-claim.
+A dataset: `omni_record` in `bytebase-dev`, `US`, with `roles/bigquery.dataEditor`
+for `devbox@bytebase-dev.iam.gserviceaccount.com` — the exact permissions and the
+role that would do it instead are in [the project this run
+used](#the-project-this-run-used-on-2026-11-17). The four recordings and the
+harness above take about a day; everything else in this package is written and
+gated. Without it the alternative is to drop BigQuery from the first wave and
+leave `backend/plugin/db/bigquery` where it is — it has run against real
+projects, which is more than this package can claim for its sync and its writes.

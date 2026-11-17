@@ -4,26 +4,34 @@
 // dataset's schema into omni/metadata, and runs interactive queries and change
 // scripts.
 //
-// # Unverified against a project
+// # What a project has confirmed, and what it has not
 //
-// No test in this package has ever asked BigQuery. The package is a port of
-// Bytebase's backend/plugin/db/bigquery, whose tests reached one pure helper and
-// no service, and BigQuery has no image omni can start in a container and no
-// emulator that answers its REST API: every answer the sync, query and execute
-// paths expect here was written from that driver and from BigQuery's
-// documentation, and none was recorded. There are no tapes, no sync goldens, no
-// dump fixtures and no pin row, because nothing here can produce one. VERIFY.md
-// holds the recording plan: the project and account to pin, the corpus, the
-// tests to record in what order, and the parity harness that holds this package
-// to the driver it replaces. Treat a behavior this package states as unconfirmed
-// until that recording lands.
+// The package is a port of Bytebase's backend/plugin/db/bigquery, whose tests
+// reached one pure helper and no service, and BigQuery has no image omni can start
+// in a container and no emulator that answers its REST API. One run against the
+// Google Cloud project bytebase-dev, on 2026-11-17, asked everything that needs no
+// dataset, and VERIFY.md holds what it answered: the instance listing, which
+// reports the project's empty set of datasets, the reads — a query's rows, a pipe
+// query's rows, the result limit, MaxResultBytes, a query that returns no rows, a
+// dry run, a refused statement's error and the plan of a finished read — and the
+// not-found mapping, which that run corrected along with two other defects.
 //
-// Its tests therefore cover only what needs no project: the client
-// configuration and the credential types it accepts, statement classification,
-// the result-limit rewrite, the value conversions, the query-plan rendering, the
-// column mapping and the not-found mapping. Everything that reaches the service
-// is behind one environment gate: BIGQUERY_CREDENTIALS names the
-// service-account key a live test uses, with BIGQUERY_PROJECT and
+// The rest is unconfirmed. SyncDatabase has never read a dataset, so its column
+// and table mapping is the port's own reading of INFORMATION_SCHEMA; Execute has
+// never written a table; and no sync, execute or dump golden exists. There is no
+// tape and no pin row either, so CI runs none of this: a live test skips while
+// BIGQUERY_CREDENTIALS is unset, and nothing here records an answer to replay.
+// VERIFY.md holds the recording plan — the dataset and the grant that would open
+// it, the corpus, the tests to record in what order, and the parity harness that
+// holds this package to the driver it replaces.
+//
+// Its tests cover everything that needs no project: the client configuration and
+// the credential types it accepts, the live gate itself, statement
+// classification, the result-limit rewrite, the value conversions, the query-plan
+// rendering, the column mapping and the not-found mapping. Everything that reaches
+// the service is behind one environment gate: BIGQUERY_CREDENTIALS names the
+// credential a live test uses — a key file's path, the key's JSON, or "default"
+// for the Google authentication library's own chain — with BIGQUERY_PROJECT and
 // BIGQUERY_DATASET beside it. Unset, a live test skips naming the gate; set and
 // incomplete, it fails, so a recording cannot read as a pass.
 //
@@ -109,11 +117,14 @@
 // over, as omni's other drivers do.
 //
 // A row's cells are the types BigQuery's schema states: a STRING, BYTES, INTEGER,
-// FLOAT and BOOLEAN cell arrives as that kind. Every other type — TIMESTAMP,
-// DATE, TIME, DATETIME, NUMERIC, BIGNUMERIC, GEOGRAPHY, INTERVAL, JSON, RANGE, a
-// RECORD and an ARRAY — falls back to Go's own rendering of the value, which is
-// what Bytebase's driver returned and not BigQuery's literal; VERIFY.md records
-// that gap for the recording to settle.
+// FLOAT and BOOLEAN cell arrives as that kind. A NUMERIC and a BIGNUMERIC arrive as
+// the exact decimal text BigQuery's literal states, because the client's own value
+// is a ratio. A TIMESTAMP is an instant and arrives as TimestampTZ; a DATETIME is a
+// wall clock and arrives as Timestamp; both hold microseconds. Every other type —
+// DATE, TIME, JSON, GEOGRAPHY, INTERVAL, RANGE, a RECORD and an ARRAY — falls back
+// to Go's own rendering of the value, which is what Bytebase's driver returned and
+// not BigQuery's literal; VERIFY.md records those with the statements that show
+// them.
 //
 // A result that came from a job carries the plan of the run that returned its
 // rows in Result.Plan, as JSON, with Executed true: BigQuery reports the stages
