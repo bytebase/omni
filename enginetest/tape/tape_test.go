@@ -15,6 +15,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/golang-sql/sqlexp"
+
 	"github.com/bytebase/omni/enginetest"
 )
 
@@ -987,6 +989,108 @@ func TestColumnPrecisionReplays(t *testing.T) {
 	}
 }
 
+// A query that takes a message stream records the messages in order, with the
+// answer each NextResultSet got, and replays them into the test's stream.
+func TestMessageStreamRecordsAndReplays(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		db := Open(t, srv, "default")
+		msg := &sqlexp.ReturnMessage{}
+		rows, err := db.Query("SELECT messages", msg)
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		var log []string
+		for active := true; active; {
+			switch m := msg.Message(context.Background()).(type) {
+			case sqlexp.MsgRowsAffected:
+				log = append(log, fmt.Sprintf("affected %d", m.Count))
+			case sqlexp.MsgNext:
+				cols, _ := rows.Columns()
+				var values []string
+				for rows.Next() {
+					var v int64
+					if err := rows.Scan(&v); err != nil {
+						return append(log, "scan: "+err.Error())
+					}
+					values = append(values, fmt.Sprint(v))
+				}
+				log = append(log, "set "+strings.Join(cols, ",")+" "+strings.Join(values, ","))
+			case sqlexp.MsgNextResultSet:
+				active = rows.NextResultSet()
+				log = append(log, fmt.Sprintf("next %v", active))
+			case sqlexp.MsgError:
+				log = append(log, "error "+m.Error.Error())
+			case sqlexp.MsgNotice:
+				log = append(log, "notice "+m.Message.String())
+			}
+		}
+		return log
+	}
+	want := []string{"affected 3", "next true", "next true", "set a 1", "affected 7", "error Error 50000: boom", "notice the statement ended", "next false"}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(recorded, want) {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{
+		": message\n< stream\n",
+		"< message rowsaffected 3\n",
+		"< message nextresultset more\n",
+		"< message next\n",
+		"< message error\n| 50000 boom\n",
+		"< message notice\n| the statement ended\n",
+		"< message nextresultset end\n",
+		"< result\n< column \"a\" \"INT\"\n< row\n: int64 1\n",
+	} {
+		if !strings.Contains(string(b), line) {
+			t.Errorf("the tape lacks %q:\n%s", line, b)
+		}
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || !reflect.DeepEqual(replayed, want) {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
+// A tape without the message argument and a stream answer keeps the old
+// behavior: its query reads result sets and no messages.
+func TestATapeWithoutAMessageStreamReplays(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT rows")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		var log []string
+		for {
+			cols, _ := rows.Columns()
+			log = append(log, strings.Join(cols, ","))
+			if !rows.NextResultSet() {
+				break
+			}
+		}
+		return log
+	}
+	record(t)
+	if _, errs := run(t, "TestFake", read); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	if got, errs := run(t, "TestFake", read); len(errs) > 0 || got[0] != "a,b" || got[1] != "c" {
+		t.Errorf("a tape without a message stream: %q %q", got, errs)
+	}
+}
+
 // untypedRows answers one column whose scan type the client cannot name, as
 // go-ora cannot for the LONG that oracle/driver reads DATA_DEFAULT as.
 type untypedRows struct{ sent bool }
@@ -1060,6 +1164,10 @@ func TestParseRejects(t *testing.T) {
 		{"a ditto of another kind", "== s\n> query\n| x\n< badconn\n> exec ^\n< ok 0 0\n", "no exec before it"},
 		{"a ditto after connect", "== s\n> connect ^\n< error\n| 4060 x\n", "^ after connect, which has no text"},
 		{"a digest in an answer", "== s\n> query\n| x\n< result\n< column \"a\" \"TEXT\"\n< row\n: bytes\n|# sha256:ab 70000\n", "answers are kept whole"},
+		{"an unknown message", "== s\n> query\n| x\n: message\n< stream\n< message print\n", "unknown message"},
+		{"a nextresultset with no field", "== s\n> query\n| x\n: message\n< stream\n< message nextresultset\n", "says more or end"},
+		{"a rowsaffected with no count", "== s\n> query\n| x\n: message\n< stream\n< message rowsaffected x\n", "rowsaffected message's count"},
+		{"a message value with text", "== s\n> query\n| x\n: message hi\n< stream\n", "takes no text"},
 	} {
 		if _, err := parse("x.tape", c.tape); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: got %v, want %q", c.name, err, c.want)
@@ -1077,6 +1185,14 @@ func TestFormatRoundTrips(t *testing.T) {
 			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
 			{request{kind: "connect"}, answer{kind: "error", err: "4060 Cannot open database\n911 in a second line"}},
+			{request{kind: "query", text: "BATCH", args: []value{{kind: "message"}}}, answer{kind: "stream", messages: []message{
+				{kind: "rowsaffected", count: 3},
+				{kind: "nextresultset", more: true},
+				{kind: "next"},
+				{kind: "error", text: "50000 boom"},
+				{kind: "notice", text: "the statement ended"},
+				{kind: "nextresultset", more: false},
+			}, sets: []resultSet{{cols: []column{{name: "a", typ: "INT"}}, rows: [][]value{{{kind: "int64", text: "1"}}}}}}},
 		},
 	}}}
 	text := f.encode()
@@ -1105,15 +1221,29 @@ func (c fakeConnector) Connect(context.Context) (driver.Conn, error) {
 	if c.e.refuse != nil {
 		return nil, c.e.refuse
 	}
-	return &fakeConn{c.e}, nil
+	return &fakeConn{e: c.e}, nil
 }
 func (c fakeConnector) Driver() driver.Driver { return nil }
 
-type fakeConn struct{ e *fakeEngine }
+type fakeConn struct {
+	e    *fakeEngine
+	msgq *sqlexp.ReturnMessage
+}
 
 func (c *fakeConn) Prepare(string) (driver.Stmt, error) { return nil, errors.New("prepared") }
 func (c *fakeConn) Close() error                        { return nil }
 func (c *fakeConn) Begin() (driver.Tx, error)           { return fakeTx{}, nil }
+
+func (c *fakeConn) CheckNamedValue(nv *driver.NamedValue) error {
+	if m, ok := nv.Value.(*sqlexp.ReturnMessage); ok {
+		sqlexp.ReturnMessageInit(m)
+		c.msgq = m
+		return driver.ErrRemoveArgument
+	}
+	v, err := driver.DefaultParameterConverter.ConvertValue(nv.Value)
+	nv.Value = v
+	return err
+}
 
 func (c *fakeConn) ExecContext(_ context.Context, q string, args []driver.NamedValue) (driver.Result, error) {
 	switch q {
@@ -1167,8 +1297,58 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 		}
 		c.e.made[name] = true
 		return &fakeRows{sets: []fakeSet{{[]string{"name"}, []string{"TEXT"}, [][]driver.Value{{[]byte("x " + name + " y")}}}}}, nil
+	case "SELECT messages":
+		if c.msgq == nil {
+			return nil, errors.New("no message stream")
+		}
+		for _, m := range []sqlexp.RawMessage{
+			sqlexp.MsgRowsAffected{Count: 3},
+			sqlexp.MsgNextResultSet{},
+			sqlexp.MsgNextResultSet{},
+			sqlexp.MsgNext{},
+			sqlexp.MsgRowsAffected{Count: 7},
+			sqlexp.MsgError{Error: &fakeError{50000, "boom"}},
+			sqlexp.MsgNotice{Message: notice("the statement ended")},
+			sqlexp.MsgNextResultSet{},
+		} {
+			if err := sqlexp.ReturnMessageEnqueue(context.Background(), c.msgq, m); err != nil {
+				return nil, err
+			}
+		}
+		return &fakeMessageRows{
+			fakeRows: fakeRows{sets: []fakeSet{{[]string{"a"}, []string{"INT"}, [][]driver.Value{{int64(1)}}}}},
+			nrs:      []bool{true, true, false},
+		}, nil
 	}
 	return nil, &fakeError{1146, "no such table"}
+}
+
+type notice string
+
+func (n notice) String() string { return string(n) }
+
+// fakeMessageRows is a live Rowsq's NextResultSet outcomes, scripted: a done
+// token can come with no result set, so the two do not align.
+type fakeMessageRows struct {
+	fakeRows
+	nrs    []bool
+	nrsIdx int
+}
+
+func (r *fakeMessageRows) HasNextResultSet() bool {
+	return r.nrsIdx < len(r.nrs) && r.nrs[r.nrsIdx]
+}
+
+func (r *fakeMessageRows) NextResultSet() error {
+	if !r.HasNextResultSet() {
+		return io.EOF
+	}
+	more := r.nrs[r.nrsIdx]
+	r.nrsIdx++
+	if !more {
+		return io.EOF
+	}
+	return nil
 }
 
 type fakeTx struct{}

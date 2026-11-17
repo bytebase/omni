@@ -57,6 +57,14 @@ import (
 // instead: "> raw" with the request's text and "< raw" with the answer's,
 // both as text lines. See OpenRaw.
 //
+// A query that takes a *sqlexp.ReturnMessage carries one ": message" argument
+// for it, and its answer is a "< stream": the messages the driver observed, in
+// order, then the result sets. The messages are MsgNext, MsgNextResultSet
+// ("more" when the rows had a next result set and "end" when they did not),
+// MsgRowsAffected with its count, MsgError with the codec's text, and
+// MsgNotice with its text. A tape without the argument keeps its old answer,
+// and a recording of a query without one keeps the old behavior.
+//
 // A request's text, or a text argument, of more than 64 KB is written as
 // "|# sha256:<hex> <bytes>" and not in full: a replay only compares it, and
 // a statement that size says nothing to a reader. Answers are always whole.
@@ -78,16 +86,29 @@ type request struct {
 }
 
 type answer struct {
-	kind     string // ok, error, badconn, rows, raw
+	kind     string // ok, error, badconn, rows, raw, stream
 	affected string // exec only: decimal, or - when the driver could not say
 	lastID   string
 	err      string // the codec's text
 	text     string // raw only: the answer as the client returned it
 	sets     []resultSet
+	// messages is a stream answer's message sequence, in the order the
+	// driver observed it.
+	messages []message
 
 	// raw is an error that is not the engine's answer, which only a
 	// recording sees. It is never written: it poisons the recording.
 	raw error
+}
+
+// A message is one value of sqlexp's message stream. nextresultset records
+// what the rows answered when the driver asked for the next result set, since
+// that is what decides whether its loop continues.
+type message struct {
+	kind  string // next, nextresultset, rowsaffected, error, notice
+	more  bool   // nextresultset
+	count int64  // rowsaffected
+	text  string // error: the codec's text; notice: the message
 }
 
 type resultSet struct {
@@ -110,7 +131,8 @@ type column struct {
 // what a client whose own rows are typed (ClickHouse's) answers before
 // database/sql converts them; the tape keeps the type so a replay hands the
 // driver the same one. A request's argument over digestOver holds sum, its
-// digest, in place of text.
+// digest, in place of text. A request's message argument is "message", which
+// stands for the *sqlexp.ReturnMessage the query takes.
 type value struct {
 	kind, text string
 	sum        string
@@ -321,29 +343,60 @@ func writeAnswer(b *strings.Builder, a answer) {
 	case "raw":
 		b.WriteString("< raw\n")
 		writeText(b, a.text)
+	case "stream":
+		b.WriteString("< stream\n")
+		for _, m := range a.messages {
+			writeMessage(b, m)
+		}
+		writeResultSets(b, a.sets)
 	case "rows":
-		for _, s := range a.sets {
-			b.WriteString("< result\n")
-			for _, c := range s.cols {
-				b.WriteString("< column " + strconv.Quote(c.name) + " " + strconv.Quote(c.typ))
-				if c.scan != "" {
-					b.WriteString(" " + strconv.Quote(c.scan))
-				}
-				if c.precision != "" {
-					b.WriteString(" precision " + c.precision)
-				}
-				if c.scale != "" {
-					b.WriteString(" scale " + c.scale)
-				}
-				b.WriteString("\n")
+		writeResultSets(b, a.sets)
+	}
+}
+
+func writeResultSets(b *strings.Builder, sets []resultSet) {
+	for _, s := range sets {
+		b.WriteString("< result\n")
+		for _, c := range s.cols {
+			b.WriteString("< column " + strconv.Quote(c.name) + " " + strconv.Quote(c.typ))
+			if c.scan != "" {
+				b.WriteString(" " + strconv.Quote(c.scan))
 			}
-			for _, row := range s.rows {
-				b.WriteString("< row\n")
-				for _, v := range row {
-					writeValue(b, v)
-				}
+			if c.precision != "" {
+				b.WriteString(" precision " + c.precision)
+			}
+			if c.scale != "" {
+				b.WriteString(" scale " + c.scale)
+			}
+			b.WriteString("\n")
+		}
+		for _, row := range s.rows {
+			b.WriteString("< row\n")
+			for _, v := range row {
+				writeValue(b, v)
 			}
 		}
+	}
+}
+
+func writeMessage(b *strings.Builder, m message) {
+	switch m.kind {
+	case "next":
+		b.WriteString("< message next\n")
+	case "nextresultset":
+		if m.more {
+			b.WriteString("< message nextresultset more\n")
+		} else {
+			b.WriteString("< message nextresultset end\n")
+		}
+	case "rowsaffected":
+		b.WriteString("< message rowsaffected " + strconv.FormatInt(m.count, 10) + "\n")
+	case "error":
+		b.WriteString("< message error\n")
+		writeText(b, m.text)
+	case "notice":
+		b.WriteString("< message notice\n")
+		writeText(b, m.text)
 	}
 }
 
@@ -354,6 +407,8 @@ func writeValue(b *strings.Builder, v value) {
 		writeTextOrSum(b, v.text, v.sum)
 	case "null":
 		b.WriteString(": null\n")
+	case "message":
+		b.WriteString(": message\n")
 	default:
 		b.WriteString(": " + v.kind + " " + v.text + "\n")
 	}
@@ -574,35 +629,93 @@ func (p *parser) answer() (answer, error) {
 		p.i++
 		text, err := p.text()
 		return answer{kind: "raw", text: text}, err
-	case line == "< result":
-		a := answer{kind: "rows"}
-		for p.peek() == "< result" {
-			p.i++
-			var s resultSet
-			for strings.HasPrefix(p.peek(), "< column ") {
-				c, err := p.column()
-				if err != nil {
-					return a, err
-				}
-				s.cols = append(s.cols, c)
+	case line == "< stream":
+		p.i++
+		a := answer{kind: "stream"}
+		for strings.HasPrefix(p.peek(), "< message ") {
+			m, err := p.message()
+			if err != nil {
+				return a, err
 			}
-			for p.peek() == "< row" {
-				p.i++
-				row := make([]value, len(s.cols))
-				for j := range row {
-					v, err := p.value(false)
-					if err != nil {
-						return a, err
-					}
-					row[j] = v
-				}
-				s.rows = append(s.rows, row)
-			}
-			a.sets = append(a.sets, s)
+			a.messages = append(a.messages, m)
 		}
-		return a, nil
+		sets, err := p.resultSets()
+		a.sets = sets
+		return a, err
+	case line == "< result":
+		sets, err := p.resultSets()
+		return answer{kind: "rows", sets: sets}, err
 	}
-	return answer{}, p.errorf("want an answer (< ok, < error, < badconn, < result, < raw), got %q", line)
+	return answer{}, p.errorf("want an answer (< ok, < error, < badconn, < result, < raw, < stream), got %q", line)
+}
+
+// resultSets reads the result sets of an answer.
+func (p *parser) resultSets() ([]resultSet, error) {
+	var sets []resultSet
+	for p.peek() == "< result" {
+		p.i++
+		var s resultSet
+		for strings.HasPrefix(p.peek(), "< column ") {
+			c, err := p.column()
+			if err != nil {
+				return sets, err
+			}
+			s.cols = append(s.cols, c)
+		}
+		for p.peek() == "< row" {
+			p.i++
+			row := make([]value, len(s.cols))
+			for j := range row {
+				v, err := p.value(false)
+				if err != nil {
+					return sets, err
+				}
+				row[j] = v
+			}
+			s.rows = append(s.rows, row)
+		}
+		sets = append(sets, s)
+	}
+	return sets, nil
+}
+
+// message reads one message of a stream answer.
+func (p *parser) message() (message, error) {
+	rest := strings.TrimPrefix(p.peek(), "< message ")
+	kind, arg, _ := strings.Cut(rest, " ")
+	switch kind {
+	case "next":
+		if arg != "" {
+			return message{}, p.errorf("a next message takes no field, got %q", arg)
+		}
+		p.i++
+		return message{kind: kind}, nil
+	case "nextresultset":
+		switch arg {
+		case "more":
+			p.i++
+			return message{kind: kind, more: true}, nil
+		case "end":
+			p.i++
+			return message{kind: kind}, nil
+		}
+		return message{}, p.errorf("a nextresultset message says more or end, got %q", arg)
+	case "rowsaffected":
+		n, err := strconv.ParseInt(arg, 10, 64)
+		if err != nil {
+			return message{}, p.errorf("a rowsaffected message's count: %v", err)
+		}
+		p.i++
+		return message{kind: kind, count: n}, nil
+	case "error", "notice":
+		if arg != "" {
+			return message{}, p.errorf("a %s message takes text on the next line, got %q", kind, arg)
+		}
+		p.i++
+		text, err := p.text()
+		return message{kind: kind, text: text}, err
+	}
+	return message{}, p.errorf("unknown message %q", rest)
 }
 
 func (p *parser) column() (column, error) {
@@ -671,6 +784,11 @@ func (p *parser) value(argument bool) (value, error) {
 		v.text, v.sum = t, sum
 		return v, err
 	case "null":
+		return v, nil
+	case "message":
+		if text != "" {
+			return v, p.errorf("a message value takes no text")
+		}
 		return v, nil
 	case "int", "int8", "int16", "int32", "int64", "uint", "uint8", "uint16", "uint32", "uint64", "float32", "float64", "bool", "time":
 		if _, err := v.driver(); err != nil {

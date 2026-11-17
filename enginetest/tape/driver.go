@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/golang-sql/sqlexp"
 )
 
 // errPrepared is what a test gets for a driver-level prepared statement. A
@@ -128,11 +130,18 @@ func (s *session) reproduces() {
 // codec that changes how it spells an error does not make every tape that
 // holds one look like a different answer.
 func (s *session) spelledNow(a answer) answer {
-	if a.kind != "error" {
-		return a
+	if a.kind == "error" {
+		if text, ok := s.codec.EncodeError(s.codec.DecodeError(a.err)); ok {
+			a.err = text
+		}
 	}
-	if text, ok := s.codec.EncodeError(s.codec.DecodeError(a.err)); ok {
-		a.err = text
+	for i := range a.messages {
+		if a.messages[i].kind != "error" {
+			continue
+		}
+		if text, ok := s.codec.EncodeError(s.codec.DecodeError(a.messages[i].text)); ok {
+			a.messages[i].text = text
+		}
 	}
 	return a
 }
@@ -234,6 +243,11 @@ func (s *session) hideAnswer(a answer) answer {
 		return a
 	}
 	a.err = s.hide(a.err)
+	for i := range a.messages {
+		if a.messages[i].kind == "error" || a.messages[i].kind == "notice" {
+			a.messages[i].text = s.hide(a.messages[i].text)
+		}
+	}
 	for _, set := range a.sets {
 		for _, row := range set.rows {
 			for i, v := range row {
@@ -367,6 +381,12 @@ func (c *conn) Close() error {
 }
 
 func (c *conn) CheckNamedValue(nv *driver.NamedValue) error {
+	// A message stream is not a driver.Value; QueryContext gives it a queue of
+	// its own and replays the messages the tape holds. A request keeps the
+	// argument as a ": message" value.
+	if _, ok := nv.Value.(*sqlexp.ReturnMessage); ok {
+		return nil
+	}
 	v, err := driver.DefaultParameterConverter.ConvertValue(nv.Value)
 	nv.Value = v
 	return err
@@ -393,6 +413,10 @@ func newRequest(kind, text string, args []driver.NamedValue) (request, error) {
 		if a.Name != "" {
 			return r, fmt.Errorf("tape: named argument %q; use positional arguments", a.Name)
 		}
+		if _, ok := a.Value.(*sqlexp.ReturnMessage); ok {
+			r.args = append(r.args, value{kind: "message"})
+			continue
+		}
 		v, err := fromDriver(a.Value)
 		if err != nil {
 			return r, fmt.Errorf("tape: argument %d: %w", a.Ordinal, err)
@@ -403,6 +427,24 @@ func newRequest(kind, text string, args []driver.NamedValue) (request, error) {
 		r.args = append(r.args, v)
 	}
 	return r, nil
+}
+
+// messageArg finds the message stream a query takes and returns the arguments
+// without it, which is what the live driver receives.
+func messageArg(args []driver.NamedValue) (*sqlexp.ReturnMessage, []driver.NamedValue, error) {
+	var stream *sqlexp.ReturnMessage
+	out := make([]driver.NamedValue, 0, len(args))
+	for _, a := range args {
+		if m, ok := a.Value.(*sqlexp.ReturnMessage); ok {
+			if stream != nil {
+				return nil, nil, errors.New("tape: a query takes one message stream")
+			}
+			stream = m
+			continue
+		}
+		out = append(out, a)
+	}
+	return stream, out, nil
 }
 
 func (c *conn) ExecContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Result, error) {
@@ -465,6 +507,10 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if err != nil {
 		return nil, err
 	}
+	msg, liveArgs, err := messageArg(args)
+	if err != nil {
+		return nil, err
+	}
 	var a answer
 	if c.live == nil {
 		if a, err = c.s.replay(req); err != nil {
@@ -475,15 +521,34 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 		if !ok {
 			return nil, errors.New("tape: the live driver has no QueryContext")
 		}
-		liveQuery, liveArgs := c.s.showRequest(query, args)
-		lr, err := q.QueryContext(ctx, liveQuery, liveArgs)
+		liveQuery, argsWithoutNames := c.s.showRequest(query, liveArgs)
+		var stream *sqlexp.ReturnMessage
+		if msg != nil {
+			// The live driver keeps the stream's queue, so the tape asks it for
+			// one of its own and drains that; the test gets a replay of what the
+			// tape recorded, the same as any other answer.
+			stream = &sqlexp.ReturnMessage{}
+			checker, ok := c.live.(driver.NamedValueChecker)
+			if !ok {
+				return nil, errors.New("tape: the live driver does not take a message stream")
+			}
+			nv := driver.NamedValue{Ordinal: 1, Value: stream}
+			if err := checker.CheckNamedValue(&nv); err != nil && !errors.Is(err, driver.ErrRemoveArgument) {
+				return nil, err
+			}
+		}
+		lr, err := q.QueryContext(ctx, liveQuery, argsWithoutNames)
 		switch {
 		case errors.Is(err, driver.ErrSkip):
 			return nil, errPrepared
 		case err != nil:
 			a = c.s.errorAnswer(err)
 		default:
-			a, err = readAll(lr)
+			if stream != nil {
+				a, err = c.s.readStream(ctx, lr, stream)
+			} else {
+				a, err = readAll(lr)
+			}
 			if err != nil {
 				a = c.s.errorAnswer(err)
 			}
@@ -494,10 +559,24 @@ func (c *conn) QueryContext(ctx context.Context, query string, args []driver.Nam
 	if a, err = c.s.result(a); err != nil {
 		return nil, err
 	}
-	if a.kind != "rows" {
+	if a.kind != "rows" && a.kind != "stream" {
 		return nil, fmt.Errorf("tape: stream %q answers query with %q", c.s.name, a.kind)
 	}
-	return &rows{sets: a.sets}, nil
+	r := &rows{sets: a.sets}
+	if a.kind == "stream" {
+		r.scripted, r.set = true, -1
+		for _, m := range a.messages {
+			if m.kind == "nextresultset" {
+				r.nrs = append(r.nrs, m.more)
+			}
+		}
+		if msg != nil {
+			if err := c.s.startMessages(ctx, r, msg, a.messages); err != nil {
+				return nil, err
+			}
+		}
+	}
+	return r, nil
 }
 
 // readAll reads every result set of a live answer, so the test then reads
@@ -506,46 +585,9 @@ func readAll(lr driver.Rows) (answer, error) {
 	defer lr.Close()
 	a := answer{kind: "rows"}
 	for {
-		var s resultSet
-		typed, _ := lr.(driver.RowsColumnTypeDatabaseTypeName)
-		scanned, _ := lr.(driver.RowsColumnTypeScanType)
-		precised, _ := lr.(driver.RowsColumnTypePrecisionScale)
-		for i, name := range lr.Columns() {
-			c := column{name: name}
-			if typed != nil {
-				c.typ = typed.ColumnTypeDatabaseTypeName(i)
-			}
-			if scanned != nil {
-				if t := scanned.ColumnTypeScanType(i); knownScanType(t) {
-					c.scan = t.String()
-				}
-			}
-			if precised != nil {
-				if precision, scale, ok := precised.ColumnTypePrecisionScale(i); ok {
-					c.precision = strconv.FormatInt(precision, 10)
-					c.scale = strconv.FormatInt(scale, 10)
-				}
-			}
-			s.cols = append(s.cols, c)
-		}
-		dest := make([]driver.Value, len(s.cols))
-		for {
-			err := lr.Next(dest)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return a, err
-			}
-			row := make([]value, len(dest))
-			for i, d := range dest {
-				v, err := fromDriver(d) // copies []byte, which the driver reuses
-				if err != nil {
-					return a, fmt.Errorf("tape: column %q: %w", s.cols[i].name, err)
-				}
-				row[i] = v
-			}
-			s.rows = append(s.rows, row)
+		s, err := readSet(lr)
+		if err != nil {
+			return a, err
 		}
 		a.sets = append(a.sets, s)
 		more, ok := lr.(driver.RowsNextResultSet)
@@ -560,6 +602,150 @@ func readAll(lr driver.Rows) (answer, error) {
 		}
 	}
 }
+
+// readSet reads the result set the live rows are on.
+func readSet(lr driver.Rows) (resultSet, error) {
+	var s resultSet
+	typed, _ := lr.(driver.RowsColumnTypeDatabaseTypeName)
+	scanned, _ := lr.(driver.RowsColumnTypeScanType)
+	precised, _ := lr.(driver.RowsColumnTypePrecisionScale)
+	for i, name := range lr.Columns() {
+		c := column{name: name}
+		if typed != nil {
+			c.typ = typed.ColumnTypeDatabaseTypeName(i)
+		}
+		if scanned != nil {
+			if t := scanned.ColumnTypeScanType(i); knownScanType(t) {
+				c.scan = t.String()
+			}
+		}
+		if precised != nil {
+			if precision, scale, ok := precised.ColumnTypePrecisionScale(i); ok {
+				c.precision = strconv.FormatInt(precision, 10)
+				c.scale = strconv.FormatInt(scale, 10)
+			}
+		}
+		s.cols = append(s.cols, c)
+	}
+	dest := make([]driver.Value, len(s.cols))
+	for {
+		err := lr.Next(dest)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return s, err
+		}
+		row := make([]value, len(dest))
+		for i, d := range dest {
+			v, err := fromDriver(d) // copies []byte, which the driver reuses
+			if err != nil {
+				return s, fmt.Errorf("tape: column %q: %w", s.cols[i].name, err)
+			}
+			row[i] = v
+		}
+		s.rows = append(s.rows, row)
+	}
+	return s, nil
+}
+
+// readStream reads a live answer whose query took a message stream: the
+// messages in the order the driver would see them, and the result set each
+// MsgNext announces. A recording keeps both, so a replay drives the test's
+// message loop exactly as the server did.
+func (s *session) readStream(ctx context.Context, lr driver.Rows, m *sqlexp.ReturnMessage) (answer, error) {
+	defer lr.Close()
+	a := answer{kind: "stream"}
+	for {
+		switch msg := m.Message(ctx).(type) {
+		case sqlexp.MsgNext:
+			set, err := readSet(lr)
+			if err != nil {
+				return a, err
+			}
+			a.messages = append(a.messages, message{kind: "next"})
+			a.sets = append(a.sets, set)
+		case sqlexp.MsgNextResultSet:
+			more := false
+			if nr, ok := lr.(driver.RowsNextResultSet); ok {
+				err := nr.NextResultSet()
+				switch {
+				case err == nil:
+					more = true
+				case errors.Is(err, io.EOF):
+				default:
+					return a, err
+				}
+			}
+			a.messages = append(a.messages, message{kind: "nextresultset", more: more})
+			if !more {
+				return a, nil
+			}
+		case sqlexp.MsgRowsAffected:
+			a.messages = append(a.messages, message{kind: "rowsaffected", count: msg.Count})
+		case sqlexp.MsgError:
+			text, ok := s.codec.EncodeError(msg.Error)
+			if !ok {
+				return a, fmt.Errorf("tape: a message error %v is not an answer from the engine", msg.Error)
+			}
+			a.messages = append(a.messages, message{kind: "error", text: text})
+		case sqlexp.MsgNotice:
+			a.messages = append(a.messages, message{kind: "notice", text: msg.Message.String()})
+		default:
+			return a, fmt.Errorf("tape: a message %T, which a tape does not hold", msg)
+		}
+	}
+}
+
+// startMessages gives the test's message stream a replay of the recorded
+// messages, in order. Each MsgNext exposes the result set the live server had
+// at that point; the rows are otherwise the same copy a non-stream answer gets.
+func (s *session) startMessages(ctx context.Context, r *rows, m *sqlexp.ReturnMessage, msgs []message) error {
+	raw := make([]sqlexp.RawMessage, len(msgs))
+	for i, msg := range msgs {
+		v, err := s.rawMessage(msg)
+		if err != nil {
+			return err
+		}
+		raw[i] = v
+	}
+	sqlexp.ReturnMessageInit(m)
+	ctx, cancel := context.WithCancel(ctx)
+	r.cancel = cancel
+	go func() {
+		for _, v := range raw {
+			if _, ok := v.(sqlexp.MsgNext); ok {
+				r.startSet()
+			}
+			if err := sqlexp.ReturnMessageEnqueue(ctx, m, v); err != nil {
+				return
+			}
+		}
+	}()
+	return nil
+}
+
+// rawMessage rebuilds one recorded message the test's loop can consume.
+func (s *session) rawMessage(m message) (sqlexp.RawMessage, error) {
+	switch m.kind {
+	case "next":
+		return sqlexp.MsgNext{}, nil
+	case "nextresultset":
+		return sqlexp.MsgNextResultSet{}, nil
+	case "rowsaffected":
+		return sqlexp.MsgRowsAffected{Count: m.count}, nil
+	case "error":
+		return sqlexp.MsgError{Error: s.codec.DecodeError(m.text)}, nil
+	case "notice":
+		return sqlexp.MsgNotice{Message: noticeText(m.text)}, nil
+	}
+	return nil, fmt.Errorf("tape: unknown message %q", m.kind)
+}
+
+// noticeText is a MsgNotice's text in a replay.
+type noticeText string
+
+func (n noticeText) String() string { return string(n) }
 
 // knownScanTypes are the Go types a tape can name. A column whose live scan
 // type is not here is recorded without one and replays as any.
@@ -607,12 +793,26 @@ func namedScanType(name string) reflect.Type {
 }
 
 type rows struct {
+	mu   sync.Mutex
 	sets []resultSet
 	set  int
 	row  int
+
+	// scripted is set for a stream answer: the live rows' NextResultSet
+	// outcomes are recorded, because a message loop follows them rather than
+	// the result sets alone (a done token can come with no result set).
+	scripted bool
+	nrs      []bool
+	nrsIdx   int
+	cancel   func()
 }
 
 func (r *rows) Columns() []string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.set < 0 || r.set >= len(r.sets) {
+		return nil
+	}
 	cols := r.sets[r.set].cols
 	names := make([]string, len(cols))
 	for i, c := range cols {
@@ -621,12 +821,24 @@ func (r *rows) Columns() []string {
 	return names
 }
 
-func (r *rows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].cols[i].typ }
+func (r *rows) ColumnTypeDatabaseTypeName(i int) string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.set < 0 || r.set >= len(r.sets) {
+		return ""
+	}
+	return r.sets[r.set].cols[i].typ
+}
 
 // ColumnTypeScanType is the type the live driver's rows scanned into. A tape
 // recorded without one, or with a type this package cannot name, answers the
 // default any, which is what database/sql uses when the interface is absent.
 func (r *rows) ColumnTypeScanType(i int) reflect.Type {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.set < 0 || r.set >= len(r.sets) {
+		return anyType
+	}
 	if t := namedScanType(r.sets[r.set].cols[i].scan); t != nil {
 		return t
 	}
@@ -637,6 +849,11 @@ func (r *rows) ColumnTypeScanType(i int) reflect.Type {
 // reported. A tape recorded without a precision answers false, which is what
 // database/sql uses when the interface is absent.
 func (r *rows) ColumnTypePrecisionScale(i int) (precision, scale int64, ok bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.set < 0 || r.set >= len(r.sets) {
+		return 0, 0, false
+	}
 	c := r.sets[r.set].cols[i]
 	if c.precision == "" {
 		return 0, 0, false
@@ -646,9 +863,32 @@ func (r *rows) ColumnTypePrecisionScale(i int) (precision, scale int64, ok bool)
 	return precision, scale, true
 }
 
-func (r *rows) Close() error { return nil }
+func (r *rows) Close() error {
+	r.mu.Lock()
+	cancel := r.cancel
+	r.cancel = nil
+	r.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	return nil
+}
+
+// startSet moves to the result set the next MsgNext announces. Only a stream
+// answer calls it, from the goroutine replaying the messages.
+func (r *rows) startSet() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.set++
+	r.row = 0
+}
 
 func (r *rows) Next(dest []driver.Value) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.set < 0 || r.set >= len(r.sets) {
+		return io.EOF
+	}
 	s := r.sets[r.set]
 	if r.row >= len(s.rows) {
 		return io.EOF
@@ -664,10 +904,30 @@ func (r *rows) Next(dest []driver.Value) error {
 	return nil
 }
 
-func (r *rows) HasNextResultSet() bool { return r.set+1 < len(r.sets) }
+func (r *rows) HasNextResultSet() bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.scripted {
+		return r.nrsIdx < len(r.nrs) && r.nrs[r.nrsIdx]
+	}
+	return r.set+1 < len(r.sets)
+}
 
 func (r *rows) NextResultSet() error {
-	if !r.HasNextResultSet() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.scripted {
+		if r.nrsIdx >= len(r.nrs) {
+			return io.EOF
+		}
+		more := r.nrs[r.nrsIdx]
+		r.nrsIdx++
+		if !more {
+			return io.EOF
+		}
+		return nil
+	}
+	if r.set+1 >= len(r.sets) {
 		return io.EOF
 	}
 	r.set++
