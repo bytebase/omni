@@ -264,7 +264,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	// The version comes from the server on a connection of its own: the
 	// dictionary reads below hold the transaction's.
-	version, err := d.version(ctx)
+	version, err := d.Version(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get version: %w", err)
 	}
