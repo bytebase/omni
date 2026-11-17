@@ -21,19 +21,36 @@ const erUnknownSystemVariable = 1193
 // CountAffectedRows returns the planner's estimate of the rows statement
 // modifies.
 func (d *Driver) CountAffectedRows(ctx context.Context, statement string) (int64, error) {
-	list, err := mariadbparser.Parse(statement)
+	stmt, err := dmlStatement(statement)
 	if err != nil {
-		return 0, fmt.Errorf("failed to parse statement: %w", err)
+		return 0, err
 	}
-	if list == nil || len(list.Items) != 1 {
-		return 0, errors.New("expected exactly one statement")
-	}
-	query := mariadbanalysis.AffectedRowsQuery(list.Items[0], statement)
+	query := mariadbanalysis.AffectedRowsQuery(stmt, statement)
 	plan, err := d.ExplainJSON(ctx, query)
 	if err != nil {
 		return 0, err
 	}
-	return d.EstimateAffectedRows(ctx, list.Items[0], query, plan)
+	return d.EstimateAffectedRows(ctx, stmt, query, plan)
+}
+
+// dmlStatement returns statement's one INSERT, UPDATE or DELETE. Only a
+// statement that changes rows has an estimate, and the tabular fallback below
+// stands in for a plan that carries none, so anything else is refused before it
+// reaches the server.
+func dmlStatement(statement string) (mariadbast.Node, error) {
+	list, err := mariadbparser.Parse(statement)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse statement: %w", err)
+	}
+	if list == nil || len(list.Items) != 1 {
+		return nil, errors.New("expected exactly one statement")
+	}
+	switch list.Items[0].(type) {
+	case *mariadbast.InsertStmt, *mariadbast.UpdateStmt, *mariadbast.DeleteStmt:
+		return list.Items[0], nil
+	default:
+		return nil, fmt.Errorf("expected an INSERT, UPDATE or DELETE statement, got %T", list.Items[0])
+	}
 }
 
 // EstimateAffectedRows returns the rows stmt modifies according to plan,
