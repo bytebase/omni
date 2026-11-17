@@ -55,6 +55,11 @@ func TestQualifyViewDDL(t *testing.T) {
 			want: "CREATE VIEW `workspace`.`omni_record`.`recent` AS SELECT 1",
 		},
 		{
+			name: "a quoted identifier may hold the separator spellings",
+			ddl:  "CREATE VIEW sch.`sales AS archived (old)` (\n  id INT)\nAS SELECT 1",
+			want: "CREATE VIEW `workspace`.`omni_record`.`recent` (\n  id INT)\nAS SELECT 1",
+		},
+		{
 			name: "another statement is left alone",
 			ddl:  "CREATE MATERIALIZED VIEW `workspace`.`omni_record`.`totals` AS SELECT 1",
 			want: "CREATE MATERIALIZED VIEW `workspace`.`omni_record`.`totals` AS SELECT 1",

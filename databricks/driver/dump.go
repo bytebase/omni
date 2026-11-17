@@ -156,16 +156,41 @@ func qualifyViewDDL(ddl, qualifiedName string) string {
 	for start < len(ddl) && (ddl[start] == ' ' || ddl[start] == '\t') {
 		start++
 	}
-	end := len(ddl)
-	for _, separator := range []string{" (", "\n", " AS "} {
-		if i := strings.Index(strings.ToUpper(ddl[start:]), separator); i >= 0 && start+i < end {
-			end = start + i
-		}
-	}
+	end := viewTargetEnd(ddl, start)
 	if end <= start {
 		return ddl
 	}
 	return ddl[:start] + qualifiedName + ddl[end:]
+}
+
+// viewTargetEnd returns the byte offset where a view's target ends: the space
+// before " (" or " AS ", or the end of the line. A backtick-quoted identifier
+// may contain either spelling.
+func viewTargetEnd(ddl string, start int) int {
+	quoted := false
+	for i := start; i < len(ddl); i++ {
+		switch ddl[i] {
+		case '`':
+			if quoted && i+1 < len(ddl) && ddl[i+1] == '`' {
+				i++
+				continue
+			}
+			quoted = !quoted
+		case '\n':
+			if !quoted {
+				return i
+			}
+		case ' ':
+			if quoted {
+				continue
+			}
+			rest := ddl[i:]
+			if strings.HasPrefix(rest, " (") || strings.HasPrefix(strings.ToUpper(rest), " AS ") {
+				return i
+			}
+		}
+	}
+	return len(ddl)
 }
 
 // showCreateTable asks the server for one object's own DDL.
