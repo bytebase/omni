@@ -640,6 +640,26 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"a"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "a"}, {database: "db", table: "t", alias: "a"}}, dml: "->a"},
 		},
 		{
+			name: "adjacent text literals concatenate",
+			sql:  "SELECT * FROM (SELECT 'a' 'b') d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
+			name: "explicit string alias",
+			sql:  "SELECT 'a' AS 'b' FROM t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"b"}},
+		},
+		{
+			name: "alias after an interval expression",
+			sql:  "SELECT * FROM (SELECT NOW() + INTERVAL 1 DAY next_day FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {"next_day"}}},
+		},
+		{
+			name: "case expression inside a routine body",
+			sql:  "CREATE PROCEDURE p() BEGIN UPDATE t SET x = CASE WHEN y = 1 THEN | ELSE 0 END; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},

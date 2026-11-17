@@ -371,6 +371,7 @@ func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
 			procedural = true
 		}
 	}
+	caseDepth := 0
 	for i, tok := range tokens {
 		if tok.Loc >= cursorOffset {
 			break
@@ -382,9 +383,19 @@ func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
 		if !procedural {
 			continue
 		}
+		// A CASE expression's branches are expressions; only a routine
+		// statement's THEN starts a statement.
 		switch tok.Type {
+		case kwCASE:
+			caseDepth++
+		case kwEND:
+			if caseDepth > 0 {
+				caseDepth--
+			}
 		case kwBEGIN, kwTHEN, kwELSE, kwDO, kwLOOP, kwREPEAT:
-			start = i + 1
+			if caseDepth == 0 {
+				start = i + 1
+			}
 		}
 	}
 	if start >= len(tokens) {
@@ -1961,6 +1972,11 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 		if !endsSelectExpression(prev) {
 			return SelectAlias{}, false
 		}
+		// Adjacent text literals concatenate: 'a' 'b' is one string, not a
+		// string aliased by 'b'.
+		if last.Type == tokSCONST && prev.Type == tokSCONST {
+			return SelectAlias{}, false
+		}
 		// INTERVAL 1 DAY ends in its unit, not in an alias the item declares.
 		if intervalUnitAt(tokens, start, end, depth, last) {
 			return SelectAlias{}, false
@@ -1970,25 +1986,36 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 }
 
 // intervalUnitAt reports whether last, the trailing identifier of a select
-// item, is the unit of an INTERVAL expression: a literal before it and an
-// INTERVAL keyword before that, with no AS alias in between.
+// item, is the unit of an INTERVAL expression. A trailing alias is an alias
+// even after an INTERVAL (`INTERVAL 1 DAY next_day`), so the token has to be a
+// unit keyword, not merely follow INTERVAL.
 func intervalUnitAt(tokens []completionScopeToken, start, end, depth int, last completionScopeToken) bool {
-	if last.Type == tokSCONST {
+	if last.Type == tokSCONST || !isIntervalUnit(last.Type) {
 		return false
 	}
-	unit := last.Loc
 	for i := end - 2; i >= start; i-- {
 		if tokens[i].depth != depth {
 			continue
 		}
-		if tokens[i].Type == kwAS {
+		switch tokens[i].Type {
+		case kwAS:
 			return false
+		case kwINTERVAL:
+			return true
 		}
-		if tokens[i].Type == kwINTERVAL {
-			// The unit is the identifier right after the literal; an item that
-			// ends elsewhere is not an interval's unit.
-			return unit > tokens[i].Loc
-		}
+	}
+	return false
+}
+
+// isIntervalUnit reports whether typ is one of MySQL's INTERVAL unit keywords.
+func isIntervalUnit(typ int) bool {
+	switch typ {
+	case kwMICROSECOND, kwSECOND, kwMINUTE, kwHOUR, kwDAY, kwWEEK, kwMONTH,
+		kwQUARTER, kwYEAR, kwSECOND_MICROSECOND, kwMINUTE_MICROSECOND,
+		kwMINUTE_SECOND, kwHOUR_MICROSECOND, kwHOUR_SECOND, kwHOUR_MINUTE,
+		kwDAY_MICROSECOND, kwDAY_SECOND, kwDAY_MINUTE, kwDAY_HOUR,
+		kwYEAR_MONTH:
+		return true
 	}
 	return false
 }
