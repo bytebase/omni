@@ -189,6 +189,161 @@ func TestRecordThenReplay(t *testing.T) {
 	}
 }
 
+// A connection the engine refused is a request and its error, like any other
+// exchange: a recording writes it down, and a replay answers the pool's first
+// use with the codec's rebuilding of it, the driver's own error type included.
+func TestConnectFailureRecordsAndReplays(t *testing.T) {
+	srv, e := harness(t)
+	e.refuse = &fakeError{4060, "Cannot open database"}
+	ping := func(t testing.TB) []string {
+		err := Open(t, srv, "default").Ping()
+		var fe *fakeError
+		as := errors.As(err, &fe) && fe.code == 4060
+		return []string{fmt.Sprintf("%v, as fakeError: %v", err, as)}
+	}
+
+	record(t)
+	recorded, errs := run(t, "TestFake", ping)
+	if len(errs) > 0 {
+		t.Fatalf("recording failed: %v", errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := "== TestFake default#1\n> connect\n< error\n| 4060 Cannot open database\n"; !strings.Contains(string(b), want) {
+		t.Errorf("the tape lacks %q:\n%s", want, b)
+	}
+
+	replay(t)
+	srv.Live = func(t testing.TB, _ enginetest.Pin) driver.Connector {
+		t.Fatalf("a replay reached the server")
+		return nil
+	}
+	replayed, errs := run(t, "TestFake", ping)
+	if len(errs) > 0 {
+		t.Fatalf("replay failed: %v", errs)
+	}
+	if strings.Join(replayed, "\n") != strings.Join(recorded, "\n") {
+		t.Errorf("a replay differs from its recording:\nrecorded:\n%s\nreplayed:\n%s", strings.Join(recorded, "\n"), strings.Join(replayed, "\n"))
+	}
+	if want := "Error 4060: Cannot open database, as fakeError: true"; strings.Join(replayed, "\n") != want {
+		t.Errorf("a replay answered %q, want %q", replayed, want)
+	}
+}
+
+// A connection that succeeds writes no request, so a tape recorded before a
+// refused connect could be held replays unchanged: a replay asks nothing of the
+// tape and makes the connection as it always did.
+func TestATapeWithoutAConnectAnswerStillConnects(t *testing.T) {
+	srv, _ := harness(t)
+	exec := func(t testing.TB) []string {
+		_, err := Open(t, srv, "default").Exec("CREATE TABLE t (a INT)")
+		return []string{fmt.Sprint(err)}
+	}
+
+	record(t)
+	if _, errs := run(t, "TestFake", exec); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(b), "> connect") {
+		t.Errorf("a connection that succeeded wrote a request:\n%s", b)
+	}
+
+	// The tape as a recorder that knew no connect answer wrote it.
+	old := "-- pin: default img:1 sha256:1 1\n\n== TestFake default#1\n> exec\n| CREATE TABLE t (a INT)\n< ok 0 0\n"
+	if err := os.WriteFile(filepath.Join(dir, "TestFake.tape"), []byte(old), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replay(t)
+	if _, errs := run(t, "TestFake", exec); len(errs) > 0 {
+		t.Errorf("a tape without a connect answer: %q", errs)
+	}
+}
+
+// A recording compares a refused connect with the committed one as it does
+// every other answer, so an engine that answers differently fails the test
+// rather than rewriting what a replay would hold.
+func TestARefusedConnectThatDiffersFailsTheRecording(t *testing.T) {
+	srv, e := harness(t)
+	ping := func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	}
+	e.refuse = &fakeError{4060, "Cannot open database"}
+	record(t)
+	if _, errs := run(t, "TestFake", ping); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	resetRegistry()
+	e.refuse = &fakeError{911, "Database does not exist"}
+	if _, errs := run(t, "TestFake", ping); len(errs) != 1 || !strings.Contains(errs[0], "answered request 1 (connect) differently") {
+		t.Errorf("got %q", errs)
+	}
+}
+
+// A connect attempt that failed for a reason that is not the engine's, such as
+// a timeout, is not recorded: a replay would hand it to the test as the
+// engine's verdict, and the committed tape stays as it was.
+func TestAnUnrecordableConnectKeepsTheCommittedTape(t *testing.T) {
+	srv, e := harness(t)
+	e.refuse = errors.New("i/o timeout")
+	record(t)
+	log, errs := run(t, "TestFake", func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], "i/o timeout is not an answer from the engine") {
+		t.Errorf("got %q", errs)
+	}
+	if len(log) != 1 || log[0] != "i/o timeout" {
+		t.Errorf("the test got %q, want the driver's own error", log)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "TestFake.tape")); !os.IsNotExist(err) {
+		t.Errorf("a failed recording wrote a tape")
+	}
+}
+
+// A replay that never connects leaves the tape's connect answer unread, and the
+// harness says so, as it does for any other request.
+func TestAConnectAnswerTheTestNeverAskedForIsReported(t *testing.T) {
+	srv, e := harness(t)
+	e.refuse = &fakeError{4060, "Cannot open database"}
+	record(t)
+	if _, errs := run(t, "TestFake", func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	}); len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		Open(t, srv, "default")
+		return nil
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], "holds 1 recorded requests the test never sent, starting with connect") {
+		t.Errorf("got %q", errs)
+	}
+}
+
+// A tape holds a connect answer only when the engine refused the connection:
+// nothing else could have been recorded there, so a replay refuses another.
+func TestAReplayRefusesAConnectThatWasNotRefused(t *testing.T) {
+	srv, _ := harness(t)
+	tape := "-- pin: default img:1 sha256:1 1\n\n== TestFake default#1\n> connect\n< ok\n"
+	if err := os.WriteFile(filepath.Join(dir, "TestFake.tape"), []byte(tape), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	replay(t)
+	_, errs := run(t, "TestFake", func(t testing.TB) []string {
+		return []string{fmt.Sprint(Open(t, srv, "default").Ping())}
+	})
+	if len(errs) != 1 || !strings.Contains(errs[0], `stream "TestFake default#1" answers connect with "ok"`) {
+		t.Errorf("got %q", errs)
+	}
+}
+
 func TestReplayFailsOnAnUnrecordedRequest(t *testing.T) {
 	srv, _ := harness(t)
 	record(t)
@@ -845,6 +1000,7 @@ func TestParseRejects(t *testing.T) {
 		{"a stray line", "== s\nhello\n", "unexpected line"},
 		{"a ditto with nothing before it", "== s\n> exec ^\n< ok 0 0\n", "no exec before it"},
 		{"a ditto of another kind", "== s\n> query\n| x\n< badconn\n> exec ^\n< ok 0 0\n", "no exec before it"},
+		{"a ditto after connect", "== s\n> connect ^\n< error\n| 4060 x\n", "^ after connect, which has no text"},
 		{"a digest in an answer", "== s\n> query\n| x\n< result\n< column \"a\" \"TEXT\"\n< row\n: bytes\n|# sha256:ab 70000\n", "answers are kept whole"},
 	} {
 		if _, err := parse("x.tape", c.tape); err == nil || !strings.Contains(err.Error(), c.want) {
@@ -862,6 +1018,7 @@ func TestFormatRoundTrips(t *testing.T) {
 			{request{kind: "exec", text: "|q x"}, answer{kind: "badconn"}},
 			{request{kind: "exec", sum: "sha256:ab 70000", args: []value{{kind: "bytes", sum: "sha256:cd 80000"}}}, answer{kind: "ok", affected: "1", lastID: "-"}},
 			{request{kind: "rollback"}, answer{kind: "error", err: "\ttab"}},
+			{request{kind: "connect"}, answer{kind: "error", err: "4060 Cannot open database\n911 in a second line"}},
 		},
 	}}}
 	text := f.encode()
@@ -879,12 +1036,20 @@ func TestFormatRoundTrips(t *testing.T) {
 type fakeEngine struct {
 	now  int
 	made map[string]bool // the names it made up and has not dropped
+	// refuse, when set, is what a connection attempt answers instead of a
+	// connection.
+	refuse error
 }
 
 type fakeConnector struct{ e *fakeEngine }
 
-func (c fakeConnector) Connect(context.Context) (driver.Conn, error) { return &fakeConn{c.e}, nil }
-func (c fakeConnector) Driver() driver.Driver                        { return nil }
+func (c fakeConnector) Connect(context.Context) (driver.Conn, error) {
+	if c.e.refuse != nil {
+		return nil, c.e.refuse
+	}
+	return &fakeConn{c.e}, nil
+}
+func (c fakeConnector) Driver() driver.Driver { return nil }
 
 type fakeConn struct{ e *fakeEngine }
 
