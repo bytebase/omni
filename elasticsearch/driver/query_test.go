@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/driver"
+	"github.com/bytebase/omni/elasticsearch/internal/testcontainer"
 )
 
 // TestPing asks the endpoint for its root document.
@@ -237,6 +238,33 @@ func TestQueryKeepsLargeNumbers(t *testing.T) {
 		values[column.Name] = results[0].Rows[0][i].String
 	}
 	require.Contains(t, values["_source"], `"big":9007199254740993`)
+}
+
+// TestQueryMaxResultBytes holds the cap to the answer's encoded size: a REST
+// answer is one row, so the row that passes the cap is kept and the result says
+// it is truncated, and a cap the row meets exactly truncates nothing.
+func TestQueryMaxResultBytes(t *testing.T) {
+	d := openDriver(t)
+	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.http")))
+
+	// One stream per request, so the same request can be asked at two caps.
+	query := func(maxResultBytes int64) *driver.Result {
+		sess := openSession(t, &Driver{client: testcontainer.Open(t)})
+		results, err := sess.Query(context.Background(), "GET /_cat/indices?format=json", driver.QueryOptions{MaxResultBytes: maxResultBytes})
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		require.NoError(t, results[0].Err)
+		require.Len(t, results[0].Rows, 1)
+		return results[0]
+	}
+
+	uncapped := query(0)
+	require.False(t, uncapped.Truncated)
+	size := driver.HeaderByteSize(uncapped.Columns) + driver.RowByteSize(uncapped.Rows[0])
+
+	// The comparison is "passes", so a cap the row meets exactly keeps it whole.
+	require.False(t, query(size).Truncated)
+	require.True(t, query(size-1).Truncated)
 }
 
 type stepLogger struct {

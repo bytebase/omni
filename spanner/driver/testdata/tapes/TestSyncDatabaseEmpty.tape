@@ -4,7 +4,7 @@
 > raw
 | {"op":"getDatabase","database":"projects/omni/instances/empty/databases/empty"}
 < raw
-| {}
+| {"dialect":"GOOGLE_STANDARD_SQL"}
 > raw
 | {"op":"query","statement":"\n    SELECT \n      TABLE_SCHEMA,\n      TABLE_NAME,\n      COLUMN_NAME,\n      ORDINAL_POSITION,\n      COLUMN_DEFAULT,\n      IS_NULLABLE = 'YES',\n      SPANNER_TYPE\n    FROM INFORMATION_SCHEMA.COLUMNS\n    WHERE TABLE_SCHEMA NOT IN ('INFORMATION_SCHEMA', 'SPANNER_SYS')\n    ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION\n  "}
 < raw

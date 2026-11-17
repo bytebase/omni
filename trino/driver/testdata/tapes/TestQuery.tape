@@ -16,6 +16,9 @@
 | omni_query
 < row
 : string
+| omni_query_count
+< row
+: string
 | omni_query_family
 < row
 : string
@@ -28,6 +31,20 @@
 < column "_col0" "INTEGER"
 < row
 : int64 1
+
+== TestQuery/a_count_only_where_the_statement_states_one default#1
+> exec
+| CREATE SCHEMA memory.omni_query_count
+< ok 0 -
+> exec
+| CREATE TABLE memory.omni_query_count.plain (id integer)
+< ok 0 -
+> exec
+| CREATE TABLE memory.omni_query_count.ctas AS SELECT x FROM UNNEST(SEQUENCE(1, 3)) AS t(x)
+< ok 3 -
+> exec
+| SET SESSION query_max_run_time = '1m'
+< ok 0 -
 
 == TestQuery/a_leading_comment_does_not_change_the_statement_kind default#1
 > query
