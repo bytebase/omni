@@ -163,6 +163,37 @@ func TestQuery(t *testing.T) {
 		}
 	})
 
+	t.Run("a count only where the statement states one", func(t *testing.T) {
+		d := openDriver(t)
+		session := openSession(t, d)
+		results, err := session.Query(ctx, `CREATE SCHEMA memory.omni_query_count;
+CREATE TABLE memory.omni_query_count.plain (id integer);
+CREATE TABLE memory.omni_query_count.ctas AS SELECT x FROM UNNEST(SEQUENCE(1, 3)) AS t(x);
+SET SESSION query_max_run_time = '1m';`, driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 4 {
+			t.Fatalf("results = %d, want 4", len(results))
+		}
+		for _, i := range []int{0, 1, 3} {
+			if results[i].Err != nil {
+				t.Fatalf("statement %d: %v", i, results[i].Err)
+			}
+			if results[i].AffectedRows != nil {
+				t.Errorf("statement %d affected %d, want none: %s", i, *results[i].AffectedRows, results[i].Statement)
+			}
+		}
+		// CREATE TABLE AS copies rows, and Trino states that count even though
+		// the statement is DDL.
+		if results[2].Err != nil {
+			t.Fatal(results[2].Err)
+		}
+		if results[2].AffectedRows == nil || *results[2].AffectedRows != 3 {
+			t.Errorf("CREATE TABLE AS affected %v, want 3", results[2].AffectedRows)
+		}
+	})
+
 	t.Run("failure stops the script", func(t *testing.T) {
 		d := openDriver(t)
 		session := openSession(t, d)
@@ -636,4 +667,36 @@ func (l *stepLogger) TransactionControl(op driver.TransactionOp, err error) {
 
 func (l *stepLogger) Retry(err error, attempt, max int) {
 	l.steps = append(l.steps, fmt.Sprintf("retry:%d/%d", attempt, max))
+}
+
+// TestReportsCount holds the statements Trino states an update count for. The
+// count is a single BIGINT rows field in the statement's result, so a connector
+// that performs the work answers one; plain DDL and SET have none.
+func TestReportsCount(t *testing.T) {
+	for _, tc := range []struct {
+		name, statement string
+		want            bool
+	}{
+		{"insert", "INSERT INTO t VALUES (1)", true},
+		{"update", "UPDATE t SET a = 1 WHERE id = 1", true},
+		{"delete", "DELETE FROM t WHERE id = 1", true},
+		{"merge", "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE", true},
+		{"create table as", "CREATE TABLE t AS SELECT 1 AS a", true},
+		{"analyze", "ANALYZE t", true},
+		{"refresh materialized view", "REFRESH MATERIALIZED VIEW mv", true},
+		{"execute", "EXECUTE p", true},
+		{"create table", "CREATE TABLE t (a integer)", false},
+		{"create view", "CREATE VIEW v AS SELECT 1 AS a", false},
+		{"drop table", "DROP TABLE t", false},
+		{"truncate", "TRUNCATE TABLE t", false},
+		{"set session", "SET SESSION query_max_run_time = '1m'", false},
+		{"grant", "GRANT SELECT ON t TO USER u", false},
+		{"unreadable keeps the client's count", "SELECT FROM WHERE", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := reportsCount(tc.statement); got != tc.want {
+				t.Errorf("reportsCount(%q) = %v, want %v", tc.statement, got, tc.want)
+			}
+		})
+	}
 }
