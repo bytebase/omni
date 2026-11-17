@@ -470,6 +470,12 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 			})
 		}
 	case ast.CONSTRAINT_CHECK:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
 		e.appendCheckConstraint(table, e.checkConstraintName(table, n.Name, fmt.Sprintf("CHK_%s_%s", table.Name, column.Name)), n.Expr)
 	case ast.CONSTRAINT_FOREIGN:
 		if n.Deferrable || n.Initially != "" {
@@ -535,6 +541,12 @@ func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint,
 			IsConstraint: true,
 		})
 	case ast.CONSTRAINT_CHECK:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
 		e.appendCheckConstraint(table, e.checkConstraintName(table, n.Name, fmt.Sprintf("CHK_%s_%d", table.Name, len(table.CheckConstraints)+1)), n.Expr)
 	case ast.CONSTRAINT_FOREIGN:
 		if n.Deferrable || n.Initially != "" {
@@ -627,6 +639,11 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 		case ast.AT_ENABLE_DISABLE:
 			if e.err == nil {
 				e.err = fmt.Errorf("constraint enable/disable is not supported by oracle/catalog")
+			}
+			return
+		case ast.AT_ENABLE_DISABLE_TRIGGERS:
+			if e.err == nil {
+				e.err = fmt.Errorf("table-wide trigger enable/disable is not supported by oracle/catalog")
 			}
 			return
 		case ast.AT_SET_UNUSED:

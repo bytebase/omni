@@ -599,7 +599,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	for viewID, viewDiff := range viewMap {
 		if viewDiff.NewView != nil {
 			for _, dep := range viewDiff.NewView.DependencyColumns {
-				depID := getMigrationObjectID(dep.Schema, dep.Table)
+				schema := dep.Schema
+				if schema == "" {
+					schema = viewDiff.SchemaName
+				}
+				depID := getMigrationObjectID(schema, dep.Table)
 				// Only add edge if the dependency exists in our objects being created
 				if allObjects[depID] {
 					// Edge from dependency to dependent (table/view to view)
@@ -620,7 +624,11 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	for mvID, mvDiff := range materializedViewMap {
 		if mvDiff.NewMaterializedView != nil {
 			for _, dep := range mvDiff.NewMaterializedView.DependencyColumns {
-				depID := getMigrationObjectID(dep.Schema, dep.Table)
+				schema := dep.Schema
+				if schema == "" {
+					schema = mvDiff.SchemaName
+				}
+				depID := getMigrationObjectID(schema, dep.Table)
 				// Only add edge if the dependency exists in our objects being created
 				if allObjects[depID] {
 					// Edge from dependency to dependent
@@ -648,14 +656,22 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 	for _, viewDiff := range viewMap {
 		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && viewNeedsRecreate(viewDiff.OldView, viewDiff.NewView)) {
 			for _, dependency := range viewDiff.NewView.GetDependencyColumns() {
-				earlyAlteredTables[dependency.GetSchema()+"\x00"+dependency.GetTable()] = true
+				owner := dependency.GetSchema()
+				if owner == "" {
+					owner = viewDiff.SchemaName
+				}
+				earlyAlteredTables[owner+"\x00"+dependency.GetTable()] = true
 			}
 		}
 	}
 	for _, viewDiff := range materializedViewMap {
 		if viewDiff.Action == DiffActionCreate || (viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
 			for _, dependency := range viewDiff.NewMaterializedView.GetDependencyColumns() {
-				earlyAlteredTables[dependency.GetSchema()+"\x00"+dependency.GetTable()] = true
+				owner := dependency.GetSchema()
+				if owner == "" {
+					owner = viewDiff.SchemaName
+				}
+				earlyAlteredTables[owner+"\x00"+dependency.GetTable()] = true
 			}
 		}
 	}
@@ -2039,9 +2055,13 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 			graph.AddNode("m:" + key)
 		}
 	}
-	addEdges := func(destination string, dependencies []*metadatapb.DependencyColumn) {
+	addEdges := func(destination, owner string, dependencies []*metadatapb.DependencyColumn) {
 		for _, dependency := range dependencies {
-			for _, candidate := range []string{"v:" + getMigrationObjectID(dependency.Schema, dependency.Table), "m:" + getMigrationObjectID(dependency.Schema, dependency.Table)} {
+			schema := dependency.GetSchema()
+			if schema == "" {
+				schema = owner
+			}
+			for _, candidate := range []string{"v:" + getMigrationObjectID(schema, dependency.Table), "m:" + getMigrationObjectID(schema, dependency.Table)} {
 				graph.AddEdge(candidate, destination)
 			}
 		}
@@ -2052,7 +2072,7 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 			view = diff.OldView
 		}
 		if view != nil {
-			addEdges("v:"+key, view.DependencyColumns)
+			addEdges("v:"+key, diff.SchemaName, view.DependencyColumns)
 		}
 	}
 	for key, diff := range materializedViews {
@@ -2061,7 +2081,7 @@ func writeMigrationViewsInDependencyOrder(out *strings.Builder, views map[string
 			view = diff.OldMaterializedView
 		}
 		if view != nil {
-			addEdges("m:"+key, view.DependencyColumns)
+			addEdges("m:"+key, diff.SchemaName, view.DependencyColumns)
 		}
 	}
 	ordered, err := graph.TopologicalSort()

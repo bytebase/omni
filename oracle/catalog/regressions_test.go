@@ -2063,3 +2063,28 @@ func TestRenameDisabledTriggerUpdatesMarker(t *testing.T) {
 		t.Fatalf("disable marker = %q", body)
 	}
 }
+
+func TestDeferrableCheckIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT CK CHECK(C > 0) DEFERRABLE INITIALLY DEFERRED)`); err == nil {
+		t.Fatal("deferrable check accepted")
+	}
+}
+
+func TestTableWideTriggerDisableIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (ID NUMBER); CREATE TRIGGER TR BEFORE INSERT ON T BEGIN NULL; END; ALTER TABLE T DISABLE ALL TRIGGERS`); err == nil {
+		t.Fatal("table-wide trigger disable accepted")
+	}
+}
+
+func TestViewDependencyUsesEffectiveSchema(t *testing.T) {
+	to, err := LoadSQL(`CREATE TABLE Z (C NUMBER); CREATE VIEW A AS SELECT C FROM Z; CREATE TABLE APP.U (C NUMBER)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, New(), to)
+	table := strings.Index(sql, `CREATE TABLE "APP"."Z"`)
+	view := strings.Index(sql, `CREATE VIEW "APP"."A"`)
+	if table < 0 || view < 0 || table > view {
+		t.Fatalf("view precedes its table:\n%s", sql)
+	}
+}
