@@ -221,6 +221,9 @@ func TestQueryExplainJSON(t *testing.T) {
 	if results[0].Plan == nil || results[0].Plan.Format != "JSON" {
 		t.Errorf("Plan = %+v, want JSON", results[0].Plan)
 	}
+	if results[0].Plan.Executed {
+		t.Error("Executed = true, want a plan that did not run the statement")
+	}
 	if len(results[0].Rows) == 0 {
 		t.Error("explain returned no rows")
 	}

@@ -15,6 +15,12 @@
 // opts.Transaction says; opts.Isolation and opts.MaxRetries do nothing.
 // Config.ReadOnly is ignored: the driver cannot open a read-only session.
 //
+// QueryOptions.Explain runs the statement's plan in ExplainFormat. Result.Plan
+// is set for a statement that is a plan, whatever asked for it: its Format is
+// the one the statement states, and only EXPLAIN ANALYZE, which the driver runs
+// as written, executed the statement it plans. The rows are the plan, so
+// Content stays empty.
+//
 // A statement's update count reaches the caller only on the client's exec path,
 // so the driver sends a statement that returns no rows through Executor.
 // Querier decides which statements return rows from their leading keyword;

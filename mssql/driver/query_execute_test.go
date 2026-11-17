@@ -168,6 +168,9 @@ END;
 	if physicalOpIndex < 0 {
 		t.Fatalf("explain plan has no PhysicalOp column: %+v", plan[0].Columns)
 	}
+	if plan[0].Plan == nil || plan[0].Plan.Format != "TEXT" || plan[0].Plan.Executed || plan[0].Plan.Content != "" {
+		t.Errorf("tabular plan = %+v, want a TEXT plan in the rows that did not run the statement", plan[0].Plan)
+	}
 	var physicalOps []string
 	for _, row := range plan[0].Rows {
 		if op := row[physicalOpIndex].String; op != "" {
@@ -183,6 +186,9 @@ END;
 	}
 	if !strings.Contains(xmlPlan[0].Rows[0][0].String, "ShowPlanXML") {
 		t.Errorf("xml plan = %q", xmlPlan[0].Rows[0][0].String)
+	}
+	if xmlPlan[0].Plan == nil || xmlPlan[0].Plan.Format != "XML" {
+		t.Errorf("xml plan metadata = %+v, want XML", xmlPlan[0].Plan)
 	}
 
 	// A batch keeps what SQL Server scopes to it: a DECLARE'd variable holds

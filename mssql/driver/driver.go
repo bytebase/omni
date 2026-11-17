@@ -12,6 +12,14 @@
 // through a collector on the request, which a recorded exchange cannot hold, so
 // only a lone statement's count is read.
 //
+// A statement that reports no count at all (DDL, SET, SELECT @v = ...) has a
+// Result with no AffectedRows, rather than a count of zero.
+//
+// QueryOptions.Explain turns the session's plan output on for the statement, so
+// a plan is the statement's rows: Result.Plan names the output the request
+// asked for (XML for SHOWPLAN_XML, TEXT for SHOWPLAN_ALL) and records that the
+// statement did not run.
+//
 // Config.TLS supplies the TLS configuration for one host, which the driver
 // hands to the client as is; a certificate authority is material the client
 // reads from a path, so a caller that has one passes it in

@@ -159,6 +159,7 @@ func (s *session) explainBatch(ctx context.Context, statements []omnimssql.State
 			results = append(results, result)
 			return results, true, nil
 		}
+		result.Plan = &driver.Plan{Format: showplanFormat(opts.ExplainFormat)}
 		results = append(results, result)
 	}
 	return results, false, nil
@@ -172,6 +173,15 @@ func showplanStatistic(format string) string {
 		return "SHOWPLAN_XML"
 	}
 	return "SHOWPLAN_ALL"
+}
+
+// showplanFormat names the plan showplanStatistic asks for: SHOWPLAN_XML answers
+// one XML document, and SHOWPLAN_ALL a row per operator.
+func showplanFormat(format string) string {
+	if strings.EqualFold(format, "XML") {
+		return "XML"
+	}
+	return "TEXT"
 }
 
 // runBatch runs the batch and returns one result per statement: a statement
