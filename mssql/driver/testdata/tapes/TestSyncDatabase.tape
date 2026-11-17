@@ -851,11 +851,15 @@
 | 		i.name,
 | 		i.type_desc,
 | 		i.is_unique,
+| 		xi.secondary_type_desc,
+| 		pi.name AS using_index_name,
 | 		col.name AS column_name,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
 | 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
 | 	INNER JOIN sys.schemas s ON s.schema_id = o.schema_id
+| 	LEFT JOIN sys.xml_indexes xi ON xi.object_id = i.object_id AND xi.index_id = i.index_id
+| 	LEFT JOIN sys.indexes pi ON pi.object_id = xi.object_id AND pi.index_id = xi.using_xml_index_id
 | 	INNER JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
@@ -873,6 +877,8 @@
 < column "name" "NVARCHAR"
 < column "type_desc" "NVARCHAR"
 < column "is_unique" "BIT"
+< column "secondary_type_desc" "NVARCHAR"
+< column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
 < column "is_descending_key" "BIT"
 < row
@@ -887,6 +893,8 @@
 : string
 | NONCLUSTERED
 : bool false
+: null
+: null
 : string
 | status
 : bool false
@@ -902,6 +910,8 @@
 : string
 | XML
 : bool false
+: null
+: null
 : string
 | xml_doc
 : bool false
@@ -917,6 +927,8 @@
 : string
 | NONCLUSTERED COLUMNSTORE
 : bool false
+: null
+: null
 : string
 | ts
 : bool false
@@ -932,6 +944,8 @@
 : string
 | NONCLUSTERED COLUMNSTORE
 : bool false
+: null
+: null
 : string
 | val
 : bool false
@@ -1331,10 +1345,10 @@
 : int64 0
 < row
 : int64 54
-: int64 228
+: int64 229
 < row
 : int64 55
-: int64 457
+: int64 458
 < row
 : int64 56
 : int64 0
@@ -1349,7 +1363,7 @@
 : int64 0
 < row
 : int64 60
-: int64 287
+: int64 288
 < row
 : int64 62
 : int64 0

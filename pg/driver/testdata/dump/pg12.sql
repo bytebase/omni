@@ -136,6 +136,26 @@ ALTER TABLE "Mixed Case"."Table" OWNER TO "postgres";
 
 ALTER TABLE ONLY "Mixed Case"."Table" ADD CONSTRAINT "Table_pkey" PRIMARY KEY ("Id");
 
+CREATE TABLE "app"."Own Measure" (
+    "Id" integer NOT NULL,
+    "On" date NOT NULL
+) PARTITION BY RANGE ("On");
+
+ALTER TABLE "app"."Own Measure" OWNER TO "postgres";
+
+CREATE TABLE "app"."Own Measure 2025" (
+    "Id" integer NOT NULL,
+    "On" date NOT NULL
+);
+
+ALTER TABLE ONLY "app"."Own Measure" ATTACH PARTITION "app"."Own Measure 2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+
+CREATE INDEX "own_measure_id" ON ONLY "app"."Own Measure" ("Id");
+
+CREATE INDEX "Own Measure 2025_Id_idx" ON "app"."Own Measure 2025" ("Id");
+
+ALTER INDEX "app"."own_measure_id" ATTACH PARTITION "app"."Own Measure 2025_Id_idx";
+
 CREATE OR REPLACE FUNCTION app.add(a integer, b integer DEFAULT 1)
  RETURNS integer
  LANGUAGE sql
@@ -159,6 +179,23 @@ CREATE TABLE "app"."animal" (
 );
 
 ALTER TABLE "app"."animal" OWNER TO "postgres";
+
+CREATE TABLE "app"."attached" (
+    "id" integer NOT NULL,
+    "v" text
+) PARTITION BY LIST (v);
+
+ALTER TABLE "app"."attached" OWNER TO "postgres";
+
+CREATE TABLE "app"."attached_x" (
+    "id" integer NOT NULL,
+    "v" text,
+    CONSTRAINT "attached_x_positive" CHECK (id > 0)
+);
+
+ALTER TABLE ONLY "app"."attached" ATTACH PARTITION "app"."attached_x" FOR VALUES IN ('x');
+
+CREATE INDEX "attached_x_id" ON "app"."attached_x" (id);
 
 CREATE TABLE "app"."booking" (
     "room" integer,
@@ -365,6 +402,27 @@ ALTER INDEX "app"."measurement_2025_city_id_logdate_region_idx" ATTACH PARTITION
 ALTER INDEX "app"."measurement_city" ATTACH PARTITION "app"."measurement_2026_city_id_logdate_idx";
 
 ALTER INDEX "app"."measurement_key" ATTACH PARTITION "app"."measurement_2026_city_id_logdate_region_idx";
+
+CREATE TABLE "app"."multi_bound" (
+    "a" integer NOT NULL,
+    "b" integer NOT NULL
+) PARTITION BY RANGE (a, b);
+
+ALTER TABLE "app"."multi_bound" OWNER TO "postgres";
+
+CREATE TABLE "app"."multi_bound_low" (
+    "a" integer NOT NULL,
+    "b" integer NOT NULL
+);
+
+CREATE TABLE "app"."multi_bound_high" (
+    "a" integer NOT NULL,
+    "b" integer NOT NULL
+);
+
+ALTER TABLE ONLY "app"."multi_bound" ATTACH PARTITION "app"."multi_bound_low" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
+
+ALTER TABLE ONLY "app"."multi_bound" ATTACH PARTITION "app"."multi_bound_high" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
 
 CREATE OR REPLACE FUNCTION app.names_insert()
  RETURNS trigger
