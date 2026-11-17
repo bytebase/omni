@@ -142,6 +142,10 @@ func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database strin
 		if err != nil {
 			return nil, err
 		}
+		if o.kind == dumpMaterializedView {
+			reads = append(reads, dumpViewTargetReads(o.stmt, database, definitions)...)
+			sort.Strings(reads)
+		}
 		o.reads = reads
 	}
 	for _, o := range objects {
@@ -403,6 +407,11 @@ func dumpDictionarySourceQuery(o *dumpObject, database string, byName map[string
 	if dictionary == nil {
 		return "", false
 	}
+	// Only ClickHouse's own source states a query this dump can resolve: another
+	// source's query is written for another database.
+	if !strings.Contains(dictionary.stmt, "SOURCE(CLICKHOUSE(") {
+		return "", false
+	}
 	query := dumpDictionaryQuery.FindStringSubmatch(dictionary.stmt)
 	if query == nil {
 		return "", false
@@ -458,6 +467,41 @@ func dumpLiteralObject(literal, database string, byName map[string]*dumpObject) 
 		}
 	}
 	return nil, ""
+}
+
+// dumpViewTargetReads returns the definition a materialized view writes with its
+// TO clause. The AST states the clause and not its target, so the target is read
+// from the statement's first line, where the server writes it.
+func dumpViewTargetReads(stmt, database string, definitions map[string]*dumpObject) []string {
+	line := stmt
+	if end := strings.IndexByte(line, '\n'); end >= 0 {
+		line = line[:end]
+	}
+	at := strings.LastIndex(line, " TO ")
+	if at < 0 {
+		return nil
+	}
+	target := line[at+len(" TO "):]
+	for name := range definitions {
+		for _, spelling := range dumpSpellings(database, name) {
+			if target == spelling {
+				return []string{name}
+			}
+		}
+	}
+	return nil
+}
+
+// dumpSpellings returns the ways the server's rendering may write a qualified
+// name: each part bare, where it can be, and in backquotes.
+func dumpSpellings(database, name string) []string {
+	var spellings []string
+	for _, db := range []string{database, dumpIdentifier(database)} {
+		for _, object := range []string{name, dumpIdentifier(name)} {
+			spellings = append(spellings, db+"."+object)
+		}
+	}
+	return spellings
 }
 
 // dumpExpandedReads returns every definition o reads, directly or through a view:

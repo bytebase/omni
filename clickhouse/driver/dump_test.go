@@ -277,3 +277,30 @@ func TestDumpDictionaryTableReads(t *testing.T) {
 	byName["escaped"] = &dumpObject{name: "escaped", stmt: "CREATE TABLE db.escaped\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db.d\\'ict')"}
 	require.Equal(t, []string{"v\\src"}, dumpDictionaryTableReads(byName["escaped"], "db", byName))
 }
+
+// TestDumpViewTargetReads holds the TO clause a materialized view writes, which
+// the AST states without its target.
+func TestDumpViewTargetReads(t *testing.T) {
+	definitions := map[string]*dumpObject{
+		"target": {name: "target"},
+		"a.b":    {name: "a.b"},
+	}
+	for _, statement := range []struct {
+		stmt string
+		read string
+	}{
+		{"CREATE MATERIALIZED VIEW db.mv TO db.target\n(\n    `id` UInt64\n)\nAS SELECT id FROM db.src", "target"},
+		{"CREATE MATERIALIZED VIEW db.mv TO db.`a.b`\n(\n    `id` UInt64\n)\nAS SELECT id FROM db.src", "a.b"},
+		{"CREATE MATERIALIZED VIEW db.mv (\n    `id` UInt64\n)\nENGINE = MergeTree ORDER BY id AS SELECT id FROM db.src", ""},
+	} {
+		require.Equal(t, statements(statement.read), dumpViewTargetReads(statement.stmt, "db", definitions))
+	}
+}
+
+// statements is the list a single read makes, and none for no read.
+func statements(read string) []string {
+	if read == "" {
+		return nil
+	}
+	return []string{read}
+}
