@@ -12,3 +12,16 @@ type PrivateDatabaseLinkOwner interface {
 	// private database link.
 	OwnsPrivateDatabaseLink(ctx context.Context) (bool, error)
 }
+
+// AllNodesQuerier is implemented by a Session whose engine can run a script on
+// every node of a cluster as well as on the one node a command routes to
+// (Redis: a cluster's shards). Bytebase's query API offers a per-request "run
+// on every node" choice, which Session.Query cannot honour because it routes a
+// command the way the server does, so a caller that offers that choice asks the
+// session it got from Querier.Session for this interface. Only a clustered
+// topology answers it; a session of one server refuses.
+type AllNodesQuerier interface {
+	// QueryAllNodes returns one Result per command of script, whose rows are
+	// every node's answer, ordered by node address.
+	QueryAllNodes(ctx context.Context, script string, opts QueryOptions) ([]*Result, error)
+}

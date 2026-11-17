@@ -131,8 +131,13 @@ why it belongs in a shared package rather than in each adapter.
 Fits with a config mapping and nothing else: trino, doris, starrocks, cassandra, cosmosdb, dynamodb,
 redis.
 
-Fits with a documented limitation: hive (no caller dialer), elasticsearch (a transport instead of a
-dialer, and the SigV4 signer is the caller's).
+Fits with a documented limitation: hive (no caller dialer — gohive v2 has no field for one, so the
+caller forwards a local port and names it as `Config.Host` and `Config.Port`; both `hive/driver`'s
+doc and `driver.Config.Dial` state this).
+
+Fits: elasticsearch, now that `Config.Dial` is the transport's `DialContext`. A managed OpenSearch
+domain's SigV4 signer is still caller code, and a caller that supplies `Options.Transport` cannot
+also pass a dialer.
 
 Fits, and the adapter must also expose the extra methods its callers use: pg, mysql, mariadb, tidb,
 oceanbase, mssql, oracle, spanner. Spanner's `Open` reaches the server for the dialect, which its own
