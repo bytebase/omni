@@ -26,10 +26,20 @@
 //
 // QueryOptions.Limit is a page size: it caps a statement at that many rows and
 // a statement that returns more is read page by page until it reaches the
-// limit. QueryOptions.MaxResultBytes stops reading at the cap and sets
-// Result.Truncated; the size is measured every doubling of the row count, as
-// Bytebase measured it, so the cut lands on the smallest power-of-two row count
-// whose size passes the cap.
+// limit. QueryOptions.MaxResultBytes stops reading at the first row that takes
+// the rows kept past the cap, and sets Result.Truncated: the kept rows are the
+// most that fit and the one that crossed, so they exceed the cap by at most
+// that row. Rows arrive a page at a time from the server, and the cap is
+// measured on the rows kept, not on what one page holds.
+//
+// A statement's error is gocql's own, wrapped in the message the row read
+// reported it with ("failed to fetch row data: ..."). A failure the server
+// answered satisfies gocql.RequestError, an interface whose Code and Message
+// are the server's error code and text, and whose concrete types are
+// *gocql.RequestErrInvalid, *gocql.RequestErrSyntax, *gocql.RequestErrUnavailable
+// and the rest of that family; a code with no type of its own is answered by an
+// unexported frame, so match the interface rather than one of those types. A
+// keyspace that is gone is driver.ErrNotFound, which errors.Is reads.
 //
 // A Column's TypeName is Cassandra's own lowercase name for the CQL type (int,
 // text, list), not the upper-case name the contract describes: gocql reports
