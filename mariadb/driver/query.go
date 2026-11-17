@@ -3,11 +3,13 @@ package driver
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"strings"
 	"time"
 
 	"github.com/bytebase/omni/driver"
 	mariadbanalysis "github.com/bytebase/omni/mariadb/analysis"
+	"github.com/bytebase/omni/mariadb/ast"
 	mariadbparser "github.com/bytebase/omni/mariadb/parser"
 )
 
@@ -32,8 +34,21 @@ type session struct {
 	connID uint64
 }
 
+// Close discards the physical connection: see discardConn.
 func (s *session) Close() error {
-	return s.conn.Close()
+	discardConn(s.conn)
+	return nil
+}
+
+// discardConn closes conn's physical connection instead of returning it to the
+// pool. MariaDB's session state outlives a statement — the default database,
+// session variables, temporary tables, an open transaction — and
+// go-sql-driver's ResetSession only checks that the connection is alive, so a
+// pooled connection would hand that state to the next caller. Returning
+// ErrBadConn from Raw makes database/sql close it, and marks the Conn used up,
+// so no further call is needed.
+func discardConn(conn *sql.Conn) {
+	_ = conn.Raw(func(any) error { return sqldriver.ErrBadConn })
 }
 
 // Query runs each non-empty statement of script in order on the session's
@@ -67,7 +82,16 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		if err != nil {
 			return nil, err
 		}
+		if len(parsed.Items) == 0 {
+			continue
+		}
 		_, returnsData := mariadbanalysis.ValidateQuery(parsed.Items)
+		// A statement the read-only whitelist does not name may still answer
+		// with rows, and masking withholds the rows of a statement whose
+		// columns the caller's analysis cannot trace.
+		if serverReturnsRows(parsed.Items[0]) {
+			returnsData = !opts.MaskingEnabled
+		}
 		prepared = append(prepared, preparedStmt{text: statement, returnsData: returnsData})
 	}
 
@@ -103,6 +127,13 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		if err != nil {
 			return nil, err
 		}
+		// Only the first result set is the statement's result. The rest are
+		// drained rather than closed, because a later set can carry the
+		// statement's error, as a procedure that selects and then signals does.
+		for rows.NextResultSet() {
+			for rows.Next() {
+			}
+		}
 		if err := rows.Err(); err != nil {
 			return nil, err
 		}
@@ -124,6 +155,27 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 		affectedRows = 0
 	}
 	return &driver.Result{AffectedRows: &affectedRows}, nil
+}
+
+// serverReturnsRows reports whether the server answers node with a result set
+// whose columns mariadb/analysis's result lineage does not trace: a stored
+// procedure's result sets, a table check's diagnosis, a handler's read, and the
+// rows a write's RETURNING selects (mariadb/analysis classifies those writes as
+// DML and traces no columns for them). It is what the pinned servers answer with
+// columns; DO, SET, FLUSH, a cache load without a cache, and a write without
+// RETURNING answer none.
+func serverReturnsRows(node ast.Node) bool {
+	switch stmt := node.(type) {
+	case *ast.CallStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt,
+		*ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt,
+		*ast.LoadIndexIntoCacheStmt, *ast.HandlerReadStmt:
+		return true
+	case *ast.InsertStmt:
+		return len(stmt.Returning) > 0
+	case *ast.DeleteStmt:
+		return len(stmt.Returning) > 0
+	}
+	return false
 }
 
 func readRows(rows *sql.Rows, maxResultBytes int64) (*driver.Result, error) {
