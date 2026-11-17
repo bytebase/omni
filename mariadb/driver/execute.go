@@ -4,15 +4,12 @@ import (
 	"context"
 	"database/sql"
 	sqldriver "database/sql/driver"
-	"errors"
 	"fmt"
 	"regexp"
-	"time"
 
 	gomysql "github.com/go-sql-driver/mysql"
 
 	"github.com/bytebase/omni/driver"
-	"github.com/bytebase/omni/mariadb/ast"
 	mariadbparser "github.com/bytebase/omni/mariadb/parser"
 )
 
@@ -87,15 +84,22 @@ func toSQLIsolation(level driver.IsolationLevel) (sqldriver.IsolationLevel, erro
 }
 
 // Execute runs script under opts.Transaction, reporting each step to opts.Log
-// when non-nil and returning the total affected rows. A script that fails on a
-// lock wait timeout runs again up to opts.MaxRetries times, each attempt from
-// the beginning, which is safe because such a failure commits nothing.
-//
-// MariaDB commits implicitly on every DDL statement, so a script that mixes DDL
-// with DML leaves what it committed even when a later statement fails under
-// Transactional; the failure is returned and the count is 0.
+// when non-nil and returning the total affected rows.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
 	isolation, err := toSQLIsolation(opts.Isolation)
+	if err != nil {
+		return 0, err
+	}
+
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return 0, err
+	}
+	// A script may select a database or set session variables, so the
+	// connection is not poolable afterwards either: see discardConn.
+	defer discardConn(conn)
+
+	connID, err := d.readConnectionID(ctx, conn)
 	if err != nil {
 		return 0, err
 	}
@@ -105,130 +109,21 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		return 0, nil
 	}
 
-	// A retry repeats the whole script, so it is only safe when the failed
-	// attempt committed nothing. Under Transactional that means every command
-	// that ran before the failure is undone by the rollback; under AutoCommit it
-	// means the failed command itself is one statement, since a command that
-	// holds several has already committed the ones before the failure.
-	var rollbackSafe, repeatable []bool
-	if opts.MaxRetries > 0 {
-		rollbackSafe, repeatable = retryPlan(commands)
+	if opts.Transaction == driver.AutoCommit || opts.CreateDatabase {
+		return d.executeInAutoCommitMode(ctx, conn, commands, opts.Log, connID)
 	}
-
-	run := func() (int64, bool, error) {
-		conn, err := d.db.Conn(ctx)
-		if err != nil {
-			return 0, false, err
-		}
-		// A script may select a database or set session variables, so the
-		// connection is not poolable afterwards either: see discardConn.
-		defer discardConn(conn)
-
-		connID, err := d.readConnectionID(ctx, conn)
-		if err != nil {
-			return 0, false, err
-		}
-		if opts.Transaction == driver.AutoCommit || opts.CreateDatabase {
-			return d.executeInAutoCommitMode(ctx, conn, commands, repeatable, opts.Log, connID)
-		}
-		return d.executeInTransactionMode(ctx, conn, commands, rollbackSafe, opts.Log, connID, isolation)
-	}
-
-	affectedRows, retryable, err := run()
-	if err == nil || !retryable || !isLockTimeout(err) {
-		return affectedRows, err
-	}
-	for i := range opts.MaxRetries {
-		interval := time.Duration(150+(i+1)*100/opts.MaxRetries) * time.Millisecond
-		select {
-		case <-ctx.Done():
-			return affectedRows, ctx.Err()
-		case <-time.After(interval):
-		}
-		if opts.Log != nil {
-			opts.Log.Retry(err, i+1, opts.MaxRetries)
-		}
-		affectedRows, retryable, err = run()
-		if err == nil || !retryable || !isLockTimeout(err) {
-			break
-		}
-	}
-	return affectedRows, err
+	return d.executeInTransactionMode(ctx, conn, commands, opts.Log, connID, isolation)
 }
-
-// retryPlan reports, per command, whether a failed attempt at it leaves nothing
-// behind: rollbackSafe for Transactional, where the rollback must undo what ran
-// before, and repeatable for AutoCommit, where a command holding several
-// statements has already committed the ones before the failure.
-func retryPlan(commands []driver.Command) (rollbackSafe, repeatable []bool) {
-	rollbackSafe = make([]bool, len(commands))
-	repeatable = make([]bool, len(commands))
-	for i, cmd := range commands {
-		parsed, err := mariadbparser.Parse(cmd.Text)
-		if err != nil || parsed == nil || len(parsed.Items) != 1 {
-			continue
-		}
-		rollbackSafe[i] = rollsBack(parsed.Items[0])
-		repeatable[i] = true
-	}
-	return rollbackSafe, repeatable
-}
-
-// retryableAfter reports whether a failed attempt at command i left nothing
-// behind. The failing command counts: MariaDB commits the open transaction
-// before it runs a statement that cannot be rolled back, so a DDL that then
-// fails on a lock timeout has already committed the DML before it, and neither
-// the rollback nor a retry can undo that.
-func retryableAfter(rollbackSafe []bool, i int, earlierSafe bool) bool {
-	if !earlierSafe {
-		return false
-	}
-	return rollbackSafe == nil || rollbackSafe[i]
-}
-
-// rollsBack reports whether a command that succeeded inside a transaction is
-// undone by rolling back. MariaDB commits the open transaction implicitly around
-// DDL, LOCK TABLES, a SET that changes autocommit, and the administrative
-// statements, so anything outside this list keeps a retry from being safe.
-func rollsBack(node ast.Node) bool {
-	switch node.(type) {
-	case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.DoStmt, *ast.ShowStmt, *ast.ExplainStmt:
-		return true
-	}
-	return false
-}
-
-// isLockTimeout reports whether err is MariaDB's lock wait timeout (1205) or
-// deadlock (1213): the two failures that roll a statement's transaction back,
-// so running the script again starts from a state that holds nothing.
-func isLockTimeout(err error) bool {
-	var mysqlErr *gomysql.MySQLError
-	if !errors.As(err, &mysqlErr) {
-		return false
-	}
-	return mysqlErr.Number == erLockWaitTimeout || mysqlErr.Number == erLockDeadlock
-}
-
-const (
-	erLockWaitTimeout = 1205
-	erLockDeadlock    = 1213
-)
 
 func (d *Driver) executeInTransactionMode(
 	ctx context.Context,
 	conn *sql.Conn,
 	commands []driver.Command,
-	rollbackSafe []bool,
 	log driver.ExecuteLogger,
 	connID uint64,
 	isolation sqldriver.IsolationLevel,
-) (rowsAffected int64, retryable bool, err error) {
+) (int64, error) {
 	var totalRowsAffected int64
-	// Every command that ran before a failure is undone by the rollback, unless
-	// it committed on its own.
-	earlierSafe := true
-	retryable = true
 	if err := conn.Raw(func(driverConn any) error {
 		exer := driverConn.(sqldriver.ExecerContext)
 		txer := driverConn.(sqldriver.ConnBeginTx)
@@ -247,75 +142,61 @@ func (d *Driver) executeInTransactionMode(
 			}
 			rollbackErr := tx.Rollback()
 			logTransactionControl(log, driver.Rollback, rollbackErr)
-			if rollbackErr != nil {
-				retryable = false
-			}
 		}()
 
-		for i, cmd := range commands {
+		for _, cmd := range commands {
 			logCommandExecute(log, cmd)
-			sqlResult, execErr := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
-			if execErr != nil {
-				d.killQueryOnCancel(execErr, connID)
-				logCommandResponse(log, 0, nil, execErr)
-				retryable = retryable && retryableAfter(rollbackSafe, i, earlierSafe)
-				return execErr
+			sqlResult, err := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
+			if err != nil {
+				d.killQueryOnCancel(err, connID)
+				logCommandResponse(log, 0, nil, err)
+				return err
 			}
-			if rollbackSafe != nil && !rollbackSafe[i] {
-				earlierSafe = false
-			}
-			affected, perResult := extractAffectedRows(sqlResult)
-			totalRowsAffected += affected
-			logCommandResponse(log, affected, perResult, nil)
+			rowsAffected, perResult := extractAffectedRows(sqlResult)
+			totalRowsAffected += rowsAffected
+			logCommandResponse(log, rowsAffected, perResult, nil)
 		}
 
-		if commitErr := tx.Commit(); commitErr != nil {
-			logTransactionControl(log, driver.Commit, commitErr)
-			retryable = false
-			return fmt.Errorf("failed to commit execute transaction: %w", commitErr)
+		if err := tx.Commit(); err != nil {
+			logTransactionControl(log, driver.Commit, err)
+			return fmt.Errorf("failed to commit execute transaction: %w", err)
 		}
 		logTransactionControl(log, driver.Commit, nil)
 		committed = true
 		return nil
 	}); err != nil {
-		return 0, retryable, err
+		return 0, err
 	}
-	return totalRowsAffected, retryable, nil
+	return totalRowsAffected, nil
 }
 
 func (d *Driver) executeInAutoCommitMode(
 	ctx context.Context,
 	conn *sql.Conn,
 	commands []driver.Command,
-	repeatable []bool,
 	log driver.ExecuteLogger,
 	connID uint64,
-) (rowsAffected int64, retryable bool, err error) {
+) (int64, error) {
 	var totalRowsAffected int64
-	// Each command commits on its own, so only a script that failed before its
-	// first command ran leaves nothing to repeat.
-	succeeded := 0
 	if err := conn.Raw(func(driverConn any) error {
 		exer := driverConn.(sqldriver.ExecerContext)
-		for i, cmd := range commands {
+		for _, cmd := range commands {
 			logCommandExecute(log, cmd)
-			sqlResult, execErr := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
-			if execErr != nil {
-				d.killQueryOnCancel(execErr, connID)
-				logCommandResponse(log, 0, nil, execErr)
-				retryable = succeeded == 0 && (repeatable == nil || repeatable[i])
-				return execErr
+			sqlResult, err := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
+			if err != nil {
+				d.killQueryOnCancel(err, connID)
+				logCommandResponse(log, 0, nil, err)
+				return err
 			}
-			succeeded++
-			affected, perResult := extractAffectedRows(sqlResult)
-			totalRowsAffected += affected
-			logCommandResponse(log, affected, perResult, nil)
+			rowsAffected, perResult := extractAffectedRows(sqlResult)
+			totalRowsAffected += rowsAffected
+			logCommandResponse(log, rowsAffected, perResult, nil)
 		}
 		return nil
 	}); err != nil {
-		return 0, retryable, err
+		return 0, err
 	}
-	return totalRowsAffected, retryable, nil
+	return totalRowsAffected, nil
 }
 
 func extractAffectedRows(res sqldriver.Result) (int64, []int64) {
