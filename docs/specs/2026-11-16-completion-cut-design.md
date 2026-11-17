@@ -172,7 +172,7 @@ truncation workarounds (`collectLeadingTableReferences`'s paren-level stack,
 
 ## The corpus
 
-`mysql/parser/complete_context_test.go` holds 79 cases over
+`mysql/parser/complete_context_test.go` holds 84 cases over
 `sql` × cursor positions: select list, `WHERE`, `ON`, joins with and without aliases,
 cross and `STRAIGHT_JOIN`, derived tables (with and without an alias column list, and
 unterminated), CTEs (with a column list, from the body's select list, `RECURSIVE`, two in a
@@ -190,8 +190,9 @@ alias), DDL positions (`type_name`, `index_ref`, `engine`, `charset`, `view_ref`
 the columns the reader reports for a reference — nested `WITH` bodies, a shadowing clause,
 expression items that name no column, qualified names, and `JSON_TABLE`. A third walks every
 cursor offset of eight scripts, including 200 nested parentheses and unterminated strings, and
-a fourth runs 10,002 nested parentheses and 10,002 nested `NESTED PATH ... COLUMNS (` clauses
-through the reader: both recursions stop at `maxNestingDepth` instead of the process stack.
+a fourth runs 10,002 nested parentheses, 10,002 nested `NESTED PATH ... COLUMNS (` clauses, and
+10,002 nested `WITH` bodies through the reader: each recursion stops at `maxNestingDepth`
+instead of the process stack.
 
 Three positions the corpus pins as gaps in the *grammar*, not in the reader:
 
@@ -212,7 +213,7 @@ explain: scope, object kinds, qualifier, select aliases, CTE definitions, and pr
 
 | signal | agreement |
 |---|---|
-| relation scope | 168/200 |
+| relation scope | 167/200 |
 | object kinds | 197/198 |
 | qualifier | 200/200 |
 | select aliases | 200/200 |
@@ -226,12 +227,13 @@ plumbing, not metadata. What it compares instead is the *input* to that resoluti
 candidates' *kinds* are covered indirectly (object kinds 197/198): if the signals name a kind
 the adapter never asks the store for, that divergence shows up as a rule/intent mismatch.
 
-The 32 scope and 4 CTE disagreements, classified:
+The 33 scope and 4 CTE disagreements, classified:
 
-- **19 — omni binds a reference Bytebase loses.** 15 of them are a statement truncated at the
+- **20 — omni binds a reference Bytebase loses.** 15 of them are a statement truncated at the
   cursor (`FROM t1 JOIN |`, `FROM t1, |`, `WHERE |`, `SET c1 = |`, `CREATE INDEX i ON t1 (|`,
-  `FROM t|`); 4 are complete statements whose references Bytebase never collects
-  (`UPDATE t1 SET |`, `ALTER TABLE t1 ADD COLUMN c REFERENCES |`, `LIMIT |`).
+  `FROM t|`); the rest are complete statements whose references Bytebase never collects
+  (`UPDATE t1 SET |`, `LIMIT |`, an `UPDATE` target a correlated subquery may name, a
+  `DELETE FROM t1, t2` target list, `DROP INDEX ... ON t`).
   `parseTableReferences` re-parses the fragment with a shrinking token prefix and gives up;
   the signals read the tokens. This is the mechanism removing workarounds, not a behavior
   change any user asked for — but it *is* a behavior change, and the Bytebase PR that
@@ -242,9 +244,13 @@ The 32 scope and 4 CTE disagreements, classified:
   engine's answer, which is that a set-operation arm sees only its own `FROM`, and
   `ORDER BY` after a `UNION` sees the output column names rather than any table. Deciding
   which approximation to keep is part of adopting the signals.
-- **3 — DML target placement.** `INSERT INTO t1 SELECT | FROM t2` and two `WITH ... DML`
-  cases: Bytebase flattens the write target into `references`, omni keeps it in
+- **2 — DML target placement.** `INSERT INTO t1 SELECT | FROM t2` and one `WITH ... INSERT`
+  case: Bytebase flattens the write target into `references`, omni keeps it in
   `Scope.DMLTarget`. The adapter unions the two; the field exists so a caller can tell.
+- **1 — the reference the signals get right and Bytebase does not.** For
+  `ALTER TABLE t1 ADD CONSTRAINT fk FOREIGN KEY (c1) REFERENCES t2(|)` Bytebase keeps `t1`
+  (the altered table) in scope; omni names `t2`, which is whose columns the parenthesized
+  list takes. The signals are right and Bytebase's adapter will have to follow.
 - **4 CTEs.** Two are the boundary itself: `WITH x AS (SELECT * FROM t2)` gives omni no columns
   and Bytebase resolves them with a query span over live metadata. One is a body whose
   select list does not read (`SELECT a.|`), where omni still reports the CTE with no columns

@@ -298,6 +298,31 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t1"}, {table: "t1"}, {table: "t2"}}, dml: "->t1"},
 		},
 		{
+			name: "delete modifier before from",
+			sql:  "DELETE LOW_PRIORITY FROM t WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "single table delete alias",
+			sql:  "DELETE FROM db.t AS a WHERE a.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"a"}, local: []ref{{kind: RangeReferenceDMLTarget, database: "db", table: "t", alias: "a"}}, dml: "->db.t a"},
+		},
+		{
+			name: "extra parentheses around a derived table",
+			sql:  "SELECT * FROM ((SELECT a AS x FROM t)) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}},
+		},
+		{
+			name: "foreign key references its parent",
+			sql:  "ALTER TABLE child ADD FOREIGN KEY (parent_id) REFERENCES db.parent (|)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{database: "db", table: "parent", alias: "parent"}}},
+		},
+		{
+			name: "foreign key names its own columns from the altered table",
+			sql:  "ALTER TABLE child ADD FOREIGN KEY (|) REFERENCES db.parent (id)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "child", alias: "child"}}},
+		},
+		{
 			name: "no leak between statements",
 			sql:  "SELECT * FROM earlier; SELECT * FROM t WHERE |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t"}}},
@@ -697,6 +722,11 @@ func TestCollectCompletionReferenceColumns(t *testing.T) {
 			local: map[string][]string{"d": {"a", "b", "c"}},
 		},
 		{
+			name:  "a table function's arguments see the sources before it",
+			sql:   "SELECT * FROM t, JSON_TABLE((SELECT t.`x`), '$' COLUMNS (x INT PATH '$')) jt WHERE EXISTS (SELECT 1 FROM JSON_TABLE((SELECT t.|), '$' COLUMNS (y INT PATH '$')) j) AND 1",
+			outer: map[string][]string{"t": {}},
+		},
+		{
 			name:  "json table declares its columns",
 			sql:   "SELECT jt.| FROM JSON_TABLE('[1]', '$[*]' COLUMNS (x INT PATH '$', NESTED PATH '$.a' COLUMNS (y INT PATH '$'))) AS jt",
 			local: map[string][]string{"jt": {"x", "y"}},
@@ -747,9 +777,15 @@ func TestCollectCompletionNestingLimits(t *testing.T) {
 		"x INT PATH '$'" +
 		strings.Repeat("))", maxNestingDepth+2) +
 		") jt WHERE "
+	// Each level of a WITH body's output columns re-enters the reader that
+	// read the level around it.
+	withBodies := "SELECT * FROM (" +
+		strings.Repeat("WITH c AS (", maxNestingDepth+2) + "SELECT 1" +
+		strings.Repeat(") SELECT * FROM c", maxNestingDepth+2) + ") d WHERE "
 	for name, sql := range map[string]string{
 		"parenthesized table sources": "SELECT * FROM " + parens + " WHERE ",
 		"json_table nested columns":   jsonColumns,
+		"nested with bodies":          withBodies,
 	} {
 		t.Run(name, func(t *testing.T) {
 			ctx := CollectCompletion(sql, len(sql))

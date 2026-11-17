@@ -225,7 +225,7 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
 		// are what its clauses name.
-		refs := append(append([]RangeReference{}, dmlRefs...), collectDDLScope(stmtTokens)...)
+		refs := append(append([]RangeReference{}, dmlRefs...), collectDDLScope(stmtTokens, cursorOffset)...)
 		scope = &ScopeSnapshot{
 			LocalReferences: refs,
 			References:      append([]RangeReference{}, refs...),
@@ -363,7 +363,7 @@ func collectVisibleCTEs(tokens []completionScopeToken, cursorOffset int) []Range
 		if end := completionBlockEnd(tokens, i, tok.depth); end < len(tokens) && tokens[end].Loc < cursorOffset {
 			continue
 		}
-		defs, _ := collectCTEsAt(tokens, i)
+		defs, _ := collectCTEsAt(tokens, i, 0)
 		for _, def := range defs {
 			name := foldName(def.Table)
 			if at, ok := index[name]; ok {
@@ -396,12 +396,17 @@ func collectCTEs(tokens []completionScopeToken) ([]RangeReference, int) {
 	if first < 0 || tokens[first].Type != kwWITH {
 		return nil, 0
 	}
-	return collectCTEsAt(tokens, first)
+	return collectCTEsAt(tokens, first, 0)
 }
 
 // collectCTEsAt parses the WITH clause at withIdx and returns its definitions
 // and the index after the clause, where the statement's main clause starts.
-func collectCTEsAt(tokens []completionScopeToken, withIdx int) ([]RangeReference, int) {
+// nesting bounds the recursion a body's output columns cause: a body may itself
+// open with a WITH clause, so reading columns re-enters this reader.
+func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int) ([]RangeReference, int) {
+	if nesting >= maxNestingDepth {
+		return nil, withIdx
+	}
 	var ctes []RangeReference
 	idx := withIdx + 1
 	depth := tokens[withIdx].depth
@@ -435,7 +440,7 @@ func collectCTEsAt(tokens []completionScopeToken, withIdx int) ([]RangeReference
 			break
 		}
 		if len(columns) == 0 {
-			columns = selectListColumns(tokens, idx+1, closeIdx)
+			columns = selectListColumns(tokens, idx+1, closeIdx, nesting+1)
 		}
 		ctes = append(ctes, RangeReference{
 			Kind:    RangeReferenceCTE,
@@ -526,7 +531,7 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 
 // collectDDLScope returns the table an ALTER TABLE, TRUNCATE, or CREATE INDEX
 // statement names. Its clauses take that table's columns.
-func collectDDLScope(tokens []completionScopeToken) []RangeReference {
+func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeReference {
 	first := firstNonTerminator(tokens)
 	if first < 0 {
 		return nil
@@ -547,6 +552,11 @@ func collectDDLScope(tokens []completionScopeToken) []RangeReference {
 		}
 		ref.Alias = ref.Table
 		ref.Loc = tokenLoc(tokens[idx], tokens[next-1])
+		if parent, ok := foreignKeyParentAt(tokens, first, depth, cursorOffset); ok {
+			// The column list of a REFERENCES clause names the parent's
+			// columns, not the altered table's.
+			return []RangeReference{parent}
+		}
 		return []RangeReference{ref}
 	case kwCREATE:
 		// CREATE [UNIQUE | FULLTEXT | SPATIAL] INDEX name ON table
@@ -583,6 +593,35 @@ func collectDDLScope(tokens []completionScopeToken) []RangeReference {
 	return nil
 }
 
+// foreignKeyParentAt returns the table a REFERENCES clause names when the
+// cursor is in that table's column list, as in
+// ALTER TABLE child ADD FOREIGN KEY (a) REFERENCES parent (|).
+func foreignKeyParentAt(tokens []completionScopeToken, first, depth, cursorOffset int) (RangeReference, bool) {
+	for i := first + 1; i < len(tokens); i++ {
+		if tokens[i].depth != depth || tokens[i].Type != kwREFERENCES {
+			continue
+		}
+		ref, next, ok := parseRangeReference(tokens, i+1)
+		if !ok {
+			return RangeReference{}, false
+		}
+		if next >= len(tokens) || tokens[next].Type != '(' {
+			return RangeReference{}, false
+		}
+		closeIdx := matchingParen(tokens, next)
+		if closeIdx < 0 {
+			return RangeReference{}, false
+		}
+		if cursorOffset < tokens[next].Loc || cursorOffset > tokens[closeIdx].End {
+			return RangeReference{}, false
+		}
+		ref.Alias = ref.Table
+		ref.Loc = tokenLoc(tokens[i+1], tokens[closeIdx])
+		return ref, true
+	}
+	return RangeReference{}, false
+}
+
 // indexTable returns the table named by the ON clause of a CREATE INDEX or
 // DROP INDEX statement, whose index name starts at idx.
 func indexTable(tokens []completionScopeToken, idx, depth int) []RangeReference {
@@ -604,7 +643,16 @@ func indexTable(tokens []completionScopeToken, idx, depth int) []RangeReference 
 // statement reads.
 func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[string]RangeReference) (*RangeReference, []RangeReference, bool) {
 	depth := tokens[deleteIdx].depth
+	// DELETE LOW_PRIORITY | QUICK | IGNORE precede the form's own keywords.
 	idx := deleteIdx + 1
+	for idx < len(tokens) && tokens[idx].depth == depth {
+		switch tokens[idx].Type {
+		case kwLOW_PRIORITY, kwQUICK, kwIGNORE, kwHIGH_PRIORITY, kwDELAYED:
+			idx++
+			continue
+		}
+		break
+	}
 	fromIdx := findKeywordAtDepth(tokens, kwFROM, idx, len(tokens), depth)
 	if fromIdx < 0 {
 		return nil, nil, false
@@ -633,11 +681,22 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 	for i := range targets {
 		targets[i].Kind = RangeReferenceDMLTarget
 	}
-	refs := append([]RangeReference{}, targets...)
 	if next < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwUSING {
+		refs := append([]RangeReference{}, targets...)
 		refs = append(refs, parseFromReferences(tokens, next+1, len(tokens), depth, ctes)...)
+		return &refs[0], refs, true
 	}
-	return &refs[0], refs, true
+	// The single-table form takes an alias, and names it in its clauses.
+	if len(targets) == 1 {
+		alias, columns, after := parseAliasAndColumns(tokens, next, depth)
+		if alias != "" {
+			targets[0].Alias = alias
+			targets[0].AliasColumns = columns
+			targets[0].Loc.End = tokens[after-1].End
+			next = after
+		}
+	}
+	return &targets[0], targets, true
 }
 
 // parseDeleteTarget reads one name of a DELETE target list, which may end in
@@ -1066,7 +1125,7 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 		return nil, idx + 1, false
 	}
 	depth := tokens[idx].depth
-	isQuery := idx+1 < closeIdx && (tokens[idx+1].Type == kwSELECT || tokens[idx+1].Type == kwWITH || tokens[idx+1].Type == kwVALUES)
+	isQuery := parenOpensQuery(tokens, idx)
 	if !isQuery {
 		inner := parseFromReferences(tokens, idx+1, closeIdx, depth+1, ctes)
 		alias, columns, next := parseAliasAndColumns(tokens, closeIdx+1, depth)
@@ -1090,7 +1149,7 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 	}
 	ref := RangeReference{
 		Kind:    RangeReferenceSubquery,
-		Columns: selectListColumns(tokens, idx+1, closeIdx),
+		Columns: selectListColumns(tokens, idx+1, closeIdx, 0),
 		BodyLoc: tokenLoc(tokens[idx], tokens[closeIdx]),
 		Loc:     tokenLoc(tokens[idx], tokens[closeIdx]),
 		Lateral: lateral,
@@ -1111,6 +1170,24 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 	return []RangeReference{ref}, next, true
 }
 
+// parenOpensQuery reports whether the group opened at open holds a query
+// rather than a table list, looking through parentheses a query may wrap
+// itself in: ((SELECT ...) UNION (SELECT ...)) x and ((SELECT ...)) x are both
+// derived tables.
+func parenOpensQuery(tokens []completionScopeToken, open int) bool {
+	for open+1 < len(tokens) && tokens[open+1].Type == '(' {
+		open++
+	}
+	if open+1 >= len(tokens) || tokens[open+1].depth != tokens[open].depth+1 {
+		return false
+	}
+	switch tokens[open+1].Type {
+	case kwSELECT, kwWITH, kwVALUES, kwTABLE:
+		return true
+	}
+	return false
+}
+
 // parseJSONTableSource reads MySQL's only built-in table function,
 // JSON_TABLE(expr, path COLUMNS (...)) [AS] alias. Its COLUMNS clause names
 // the columns in the text, so the reference carries them like a CTE's.
@@ -1129,7 +1206,9 @@ func parseJSONTableSource(tokens []completionScopeToken, idx int, lateral bool) 
 		Columns: jsonTableColumns(tokens, idx+1, closeIdx),
 		Loc:     tokenLoc(tokens[idx], tokens[closeIdx]),
 		BodyLoc: tokenLoc(tokens[idx+1], tokens[closeIdx]),
-		Lateral: lateral,
+		// A table function's arguments may name the sources before it
+		// without LATERAL.
+		Lateral: true,
 	}
 	alias, columns, next := parseAliasAndColumns(tokens, closeIdx+1, tokens[idx].depth)
 	if alias != "" {
@@ -1274,14 +1353,17 @@ func parseAliasAndColumns(tokens []completionScopeToken, idx, depth int) (string
 // selectListColumns returns the columns the select list of the query in
 // tokens[lo:hi] names: the explicit alias, the bare column name, or the star's
 // references. A position that is not one of those contributes nothing.
-func selectListColumns(tokens []completionScopeToken, lo, hi int) []string {
+func selectListColumns(tokens []completionScopeToken, lo, hi, nesting int) []string {
+	if nesting >= maxNestingDepth {
+		return nil
+	}
 	if lo < 0 || hi > len(tokens) || lo >= hi {
 		return nil
 	}
 	// A body may open with a WITH clause: its output columns are the query
 	// after the clause, not a CTE's own select list.
 	for lo < hi && tokens[lo].Type == kwWITH {
-		_, next := collectCTEsAt(tokens, lo)
+		_, next := collectCTEsAt(tokens, lo, nesting+1)
 		if next <= lo || next >= hi {
 			break
 		}
