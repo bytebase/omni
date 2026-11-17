@@ -160,7 +160,9 @@ recording skipped it**: one scratch cluster in one account has no share, so
 were read only against an ordinary database. `TestSyncDatabaseDatashare` reads
 the share out of the cluster instead of being told its name: it skips, naming
 this provisioning step, when `SVV_DATASHARES` reports no consumer database.
-It is the one test that still reads `REDSHIFT_DSN` rather than a tape.
+It is the one test that still reads `REDSHIFT_DSN` rather than a tape. The
+`SVV_ALL_*` reads and the datashare qualifier rewrite stay uncompared until a
+second namespace publishes a share.
 
 ## Step 3 — the pin row
 
@@ -279,7 +281,8 @@ parent engine. Two ways forward, in order of preference:
    `catalog.DatabaseDefinition(db, catalog.DefinitionOptions{PrintHeader: true})`
    with `TestDump`, `TestDumpRestores` and `TestDumpGaps` beside it;
 2. leave it out and say so, which is today's state: Bytebase's Redshift `Dump`
-   wrote nothing either, so nothing is lost yet.
+   is `return nil` — it wrote nothing at all — so implementing it here is an
+   improvement over Bytebase, not a cutover requirement.
 
 ## Step 8 — the parity harness
 
