@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"reflect"
@@ -34,6 +35,10 @@ type querySpanExtractor struct {
 
 	predicateColumns ColumnSet
 
+	// untracedRelations records the temp tables and table variables this
+	// statement reads; their rows come from statements this call does not see.
+	untracedRelations map[ColumnResource]bool
+
 	viewResolutionStack map[string]bool
 
 	// source is the original SQL text, used to slice expression names via Loc.
@@ -55,6 +60,7 @@ func newQuerySpanExtractor(defaultDatabase string, defaultSchema string, catalog
 		tempTables:          tempTables,
 		ignoreCaseSensitive: ignoreCaseSensitive,
 		predicateColumns:    make(ColumnSet),
+		untracedRelations:   make(map[ColumnResource]bool),
 	}
 }
 
@@ -67,6 +73,54 @@ func (q *querySpanExtractor) findTempTable(rawName string) (*TempTable, bool) {
 	return nil, false
 }
 
+// markUntracedRelation records a relation the statement reads whose rows the
+// analysis cannot follow to a base table.
+func (q *querySpanExtractor) markUntracedRelation(name string) {
+	if q.untracedRelations == nil {
+		q.untracedRelations = make(map[ColumnResource]bool)
+	}
+	q.untracedRelations[ColumnResource{Table: name}] = true
+}
+
+// untracedError reports the values the statement reads that have no column
+// lineage: the temp tables and table variables the batch filled, and the local
+// variables a statement of the batch assigned. It is nil when there are none,
+// and callers only ask for it when the statement returns rows.
+func (q *querySpanExtractor) untracedError(root ast.Node) *UntracedError {
+	relations := make([]ColumnResource, 0, len(q.untracedRelations))
+	for relation := range q.untracedRelations {
+		relations = append(relations, relation)
+	}
+	slices.SortFunc(relations, func(a, b ColumnResource) int {
+		return cmp.Or(cmp.Compare(a.Server, b.Server), cmp.Compare(a.Database, b.Database), cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Table, b.Table))
+	})
+	variables := localVariables(root)
+	if len(relations) == 0 && len(variables) == 0 {
+		return nil
+	}
+	slices.Sort(variables)
+	return &UntracedError{Relations: relations, Variables: variables}
+}
+
+// localVariables returns the local variables the statement reads, once each.
+// A variable's value was assigned by a statement of the same batch, from any
+// column, and ResolveQuerySpan sees one statement. A @@ name is a system
+// function, whose value is the server's state rather than a column.
+func localVariables(root ast.Node) []string {
+	seen := map[string]bool{}
+	var variables []string
+	ast.Inspect(root, func(node ast.Node) bool {
+		ref, ok := node.(*ast.VariableRef)
+		if !ok || strings.HasPrefix(ref.Name, "@@") || seen[ref.Name] {
+			return true
+		}
+		seen[ref.Name] = true
+		variables = append(variables, ref.Name)
+		return true
+	})
+	return variables
+}
+
 // tsqlFindTableSchemaByParts resolves a (linkedServer, database, schema, table)
 // tuple to a TableSource. Empty strings for database/schema mean "not specified
 // by the user"; defaults are applied here when looking up metadata. CTEs
@@ -74,14 +128,28 @@ func (q *querySpanExtractor) findTempTable(rawName string) (*TempTable, bool) {
 // specified.
 func (q *querySpanExtractor) tsqlFindTableSchemaByParts(linkedServer, rawDatabase, rawSchema, rawTable string) (tableSource, error) {
 	if linkedServer != "" {
-		// TODO(zp): How do we handle the linked server?
-		return nil, fmt.Errorf("linked server is not supported yet, but found %q", linkedServer)
+		// The server resolves the relation itself, through sys.servers. No
+		// object of the connected instance describes the table, so neither its
+		// columns nor a masking policy for them exist here.
+		parts := make([]string, 0, 3)
+		for _, part := range []string{rawDatabase, rawSchema, rawTable} {
+			if part != "" {
+				parts = append(parts, part)
+			}
+		}
+		return nil, &LinkedServerError{Server: linkedServer, Table: strings.Join(parts, ".")}
 	}
 	if strings.HasPrefix(rawTable, "#") {
+		// A temp table's rows come from the batch's own statements, which are
+		// other calls to ResolveQuerySpan, so the span marks the relation
+		// untraced rather than tracing through them. That holds for one the
+		// batch declared and for one it did not: the caller's map carries the
+		// columns, not what filled them.
 		if tempTable, ok := q.findTempTable(rawTable); ok {
+			q.markUntracedRelation(tempTable.Name)
 			return (*physicalTable)(tempTable), nil
 		}
-		// TODO(masking): Considering SELECT * INTO #temp FROM dbo.t1; SELECT * FROM #temp. We should mask the #temp.
+		q.markUntracedRelation(rawTable)
 		return &pseudoTable{}, nil
 	}
 
@@ -518,6 +586,7 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 		SourceColumns:    accessTables,
 		Results:          pseudo.GetQuerySpanResult(),
 		PredicateColumns: q.predicateColumns,
+		Untraced:         q.untracedError(root),
 	}, nil
 }
 
@@ -909,6 +978,7 @@ func (q *querySpanExtractor) extractCTEBody(cteName string, body *ast.SelectStmt
 			predicateColumns:    make(ColumnSet),
 			viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
 			source:              q.source,
+			untracedRelations:   q.untracedRelations,
 		}
 	}
 
@@ -980,6 +1050,10 @@ func (q *querySpanExtractor) extractTableSource(node ast.Node) ([]tableSource, e
 	switch v := node.(type) {
 	case *ast.JoinClause:
 		return q.extractFromJoin(v)
+	case *ast.AdHocTableRef:
+		// OPENDATASOURCE: a provider reads the relation, not the connected
+		// instance.
+		return nil, &LinkedServerError{}
 	case *ast.TableRef:
 		ts, err := q.resolveTableRef(v)
 		if err != nil {
@@ -1132,6 +1206,13 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 	}
 	var columnNames []string
 	switch strings.ToUpper(fn.Name.Object) {
+	case "OPENQUERY":
+		// A pass-through query: the columns are the remote server's, and the
+		// statement spells none of them.
+		return nil, &LinkedServerError{Server: rowsetServerArgument(fn), PassThrough: true}
+	case "OPENROWSET":
+		// An ad-hoc provider read, with no linked server to name.
+		return nil, &LinkedServerError{}
 	case "STRING_SPLIT":
 		columnNames = []string{"value"}
 		hasOrdinal, err := stringSplitHasOrdinalColumn(fn.Args)
@@ -1167,6 +1248,18 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 		return nil, err
 	}
 	return &pseudoTable{Name: alias, Columns: columns}, nil
+}
+
+// rowsetServerArgument returns the linked server an OPENQUERY call names: its
+// first argument, which the parser reads as a table reference.
+func rowsetServerArgument(fn *ast.FuncCallExpr) string {
+	if fn.Args == nil || fn.Args.Len() == 0 {
+		return ""
+	}
+	if ref, ok := fn.Args.Items[0].(*ast.TableRef); ok {
+		return ref.Object
+	}
+	return ""
 }
 
 func stringSplitHasOrdinalColumn(args *ast.List) (bool, error) {
@@ -1269,6 +1362,7 @@ func (q *querySpanExtractor) resolveTableVar(tv *ast.TableVarRef, alias string) 
 	}
 	name := tv.Name
 	if temp, ok := q.findTempTable(name); ok {
+		q.markUntracedRelation(temp.Name)
 		tableName := name
 		if alias != "" {
 			tableName = alias
@@ -1391,6 +1485,9 @@ func (q *querySpanExtractor) cloneForSubquery() *querySpanExtractor {
 		predicateColumns:    make(ColumnSet),
 		viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
 		source:              q.source,
+		// The clone's writes are the statement's, so they land on the same
+		// records.
+		untracedRelations: q.untracedRelations,
 	}
 	return clone
 }
@@ -1413,6 +1510,16 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 				results = append(results, fields...)
 				continue
 			}
+			if assign, ok := v.Val.(*ast.SelectAssign); ok {
+				// SELECT @v = expr assigns a variable and produces no result
+				// column. SQL Server returns no result set for it, and rejects
+				// mixing it with a retrieving target (error 141). Resolve the
+				// value so the tables it reads stay in the span.
+				if _, err := q.resolveExpression(assign.Value); err != nil {
+					return nil, err
+				}
+				continue
+			}
 			r, err := q.resolveExpression(v.Val)
 			if err != nil {
 				return nil, err
@@ -1428,8 +1535,8 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 			}
 			results = append(results, fields...)
 		case *ast.SelectAssign:
-			// SELECT @v = expr — no result column produced; just fold the expr
-			// for predicate/source tracking (omitted here since it doesn't emit a column).
+			// SELECT @v = expr as a bare target: no result column, and the
+			// value's tables are already in the span's access set.
 			continue
 		default:
 			if expr, ok := item.(ast.ExprNode); ok {
