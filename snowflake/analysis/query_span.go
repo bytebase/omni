@@ -106,6 +106,10 @@ type tableEntry struct {
 	// For a base table with unknown schema, we synthesize a * source column
 	// rather than enumerating specific columns.
 	isUnknown bool // true when we have no schema information
+	// accessed holds the reads of the relation a derived entry was built from
+	// (a CTE body, a subquery, or a derived relation over one). They belong to
+	// the enclosing span's Sources in addition to the entry's own columns.
+	accessed []*SourceColumn
 	// opaque marks a PIVOT/UNPIVOT-derived relation. The output columns of a
 	// pivoted relation are computed from its source relation but carry names
 	// that do not exist on it (pivot value columns / the UNPIVOT value+name
@@ -160,13 +164,15 @@ func extractSelectStmt(s *ast.SelectStmt, scope *queryScope) *QuerySpan {
 
 	// Collect result columns.
 	var results []*ResultColumn
+	var subquerySources []*SourceColumn
 	for _, target := range s.Targets {
 		if target.Star {
 			// SELECT * or SELECT t.* [EXCLUDE (cols)]
 			results = append(results, resolveStarTarget(target, fromEntries))
 		} else {
-			rc := resolveExprTarget(target, fromEntries)
+			rc, scanned := resolveExprTarget(target, fromEntries, scope)
 			results = append(results, rc)
+			subquerySources = append(subquerySources, scanned...)
 		}
 	}
 
@@ -184,9 +190,26 @@ func extractSelectStmt(s *ast.SelectStmt, scope *queryScope) *QuerySpan {
 		}
 	}
 
+	// A subquery in a target list reads its own tables even though its lineage
+	// stays out of the result column (see collectColumnRefs).
+	for _, sc := range subquerySources {
+		k := toSourceKey(sc)
+		if _, exists := sourcesMap[k]; !exists {
+			sourcesMap[k] = sc
+		}
+	}
+
 	// Also include "table-level" sources for every FROM entry even if no
 	// columns are explicitly referenced (e.g. SELECT 1 FROM t still "touches" t).
 	for _, entry := range fromEntries {
+		// A derived entry's body reads its own tables; a CTE reference and a
+		// FROM subquery stay transparent for that (design goal 3).
+		for _, sc := range entry.accessed {
+			k := toSourceKey(sc)
+			if _, exists := sourcesMap[k]; !exists {
+				sourcesMap[k] = sc
+			}
+		}
 		if len(entry.opaque) > 0 {
 			// Pivoted relation: the alias names a derived relation, not a
 			// real table — record the underlying whole-relation sources.
@@ -303,6 +326,17 @@ func resolveFromItem(item ast.Node, scope *queryScope) []tableEntry {
 
 // resolveTableRef resolves a single TableRef to a tableEntry.
 func resolveTableRef(ref *ast.TableRef, scope *queryScope) tableEntry {
+	// MATCH_RECOGNIZE replaces or extends the relation's columns with its
+	// PARTITION BY expressions and MEASURES, which the extractor does not
+	// model. Attribute every column resolved through it to the source
+	// relation's whole-relation sources (the same conservative posture as
+	// PIVOT below) rather than fabricating a base column a measure does not
+	// read. The catalog-backed resolver fails closed instead.
+	// https://docs.snowflake.com/en/sql-reference/constructs/match_recognize
+	if ref.MatchRecognize != nil {
+		return resolveMatchRecognizeRef(ref, scope)
+	}
+
 	// PIVOT/UNPIVOT (possibly chained via Nested): the relation's output
 	// columns are derived from the source relation under names the source
 	// does not have — resolve as an opaque-derived entry.
@@ -325,7 +359,7 @@ func resolveTableRef(ref *ast.TableRef, scope *queryScope) tableEntry {
 				Column: rc.Name,
 			})
 		}
-		return tableEntry{alias: alias, columns: cols, isUnknown: false}
+		return tableEntry{alias: alias, columns: cols, isUnknown: false, accessed: subSpan.Sources}
 	}
 
 	// Function call in FROM (TABLE(func(...)) etc.) — treat as unknown source.
@@ -354,7 +388,7 @@ func resolveTableRef(ref *ast.TableRef, scope *queryScope) tableEntry {
 					Column: rc.Name,
 				})
 			}
-			return tableEntry{alias: alias, columns: cols, isUnknown: false}
+			return tableEntry{alias: alias, columns: cols, isUnknown: false, accessed: cteSpan.Sources}
 		}
 
 		// Base table: build a tableEntry with the qualified name and mark as unknown.
@@ -416,6 +450,33 @@ func resolvePivotedRef(ref *ast.TableRef, scope *queryScope) tableEntry {
 	return tableEntry{
 		alias:     alias,
 		isUnknown: true,
+		accessed:  base.accessed,
+		opaque:    collapseEntryToOpaque(base),
+	}
+}
+
+// resolveMatchRecognizeRef resolves a TableRef carrying MATCH_RECOGNIZE to an
+// opaque-derived tableEntry: the clause's measures and partition/order columns
+// replace or extend the source relation's output, so every column resolved
+// through the relation attributes to the underlying relation's whole-relation
+// sources. The clause's trailing alias addresses the derived relation.
+func resolveMatchRecognizeRef(ref *ast.TableRef, scope *queryScope) tableEntry {
+	stripped := *ref
+	stripped.MatchRecognize = nil
+	base := resolveTableRef(&stripped, scope)
+
+	alias := ref.MatchRecognize.Alias.Normalize()
+	if alias == "" {
+		alias = ref.Alias.Normalize()
+	}
+	if alias == "" {
+		alias = base.alias
+	}
+
+	return tableEntry{
+		alias:     alias,
+		isUnknown: true,
+		accessed:  base.accessed,
 		opaque:    collapseEntryToOpaque(base),
 	}
 }
@@ -512,17 +573,19 @@ func expandEntryStar(entry tableEntry, excluded map[string]bool) []*SourceColumn
 	return cols
 }
 
-// resolveExprTarget handles a non-star SelectTarget.
-func resolveExprTarget(target *ast.SelectTarget, fromEntries []tableEntry) *ResultColumn {
+// resolveExprTarget handles a non-star SelectTarget. scanned holds the reads of
+// any subquery nested in the target expression, which belong to the enclosing
+// span's Sources but not to the result column's lineage.
+func resolveExprTarget(target *ast.SelectTarget, fromEntries []tableEntry, scope *queryScope) (*ResultColumn, []*SourceColumn) {
 	name := deriveResultName(target)
-	refs := collectColumnRefs(target.Expr, fromEntries)
+	refs, scanned := collectColumnRefs(target.Expr, fromEntries, scope)
 	derived := isDerivedExpr(target.Expr)
 
 	return &ResultColumn{
 		Name:      name,
 		Sources:   refs,
 		IsDerived: derived,
-	}
+	}, scanned
 }
 
 // deriveResultName picks the output column name for a non-star target.
@@ -559,14 +622,27 @@ func exprName(expr ast.Node) string {
 // Column reference collection
 // ---------------------------------------------------------------------------
 
-// collectColumnRefs walks an expression and returns all SourceColumn references,
-// resolved against the FROM entries.
-func collectColumnRefs(expr ast.Node, fromEntries []tableEntry) []*SourceColumn {
+// collectColumnRefs walks an expression and returns the SourceColumn references
+// of the result column, resolved against the FROM entries, plus the reads of any
+// subquery nested in it.
+//
+// A subquery's lineage is deliberately not traced into the outer result column:
+// without a catalog a bare column reference in the subquery cannot be told apart
+// from a correlated reference to an enclosing query, and attributing it to the
+// wrong table would under-attribute for masking. Its whole span is extracted
+// instead, so the tables it reads still reach the enclosing span's Sources.
+func collectColumnRefs(expr ast.Node, fromEntries []tableEntry, scope *queryScope) (refs, scanned []*SourceColumn) {
 	if expr == nil {
-		return nil
+		return nil, nil
 	}
-	var refs []*SourceColumn
 	seen := make(map[sourceKey]bool)
+	add := func(dst *[]*SourceColumn, sc *SourceColumn) {
+		k := toSourceKey(sc)
+		if !seen[k] {
+			seen[k] = true
+			*dst = append(*dst, sc)
+		}
+	}
 
 	ast.Inspect(expr, func(node ast.Node) bool {
 		if node == nil {
@@ -575,32 +651,30 @@ func collectColumnRefs(expr ast.Node, fromEntries []tableEntry) []*SourceColumn 
 		switch n := node.(type) {
 		case *ast.ColumnRef:
 			for _, sc := range resolveColumnRef(n, fromEntries) {
-				k := toSourceKey(sc)
-				if !seen[k] {
-					seen[k] = true
-					refs = append(refs, sc)
-				}
+				add(&refs, sc)
 			}
 			return false // don't recurse into ColumnRef parts
 		case *ast.StarExpr:
 			// COUNT(*) or similar — pseudo source with no table.
-			sc := &SourceColumn{Column: "*"}
-			k := toSourceKey(sc)
-			if !seen[k] {
-				seen[k] = true
-				refs = append(refs, sc)
-			}
+			add(&refs, &SourceColumn{Column: "*"})
 			return false
 		case *ast.SubqueryExpr:
-			// Subquery expressions in SELECT list: we don't trace their lineage
-			// into the result column, but we do collect their table accesses.
-			// For now, skip subquery lineage — just return false.
+			for _, sc := range extractSpan(n.Query, scope).Sources {
+				add(&scanned, sc)
+			}
+			return false
+		case *ast.ExistsExpr:
+			// EXISTS returns a boolean, not a value from the subquery, but the
+			// subquery's reads are still reads of the enclosing statement.
+			for _, sc := range extractSpan(n.Query, scope).Sources {
+				add(&scanned, sc)
+			}
 			return false
 		}
 		return true
 	})
 
-	return refs
+	return refs, scanned
 }
 
 // resolveColumnRef resolves a ColumnRef to its SourceColumns, looking up the
