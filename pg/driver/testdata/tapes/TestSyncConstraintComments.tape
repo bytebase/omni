@@ -155,6 +155,7 @@
 | 	CASE WHEN a.attgenerated <> '' THEN pg_catalog.pg_get_expr(ad.adbin, ad.adrelid) END AS generation_expression,
 | 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 | 	co.collname AS collation_name,
+| 	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
@@ -191,6 +192,7 @@
 < column "generation_expression" "TEXT"
 < column "is_nullable" "TEXT"
 < column "collation_name" "NAME"
+< column "collation_schema" "NAME"
 < column "udt_schema" "NAME"
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
@@ -215,6 +217,7 @@
 : null
 : string
 | YES
+: null
 : null
 : string
 | pg_catalog
@@ -243,6 +246,7 @@
 : string
 | YES
 : null
+: null
 : string
 | pg_catalog
 : string
@@ -269,6 +273,7 @@
 : null
 : string
 | NO
+: null
 : null
 : string
 | pg_catalog
@@ -740,11 +745,22 @@
 | from pg_proc p
 | left join pg_namespace n on p.pronamespace = n.oid
 | left join pg_language l on p.prolang = l.oid
-| left join pg_type t on t.oid = p.prorettype 
+| left join pg_type t on t.oid = p.prorettype
 | where n.nspname not in ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |   AND n.nspname NOT LIKE 'pg_temp%'
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
+|   AND p.oid NOT IN (
+| 	SELECT d.objid
+| 	FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_proc'::regclass
+| 		AND d.refclassid = 'pg_type'::regclass
+| 		AND d.deptype = 'i'
+| 		AND d.refobjid IN (
+| 			SELECT rngtypid FROM pg_catalog.pg_range
+| 			UNION SELECT rngmultitypid FROM pg_catalog.pg_range WHERE rngmultitypid <> 0
+| 		)
+|   )
 | order by function_schema, function_name, arguments;
 < result
 < column "oid" "OID"
@@ -884,6 +900,75 @@
 < column "attribute_type" "TEXT"
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
+> query
+|
+| SELECT
+| 	c.oid,
+| 	n.nspname AS collation_schema,
+| 	c.collname AS collation_name,
+| 	c.collprovider AS provider,
+| 	c.collcollate AS lc_collate,
+| 	c.collctype AS lc_ctype,
+| 	c.colllocale AS locale,
+| 	c.collisdeterministic AS deterministic,
+| 	c.collicurules AS rules,
+| 	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
+| FROM pg_catalog.pg_collation c
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| 	AND (c.collencoding = -1
+| 		OR c.collencoding = (SELECT d.encoding FROM pg_catalog.pg_database d WHERE d.datname = pg_catalog.current_database()))
+| ORDER BY n.nspname, c.collname;
+< result
+< column "oid" "OID"
+< column "collation_schema" "NAME"
+< column "collation_name" "NAME"
+< column "provider" "CHAR"
+< column "lc_collate" "TEXT"
+< column "lc_ctype" "TEXT"
+< column "locale" "TEXT"
+< column "deterministic" "BOOL"
+< column "rules" "TEXT"
+< column "comment" "TEXT"
+> query
+|
+| SELECT
+| 	r.rngtypid AS oid,
+| 	n.nspname AS schema_name,
+| 	t.typname AS type_name,
+| 	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
+| 	CASE WHEN o.opcdefault THEN NULL ELSE quote_ident(opc_n.nspname) || '.' || quote_ident(o.opcname) END AS subtype_opclass,
+| 	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
+| 		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
+| 	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
+| 	NULLIF(r.rngsubdiff, 0)::regproc::text AS subtype_diff,
+| 	CASE WHEN r.rngmultitypid <> 0 THEN pg_catalog.format_type(r.rngmultitypid, NULL) END AS multirange_name,
+| 	pg_catalog.obj_description(r.rngtypid, 'pg_type') AS comment
+| FROM pg_catalog.pg_range r
+| 	JOIN pg_catalog.pg_type t ON t.oid = r.rngtypid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+| 	JOIN pg_catalog.pg_type st ON st.oid = r.rngsubtype
+| 	LEFT JOIN pg_catalog.pg_opclass o ON o.oid = r.rngsubopc
+| 	LEFT JOIN pg_catalog.pg_namespace opc_n ON opc_n.oid = o.opcnamespace
+| 	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace co_n ON co_n.oid = co.collnamespace)
+| 		ON co.oid = r.rngcollation
+| WHERE n.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
+| 	AND n.nspname NOT LIKE 'pg_temp%'
+| 	AND n.nspname NOT LIKE 'pg_toast%'
+| ORDER BY n.nspname, t.typname;
+< result
+< column "oid" "OID"
+< column "schema_name" "NAME"
+< column "type_name" "NAME"
+< column "subtype" "TEXT"
+< column "subtype_opclass" "TEXT"
+< column "collation" "TEXT"
+< column "canonical" "TEXT"
+< column "subtype_diff" "TEXT"
+< column "multirange_name" "TEXT"
+< column "comment" "TEXT"
 > query
 |
 | 	SELECT
