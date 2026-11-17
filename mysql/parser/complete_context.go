@@ -332,8 +332,12 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	scope := collectSelectScope(stmtTokens, cursorOffset, enclosing, enclosingFromNested)
 	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
-		// are what its clauses name.
-		refs := append(append([]RangeReference{}, dmlRefs...), collectDDLScope(stmtTokens, cursorOffset)...)
+		// are what its clauses name. One of a routine body's statements starts
+		// after the body's own ';', and the declaration around it carries what
+		// its clauses name, such as a trigger's ON table, which NEW and OLD
+		// stand for.
+		declTokens := sliceScopeTokens(tokens, 0, end)
+		refs := append(append([]RangeReference{}, dmlRefs...), collectDDLScope(declTokens, cursorOffset)...)
 		scope = &ScopeSnapshot{
 			LocalReferences: refs,
 			References:      append([]RangeReference{}, refs...),
@@ -559,7 +563,7 @@ func collectCTEBlocks(tokens []completionScopeToken) []completionCTEBlock {
 		if tok.Type != kwWITH {
 			continue
 		}
-		defs, _ := collectCTEsAt(tokens, i, 0)
+		defs, _ := collectCTEsAt(tokens, i, 0, true)
 		blocks = append(blocks, completionCTEBlock{
 			withIdx:   i,
 			end:       ends[i],
@@ -675,14 +679,17 @@ func collectCTEs(tokens []completionScopeToken) ([]RangeReference, int) {
 	if first < 0 || tokens[first].Type != kwWITH {
 		return nil, 0
 	}
-	return collectCTEsAt(tokens, first, 0)
+	return collectCTEsAt(tokens, first, 0, false)
 }
 
 // collectCTEsAt parses the WITH clause at withIdx and returns its definitions
 // and the index after the clause, where the statement's main clause starts.
 // nesting bounds the recursion a body's output columns cause: a body may itself
-// open with a WITH clause, so reading columns re-enters this reader.
-func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int) ([]RangeReference, int) {
+// open with a WITH clause, so reading columns re-enters this reader. readColumns
+// is false when the caller only steps over the clause and discards the
+// definitions: a body's columns are its own query's, never the clause's, so
+// reading them there would repeat every nested body once per enclosing clause.
+func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int, readColumns bool) ([]RangeReference, int) {
 	if nesting >= maxNestingDepth {
 		return nil, withIdx
 	}
@@ -719,7 +726,7 @@ func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int) ([]Range
 			// The body is still being typed: the definition is there, with
 			// whatever columns the text already names, and its body runs to
 			// the end of the fragment.
-			if len(columns) == 0 {
+			if len(columns) == 0 && readColumns {
 				columns = selectListColumns(tokens, idx+1, len(tokens), nesting+1)
 			}
 			ctes = append(ctes, RangeReference{
@@ -731,7 +738,7 @@ func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int) ([]Range
 			})
 			return ctes, len(tokens)
 		}
-		if len(columns) == 0 {
+		if len(columns) == 0 && readColumns {
 			columns = selectListColumns(tokens, idx+1, closeIdx, nesting+1)
 		}
 		ctes = append(ctes, RangeReference{
@@ -1294,6 +1301,32 @@ func nearestOnPredicate(tokens []completionScopeToken, cursorOffset int) int {
 	return -1
 }
 
+// onConditionHoldsCursor reports whether the cursor still sits inside the
+// condition opened at onIdx. The next clause of that query block ends it, as
+// does a comma that starts another FROM item; an ON behind a WHERE must not
+// narrow the frame's scope.
+func onConditionHoldsCursor(tokens []completionScopeToken, onIdx, cursorOffset int) bool {
+	depth := tokens[onIdx].depth
+	for i := onIdx + 1; i < len(tokens); i++ {
+		if tokens[i].Loc >= cursorOffset {
+			return true
+		}
+		if tokens[i].depth > depth {
+			continue
+		}
+		if tokens[i].depth < depth {
+			return false
+		}
+		switch tokens[i].Type {
+		case kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT, kwINTO, kwUNION, kwINTERSECT,
+			kwEXCEPT, kwJOIN, kwSTRAIGHT_JOIN, kwLEFT, kwRIGHT, kwINNER, kwCROSS,
+			kwNATURAL, ',', ';':
+			return false
+		}
+	}
+	return true
+}
+
 // onInsideReference reports whether the position at is inside a reference the
 // frame already collapsed into one name, such as an aliased parenthesized join:
 // that reference's own condition does not narrow the frame.
@@ -1444,11 +1477,12 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			}
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
 			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs, 0)
-			if onIdx := nearestOnPredicate(tokens, cursorOffset); onIdx > i && onBelongsToFrame(tokens, i, onIdx) && !onInsideReference(local, tokens[onIdx].Loc) {
+			if onIdx := nearestOnPredicate(tokens, cursorOffset); onIdx > i && onConditionHoldsCursor(tokens, onIdx, cursorOffset) && onBelongsToFrame(tokens, i, onIdx) && !onInsideReference(local, tokens[onIdx].Loc) {
 				// A join condition names its own join's operands: a comma
 				// before the join starts an unrelated list item, and a
 				// parenthesized operand contributes all its members. The
-				// condition may sit in a group the frame's FROM opened.
+				// condition may sit in a group the frame's FROM opened, and it
+				// narrows only while the cursor is in it.
 				local = joinOperandRefs(tokens, local, onIdx, tokens[onIdx].depth)
 			}
 		}
@@ -2044,7 +2078,7 @@ func selectListColumns(tokens []completionScopeToken, lo, hi, nesting int) []str
 		if tokens[lo].Type != kwWITH {
 			break
 		}
-		_, next := collectCTEsAt(tokens, lo, nesting+1)
+		_, next := collectCTEsAt(tokens, lo, nesting+1, false)
 		if next <= lo || next >= hi {
 			return nil
 		}
@@ -2208,8 +2242,12 @@ func collectSelectAliases(sql string, cursorOffset int) []SelectAlias {
 		selectIdx = frames[len(frames)-1].selectIdx + start
 		if inSetOperationGlobalClause(tokens, cursorOffset, tokens[selectIdx].depth) {
 			// The ORDER BY or LIMIT after a UNION belongs to the result, whose
-			// column names come from the first arm.
-			if first := firstArmSelect(tokens, selectIdx, tokens[selectIdx].depth); first >= 0 {
+			// column names come from the first arm, parenthesized or not.
+			armStart := start
+			if _, main := collectCTEs(tokens[start:end]); main > 0 {
+				armStart = start + main
+			}
+			if first := firstSetOperationArm(tokens, armStart, cursorOffset, tokens[selectIdx].depth); first >= 0 {
 				selectIdx = first
 			}
 		}
@@ -2293,8 +2331,6 @@ func hasSetOperatorBefore(tokens []completionScopeToken, idx, depth int) bool {
 	return false
 }
 
-// firstArmSelect returns the SELECT that names a set operation's result
-// columns: the first arm's, which is the first SELECT of the query block.
 // firstSetOperationArm returns the first arm's SELECT of the set operation at
 // depth whose global clause holds the cursor, whether or not the arm is
 // parenthesized.
@@ -2311,22 +2347,6 @@ func firstSetOperationArm(tokens []completionScopeToken, start, cursorOffset, de
 		}
 	}
 	return -1
-}
-
-func firstArmSelect(tokens []completionScopeToken, sel, depth int) int {
-	start := 0
-	for i := sel - 1; i >= 0; i-- {
-		if tokens[i].depth < depth || (tokens[i].depth == depth && tokens[i].Type == ';') {
-			start = i + 1
-			break
-		}
-	}
-	for i := start; i < sel; i++ {
-		if tokens[i].depth == depth && tokens[i].Type == kwSELECT {
-			return i
-		}
-	}
-	return sel
 }
 
 // selectItemAlias returns the alias the select item tokens[start:end] declares:
