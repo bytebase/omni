@@ -1,4 +1,11 @@
-// Package completion provides parser-native C3-style SQL completion for MySQL.
+// Package completion builds MySQL completion candidates from this module's own
+// catalog.
+//
+// It is not the boundary Bytebase calls: Bytebase holds live metadata, not a
+// catalog projection, so it resolves the parser-native signals of
+// oceanbase/parser.CollectCompletion itself. This package is for callers whose
+// schema is a catalog.Catalog, such as this module's own tests and scenario
+// harnesses.
 package completion
 
 import (
