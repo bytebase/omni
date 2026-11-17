@@ -75,6 +75,8 @@
 | 	cols.column_name,
 | 	cols.data_type,
 | 	cols.character_maximum_length,
+| 	cols.numeric_precision,
+| 	cols.numeric_scale,
 | 	cols.ordinal_position,
 | 	cols.column_default,
 | 	cols.is_nullable,
@@ -93,6 +95,8 @@
 < column "column_name" "TEXT"
 < column "data_type" "TEXT"
 < column "character_maximum_length" "INT8"
+< column "numeric_precision" "INT8"
+< column "numeric_scale" "INT8"
 < column "ordinal_position" "INT8"
 < column "column_default" "TEXT"
 < column "is_nullable" "TEXT"
@@ -110,6 +114,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
@@ -130,6 +136,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
@@ -150,6 +158,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
@@ -170,6 +180,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
