@@ -217,18 +217,43 @@ CREATE TABLE [owner's].items (id INT NOT NULL PRIMARY KEY, note NVARCHAR(20));
 }
 
 // TestSyncDatabaseMissing holds that a database SQL Server says the login may
-// not open is driver.ErrNotFound. A tape cannot hold a failed connection, so the
-// mapping is held on its own rather than through a sync the server refuses.
+// not open is driver.ErrNotFound, on the connection the pool cannot make: a
+// database that is not there is refused when the connection opens, before any
+// statement reaches the server.
 func TestSyncDatabaseMissing(t *testing.T) {
-	for _, number := range []int32{4060, 911} {
-		err := wrapSyncError("omni_no_such_database", gomssqldb.Error{Number: number, Message: "Cannot open database"})
+	db := testcontainer.OpenMissingDatabase(t, missingDatabase)
+	t.Cleanup(func() { _ = db.Close() })
+
+	// What the server answered, with the client's own error type, as a replay
+	// holds it. 4063 is the warning a login that may fall back to its default
+	// database gets, and go-mssqldb reports it as the connect error.
+	err := db.PingContext(context.Background())
+	var engineError gomssqldb.Error
+	if !errors.As(err, &engineError) || engineError.Number != 4063 {
+		t.Fatalf("Ping = %v, want a SQL Server error 4063", err)
+	}
+
+	d := &Driver{db: db, databaseName: missingDatabase}
+	if _, err := d.SyncDatabase(context.Background()); !errors.Is(err, driver.ErrNotFound) {
+		t.Fatalf("SyncDatabase = %v, want driver.ErrNotFound", err)
+	}
+}
+
+// missingDatabase is a database no test creates, so a recording's server does
+// not have it.
+const missingDatabase = "omni_no_such_database"
+
+// TestWrapSyncError holds the numbers SQL Server answers for a database the
+// login may not open, and that a failure of another kind keeps its own error.
+func TestWrapSyncError(t *testing.T) {
+	for _, number := range []int32{911, 4060, 4063} {
+		err := wrapSyncError(missingDatabase, gomssqldb.Error{Number: number, Message: "Cannot open database"})
 		if !errors.Is(err, driver.ErrNotFound) {
 			t.Errorf("wrapSyncError(%d) = %v, want driver.ErrNotFound", number, err)
 		}
 	}
-	// A failure of another kind keeps its own error.
 	other := gomssqldb.Error{Number: 229, Message: "The SELECT permission was denied"}
-	if err := wrapSyncError("omni_no_such_database", other); errors.Is(err, driver.ErrNotFound) {
+	if err := wrapSyncError(missingDatabase, other); errors.Is(err, driver.ErrNotFound) {
 		t.Errorf("wrapSyncError(229) = %v, want the engine's own error", err)
 	}
 }

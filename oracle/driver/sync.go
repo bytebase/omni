@@ -464,12 +464,6 @@ func getTriggers(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.Tri
 	tableTriggerMap := make(map[tableKey][]*metadatapb.TriggerMetadata)
 	viewTriggerMap := make(map[tableKey][]*metadatapb.TriggerMetadata)
 
-	// Get trigger comments
-	triggerCommentMap, err := getTriggerComments(txn, schemaName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get trigger comments: %w", err)
-	}
-
 	// A trigger the schema owns on another schema's table is left out: keyed by
 	// TABLE_NAME alone, it would land on this schema's table of the same name.
 	query := fmt.Sprintf(`
@@ -509,11 +503,6 @@ func getTriggers(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.Tri
 		}
 		if triggeringEvent.Valid {
 			trigger.Event = triggeringEvent.String
-		}
-		// Add trigger comment if available
-		triggerKey := tableKey{Schema: schemaName, Table: triggerName.String}
-		if comment, ok := triggerCommentMap[triggerKey]; ok {
-			trigger.Comment = comment
 		}
 
 		if baseObjectType.String == "TABLE" {
@@ -634,6 +623,12 @@ func getTables(
 	return tableMap, nil
 }
 
+// getTableComments reads the comments of the schema's tables. It is one of the
+// four comment lookups the sync makes: Oracle's COMMENT statement names a table
+// (ALL_TAB_COMMENTS, the view of a view's comment too), a materialized view
+// (ALL_MVIEW_COMMENTS), and a column (ALL_COL_COMMENTS). It names no index,
+// sequence, routine, or trigger, and COMMENT ON any of those fails with
+// ORA-32594. TestSyncCommentableObjects pins the refusals.
 func getTableComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error) {
 	tableCommentMap := make(map[tableKey]string)
 
@@ -1232,17 +1227,13 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 	return indexMap, checkConstraintMap, foreignKeyMap, isConstraint, nil
 }
 
-// getIndexes gets all indices and constraints of a database.
+// getIndexes gets all indices and constraints of a database. An index carries
+// no comment: Oracle names no index in its COMMENT statement, and
+// TestSyncCommentableObjects pins the refusal.
 func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.IndexMetadata, map[tableKey][]*metadatapb.CheckConstraintMetadata, map[tableKey][]*metadatapb.ForeignKeyMetadata, error) {
 	indexMap, checkConstraintMap, foreignKeyMap, isConstraint, err := getConstraints(txn, schemaName)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get constraints: %w", err)
-	}
-
-	// Get index comments
-	indexCommentMap, err := getIndexComments(txn, schemaName)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get index comments: %w", err)
 	}
 
 	queryColumn := fmt.Sprintf(`
@@ -1399,11 +1390,6 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		index.Visible = true
 		if visibility.Valid && visibility.String == "INVISIBLE" {
 			index.Visible = false
-		}
-
-		// Add index comment if available
-		if comment, ok := indexCommentMap[indexKey]; ok {
-			index.Comment = comment
 		}
 
 		key := tableKey{Schema: schemaName, Table: tableName}
@@ -1645,12 +1631,6 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadata, error) {
 	var sequences []*metadatapb.SequenceMetadata
 
-	// Get sequence comments
-	sequenceCommentMap, err := getSequenceComments(txn, schemaName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get sequence comments: %w", err)
-	}
-
 	query := fmt.Sprintf(`
 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
 		WHERE SEQUENCE_OWNER = '%s'
@@ -1672,10 +1652,6 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 		if strings.HasPrefix(seq.Name, "ISEQ$$_") {
 			continue
 		}
-		key := tableKey{Schema: schemaName, Table: seq.Name}
-		if comment, ok := sequenceCommentMap[key]; ok {
-			seq.Comment = comment
-		}
 		sequences = append(sequences, seq)
 	}
 	if err := rows.Err(); err != nil {
@@ -1692,12 +1668,6 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 	var functions []*metadatapb.FunctionMetadata
 	var procedures []*metadatapb.ProcedureMetadata
 	var packages []*metadatapb.PackageMetadata
-
-	// Get function comments
-	functionCommentMap, err := getFunctionComments(txn, schemaName)
-	if err != nil {
-		return nil, nil, nil, fmt.Errorf("failed to get function comments: %w", err)
-	}
 
 	query := fmt.Sprintf(`
 		SELECT
@@ -1731,15 +1701,10 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 			// Oracle may include a trailing C-string null terminator via the go-ora driver.
 			switch currentType {
 			case "FUNCTION":
-				function := &metadatapb.FunctionMetadata{
+				functions = append(functions, &metadatapb.FunctionMetadata{
 					Name:       currentName,
 					Definition: sanitizeOracleDefinition(schemaName, "FUNCTION", currentName, strings.Join(defText, "")),
-				}
-				key := tableKey{Schema: schemaName, Table: currentName}
-				if comment, ok := functionCommentMap[key]; ok {
-					function.Comment = comment
-				}
-				functions = append(functions, function)
+				})
 			case "PROCEDURE":
 				procedures = append(procedures, &metadatapb.ProcedureMetadata{
 					Name:       currentName,
@@ -1761,15 +1726,10 @@ func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata
 	// Oracle may include a trailing C-string null terminator via the go-ora driver.
 	switch currentType {
 	case "FUNCTION":
-		function := &metadatapb.FunctionMetadata{
+		functions = append(functions, &metadatapb.FunctionMetadata{
 			Name:       currentName,
 			Definition: sanitizeOracleDefinition(schemaName, "FUNCTION", currentName, strings.Join(defText, "")),
-		}
-		key := tableKey{Schema: schemaName, Table: currentName}
-		if comment, ok := functionCommentMap[key]; ok {
-			function.Comment = comment
-		}
-		functions = append(functions, function)
+		})
 	case "PROCEDURE":
 		procedures = append(procedures, &metadatapb.ProcedureMetadata{
 			Name:       currentName,
@@ -1859,7 +1819,8 @@ func cleanDefaultExpression(defaultExpr, currentSchema string) string {
 	return cleaned
 }
 
-// getViewComments gets comments for views from Oracle system views
+// getViewComments gets comments for views: COMMENT ON TABLE is the form that
+// comments a view, and it reports here with TABLE_TYPE = 'VIEW'.
 func getViewComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error) {
 	viewCommentMap := make(map[tableKey]string)
 
@@ -1908,119 +1869,6 @@ func getViewComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error
 	return viewCommentMap, nil
 }
 
-// getSequenceComments gets comments for sequences from Oracle system views
-func getSequenceComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error) {
-	sequenceCommentMap := make(map[tableKey]string)
-
-	// Oracle doesn't have a direct sequence comments view, but we can try user_tab_comments
-	// where TABLE_TYPE might be 'SEQUENCE' in some Oracle versions
-	query := ""
-	if schemaName == "" {
-		query = fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, COMMENTS
-		FROM all_tab_comments
-		WHERE OWNER NOT IN (%s) AND OWNER NOT LIKE 'APEX_%%' AND COMMENTS IS NOT NULL
-		AND TABLE_TYPE = 'SEQUENCE'
-		ORDER BY OWNER, TABLE_NAME`, systemSchema)
-	} else {
-		query = fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, COMMENTS
-		FROM all_tab_comments
-		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
-		AND TABLE_TYPE = 'SEQUENCE'
-		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
-	}
-
-	slog.Debug("running get sequence comments query")
-	rows, err := txn.Query(query)
-	if err != nil {
-		// If the query fails (e.g., TABLE_TYPE = 'SEQUENCE' not supported), return empty map
-		slog.Debug("sequence comments query failed, returning empty map", slog.String("error", err.Error()))
-		return sequenceCommentMap, nil
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var schemaName, sequenceName, comment string
-		if err := rows.Scan(&schemaName, &sequenceName, &comment); err != nil {
-			return nil, err
-		}
-		key := tableKey{Schema: schemaName, Table: sequenceName}
-		sequenceCommentMap[key] = sanitizeUTF8String(comment)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close rows: %w", err)
-	}
-
-	return sequenceCommentMap, nil
-}
-
-// getFunctionComments gets comments for functions and procedures from Oracle system views
-func getFunctionComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error) {
-	functionCommentMap := make(map[tableKey]string)
-
-	// Oracle stores function/procedure comments in ALL_OBJECTS or USER_OBJECTS
-	// However, Oracle doesn't have a standard system view for function/procedure comments
-	// We can try to get them from ALL_TAB_COMMENTS where TABLE_TYPE might be 'FUNCTION' or 'PROCEDURE'
-	query := ""
-	if schemaName == "" {
-		query = fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, COMMENTS
-		FROM all_tab_comments
-		WHERE OWNER NOT IN (%s) AND OWNER NOT LIKE 'APEX_%%' AND COMMENTS IS NOT NULL
-		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-		ORDER BY OWNER, TABLE_NAME`, systemSchema)
-	} else {
-		query = fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, COMMENTS
-		FROM all_tab_comments
-		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
-		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
-	}
-
-	slog.Debug("running get function comments query")
-	rows, err := txn.Query(query)
-	if err != nil {
-		// If the query fails (e.g., TABLE_TYPE for functions not supported), return empty map
-		slog.Debug("function comments query failed, returning empty map", slog.String("error", err.Error()))
-		return functionCommentMap, nil
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var schemaName, functionName, comment string
-		if err := rows.Scan(&schemaName, &functionName, &comment); err != nil {
-			return nil, err
-		}
-		key := tableKey{Schema: schemaName, Table: functionName}
-		functionCommentMap[key] = sanitizeUTF8String(comment)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close rows: %w", err)
-	}
-
-	return functionCommentMap, nil
-}
-
-// getIndexComments gets comments for indexes from Oracle system views
-func getIndexComments(_ *sql.Tx, schemaName string) (map[indexKey]string, error) {
-	indexCommentMap := make(map[indexKey]string)
-
-	// Oracle doesn't have a dedicated index comments view in all versions
-	// We need to join ALL_INDEXES with ALL_TAB_COMMENTS to get index comments
-	// However, Oracle stores index comments differently depending on the version
-	// For now, return empty map since Oracle index comments are not consistently available
-	slog.Debug("Oracle index comments not implemented - returning empty map", "schema", schemaName)
-	return indexCommentMap, nil
-}
-
 // getMaterializedViewComments gets comments for materialized views from Oracle system views
 func getMaterializedViewComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error) {
 	materializedViewCommentMap := make(map[tableKey]string)
@@ -2065,55 +1913,4 @@ func getMaterializedViewComments(txn *sql.Tx, schemaName string) (map[tableKey]s
 	}
 
 	return materializedViewCommentMap, nil
-}
-
-// getTriggerComments gets comments for triggers from Oracle system views
-func getTriggerComments(txn *sql.Tx, schemaName string) (map[tableKey]string, error) {
-	triggerCommentMap := make(map[tableKey]string)
-
-	// Oracle doesn't have a standard trigger comments view
-	// Trigger comments might be stored in ALL_TAB_COMMENTS with TABLE_TYPE = 'TRIGGER'
-	// or in some Oracle versions, they might not be available at all
-	query := ""
-	if schemaName == "" {
-		query = fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, COMMENTS
-		FROM all_tab_comments
-		WHERE OWNER NOT IN (%s) AND OWNER NOT LIKE 'APEX_%%' AND COMMENTS IS NOT NULL
-		AND TABLE_TYPE = 'TRIGGER'
-		ORDER BY OWNER, TABLE_NAME`, systemSchema)
-	} else {
-		query = fmt.Sprintf(`
-		SELECT OWNER, TABLE_NAME, COMMENTS
-		FROM all_tab_comments
-		WHERE OWNER = '%s' AND COMMENTS IS NOT NULL
-		AND TABLE_TYPE = 'TRIGGER'
-		ORDER BY TABLE_NAME`, sqlLiteral(schemaName))
-	}
-
-	slog.Debug("running get trigger comments query")
-	rows, err := txn.Query(query)
-	if err != nil {
-		// If the query fails (e.g., TABLE_TYPE = 'TRIGGER' not supported), return empty map
-		slog.Debug("trigger comments query failed, returning empty map", slog.String("error", err.Error()))
-		return triggerCommentMap, nil
-	}
-	defer func() { _ = rows.Close() }()
-
-	for rows.Next() {
-		var schemaName, triggerName, comment string
-		if err := rows.Scan(&schemaName, &triggerName, &comment); err != nil {
-			return nil, err
-		}
-		key := tableKey{Schema: schemaName, Table: triggerName}
-		triggerCommentMap[key] = sanitizeUTF8String(comment)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, fmt.Errorf("failed to close rows: %w", err)
-	}
-
-	return triggerCommentMap, nil
 }

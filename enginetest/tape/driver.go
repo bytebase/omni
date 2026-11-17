@@ -48,6 +48,11 @@ type session struct {
 func (s *session) replay(req request) (answer, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	return s.replayLocked(req)
+}
+
+// replayLocked is replay with s.mu held.
+func (s *session) replayLocked(req request) (answer, error) {
 	if s.broken != nil {
 		return answer{}, s.broken
 	}
@@ -63,6 +68,24 @@ func (s *session) replay(req request) (answer, error) {
 	a := s.want[s.next].ans
 	s.next++
 	return a, nil
+}
+
+// connect answers a connection attempt from the tape when it holds one: the
+// engine refused the connection, and the test gets what the codec rebuilds, the
+// driver's own error type included. A tape recorded before a refused connect
+// could be held has no connect request, and says nothing about connecting.
+func (s *session) connect() (a answer, held bool, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.next >= len(s.want) || s.want[s.next].req.kind != "connect" {
+		return answer{}, false, nil
+	}
+	a, err = s.replayLocked(request{kind: "connect"})
+	if err == nil && a.kind != "error" && a.kind != "badconn" {
+		err = fmt.Errorf("stream %q answers connect with %q: a tape holds a connect answer only when the engine refused the connection", s.name, a.kind)
+		s.t.Errorf("%v", err)
+	}
+	return a, true, err
 }
 
 func (s *session) record(req request, a answer) {
@@ -284,10 +307,21 @@ type connector struct {
 
 func (c *connector) Connect(ctx context.Context) (driver.Conn, error) {
 	if c.live == nil {
-		return &conn{s: c.s}, nil
+		a, held, err := c.s.connect()
+		if err != nil {
+			return nil, err
+		}
+		if !held {
+			return &conn{s: c.s}, nil
+		}
+		_, err = c.s.result(a)
+		return nil, err
 	}
 	lc, err := c.live.Connect(ctx)
 	if err != nil {
+		a := c.s.errorAnswer(err)
+		c.s.record(request{kind: "connect"}, a)
+		_, err = c.s.result(a)
 		return nil, err
 	}
 	return &conn{s: c.s, live: lc}, nil
@@ -552,7 +586,7 @@ var knownScanTypes = map[string]reflect.Type{
 var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
 func knownScanType(t reflect.Type) bool {
-	return namedScanType(t.String()) != nil
+	return t != nil && namedScanType(t.String()) != nil
 }
 
 // namedScanType rebuilds a recorded scan type, including the pointer a

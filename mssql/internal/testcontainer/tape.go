@@ -55,38 +55,69 @@ var notNameChars = regexp.MustCompile(`[^A-Za-z0-9_]`)
 func live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	t.Helper()
 	in := started(t, pin)
-	top := enginetest.TopName(t.Name())
 	name := Database(t)
+	emptyOnce(t, in, name)
+	return connector{connectTo(t, in, name)}
+}
+
+// OpenMissingDatabase returns t's connection to a database the pinned server
+// does not have. The pool cannot open it, which is all SQL Server answers for a
+// database that is not there: a tape records the refused connection. name must
+// be one no test creates, and the emptying below leaves the server without it.
+func OpenMissingDatabase(t testing.TB, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		in := started(t, pin)
+		emptyOnce(t, in, "")
+		return connector{connectTo(t, in, name)}
+	}}
+	return tape.Open(t, s, Default)
+}
+
+// emptyOnce drops every database but the system's on t's top-level test's first
+// connection to the server, and creates database empty unless it is "".
+func emptyOnce(t testing.TB, in *instance, database string) {
+	t.Helper()
+	top := enginetest.TopName(t.Name())
 	in.mu.Lock()
 	defer in.mu.Unlock()
-	if !in.emptied[top] {
-		ctx := context.Background()
-		db := sql.OpenDB(in.connector)
-		defer db.Close()
-		var stmts []string
-		for _, d := range userDatabases(t, db) {
-			stmts = append(stmts, "ALTER DATABASE "+quoteName(d)+" SET SINGLE_USER WITH ROLLBACK IMMEDIATE", "DROP DATABASE "+quoteName(d))
-		}
-		stmts = append(stmts, "CREATE DATABASE "+quoteName(name))
-		for _, stmt := range stmts {
-			if _, err := db.ExecContext(ctx, stmt); err != nil {
-				t.Fatalf("%s: %v", stmt, err)
-			}
-		}
-		in.emptied[top] = true
+	if in.emptied[top] {
+		return
 	}
+	ctx := context.Background()
+	db := sql.OpenDB(in.connector)
+	defer db.Close()
+	var stmts []string
+	for _, d := range userDatabases(t, db) {
+		stmts = append(stmts, "ALTER DATABASE "+quoteName(d)+" SET SINGLE_USER WITH ROLLBACK IMMEDIATE", "DROP DATABASE "+quoteName(d))
+	}
+	if database != "" {
+		stmts = append(stmts, "CREATE DATABASE "+quoteName(database))
+	}
+	for _, stmt := range stmts {
+		if _, err := db.ExecContext(ctx, stmt); err != nil {
+			t.Fatalf("%s: %v", stmt, err)
+		}
+	}
+	in.emptied[top] = true
+}
+
+// connectTo is the client's connector to database on the started server.
+func connectTo(t testing.TB, in *instance, database string) *mssql.Connector {
+	t.Helper()
 	u, err := url.Parse(in.dsn)
 	if err != nil {
 		t.Fatalf("SQL Server's DSN: %v", err)
 	}
 	q := u.Query()
-	q.Set("database", name)
+	q.Set("database", database)
 	u.RawQuery = q.Encode()
 	c, err := mssql.NewConnector(u.String())
 	if err != nil {
 		t.Fatalf("connect to SQL Server: %v", err)
 	}
-	return connector{c}
+	return c
 }
 
 // userDatabases lists the databases that are not the system's.

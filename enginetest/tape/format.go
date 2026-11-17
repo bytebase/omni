@@ -43,10 +43,15 @@ import (
 // "| " carries one line of text, and "|q " a whole text as a Go quoted
 // string where the raw form would not survive an editor (a carriage return,
 // a control character, invalid UTF-8). A request is "> exec" or "> query"
-// with its text and then one ": " value per argument, or "> begin",
-// "> commit", "> rollback". An answer is "< ok", "< ok <rows affected>
-// <last insert id>", "< error" with the codec's text, "< badconn", or one
-// "< result" per result set with its columns and rows.
+// with its text and then one ": " value per argument, "> begin",
+// "> commit", "> rollback", or "> connect". An answer is "< ok", "< ok
+// <rows affected> <last insert id>", "< error" with the codec's text,
+// "< badconn", or one "< result" per result set with its columns and rows.
+//
+// A connection the engine refused is a "> connect" request and its error, so a
+// test of a connect-time failure replays like any other. A connection that
+// succeeds writes nothing, so a tape recorded before connect answers existed
+// replays unchanged.
 //
 // A protocol that is not database/sql records an engine's client library
 // instead: "> raw" with the request's text and "< raw" with the answer's,
@@ -66,7 +71,7 @@ type exchange struct {
 }
 
 type request struct {
-	kind string // exec, query, begin, commit, rollback, raw
+	kind string // exec, query, begin, commit, rollback, raw, connect
 	text string
 	sum  string // in place of a text over digestOver: its digest
 	args []value
@@ -532,7 +537,7 @@ func (p *parser) exchange(prev *request) (exchange, error) {
 			}
 			e.req.args = append(e.req.args, v)
 		}
-	case "begin", "commit", "rollback":
+	case "begin", "commit", "rollback", "connect":
 		if same {
 			return e, p.errorf("^ after %s, which has no text", kind)
 		}

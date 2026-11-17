@@ -360,6 +360,53 @@ ALTER TABLE identity_owner DROP COLUMN gone;`)
 	}
 }
 
+// TestSyncConstraintComments reads COMMENT ON CONSTRAINT into a check
+// constraint's and a foreign key's comment, which PostgreSQL keeps in
+// pg_description beside the constraint rather than in it.
+func TestSyncConstraintComments(t *testing.T) {
+	d := openDriver(t, testcontainer.Default)
+	mustExec(t, d.db, `
+CREATE TABLE parent (
+    id integer PRIMARY KEY,
+    CONSTRAINT parent_id_check CHECK (id > 0)
+);
+CREATE TABLE child (
+    id integer CONSTRAINT child_id_check CHECK (id > 0),
+    parent_id integer,
+    CONSTRAINT child_uncommented CHECK (id <> 42),
+    CONSTRAINT child_parent_fk FOREIGN KEY (parent_id) REFERENCES parent (id)
+);
+COMMENT ON CONSTRAINT child_id_check ON child IS 'a child has a positive id';
+COMMENT ON CONSTRAINT child_parent_fk ON child IS 'the parent of a child';
+COMMENT ON CONSTRAINT parent_id_check ON parent IS 'a parent''s id is positive
+and the note keeps its line break';`)
+	m, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	comments := func(table *metadatapb.TableMetadata) []string {
+		var out []string
+		for _, check := range table.CheckConstraints {
+			out = append(out, "check "+check.Name+": "+check.Comment)
+		}
+		for _, fk := range table.ForeignKeys {
+			out = append(out, "fk "+fk.Name+": "+fk.Comment)
+		}
+		return out
+	}
+	got := map[string][]string{
+		"parent": comments(findTable(t, m, "public", "parent")),
+		"child":  comments(findTable(t, m, "public", "child")),
+	}
+	want := map[string][]string{
+		"parent": {"check parent_id_check: a parent's id is positive\nand the note keeps its line break"},
+		"child":  {"check child_id_check: a child has a positive id", "check child_uncommented: ", "fk child_parent_fk: the parent of a child"},
+	}
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("constraint comments (-want +got):\n%s", diff)
+	}
+}
+
 // TestSyncCompositeTypes pins composite types exactly: the definition
 // round trip compares two syncs with each other, which a sync wrong the same
 // way on both sides passes.

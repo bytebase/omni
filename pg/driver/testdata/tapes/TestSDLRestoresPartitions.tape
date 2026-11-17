@@ -1681,7 +1681,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -1694,6 +1695,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -1703,6 +1705,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -1712,6 +1715,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -1721,6 +1725,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -1730,6 +1735,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -1739,6 +1745,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -1748,6 +1755,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -1774,7 +1782,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -1799,6 +1808,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -4134,7 +4144,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -4147,6 +4158,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -4156,6 +4168,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -4165,6 +4178,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -4174,6 +4188,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -4183,6 +4198,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -4192,6 +4208,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -4201,6 +4218,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -4227,7 +4245,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -4252,6 +4271,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -6512,7 +6532,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -6525,6 +6546,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -6534,6 +6556,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -6543,6 +6566,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -6552,6 +6576,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -6561,6 +6586,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -6570,6 +6596,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -6579,6 +6606,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -6605,7 +6633,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -6630,6 +6659,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -8965,7 +8995,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -8978,6 +9009,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -8987,6 +9019,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -8996,6 +9029,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -9005,6 +9039,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -9014,6 +9049,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -9023,6 +9059,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -9032,6 +9069,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -9058,7 +9096,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -9083,6 +9122,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -11343,7 +11383,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -11356,6 +11397,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -11365,6 +11407,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -11374,6 +11417,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -11383,6 +11427,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -11392,6 +11437,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -11401,6 +11447,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -11410,6 +11457,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -11436,7 +11484,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -11461,6 +11510,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -13796,7 +13846,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -13809,6 +13860,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -13818,6 +13870,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -13827,6 +13880,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -13836,6 +13890,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -13845,6 +13900,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -13854,6 +13910,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -13863,6 +13920,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -13889,7 +13947,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -13914,6 +13973,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -16174,7 +16234,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -16187,6 +16248,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -16196,6 +16258,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -16205,6 +16268,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -16214,6 +16278,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -16223,6 +16288,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -16232,6 +16298,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -16241,6 +16308,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -16267,7 +16335,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -16292,6 +16361,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -18627,7 +18697,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -18640,6 +18711,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -18649,6 +18721,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -18658,6 +18731,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -18667,6 +18741,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -18676,6 +18751,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -18685,6 +18761,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -18694,6 +18771,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -18720,7 +18798,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -18745,6 +18824,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -21005,7 +21085,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -21018,6 +21099,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -21027,6 +21109,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -21036,6 +21119,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -21045,6 +21129,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -21054,6 +21139,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -21063,6 +21149,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -21072,6 +21159,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -21098,7 +21186,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -21123,6 +21212,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -23458,7 +23548,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -23471,6 +23562,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -23480,6 +23572,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -23489,6 +23582,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -23498,6 +23592,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -23507,6 +23602,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -23516,6 +23612,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -23525,6 +23622,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -23551,7 +23649,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -23576,6 +23675,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -25836,7 +25936,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -25849,6 +25950,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -25858,6 +25960,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -25867,6 +25970,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -25876,6 +25980,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -25885,6 +25990,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -25894,6 +26000,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -25903,6 +26010,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -25929,7 +26037,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -25954,6 +26063,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -28289,7 +28399,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -28302,6 +28413,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -28311,6 +28423,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -28320,6 +28433,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -28329,6 +28443,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -28338,6 +28453,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -28347,6 +28463,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -28356,6 +28473,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -28382,7 +28500,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -28407,6 +28526,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -30667,7 +30787,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -30680,6 +30801,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -30689,6 +30811,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -30698,6 +30821,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -30707,6 +30831,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -30716,6 +30841,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -30725,6 +30851,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -30734,6 +30861,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -30760,7 +30888,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -30785,6 +30914,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -33120,7 +33250,8 @@
 < column "trigger_comment" "TEXT"
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -33133,6 +33264,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -33142,6 +33274,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -33151,6 +33284,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -33160,6 +33294,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -33169,6 +33304,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -33178,6 +33314,7 @@
 | measure_city_check
 : string
 | CHECK ("City" > 0)
+: null
 < row
 : string
 | app
@@ -33187,6 +33324,7 @@
 | late_x_positive
 : string
 | CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -33213,7 +33351,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -33238,6 +33377,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,

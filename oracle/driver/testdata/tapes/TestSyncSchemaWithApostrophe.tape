@@ -16,7 +16,7 @@
 > query
 | SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'
 < result
-< column "VERSION_FULL" "NCHAR"
+< column "VERSION_FULL" "NCHAR" "string"
 < row
 : string
 | 23.26.3.0.0
@@ -28,10 +28,10 @@
 | 		FROM all_tab_identity_cols
 | 		WHERE OWNER = 'omni''owner'
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "GENERATION_TYPE" "NCHAR"
-< column "IDENTITY_OPTIONS" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "GENERATION_TYPE" "NCHAR" "string"
+< column "IDENTITY_OPTIONS" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -55,22 +55,22 @@
 | 		WHERE OWNER = 'omni''owner' AND USER_GENERATED = 'YES'
 | 		ORDER BY TABLE_NAME, COLUMN_ID NULLS LAST, COLUMN_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "DATA_TYPE" "NCHAR"
-< column "DATA_LENGTH" "NUMBER"
-< column "DATA_PRECISION" "NUMBER"
-< column "DATA_SCALE" "NUMBER"
-< column "CHAR_USED" "NCHAR"
-< column "CHAR_LENGTH" "NUMBER"
-< column "COLUMN_ID" "NUMBER"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DATA_TYPE" "NCHAR" "string"
+< column "DATA_LENGTH" "NUMBER" "float64" precision 38 scale 255
+< column "DATA_PRECISION" "NUMBER" "float64" precision 38 scale 255
+< column "DATA_SCALE" "NUMBER" "float64" precision 38 scale 255
+< column "CHAR_USED" "NCHAR" "string"
+< column "CHAR_LENGTH" "NUMBER" "float64" precision 38 scale 255
+< column "COLUMN_ID" "NUMBER" "float64" precision 38 scale 255
 < column "DATA_DEFAULT" "LONG"
-< column "NULLABLE" "NCHAR"
-< column "COLLATION" "NCHAR"
-< column "DEFAULT_ON_NULL" "NCHAR"
-< column "VIRTUAL_COLUMN" "NCHAR"
-< column "IDENTITY_COLUMN" "NCHAR"
+< column "NULLABLE" "NCHAR" "string"
+< column "COLLATION" "NCHAR" "string"
+< column "DEFAULT_ON_NULL" "NCHAR" "string"
+< column "VIRTUAL_COLUMN" "NCHAR" "string"
+< column "IDENTITY_COLUMN" "NCHAR" "string"
 < row
 : string
 | omni'owner
@@ -131,29 +131,18 @@
 | NO
 > query
 |
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'omni''owner' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'TRIGGER'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
-> query
-|
 | 		SELECT TRIGGER_NAME, TABLE_NAME, DESCRIPTION, TRIGGER_BODY, BASE_OBJECT_TYPE, TRIGGER_TYPE, TRIGGERING_EVENT
 | 		FROM sys.all_triggers
 | 		WHERE OWNER = 'omni''owner' AND TABLE_OWNER = 'omni''owner' AND TABLE_NAME is NOT NULL AND (BASE_OBJECT_TYPE = 'TABLE' OR BASE_OBJECT_TYPE = 'VIEW')
 | 		ORDER BY TRIGGER_NAME
 < result
-< column "TRIGGER_NAME" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DESCRIPTION" "NCHAR"
+< column "TRIGGER_NAME" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DESCRIPTION" "NCHAR" "string"
 < column "TRIGGER_BODY" "LONG"
-< column "BASE_OBJECT_TYPE" "NCHAR"
-< column "TRIGGER_TYPE" "NCHAR"
-< column "TRIGGERING_EVENT" "NCHAR"
+< column "BASE_OBJECT_TYPE" "NCHAR" "string"
+< column "TRIGGER_TYPE" "NCHAR" "string"
+< column "TRIGGERING_EVENT" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -164,9 +153,9 @@
 | 		WHERE OWNER = 'omni''owner'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME, POSITION
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
 < row
 : string
 | T
@@ -188,13 +177,13 @@
 | 		WHERE OWNER = 'omni''owner'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
 < result
-< column "TABLE_NAME" "NCHAR"
-< column "CONSTRAINT_NAME" "NCHAR"
-< column "CONSTRAINT_TYPE" "NCHAR"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "CONSTRAINT_NAME" "NCHAR" "string"
+< column "CONSTRAINT_TYPE" "NCHAR" "string"
 < column "SEARCH_CONDITION" "LONG"
-< column "R_OWNER" "NCHAR"
-< column "R_CONSTRAINT_NAME" "NCHAR"
-< column "DELETE_RULE" "NCHAR"
+< column "R_OWNER" "NCHAR" "string"
+< column "R_CONSTRAINT_NAME" "NCHAR" "string"
+< column "DELETE_RULE" "NCHAR" "string"
 < row
 : string
 | T
@@ -214,11 +203,11 @@
 | 		WHERE TABLE_OWNER = 'omni''owner'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "DESCEND" "NCHAR"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "DESCEND" "NCHAR" "string"
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_EXPRESSION
@@ -226,9 +215,9 @@
 | 		WHERE TABLE_OWNER = 'omni''owner'
 | 		ORDER BY TABLE_NAME, INDEX_NAME, COLUMN_POSITION
 < result
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < column "COLUMN_EXPRESSION" "LONG"
 > query
 |
@@ -237,12 +226,12 @@
 | 		WHERE OWNER = 'omni''owner'
 | 		ORDER BY TABLE_NAME, INDEX_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "INDEX_NAME" "NCHAR"
-< column "UNIQUENESS" "NCHAR"
-< column "INDEX_TYPE" "NCHAR"
-< column "VISIBILITY" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
+< column "UNIQUENESS" "NCHAR" "string"
+< column "INDEX_TYPE" "NCHAR" "string"
+< column "VISIBILITY" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COLUMN_NAME, COMMENTS
@@ -250,10 +239,10 @@
 | 		WHERE OWNER = 'omni''owner' AND COMMENTS IS NOT NULL
 | 		ORDER BY TABLE_NAME, COLUMN_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COLUMN_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COLUMN_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS
@@ -261,9 +250,9 @@
 | 		WHERE OWNER = 'omni''owner' AND COMMENTS IS NOT NULL
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, NUM_ROWS
@@ -274,9 +263,9 @@
 | 		)
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "NUM_ROWS" "NUMBER"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | omni'owner
@@ -293,9 +282,9 @@
 | 		)
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "NUM_ROWS" "NUMBER"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "NUM_ROWS" "NUMBER" "float64" precision 38 scale 255
 > query
 |
 | 		SELECT OWNER, TABLE_NAME, COMMENTS
@@ -304,9 +293,9 @@
 | 		AND TABLE_TYPE = 'VIEW'
 | 		ORDER BY TABLE_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, VIEW_NAME, TEXT
@@ -315,8 +304,8 @@
 | 		ORDER BY view_name
 | 	
 < result
-< column "OWNER" "NCHAR"
-< column "VIEW_NAME" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "VIEW_NAME" "NCHAR" "string"
 < column "TEXT" "LONG"
 > query
 |
@@ -332,48 +321,26 @@
 | 		ORDER BY NAME, REFERENCED_OWNER, REFERENCED_NAME
 | 	
 < result
-< column "VIEW_NAME" "NCHAR"
-< column "SOURCE_SCHEMA" "NCHAR"
-< column "SOURCE_TABLE" "NCHAR"
-< column "COLUMN_NAME" "CHAR"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'omni''owner' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE = 'SEQUENCE'
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "VIEW_NAME" "NCHAR" "string"
+< column "SOURCE_SCHEMA" "NCHAR" "string"
+< column "SOURCE_TABLE" "NCHAR" "string"
+< column "COLUMN_NAME" "CHAR" "string"
 > query
 |
 | 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'omni''owner'
 | 		ORDER BY SEQUENCE_NAME
 < result
-< column "SEQUENCE_NAME" "NCHAR"
+< column "SEQUENCE_NAME" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME
 | 	FROM all_db_links
 | 	ORDER BY DB_LINK
 < result
-< column "DB_LINK" "NCHAR"
-< column "HOST" "NCHAR"
-< column "USERNAME" "NCHAR"
-> query
-|
-| 		SELECT OWNER, TABLE_NAME, COMMENTS
-| 		FROM all_tab_comments
-| 		WHERE OWNER = 'omni''owner' AND COMMENTS IS NOT NULL
-| 		AND TABLE_TYPE IN ('FUNCTION', 'PROCEDURE')
-| 		ORDER BY TABLE_NAME
-< result
-< column "OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "DB_LINK" "NCHAR" "string"
+< column "HOST" "NCHAR" "string"
+< column "USERNAME" "NCHAR" "string"
 > query
 |
 | 		SELECT
@@ -387,9 +354,9 @@
 | 			OWNER = 'omni''owner'
 | 		ORDER BY NAME, TYPE, LINE
 < result
-< column "NAME" "NCHAR"
-< column "TYPE" "NCHAR"
-< column "TEXT" "NCHAR"
+< column "NAME" "NCHAR" "string"
+< column "TYPE" "NCHAR" "string"
+< column "TEXT" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, MVIEW_NAME, COMMENTS
@@ -397,9 +364,9 @@
 | 		WHERE OWNER = 'omni''owner' AND COMMENTS IS NOT NULL
 | 		ORDER BY MVIEW_NAME
 < result
-< column "OWNER" "NCHAR"
-< column "MVIEW_NAME" "NCHAR"
-< column "COMMENTS" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "MVIEW_NAME" "NCHAR" "string"
+< column "COMMENTS" "NCHAR" "string"
 > query
 |
 | 		SELECT OWNER, MVIEW_NAME, QUERY
@@ -408,8 +375,8 @@
 | 		ORDER BY MVIEW_NAME
 | 	
 < result
-< column "OWNER" "NCHAR"
-< column "MVIEW_NAME" "NCHAR"
+< column "OWNER" "NCHAR" "string"
+< column "MVIEW_NAME" "NCHAR" "string"
 < column "QUERY" "LONG"
 > query
 |
@@ -425,10 +392,10 @@
 | 		ORDER BY NAME, REFERENCED_OWNER, REFERENCED_NAME
 | 	
 < result
-< column "MVIEW_NAME" "NCHAR"
-< column "SOURCE_SCHEMA" "NCHAR"
-< column "SOURCE_TABLE" "NCHAR"
-< column "COLUMN_NAME" "CHAR"
+< column "MVIEW_NAME" "NCHAR" "string"
+< column "SOURCE_SCHEMA" "NCHAR" "string"
+< column "SOURCE_TABLE" "NCHAR" "string"
+< column "COLUMN_NAME" "CHAR" "string"
 > query
 |
 | 		SELECT SYNONYM_NAME, TABLE_OWNER, TABLE_NAME, DB_LINK
@@ -438,18 +405,18 @@
 : string
 | omni'owner
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 > query ^
 : string
 | PUBLIC
 < result
-< column "SYNONYM_NAME" "NCHAR"
-< column "TABLE_OWNER" "NCHAR"
-< column "TABLE_NAME" "NCHAR"
-< column "DB_LINK" "NCHAR"
+< column "SYNONYM_NAME" "NCHAR" "string"
+< column "TABLE_OWNER" "NCHAR" "string"
+< column "TABLE_NAME" "NCHAR" "string"
+< column "DB_LINK" "NCHAR" "string"
 < row
 : string
 | ABSPATH
