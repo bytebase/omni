@@ -3,6 +3,7 @@ package parser
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 // ref is the part of a RangeReference a test states: the kind and the names the
@@ -719,6 +720,31 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"column_0", "column_1"}}, cols: map[string][]string{"c": {"column_0", "column_1"}}},
 		},
 		{
+			name: "definer clause before the trigger object",
+			sql:  "CREATE DEFINER = 'root'@'localhost' TRIGGER tr BEFORE INSERT ON db.t FOR EACH ROW SET NEW.a = NEW.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"NEW"}, local: []ref{{database: "db", table: "t", alias: "NEW"}}},
+		},
+		{
+			name: "set operation after a cte names its arm",
+			sql:  "WITH z AS (SELECT 1 AS wrong) (SELECT a AS actual FROM t) UNION (SELECT b FROM u) ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, ctes: map[string][]string{"z": {"wrong"}}, aliases: []string{"actual"}},
+		},
+		{
+			name: "on condition through expression parentheses",
+			sql:  "SELECT * FROM t1 a JOIN t2 b ON (c.|) JOIN t3 c ON b.x = c.x",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
+		},
+		{
+			name: "cursor before an unfinished references list",
+			sql:  "ALTER TABLE child ADD FOREIGN KEY (|) REFERENCES parent (a",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "child", alias: "child"}}},
+		},
+		{
+			name: "case terminator is not an implicit alias",
+			sql:  "SELECT * FROM (SELECT CASE WHEN a = 1 THEN b ELSE c END FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {}}},
+		},
+		{
 			name: "intersect arms keep their own scope",
 			sql:  "SELECT a FROM t1 INTERSECT SELECT b FROM t2 WHERE |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t2"}}},
@@ -747,6 +773,26 @@ func TestCollectCompletionSignals(t *testing.T) {
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},
+		},
+		{
+			name: "join condition ends at the next clause",
+			sql:  "SELECT * FROM t1, t2 JOIN t3 ON t2.a = t3.a WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t1"}, {table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "trigger body statement after the first names the row",
+			sql:  "CREATE TRIGGER tr BEFORE INSERT ON db.t FOR EACH ROW BEGIN SET NEW.a = 1; SET NEW.b = NEW.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"NEW"}, local: []ref{{database: "db", table: "t", alias: "NEW"}}},
+		},
+		{
+			name: "parenthesized first arm names the set operation result",
+			sql:  "(SELECT a AS first_name FROM t) UNION SELECT b AS second_name FROM u ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "u"}}, aliases: []string{"first_name"}},
+		},
+		{
+			name: "nested cte body names its columns",
+			sql:  "WITH c AS (WITH d AS (SELECT 1 AS x) SELECT x AS y FROM d) SELECT c.| FROM c",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"y"}}, cols: map[string][]string{"c": {"y"}}},
 		},
 	}
 
@@ -884,6 +930,26 @@ func TestCollectCompletionNestingLimit(t *testing.T) {
 	ctx := CollectCompletion(strings.Replace(beyond, "|", "", 1), strings.Index(beyond, "|"))
 	if len(ctx.Scope.LocalReferences) != 0 {
 		t.Fatalf("local references = %q, want none past the nesting limit", refNames(ctx.Scope.LocalReferences))
+	}
+}
+
+// TestCollectCompletionNestedWithClauses pins that a statement nested in WITH
+// bodies is read once per clause, not once per enclosing clause: a body's output
+// columns are its own query's, so stepping over a clause while reading another
+// must not pay for the bodies inside. The bound is generous — the repeated read
+// this guards was quadratic and took seconds here — because a completion request
+// runs on every keystroke.
+func TestCollectCompletionNestedWithClauses(t *testing.T) {
+	const depth = 4800
+	sql := "SELECT * FROM (" + strings.Repeat("WITH c AS (", depth) + "SELECT 1" +
+		strings.Repeat(") SELECT * FROM c", depth) + ") d WHERE "
+	start := time.Now()
+	ctx := CollectCompletion(sql, len(sql))
+	if elapsed := time.Since(start); elapsed > 3*time.Second {
+		t.Errorf("read %d nested WITH clauses in %s, want each clause read once", depth, elapsed)
+	}
+	if ctx == nil || ctx.Candidates == nil {
+		t.Fatal("expected a context")
 	}
 }
 
