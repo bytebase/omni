@@ -121,6 +121,34 @@ func TestBuildExecuteCommandsDelimiterAndBounds(t *testing.T) {
 	}
 }
 
+func TestRetryPlan(t *testing.T) {
+	// A script past the command limit is one command holding every statement,
+	// so a failure inside it may follow commits that a retry would repeat.
+	var many strings.Builder
+	for range maxSplitCommands + 5 {
+		many.WriteString("INSERT INTO t VALUES (1);\n")
+	}
+	rollbackSafe, repeatable := retryPlan(buildExecuteCommands(many.String()))
+	if len(rollbackSafe) != 1 || rollbackSafe[0] || repeatable[0] {
+		t.Fatalf("collapsed script retry plan = %v, %v", rollbackSafe, repeatable)
+	}
+
+	// Each command of a split script that holds one statement is repeatable; only
+	// the DML ones are undone by a rollback.
+	rollbackSafe, repeatable = retryPlan([]driver.Command{
+		{Text: "INSERT INTO t VALUES (1);"},
+		{Text: "CREATE TABLE u (id INT);"},
+		{Text: "SELECT 1"},
+	})
+	wantRollbackSafe := []bool{true, false, true}
+	wantRepeatable := []bool{true, true, true}
+	for i := range wantRepeatable {
+		if rollbackSafe[i] != wantRollbackSafe[i] || repeatable[i] != wantRepeatable[i] {
+			t.Fatalf("retry plan %d = %v, %v; want %v, %v", i, rollbackSafe[i], repeatable[i], wantRollbackSafe[i], wantRepeatable[i])
+		}
+	}
+}
+
 func TestOpenSyncDatabaseHandshake1049AndKillOnCancel(t *testing.T) {
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {

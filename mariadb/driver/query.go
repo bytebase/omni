@@ -158,16 +158,22 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 }
 
 // serverReturnsRows reports whether the server answers node with a result set
-// that mariadb/analysis's read-only whitelist does not name: a stored
-// procedure's result sets, a table check's diagnosis, and a handler's read. It
-// is what the pinned servers answer with columns; DO, SET, FLUSH, a cache load
-// without a cache, and every write answer none.
+// whose columns mariadb/analysis's result lineage does not trace: a stored
+// procedure's result sets, a table check's diagnosis, a handler's read, and the
+// rows a write's RETURNING selects (mariadb/analysis classifies those writes as
+// DML and traces no columns for them). It is what the pinned servers answer with
+// columns; DO, SET, FLUSH, a cache load without a cache, and a write without
+// RETURNING answer none.
 func serverReturnsRows(node ast.Node) bool {
-	switch node.(type) {
+	switch stmt := node.(type) {
 	case *ast.CallStmt, *ast.CheckTableStmt, *ast.ChecksumTableStmt,
 		*ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.RepairTableStmt,
 		*ast.LoadIndexIntoCacheStmt, *ast.HandlerReadStmt:
 		return true
+	case *ast.InsertStmt:
+		return len(stmt.Returning) > 0
+	case *ast.DeleteStmt:
+		return len(stmt.Returning) > 0
 	}
 	return false
 }

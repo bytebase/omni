@@ -240,6 +240,17 @@ CREATE PROCEDURE rcount() BEGIN SELECT COUNT(*) AS n FROM ritems; END`); err != 
 		t.Fatalf("DELETE RETURNING rows = %+v, %v", deleted, err)
 	}
 
+	// RETURNING columns are not traced by mariadb/analysis's lineage, so masking
+	// withholds them rather than returning values the caller asked to mask.
+	maskedDeleted, err := sess.Query(ctx, "DELETE FROM ritems WHERE d = 1 RETURNING id;", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil || len(maskedDeleted) != 1 || maskedDeleted[0].AffectedRows == nil || len(maskedDeleted[0].Rows) != 0 {
+		t.Fatalf("masked DELETE RETURNING = %+v, %v", maskedDeleted, err)
+	}
+	maskedInserted, err := sess.Query(ctx, "INSERT INTO ritems VALUES (5, 1) RETURNING id;", driver.QueryOptions{MaskingEnabled: true})
+	if err != nil || len(maskedInserted) != 1 || maskedInserted[0].AffectedRows == nil || len(maskedInserted[0].Rows) != 0 {
+		t.Fatalf("masked INSERT RETURNING = %+v, %v", maskedInserted, err)
+	}
+
 	// A procedure's result set is columns the caller's analysis cannot trace:
 	// unmasked it comes back, masked it is withheld and reported as a count.
 	call, err := sess.Query(ctx, "CALL rcount();", driver.QueryOptions{})

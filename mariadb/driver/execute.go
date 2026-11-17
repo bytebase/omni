@@ -52,12 +52,19 @@ var delimiterDirective = regexp.MustCompile(`(?i)(^|[\s;])DELIMITER\s`)
 // does not turn into hundreds of logged steps or a transaction of them; a
 // script that sets a DELIMITER is split either way.
 func buildExecuteCommands(script string) []driver.Command {
+	whole := []driver.Command{{Text: script, ByteStart: 0, ByteEnd: len(script)}}
+	large := len(script) > maxSheetCheckBytes
+	// A large script is sent whole without splitting it, so a dump does not pay
+	// for a command per statement to discard them.
+	if large && !delimiterDirective.MatchString(script) {
+		return whole
+	}
 	commands := splitCommands(script)
 	if delimiterDirective.MatchString(script) {
 		return commands
 	}
-	if len(script) > maxSheetCheckBytes || len(commands) > maxSplitCommands {
-		return []driver.Command{{Text: script, ByteStart: 0, ByteEnd: len(script)}}
+	if large || len(commands) > maxSplitCommands {
+		return whole
 	}
 	return commands
 }
@@ -99,18 +106,13 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	}
 
 	// A retry repeats the whole script, so it is only safe when the failed
-	// attempt committed nothing: every command that ran before the failure must
-	// be undone by rolling the transaction back.
-	var rollbackSafe []bool
+	// attempt committed nothing. Under Transactional that means every command
+	// that ran before the failure is undone by the rollback; under AutoCommit it
+	// means the failed command itself is one statement, since a command that
+	// holds several has already committed the ones before the failure.
+	var rollbackSafe, repeatable []bool
 	if opts.MaxRetries > 0 {
-		rollbackSafe = make([]bool, len(commands))
-		for i, cmd := range commands {
-			parsed, err := mariadbparser.Parse(cmd.Text)
-			if err != nil || parsed == nil || len(parsed.Items) != 1 {
-				continue
-			}
-			rollbackSafe[i] = rollsBack(parsed.Items[0])
-		}
+		rollbackSafe, repeatable = retryPlan(commands)
 	}
 
 	run := func() (int64, bool, error) {
@@ -127,7 +129,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 			return 0, false, err
 		}
 		if opts.Transaction == driver.AutoCommit || opts.CreateDatabase {
-			return d.executeInAutoCommitMode(ctx, conn, commands, opts.Log, connID)
+			return d.executeInAutoCommitMode(ctx, conn, commands, repeatable, opts.Log, connID)
 		}
 		return d.executeInTransactionMode(ctx, conn, commands, rollbackSafe, opts.Log, connID, isolation)
 	}
@@ -152,6 +154,24 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		}
 	}
 	return affectedRows, err
+}
+
+// retryPlan reports, per command, whether a failed attempt at it leaves nothing
+// behind: rollbackSafe for Transactional, where the rollback must undo what ran
+// before, and repeatable for AutoCommit, where a command holding several
+// statements has already committed the ones before the failure.
+func retryPlan(commands []driver.Command) (rollbackSafe, repeatable []bool) {
+	rollbackSafe = make([]bool, len(commands))
+	repeatable = make([]bool, len(commands))
+	for i, cmd := range commands {
+		parsed, err := mariadbparser.Parse(cmd.Text)
+		if err != nil || parsed == nil || len(parsed.Items) != 1 {
+			continue
+		}
+		rollbackSafe[i] = rollsBack(parsed.Items[0])
+		repeatable[i] = true
+	}
+	return rollbackSafe, repeatable
 }
 
 // rollsBack reports whether a command that succeeded inside a transaction is
@@ -255,22 +275,23 @@ func (d *Driver) executeInAutoCommitMode(
 	ctx context.Context,
 	conn *sql.Conn,
 	commands []driver.Command,
+	repeatable []bool,
 	log driver.ExecuteLogger,
 	connID uint64,
 ) (rowsAffected int64, retryable bool, err error) {
 	var totalRowsAffected int64
 	// Each command commits on its own, so only a script that failed before its
-	// first one ran leaves nothing to repeat.
+	// first command ran leaves nothing to repeat.
 	succeeded := 0
 	if err := conn.Raw(func(driverConn any) error {
 		exer := driverConn.(sqldriver.ExecerContext)
-		for _, cmd := range commands {
+		for i, cmd := range commands {
 			logCommandExecute(log, cmd)
 			sqlResult, execErr := exer.ExecContext(ctx, d.withAppComment(cmd.Text), nil)
 			if execErr != nil {
 				d.killQueryOnCancel(execErr, connID)
 				logCommandResponse(log, 0, nil, execErr)
-				retryable = succeeded == 0
+				retryable = succeeded == 0 && (repeatable == nil || repeatable[i])
 				return execErr
 			}
 			succeeded++

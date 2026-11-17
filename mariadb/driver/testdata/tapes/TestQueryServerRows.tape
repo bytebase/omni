@@ -26,6 +26,12 @@
 : int64 1
 < row
 : int64 2
+> exec
+| DELETE FROM ritems WHERE d = 1 RETURNING id;
+< ok 0 0
+> exec
+| INSERT INTO ritems VALUES (5, 1) RETURNING id;
+< ok 0 0
 > query
 | CALL rcount();
 < result
@@ -41,21 +47,21 @@
 < column "id" "INT" "int32"
 < column "d" "INT"
 < row
-: int64 3
-: int64 1
-< row
 : int64 4
 : int64 2
+< row
+: int64 5
+: int64 1
 > query ^
 < result
 < column "id" "INT" "int32"
 < column "d" "INT"
 < row
-: int64 3
-: int64 1
-< row
 : int64 4
 : int64 2
+< row
+: int64 5
+: int64 1
 > query
 | CHECK TABLE ritems;
 < result
