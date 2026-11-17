@@ -634,7 +634,9 @@ func (p *parser) column() (column, error) {
 			return column{}, p.errorf("a column's precision: %q", rest)
 		}
 		precision, rest, _ = strings.Cut(precision, " ")
-		if _, err := strconv.ParseInt(precision, 10, 32); err != nil {
+		// A precision is what the driver reported, and a client that states no
+		// decimals for a column reports math.MaxInt64.
+		if _, err := strconv.ParseInt(precision, 10, 64); err != nil {
 			return column{}, p.errorf("a column's precision: %v", err)
 		}
 		c.precision = precision
@@ -644,7 +646,7 @@ func (p *parser) column() (column, error) {
 		if !ok {
 			return column{}, p.errorf("a column's scale: %q", rest)
 		}
-		if _, err := strconv.ParseInt(scale, 10, 32); err != nil {
+		if _, err := strconv.ParseInt(scale, 10, 64); err != nil {
 			return column{}, p.errorf("a column's scale: %v", err)
 		}
 		c.scale = scale

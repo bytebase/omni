@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -987,6 +988,46 @@ func TestColumnPrecisionReplays(t *testing.T) {
 	}
 }
 
+// A precision a driver reports past int32, as go-sql-driver does for a DOUBLE
+// whose decimals the server leaves unspecified, is written down and replayed
+// unchanged: database/sql passes it through.
+func TestColumnPrecisionPastInt32Replays(t *testing.T) {
+	srv, _ := harness(t)
+	read := func(t testing.TB) []string {
+		rows, err := Open(t, srv, "default").Query("SELECT float")
+		if err != nil {
+			return []string{err.Error()}
+		}
+		defer rows.Close()
+		types, _ := rows.ColumnTypes()
+		if len(types) != 1 {
+			return []string{fmt.Sprintf("%d columns", len(types))}
+		}
+		precision, scale, ok := types[0].DecimalSize()
+		return []string{fmt.Sprintf("%d %d %v", precision, scale, ok)}
+	}
+	const want = "9223372036854775807 9223372036854775807 true"
+
+	record(t)
+	recorded, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(recorded) != 1 || recorded[0] != want {
+		t.Fatalf("a recording read %q (%v), want %q", recorded, errs, want)
+	}
+	b, err := os.ReadFile(filepath.Join(dir, "TestFake.tape"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if line := "< column \"f\" \"DOUBLE\" precision 9223372036854775807 scale 9223372036854775807\n"; !strings.Contains(string(b), line) {
+		t.Errorf("the tape lacks %q:\n%s", line, b)
+	}
+
+	replay(t)
+	replayed, errs := run(t, "TestFake", read)
+	if len(errs) > 0 || len(replayed) != 1 || replayed[0] != want {
+		t.Errorf("a replay read %q (%v), want %q", replayed, errs, want)
+	}
+}
+
 // untypedRows answers one column whose scan type the client cannot name, as
 // go-ora cannot for the LONG that oracle/driver reads DATA_DEFAULT as.
 type untypedRows struct{ sent bool }
@@ -1154,6 +1195,8 @@ func (c *fakeConn) QueryContext(_ context.Context, q string, _ []driver.NamedVal
 		}}}, nil
 	case "SELECT precision":
 		return &fakeRows{sets: []fakeSet{{[]string{"d"}, []string{"DECIMAL"}, [][]driver.Value{{"1.25"}}}}}, nil
+	case "SELECT float":
+		return &fakeRows{sets: []fakeSet{{[]string{"f"}, []string{"DOUBLE"}, [][]driver.Value{{2.5}}}}}, nil
 	case "SELECT untyped":
 		return &untypedRows{}, nil
 	case "SELECT now":
@@ -1189,8 +1232,13 @@ type fakeRows struct {
 func (r *fakeRows) Columns() []string                       { return r.sets[r.set].cols }
 func (r *fakeRows) ColumnTypeDatabaseTypeName(i int) string { return r.sets[r.set].types[i] }
 func (r *fakeRows) ColumnTypePrecisionScale(i int) (int64, int64, bool) {
-	if r.sets[r.set].types[i] == "DECIMAL" {
+	switch r.sets[r.set].types[i] {
+	case "DECIMAL":
 		return 5, 2, true
+	case "DOUBLE":
+		// go-sql-driver states math.MaxInt64 for a DOUBLE whose decimals the
+		// server leaves unspecified.
+		return math.MaxInt64, math.MaxInt64, true
 	}
 	return 0, 0, false
 }
