@@ -46718,3 +46718,23 @@ reject@11	reject@11	engine	suite:manifest	LOCK TABLE IN SHARE MODE
 reject@23	reject@14	engine	suite:manifest	ANALYZE TABLE VALIDATE STRUCTURE
 reject@20	reject@20	engine	suite:manifest	FLASHBACK TABLE t TO
 reject@11	reject@11	engine	suite:manifest	PURGE TABLE
+accept	accept	engine	suite:manifest	COMMENT ON TABLE t IS 'comment category table'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON VIEW a IS 's'
+accept	accept	engine	suite:manifest	COMMENT ON MATERIALIZED VIEW v IS 'comment category materialized view'
+accept	accept	engine	suite:manifest	COMMENT ON COLUMN t.a IS 'comment category column'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON INDEX a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON SEQUENCE a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON FUNCTION a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON PROCEDURE a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON PACKAGE a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON TRIGGER a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON TYPE a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON SYNONYM a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON DATABASE LINK a IS 's'
+reject@11	reject@11	engine	suite:manifest	COMMENT ON DIMENSION a IS 's'
+accept	accept	engine	suite:manifest	COMMENT ON OPERATOR a IS 'comment category operator'
+accept	accept	engine	suite:manifest	COMMENT ON INDEXTYPE a IS 'comment category indextype'
+accept	accept	engine	suite:manifest	COMMENT ON EDITION a IS 'comment category edition'
+accept	accept	engine	suite:manifest	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'
+accept	accept	engine	suite:manifest	COMMENT ON MINING MODEL a IS 'comment category mining model'
+accept	accept	engine	suite:manifest	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'

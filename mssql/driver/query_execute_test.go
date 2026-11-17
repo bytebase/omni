@@ -263,8 +263,9 @@ END;
 	}
 
 	// A batch of more than one statement yields an empty result for a statement
-	// that reports only a count, since the server reports those through a
-	// collector the contract's shape has no room for.
+	// that reports only a count: SQL Server states those in the ReturnMessage
+	// message loop, which a tape cannot carry, having no message argument and no
+	// ordered counts beside its result sets.
 	inserted, err = sess.Query(ctx, "INSERT INTO q_items (id, note, flag) VALUES (5, N'e', 1);\nSELECT 1 AS after_insert;", driver.QueryOptions{})
 	if err != nil || len(inserted) != 2 || inserted[0].AffectedRows != nil || inserted[1].Rows[0][0].Int64 != 1 {
 		t.Fatalf("batched insert = %+v, %v", inserted, err)

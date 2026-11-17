@@ -607,3 +607,23 @@ compat_admin_077	E	utility	LOCK-TABLE.bnf	parse_only	reject	syntax	LOCK TABLE IN
 compat_admin_078	E	utility	ANALYZE.bnf	parse_only	reject	syntax	ANALYZE TABLE VALIDATE STRUCTURE	none	none	23ai	analyze missing table name
 compat_admin_079	E	utility	FLASHBACK-TABLE.bnf	parse_only	reject	syntax	FLASHBACK TABLE t TO	none	none	23ai	flashback table missing target
 compat_admin_080	E	utility	PURGE.bnf	parse_only	reject	syntax	PURGE TABLE	none	none	23ai	purge table missing name
+compat_comment_001	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON TABLE t IS 'comment category table'	none	none	23ai	comment table
+compat_comment_002	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON VIEW a IS 's'	none	none	23ai	a view is commented through TABLE: VIEW is ORA-32594
+compat_comment_003	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON MATERIALIZED VIEW v IS 'comment category materialized view'	none	none	23ai	comment materialized view
+compat_comment_004	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON COLUMN t.a IS 'comment category column'	none	none	23ai	comment column
+compat_comment_005	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON INDEX a IS 's'	none	none	23ai	the dictionary holds no index comment: INDEX is ORA-32594
+compat_comment_006	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON SEQUENCE a IS 's'	none	none	23ai	SEQUENCE is ORA-32594
+compat_comment_007	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON FUNCTION a IS 's'	none	none	23ai	FUNCTION is ORA-32594
+compat_comment_008	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON PROCEDURE a IS 's'	none	none	23ai	PROCEDURE is ORA-32594
+compat_comment_009	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON PACKAGE a IS 's'	none	none	23ai	PACKAGE is ORA-32594
+compat_comment_010	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON TRIGGER a IS 's'	none	none	23ai	TRIGGER is ORA-32594
+compat_comment_011	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON TYPE a IS 's'	none	none	23ai	TYPE is ORA-32594
+compat_comment_012	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON SYNONYM a IS 's'	none	none	23ai	SYNONYM is ORA-32594
+compat_comment_013	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON DATABASE LINK a IS 's'	none	none	23ai	DATABASE LINK is ORA-32594
+compat_comment_014	B	ddl	COMMENT.bnf	parse_only	reject	syntax	COMMENT ON DIMENSION a IS 's'	none	none	23ai	DIMENSION is ORA-32594
+compat_comment_015	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON OPERATOR a IS 'comment category operator'	none	none	23ai	comment operator
+compat_comment_016	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON INDEXTYPE a IS 'comment category indextype'	none	none	23ai	comment indextype
+compat_comment_017	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON EDITION a IS 'comment category edition'	none	none	23ai	comment edition
+compat_comment_018	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON AUDIT POLICY a IS 'comment category audit policy'	none	none	23ai	comment audit policy
+compat_comment_019	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON MINING MODEL a IS 'comment category mining model'	none	none	23ai	comment mining model
+compat_comment_020	B	ddl	COMMENT.bnf	parse_only	accept	syntax	COMMENT ON PROPERTY GRAPH a IS 'comment category property graph'	none	none	23ai	comment property graph

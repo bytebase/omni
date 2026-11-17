@@ -710,6 +710,7 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 	tc.Deferrable = cs.Deferrable
 	tc.Initially = cs.Initially
 	tc.Tablespace = cs.Tablespace
+	tc.UsingIndex = cs.UsingIndex
 	tc.UsingIndexLocal = cs.UsingIndexLocal
 	tc.Loc = nodes.Loc{Start: start, End: p.prev.End}
 	cmd.Constraint = tc
@@ -811,11 +812,17 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if name, err = p.parseATNameString(); err != nil {
 			return nil, err
 		}
+		cascade := false
 		if p.cur.Type == kwCASCADE {
+			cascade = true
 			p.advance()
 		}
 		if p.cur.Type == kwONLINE {
 			p.advance()
+		}
+		var options *nodes.List
+		if cascade {
+			options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "CASCADE"}}}
 		}
 		return &nodes.AlterTableCmd{
 			Action: nodes.AT_DROP_CONSTRAINT,
@@ -823,11 +830,13 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 				Name: name,
 				Loc:  nodes.Loc{Start: start, End: p.prev.End},
 			},
-			Loc: nodes.Loc{Start: start, End: p.prev.End},
+			Options: options,
+			Loc:     nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
 	case p.cur.Type == kwPRIMARY, p.cur.Type == kwUNIQUE:
 		subtype := "UNIQUE"
+		var columns []string
 		if p.cur.Type == kwPRIMARY {
 			subtype = "PRIMARY KEY"
 			p.advance()
@@ -836,23 +845,48 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			}
 		} else {
 			p.advance()
-			if err := p.parseATNameList(); err != nil {
+			var err error
+			columns, err = p.parseATNameListStrings()
+			if err != nil {
 				return nil, err
 			}
 		}
+		cascade := false
 		if p.cur.Type == kwCASCADE {
+			cascade = true
 			p.advance()
 		}
-		if err := p.parseATKeepDropIndex(); err != nil {
+		keepIndex, err := p.parseATKeepDropIndex()
+		if err != nil {
 			return nil, err
 		}
 		if p.cur.Type == kwONLINE {
 			p.advance()
 		}
+		var constraint *nodes.TableConstraint
+		if len(columns) > 0 {
+			items := &nodes.List{}
+			for _, column := range columns {
+				items.Items = append(items.Items, &nodes.String{Str: column})
+			}
+			constraint = &nodes.TableConstraint{Columns: items, Loc: nodes.Loc{Start: start, End: p.prev.End}}
+		}
+		var options *nodes.List
+		if cascade {
+			options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "CASCADE"}}}
+		}
+		if keepIndex == "KEEP" {
+			if options == nil {
+				options = &nodes.List{}
+			}
+			options.Items = append(options.Items, &nodes.String{Str: "KEEP INDEX"})
+		}
 		return &nodes.AlterTableCmd{
-			Action:  nodes.AT_DROP_CONSTRAINT,
-			Subtype: subtype,
-			Loc:     nodes.Loc{Start: start, End: p.prev.End},
+			Action:     nodes.AT_DROP_CONSTRAINT,
+			Constraint: constraint,
+			Subtype:    subtype,
+			Options:    options,
+			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
 	case p.cur.Type == '(':
@@ -883,11 +917,14 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if err != nil {
 			return nil, err
 		}
+		names := []string{name}
 		for p.cur.Type == ',' {
 			p.advance()
-			if err := p.parseATName(); err != nil {
+			next, err := p.parseATNameString()
+			if err != nil {
 				return nil, err
 			}
+			names = append(names, next)
 		}
 		if err := p.atExpect(')'); err != nil {
 			return nil, err
@@ -895,9 +932,14 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		if err := p.parseATDropColumnTrailing(true); err != nil {
 			return nil, err
 		}
+		options := &nodes.List{}
+		for _, column := range names {
+			options.Items = append(options.Items, &nodes.String{Str: column})
+		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_DROP_COLUMN,
 			ColumnName: name,
+			Options:    options,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 
@@ -984,12 +1026,16 @@ func (p *Parser) parseATCheckpoint() error {
 }
 
 // parseATKeepDropIndex reads [ { KEEP | DROP } INDEX ].
-func (p *Parser) parseATKeepDropIndex() error {
+func (p *Parser) parseATKeepDropIndex() (string, error) {
 	if !p.atWord("KEEP") && p.cur.Type != kwDROP {
-		return nil
+		return "", nil
+	}
+	option := "DROP"
+	if p.atWord("KEEP") {
+		option = "KEEP"
 	}
 	p.advance()
-	return p.atExpect(kwINDEX)
+	return option, p.atExpect(kwINDEX)
 }
 
 // parseAlterTableRename parses RENAME actions other than RENAME PARTITION
@@ -1205,8 +1251,10 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
-		if err := p.parseATKeepDropIndex(); err != nil {
+		if keepIndex, err := p.parseATKeepDropIndex(); err != nil {
 			return nil, err
+		} else if keepIndex != "" {
+			// Accepted but not represented on an enable/disable action.
 		}
 	}
 

@@ -496,7 +496,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -508,6 +510,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | MV
@@ -517,6 +521,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -531,6 +537,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| SYS_C_SNAP$_9000002T_PK
 < row
 : string
 | T
@@ -540,6 +550,8 @@
 | C
 : string
 | "ID" IS NOT NULL
+: null
+: null
 : null
 : null
 : null
@@ -555,6 +567,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | T
@@ -566,6 +580,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| T_NAME_UK
 < row
 : string
 | T
@@ -577,6 +595,10 @@
 : null
 : null
 : null
+: string
+| OMNI_APP
+: string
+| T_PK
 > query
 |
 | 		SELECT TABLE_OWNER, TABLE_NAME, INDEX_NAME, COLUMN_NAME, DESCEND
@@ -913,14 +935,100 @@
 | *
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
+< result
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
+> query
+|
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_APP'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
 | S
+: string
+| 1
+: string
+| 9999999999999999999999999999
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| 20
+: string
+| 1
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
+: string
+| N
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME

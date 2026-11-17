@@ -1,0 +1,2393 @@
+package catalog
+
+import (
+	"fmt"
+	"regexp"
+	"slices"
+	"strconv"
+	"strings"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle"
+	"github.com/bytebase/omni/oracle/ast"
+)
+
+// metadataFromSQL parses Oracle DDL and returns the schema it defines.
+func metadataFromSQL(schemaText string) (*metadatapb.DatabaseSchemaMetadata, error) {
+	stmts, err := oracle.Parse(schemaText)
+	if err != nil {
+		return nil, fmt.Errorf("parse Oracle schema: %w", err)
+	}
+	if len(stmts) == 0 {
+		return nil, fmt.Errorf("no parse results")
+	}
+
+	extractor := newMetadataExtractor(schemaText)
+	for _, stmt := range stmts {
+		node, ok := stmt.AST.(ast.StmtNode)
+		if !ok || node == nil {
+			continue
+		}
+		extractor.extractStatement(node)
+	}
+
+	if extractor.err != nil {
+		return nil, extractor.err
+	}
+	return extractor.databaseMetadata(), nil
+}
+
+func newMetadataExtractor(schemaText string) *oracleMetadataExtractor {
+	return &oracleMetadataExtractor{
+		namedNotNull:      make(map[string]bool),
+		primaryKeyNotNull: make(map[string]bool),
+		tables:            make(map[string]*metadatapb.TableMetadata),
+		views:             make(map[string]*metadatapb.ViewMetadata),
+		materializedViews: make(map[string]*metadatapb.MaterializedViewMetadata),
+		functions:         make(map[string]*metadatapb.FunctionMetadata),
+		procedures:        make(map[string]*metadatapb.ProcedureMetadata),
+		triggers:          make(map[string]*metadatapb.TriggerMetadata),
+		sequences:         make(map[string]*metadatapb.SequenceMetadata),
+		packages:          make(map[string]*metadatapb.PackageMetadata),
+		checkNames:        make(map[string]map[string]bool),
+		checkNameNext:     make(map[string]map[string]int),
+		schemaText:        schemaText,
+	}
+}
+
+type oracleMetadataExtractor struct {
+	err               error
+	namedNotNull      map[string]bool
+	primaryKeyNotNull map[string]bool
+	explicitSchema    bool
+	owner             string
+	currentDatabase   string
+	currentSchema     string
+	tables            map[string]*metadatapb.TableMetadata
+	views             map[string]*metadatapb.ViewMetadata
+	materializedViews map[string]*metadatapb.MaterializedViewMetadata
+	functions         map[string]*metadatapb.FunctionMetadata
+	procedures        map[string]*metadatapb.ProcedureMetadata
+	triggers          map[string]*metadatapb.TriggerMetadata
+	sequences         map[string]*metadatapb.SequenceMetadata
+	packages          map[string]*metadatapb.PackageMetadata
+	checkNames        map[string]map[string]bool
+	checkNameNext     map[string]map[string]int
+	schemaText        string
+}
+
+func (e *oracleMetadataExtractor) databaseMetadata() *metadatapb.DatabaseSchemaMetadata {
+	e.resolveForeignKeyReferencedColumns()
+
+	schemaMetadata := &metadatapb.DatabaseSchemaMetadata{
+		Name:    e.currentDatabase,
+		Schemas: []*metadatapb.SchemaMetadata{},
+	}
+	schema := &metadatapb.SchemaMetadata{
+		Name:              e.currentSchema,
+		Tables:            []*metadatapb.TableMetadata{},
+		Views:             []*metadatapb.ViewMetadata{},
+		MaterializedViews: []*metadatapb.MaterializedViewMetadata{},
+		Procedures:        []*metadatapb.ProcedureMetadata{},
+		Functions:         []*metadatapb.FunctionMetadata{},
+		Sequences:         []*metadatapb.SequenceMetadata{},
+		Packages:          []*metadatapb.PackageMetadata{},
+	}
+
+	var tableNames []string
+	for name := range e.tables {
+		if _, ok := e.materializedViews[name]; !ok {
+			tableNames = append(tableNames, name)
+		}
+	}
+	slices.Sort(tableNames)
+	for _, name := range tableNames {
+		schema.Tables = append(schema.Tables, e.tables[name])
+	}
+
+	var viewNames []string
+	for name := range e.views {
+		viewNames = append(viewNames, name)
+	}
+	slices.Sort(viewNames)
+	for _, name := range viewNames {
+		schema.Views = append(schema.Views, e.views[name])
+	}
+
+	var materializedViewNames []string
+	for name := range e.materializedViews {
+		materializedViewNames = append(materializedViewNames, name)
+	}
+	slices.Sort(materializedViewNames)
+	for _, name := range materializedViewNames {
+		schema.MaterializedViews = append(schema.MaterializedViews, e.materializedViews[name])
+	}
+
+	var functionNames []string
+	for name := range e.functions {
+		functionNames = append(functionNames, name)
+	}
+	slices.Sort(functionNames)
+	for _, name := range functionNames {
+		schema.Functions = append(schema.Functions, e.functions[name])
+	}
+
+	var procedureNames []string
+	for name := range e.procedures {
+		procedureNames = append(procedureNames, name)
+	}
+	slices.Sort(procedureNames)
+	for _, name := range procedureNames {
+		schema.Procedures = append(schema.Procedures, e.procedures[name])
+	}
+
+	var sequenceNames []string
+	for name := range e.sequences {
+		sequenceNames = append(sequenceNames, name)
+	}
+	slices.Sort(sequenceNames)
+	for _, name := range sequenceNames {
+		schema.Sequences = append(schema.Sequences, e.sequences[name])
+	}
+
+	var packageNames []string
+	for name := range e.packages {
+		packageNames = append(packageNames, name)
+	}
+	slices.Sort(packageNames)
+	for _, name := range packageNames {
+		schema.Packages = append(schema.Packages, e.packages[name])
+	}
+
+	schemaMetadata.Schemas = append(schemaMetadata.Schemas, schema)
+	return schemaMetadata
+}
+
+func (e *oracleMetadataExtractor) getOrCreateTable(tableName string) *metadatapb.TableMetadata {
+	if table, ok := e.tables[tableName]; ok {
+		return table
+	}
+	table := &metadatapb.TableMetadata{
+		Name:             tableName,
+		Columns:          []*metadatapb.ColumnMetadata{},
+		Indexes:          []*metadatapb.IndexMetadata{},
+		ForeignKeys:      []*metadatapb.ForeignKeyMetadata{},
+		CheckConstraints: []*metadatapb.CheckConstraintMetadata{},
+		Triggers:         []*metadatapb.TriggerMetadata{},
+		Partitions:       []*metadatapb.TablePartitionMetadata{},
+	}
+	e.tables[tableName] = table
+	return table
+}
+
+// useSchema keeps one schema in the extractor. A statement that names another
+// owner would move earlier objects, so it is refused rather than merged.
+func (e *oracleMetadataExtractor) useSchema(schema string) bool {
+	if schema == "" {
+		return true
+	}
+	if e.currentSchema == "" {
+		if e.owner != "" && schema != e.owner {
+			if e.err == nil {
+				e.err = fmt.Errorf("statement names schema %q, but the catalog is loading schema %q", schema, e.owner)
+			}
+			return false
+		}
+		e.currentSchema = schema
+		e.explicitSchema = true
+		return true
+	}
+	if schema == e.currentSchema {
+		return true
+	}
+	if e.err == nil {
+		e.err = fmt.Errorf("statement names schema %q, but the catalog is loading schema %q", schema, e.currentSchema)
+	}
+	return false
+}
+
+func (e *oracleMetadataExtractor) extractStatement(stmt ast.StmtNode) {
+	switch n := stmt.(type) {
+	case *ast.CreateTableStmt:
+		e.extractCreateTable(n)
+	case *ast.CreateIndexStmt:
+		e.extractCreateIndex(n)
+	case *ast.CreateViewStmt:
+		e.extractCreateView(n)
+	case *ast.CreateSchemaStmt:
+		e.extractCreateSchema(n)
+	case *ast.CreateSequenceStmt:
+		e.extractCreateSequence(n)
+	case *ast.CreateProcedureStmt:
+		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
+			e.procedures[name] = &metadatapb.ProcedureMetadata{Name: name, Definition: e.definitionText(n)}
+		}
+	case *ast.CreateFunctionStmt:
+		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
+			e.functions[name] = &metadatapb.FunctionMetadata{Name: name, Definition: e.functionDefinitionText(n)}
+		}
+	case *ast.CreatePackageStmt:
+		if name := objectName(n.Name); name != "" && e.useSchema(n.Name.Schema) {
+			e.extractCreatePackage(name, n)
+		}
+	case *ast.CreateTriggerStmt:
+		e.extractCreateTrigger(n)
+	case *ast.AlterTableStmt:
+		e.extractAlterTable(n)
+	case *ast.CommentStmt:
+		e.extractComment(n)
+	case *ast.AlterSequenceStmt:
+		e.extractAlterSequence(n)
+	case *ast.AlterTriggerStmt:
+		e.extractAlterTrigger(n)
+	case *ast.RenameStmt:
+		e.extractRename(n)
+	case *ast.AlterIndexStmt:
+		e.extractAlterIndex(n)
+	case *ast.DropStmt:
+		e.extractDrop(n)
+	default:
+	}
+}
+
+func (e *oracleMetadataExtractor) extractCreateSchema(n *ast.CreateSchemaStmt) {
+	if n.SchemaName != "" && !e.useSchema(n.SchemaName) {
+		return
+	}
+	for _, item := range listItems(n.Stmts) {
+		stmt, ok := item.(ast.StmtNode)
+		if !ok {
+			continue
+		}
+		e.extractStatement(stmt)
+	}
+}
+
+func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
+	tableName := objectName(n.Name)
+	if tableName == "" {
+		return
+	}
+	if !e.useSchema(n.Name.Schema) {
+		return
+	}
+
+	if n.IfNotExists && e.tables[tableName] != nil {
+		return
+	}
+	if n.AsQuery != nil {
+		if e.err == nil {
+			e.err = fmt.Errorf("CREATE TABLE AS SELECT is not supported by oracle/catalog")
+		}
+		return
+	}
+	if n.Global || n.Private {
+		if e.err == nil {
+			e.err = fmt.Errorf("temporary tables are not supported by oracle/catalog")
+		}
+		return
+	}
+	if n.OfType != nil {
+		if e.err == nil {
+			e.err = fmt.Errorf("object and XMLType tables are not supported by oracle/catalog")
+		}
+		return
+	}
+	table := e.getOrCreateTable(tableName)
+	for _, item := range listItems(n.Columns) {
+		column, ok := item.(*ast.ColumnDef)
+		if !ok {
+			continue
+		}
+		e.extractColumn(column, table)
+	}
+	for _, item := range listItems(n.Constraints) {
+		constraint, ok := item.(*ast.TableConstraint)
+		if !ok {
+			continue
+		}
+		e.extractTableConstraint(constraint, table)
+	}
+}
+
+func (e *oracleMetadataExtractor) extractColumn(n *ast.ColumnDef, table *metadatapb.TableMetadata) {
+	column := &metadatapb.ColumnMetadata{
+		Name:     n.Name,
+		Nullable: true,
+		Position: int32(len(table.Columns) + 1),
+	}
+	if n.TypeName != nil {
+		column.Type = normalizeDataTypeText(e.nodeText(n.TypeName))
+	} else if n.Domain != nil {
+		column.Type = objectName(n.Domain)
+	}
+	if n.Default != nil {
+		column.Default = e.nodeText(n.Default)
+	}
+	if n.Virtual != nil {
+		column.Generation = &metadatapb.GenerationMetadata{
+			Type:       metadatapb.GenerationMetadata_TYPE_VIRTUAL,
+			Expression: e.exprText(n.Virtual),
+		}
+	}
+	column.IsInvisible = n.Invisible
+	column.DefaultOnNull = n.DefaultOnNull
+	if n.DefaultOnNull {
+		column.Nullable = false
+	}
+	if n.Collation != "" {
+		column.Collation = n.Collation
+	}
+	if n.Identity != nil {
+		applyIdentity(column, n.Identity, e.nodeText(n.Identity))
+		column.Nullable = false
+	}
+	if n.NotNull {
+		column.Nullable = false
+	}
+	if n.Null {
+		column.Nullable = true
+	}
+
+	explicitNotNull := n.NotNull
+	for _, item := range listItems(n.Constraints) {
+		constraint, ok := item.(*ast.ColumnConstraint)
+		if !ok {
+			continue
+		}
+		if constraint.Type == ast.CONSTRAINT_NOT_NULL {
+			explicitNotNull = true
+		}
+		e.extractColumnConstraint(constraint, table, column)
+		if constraint.Type == ast.CONSTRAINT_NOT_NULL && constraint.Name != "" {
+			e.addNamedNotNull(table, constraint.Name, column.Name)
+		}
+	}
+	if explicitNotNull {
+		delete(e.primaryKeyNotNull, table.Name+"\x00"+column.Name)
+	}
+
+	table.Columns = append(table.Columns, column)
+}
+
+// addNamedNotNull records a named NOT NULL constraint the way sync reports it:
+// as a check constraint on the column.
+func (e *oracleMetadataExtractor) addNamedNotNull(table *metadatapb.TableMetadata, name, column string) {
+	for _, check := range table.CheckConstraints {
+		if check.Name == name {
+			return
+		}
+	}
+	table.CheckConstraints = append(table.CheckConstraints, &metadatapb.CheckConstraintMetadata{
+		Name:       name,
+		Expression: `"` + column + `" IS NOT NULL`,
+	})
+	e.namedNotNull[table.Name+"\x00"+name] = true
+}
+
+func (e *oracleMetadataExtractor) removeNamedNotNull(table *metadatapb.TableMetadata, column string) {
+	want := `"` + column + `" IS NOT NULL`
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		namedNotNull := e.namedNotNull[table.Name+"\x00"+check.Name]
+		if !namedNotNull || !strings.EqualFold(strings.Join(strings.Fields(check.Expression), " "), want) {
+			checks = append(checks, check)
+		}
+	}
+	table.CheckConstraints = checks
+}
+
+func (e *oracleMetadataExtractor) clearNamedNotNull(table *metadatapb.TableMetadata, check *metadatapb.CheckConstraintMetadata) {
+	expression := strings.TrimSpace(check.Expression)
+	suffix := " IS NOT NULL"
+	if !strings.HasSuffix(strings.ToUpper(expression), suffix) {
+		return
+	}
+	columnName := strings.TrimSpace(expression[:len(expression)-len(suffix)])
+	columnName = strings.Trim(columnName, `"`)
+	for _, other := range table.CheckConstraints {
+		if other.Name == check.Name {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(other.Expression), suffix)), `"`+columnName+`"`) {
+			return
+		}
+	}
+	for _, column := range table.Columns {
+		if column.Name == columnName {
+			column.Nullable = true
+			return
+		}
+	}
+}
+
+func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstraint, table *metadatapb.TableMetadata, column *metadatapb.ColumnMetadata) {
+	if e.constraintDisabled(n.Loc) || e.constraintUsesExistingIndex(n.UsingIndex) {
+		return
+	}
+	switch n.Type {
+	case ast.CONSTRAINT_NOT_NULL:
+		column.Nullable = false
+	case ast.CONSTRAINT_NULL:
+		column.Nullable = true
+	case ast.CONSTRAINT_DEFAULT:
+		if n.Expr != nil {
+			column.Default = e.nodeText(n.Expr)
+		}
+	case ast.CONSTRAINT_PRIMARY:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
+		pkMadeNotNull := column.Nullable
+		column.Nullable = false
+		if pkMadeNotNull {
+			e.primaryKeyNotNull[table.Name+"\x00"+column.Name] = true
+		}
+		if !hasPrimaryIndex(table) {
+			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
+				Name:         fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name)),
+				Primary:      true,
+				Unique:       true,
+				Type:         "NORMAL",
+				Expressions:  []string{column.Name},
+				Visible:      true,
+				IsConstraint: true,
+			})
+		}
+	case ast.CONSTRAINT_UNIQUE:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
+		name := fallbackName(n.Name, fmt.Sprintf("UK_%s_%s", table.Name, column.Name))
+		if !hasUniqueIndex(table, []string{column.Name}) {
+			table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
+				Name:         name,
+				Unique:       true,
+				Type:         "NORMAL",
+				Expressions:  []string{column.Name},
+				Visible:      true,
+				IsConstraint: true,
+			})
+		}
+	case ast.CONSTRAINT_CHECK:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
+		e.appendCheckConstraint(table, e.checkConstraintName(table, n.Name, fmt.Sprintf("CHK_%s_%s", table.Name, column.Name)), n.Expr)
+	case ast.CONSTRAINT_FOREIGN:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable foreign keys are not supported by oracle/catalog")
+			}
+			return
+		}
+		e.appendForeignKey(table, fallbackName(n.Name, fmt.Sprintf("FK_%s_%s", table.Name, column.Name)), []string{column.Name}, n.RefTable, n.RefColumns, n.OnDelete)
+	default:
+	}
+}
+
+func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint, table *metadatapb.TableMetadata) {
+	if e.constraintDisabled(n.Loc) || e.constraintUsesExistingIndex(n.UsingIndex) {
+		return
+	}
+	columns := stringList(n.Columns)
+	switch n.Type {
+	case ast.CONSTRAINT_PRIMARY:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
+		if len(columns) == 0 {
+			return
+		}
+		for _, columnName := range columns {
+			for _, column := range table.Columns {
+				if column.Name == columnName && column.Nullable {
+					e.primaryKeyNotNull[table.Name+"\x00"+columnName] = true
+				}
+			}
+		}
+		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
+			Name:         fallbackName(n.Name, fmt.Sprintf("PK_%s", table.Name)),
+			Primary:      true,
+			Unique:       true,
+			Type:         "NORMAL",
+			Expressions:  columns,
+			Visible:      true,
+			IsConstraint: true,
+		})
+		markColumnsNotNull(table, columns)
+	case ast.CONSTRAINT_UNIQUE:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
+		if len(columns) == 0 {
+			return
+		}
+		table.Indexes = append(table.Indexes, &metadatapb.IndexMetadata{
+			Name:         fallbackName(n.Name, fmt.Sprintf("UK_%s_%d", table.Name, len(table.Indexes)+1)),
+			Unique:       true,
+			Type:         "NORMAL",
+			Expressions:  columns,
+			Visible:      false,
+			IsConstraint: true,
+		})
+	case ast.CONSTRAINT_CHECK:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable constraints are not supported by oracle/catalog")
+			}
+			return
+		}
+		e.appendCheckConstraint(table, e.checkConstraintName(table, n.Name, fmt.Sprintf("CHK_%s_%d", table.Name, len(table.CheckConstraints)+1)), n.Expr)
+	case ast.CONSTRAINT_FOREIGN:
+		if n.Deferrable || n.Initially != "" {
+			if e.err == nil {
+				e.err = fmt.Errorf("deferrable foreign keys are not supported by oracle/catalog")
+			}
+			return
+		}
+		e.appendForeignKey(table, fallbackName(n.Name, fmt.Sprintf("FK_%s_%d", table.Name, len(table.ForeignKeys)+1)), columns, n.RefTable, n.RefColumns, n.OnDelete)
+	default:
+	}
+}
+
+func (e *oracleMetadataExtractor) extractRename(n *ast.RenameStmt) {
+	oldName := objectName(n.OldName)
+	newName := objectName(n.NewName)
+	if oldName == "" || newName == "" {
+		return
+	}
+	if !e.useSchema(n.OldName.Schema) || !e.useSchema(n.NewName.Schema) {
+		return
+	}
+	if e.renameSequence(oldName, newName) {
+		return
+	}
+	if e.renameView(oldName, newName) {
+		return
+	}
+	if e.renameMaterializedView(oldName, newName) {
+		return
+	}
+	if e.tables[oldName] != nil {
+		e.renameTable(oldName, newName)
+		return
+	}
+	if e.err == nil {
+		e.err = fmt.Errorf("RENAME of %q is not supported by oracle/catalog: the catalog holds no such table, view, materialized view or sequence", oldName)
+	}
+}
+
+func (e *oracleMetadataExtractor) renameSequence(oldName, newName string) bool {
+	sequence := e.sequences[oldName]
+	if sequence == nil {
+		return false
+	}
+	delete(e.sequences, oldName)
+	sequence.Name = newName
+	e.sequences[newName] = sequence
+	return true
+}
+
+func (e *oracleMetadataExtractor) renameView(oldName, newName string) bool {
+	view := e.views[oldName]
+	if view == nil {
+		return false
+	}
+	delete(e.views, oldName)
+	view.Name = newName
+	for _, trigger := range view.Triggers {
+		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
+	}
+	e.views[newName] = view
+	return true
+}
+
+func (e *oracleMetadataExtractor) renameMaterializedView(oldName, newName string) bool {
+	view := e.materializedViews[oldName]
+	if view == nil {
+		return false
+	}
+	delete(e.materializedViews, oldName)
+	view.Name = newName
+	for _, trigger := range view.Triggers {
+		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
+	}
+	e.materializedViews[newName] = view
+	return true
+}
+
+func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
+	tableName := objectName(n.Name)
+	if tableName == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	table := e.getOrCreateTable(tableName)
+	for _, item := range listItems(n.Actions) {
+		action, ok := item.(*ast.AlterTableCmd)
+		if !ok {
+			continue
+		}
+		switch action.Action {
+		case ast.AT_ADD_COLUMN:
+			if action.ColumnDef != nil {
+				e.extractColumn(action.ColumnDef, table)
+			}
+			for _, item := range listItems(action.ColumnDefs) {
+				column, ok := item.(*ast.ColumnDef)
+				if !ok {
+					continue
+				}
+				e.extractColumn(column, table)
+			}
+		case ast.AT_MODIFY_COLUMN:
+			if action.ColumnDef != nil {
+				e.modifyColumn(action.ColumnDef, table)
+			}
+			for _, item := range listItems(action.ColumnDefs) {
+				column, ok := item.(*ast.ColumnDef)
+				if !ok {
+					continue
+				}
+				e.modifyColumn(column, table)
+			}
+		case ast.AT_DROP_COLUMN:
+			columns := []string{action.ColumnName}
+			if action.Options != nil && len(action.Options.Items) > 0 {
+				columns = stringList(action.Options)
+			}
+			for _, column := range columns {
+				e.dropColumn(table, column)
+			}
+		case ast.AT_RENAME_COLUMN:
+			e.renameColumn(table, action.ColumnName, action.NewName)
+		case ast.AT_ADD_CONSTRAINT:
+			if action.Constraint != nil {
+				e.extractTableConstraint(action.Constraint, table)
+			}
+		case ast.AT_DROP_CONSTRAINT:
+			var droppedColumns []string
+			keepIndex := slices.Contains(stringList(action.Options), "KEEP INDEX")
+			if action.Constraint != nil && action.Constraint.Name != "" {
+				droppedColumns = indexColumns(table, action.Constraint.Name)
+				e.dropConstraint(table, action.Constraint.Name, keepIndex)
+			} else {
+				var columns []string
+				if action.Constraint != nil {
+					columns = stringList(action.Constraint.Columns)
+				}
+				// An unnamed DROP PRIMARY KEY states no columns, so read them
+				// before the key is removed: CASCADE removes the foreign keys the
+				// dropped key carried, not every foreign key to the table.
+				if len(columns) == 0 && action.Subtype == "PRIMARY KEY" {
+					columns = primaryKeyColumns(table)
+				}
+				droppedColumns = columns
+				e.dropConstraintSubtype(table, action.Subtype, columns, keepIndex)
+			}
+			if slices.Contains(stringList(action.Options), "CASCADE") {
+				e.dropIncomingForeignKeysForColumns(table.Name, droppedColumns)
+			}
+		case ast.AT_ENABLE_DISABLE, ast.AT_MODIFY_CONSTRAINT:
+			if e.err == nil {
+				e.err = fmt.Errorf("constraint enable/disable is not supported by oracle/catalog")
+			}
+			return
+		case ast.AT_ENABLE_DISABLE_TRIGGERS:
+			if e.err == nil {
+				e.err = fmt.Errorf("table-wide trigger enable/disable is not supported by oracle/catalog")
+			}
+			return
+		case ast.AT_SET_UNUSED:
+			if e.err == nil {
+				e.err = fmt.Errorf("SET UNUSED is not supported by oracle/catalog")
+			}
+			return
+		case ast.AT_RENAME_CONSTRAINT:
+			e.renameConstraint(table, action.ColumnName, action.NewName)
+		case ast.AT_RENAME:
+			if action.NewName != "" {
+				e.renameTable(tableName, action.NewName)
+			}
+		default:
+		}
+	}
+}
+
+// modifyColumn applies an ALTER TABLE MODIFY column definition to the column
+// the table already holds. Oracle keeps the attributes the clause does not
+// name, including a type or NOT NULL when the clause only changes visibility.
+func (e *oracleMetadataExtractor) modifyColumn(def *ast.ColumnDef, table *metadatapb.TableMetadata) {
+	for _, column := range table.Columns {
+		if column.Name != def.Name {
+			continue
+		}
+		if def.TypeName != nil {
+			column.Type = normalizeDataTypeText(e.nodeText(def.TypeName))
+		} else if def.Domain != nil {
+			column.Type = objectName(def.Domain)
+		}
+		if def.Default != nil {
+			column.Default = e.nodeText(def.Default)
+			column.DefaultOnNull = def.DefaultOnNull
+			if def.DefaultOnNull {
+				column.Nullable = false
+			}
+		}
+		switch {
+		case def.NotNull:
+			column.Nullable = false
+		case def.Null:
+			column.Nullable = true
+			e.removeNamedNotNull(table, column.Name)
+		case def.Identity != nil:
+			column.Nullable = false
+		}
+		if def.DropIdentity {
+			column.IsIdentity = false
+			column.IdentityGeneration = metadatapb.ColumnMetadata_IDENTITY_GENERATION_UNSPECIFIED
+			column.IdentitySeed = 0
+			column.IdentityIncrement = 0
+		} else if def.Identity != nil {
+			applyIdentity(column, def.Identity, e.nodeText(def.Identity))
+		}
+		if def.Collation != "" {
+			column.Collation = def.Collation
+		}
+		if def.Virtual != nil {
+			column.Generation = &metadatapb.GenerationMetadata{
+				Type:       metadatapb.GenerationMetadata_TYPE_VIRTUAL,
+				Expression: e.exprText(def.Virtual),
+			}
+		}
+		if def.Visible {
+			column.IsInvisible = false
+		} else if def.Invisible {
+			column.IsInvisible = true
+		}
+		for _, item := range listItems(def.Constraints) {
+			constraint, ok := item.(*ast.ColumnConstraint)
+			if !ok || constraint.Type != ast.CONSTRAINT_NOT_NULL || constraint.Name == "" {
+				continue
+			}
+			e.addNamedNotNull(table, constraint.Name, column.Name)
+		}
+		return
+	}
+}
+
+func (e *oracleMetadataExtractor) dropColumn(table *metadatapb.TableMetadata, name string) {
+	delete(e.primaryKeyNotNull, table.Name+"\x00"+name)
+	for _, check := range table.CheckConstraints {
+		if e.namedNotNull[table.Name+"\x00"+check.Name] && expressionReferencesColumn(check.Expression, name) {
+			delete(e.namedNotNull, table.Name+"\x00"+check.Name)
+		}
+	}
+	var columns []*metadatapb.ColumnMetadata
+	for _, column := range table.Columns {
+		if column.Name != name {
+			columns = append(columns, column)
+		}
+	}
+	table.Columns = columns
+
+	var indexes []*metadatapb.IndexMetadata
+	for _, index := range table.Indexes {
+		matches := func(expression string) bool { return expressionReferencesColumn(expression, name) }
+		if index.IsConstraint {
+			matches = func(expression string) bool { return strings.Trim(expression, `"`) == name }
+		}
+		if !slices.ContainsFunc(index.Expressions, matches) {
+			indexes = append(indexes, index)
+		}
+	}
+	table.Indexes = indexes
+
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		if !expressionReferencesColumn(check.Expression, name) {
+			checks = append(checks, check)
+		}
+	}
+	table.CheckConstraints = checks
+
+	var foreignKeys []*metadatapb.ForeignKeyMetadata
+	for _, fk := range table.ForeignKeys {
+		onColumn := slices.Contains(fk.Columns, name)
+		referencesColumn := fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name) &&
+			(fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema)
+		if !onColumn && !referencesColumn {
+			foreignKeys = append(foreignKeys, fk)
+		}
+	}
+	table.ForeignKeys = foreignKeys
+	for _, other := range e.tables {
+		if other == table {
+			continue
+		}
+		var remaining []*metadatapb.ForeignKeyMetadata
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable == table.Name && slices.Contains(fk.ReferencedColumns, name) &&
+				(fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				continue
+			}
+			remaining = append(remaining, fk)
+		}
+		other.ForeignKeys = remaining
+	}
+}
+
+func (e *oracleMetadataExtractor) renameColumn(table *metadatapb.TableMetadata, oldName, newName string) {
+	if oldName == "" || newName == "" {
+		return
+	}
+	oldKey := table.Name + "\x00" + oldName
+	newKey := table.Name + "\x00" + newName
+	if e.primaryKeyNotNull[oldKey] {
+		delete(e.primaryKeyNotNull, oldKey)
+		e.primaryKeyNotNull[newKey] = true
+	}
+	for _, column := range table.Columns {
+		if column.Name == oldName {
+			column.Name = newName
+			break
+		}
+	}
+	for _, index := range table.Indexes {
+		for i, expression := range index.Expressions {
+			if index.IsConstraint {
+				if strings.Trim(expression, `"`) == oldName {
+					index.Expressions[i] = newName
+				}
+				continue
+			}
+			index.Expressions[i] = renameIdentifier(expression, oldName, newName)
+		}
+	}
+	for _, column := range table.Columns {
+		if column.GetGeneration() != nil {
+			column.Generation.Expression = renameIdentifier(column.Generation.GetExpression(), oldName, newName)
+		}
+	}
+	for _, check := range table.CheckConstraints {
+		check.Expression = renameIdentifier(check.Expression, oldName, newName)
+	}
+	for _, fk := range table.ForeignKeys {
+		fk.Columns = renameColumnNames(fk.Columns, oldName, newName)
+	}
+	for _, other := range e.tables {
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable == table.Name && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				fk.ReferencedColumns = renameColumnNames(fk.ReferencedColumns, oldName, newName)
+			}
+		}
+	}
+}
+
+func renameColumnNames(columns []string, oldName, newName string) []string {
+	out := make([]string, len(columns))
+	for i, column := range columns {
+		if column == oldName {
+			out[i] = newName
+		} else {
+			out[i] = column
+		}
+	}
+	return out
+}
+
+// renameIdentifier rewrites identifier tokens that name oldName and leaves
+// string literals and other identifiers alone.
+func renameIdentifier(expression, oldName, newName string) string {
+	var out strings.Builder
+	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			out.WriteString(expression[i:end])
+			i = end
+			continue
+		}
+		switch c := expression[i]; {
+		case c == '\'':
+			end := i + 1
+			for end < len(expression) {
+				if expression[end] == '\'' {
+					if end+1 < len(expression) && expression[end+1] == '\'' {
+						end += 2
+						continue
+					}
+					end++
+					break
+				}
+				end++
+			}
+			out.WriteString(expression[i:end])
+			i = end
+		case c == '"':
+			end := i + 1
+			for end < len(expression) && expression[end] != '"' {
+				end++
+			}
+			if end < len(expression) {
+				end++
+			}
+			identifier := expression[i:end]
+			if len(identifier) >= 2 && identifier[1:len(identifier)-1] == oldName {
+				writeRenamedIdentifier(&out, newName, true)
+			} else {
+				out.WriteString(identifier)
+			}
+			i = end
+		case isIdentifierByte(c):
+			end := i + 1
+			for end < len(expression) && isIdentifierByte(expression[end]) {
+				end++
+			}
+			token := expression[i:end]
+			next := end
+			for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+				next++
+			}
+			isFunction := next < len(expression) && expression[next] == '('
+			if !isFunction && strings.ToUpper(token) == oldName {
+				writeRenamedIdentifier(&out, newName, false)
+			} else {
+				out.WriteString(token)
+			}
+			i = end
+		default:
+			out.WriteByte(c)
+			i++
+		}
+	}
+	return out.String()
+}
+
+func renderRenamedIdentifier(name string) string {
+	if needsConstraintQuotes(name) {
+		return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+	}
+	return name
+}
+
+func writeRenamedIdentifier(out *strings.Builder, name string, forceQuote bool) {
+	quote := forceQuote || needsConstraintQuotes(name)
+	if !quote {
+		out.WriteString(name)
+		return
+	}
+	out.WriteString(`"`)
+	out.WriteString(strings.ReplaceAll(name, `"`, `""`))
+	out.WriteString(`"`)
+}
+
+func expressionReferencesFunction(expression, function string) bool {
+	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			i = end
+			continue
+		}
+		if expression[i] == '\'' {
+			if end := strings.IndexByte(expression[i+1:], '\''); end >= 0 {
+				i += end + 2
+			} else {
+				return false
+			}
+			continue
+		}
+		if expression[i] == '"' {
+			end := i + 1
+			for end < len(expression) && expression[end] != '"' {
+				end++
+			}
+			token := expression[i+1 : end]
+			if end < len(expression) {
+				end++
+			}
+			next := end
+			for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+				next++
+			}
+			if token == function && next < len(expression) && expression[next] == '(' {
+				return true
+			}
+			i = end
+			continue
+		}
+		if !isIdentifierByte(expression[i]) {
+			i++
+			continue
+		}
+		end := i + 1
+		for end < len(expression) && isIdentifierByte(expression[end]) {
+			end++
+		}
+		next := end
+		for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+			next++
+		}
+		if strings.EqualFold(expression[i:end], function) && next < len(expression) && expression[next] == '(' {
+			return true
+		}
+		i = end
+	}
+	return false
+}
+
+func isIdentifierByte(c byte) bool {
+	return c == '_' || c == '$' || c == '#' ||
+		(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+}
+
+func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata, name string, keepIndex bool) {
+	if name == "" {
+		return
+	}
+	var indexes []*metadatapb.IndexMetadata
+	for _, index := range table.Indexes {
+		if index.Name == name && index.IsConstraint {
+			if index.Primary {
+				e.clearPrimaryKeyNotNull(table, index.Expressions)
+			}
+			if keepIndex {
+				index.IsConstraint = false
+				index.Primary = false
+				index.Unique = true
+				indexes = append(indexes, index)
+			}
+			continue
+		}
+		indexes = append(indexes, index)
+	}
+	table.Indexes = indexes
+	var checks []*metadatapb.CheckConstraintMetadata
+	for _, check := range table.CheckConstraints {
+		if check.Name == name {
+			if e.namedNotNull[table.Name+"\x00"+check.Name] {
+				e.clearNamedNotNull(table, check)
+			}
+			continue
+		}
+		checks = append(checks, check)
+	}
+	table.CheckConstraints = checks
+	var foreignKeys []*metadatapb.ForeignKeyMetadata
+	for _, fk := range table.ForeignKeys {
+		if fk.Name != name {
+			foreignKeys = append(foreignKeys, fk)
+		}
+	}
+	table.ForeignKeys = foreignKeys
+}
+
+func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string, keepIndex bool) {
+	var indexes []*metadatapb.IndexMetadata
+	for _, index := range table.Indexes {
+		drop := subtype == "PRIMARY KEY" && index.Primary
+		if subtype == "UNIQUE" && index.Unique && !index.Primary {
+			drop = len(columns) == 0 || expressionsMatchColumns(index.Expressions, columns)
+		}
+		if !drop {
+			indexes = append(indexes, index)
+		} else if index.Primary {
+			e.clearPrimaryKeyNotNull(table, index.Expressions)
+		} else if keepIndex {
+			index.IsConstraint = false
+			indexes = append(indexes, index)
+		}
+	}
+	table.Indexes = indexes
+}
+
+func (e *oracleMetadataExtractor) clearPrimaryKeyNotNull(table *metadatapb.TableMetadata, columns []string) {
+	for _, columnName := range columns {
+		columnName = strings.Trim(columnName, `"`)
+		key := table.Name + "\x00" + columnName
+		if !e.primaryKeyNotNull[key] {
+			continue
+		}
+		delete(e.primaryKeyNotNull, key)
+		for _, column := range table.Columns {
+			if column.Name == columnName {
+				column.Nullable = true
+			}
+		}
+	}
+}
+
+func expressionsMatchColumns(expressions, columns []string) bool {
+	if len(expressions) != len(columns) {
+		return false
+	}
+	for i, expression := range expressions {
+		expression = strings.Trim(expression, `"`)
+		column := strings.Trim(columns[i], `"`)
+		if expression != column {
+			return false
+		}
+	}
+	return true
+}
+
+func (e *oracleMetadataExtractor) renameConstraint(table *metadatapb.TableMetadata, oldName, newName string) {
+	if oldName == "" || newName == "" {
+		return
+	}
+	for _, index := range table.Indexes {
+		if index.Name == oldName && index.IsConstraint {
+			index.Name = newName
+		}
+	}
+	oldKey := table.Name + "\x00" + oldName
+	newKey := table.Name + "\x00" + newName
+	if e.namedNotNull[oldKey] {
+		delete(e.namedNotNull, oldKey)
+		e.namedNotNull[newKey] = true
+	}
+	for _, check := range table.CheckConstraints {
+		if check.Name == oldName {
+			check.Name = newName
+		}
+	}
+	for _, fk := range table.ForeignKeys {
+		if fk.Name == oldName {
+			fk.Name = newName
+		}
+	}
+}
+
+// renameTriggerTarget rewrites the ON relation in a trigger declaration and
+// leaves the rest of its body alone.
+func renameTriggerTarget(body, oldName, newName string) string {
+	upper := strings.ToUpper(body)
+	for offset := 0; ; {
+		match := triggerOnClause.FindStringIndex(upper[offset:])
+		if match == nil {
+			return body
+		}
+		start := offset + match[1]
+		first, firstStart, end := scanTriggerIdentifier(body, start)
+		relation, relationStart, relationEnd := first, firstStart, end
+		if end < len(body) && body[end] == '.' {
+			relation, relationStart, relationEnd = scanTriggerIdentifier(body, end+1)
+		}
+		if strings.EqualFold(relation, oldName) {
+			return body[:relationStart] + renderRenamedIdentifier(newName) + body[relationEnd:]
+		}
+		offset = end
+	}
+}
+
+var triggerOnClause = regexp.MustCompile(`(?i)\bON\s+`)
+
+func scanTriggerIdentifier(body string, start int) (string, int, int) {
+	if start >= len(body) {
+		return "", start, start
+	}
+	if body[start] == '"' {
+		end := start + 1
+		for end < len(body) && body[end] != '"' {
+			end++
+		}
+		token := body[start+1 : end]
+		if end < len(body) {
+			end++
+		}
+		return token, start, end
+	}
+	end := start
+	for end < len(body) && isIdentifierByte(body[end]) {
+		end++
+	}
+	return body[start:end], start, end
+}
+
+func rekeyProvenance(provenance map[string]bool, oldTable, newTable string) {
+	prefix := oldTable + "\x00"
+	for key := range provenance {
+		if strings.HasPrefix(key, prefix) {
+			value := provenance[key]
+			delete(provenance, key)
+			provenance[newTable+"\x00"+strings.TrimPrefix(key, prefix)] = value
+		}
+	}
+}
+
+func (e *oracleMetadataExtractor) renameTable(oldName, newName string) {
+	table := e.tables[oldName]
+	if table == nil {
+		return
+	}
+	delete(e.tables, oldName)
+	rekeyProvenance(e.primaryKeyNotNull, oldName, newName)
+	rekeyProvenance(e.namedNotNull, oldName, newName)
+	table.Name = newName
+	for _, trigger := range table.Triggers {
+		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
+	}
+	for _, fk := range table.ForeignKeys {
+		if fk.ReferencedTable == oldName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+			fk.ReferencedTable = newName
+		}
+	}
+	for _, other := range e.tables {
+		for _, fk := range other.ForeignKeys {
+			if fk.ReferencedTable == oldName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				fk.ReferencedTable = newName
+			}
+		}
+	}
+	e.tables[newName] = table
+}
+
+// extractDrop removes the objects a DROP statement names from the extractor.
+func (e *oracleMetadataExtractor) extractDrop(n *ast.DropStmt) {
+	for _, item := range listItems(n.Names) {
+		nameNode, ok := item.(*ast.ObjectName)
+		if !ok {
+			continue
+		}
+		if !e.useSchema(nameNode.Schema) {
+			continue
+		}
+		name := objectName(nameNode)
+		switch n.ObjectType {
+		case ast.OBJECT_TABLE:
+			if n.Cascade {
+				e.dropIncomingForeignKeys(name)
+			}
+			e.dropTableProvenance(name)
+			delete(e.tables, name)
+		case ast.OBJECT_VIEW:
+			delete(e.views, name)
+		case ast.OBJECT_MATERIALIZED_VIEW:
+			delete(e.materializedViews, name)
+		case ast.OBJECT_SEQUENCE:
+			delete(e.sequences, name)
+		case ast.OBJECT_FUNCTION:
+			delete(e.functions, name)
+		case ast.OBJECT_PROCEDURE:
+			delete(e.procedures, name)
+		case ast.OBJECT_PACKAGE, ast.OBJECT_PACKAGE_BODY:
+			delete(e.packages, name)
+		case ast.OBJECT_INDEX:
+			e.dropIndex(name)
+		case ast.OBJECT_TRIGGER:
+			e.dropTrigger(name)
+		default:
+		}
+	}
+}
+
+func indexColumns(table *metadatapb.TableMetadata, name string) []string {
+	for _, index := range table.Indexes {
+		if index.Name == name {
+			return append([]string(nil), index.Expressions...)
+		}
+	}
+	return nil
+}
+
+func primaryKeyColumns(table *metadatapb.TableMetadata) []string {
+	for _, index := range table.Indexes {
+		if index.Primary {
+			return append([]string(nil), index.Expressions...)
+		}
+	}
+	return nil
+}
+
+func (e *oracleMetadataExtractor) dropIncomingForeignKeysForColumns(tableName string, columns []string) {
+	if len(columns) == 0 {
+		e.dropIncomingForeignKeys(tableName)
+		return
+	}
+	columnSet := map[string]bool{}
+	for _, column := range columns {
+		columnSet[strings.Trim(column, `"`)] = true
+	}
+	for _, table := range e.tables {
+		var foreignKeys []*metadatapb.ForeignKeyMetadata
+		for _, fk := range table.ForeignKeys {
+			matches := fk.ReferencedTable == tableName
+			if matches && len(fk.ReferencedColumns) > 0 {
+				matches = len(fk.ReferencedColumns) == len(columnSet)
+				if matches {
+					for _, column := range fk.ReferencedColumns {
+						if !columnSet[strings.Trim(column, `"`)] {
+							matches = false
+							break
+						}
+					}
+				}
+			}
+			if matches && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				continue
+			}
+			foreignKeys = append(foreignKeys, fk)
+		}
+		table.ForeignKeys = foreignKeys
+	}
+}
+
+func (e *oracleMetadataExtractor) dropIncomingForeignKeys(tableName string) {
+	for _, table := range e.tables {
+		if table.Name == tableName {
+			continue
+		}
+		var foreignKeys []*metadatapb.ForeignKeyMetadata
+		for _, fk := range table.ForeignKeys {
+			if fk.ReferencedTable == tableName && (fk.ReferencedSchema == "" || fk.ReferencedSchema == e.currentSchema) {
+				continue
+			}
+			foreignKeys = append(foreignKeys, fk)
+		}
+		table.ForeignKeys = foreignKeys
+	}
+}
+
+func (e *oracleMetadataExtractor) dropIndex(name string) {
+	for _, table := range e.tables {
+		var indexes []*metadatapb.IndexMetadata
+		for _, index := range table.Indexes {
+			if index.Name != name {
+				indexes = append(indexes, index)
+			}
+		}
+		table.Indexes = indexes
+	}
+	for _, view := range e.materializedViews {
+		var indexes []*metadatapb.IndexMetadata
+		for _, index := range view.Indexes {
+			if index.Name != name {
+				indexes = append(indexes, index)
+			}
+		}
+		view.Indexes = indexes
+	}
+}
+
+func (e *oracleMetadataExtractor) dropTrigger(name string) {
+	for _, table := range e.tables {
+		var triggers []*metadatapb.TriggerMetadata
+		for _, trigger := range table.Triggers {
+			if trigger.Name != name {
+				triggers = append(triggers, trigger)
+			}
+		}
+		table.Triggers = triggers
+	}
+	for _, view := range e.views {
+		var triggers []*metadatapb.TriggerMetadata
+		for _, trigger := range view.Triggers {
+			if trigger.Name != name {
+				triggers = append(triggers, trigger)
+			}
+		}
+		view.Triggers = triggers
+	}
+	for _, view := range e.materializedViews {
+		var triggers []*metadatapb.TriggerMetadata
+		for _, trigger := range view.Triggers {
+			if trigger.Name != name {
+				triggers = append(triggers, trigger)
+			}
+		}
+		view.Triggers = triggers
+	}
+}
+
+// constraintUsesExistingIndex reports a constraint that Oracle backs with an
+// index the statement names (USING INDEX [schema.]index), or that it asks
+// Oracle to create inline (USING INDEX (CREATE INDEX ...)). The snapshot holds
+// the constraint's index, not the separate index it reuses, so the definition
+// would create both. The physical properties form (USING INDEX TABLESPACE ...,
+// USING INDEX LOCAL) names no index and stays a documented gap: the catalog
+// ignores it like every other storage clause.
+func (e *oracleMetadataExtractor) constraintUsesExistingIndex(indexName string) bool {
+	if indexName == "" {
+		return false
+	}
+	if e.err == nil {
+		e.err = fmt.Errorf("a constraint backed by the existing index %q is not supported by oracle/catalog", indexName)
+	}
+	return true
+}
+
+func (e *oracleMetadataExtractor) constraintDisabled(loc ast.Loc) bool {
+	if loc.Start < 0 || loc.End < loc.Start || loc.End > len(e.schemaText) {
+		return false
+	}
+	if keywordOutsideQuotes(e.schemaText[loc.Start:loc.End], "DISABLE") {
+		if e.err == nil {
+			e.err = fmt.Errorf("disabled constraints are not supported by oracle/catalog")
+		}
+		return true
+	}
+	return false
+}
+
+func keywordOutsideQuotes(text, keyword string) bool {
+	var quote byte
+	for i := 0; i < len(text); i++ {
+		c := text[i]
+		if quote != 0 {
+			if c == quote {
+				quote = 0
+			}
+			continue
+		}
+		if c == '\'' || c == '"' {
+			quote = c
+			continue
+		}
+		if i > 0 && isIdentifierByte(text[i-1]) {
+			continue
+		}
+		if len(text)-i >= len(keyword) && strings.EqualFold(text[i:i+len(keyword)], keyword) &&
+			(i+len(keyword) == len(text) || !isIdentifierByte(text[i+len(keyword)])) {
+			return true
+		}
+	}
+	return false
+}
+
+func (e *oracleMetadataExtractor) appendCheckConstraint(table *metadatapb.TableMetadata, name string, expr ast.ExprNode) {
+	if expr == nil {
+		return
+	}
+	e.reserveCheckConstraintName(table, name)
+	table.CheckConstraints = append(table.CheckConstraints, &metadatapb.CheckConstraintMetadata{
+		Name:       name,
+		Expression: e.exprText(expr),
+	})
+}
+
+func (e *oracleMetadataExtractor) checkConstraintName(table *metadatapb.TableMetadata, name string, fallback string) string {
+	if name != "" {
+		return name
+	}
+	return e.uniqueCheckConstraintName(table, fallback)
+}
+
+func (e *oracleMetadataExtractor) uniqueCheckConstraintName(table *metadatapb.TableMetadata, fallback string) string {
+	used := e.checkConstraintNameSet(table)
+	if !used[fallback] {
+		return fallback
+	}
+	nextByFallback := e.checkConstraintNameNextSet(table)
+	next := nextByFallback[fallback]
+	if next < 2 {
+		next = 2
+	}
+	for {
+		candidate := fmt.Sprintf("%s_%d", fallback, next)
+		next++
+		if !used[candidate] {
+			nextByFallback[fallback] = next
+			return candidate
+		}
+	}
+}
+
+func (e *oracleMetadataExtractor) reserveCheckConstraintName(table *metadatapb.TableMetadata, name string) {
+	e.checkConstraintNameSet(table)[name] = true
+}
+
+func (e *oracleMetadataExtractor) checkConstraintNameSet(table *metadatapb.TableMetadata) map[string]bool {
+	used := e.checkNames[table.Name]
+	if used != nil {
+		return used
+	}
+	used = make(map[string]bool)
+	for _, check := range table.CheckConstraints {
+		used[check.Name] = true
+	}
+	e.checkNames[table.Name] = used
+	return used
+}
+
+func (e *oracleMetadataExtractor) checkConstraintNameNextSet(table *metadatapb.TableMetadata) map[string]int {
+	next := e.checkNameNext[table.Name]
+	if next != nil {
+		return next
+	}
+	next = make(map[string]int)
+	e.checkNameNext[table.Name] = next
+	return next
+}
+
+func (e *oracleMetadataExtractor) appendForeignKey(table *metadatapb.TableMetadata, name string, columns []string, refTable *ast.ObjectName, refColumns *ast.List, onDelete string) {
+	referencedTable := objectName(refTable)
+	referencedColumns := stringList(refColumns)
+	if len(columns) == 0 || referencedTable == "" {
+		return
+	}
+	referencedSchema := ""
+	if refTable != nil && refTable.Schema != "" && refTable.Schema != e.currentSchema && refTable.Schema != e.currentDatabase {
+		referencedSchema = refTable.Schema
+	}
+	foreignKey := &metadatapb.ForeignKeyMetadata{
+		Name:              name,
+		Columns:           columns,
+		ReferencedSchema:  referencedSchema,
+		ReferencedTable:   referencedTable,
+		ReferencedColumns: referencedColumns,
+		OnDelete:          onDelete,
+	}
+	table.ForeignKeys = append(table.ForeignKeys, foreignKey)
+}
+
+func (e *oracleMetadataExtractor) resolveForeignKeyReferencedColumns() {
+	for _, table := range e.tables {
+		for _, foreignKey := range table.ForeignKeys {
+			if len(foreignKey.ReferencedColumns) != 0 {
+				continue
+			}
+			// An owner outside this snapshot keeps its implicit reference: the
+			// definition and migration render it without a column list.
+			if foreignKey.ReferencedSchema != "" && foreignKey.ReferencedSchema != e.currentSchema && foreignKey.ReferencedSchema != e.currentDatabase {
+				continue
+			}
+			referencedTable := e.tables[foreignKey.ReferencedTable]
+			foreignKey.ReferencedColumns = primaryKeyColumns(referencedTable)
+		}
+	}
+}
+
+func (e *oracleMetadataExtractor) extractAlterIndex(n *ast.AlterIndexStmt) {
+	name := objectName(n.Name)
+	if name == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	var index *metadatapb.IndexMetadata
+	for _, table := range e.tables {
+		for _, candidate := range table.Indexes {
+			if candidate.Name == name {
+				index = candidate
+			}
+		}
+	}
+	for _, view := range e.materializedViews {
+		for _, candidate := range view.Indexes {
+			if candidate.Name == name {
+				index = candidate
+			}
+		}
+	}
+	if index == nil {
+		return
+	}
+	switch strings.ToUpper(n.Action) {
+	case "RENAME":
+		if n.NewName != "" {
+			index.Name = n.NewName
+		}
+	case "VISIBLE":
+		index.Visible = true
+	case "INVISIBLE":
+		index.Visible = false
+	default:
+		if e.err == nil {
+			e.err = fmt.Errorf("ALTER INDEX action %q is not supported by oracle/catalog", n.Action)
+		}
+	}
+}
+
+func (e *oracleMetadataExtractor) extractCreateIndex(n *ast.CreateIndexStmt) {
+	tableName := objectName(n.Table)
+	indexName := objectName(n.Name)
+	if tableName == "" || indexName == "" {
+		return
+	}
+	if !e.useSchema(n.Name.Schema) || !e.useSchema(n.Table.Schema) {
+		return
+	}
+
+	index := &metadatapb.IndexMetadata{
+		Name:        indexName,
+		Unique:      n.Unique,
+		Type:        "NORMAL",
+		Expressions: []string{},
+		Visible:     !n.Invisible,
+	}
+	if n.Bitmap {
+		index.Type = "BITMAP"
+	}
+
+	isFunctionBased := false
+	for _, item := range listItems(n.Columns) {
+		column, ok := item.(*ast.IndexColumn)
+		if !ok {
+			continue
+		}
+		expression := e.indexExpression(column.Expr)
+		if expression == "" {
+			continue
+		}
+		if _, ok := column.Expr.(*ast.ColumnRef); !ok {
+			isFunctionBased = true
+		}
+		index.Expressions = append(index.Expressions, expression)
+		index.Descending = append(index.Descending, column.Dir == ast.SORTBY_DESC)
+	}
+	for _, desc := range index.Descending {
+		if desc && index.Type == "NORMAL" {
+			index.Type = "FUNCTION-BASED NORMAL"
+			break
+		}
+	}
+	if isFunctionBased && index.Type == "NORMAL" {
+		index.Type = "FUNCTION-BASED NORMAL"
+	} else if isFunctionBased && index.Type == "BITMAP" {
+		index.Type = "FUNCTION-BASED BITMAP"
+	}
+
+	if materializedView := e.materializedViews[tableName]; materializedView != nil {
+		materializedView.Indexes = append(materializedView.Indexes, index)
+		return
+	}
+	table := e.getOrCreateTable(tableName)
+	table.Indexes = append(table.Indexes, index)
+}
+
+func (e *oracleMetadataExtractor) extractCreateView(n *ast.CreateViewStmt) {
+	viewName := objectName(n.Name)
+	if viewName == "" {
+		return
+	}
+	if !e.useSchema(n.Name.Schema) {
+		return
+	}
+
+	definition := e.nodeText(n.Query)
+	if n.WithReadOnly {
+		definition = strings.TrimSpace(definition) + " WITH READ ONLY"
+	} else if n.WithCheckOpt {
+		restriction := " WITH CHECK OPTION"
+		if n.ConstraintName != "" {
+			restriction += ` CONSTRAINT "` + n.ConstraintName + `"`
+		}
+		definition = strings.TrimSpace(definition) + restriction
+	}
+	if n.Materialized {
+		if prefix := e.materializedViewPrefix(n); prefix != "" {
+			definition = prefix + " AS " + strings.TrimSpace(definition)
+		}
+		materializedView := &metadatapb.MaterializedViewMetadata{
+			Name:              viewName,
+			Definition:        definition,
+			DependencyColumns: viewDependencyColumns(n.Query, e.currentSchema),
+		}
+		if table := e.tables[viewName]; table != nil {
+			materializedView.Triggers = append(materializedView.Triggers, table.Triggers...)
+			materializedView.Indexes = append(materializedView.Indexes, table.Indexes...)
+		}
+		if definition != "" && !strings.HasSuffix(definition, "\n") {
+			materializedView.Definition += "\n"
+		}
+		e.materializedViews[viewName] = materializedView
+		delete(e.tables, viewName)
+		return
+	}
+
+	view := &metadatapb.ViewMetadata{
+		Name:              viewName,
+		Definition:        definition,
+		DependencyColumns: viewDependencyColumns(n.Query, e.currentSchema),
+	}
+	if table := e.tables[viewName]; table != nil {
+		view.Triggers = append(view.Triggers, table.Triggers...)
+		delete(e.tables, viewName)
+	}
+	e.views[viewName] = view
+}
+
+func (e *oracleMetadataExtractor) materializedViewPrefix(n *ast.CreateViewStmt) string {
+	var parts []string
+	if n.BuildMode != "" {
+		parts = append(parts, "BUILD "+strings.ToUpper(n.BuildMode))
+	}
+	if n.RefreshMethod != "" || n.RefreshMode != "" || n.StartWith != nil || n.Next != nil {
+		refresh := "REFRESH"
+		if n.RefreshMethod != "" {
+			refresh += " " + strings.ToUpper(n.RefreshMethod)
+		}
+		if n.RefreshMode != "" {
+			refresh += " " + strings.ToUpper(n.RefreshMode)
+		}
+		if n.StartWith != nil {
+			refresh += " START WITH " + e.nodeText(n.StartWith)
+		}
+		if n.Next != nil {
+			refresh += " NEXT " + e.nodeText(n.Next)
+		}
+		parts = append(parts, refresh)
+	}
+	return strings.Join(parts, " ")
+}
+
+func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStmt) {
+	sequenceName := objectName(n.Name)
+	if sequenceName == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	if n.IfNotExists && e.sequences[sequenceName] != nil {
+		return
+	}
+	sequence := &metadatapb.SequenceMetadata{Name: sequenceName}
+	if start := e.nodeText(n.StartWith); start != "" {
+		sequence.Start = start
+	}
+	if increment := e.nodeText(n.IncrementBy); increment != "" && increment != "1" {
+		sequence.Increment = increment
+	}
+	sequence.MinValue = e.nodeText(n.MinValue)
+	sequence.MaxValue = e.nodeText(n.MaxValue)
+	sequence.CacheSize = e.nodeText(n.Cache)
+	if n.NoCache {
+		sequence.CacheSize = "0"
+	}
+	sequence.Cycle = n.Cycle
+	e.sequences[sequenceName] = sequence
+}
+
+func (e *oracleMetadataExtractor) extractAlterSequence(n *ast.AlterSequenceStmt) {
+	name := objectName(n.Name)
+	if name == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	sequence := e.sequences[name]
+	if sequence == nil {
+		if n.IfExists {
+			return
+		}
+		sequence = &metadatapb.SequenceMetadata{Name: name}
+		e.sequences[name] = sequence
+	}
+	if n.IncrementBy != nil {
+		sequence.Increment = e.nodeText(n.IncrementBy)
+	}
+	if n.MaxValue != nil {
+		sequence.MaxValue = e.nodeText(n.MaxValue)
+	} else if n.NoMaxValue {
+		sequence.MaxValue = ""
+	}
+	if n.MinValue != nil {
+		sequence.MinValue = e.nodeText(n.MinValue)
+	} else if n.NoMinValue {
+		sequence.MinValue = ""
+	}
+	if n.Cache != nil {
+		sequence.CacheSize = e.nodeText(n.Cache)
+	} else if n.NoCache {
+		sequence.CacheSize = "0"
+	}
+	switch {
+	case n.Cycle:
+		sequence.Cycle = true
+	case n.NoCycle:
+		sequence.Cycle = false
+	}
+	if n.RestartWith != nil {
+		sequence.Start = e.nodeText(n.RestartWith)
+	}
+}
+
+func (e *oracleMetadataExtractor) extractCreatePackage(name string, n *ast.CreatePackageStmt) {
+	definition := e.definitionText(n)
+	if definition == "" {
+		return
+	}
+	pkg := e.packages[name]
+	if pkg == nil {
+		e.packages[name] = &metadatapb.PackageMetadata{Name: name, Definition: definition}
+		return
+	}
+	if pkg.Definition == "" {
+		pkg.Definition = definition
+		return
+	}
+	pkg.Definition += "\n\n" + definition
+}
+
+func removeTriggerDisableClause(body string) string {
+	headerEnd := len(body)
+	upper := strings.ToUpper(body)
+	for _, marker := range []string{"\nBEGIN", "\nDECLARE"} {
+		if index := strings.Index(upper, marker); index >= 0 && index < headerEnd {
+			headerEnd = index
+		}
+	}
+	for index := 0; index+len("DISABLE") <= headerEnd; index++ {
+		if upper[index:index+len("DISABLE")] != "DISABLE" {
+			continue
+		}
+		if index > 0 && isIdentifierByte(body[index-1]) {
+			continue
+		}
+		if index+len("DISABLE") < len(upper) && isIdentifierByte(body[index+len("DISABLE")]) {
+			continue
+		}
+		// The clause follows SQL whitespace, which may be a newline: take the
+		// run before the keyword with it and leave what follows in place.
+		start := index
+		for start > 0 && (body[start-1] == ' ' || body[start-1] == '\t' || body[start-1] == '\n' || body[start-1] == '\r') {
+			start--
+		}
+		if start == index {
+			continue
+		}
+		return body[:start] + body[index+len("DISABLE"):]
+	}
+	return body
+}
+
+func triggerAttributes(n *ast.CreateTriggerStmt) (string, string) {
+	var events []string
+	for _, item := range listItems(n.Events) {
+		switch event := item.(type) {
+		case *ast.Integer:
+			switch ast.TriggerEvent(event.Ival) {
+			case ast.TRIGGER_INSERT:
+				events = append(events, "INSERT")
+			case ast.TRIGGER_UPDATE:
+				events = append(events, "UPDATE")
+			case ast.TRIGGER_DELETE:
+				events = append(events, "DELETE")
+			}
+		case *ast.ColumnRef:
+			events = append(events, strings.ToUpper(event.Column))
+		}
+	}
+	var timing string
+	switch n.Timing {
+	case ast.TRIGGER_BEFORE:
+		timing = "BEFORE"
+	case ast.TRIGGER_AFTER:
+		timing = "AFTER"
+	case ast.TRIGGER_INSTEAD_OF:
+		timing = "INSTEAD OF"
+	}
+	if n.ForEachRow {
+		timing += " EACH ROW"
+	} else {
+		timing += " STATEMENT"
+	}
+	return strings.Join(events, " OR "), timing
+}
+
+func (e *oracleMetadataExtractor) dropTableProvenance(tableName string) {
+	prefix := tableName + "\x00"
+	for key := range e.primaryKeyNotNull {
+		if strings.HasPrefix(key, prefix) {
+			delete(e.primaryKeyNotNull, key)
+		}
+	}
+	for key := range e.namedNotNull {
+		if strings.HasPrefix(key, prefix) {
+			delete(e.namedNotNull, key)
+		}
+	}
+}
+
+func renameTriggerName(body, oldName, newName string) string {
+	upper := strings.ToUpper(body)
+	index := strings.Index(upper, "TRIGGER ")
+	if index < 0 {
+		return body
+	}
+	start := index + len("TRIGGER ")
+	token, tokenStart, tokenEnd := scanTriggerIdentifier(body, start)
+	if tokenEnd < len(body) && body[tokenEnd] == '.' {
+		token, tokenStart, tokenEnd = scanTriggerIdentifier(body, tokenEnd+1)
+	}
+	if !strings.EqualFold(token, oldName) {
+		return body
+	}
+	body = body[:tokenStart] + renderRenamedIdentifier(newName) + body[tokenEnd:]
+	body = strings.ReplaceAll(body, "ALTER TRIGGER \""+oldName+"\" DISABLE;", "ALTER TRIGGER \""+newName+"\" DISABLE;")
+	return body
+}
+
+func (e *oracleMetadataExtractor) extractAlterTrigger(n *ast.AlterTriggerStmt) {
+	name := objectName(n.Name)
+	if name == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	trigger := e.triggers[name]
+	if trigger == nil {
+		return
+	}
+	switch strings.ToUpper(n.Action) {
+	case "RENAME":
+		if n.NewName == "" {
+			return
+		}
+		delete(e.triggers, name)
+		trigger.Name = n.NewName
+		trigger.Body = renameTriggerName(trigger.Body, name, n.NewName)
+		e.triggers[n.NewName] = trigger
+	case "DISABLE":
+		marker := "ALTER TRIGGER \"" + name + "\" DISABLE;"
+		if !strings.Contains(strings.ToUpper(trigger.Body), strings.ToUpper(marker)) {
+			trigger.Body = strings.TrimSpace(trigger.Body) + "\n" + marker
+		}
+	case "ENABLE":
+		marker := strings.ToUpper("ALTER TRIGGER \"" + name + "\" DISABLE;")
+		var lines []string
+		for _, line := range strings.Split(trigger.Body, "\n") {
+			if strings.TrimSpace(strings.ToUpper(line)) == marker {
+				continue
+			}
+			lines = append(lines, line)
+		}
+		trigger.Body = strings.Join(lines, "\n")
+	}
+}
+
+func (e *oracleMetadataExtractor) extractCreateTrigger(n *ast.CreateTriggerStmt) {
+	triggerName := objectName(n.Name)
+	tableName := objectName(n.Table)
+	if triggerName == "" || tableName == "" {
+		return
+	}
+	if !e.useSchema(n.Name.Schema) || !e.useSchema(n.Table.Schema) {
+		return
+	}
+	if strings.EqualFold(tableName, "DATABASE") || strings.EqualFold(tableName, "SCHEMA") {
+		if e.err == nil {
+			e.err = fmt.Errorf("non-table triggers are not supported by oracle/catalog")
+		}
+		return
+	}
+	if n.OrReplace {
+		e.dropTrigger(triggerName)
+	}
+	event, timing := triggerAttributes(n)
+	body := e.definitionText(n)
+	if !n.Enable {
+		body = removeTriggerDisableClause(body)
+		body = strings.TrimSpace(body) + "\nALTER TRIGGER \"" + triggerName + "\" DISABLE;"
+	}
+	trigger := &metadatapb.TriggerMetadata{
+		Name:   triggerName,
+		Event:  event,
+		Timing: timing,
+		Body:   body,
+	}
+	e.triggers[triggerName] = trigger
+	if view := e.views[tableName]; view != nil {
+		view.Triggers = append(view.Triggers, trigger)
+		return
+	}
+	if materializedView := e.materializedViews[tableName]; materializedView != nil {
+		materializedView.Triggers = append(materializedView.Triggers, trigger)
+		return
+	}
+	table := e.getOrCreateTable(tableName)
+	table.Triggers = append(table.Triggers, trigger)
+}
+
+func (e *oracleMetadataExtractor) extractComment(n *ast.CommentStmt) {
+	if !e.useSchema(n.Object.Schema) {
+		return
+	}
+	if n.Column != "" {
+		table := e.tables[objectName(n.Object)]
+		if table == nil {
+			return
+		}
+		for _, column := range table.Columns {
+			if column.Name == n.Column {
+				column.Comment = n.Comment
+				return
+			}
+		}
+		return
+	}
+
+	switch n.ObjectType {
+	case ast.OBJECT_TABLE, ast.OBJECT_VIEW:
+		name := objectName(n.Object)
+		if table := e.tables[name]; table != nil {
+			table.Comment = n.Comment
+			return
+		}
+		if view := e.views[name]; view != nil {
+			view.Comment = n.Comment
+		}
+	case ast.OBJECT_MATERIALIZED_VIEW:
+		if materializedView := e.materializedViews[objectName(n.Object)]; materializedView != nil {
+			materializedView.Comment = n.Comment
+		}
+	default:
+	}
+}
+
+func (e *oracleMetadataExtractor) indexExpression(expr ast.ExprNode) string {
+	switch n := expr.(type) {
+	case *ast.ColumnRef:
+		if text := strings.TrimSpace(e.nodeText(expr)); strings.HasPrefix(text, `"`) && strings.HasSuffix(text, `"`) {
+			return text
+		}
+		return n.Column
+	default:
+		return e.nodeText(expr)
+	}
+}
+
+func (e *oracleMetadataExtractor) exprText(expr ast.ExprNode) string {
+	if text := e.nodeText(expr); text != "" {
+		return text
+	}
+	switch n := expr.(type) {
+	case *ast.BinaryExpr:
+		return e.exprText(n.Left) + n.Op + e.exprText(n.Right)
+	case *ast.BoolExpr:
+		var parts []string
+		for _, item := range listItems(n.Args) {
+			expr, ok := item.(ast.ExprNode)
+			if !ok {
+				continue
+			}
+			parts = append(parts, e.exprText(expr))
+		}
+		switch n.Boolop {
+		case ast.BOOL_AND:
+			return strings.Join(parts, "AND")
+		case ast.BOOL_OR:
+			return strings.Join(parts, "OR")
+		case ast.BOOL_NOT:
+			return "NOT" + strings.Join(parts, "")
+		default:
+			return strings.Join(parts, "")
+		}
+	case *ast.ColumnRef:
+		if n.Table != "" {
+			return n.Table + "." + n.Column
+		}
+		return n.Column
+	case *ast.InExpr:
+		operator := "IN"
+		if n.Not {
+			operator = "NOTIN"
+		}
+		return e.exprText(n.Expr) + operator + "(" + strings.Join(e.exprListText(n.List), ",") + ")"
+	case *ast.BetweenExpr:
+		operator := "BETWEEN"
+		if n.Not {
+			operator = "NOTBETWEEN"
+		}
+		return e.exprText(n.Expr) + operator + e.exprText(n.Low) + "AND" + e.exprText(n.High)
+	case *ast.LikeExpr:
+		operator := "LIKE"
+		if n.Not {
+			operator = "NOTLIKE"
+		}
+		result := e.exprText(n.Expr) + operator + e.exprText(n.Pattern)
+		if n.Escape != nil {
+			result += "ESCAPE" + e.exprText(n.Escape)
+		}
+		return result
+	case *ast.IsExpr:
+		operator := "IS"
+		if n.Not {
+			operator = "ISNOT"
+		}
+		return e.exprText(n.Expr) + operator + n.Test
+	case *ast.ParenExpr:
+		return "(" + e.exprText(n.Expr) + ")"
+	case *ast.StringLiteral:
+		prefix := ""
+		if n.IsNChar {
+			prefix = "N"
+		}
+		return prefix + "'" + strings.ReplaceAll(n.Val, "'", "''") + "'"
+	case *ast.NumberLiteral:
+		return n.Val
+	case *ast.NullLiteral:
+		return "NULL"
+	case *ast.FuncCallExpr:
+		return objectName(n.FuncName) + "(" + strings.Join(e.exprListText(n.Args), ",") + ")"
+	default:
+		return strings.ReplaceAll(e.nodeText(expr), " ", "")
+	}
+}
+
+func (e *oracleMetadataExtractor) exprListText(list *ast.List) []string {
+	var result []string
+	for _, item := range listItems(list) {
+		expr, ok := item.(ast.ExprNode)
+		if !ok {
+			continue
+		}
+		result = append(result, e.exprText(expr))
+	}
+	return result
+}
+
+func (e *oracleMetadataExtractor) functionDefinitionText(node ast.Node) string {
+	definition := e.definitionText(node)
+	if match := functionCreatePrefix.FindStringIndex(definition); match != nil {
+		definition = strings.TrimSpace(definition[match[1]:])
+	}
+	if definition != "" && !strings.HasPrefix(strings.ToUpper(definition), "FUNCTION") {
+		definition = "FUNCTION " + definition
+	}
+	return definition
+}
+
+func (e *oracleMetadataExtractor) definitionText(node ast.Node) string {
+	loc := ast.NodeLoc(node)
+	if loc.Start < 0 || loc.End < 0 || loc.Start > loc.End || loc.End > len(e.schemaText) {
+		return ""
+	}
+	end := loc.End
+	for end < len(e.schemaText) {
+		switch e.schemaText[end] {
+		case ' ', '\t', '\r', '\n':
+			end++
+		default:
+			if e.schemaText[end] == ';' {
+				end++
+			}
+			return strings.TrimSpace(e.schemaText[loc.Start:end])
+		}
+	}
+	return strings.TrimSpace(e.schemaText[loc.Start:end])
+}
+
+func (e *oracleMetadataExtractor) nodeText(node ast.Node) string {
+	loc := ast.NodeLoc(node)
+	if loc.Start < 0 || loc.End < 0 || loc.Start > loc.End || loc.End > len(e.schemaText) {
+		return ""
+	}
+	return e.schemaText[loc.Start:loc.End]
+}
+
+func objectName(name *ast.ObjectName) string {
+	if name == nil {
+		return ""
+	}
+	return name.Name
+}
+
+func listItems(list *ast.List) []ast.Node {
+	if list == nil {
+		return nil
+	}
+	return list.Items
+}
+
+func stringList(list *ast.List) []string {
+	var result []string
+	for _, item := range listItems(list) {
+		switch n := item.(type) {
+		case *ast.String:
+			result = append(result, n.Str)
+		case *ast.ColumnRef:
+			result = append(result, n.Column)
+		default:
+		}
+	}
+	return result
+}
+
+func fallbackName(name, fallback string) string {
+	if name != "" {
+		return name
+	}
+	return fallback
+}
+
+func hasPrimaryIndex(table *metadatapb.TableMetadata) bool {
+	for _, index := range table.Indexes {
+		if index.Primary {
+			return true
+		}
+	}
+	return false
+}
+
+func hasUniqueIndex(table *metadatapb.TableMetadata, columns []string) bool {
+	for _, index := range table.Indexes {
+		if !index.Unique || index.Primary || len(index.Expressions) != len(columns) {
+			continue
+		}
+		matches := true
+		for i, column := range columns {
+			if index.Expressions[i] != column {
+				matches = false
+				break
+			}
+		}
+		if matches {
+			return true
+		}
+	}
+	return false
+}
+
+func markColumnsNotNull(table *metadatapb.TableMetadata, columns []string) {
+	for _, column := range table.Columns {
+		if slices.Contains(columns, column.Name) {
+			column.Nullable = false
+		}
+	}
+}
+
+// newMetadataExtractorFromMetadata seeds an extractor with an existing snapshot
+// and the text of the statement about to be applied.
+func newMetadataExtractorFromMetadata(meta *metadatapb.DatabaseSchemaMetadata, schemaText string) *oracleMetadataExtractor {
+	e := newMetadataExtractor(schemaText)
+	e.currentDatabase = meta.GetName()
+	if len(meta.GetSchemas()) == 0 {
+		return e
+	}
+	schema := meta.GetSchemas()[0]
+	e.currentSchema = schema.GetName()
+	e.owner = e.currentSchema
+	if e.owner == "" {
+		e.owner = meta.GetName()
+	}
+	for _, table := range schema.GetTables() {
+		cloned := cloneTable(table)
+		e.tables[table.GetName()] = cloned
+		for _, trigger := range cloned.GetTriggers() {
+			e.triggers[trigger.GetName()] = trigger
+		}
+	}
+	for _, view := range schema.GetViews() {
+		cloned := cloneView(view)
+		e.views[view.GetName()] = cloned
+		for _, trigger := range cloned.GetTriggers() {
+			e.triggers[trigger.GetName()] = trigger
+		}
+	}
+	for _, view := range schema.GetMaterializedViews() {
+		cloned := cloneMaterializedView(view)
+		e.materializedViews[view.GetName()] = cloned
+		for _, trigger := range cloned.GetTriggers() {
+			e.triggers[trigger.GetName()] = trigger
+		}
+	}
+	for _, fn := range schema.GetFunctions() {
+		e.functions[fn.GetName()] = cloneFunction(fn)
+	}
+	for _, proc := range schema.GetProcedures() {
+		e.procedures[proc.GetName()] = cloneProcedure(proc)
+	}
+	for _, seq := range schema.GetSequences() {
+		e.sequences[seq.GetName()] = cloneSequence(seq)
+	}
+	for _, pkg := range schema.GetPackages() {
+		e.packages[pkg.GetName()] = clonePackage(pkg)
+	}
+	return e
+}
+
+var (
+	identityStartPattern     = regexp.MustCompile(`(?i)START\s+WITH\s+([-+]?[0-9]+)`)
+	identityIncrementPattern = regexp.MustCompile(`(?i)INCREMENT\s+BY\s+([-+]?[0-9]+)`)
+	functionCreatePrefix     = regexp.MustCompile(`(?is)^\s*CREATE(?:\s+OR\s+REPLACE)?(?:\s+(?:NON)?EDITIONABLE)?\s+`)
+)
+
+func applyIdentity(column *metadatapb.ColumnMetadata, identity *ast.IdentityClause, text string) {
+	column.IsIdentity = true
+	if identity != nil && !identity.Always {
+		column.IdentityGeneration = metadatapb.ColumnMetadata_BY_DEFAULT
+		column.DefaultOnNull = strings.Contains(strings.ToUpper(text), "ON NULL")
+	} else {
+		column.IdentityGeneration = metadatapb.ColumnMetadata_ALWAYS
+	}
+	if match := identityStartPattern.FindStringSubmatch(text); len(match) == 2 {
+		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+			column.IdentitySeed = value
+		}
+	}
+	if match := identityIncrementPattern.FindStringSubmatch(text); len(match) == 2 {
+		if value, err := strconv.ParseInt(match[1], 10, 64); err == nil {
+			column.IdentityIncrement = value
+		}
+	}
+}
+
+type viewDependencyVisitor struct {
+	schema  string
+	seen    map[string]bool
+	scopes  []map[string]bool
+	markers []bool
+	result  *[]*metadatapb.DependencyColumn
+}
+
+func (v *viewDependencyVisitor) Visit(node ast.Node) ast.Visitor {
+	if node == nil {
+		if len(v.markers) > 0 {
+			marker := v.markers[len(v.markers)-1]
+			v.markers = v.markers[:len(v.markers)-1]
+			if marker && len(v.scopes) > 0 {
+				v.scopes = v.scopes[:len(v.scopes)-1]
+			}
+		}
+		return v
+	}
+	marker := false
+	if selectStmt, ok := node.(*ast.SelectStmt); ok {
+		scope := map[string]bool{}
+		if len(v.scopes) > 0 {
+			for name := range v.scopes[len(v.scopes)-1] {
+				scope[name] = true
+			}
+		}
+		if selectStmt.WithClause != nil {
+			for _, item := range listItems(selectStmt.WithClause.CTEs) {
+				if cte, ok := item.(*ast.CTE); ok && cte.Name != "" {
+					scope[cte.Name] = true
+				}
+			}
+		}
+		v.scopes = append(v.scopes, scope)
+		marker = true
+	}
+	v.markers = append(v.markers, marker)
+	if ref, ok := node.(*ast.TableRef); ok && ref.Name != nil && ref.Name.Name != "" {
+		inScope := len(v.scopes) > 0 && v.scopes[len(v.scopes)-1][ref.Name.Name]
+		if ref.Name.Schema == "" && inScope {
+			return v
+		}
+		schema := ref.Name.Schema
+		if schema == "" {
+			schema = v.schema
+		}
+		key := schema + "\x00" + ref.Name.Name
+		if !v.seen[key] {
+			v.seen[key] = true
+			*v.result = append(*v.result, &metadatapb.DependencyColumn{Schema: schema, Table: ref.Name.Name, Column: "*"})
+		}
+	}
+	return v
+}
+
+func viewDependencyColumns(query ast.StmtNode, schema string) []*metadatapb.DependencyColumn {
+	if query == nil {
+		return nil
+	}
+	var result []*metadatapb.DependencyColumn
+	ast.Walk(&viewDependencyVisitor{schema: schema, seen: map[string]bool{}, result: &result}, query)
+	return result
+}

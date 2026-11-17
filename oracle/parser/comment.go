@@ -20,6 +20,12 @@ import (
 //	    | TABLE [ schema. ] { table | view }
 //	    }
 //	    IS string ;
+//
+// Oracle refuses every other category with ORA-32594, "invalid object
+// category", at the category word: VIEW, INDEX, SEQUENCE, FUNCTION,
+// PROCEDURE, PACKAGE, TRIGGER, TYPE, SYNONYM, DATABASE LINK and DIMENSION
+// among them. A view is commented through TABLE, whose dictionary row then
+// reports TABLE_TYPE = 'VIEW'.
 func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 	start := p.pos()
 	p.advance() // consume COMMENT
@@ -82,9 +88,6 @@ func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 			}
 		}
 		goto parseIs
-	case kwINDEX:
-		stmt.ObjectType = nodes.OBJECT_INDEX
-		p.advance()
 	case kwMATERIALIZED:
 		stmt.ObjectType = nodes.OBJECT_MATERIALIZED_VIEW
 		p.advance() // consume MATERIALIZED
@@ -93,9 +96,10 @@ func (p *Parser) parseCommentStmt() (nodes.StmtNode, error) {
 		}
 		p.advance()
 	default:
-		// The other object kinds, read as TABLE. Oracle names no other
-		// object here (ORA-02000 at VIEW, at POLICY and at the word after
-		// AUDIT, MINING or PROPERTY).
+		// The categories whose comment no rule here reads, each read as
+		// TABLE: an edition, indextype, operator, audit policy, mining
+		// model or property graph. A category Oracle refuses (see above) is
+		// not one of them.
 		stmt.ObjectType = nodes.OBJECT_TABLE
 		var second string
 		switch {

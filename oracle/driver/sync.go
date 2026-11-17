@@ -1081,11 +1081,34 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 	return outerRTableMap[constraintKey], outerRColumnMap[constraintKey], nil
 }
 
+// quoteOracleColumns writes column names as the quoted identifiers an index's
+// expressions hold, which is how the index path writes them too.
+func quoteOracleColumns(columns []string) []string {
+	quoted := make([]string, len(columns))
+	for i, column := range columns {
+		quoted[i] = fmt.Sprintf(`"%s"`, column)
+	}
+	return quoted
+}
+
+// constraintIndex is what a schema's index enforces: the constraints that draw
+// on it. Oracle keeps a constraint and its index as two objects with two names —
+// a constraint may reuse an index the schema already had, and the index's own
+// name is what the dictionary, and so the DDL, calls it — and one index may
+// enforce several constraints, each on keys of its own.
+type constraintIndex struct {
+	// Constraints are the constraints the index enforces, the primary key's
+	// first, each with the keys it declares.
+	Constraints []*metadatapb.IndexConstraintMetadata
+	// Primary is whether one of them is the primary key.
+	Primary bool
+}
+
 func getConstraints(txn *sql.Tx, schemaName string) (
 	map[tableKey][]*metadatapb.IndexMetadata,
 	map[tableKey][]*metadatapb.CheckConstraintMetadata,
 	map[tableKey][]*metadatapb.ForeignKeyMetadata,
-	map[indexKey]bool,
+	map[indexKey]constraintIndex,
 	error,
 ) {
 	queryConstraintColumns := fmt.Sprintf(`
@@ -1129,7 +1152,9 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 			SEARCH_CONDITION,
 			R_OWNER,
 			R_CONSTRAINT_NAME,
-			DELETE_RULE
+			DELETE_RULE,
+			INDEX_OWNER,
+			INDEX_NAME
 		FROM SYS.ALL_CONSTRAINTS
 		WHERE OWNER = '%s'
 		ORDER BY TABLE_NAME, CONSTRAINT_NAME`, sqlLiteral(schemaName))
@@ -1143,41 +1168,53 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 	indexMap := make(map[tableKey][]*metadatapb.IndexMetadata)
 	checkConstraintMap := make(map[tableKey][]*metadatapb.CheckConstraintMetadata)
 	foreignKeyMap := make(map[tableKey][]*metadatapb.ForeignKeyMetadata)
-	isConstraint := make(map[indexKey]bool)
+	isConstraint := make(map[indexKey]constraintIndex)
 	outerRColumnMap := make(map[constraintRef][]string)
 	outerRTableMap := make(map[constraintRef]string)
 	for constraintRows.Next() {
 		var tableName, constraintName, constraintType string
-		var searchCondition, rOwner, rConstraintName, deleteRule sql.NullString
-		if err := constraintRows.Scan(&tableName, &constraintName, &constraintType, &searchCondition, &rOwner, &rConstraintName, &deleteRule); err != nil {
+		var searchCondition, rOwner, rConstraintName, deleteRule, indexOwner, indexName sql.NullString
+		if err := constraintRows.Scan(&tableName, &constraintName, &constraintType, &searchCondition, &rOwner, &rConstraintName, &deleteRule, &indexOwner, &indexName); err != nil {
 			return nil, nil, nil, nil, err
 		}
 		key := tableKey{Schema: schemaName, Table: tableName}
 		constraintKey := constraintRef{Schema: schemaName, Constraint: constraintName}
 		switch constraintType {
-		case "P":
-			index := &metadatapb.IndexMetadata{
+		case "P", "U":
+			// An enabled primary key or unique constraint is enforced by an index
+			// the schema owns, which may be one the schema already had under its
+			// own name: ALL_CONSTRAINTS.INDEX_NAME says which, and the index is
+			// read as an index below, with the constraint laid over it. A
+			// constraint with no index of the schema's is carried as the
+			// constraint it is: a disabled one has none at all (INDEX_NAME is
+			// null), and one whose index another schema owns has no index in the
+			// schema being synced.
+			constraint := &metadatapb.IndexConstraintMetadata{
+				Name:    constraintName,
+				Columns: quoteOracleColumns(constraintColumnMap[constraintKey]),
+				Primary: constraintType == "P",
+			}
+			if indexName.Valid && indexOwner.Valid && indexOwner.String == schemaName {
+				index := indexKey{Schema: indexOwner.String, Table: tableName, Index: indexName.String}
+				enforced := isConstraint[index]
+				if constraint.Primary {
+					enforced.Constraints = append([]*metadatapb.IndexConstraintMetadata{constraint}, enforced.Constraints...)
+					enforced.Primary = true
+				} else {
+					enforced.Constraints = append(enforced.Constraints, constraint)
+				}
+				isConstraint[index] = enforced
+				break
+			}
+			metadata := &metadatapb.IndexMetadata{
 				Name:         constraintName,
-				Primary:      true,
+				Primary:      constraint.Primary,
 				Unique:       true,
 				IsConstraint: true,
+				Constraints:  []*metadatapb.IndexConstraintMetadata{constraint},
 			}
-			if columns, ok := constraintColumnMap[constraintKey]; ok {
-				index.Expressions = columns
-			}
-			indexMap[key] = append(indexMap[key], index)
-			isConstraint[indexKey{Schema: schemaName, Table: tableName, Index: constraintName}] = true
-		case "U":
-			index := &metadatapb.IndexMetadata{
-				Name:         constraintName,
-				Unique:       true,
-				IsConstraint: true,
-			}
-			if columns, ok := constraintColumnMap[constraintKey]; ok {
-				index.Expressions = columns
-			}
-			indexMap[key] = append(indexMap[key], index)
-			isConstraint[indexKey{Schema: schemaName, Table: tableName, Index: constraintName}] = true
+			metadata.Expressions = constraint.Columns
+			indexMap[key] = append(indexMap[key], metadata)
 		case "C":
 			// Oracle records NOT NULL as a check constraint it named SYS_C<n>
 			// itself. A user's unnamed CHECK gets a SYS_C name as well, so the
@@ -1227,11 +1264,11 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 	return indexMap, checkConstraintMap, foreignKeyMap, isConstraint, nil
 }
 
-// getIndexes gets all indices and constraints of a database. An index carries
-// no comment: Oracle names no index in its COMMENT statement, and
-// TestSyncCommentableObjects pins the refusal.
+// getIndexesAndConstraints reads the schema's indexes and their constraints.
+// An index carries no comment: Oracle names no index in its COMMENT statement,
+// and TestSyncCommentableObjects pins the refusal.
 func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*metadatapb.IndexMetadata, map[tableKey][]*metadatapb.CheckConstraintMetadata, map[tableKey][]*metadatapb.ForeignKeyMetadata, error) {
-	indexMap, checkConstraintMap, foreignKeyMap, isConstraint, err := getConstraints(txn, schemaName)
+	indexMap, checkConstraintMap, foreignKeyMap, constraintIndexMap, err := getConstraints(txn, schemaName)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get constraints: %w", err)
 	}
@@ -1322,20 +1359,27 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		if err := rows.Scan(&schemaName, &tableName, &index.Name, &unique, &index.Type, &visibility); err != nil {
 			return nil, nil, nil, err
 		}
-		if isConstraint[indexKey{Schema: schemaName, Table: tableName, Index: index.Name}] {
+		key := indexKey{Schema: schemaName, Table: tableName, Index: index.Name}
+		constraint, isConstraintIndex := constraintIndexMap[key]
+
+		// Skip system-generated indexes, such as those of LOBs, IOTs, and nested
+		// tables. A constraint's index is the schema's own whatever it is called:
+		// Oracle names the index of a constraint the user did not name SYS_C<n>.
+		if !isConstraintIndex && strings.HasPrefix(index.Name, "SYS_") {
 			continue
 		}
 
-		// Skip system-generated indexes, such as those of LOBs, IOTs, and nested tables.
-		if strings.HasPrefix(index.Name, "SYS_") {
-			continue
-		}
-
+		// The index's own row describes it, a constraint's or not: a constraint
+		// that reuses an index the schema already had makes the two names, and
+		// the two uniquenesses, differ.
 		index.Unique = unique == "UNIQUE"
-		indexKey := indexKey{Schema: schemaName, Table: tableName, Index: index.Name}
-		// Handle index expressions - preserve Oracle's classification
-		columns := indexColumnMap[indexKey]
-		expressions := indexExpressionMap[indexKey]
+		if isConstraintIndex {
+			index.Primary = constraint.Primary
+			index.IsConstraint = true
+			index.Constraints = constraint.Constraints
+		}
+		columns := indexColumnMap[key]
+		expressions := indexExpressionMap[key]
 
 		// For function-based indexes (including those with DESC columns)
 		if len(expressions) > 0 {
@@ -1368,7 +1412,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 					break
 				}
 			}
-			if hasOnlyVirtualColumns {
+			if hasOnlyVirtualColumns && !isConstraintIndex {
 				continue
 			}
 
@@ -1382,7 +1426,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		// Note: Keep index.Type as reported by Oracle (don't modify it)
 
 		// Set descending flags for all indexes (both function-based and normal)
-		if desc, ok := descendingMap[indexKey]; ok && len(desc) > 0 {
+		if desc, ok := descendingMap[key]; ok && len(desc) > 0 {
 			// Always set descending array if we have column information,
 			// even if all columns are ascending (to maintain consistency)
 			index.Descending = desc
@@ -1392,8 +1436,8 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 			index.Visible = false
 		}
 
-		key := tableKey{Schema: schemaName, Table: tableName}
-		indexMap[key] = append(indexMap[key], index)
+		table := tableKey{Schema: schemaName, Table: tableName}
+		indexMap[table] = append(indexMap[table], index)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
@@ -1627,14 +1671,45 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 	return materializedViews, nil
 }
 
-// getSequences gets all sequences of a database.
+// sequenceFacts are the facts ALL_SEQUENCES states about a sequence, in the
+// order getSequences reads them. number marks a NUMBER column, which is read as
+// text: MAX_VALUE reaches 28 digits, which no Go integer holds.
+var sequenceFacts = []struct {
+	column string
+	number bool
+}{
+	{"SEQUENCE_NAME", false},
+	{"MIN_VALUE", true},
+	{"MAX_VALUE", true},
+	{"INCREMENT_BY", true},
+	{"CYCLE_FLAG", false},
+	{"ORDER_FLAG", false},
+	{"CACHE_SIZE", true},
+	{"LAST_NUMBER", true},
+	{"KEEP_VALUE", false},
+	{"SCALE_FLAG", false},
+	{"EXTEND_FLAG", false},
+	{"SESSION_FLAG", false},
+	{"SHARDED_FLAG", false},
+}
+
+// getSequences gets all sequences of a database. Every fact ALL_SEQUENCES
+// states is carried, except the declared START WITH: Oracle does not retain it,
+// ALL_SEQUENCES has no column for it, and DBMS_METADATA reports LAST_NUMBER in
+// its place, so start stays empty and last_value carries LAST_NUMBER.
+// TestSyncSequenceValues pins that, on a sequence a NEXTVAL has advanced.
 func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadata, error) {
 	var sequences []*metadatapb.SequenceMetadata
 
+	columns, err := sequenceColumns(txn)
+	if err != nil {
+		return nil, err
+	}
 	query := fmt.Sprintf(`
-		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+		SELECT %s
+		FROM ALL_SEQUENCES
 		WHERE SEQUENCE_OWNER = '%s'
-		ORDER BY SEQUENCE_NAME`, sqlLiteral(schemaName))
+		ORDER BY SEQUENCE_NAME`, sequenceProjection(columns), sqlLiteral(schemaName))
 
 	slog.Debug("running get sequences query")
 	rows, err := txn.Query(query)
@@ -1645,12 +1720,51 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 
 	for rows.Next() {
 		seq := &metadatapb.SequenceMetadata{}
-		if err := rows.Scan(&seq.Name); err != nil {
+		var cycle, order, keep, scale, extend, session, sharded sql.NullString
+		// The scan follows sequenceFacts.
+		if err := rows.Scan(
+			&seq.Name,
+			&seq.MinValue,
+			&seq.MaxValue,
+			&seq.Increment,
+			&cycle,
+			&order,
+			&seq.CacheSize,
+			&seq.LastValue,
+			&keep,
+			&scale,
+			&extend,
+			&session,
+			&sharded,
+		); err != nil {
 			return nil, err
 		}
 		// Skip system-generated sequences (e.g., ISEQ$$_* for IDENTITY columns)
 		if strings.HasPrefix(seq.Name, "ISEQ$$_") {
 			continue
+		}
+		for _, flag := range []struct {
+			column string
+			value  sql.NullString
+			target *bool
+		}{
+			{"CYCLE_FLAG", cycle, &seq.Cycle},
+			{"ORDER_FLAG", order, &seq.Order},
+			{"KEEP_VALUE", keep, &seq.Keep},
+			{"SCALE_FLAG", scale, &seq.Scale},
+			{"EXTEND_FLAG", extend, &seq.Extend},
+			{"SESSION_FLAG", session, &seq.Session},
+			{"SHARDED_FLAG", sharded, &seq.Sharded},
+		} {
+			// A release with no column for the flag says nothing about it.
+			if !flag.value.Valid {
+				continue
+			}
+			on, err := convertYesNo(flag.value.String)
+			if err != nil {
+				return nil, fmt.Errorf("sequence %s: %s: %w", seq.Name, flag.column, err)
+			}
+			*flag.target = on
 		}
 		sequences = append(sequences, seq)
 	}
@@ -1662,6 +1776,57 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 	}
 
 	return sequences, nil
+}
+
+// sequenceColumns returns the columns ALL_SEQUENCES has. The view gained them
+// release by release — SCALE_FLAG, EXTEND_FLAG and SHARDED_FLAG with sharded
+// sequences, SESSION_FLAG with session sequences, KEEP_VALUE with KEEP — and a
+// release without one answers ORA-00904 for it, so the facts this server can
+// state are the view's own column list rather than a release this code guesses
+// at.
+func sequenceColumns(txn *sql.Tx) (map[string]bool, error) {
+	query := `
+		SELECT COLUMN_NAME
+		FROM ALL_TAB_COLS
+		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'`
+
+	slog.Debug("running get sequence columns query")
+	rows, err := txn.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columns[column] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return columns, nil
+}
+
+// sequenceProjection returns the select list that reads every fact of a
+// sequence out of a view with columns: a fact the view has no column for is
+// read as NULL, so the query holds for every release.
+func sequenceProjection(columns map[string]bool) string {
+	selected := make([]string, 0, len(sequenceFacts))
+	for _, fact := range sequenceFacts {
+		switch {
+		case !columns[fact.column]:
+			selected = append(selected, "NULL")
+		case fact.number:
+			selected = append(selected, "TO_CHAR("+fact.column+")")
+		default:
+			selected = append(selected, fact.column)
+		}
+	}
+	return strings.Join(selected, ", ")
 }
 
 func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata, []*metadatapb.ProcedureMetadata, []*metadatapb.PackageMetadata, error) {

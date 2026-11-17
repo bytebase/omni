@@ -77,6 +77,34 @@ func Open(t testing.TB) *sql.DB {
 	return tape.Open(t, s, Default)
 }
 
+// OpenMissingDatabase returns t's connection to a database the pinned server
+// does not have. The client's handshake is refused, which is all ClickHouse
+// answers for a database that is not there, so a tape records the refused
+// connection. name must be one no test creates; the emptying below drops every
+// database the image did not start with and creates none.
+func OpenMissingDatabase(t testing.TB, name string) *sql.DB {
+	t.Helper()
+	s := &tape.Server{Pins: Pins, Codec: Codec{}, Live: func(t testing.TB, pin enginetest.Pin) driver.Connector {
+		t.Helper()
+		if err := start(context.Background(), pin); err != nil {
+			t.Fatalf("ClickHouse: %v", err)
+		}
+		top := enginetest.TopName(t.Name())
+		server.mu.Lock()
+		defer server.mu.Unlock()
+		if !server.emptied[top] {
+			// empty keeps the database it is given and creates it if it is not
+			// there; the image's own is in systemDatabases and already there.
+			if err := empty(context.Background(), "default"); err != nil {
+				t.Fatalf("ClickHouse: empty the server for %s: %v", top, err)
+			}
+			server.emptied[top] = true
+		}
+		return connector(name)
+	}}
+	return tape.Open(t, s, Default)
+}
+
 // Database is the database Open selects for t: one per top-level test, named
 // for it, so a test reads the same name in every recording.
 func Database(t testing.TB) string {

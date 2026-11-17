@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -510,6 +511,13 @@ COMMENT ON MATERIALIZED VIEW OMNI_APP.MV IS 'materialized view comment';
 // silence about that comment is revisited.
 func refuseComments(t *testing.T, db *sql.DB, statements ...string) {
 	t.Helper()
+	expectRefusal(t, db, "ORA-32594", statements...)
+}
+
+// expectRefusal runs statements the server must refuse with the code. Each
+// statement is recorded, so a release that starts accepting one fails here.
+func expectRefusal(t *testing.T, db *sql.DB, code string, statements ...string) {
+	t.Helper()
 	conn, err := db.Conn(context.Background())
 	if err != nil {
 		t.Fatal(err)
@@ -518,11 +526,240 @@ func refuseComments(t *testing.T, db *sql.DB, statements ...string) {
 	for _, statement := range statements {
 		switch _, err := conn.ExecContext(context.Background(), statement); {
 		case err == nil:
-			t.Errorf("%s: the server accepted a comment for an object it names no category for", statement)
-		case !strings.Contains(err.Error(), "ORA-32594"):
-			t.Errorf("%s: %v, want ORA-32594", statement, err)
+			t.Errorf("%s: the server accepted a statement it must refuse with %s", statement, code)
+		case !strings.Contains(err.Error(), code):
+			t.Errorf("%s: %v, want %s", statement, err, code)
 		}
 	}
+}
+
+// TestSyncConstraintBackedIndexes pins that a primary key or unique constraint
+// and the index that enforces it are two objects with two names, and that the
+// sync lists the index as the dictionary does: its own name, type, uniqueness,
+// visibility, and descending flags, with the constraint laid over it. Oracle
+// reuses an index the schema already had for a constraint (UQ_NAME on IX_PLAIN),
+// so naming the metadata index after the constraint lists an object the DBA
+// cannot see, and reading type, visibility, and descending from nowhere leaves
+// them empty.
+func TestSyncConstraintBackedIndexes(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE TABLE TO OMNI_APP;
+CREATE TABLE OMNI_APP.PK_AUTO (ID NUMBER NOT NULL, CONSTRAINT PK_AUTO_PK PRIMARY KEY (ID));
+CREATE TABLE OMNI_APP.UK_AUTO (ID NUMBER NOT NULL, CONSTRAINT UK_AUTO_UK UNIQUE (ID));
+CREATE TABLE OMNI_APP.PK_REUSED (ID NUMBER NOT NULL);
+CREATE INDEX OMNI_APP.PK_REUSED_IDX ON OMNI_APP.PK_REUSED (ID);
+ALTER TABLE OMNI_APP.PK_REUSED ADD CONSTRAINT PK_REUSED_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.PK_REUSED_IDX;
+CREATE TABLE OMNI_APP.UK_REUSED (NAME VARCHAR2(20) NOT NULL);
+CREATE INDEX OMNI_APP.UK_REUSED_IDX ON OMNI_APP.UK_REUSED (NAME);
+ALTER TABLE OMNI_APP.UK_REUSED ADD CONSTRAINT UK_REUSED_UK UNIQUE (NAME) USING INDEX OMNI_APP.UK_REUSED_IDX;
+CREATE TABLE OMNI_APP.PK_INVISIBLE (ID NUMBER NOT NULL);
+CREATE INDEX OMNI_APP.PK_INVISIBLE_IDX ON OMNI_APP.PK_INVISIBLE (ID) INVISIBLE;
+ALTER TABLE OMNI_APP.PK_INVISIBLE ADD CONSTRAINT PK_INVISIBLE_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.PK_INVISIBLE_IDX;
+CREATE TABLE OMNI_APP.UK_VIRTUAL (EMAIL VARCHAR2(40) NOT NULL, UPPER_EMAIL AS (UPPER(EMAIL)));
+CREATE UNIQUE INDEX OMNI_APP.UK_VIRTUAL_IDX ON OMNI_APP.UK_VIRTUAL (UPPER(EMAIL));
+ALTER TABLE OMNI_APP.UK_VIRTUAL ADD CONSTRAINT UK_VIRTUAL_UK UNIQUE (UPPER_EMAIL) USING INDEX OMNI_APP.UK_VIRTUAL_IDX;
+CREATE TABLE OMNI_APP.UK_UNNAMED (A NUMBER UNIQUE);
+CREATE TABLE OMNI_APP.PK_DISABLED (A NUMBER);
+ALTER TABLE OMNI_APP.PK_DISABLED ADD CONSTRAINT PK_DISABLED_PK PRIMARY KEY (A) DISABLE;
+CREATE TABLE OMNI_APP.SHARED (A NUMBER NOT NULL, B NUMBER NOT NULL);
+CREATE INDEX OMNI_APP.SHARED_IDX ON OMNI_APP.SHARED (A, B);
+ALTER TABLE OMNI_APP.SHARED ADD CONSTRAINT SHARED_PK PRIMARY KEY (A, B) USING INDEX OMNI_APP.SHARED_IDX;
+ALTER TABLE OMNI_APP.SHARED ADD CONSTRAINT SHARED_UK UNIQUE (A) USING INDEX OMNI_APP.SHARED_IDX;
+CREATE TABLE OMNI_APP.PK_DESC (ID NUMBER NOT NULL);
+CREATE INDEX OMNI_APP.PK_DESC_IDX ON OMNI_APP.PK_DESC (ID DESC);
+CREATE TABLE OMNI_APP.UK_EXPRESSION (EMAIL VARCHAR2(40));
+CREATE UNIQUE INDEX OMNI_APP.UK_EXPRESSION_IDX ON OMNI_APP.UK_EXPRESSION (UPPER(EMAIL));
+`)
+	// Two shapes a constraint-backed index cannot take, so the sync never meets
+	// them: a DESC key is stored in a hidden column, which is not the column the
+	// constraint names (ORA-14196), and a constraint names a column, not an
+	// expression (ORA-03059). The index of a virtual column's constraint is the
+	// function-based index on the expression instead.
+	expectRefusal(t, d.db, "ORA-14196", `ALTER TABLE OMNI_APP.PK_DESC ADD CONSTRAINT PK_DESC_PK PRIMARY KEY (ID) USING INDEX OMNI_APP.PK_DESC_IDX`)
+	expectRefusal(t, d.db, "ORA-03059", `ALTER TABLE OMNI_APP.UK_EXPRESSION ADD CONSTRAINT UK_EXPRESSION_UK UNIQUE (UPPER(EMAIL)) USING INDEX OMNI_APP.UK_EXPRESSION_IDX`)
+
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	constraint := func(name string, primary bool, columns ...string) *metadatapb.IndexConstraintMetadata {
+		return &metadatapb.IndexConstraintMetadata{Name: name, Columns: columns, Primary: primary}
+	}
+	want := map[string][]*metadatapb.IndexMetadata{
+		// Oracle made the index for the constraint, so the two names are one.
+		"PK_AUTO": {{Name: "PK_AUTO_PK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Primary: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_AUTO_PK", true, `"ID"`)}}},
+		"UK_AUTO": {{Name: "UK_AUTO_UK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("UK_AUTO_UK", false, `"ID"`)}}},
+		// A reused index keeps its own name, its own non-uniqueness, and is what
+		// the table's indexes list; the constraint is named on it.
+		"PK_REUSED":    {{Name: "PK_REUSED_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_REUSED_PK", true, `"ID"`)}}},
+		"UK_REUSED":    {{Name: "UK_REUSED_IDX", Expressions: []string{`"NAME"`}, Descending: []bool{false}, Type: "NORMAL", Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("UK_REUSED_UK", false, `"NAME"`)}}},
+		"PK_INVISIBLE": {{Name: "PK_INVISIBLE_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_INVISIBLE_PK", true, `"ID"`)}}},
+		"UK_VIRTUAL":   {{Name: "UK_VIRTUAL_IDX", Expressions: []string{`"UPPER_EMAIL"`}, Descending: []bool{false}, Type: "FUNCTION-BASED NORMAL", Unique: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("UK_VIRTUAL_UK", false, `"UPPER_EMAIL"`)}}},
+		// A disabled constraint has no index: the constraint is what is left.
+		"PK_DISABLED": {{Name: "PK_DISABLED_PK", Expressions: []string{`"A"`}, Unique: true, Primary: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("PK_DISABLED_PK", true, `"A"`)}}},
+		// One index enforces two constraints, which Oracle shares between them:
+		// the unique constraint's keys are a subset of the index's.
+		"SHARED": {{Name: "SHARED_IDX", Expressions: []string{`"A"`, `"B"`}, Descending: []bool{false, false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, Constraints: []*metadatapb.IndexConstraintMetadata{constraint("SHARED_PK", true, `"A"`, `"B"`), constraint("SHARED_UK", false, `"A"`)}}},
+		// Neither index is a constraint's, so both stay the schema's own. A DESC
+		// index is FUNCTION-BASED NORMAL because Oracle stores the DESC key in a
+		// hidden column, which is why no constraint can use one.
+		"PK_DESC":       {{Name: "PK_DESC_IDX", Expressions: []string{`"ID"`}, Descending: []bool{true}, Type: "FUNCTION-BASED NORMAL", Visible: true}},
+		"UK_EXPRESSION": {{Name: "UK_EXPRESSION_IDX", Expressions: []string{`UPPER("EMAIL")`}, Descending: []bool{false}, Type: "FUNCTION-BASED NORMAL", Unique: true, Visible: true}},
+	}
+	for table, indexes := range want {
+		if diff := cmp.Diff(indexes, tableByName(t, schema, table).Indexes, protocmp.Transform()); diff != "" {
+			t.Errorf("%s indexes (-want +got):\n%s", table, diff)
+		}
+	}
+	// The index of a constraint the user did not name is named SYS_C<n>, and
+	// the sync lists it though it skips the SYS_ indexes of LOBs and IOTs.
+	unnamed := tableByName(t, schema, "UK_UNNAMED").Indexes
+	if len(unnamed) != 1 {
+		t.Fatalf("UK_UNNAMED indexes = %v, want the constraint's one", unnamed)
+	}
+	if index := unnamed[0]; !strings.HasPrefix(index.GetName(), "SYS_C") || !index.GetIsConstraint() || index.GetPrimary() || len(index.GetConstraints()) != 1 || index.GetConstraints()[0].GetName() != index.GetName() || index.GetConstraints()[0].GetPrimary() || !cmp.Equal(index.GetConstraints()[0].GetColumns(), []string{`"A"`}) {
+		t.Errorf("UK_UNNAMED index = %v, want the unnamed constraint's index", index)
+	}
+	// The phantom the sync used to report: no index anywhere is named after
+	// either constraint, which is what the metadata used to call its index.
+	for _, name := range []string{"PK_REUSED_PK", "UK_REUSED_UK"} {
+		if got := selectOne(t, d.db, fmt.Sprintf(`SELECT COUNT(*) FROM ALL_OBJECTS WHERE OWNER = 'OMNI_APP' AND OBJECT_TYPE = 'INDEX' AND OBJECT_NAME = '%s'`, name)); got != "0" {
+			t.Errorf("%s: ALL_OBJECTS counts %s indexes, want none", name, got)
+		}
+	}
+	// The index a constraint reuses is the object the DBA's own DDL names.
+	if ddl := selectOne(t, d.db, `SELECT TO_CHAR(DBMS_METADATA.GET_DDL('INDEX', 'UK_REUSED_IDX', 'OMNI_APP')) FROM DUAL`); !strings.Contains(ddl, `"UK_REUSED_IDX"`) {
+		t.Errorf("the index's DDL = %q, want it to name UK_REUSED_IDX", ddl)
+	}
+}
+
+// TestSyncSequenceValues pins every fact ALL_SEQUENCES states about a sequence,
+// which the sync carries. The declared START WITH is not one of them: the
+// dictionary has no column for it, and DBMS_METADATA reports LAST_NUMBER in its
+// place, so a sequence created START WITH 100 and advanced once by NEXTVAL is
+// exported as START WITH 200. start therefore stays empty, and last_value
+// carries LAST_NUMBER, the number the dictionary will hand out next.
+func TestSyncSequenceValues(t *testing.T) {
+	d := openTestDriver(t)
+	execCorpus(t, d.db, `
+CREATE USER OMNI_APP NO AUTHENTICATION QUOTA UNLIMITED ON USERS;
+GRANT CREATE SESSION, CREATE SEQUENCE TO OMNI_APP;
+CREATE SEQUENCE OMNI_APP.UP_SEQ START WITH 100 INCREMENT BY 5;
+CREATE SEQUENCE OMNI_APP.DOWN_SEQ START WITH -3 INCREMENT BY -2 MINVALUE -100 MAXVALUE -1;
+CREATE SEQUENCE OMNI_APP.CYCLE_SEQ MAXVALUE 5 CACHE 3 CYCLE;
+CREATE SEQUENCE OMNI_APP.NOCACHE_SEQ NOCACHE;
+CREATE SEQUENCE OMNI_APP.ORDER_SEQ ORDER;
+CREATE SEQUENCE OMNI_APP.KEEP_SEQ KEEP;
+CREATE SEQUENCE OMNI_APP.SCALE_SEQ SCALE EXTEND;
+CREATE SEQUENCE OMNI_APP.SESSION_SEQ SESSION;
+DECLARE
+	V NUMBER;
+BEGIN
+	SELECT OMNI_APP.UP_SEQ.NEXTVAL INTO V FROM DUAL;
+END;
+`)
+
+	metadata, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	schema := onlySchema(t, metadata)
+	// Oracle's default MAXVALUE, which is 28 digits and so no Go integer.
+	const maxValue = "9999999999999999999999999999"
+	want := map[string]*metadatapb.SequenceMetadata{
+		// One NEXTVAL of CACHE 20 INCREMENT BY 5 from 100 moves the number the
+		// dictionary will hand out to 200.
+		"UP_SEQ":    {Name: "UP_SEQ", MinValue: "1", MaxValue: maxValue, Increment: "5", CacheSize: "20", LastValue: "200"},
+		"DOWN_SEQ":  {Name: "DOWN_SEQ", MinValue: "-100", MaxValue: "-1", Increment: "-2", CacheSize: "20", LastValue: "-3"},
+		"CYCLE_SEQ": {Name: "CYCLE_SEQ", MinValue: "1", MaxValue: "5", Increment: "1", Cycle: true, CacheSize: "3", LastValue: "1"},
+		// NOCACHE is a cache size of 0.
+		"NOCACHE_SEQ": {Name: "NOCACHE_SEQ", MinValue: "1", MaxValue: maxValue, Increment: "1", CacheSize: "0", LastValue: "1"},
+		"ORDER_SEQ":   {Name: "ORDER_SEQ", MinValue: "1", MaxValue: maxValue, Increment: "1", Order: true, CacheSize: "20", LastValue: "1"},
+		"KEEP_SEQ":    {Name: "KEEP_SEQ", MinValue: "1", MaxValue: maxValue, Increment: "1", Keep: true, CacheSize: "20", LastValue: "1"},
+		"SCALE_SEQ":   {Name: "SCALE_SEQ", MinValue: "1", MaxValue: maxValue, Increment: "1", Scale: true, Extend: true, CacheSize: "20", LastValue: "1"},
+		"SESSION_SEQ": {Name: "SESSION_SEQ", MinValue: "1", MaxValue: maxValue, Increment: "1", Session: true, CacheSize: "20", LastValue: "1"},
+	}
+	got := make(map[string]*metadatapb.SequenceMetadata, len(schema.Sequences))
+	for _, sequence := range schema.Sequences {
+		got[sequence.GetName()] = sequence
+	}
+	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
+		t.Errorf("sequences (-want +got):\n%s", diff)
+	}
+	// What the dictionary states, as the protos hold it: a release that gains a
+	// column this test does not read fails here rather than in a golden.
+	if got, want := selectOne(t, d.db, `SELECT COUNT(*) FROM ALL_TAB_COLS WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES' AND COLUMN_NAME NOT IN ('SEQUENCE_OWNER', 'SEQUENCE_NAME', 'MIN_VALUE', 'MAX_VALUE', 'INCREMENT_BY', 'CYCLE_FLAG', 'ORDER_FLAG', 'CACHE_SIZE', 'LAST_NUMBER', 'SCALE_FLAG', 'EXTEND_FLAG', 'SHARDED_FLAG', 'SESSION_FLAG', 'KEEP_VALUE')`), "0"; got != want {
+		t.Errorf("ALL_SEQUENCES has %s columns the sync does not read, want %s", got, want)
+	}
+	// Oracle's own exporter has no START WITH either, and puts LAST_NUMBER in
+	// its place: the declared 100 is gone, and 200 is what both the metadata's
+	// last_value and the DDL say.
+	if ddl := selectOne(t, d.db, `SELECT TO_CHAR(DBMS_METADATA.GET_DDL('SEQUENCE', 'UP_SEQ', 'OMNI_APP')) FROM DUAL`); !strings.Contains(ddl, "START WITH 200") {
+		t.Errorf("the sequence's DDL = %q, want it to say START WITH 200", ddl)
+	}
+}
+
+// TestSequenceProjection pins what the sync reads out of ALL_SEQUENCES: a fact
+// the view has a column for, as text when it is a number, and a fact it has no
+// column for as NULL, so a release older than the fact neither fails the sync
+// nor loses the facts it does have. The pinned server has every column; the
+// case for a release that does not is what keeps this from being a guess at
+// which release added which flag.
+func TestSequenceProjection(t *testing.T) {
+	base := []string{"SEQUENCE_OWNER", "SEQUENCE_NAME", "MIN_VALUE", "MAX_VALUE", "INCREMENT_BY", "CYCLE_FLAG", "ORDER_FLAG", "CACHE_SIZE", "LAST_NUMBER"}
+	tests := []struct {
+		name    string
+		columns []string
+		want    string
+	}{
+		{
+			name:    "the facts a release before sharded sequences had",
+			columns: base,
+			want:    "SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), NULL, NULL, NULL, NULL, NULL",
+		},
+		{
+			name:    "the pinned server, with every column",
+			columns: append(base, "SHARDED_FLAG", "SESSION_FLAG", "KEEP_VALUE", "SCALE_FLAG", "EXTEND_FLAG"),
+			want:    "SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			columns := make(map[string]bool, len(tt.columns))
+			for _, column := range tt.columns {
+				columns[column] = true
+			}
+			if got := sequenceProjection(columns); got != tt.want {
+				t.Errorf("projection = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// tableByName returns the synced table of the name.
+func tableByName(t *testing.T, schema *metadatapb.SchemaMetadata, name string) *metadatapb.TableMetadata {
+	t.Helper()
+	for _, table := range schema.Tables {
+		if table.GetName() == name {
+			return table
+		}
+	}
+	t.Fatalf("table %q is missing from %v", name, namesOfTables(schema.Tables))
+	return nil
+}
+
+// selectOne runs a query of one row and one column, and returns its value as
+// text.
+func selectOne(t *testing.T, db *sql.DB, query string) string {
+	t.Helper()
+	var value sql.NullString
+	if err := db.QueryRow(query).Scan(&value); err != nil {
+		t.Fatalf("%s: %v", query, err)
+	}
+	return value.String
 }
 
 // onlySchema returns the one schema a database has in Oracle, whose name is the
