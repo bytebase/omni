@@ -117,6 +117,35 @@ differ. Verified dialect facts, each a recorded engine verdict:
 - **TiDB's boundary fix**: `tidb/completion` is deleted. Bytebase must resolve the signals itself;
   its pin must not move to this branch until its adapter does.
 
+## Open findings at parking
+
+The PR is parked on the migration scope, not on design: three review rounds ran and every finding
+of the first two was fixed with a corpus case. Six findings of the third round are open and
+reproduce at the parked head, all in `mysql/parser/complete_context.go`:
+
+1. `DELETE a FROM db.t AS a WHERE |` (and `DELETE FROM a USING db.t AS a WHERE |`) reports
+   `DMLTarget` as the alias `a` instead of `db.t` with alias `a`, and adds `a` to the scope as if it
+   were its own relation. A target-list name has to resolve against the parsed `FROM`/`USING`
+   references.
+2. `SELECT * FROM t1, t2 JOIN t3 ON EXISTS (SELECT 1 FROM t4 JOIN t5 ON t4.a = t5.a) AND |` keeps
+   the whole `FROM` scope: the nearest `ON` belongs to the completed subquery, and when it fails the
+   frame checks the search never falls back to the frame's own condition.
+3. `SELECT 1 AS outer_alias WHERE EXISTS ((SELECT a AS inner_first FROM t) UNION (SELECT b AS
+   inner_second FROM u) ORDER BY |)` reports `outer_alias`: with both arms parenthesized their
+   frames have closed, so the enclosing frame's depth decides which set operation the global clause
+   belongs to. The block has to be found from the cursor, not from a surviving frame.
+4. `INSERT INTO dst VALUE (1) ON DUPLICATE KEY UPDATE a = |` binds `VALUE` as the destination's
+   alias: the clause-boundary list holds `kwVALUES` but not `kwVALUE`, which the strict parser takes.
+5. `CREATE PROCEDURE p() BEGIN WITH c AS (SELECT 1 AS a) UPDATE dst SET a = |; END` has neither a
+   scope nor a DML target: once `mainStart` moves to the body's `WITH`, that clause is never skipped
+   before the DML dispatch.
+6. `SELECT * FROM t1, JSON_TABLE(|, '$[*]' COLUMNS (x INT PATH '$')) AS jt, t2` offers `jt` and
+   `t2` to the function's input expression, which can name only `t1`: the argument span's restricted
+   visibility is applied to outer frames but not to the cursor's own frame.
+
+Fixing those six and re-running the corpus, the parity replay, and `go test ./mysql/...` is the
+whole of the next step.
+
 ## What a resumed session must do first
 
 1. **Port the parent's reader as it stands after this PR merges.** Copy `complete_context.go` and
