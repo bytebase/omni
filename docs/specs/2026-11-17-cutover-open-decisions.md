@@ -9,6 +9,9 @@ fixes what a driver must do. The cutover proofs then cut engines over for real: 
 cassandra and oracle have reported, and mssql was still running when this was written. Each report
 ends with items that are not measurements but choices.
 
+**Amended 2026-11-17.** Ten proofs have reported: redis, spanner and elasticsearch in the dispatch
+plan's revision (#1390), then mssql, then doris. Only MariaDB and DynamoDB are still inside.
+
 This note is for the person opening the Bytebase pin-bump PR. It says which choices are already
 settled, which are theirs, and what a deferral costs. The measured costs themselves — adapter lines,
 deleted lines, product-side files — live in the dispatch plan's §3 ("Measured cost") and are not
@@ -28,10 +31,13 @@ restated here.
 | 8 | Cassandra's SSH, no-op `Dump`, dead read-only branch | settled: recorded in §9 | nobody |
 | 9 | Oracle's private-link guard | open, must land before the oracle pin | the oracle cutover |
 | 10 | Oracle's `GetVersion` | settled: the metadata is the fallback | nobody |
+| 11 | `MaximumSQLResultSize` of 0 | open, one mapping to pick | the doris pin bump |
+| 12 | A procedure created qualified syncs qualified | open, needs a re-recorded golden to change | the doris pin bump, if the product wants bare names |
+| 13 | DynamoDB's `verify_tls_certificate` mapping | open, must land before the dynamodb pin | the dynamodb cutover |
 
 A pin bump that changes nothing but the `go.mod` line and an adapter body takes 1, 3, 4 and 7 as
-written, adopts 2 only where it removes `GetDB`, owns 6 for cassandra and 9 for oracle, and leaves 5
-to the PR that first lets a concrete driver type go.
+written, adopts 2 only where it removes `GetDB`, owns 6 for cassandra, 9 for oracle, 11 and 12 for
+doris and 13 for dynamodb, and leaves 5 to the PR that first lets a concrete driver type go.
 
 ## 1. `QueryConn(ctx, conn *sql.Conn, …)`'s parameter is dead for pg
 
@@ -394,6 +400,112 @@ The one caller, the prior-backup DML transform, parses `instance.Metadata.GetVer
 Recorded so nobody re-adds a driver version accessor for that caller. If the stored version is ever
 empty, the contract's fallback already covers sync; the transform's `(\d+)\.(\d+)` parse matches the
 metadata string and the old banner identically.
+## 11. `MaximumSQLResultSize` of 0 means the opposite on each side
+
+### What the proof measured
+
+Bytebase's `MaximumSQLResultSize` becomes `driver.QueryOptions.MaxResultBytes`, and the two sides
+read zero differently. Bytebase's driver compared the running size against the cap as given, so 0
+meant a cap of zero bytes and the result came back truncated. The contract reads 0 as no cap
+(`driver/query.go:38-40`, and every reader tests `maxResultBytes > 0`: `mysql/driver/query.go:269`,
+`doris/driver/query.go:187`), so the same configuration now returns every row.
+
+Nothing breaks today: the result policy always sets a positive value. The difference is latent, and
+its direction is the bad one — a policy row that loses its size turns a zero-byte cap into an
+unbounded read, so a policy bypass surfaces as a query that suddenly returns more rows.
+
+### Options
+
+- **Refuse a non-positive value in the adapter.** `maximum SQL result size must be positive`: the
+  product never sends 0, so nothing that works today stops working, and the fail-closed direction is
+  kept.
+- **Pass it through.** The contract's answer is honest, and a caller that meant "no rows" has no way
+  to say it. Invisible until a policy value goes missing.
+- **Change the contract.** A separate `NoCap` field or a pointer distinguishes the two meanings, at
+  the price of a contract change for a value no caller produces.
+- **Map 0 to the old cap in the adapter.** Pretends the driver can cap at zero; the closest it can
+  come is refusing to read the statement, which is the first option with an extra fiction.
+
+### Recommendation
+
+Refuse it in the adapter, three lines and one error string. It is the only option that neither
+changes the contract for a case that does not occur nor turns a missing cap into no cap, and it is
+the mirror of the direction the mssql proof took for an unsupported mode. Record the contract's
+0-means-no-cap as deliberate: the difference in §3 is about *where* a positive cap cuts, and this
+one is about what 0 asks for, so neither subsumes the other.
+
+### If nobody decides
+
+The adapter passes 0 through, and the first workspace whose result policy has no size returns every
+row of a query while the operator believes a cap is set. No test catches it, because every fixture
+sets a positive value, so it reads as a regression in the policy rather than in the mapping.
+
+## 12. Doris's `Dump` was not replayable, and one parser fixture moves
+
+### What the proof measured
+
+Two changes the doris pin bump owes, neither of them a choice:
+
+- **The `Dump` output.** The `SET @OLD_UNIQUE_CHECKS …` prologue and epilogue are gone, the
+  placeholder `CREATE VIEW … 1 AS col` that stood in for a view definition is gone, and procedures,
+  functions and sync materialized views now appear. The old text could not be replayed at all, so
+  this is a fix and not a format move, and it belongs in the release note beside the pin rather than
+  in a support case.
+- **One parser expectation.** `backend/plugin/parser/doris/limit_test.go:197` holds
+  `SELECT * FROM t # hash comment`. Doris refuses `#`, so omni's limit rewrite wraps the statement
+  instead of splicing the limit in front of the comment, and the expected text changes with the pin.
+
+### Still open: a procedure created qualified syncs qualified
+
+A procedure created as `probe.p1` syncs as `probe.p1`, the server's own text, where `mysql/driver`
+records the bare name. Changing it is a `doris/driver` edit plus a re-recorded sync golden
+(`OMNI_RECORD=1`), so it is a driver decision rather than adapter code: the doris pin bump either
+normalizes the name or records that a synced procedure keeps its qualification. Normalize it when a
+consumer needs the bare name — a diff against another engine's schema, or a lookup by procedure
+name; until then the server's text is the truer record.
+
+## 13. DynamoDB keeps verifying TLS whatever the data source's flag says
+
+### What the proof measured
+
+Bytebase's DynamoDB driver passed no `http.Client` to the AWS SDK, so the SDK's own transport
+verified every `https` endpoint and a certificate no root signed failed the connection. It never
+read `verify_tls_certificate`: the field exists on every data source, but this driver ignored it, so
+an instance whose *Verify server certificate* was off still verified.
+
+Mapping the data source's TLS fields onto `driver.Config.TLS` for every engine weakens this engine
+by default, because unset is the default and `util.GetTLSConfig` answers
+`&tls.Config{InsecureSkipVerify: true}` for it (`backend/plugin/db/util/ssl.go:120-125`). omni is not
+where that is settled: `Config.TLS` non-nil means the caller's settings are used as written, and
+`dynamodb/driver` reaches the endpoint over the SDK's own transport when it is nil, which verifies
+(`TestHTTPSWithoutTLSMaterialVerifiesTheCertificate`). The other cloud drivers answer the same way:
+when `Config.TLS` is nil, `cosmosdb/driver`, `spanner/driver` and `elasticsearch/driver` (after
+#1365) each leave the client library's own transport in place and install no skip of their own. So
+this is the contract's default, not a DynamoDB one. The rest of the DynamoDB proof had not reported
+when this was written; its TLS item is recorded here because it gates the pin, not the driver.
+
+### Options
+
+- **Verify in the adapter, whatever the flag says.** The adapter supplies a `*tls.Config` that
+  verifies — the data source's `ssl_ca` when it has one, the system roots otherwise — and does not
+  translate `verify_tls_certificate`. The checkbox stays inert for this engine, as it is today.
+- **Honor the flag.** The adapter passes `util.GetTLSConfig`'s answer, and an instance whose owner
+  never touched the checkbox starts accepting any certificate on the next sync and every query.
+  This is the option the cutover must not take silently.
+- **Let the product say "unset".** A tri-state, or an acknowledgement next to an explicit "skip
+  verification", so the adapter can honor an opt-out the user made rather than one they never saw.
+
+### Recommendation
+
+Verify. The adapter builds its TLS config with verification on and reads `verify_tls_certificate`
+only once the product can distinguish an explicit opt-out from an unset default. Cost: the adapter's
+TLS mapping, and the checkbox continuing to do nothing for DynamoDB as it does nothing today.
+
+### If nobody decides
+
+The first DynamoDB pin bump ships a TLS weakening no test names: every instance whose *Verify
+server certificate* was left off, which is the default, silently accepts any certificate on the next
+sync and every query, and the change reads as a config mapping rather than as a security decision.
 
 ## Settled, not yours to choose
 
@@ -406,13 +518,26 @@ that reopens them is a different change:
   helper stay; trino and mysql both measured about 120 lines for the result conversion.
 - The pin bump changes product output, not just plumbing: trino's dump gains a `CREATE SCHEMA IF NOT
   EXISTS` prefix and views (omni `#1280`), and its `DECIMAL` arrives as text because `driver.Value`
-  has no exact-decimal kind. Neither is a cutover choice.
+  has no exact-decimal kind. Neither is a cutover choice. Doris's dump is the same category with the
+  sign reversed: the pin bump replaces text that could not be replayed (§12).
 - No omni driver behavior gap surfaced in the five landed proofs. The one omni defect is the
   `cassandra/driver` comment that promises the opposite of its code (§6); the gh-ost binlog probe
   and the plancheck interface are Bytebase product work, and the truncation difference is a
-  contract decision already made.
+  contract decision already made. **Superseded 2026-11-17 by #1387:** that comment was corrected on
+  main (`3f1e34d8d`), so main no longer carries the false claim §6 describes.
 
 ## Still in flight
+
+**Superseded 2026-11-17.** The mssql proof has reported: the dispatch plan's §3 carries its measured
+cost (497 adapter lines, 8 caller files, all of them the shared `GetDB` retirement) and §6 its five
+driver defects and the moved `Dump` text. Its Azure AD half is no longer a contract question — #1389
+added `driver.Config.TokenProvider`, which `mssql/driver` hands to the client's security-token
+connector, and the adapter passes a closure over `azidentity` returning the
+`database.windows.net` token; the
+[contract's Decisions](2026-11-15-driver-contract-design.md#decisions) and the
+[parity note](2026-11-17-driver-method-parity.md#dialer-and-probe-support) own that wording.
+The masking question below is still unrecorded: the contract's Decisions still list `MaskingEnabled`
+as open for the query slice.
 
 The mssql proof had not reported when this was written, so none of its choices are recorded here.
 The dispatch plan's measured section already carries two of its facts: masking and batch delegation

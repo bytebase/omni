@@ -704,6 +704,10 @@ func (d *Driver) getEventList(ctx context.Context, databaseName string) ([]*meta
 	defer rows.Close()
 
 	var events []*metadatapb.EventMetadata
+	// A database created again under a dropped one's name lists that database's
+	// event until OceanBase forgets it, and information_schema cannot tell the two
+	// apart. The event's name is the same, so the sync keeps the first.
+	seen := make(map[string]bool)
 	for rows.Next() {
 		r := &eventRow{}
 		if err := rows.Scan(
@@ -723,6 +727,10 @@ func (d *Driver) getEventList(ctx context.Context, databaseName string) ([]*meta
 		); err != nil {
 			return nil, err
 		}
+		if seen[r.name] {
+			continue
+		}
+		seen[r.name] = true
 		events = append(events, &metadatapb.EventMetadata{
 			Name:       r.name,
 			Definition: createEventStatement(r),
