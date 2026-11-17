@@ -373,7 +373,6 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) 
 SELECT
 	pgv.schemaname,
 	pgv.viewname,
-	pgv.definition,
 	obj_description(pc.oid) AS comment
 FROM pg_catalog.pg_views AS pgv
 JOIN pg_namespace AS pns ON pns.nspname = pgv.schemaname
@@ -384,31 +383,83 @@ ORDER BY pgv.schemaname, pgv.viewname;`
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	type viewRow struct {
+		schemaName string
+		view       *metadatapb.ViewMetadata
+	}
+	var views []viewRow
 	for rows.Next() {
 		view := &metadatapb.ViewMetadata{}
 		var schemaName string
-		var def, comment sql.NullString
-		if err := rows.Scan(&schemaName, &view.Name, &def, &comment); err != nil {
+		var comment sql.NullString
+		if err := rows.Scan(&schemaName, &view.Name, &comment); err != nil {
+			rows.Close()
 			return nil, err
 		}
-		// A NULL definition means the account cannot read the view's text; the
-		// sync refuses rather than record a view it cannot recreate.
-		if !def.Valid {
-			return nil, fmt.Errorf("schema %q view %q has empty definition; please check whether proper privileges have been granted to Bytebase", schemaName, view.Name)
-		}
-		view.Definition = def.String
 		if comment.Valid {
 			view.Comment = comment.String
 		}
-		key := tableKey{Schema: schemaName, Table: view.Name}
-		view.Columns = columnMap[key]
-		viewMap[schemaName] = append(viewMap[schemaName], view)
+		views = append(views, viewRow{schemaName: schemaName, view: view})
 	}
-	if err := rows.Err(); err != nil {
+	err = rows.Err()
+	rows.Close()
+	if err != nil {
 		return nil, err
 	}
+
+	// PG_VIEWS states a definition in a varchar(256), so a long view's text is
+	// cut short there; SHOW VIEW states it whole. The views are read in the
+	// order the catalog listed them, so a recording holds one order.
+	for _, row := range views {
+		definition, err := showView(txn, row.schemaName, row.view.Name)
+		if err != nil {
+			return nil, err
+		}
+		row.view.Definition = definition
+		key := tableKey{Schema: row.schemaName, Table: row.view.Name}
+		row.view.Columns = columnMap[key]
+		viewMap[row.schemaName] = append(viewMap[row.schemaName], row.view)
+	}
 	return viewMap, nil
+}
+
+// showView reads a view's whole definition, which is what a synced view needs to
+// be recreated. PG_VIEWS truncates it, and a view the account cannot read
+// states none: the sync refuses rather than record a view it cannot recreate.
+func showView(txn *sql.Tx, schemaName, viewName string) (string, error) {
+	rows, err := txn.Query(fmt.Sprintf("SHOW VIEW %s.%s;", quoteIdent(schemaName), quoteIdent(viewName)))
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	if !rows.Next() {
+		return "", fmt.Errorf("schema %q view %q has empty definition; please check whether proper privileges have been granted to Bytebase", schemaName, viewName)
+	}
+	columns, err := rows.Columns()
+	if err != nil {
+		return "", err
+	}
+	values := make([]any, len(columns))
+	dest := make([]any, len(columns))
+	for i := range values {
+		dest[i] = &values[i]
+	}
+	if err := rows.Scan(dest...); err != nil {
+		return "", err
+	}
+	for _, value := range values {
+		switch text := value.(type) {
+		case string:
+			if text != "" {
+				return text, nil
+			}
+		case []byte:
+			if len(text) > 0 {
+				return string(text), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("schema %q view %q has empty definition; please check whether proper privileges have been granted to Bytebase", schemaName, viewName)
 }
 
 // getIndexes reads the database's indexes with their key expressions. Redshift

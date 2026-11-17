@@ -400,7 +400,13 @@ func stripDatashareQualifier(statement, databaseName string) string {
 	for i, token := range tokens {
 		switch token.Type {
 		case '(':
-			parens = append(parens, paren{expression: i > 0 && opensExpression(tokens[i-1]), inRelation: inRelation})
+			expression := i > 0 && opensExpression(tokens[i-1])
+			parens = append(parens, paren{expression: expression, inRelation: inRelation})
+			if expression {
+				// An argument is not a relation: UNNEST(shared.products) holds
+				// a column qualifier, not the database's name.
+				inRelation = false
+			}
 			continue
 		case ')':
 			if len(parens) > 0 {

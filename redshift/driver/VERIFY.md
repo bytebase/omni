@@ -154,7 +154,7 @@ the reads, then the writes, then the estimate.
 
 | order | test | what it records |
 | --- | --- | --- |
-| 1 | `TestSyncDatabase` | the catalog and `pg_catalog` queries and the metadata they build: schemas, tables, columns, indexes, foreign keys, views, comments, row estimates |
+| 1 | `TestSyncDatabase` | the catalog and `pg_catalog` queries and the metadata they build: schemas, tables, columns, indexes, foreign keys, views with their `SHOW VIEW` definitions, comments, row estimates |
 | 2 | `TestSyncInstance` | `SELECT version()`, `pg_user`, `pg_database`, `SVV_DATASHARES`; the excluded databases |
 | 3 | `TestQuery` | statement classification (SELECT/SHOW/EXPLAIN vs commands), every value kind, the LIMIT rewrite, the EXPLAIN text, `MaxResultBytes` truncation, `QueryOptions.Schema`'s search path, error-halting |
 | 4 | `TestExecute` | one transaction with its BEGIN/COMMIT, the rollback of a failing script, autocommit leaving earlier statements committed |
@@ -305,7 +305,7 @@ mutation in the omni worktree, run the parity test, and require a failure; then
 
 ## Differences from Bytebase's driver, each to confirm on a cluster
 
-The port is close to `backend/plugin/db/redshift` and diverges in twelve places.
+The port is close to `backend/plugin/db/redshift` and diverges in fourteen places.
 Every one is a decision the recording settles.
 
 | difference | why |
@@ -322,6 +322,8 @@ Every one is a decision the recording settles.
 | a datashare's columns are read in ordinal order | `SVV_ALL_COLUMNS` answers in no order a tape can hold, and the catalog consumes the slice's order |
 | an expression's `FROM` is not a relation list, and the list ends at the clause that follows it, `QUALIFY` included | `EXTRACT(x FROM db.t)` holds a `FROM` that opens an argument, and `QUALIFY` after a `FROM` holds column qualifiers, so the datashare rewrite leaves both alone |
 | a synced column keeps its numeric precision and scale | `data_type` states `numeric` alone, so `numeric(12,2)` and `numeric(8,4)` synced alike |
+| a view's definition is read from `SHOW VIEW`, not `PG_VIEWS.definition` | `PG_VIEWS` states it in a varchar(256) and truncates a longer one, and a truncated definition is not the view; the recording settles what `SHOW VIEW` answers and that a long view's text comes back whole |
+| a procedure call is read as a query though it is not read-only | `CALL` answers its OUT and INOUT parameters as one row, which the classification now says independently of whether the statement may run read-only |
 
 ## What would unblock it
 

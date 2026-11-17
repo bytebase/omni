@@ -257,6 +257,15 @@ func TestValidateQuery(t *testing.T) {
 			wantReturnsData:    true,
 			wantErr:            false,
 		},
+		// A procedure call is not read-only, and its OUT and INOUT parameters
+		// come back as a row.
+		{
+			name:               "CALL",
+			statement:          "CALL app.load_facts(1)",
+			wantCanRunReadOnly: false,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
 		// DESC and DESCRIBE answer rows of the object's shape.
 		{
 			name:               "DESC DATASHARE",

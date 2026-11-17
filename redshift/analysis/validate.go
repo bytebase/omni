@@ -23,21 +23,22 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 	}
 
 	seen := false
+	canRunReadOnly := true
 	returnsData = true
 	for _, stmt := range parsed {
 		if stmt.Empty() {
 			continue
 		}
 		seen = true
-		readOnly, stmtReturnsData := validateEditorStatement(stmt.AST)
-		if !readOnly {
-			return false, false, nil
+		stmtReadOnly, stmtReturnsData := validateEditorStatement(stmt.AST)
+		if !stmtReadOnly {
+			canRunReadOnly = false
 		}
 		if !stmtReturnsData {
 			returnsData = false
 		}
 	}
-	return seen, returnsData, nil
+	return seen && canRunReadOnly, returnsData, nil
 }
 
 func validateEditorStatement(node ast.Node) (bool, bool) {
@@ -57,6 +58,10 @@ func validateEditorStatement(node ast.Node) (bool, bool) {
 		return true, true
 	case *ast.RedshiftShowStmt, *ast.RedshiftDescStmt, *ast.VariableShowStmt:
 		return true, true
+	case *ast.CallStmt:
+		// A procedure's OUT and INOUT parameters come back as one row, and the
+		// call itself is not a read-only statement.
+		return false, true
 	case *ast.VariableSetStmt:
 		return true, false
 	default:

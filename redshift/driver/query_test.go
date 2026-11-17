@@ -365,6 +365,11 @@ func TestStripDatashareQualifier(t *testing.T) {
 			want:      `SELECT * FROM (SELECT 1) AS x, t`,
 		},
 		{
+			name:      "a function argument is not a relation list",
+			statement: `SELECT up.product FROM app.orders AS shared, UNNEST(shared.products) AS up(product)`,
+			want:      `SELECT up.product FROM app.orders AS shared, UNNEST(shared.products) AS up(product)`,
+		},
+		{
 			name:      "QUALIFY ends the relation list",
 			statement: `SELECT shared.id FROM app.a AS shared, app.b AS b QUALIFY ROW_NUMBER() OVER (PARTITION BY shared.id ORDER BY shared.id) = 1`,
 			want:      `SELECT shared.id FROM app.a AS shared, app.b AS b QUALIFY ROW_NUMBER() OVER (PARTITION BY shared.id ORDER BY shared.id) = 1`,
