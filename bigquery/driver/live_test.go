@@ -240,6 +240,19 @@ func TestLiveQuery(t *testing.T) {
 		t.Errorf("Rows = %+v, want the row the pipe query returned", piped[0].Rows)
 	}
 
+	// The cap also holds for a statement the analysis cannot read, which is not
+	// rewritten: the read stops at the row it asked for.
+	pipedLimited, err := session.Query(ctx, "SELECT n FROM UNNEST([1, 2, 3]) AS n |> WHERE n > 1", driver.QueryOptions{Limit: 1})
+	if err != nil {
+		t.Fatalf("Query of a pipe statement with Limit: %v", err)
+	}
+	if len(pipedLimited) != 1 || pipedLimited[0].Err != nil {
+		t.Fatalf("pipe query with Limit results = %+v", pipedLimited)
+	}
+	if len(pipedLimited[0].Rows) != 1 {
+		t.Errorf("rows = %d, want the cap to stop the read at one", len(pipedLimited[0].Rows))
+	}
+
 	limited, err := session.Query(ctx, "SELECT 1 AS n UNION ALL SELECT 2; SELECT 3 AS n UNION ALL SELECT 4", driver.QueryOptions{Limit: 1})
 	if err != nil {
 		t.Fatalf("Query with Limit: %v", err)

@@ -122,8 +122,10 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 	return s.readRows(ctx, it, opts)
 }
 
-// readRows decodes the rows the iterator returns, up to opts.MaxResultBytes, and
-// carries the plan of the job that returned them.
+// readRows decodes the rows the iterator returns, up to opts.Limit rows and
+// opts.MaxResultBytes bytes, and carries the plan of the job that returned them.
+// A query the analysis read was rewritten to cap its own rows; a statement it
+// could not classify runs as it was written, so the cap is applied here too.
 func (s *session) readRows(ctx context.Context, it *bigquery.RowIterator, opts driver.QueryOptions) (*driver.Result, error) {
 	result := &driver.Result{}
 	var totalBytes int64
@@ -151,6 +153,9 @@ func (s *session) readRows(ctx context.Context, it *bigquery.RowIterator, opts d
 			row = append(row, convertValue(value, fieldType))
 		}
 		result.Rows = append(result.Rows, row)
+		if opts.Limit > 0 && len(result.Rows) >= opts.Limit {
+			break
+		}
 		if opts.MaxResultBytes > 0 {
 			totalBytes += driver.RowByteSize(row)
 			if totalBytes > opts.MaxResultBytes {

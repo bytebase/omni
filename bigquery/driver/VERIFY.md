@@ -157,7 +157,7 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 | --- | --- | --- |
 | 1 | `TestSyncDatabase` | the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the dataset's table listing, each table's metadata read, and the metadata it builds |
 | 2 | `TestSyncInstance` | `datasets.list` and the order the sync reports |
-| 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
+| 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows and its own `Limit` cap, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
 | 4 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
 | 5 | `TestLiveSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
 
