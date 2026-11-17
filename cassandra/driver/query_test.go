@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	gocql "github.com/apache/cassandra-gocql-driver/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/cassandra/internal/testcontainer"
@@ -246,7 +247,7 @@ func TestQueryWithoutALimit(t *testing.T) {
 }
 
 // TestQueryMaxResultBytes holds the cap to the bytes the rows encode to: the
-// reading stops at the first doubling past it and says so.
+// reading stops at the first row that takes the kept rows past it.
 func TestQueryMaxResultBytes(t *testing.T) {
 	d := openDriver(t)
 	executeCorpus(t, d, mustRead(t, filepath.Join("testdata", "corpus.cql")))
@@ -258,8 +259,9 @@ func TestQueryMaxResultBytes(t *testing.T) {
 	require.Len(t, results, 1)
 	require.NoError(t, results[0].Err)
 	require.True(t, results[0].Truncated)
-	// The header is 22 bytes and a row about 15, so the fourth row crosses 60.
-	require.Len(t, results[0].Rows, 4)
+	// The header is 22 bytes and a row about 15, so the third row crosses 60
+	// and is the last one kept.
+	require.Len(t, results[0].Rows, 3)
 }
 
 // TestQueryError holds a failing statement to its own Result: the server's
@@ -279,6 +281,13 @@ func TestQueryError(t *testing.T) {
 	require.Contains(t, results[1].Err.Error(), "failed to fetch row data")
 	require.Contains(t, results[1].Err.Error(), "Undefined column name missing")
 	require.Equal(t, "SELECT missing FROM omni_rows", results[1].Statement)
+	// The server's error keeps the code and message a caller reads off it, as
+	// the package doc says.
+	var requestErr gocql.RequestError
+	require.ErrorAs(t, results[1].Err, &requestErr)
+	// 8704 is Cassandra's 0x2200, INVALID.
+	require.Equal(t, 8704, requestErr.Code())
+	require.Contains(t, requestErr.Message(), "Undefined column name missing")
 }
 
 // TestQueryEmpty holds an empty script to no results.

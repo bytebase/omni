@@ -586,7 +586,7 @@ var knownScanTypes = map[string]reflect.Type{
 var anyType = reflect.TypeOf((*any)(nil)).Elem()
 
 func knownScanType(t reflect.Type) bool {
-	return namedScanType(t.String()) != nil
+	return t != nil && namedScanType(t.String()) != nil
 }
 
 // namedScanType rebuilds a recorded scan type, including the pointer a

@@ -3,10 +3,6 @@
 // server's metadata into omni/metadata, dumps it as DDL, and runs interactive
 // queries and change scripts.
 //
-// Result.AffectedRows is 0 for a statement that reports no count, such as DDL
-// or SET: database/sql states a count for every statement and cannot tell a
-// statement that has none from one that changed no rows.
-//
 // Ping on a Config.Database the server does not have fails before any statement
 // reaches it, with pgx's own error, a *pgconn.PgError whose SQLSTATE is 3D000.
 package driver

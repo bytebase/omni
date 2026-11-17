@@ -432,8 +432,8 @@ func TestSessionTimestampZonePrecisionAndTimetz(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(results) != 2 || results[0].AffectedRows == nil || *results[0].AffectedRows != 0 {
-		t.Fatalf("SET result = %+v", results)
+	if len(results) != 2 || results[0].AffectedRows != nil {
+		t.Fatalf("SET result = %+v, want no affected count", results)
 	}
 	row := results[1].Rows[0]
 
@@ -457,6 +457,95 @@ func TestSessionTimestampZonePrecisionAndTimetz(t *testing.T) {
 	}
 	if row[5].Kind != driver.String || row[5].String != "12:34:56.123000+08" {
 		t.Fatalf("timetz = %+v, want zero-padded 12:34:56.123000+08", row[5])
+	}
+}
+
+func TestSessionAffectedRowsFromCommandTag(t *testing.T) {
+	ws := startWireServer(t, "UTC", func(_ uint32, sql string, _ [][]byte) wireReply {
+		sql = strings.TrimSpace(sql)
+		switch {
+		case strings.HasPrefix(sql, "CREATE TABLE t_archive"):
+			return wireReply{tags: []string{"SELECT 1"}}
+		case strings.HasPrefix(sql, "CREATE TABLE"):
+			return wireReply{tags: []string{"CREATE TABLE"}}
+		case strings.HasPrefix(sql, "CREATE INDEX"):
+			return wireReply{tags: []string{"CREATE INDEX"}}
+		case strings.HasPrefix(sql, "ALTER TABLE"):
+			return wireReply{tags: []string{"ALTER TABLE"}}
+		case strings.HasPrefix(sql, "TRUNCATE"):
+			return wireReply{tags: []string{"TRUNCATE TABLE"}}
+		case strings.HasPrefix(sql, "INSERT"):
+			return wireReply{tags: []string{"INSERT 0 3"}}
+		case strings.HasPrefix(sql, "UPDATE"):
+			return wireReply{tags: []string{"UPDATE 0"}}
+		case strings.HasPrefix(sql, "DELETE FROM t RETURNING"):
+			return wireReply{
+				fields: []pgproto3.FieldDescription{{Name: []byte("id"), DataTypeOID: pgtype.Int4OID, TypeModifier: -1}},
+				rows:   [][][]byte{{[]byte("1")}, {[]byte("2")}},
+				tags:   []string{"DELETE 2"},
+			}
+		case strings.HasPrefix(sql, "DELETE"):
+			return wireReply{tags: []string{"DELETE 2"}}
+		case strings.HasPrefix(sql, "COPY"):
+			return wireReply{tags: []string{"COPY 4"}}
+		default:
+			return wireReply{tags: []string{"SET"}}
+		}
+	})
+
+	d, err := Open(context.Background(), ws.config())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+
+	sess, err := d.Session(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer sess.Close()
+
+	results, err := sess.Query(context.Background(), `CREATE TABLE t (id int);
+CREATE INDEX t_id ON t(id);
+ALTER TABLE t ADD COLUMN note text;
+TRUNCATE t;
+INSERT INTO t VALUES (1), (2), (3);
+UPDATE t SET note = 'x' WHERE false;
+DELETE FROM t RETURNING id;
+DELETE FROM t WHERE id = 1;
+COPY t TO '/tmp/t';
+CREATE TABLE t_archive AS SELECT 1;
+SET search_path TO public;`, driver.QueryOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	count := func(n int64) *int64 { return &n }
+	want := []*int64{
+		nil,      // CREATE TABLE
+		nil,      // CREATE INDEX
+		nil,      // ALTER TABLE
+		nil,      // TRUNCATE
+		count(3), // INSERT
+		count(0), // UPDATE 0
+		count(2), // DELETE ... RETURNING, whose rows are drained
+		count(2), // DELETE
+		count(4), // COPY
+		count(1), // CREATE TABLE AS reports the SELECT's count
+		nil,      // SET
+	}
+	if len(results) != len(want) {
+		t.Fatalf("got %d results, want %d: %+v", len(results), len(want), results)
+	}
+	for i, w := range want {
+		got := results[i].AffectedRows
+		switch {
+		case w == nil && got != nil:
+			t.Errorf("statement %d (%s) AffectedRows = %d, want none", i, results[i].Statement, *got)
+		case w != nil && got == nil:
+			t.Errorf("statement %d (%s) AffectedRows = none, want %d", i, results[i].Statement, *w)
+		case w != nil && *got != *w:
+			t.Errorf("statement %d (%s) AffectedRows = %d, want %d", i, results[i].Statement, *got, *w)
+		}
 	}
 }
 
