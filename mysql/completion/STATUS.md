@@ -47,7 +47,7 @@ computed once; group recursion stops at `maxNestingDepth`).
 
 ## The corpus and every disagreement
 
-`mysql/parser/complete_context_test.go` holds 143 cases over `sql` × cursor positions, plus a
+`mysql/parser/complete_context_test.go` holds 144 cases over `sql` × cursor positions, plus a
 sweep of every cursor offset in twelve scripts, a nesting-limit test, and a test that a statement
 nested in `WITH` bodies is read once per clause. Each fork's corpus is that corpus with its
 dialect cases (133 for MariaDB, 134 for OceanBase, 133 for TiDB at parking, several parent fixes
