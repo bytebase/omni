@@ -287,6 +287,12 @@ func (e *oracleMetadataExtractor) extractCreateTable(n *ast.CreateTableStmt) {
 		}
 		return
 	}
+	if n.OfType != nil {
+		if e.err == nil {
+			e.err = fmt.Errorf("object and XMLType tables are not supported by oracle/catalog")
+		}
+		return
+	}
 	table := e.getOrCreateTable(tableName)
 	for _, item := range listItems(n.Columns) {
 		column, ok := item.(*ast.ColumnDef)
