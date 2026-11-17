@@ -225,6 +225,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 				Name:    externalTable.Name,
 				Columns: externalTable.Columns,
 			})
+			addCheckFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, externalTable.Name, externalTable.CheckConstraints)
 			if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
 				graph.AddEdge(serverID, externalTableID)
 			}
@@ -357,6 +358,21 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			for _, sequence := range sequenceOwnershipMap[objectID] {
 				if err := writeAlterSequenceOwnedBy(&buf, getSchemaNameFromID(objectID), sequence); err != nil {
 					return "", err
+				}
+			}
+			foreignSchema := getSchemaNameFromID(objectID)
+			for _, column := range externalTable.Columns {
+				if len(column.Comment) > 0 {
+					if err := writeColumnComment(&buf, foreignSchema, externalTable.Name, column); err != nil {
+						return "", err
+					}
+				}
+			}
+			for _, check := range externalTable.CheckConstraints {
+				if len(check.Comment) > 0 {
+					if err := writeConstraintComment(&buf, foreignSchema, externalTable.Name, check.Name, check.Comment); err != nil {
+						return "", err
+					}
 				}
 			}
 		}
@@ -2192,6 +2208,27 @@ func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*meta
 	}
 }
 
+// addCheckFunctionEdges adds an edge from each user function a check expression
+// calls to the relation that states the check, so the function exists first.
+func addCheckFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, table string, checks []*metadatapb.CheckConstraintMetadata) {
+	tableID := getObjectID(schema, table)
+	for _, check := range checks {
+		node, err := parseScalar("SELECT " + check.Expression)
+		if err != nil {
+			continue
+		}
+		funcRefs, _, _ := collectExprDeps(node)
+		for _, ref := range funcRefs {
+			for _, funcID := range functionIDsByName[ref] {
+				if functionDependsOnTable(functionMap[funcID], schema, table) {
+					continue
+				}
+				graph.AddEdge(funcID, tableID)
+			}
+		}
+	}
+}
+
 // functionDependsOnTable reports whether function lists (schema, table) among
 // its dependency tables.
 func functionDependsOnTable(function *metadatapb.FunctionMetadata, schema, table string) bool {
@@ -2402,6 +2439,7 @@ func addForeignPartitionEdges(graph *definitionGraph, functionMap map[string]*me
 			Name:    table.Name,
 			Columns: externalTable.Columns,
 		})
+		addCheckFunctionEdges(graph, functionMap, functionIDsByName, schema, table.Name, externalTable.CheckConstraints)
 		if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
 			graph.AddEdge(serverID, parentID)
 		}

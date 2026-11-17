@@ -901,3 +901,45 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 	assert.Contains(t, result, wrapper)
 	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the named validator must be written before its wrapper")
 }
+
+// TestDatabaseDefinitionOrdersForeignTableAfterCheckFunction checks that a
+// function a foreign table's CHECK calls is written before the table.
+func TestDatabaseDefinitionOrdersForeignTableAfterCheckFunction(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "zz_type",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+			}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:             "validate",
+				Signature:        "validate(public.zz_type)",
+				Definition:       "CREATE FUNCTION public.validate(r public.zz_type) RETURNS boolean LANGUAGE sql AS $$ SELECT true $$;",
+				DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "zz_type"}},
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "ft",
+				ExternalServerName: "s",
+				CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
+					Name:       "c",
+					Expression: "(public.validate(ROW(id)::public.zz_type))",
+				}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	function := "CREATE FUNCTION public.validate(r public.zz_type)"
+	table := `CREATE FOREIGN TABLE "public"."ft"`
+	assert.Contains(t, result, function)
+	assert.Contains(t, result, table)
+	assert.Less(t, strings.Index(result, function), strings.Index(result, table), "the CHECK's function must be written before the foreign table")
+}

@@ -12,6 +12,8 @@
 |     CONSTRAINT remote_positive CHECK (id > 0)
 | ) SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');
 | CREATE SEQUENCE public.remote_owned_seq OWNED BY public.remote_defaults.id;
+| COMMENT ON COLUMN public.remote_defaults.token IS 'remote token';
+| COMMENT ON CONSTRAINT remote_positive ON public.remote_defaults IS 'remote positive';
 | CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 < ok 0 -
 > query
@@ -266,7 +268,8 @@
 : string
 | text
 : null
-: null
+: string
+| remote token
 : string
 | []
 > query
@@ -397,7 +400,8 @@
 | remote_positive
 : string
 | CHECK (id > 0)
-: null
+: string
+| remote positive
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -1181,6 +1185,10 @@
 |
 | ALTER SEQUENCE "public"."remote_owned_seq" OWNED BY "public"."remote_defaults"."id";
 |
+| COMMENT ON COLUMN "public"."remote_defaults"."token" IS 'remote token';
+|
+| COMMENT ON CONSTRAINT "remote_positive" ON "public"."remote_defaults" IS 'remote positive';
+|
 | CREATE OR REPLACE FUNCTION public.read_remote(r public.remote_defaults)
 |  RETURNS integer
 |  LANGUAGE sql
@@ -1452,7 +1460,8 @@
 : string
 | text
 : null
-: null
+: string
+| remote token
 : string
 | []
 > query
@@ -1583,7 +1592,8 @@
 | remote_positive
 : string
 | CHECK (id > 0)
-: null
+: string
+| remote positive
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
