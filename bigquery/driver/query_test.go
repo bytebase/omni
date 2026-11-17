@@ -306,24 +306,30 @@ func TestConvertValue(t *testing.T) {
 }
 
 // TestJobReturnsRows covers the answer the command path reads a statement's rows
-// from: a plain query states its statement type and no result schema, a script the
-// schema of the last statement it ran, and neither for a statement that answered
-// no rows.
+// from: a plain query states its statement type and no result schema and answers
+// rows whether it has any or none, a script the schema of the last statement it
+// ran and however many rows that returned, and a DDL a schema of its own with no
+// rows at all.
 func TestJobReturnsRows(t *testing.T) {
+	column := bigquery.Schema{{Name: "n", Type: bigquery.IntegerFieldType}}
+
 	for _, tc := range []struct {
-		name  string
-		stats *bigquery.QueryStatistics
-		want  bool
+		name          string
+		statementType string
+		schema        bigquery.Schema
+		totalRows     uint64
+		want          bool
 	}{
-		{name: "no statistics at all"},
-		{name: "a plain SELECT, which states no schema", stats: &bigquery.QueryStatistics{StatementType: selectStatementType}, want: true},
-		{name: "a script whose last statement returned rows", stats: &bigquery.QueryStatistics{StatementType: "SCRIPT", Schema: bigquery.Schema{{Name: "n", Type: bigquery.IntegerFieldType}}}, want: true},
-		{name: "a script whose last statement returned none", stats: &bigquery.QueryStatistics{StatementType: "SCRIPT"}},
-		{name: "a DDL statement", stats: &bigquery.QueryStatistics{StatementType: "CREATE_TABLE"}},
-		{name: "a DML statement, whose rows are the count it affected", stats: &bigquery.QueryStatistics{StatementType: "INSERT", NumDMLAffectedRows: 2}},
+		{name: "a plain SELECT, which states no schema and no rows", statementType: selectStatementType, want: true},
+		{name: "a plain SELECT that returned rows", statementType: selectStatementType, schema: column, totalRows: 2, want: true},
+		{name: "a script whose last statement returned rows", statementType: "SCRIPT", schema: column, totalRows: 1, want: true},
+		{name: "a script whose last statement returned none", statementType: "SCRIPT", schema: column},
+		{name: "a script that states no schema", statementType: "SCRIPT"},
+		{name: "a DDL, which states a schema and no rows", statementType: "CREATE_TABLE", schema: column},
+		{name: "a DML, whose rows are the count it affected", statementType: "INSERT"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			require.Equal(t, tc.want, jobReturnsRows(tc.stats))
+			require.Equal(t, tc.want, jobReturnsRows(tc.statementType, tc.schema, tc.totalRows))
 		})
 	}
 }

@@ -108,8 +108,9 @@ func (d *Driver) columns(ctx context.Context) (map[string][]*metadatapb.ColumnMe
 
 // columnMetadata maps one INFORMATION_SCHEMA row onto a synced column.
 //
-// A column BigQuery states no default for reports the text "NULL", which is what
-// Bytebase's driver reported and what a caller reads as no default.
+// A column BigQuery states no default or no collation for states the text "NULL"
+// in that view, and the client decodes that text as a value rather than an absence:
+// it is what a caller reads as none, and what Bytebase's driver reported.
 func columnMetadata(row columnRow) (*metadatapb.ColumnMetadata, error) {
 	nullable, err := convertYesNo(row.IsNullable)
 	if err != nil {
@@ -120,9 +121,9 @@ func columnMetadata(row columnRow) (*metadatapb.ColumnMetadata, error) {
 		Position: int32(row.OrdinalPosition.Int64),
 		Nullable: nullable,
 		Type:     row.DataType,
-		Default:  "NULL",
+		Default:  noValueText,
 	}
-	if row.CollationName.Valid {
+	if row.CollationName.Valid && row.CollationName.String() != noValueText {
 		column.Collation = row.CollationName.String()
 	}
 	if row.ColumnDefault.Valid {
@@ -130,6 +131,10 @@ func columnMetadata(row columnRow) (*metadatapb.ColumnMetadata, error) {
 	}
 	return column, nil
 }
+
+// noValueText is the text BigQuery's INFORMATION_SCHEMA states for a value a column
+// does not have.
+const noValueText = "NULL"
 
 // convertYesNo converts an INFORMATION_SCHEMA YES or NO to a bool.
 func convertYesNo(value string) (bool, error) {

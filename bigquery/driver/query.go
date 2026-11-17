@@ -198,7 +198,8 @@ func columnsOf(schema bigquery.Schema) []driver.Column {
 // A statement googlesql/analysis cannot read runs this way too, and omni's
 // parser has gaps a valid statement may hit (a pipe query is one). When the job
 // answered a result set, its rows are read rather than dropped; one that answered
-// none reports the rows it affected.
+// none reports the rows it affected, and reading the job's result is what tells the
+// two apart.
 func (s *session) command(ctx context.Context, statement string, opts driver.QueryOptions) (*driver.Result, error) {
 	job, err := s.driver.query(statement).Run(ctx)
 	if err != nil {
@@ -215,11 +216,11 @@ func (s *session) command(ctx context.Context, statement string, opts driver.Que
 	if !ok {
 		return nil, errors.New("the job's status carries no query statistics")
 	}
-	if jobReturnsRows(stats) {
-		it, err := job.Read(ctx)
-		if err != nil {
-			return nil, err
-		}
+	it, err := job.Read(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if jobReturnsRows(stats.StatementType, it.Schema, it.TotalRows) {
 		return s.readRows(ctx, it, opts)
 	}
 	affected := stats.NumDMLAffectedRows
@@ -235,14 +236,15 @@ const selectStatementType = "SELECT"
 // A plain query's job statistics state no result schema at all, so the schema
 // alone would report every statement the analysis could not classify as having
 // answered no rows; its statement type is what says it is a query, which is the
-// answer the client's own storage read uses. A script states the schema of the
-// last statement it ran and no statement type beyond SCRIPT, so a script whose
-// last statement returned rows is read from that schema.
-func jobReturnsRows(stats *bigquery.QueryStatistics) bool {
-	if stats == nil {
-		return false
-	}
-	return stats.StatementType == selectStatementType || len(stats.Schema) > 0
+// answer the client's own storage read uses, and it says so whether the query
+// returned rows or none.
+//
+// The other two shapes state a schema that is not the answer: a DDL job states one
+// of its own with no rows (a CREATE TABLE stated one column), and a script states
+// its last statement's schema and no statement type beyond SCRIPT. For those, the
+// result's own row count is what says whether rows came back at all.
+func jobReturnsRows(statementType string, schema bigquery.Schema, totalRows uint64) bool {
+	return statementType == selectStatementType || (len(schema) > 0 && totalRows > 0)
 }
 
 // dryRun answers what a statement would do without running it, which is what
