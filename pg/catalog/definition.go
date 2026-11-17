@@ -2391,11 +2391,11 @@ func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []
 	if function == nil || function.Signature == "" {
 		return false
 	}
-	open, close := strings.Index(function.Signature, "("), strings.LastIndex(function.Signature, ")")
-	if open < 0 || close < open {
+	args, ok := signatureArguments(function.Signature, function.Name)
+	if !ok {
 		return false
 	}
-	actual := splitSignatureArguments(function.Signature[open+1 : close])
+	actual := splitSignatureArguments(args)
 	if len(actual) != len(expected) {
 		return false
 	}
@@ -2407,6 +2407,40 @@ func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []
 		}
 	}
 	return true
+}
+
+// signatureArguments returns the text between a signature's argument-list
+// parentheses. The function name may itself contain a quoted parenthesis.
+func signatureArguments(signature, name string) (string, bool) {
+	// getFunctions builds the signature as name(arguments), so a name that
+	// itself ends in a parenthesis still has its argument list right after it.
+	if name != "" && strings.HasPrefix(signature, name) {
+		rest := signature[len(name):]
+		if strings.HasPrefix(rest, "(") && strings.HasSuffix(rest, ")") {
+			return rest[1 : len(rest)-1], true
+		}
+	}
+	inQuote := false
+	for i := 0; i < len(signature); i++ {
+		switch signature[i] {
+		case '"':
+			if inQuote && i+1 < len(signature) && signature[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = !inQuote
+		case '(':
+			if inQuote {
+				continue
+			}
+			close := strings.LastIndex(signature, ")")
+			if close < i {
+				return "", false
+			}
+			return signature[i+1 : close], true
+		}
+	}
+	return "", false
 }
 
 func splitSignatureArguments(args string) []string {

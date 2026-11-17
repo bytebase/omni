@@ -1073,3 +1073,33 @@ func TestDatabaseDefinitionChecksForeignPartitionOverloadsAgainstThePartition(t 
 	assert.Contains(t, result, table)
 	assert.Less(t, strings.Index(result, function), strings.Index(result, table), "the default's function must be written before the parent")
 }
+
+// TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedParenValidator
+// checks that a validator whose name holds a quoted parenthesis still matches
+// its argument list.
+func TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedParenValidator(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "validate(",
+				Signature:  "validate((text[], oid)",
+				Definition: `CREATE FUNCTION app."validate("(text[], oid) RETURNS void LANGUAGE internal AS 'fdw_validate'`,
+			}},
+		}},
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:      "custom_fdw",
+			Validator: `app."validate("`,
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	function := `CREATE FUNCTION app."validate("(text[], oid)`
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" VALIDATOR app."validate(";`
+	assert.Contains(t, result, function)
+	assert.Contains(t, result, wrapper)
+	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the quoted-paren validator must be written before its wrapper")
+}
