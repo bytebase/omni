@@ -250,6 +250,14 @@ replay tests exercise.
 - An identity alteration omits `START WITH` unless the seed changed.
 - A retained virtual column is dropped and recreated around a datatype change
   to a column it reads.
+- A cascading key drop compares the complete referenced column set.
+- Function-based materialized-view indexes are restored when the view is
+  recreated.
+- An identity alteration omits `START WITH` unless the seed changed.
+- Retained virtual columns are detached as a batch around a source datatype
+  change, including comment-only column changes, and a shared dependent is
+  dropped and restored once.
+- `DROP ... KEEP INDEX` keeps the backing index as a standalone index.
 - The deparse is byte-for-byte the Bytebase renderer. The fixtures that pin it
   are the Bytebase fixtures.
 

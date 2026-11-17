@@ -917,7 +917,10 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 		}
 	}
 	for _, viewDiff := range diff.MaterializedViewChanges {
-		if viewDiff.Action != DiffActionCreate || viewDiff.NewMaterializedView == nil {
+		if viewDiff.NewMaterializedView == nil {
+			continue
+		}
+		if viewDiff.Action != DiffActionCreate && !(viewDiff.Action == DiffActionAlter && materializedViewNeedsRecreate(viewDiff.OldMaterializedView, viewDiff.NewMaterializedView)) {
 			continue
 		}
 		for _, index := range viewDiff.NewMaterializedView.Indexes {
@@ -1068,6 +1071,56 @@ func columnIdentityAlterClause(oldColumn, newColumn *metadatapb.ColumnMetadata) 
 	return mode
 }
 
+func mergeColumnDependents(into *columnDependents, from columnDependents) {
+	mergeIndexes := func(source []*metadatapb.IndexMetadata) {
+		for _, candidate := range source {
+			found := false
+			for _, existing := range into.indexes {
+				if existing.GetName() == candidate.GetName() {
+					found = true
+				}
+			}
+			if !found {
+				into.indexes = append(into.indexes, candidate)
+			}
+		}
+	}
+	mergeIndexes(from.indexes)
+	for _, candidate := range from.checks {
+		found := false
+		for _, existing := range into.checks {
+			if existing.GetName() == candidate.GetName() {
+				found = true
+			}
+		}
+		if !found {
+			into.checks = append(into.checks, candidate)
+		}
+	}
+	for _, candidate := range from.notNulls {
+		found := false
+		for _, existing := range into.notNulls {
+			if existing.GetName() == candidate.GetName() {
+				found = true
+			}
+		}
+		if !found {
+			into.notNulls = append(into.notNulls, candidate)
+		}
+	}
+	for _, candidate := range from.foreignKeys {
+		found := false
+		for _, existing := range into.foreignKeys {
+			if existing.GetName() == candidate.GetName() {
+				found = true
+			}
+		}
+		if !found {
+			into.foreignKeys = append(into.foreignKeys, candidate)
+		}
+	}
+}
+
 // writeAlterColumns writes one table's column alterations. A rebuilt column
 // cannot change while an index or a constraint is on it (ORA-12991, ORA-54022,
 // ORA-54023), so those of every rebuilt column are dropped before any column
@@ -1086,11 +1139,8 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 	}
 	schemaName, tableName := tableDiff.SchemaName, tableDiff.TableName
 	created := diffObjectNames(tableDiff, DiffActionCreate)
-	type virtualDependent struct {
-		column     *metadatapb.ColumnMetadata
-		dependents columnDependents
-	}
-	var virtualDependents []virtualDependent
+	var virtualDependents []*metadatapb.ColumnMetadata
+	var allVirtualDependents columnDependents
 	typeChanged := map[string]bool{}
 	for _, colDiff := range tableDiff.ColumnChanges {
 		if colDiff.Action == DiffActionAlter && colDiff.OldColumn.GetType() != colDiff.NewColumn.GetType() {
@@ -1102,13 +1152,15 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		for name := range diffObjectNames(tableDiff, DiffActionCreate) {
 			handled[name] = true
 		}
-		diffs := map[string]bool{}
+		handledVirtually := map[string]bool{}
 		for _, colDiff := range tableDiff.ColumnChanges {
-			diffs[colDiff.OldColumn.GetName()] = true
-			diffs[colDiff.NewColumn.GetName()] = true
+			if colDiff.Action == DiffActionDrop || colDiff.Action == DiffActionCreate || (colDiff.Action == DiffActionAlter && rebuildsColumn(colDiff)) {
+				handledVirtually[colDiff.OldColumn.GetName()] = true
+				handledVirtually[colDiff.NewColumn.GetName()] = true
+			}
 		}
 		for _, column := range tableDiff.NewTable.GetColumns() {
-			if column.GetGeneration() == nil || diffs[column.GetName()] {
+			if column.GetGeneration() == nil || handledVirtually[column.GetName()] {
 				continue
 			}
 			depends := false
@@ -1121,9 +1173,12 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 				continue
 			}
 			dependents := findColumnDependents(tableDiff.OldTable, []string{column.GetName()}, handled)
-			dependents.writeDrops(buf, schemaName, tableName)
+			mergeColumnDependents(&allVirtualDependents, dependents)
+			virtualDependents = append(virtualDependents, column)
+		}
+		allVirtualDependents.writeDrops(buf, schemaName, tableName)
+		for _, column := range virtualDependents {
 			writeDropColumn(buf, schemaName, tableName, column.GetName())
-			virtualDependents = append(virtualDependents, virtualDependent{column: column, dependents: dependents})
 		}
 	}
 	// Other tables' foreign keys on a rebuilt key go first, or dropping the key
@@ -1148,10 +1203,10 @@ func writeAlterColumns(buf *strings.Builder, diff *MetadataDiff, tableDiff *Tabl
 		_, _ = buf.WriteString(generateAlterColumn(schemaName, tableName, colDiff, notNull))
 	}
 	findColumnDependents(tableDiff.NewTable, newColumns, created).writeCreates(buf, schemaName, tableName)
-	for _, virtual := range virtualDependents {
-		writeAddColumn(buf, schemaName, tableName, virtual.column)
-		virtual.dependents.writeCreates(buf, schemaName, tableName)
+	for _, column := range virtualDependents {
+		writeAddColumn(buf, schemaName, tableName, column)
 	}
+	allVirtualDependents.writeCreates(buf, schemaName, tableName)
 	for _, incoming := range findIncomingForeignKeys(diff, diff.NewDatabase, tableDiff, newColumns, DiffActionCreate) {
 		if _, handled := detached[incomingForeignKeyKey(incoming.table, incoming.foreignKey.GetName())]; handled {
 			continue

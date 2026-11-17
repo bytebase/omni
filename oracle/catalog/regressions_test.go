@@ -2426,3 +2426,53 @@ func TestDefinitionRendersViewComments(t *testing.T) {
 		t.Fatalf("the materialized view's comment is missing:\n%s", definition)
 	}
 }
+
+func TestSharedVirtualDependentsDropOnce(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "V1", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}, {Name: "V2", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+2"}}}, Indexes: []*metadatapb.IndexMetadata{{Name: "I", Expressions: []string{"V1", "V2"}, Visible: true}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "BINARY_DOUBLE", Position: 1}, {Name: "V1", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}, {Name: "V2", Type: "NUMBER", Position: 3, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+2"}}}, Indexes: oldTable.Indexes}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if strings.Count(sql, `DROP INDEX "I"`) != 1 || strings.Count(sql, `CREATE INDEX "I"`) != 1 {
+		t.Fatalf("shared index handled more than once:\n%s", sql)
+	}
+	if strings.Index(sql, `ADD "V2"`) > strings.Index(sql, `CREATE INDEX "I"`) {
+		t.Fatalf("index recreated before all virtual columns:\n%s", sql)
+	}
+}
+
+func TestVirtualCommentChangeStillDetachesForTypeChange(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "BINARY_DOUBLE", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Comment: "changed", Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if !strings.Contains(sql, `DROP COLUMN "V"`) || !strings.Contains(sql, `MODIFY "C" BINARY_DOUBLE`) {
+		t.Fatalf("comment-only virtual column not detached:\n%s", sql)
+	}
+}
+
+func TestRecreatedMaterializedViewKeepsFunctionIndex(t *testing.T) {
+	oldView := &metadatapb.MaterializedViewMetadata{Name: "MV", Definition: "SELECT C FROM T"}
+	newView := &metadatapb.MaterializedViewMetadata{Name: "MV", Definition: "SELECT C+1 AS C FROM T", Indexes: []*metadatapb.IndexMetadata{{Name: "I", Type: "FUNCTION-BASED NORMAL", Expressions: []string{"Z(C)"}, Visible: true}}}
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}}, Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z(P NUMBER) RETURN NUMBER IS BEGIN RETURN P; END;"}}, MaterializedViews: []*metadatapb.MaterializedViewMetadata{oldView}}}}
+	to := clone(meta)
+	to.Schemas[0].MaterializedViews = []*metadatapb.MaterializedViewMetadata{newView}
+	sql := migrationFor(t, &Catalog{meta: meta}, &Catalog{meta: to})
+	if !strings.Contains(sql, `CREATE INDEX "APP"."I"`) {
+		t.Fatalf("recreated materialized view lost its index:\n%s", sql)
+	}
+}
+
+func TestDropUniqueKeepIndex(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER CONSTRAINT UK UNIQUE); ALTER TABLE T DROP UNIQUE(C) KEEP INDEX`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := tableByName(c.Metadata().Schemas[0])["T"]
+	found := false
+	for _, index := range table.Indexes {
+		if index.Name == "UK" && index.Unique && !index.IsConstraint {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("kept index missing: %+v", table.Indexes)
+	}
+}

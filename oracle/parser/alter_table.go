@@ -856,7 +856,8 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			cascade = true
 			p.advance()
 		}
-		if err := p.parseATKeepDropIndex(); err != nil {
+		keepIndex, err := p.parseATKeepDropIndex()
+		if err != nil {
 			return nil, err
 		}
 		if p.cur.Type == kwONLINE {
@@ -873,6 +874,12 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 		var options *nodes.List
 		if cascade {
 			options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "CASCADE"}}}
+		}
+		if keepIndex == "KEEP" {
+			if options == nil {
+				options = &nodes.List{}
+			}
+			options.Items = append(options.Items, &nodes.String{Str: "KEEP INDEX"})
 		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_DROP_CONSTRAINT,
@@ -1019,12 +1026,16 @@ func (p *Parser) parseATCheckpoint() error {
 }
 
 // parseATKeepDropIndex reads [ { KEEP | DROP } INDEX ].
-func (p *Parser) parseATKeepDropIndex() error {
+func (p *Parser) parseATKeepDropIndex() (string, error) {
 	if !p.atWord("KEEP") && p.cur.Type != kwDROP {
-		return nil
+		return "", nil
+	}
+	option := "DROP"
+	if p.atWord("KEEP") {
+		option = "KEEP"
 	}
 	p.advance()
-	return p.atExpect(kwINDEX)
+	return option, p.atExpect(kwINDEX)
 }
 
 // parseAlterTableRename parses RENAME actions other than RENAME PARTITION
@@ -1240,8 +1251,10 @@ func (p *Parser) parseAlterTableEnableDisable() (*nodes.AlterTableCmd, error) {
 		if p.cur.Type == kwCASCADE {
 			p.advance()
 		}
-		if err := p.parseATKeepDropIndex(); err != nil {
+		if keepIndex, err := p.parseATKeepDropIndex(); err != nil {
 			return nil, err
+		} else if keepIndex != "" {
+			// Accepted but not represented on an enable/disable action.
 		}
 	}
 

@@ -682,9 +682,10 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			}
 		case ast.AT_DROP_CONSTRAINT:
 			var droppedColumns []string
+			keepIndex := slices.Contains(stringList(action.Options), "KEEP INDEX")
 			if action.Constraint != nil && action.Constraint.Name != "" {
 				droppedColumns = indexColumns(table, action.Constraint.Name)
-				e.dropConstraint(table, action.Constraint.Name)
+				e.dropConstraint(table, action.Constraint.Name, keepIndex)
 			} else {
 				var columns []string
 				if action.Constraint != nil {
@@ -697,7 +698,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 					columns = primaryKeyColumns(table)
 				}
 				droppedColumns = columns
-				e.dropConstraintSubtype(table, action.Subtype, columns)
+				e.dropConstraintSubtype(table, action.Subtype, columns, keepIndex)
 			}
 			if slices.Contains(stringList(action.Options), "CASCADE") {
 				e.dropIncomingForeignKeysForColumns(table.Name, droppedColumns)
@@ -1052,7 +1053,7 @@ func isIdentifierByte(c byte) bool {
 		(c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 }
 
-func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata, name string) {
+func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata, name string, keepIndex bool) {
 	if name == "" {
 		return
 	}
@@ -1061,6 +1062,12 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 		if index.Name == name && index.IsConstraint {
 			if index.Primary {
 				e.clearPrimaryKeyNotNull(table, index.Expressions)
+			}
+			if keepIndex {
+				index.IsConstraint = false
+				index.Primary = false
+				index.Unique = true
+				indexes = append(indexes, index)
 			}
 			continue
 		}
@@ -1087,7 +1094,7 @@ func (e *oracleMetadataExtractor) dropConstraint(table *metadatapb.TableMetadata
 	table.ForeignKeys = foreignKeys
 }
 
-func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string) {
+func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableMetadata, subtype string, columns []string, keepIndex bool) {
 	var indexes []*metadatapb.IndexMetadata
 	for _, index := range table.Indexes {
 		drop := subtype == "PRIMARY KEY" && index.Primary
@@ -1098,6 +1105,9 @@ func (e *oracleMetadataExtractor) dropConstraintSubtype(table *metadatapb.TableM
 			indexes = append(indexes, index)
 		} else if index.Primary {
 			e.clearPrimaryKeyNotNull(table, index.Expressions)
+		} else if keepIndex {
+			index.IsConstraint = false
+			indexes = append(indexes, index)
 		}
 	}
 	table.Indexes = indexes
