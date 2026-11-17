@@ -88,6 +88,7 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 					if err != nil {
 						return err
 					}
+					ddl = qualifyViewDDL(ddl, qualifiedName)
 					formatDDL := fmt.Sprintf(schemaStmtFmt, "VIEW", qualifiedName, ddl)
 					if _, err := viewDDL.WriteString(formatDDL); err != nil {
 						return err
@@ -140,6 +141,31 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 	}
 
 	return nil
+}
+
+// qualifyViewDDL replaces a view statement's target with the catalog-qualified
+// name. The workspace states a view as CREATE VIEW schema.view, which would
+// create it in another catalog when the dump is replayed elsewhere.
+func qualifyViewDDL(ddl, qualifiedName string) string {
+	upper := strings.ToUpper(ddl)
+	idx := strings.Index(upper, "CREATE VIEW")
+	if idx < 0 {
+		return ddl
+	}
+	start := idx + len("CREATE VIEW")
+	for start < len(ddl) && (ddl[start] == ' ' || ddl[start] == '\t') {
+		start++
+	}
+	end := len(ddl)
+	for _, separator := range []string{" (", "\n", " AS "} {
+		if i := strings.Index(strings.ToUpper(ddl[start:]), separator); i >= 0 && start+i < end {
+			end = start + i
+		}
+	}
+	if end <= start {
+		return ddl
+	}
+	return ddl[:start] + qualifiedName + ddl[end:]
 }
 
 // showCreateTable asks the server for one object's own DDL.

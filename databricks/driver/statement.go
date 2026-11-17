@@ -41,6 +41,7 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 	reader := bufio.NewReader(strings.NewReader(statement))
 	delimiter := false
 	comment := false
+	quote := rune(0)
 	done := false
 	hasContent := false
 	// byteOffset tracks our read position in the original statement.
@@ -63,41 +64,57 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 		line = strings.TrimRightFunc(line, unicode.IsSpace)
 
 		execute := false
-		switch {
-		case strings.HasPrefix(line, "/*"):
-			if strings.Contains(line, "*/") {
+		if quote != 0 {
+			// The previous line left a quoted string open, so this line is
+			// its content, not a comment line.
+			hasContent = true
+			if line != "" {
+				contentEnd = byteOffset + len(line)
+			}
+			scanLineQuotes(line, &quote)
+			if quote == 0 && strings.HasSuffix(line, ";") {
+				execute = true
+			}
+		} else {
+			if !comment {
+				scanLineQuotes(line, &quote)
+			}
+			switch {
+			case strings.HasPrefix(line, "/*"):
+				if strings.Contains(line, "*/") {
+					if !strings.HasSuffix(line, "*/") {
+						return errCommentEnd
+					}
+				} else {
+					comment = true
+				}
+			case comment && !strings.Contains(line, "*/"):
+				// skip line in comment mode
+			case comment && strings.Contains(line, "*/"):
 				if !strings.HasSuffix(line, "*/") {
 					return errCommentEnd
 				}
-			} else {
-				comment = true
-			}
-		case comment && !strings.Contains(line, "*/"):
-			// skip line in comment mode
-		case comment && strings.Contains(line, "*/"):
-			if !strings.HasSuffix(line, "*/") {
-				return errCommentEnd
-			}
-			comment = false
-		case !hasContent && line == "":
-			// skip leading blank lines
-		case strings.HasPrefix(line, "--"):
-			// skip comment lines
-		case line == "DELIMITER ;;":
-			delimiter = true
-		case line == "DELIMITER ;" && delimiter:
-			delimiter = false
-			execute = true
-		case strings.HasSuffix(line, ";"):
-			hasContent = true
-			contentEnd = byteOffset + len(line)
-			if !delimiter {
+				comment = false
+			case !hasContent && line == "":
+				// skip leading blank lines
+			case strings.HasPrefix(line, "--"):
+				// skip comment lines
+			case line == "DELIMITER ;;":
+				delimiter = true
+			case line == "DELIMITER ;" && delimiter:
+				delimiter = false
 				execute = true
-			}
-		default:
-			if line != "" {
+			case strings.HasSuffix(line, ";"):
 				hasContent = true
 				contentEnd = byteOffset + len(line)
+				if !delimiter && quote == 0 {
+					execute = true
+				}
+			default:
+				if line != "" {
+					hasContent = true
+					contentEnd = byteOffset + len(line)
+				}
 			}
 		}
 		if execute && hasContent {
@@ -118,6 +135,40 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 		}
 	}
 	return nil
+}
+
+// scanLineQuotes advances quote across one line, ignoring comment text after a
+// -- or /* that is outside a quoted string. A semicolon at the end of a line is
+// a terminator only when quote is 0 after the line.
+func scanLineQuotes(line string, quote *rune) {
+	for i := 0; i < len(line); {
+		c := rune(line[i])
+		if *quote != 0 {
+			if c == '\\' && *quote == '\'' && i+1 < len(line) {
+				i += 2
+				continue
+			}
+			if c == *quote {
+				if i+1 < len(line) && rune(line[i+1]) == *quote {
+					i += 2
+					continue
+				}
+				*quote = 0
+			}
+			i++
+			continue
+		}
+		if c == '-' && i+1 < len(line) && line[i+1] == '-' {
+			return
+		}
+		if c == '/' && i+1 < len(line) && line[i+1] == '*' {
+			return
+		}
+		if c == '\'' || c == '"' || c == '`' {
+			*quote = c
+		}
+		i++
+	}
 }
 
 // errCommentEnd is the splitter's answer to a block comment whose closing does

@@ -46,6 +46,16 @@ func TestSplitCommands(t *testing.T) {
 			want:   []string{},
 		},
 		{
+			name:   "a semicolon inside a multiline string",
+			script: "SELECT 'first;\nsecond' AS s;",
+			want:   []string{"SELECT 'first;\nsecond' AS s;"},
+		},
+		{
+			name:   "a semicolon inside a multiline string, then another statement",
+			script: "SELECT 'first;\nsecond' AS s;\nSELECT 2;",
+			want:   []string{"SELECT 'first;\nsecond' AS s;", "\nSELECT 2;"},
+		},
+		{
 			name:   "a block comment that ends its line",
 			script: "/* a comment */\nSELECT 1;",
 			want:   []string{"/* a comment */\nSELECT 1;"},

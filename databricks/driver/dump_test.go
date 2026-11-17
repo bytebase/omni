@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -32,6 +33,40 @@ func TestGetQualifiedTblName(t *testing.T) {
 			}
 			if got != tc.want {
 				t.Errorf("getQualifiedTblName = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestQualifyViewDDL(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		ddl  string
+		want string
+	}{
+		{
+			name: "a schema-qualified view gains its catalog",
+			ddl:  "CREATE VIEW omni_record.recent (\n  id INT)\nAS SELECT 1",
+			want: "CREATE VIEW `workspace`.`omni_record`.`recent` (\n  id INT)\nAS SELECT 1",
+		},
+		{
+			name: "an already qualified view is replaced whole",
+			ddl:  "CREATE VIEW `workspace`.`omni_record`.`recent` AS SELECT 1",
+			want: "CREATE VIEW `workspace`.`omni_record`.`recent` AS SELECT 1",
+		},
+		{
+			name: "another statement is left alone",
+			ddl:  "CREATE MATERIALIZED VIEW `workspace`.`omni_record`.`totals` AS SELECT 1",
+			want: "CREATE MATERIALIZED VIEW `workspace`.`omni_record`.`totals` AS SELECT 1",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := qualifyViewDDL(tc.ddl, "`workspace`.`omni_record`.`recent`")
+			if got != tc.want {
+				t.Errorf("qualifyViewDDL = %q, want %q", got, tc.want)
+			}
+			if !strings.HasPrefix(got, "CREATE ") {
+				t.Errorf("qualifyViewDDL lost the statement: %q", got)
 			}
 		})
 	}

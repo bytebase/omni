@@ -31,9 +31,11 @@
 // SQL version and the catalog names. Dump asks the server to state each object
 // with SHOW CREATE TABLE, because omni has no databricks catalog to render a
 // synced schema as Databricks DDL; the metadata argument is not read, as in
-// hive/driver, so a caller that edits or narrows it changes nothing. Bytebase's
-// Dump wrote the same server statements, except that it rendered a materialized
-// view from DESC FORMATTED, which is not a statement the workspace accepts.
+// hive/driver, so a caller that edits or narrows it changes nothing. A view's
+// server statement names its schema only, so Dump qualifies the target with the
+// catalog. Bytebase's Dump wrote the same server statements, except that it
+// rendered a materialized view from DESC FORMATTED, which is not a statement
+// the workspace accepts, and left a view's target unqualified.
 //
 // # The connection
 //

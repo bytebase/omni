@@ -246,6 +246,8 @@ recording settles the shape:
   `TBLPROPERTIES` list carries internal UUIDs, so it is not restorable. This
   port now uses the server's `SHOW CREATE TABLE`, and the parity harness records
   the difference.
+- The workspace states a view's target as `schema.view`, so the dump replaces
+  it with the catalog-qualified name before writing the statement.
 - The dump writes `CREATE CATALOG` for every catalog and `CREATE SCHEMA` for
   every schema but `default`, each terminated so `Execute` can split the dump,
   and skips the `system` catalog and each catalog's `information_schema`. The
@@ -352,11 +354,13 @@ settles.
 The six live tests passed against the scratch workspace (`SELECT VERSION()`
 answered `4.2.0`), the six tapes replay without credentials, two consecutive
 recordings wrote the same bytes, and `TestSyncDatabase` compares the synced
-catalog with `testdata/sync/workspace.json`. The parity harness passed on the
-sync, the instance, queries, `Execute` and the dump statements; it records the
-materialized-view difference above. Five mutations of the driver made the
-parity harness fail (`toValue`'s NULLs, a `LONG` read as `Int32`, explaining a
-plan twice, dropping the result cap, and returning the whole version text). The
-sixth, classifying `INSERT` as returning rows, is not observable on this
-workspace because the service states `num_affected_rows` columns for an
-`INSERT`; the package's `TestClassifyStatement` is what fails under it.
+catalog with `testdata/sync/workspace.json`. The recordings cover a result the
+service splits into two chunks. The parity harness passed on the sync, the
+instance, queries, `Execute` and the dump statements; it records Bytebase's
+materialized-view and unqualified-view differences above. Five mutations of the
+driver made the parity harness fail (`toValue`'s NULLs, a `LONG` read as
+`Int32`, explaining a plan twice, dropping the result cap, and returning the
+whole version text). The sixth, classifying `INSERT` as returning rows, is not
+observable on this workspace because the service states `num_affected_rows`
+columns for an `INSERT`; the package's `TestClassifyStatement` is what fails
+under it.
