@@ -6,8 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
+
+	gomssqldb "github.com/microsoft/go-mssqldb"
 
 	"github.com/bytebase/omni/driver"
+	omnimssql "github.com/bytebase/omni/mssql"
 	mssqlanalysis "github.com/bytebase/omni/mssql/analysis"
 )
 
@@ -53,7 +57,7 @@ func (d *Driver) executeInTransactionMode(ctx context.Context, script string, lo
 	var totalAffected int64
 	if err := forEachBatch(script, func(command driver.Command) error {
 		logCommandExecute(log, command)
-		affected, err := executeStatement(ctx, tx.ExecContext, command.Text)
+		affected, err := executeStatement(ctx, tx.ExecContext, command)
 		if err != nil {
 			logCommandResponse(log, 0, nil, err)
 			return err
@@ -87,7 +91,7 @@ func (d *Driver) executeInAutoCommitMode(ctx context.Context, script string, log
 	var totalAffected int64
 	if err := forEachBatch(script, func(command driver.Command) error {
 		logCommandExecute(log, command)
-		affected, err := executeStatement(ctx, conn.ExecContext, command.Text)
+		affected, err := executeStatement(ctx, conn.ExecContext, command)
 		if err != nil {
 			logCommandResponse(log, 0, nil, err)
 			return err
@@ -136,11 +140,16 @@ func forEachBatch(script string, run func(driver.Command) error) error {
 // execFunc runs one statement.
 type execFunc func(ctx context.Context, query string, args ...any) (sql.Result, error)
 
-// executeStatement runs one statement and returns the rows it affected. A DDL
+// executeStatement runs one batch and returns the rows it affected. A DDL
 // statement reports no count, which the client returns as an error; that is 0.
-func executeStatement(ctx context.Context, exec execFunc, statement string) (int64, error) {
-	result, err := exec(ctx, statement)
+// A failure names the statement the server reported it at, since a batch holds
+// several and the server names only a line.
+func executeStatement(ctx context.Context, exec execFunc, command driver.Command) (int64, error) {
+	result, err := exec(ctx, command.Text)
 	if err != nil {
+		if statement, ok := failingStatement(command.Text, err); ok {
+			return 0, fmt.Errorf("failed to execute statement %q: %w", statement, unpackMSSQLError(err))
+		}
 		return 0, unpackMSSQLError(fmt.Errorf("failed to execute statement: %w", err))
 	}
 	affected, err := result.RowsAffected()
@@ -148,6 +157,61 @@ func executeStatement(ctx context.Context, exec execFunc, statement string) (int
 		return 0, nil
 	}
 	return affected, nil
+}
+
+// failingStatement returns the text of the statement of batch the server
+// reported err at, which is the statement that covers the error's line. ok is
+// false when the server named no line, or named a line that no one statement
+// covers: several statements can share a line, and a statement can end on the
+// line the next one starts at, so an ambiguous line names none of them.
+func failingStatement(batch string, err error) (string, bool) {
+	line := errorLine(err)
+	if line == 0 {
+		return "", false
+	}
+	statements, parseErr := omnimssql.Parse(batch)
+	if parseErr != nil {
+		return "", false
+	}
+	failing := ""
+	covering := 0
+	for _, statement := range statements {
+		if statement.Empty() {
+			continue
+		}
+		if statement.Start.Line > line {
+			break
+		}
+		if statement.End.Line < line {
+			continue
+		}
+		covering++
+		failing = strings.TrimSpace(statement.Text)
+	}
+	if covering != 1 {
+		return "", false
+	}
+	return failing, true
+}
+
+// errorLine returns the line of the batch the server reported err at, and 0
+// when it named none. The first message that names a line is the one that
+// failed: the messages after it are often its cascade. A message a routine
+// sent counts its line from the routine, not from the batch, so it names none.
+func errorLine(err error) int {
+	var e gomssqldb.Error
+	if !errors.As(err, &e) {
+		return 0
+	}
+	for _, message := range e.All {
+		if message.LineNo > 0 && message.ProcName == "" {
+			return int(message.LineNo)
+		}
+	}
+	if e.LineNo > 0 && e.ProcName == "" {
+		return int(e.LineNo)
+	}
+	return 0
 }
 
 // toSQLIsolation maps the contract's isolation level onto database/sql's.
