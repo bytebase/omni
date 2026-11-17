@@ -3,15 +3,15 @@
 // syncs an instance's version and its database numbers, and runs Redis
 // commands as interactive queries and change scripts.
 //
-// It implements Driver, Syncer, Querier and Executor. There is no Dumper:
-// Redis keeps no schema to render and Bytebase's Dump wrote nothing, so a synced
-// database is its name alone. The contract's probe, PrivateDatabaseLinkOwner,
-// does not apply either: Redis has no private database link. The Executor's DDL,
-// transaction and retry settings do not apply: Redis creates no database and
-// runs no transaction, so Execute runs a script's commands one after another and
-// nothing rolls back. Syncer.SyncInstance reports no roles, as Bytebase's did
-// not read any, and a database's keys are not a schema, so SyncDatabase is the
-// database number alone.
+// It implements Driver, Syncer, Dumper, Querier and Executor. Dump writes
+// nothing: Redis keeps keys and no schema to render, so a synced database is its
+// number alone, and Bytebase's Dump wrote nothing either. The contract's probe,
+// PrivateDatabaseLinkOwner, does not apply either: Redis has no private database
+// link. The Executor's DDL, transaction and retry settings do not apply: Redis
+// creates no database and runs no transaction, so Execute runs a script's
+// commands one after another and nothing rolls back. Syncer.SyncInstance reports
+// no roles, as Bytebase's did not read any, and a database's keys are not a
+// schema, so SyncDatabase is the database number alone.
 //
 // Redis has no SQL surface, so nothing under partiql/ or analysis is involved.
 // What the driver decides is what a script is — one command per line, its
@@ -96,6 +96,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )
