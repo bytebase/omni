@@ -129,6 +129,10 @@ func TestResolveQuerySpanTempTableUntraced(t *testing.T) {
 		// The relation is named as the batch declared it, whatever case the
 		// statement wrote.
 		{"SELECT a FROM #INTO", []string{"#into"}},
+		// A query of only the server's metadata returns before the FROM clause
+		// is resolved, and still reads the temp table it joins.
+		{"SELECT o.name FROM #into AS x CROSS JOIN sys.objects AS o", []string{"#into"}},
+		{"SELECT o.name FROM @tv AS v CROSS JOIN sys.objects AS o", []string{"@tv"}},
 		// The same table through tempdb, and a name the batch did not declare:
 		// its columns are unknown too, so SELECT * names none and the rows are
 		// untraced.

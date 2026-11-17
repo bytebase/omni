@@ -35,10 +35,6 @@ type querySpanExtractor struct {
 
 	predicateColumns ColumnSet
 
-	// untracedRelations records the temp tables and table variables this
-	// statement reads; their rows come from statements this call does not see.
-	untracedRelations map[ColumnResource]bool
-
 	viewResolutionStack map[string]bool
 
 	// source is the original SQL text, used to slice expression names via Loc.
@@ -60,7 +56,6 @@ func newQuerySpanExtractor(defaultDatabase string, defaultSchema string, catalog
 		tempTables:          tempTables,
 		ignoreCaseSensitive: ignoreCaseSensitive,
 		predicateColumns:    make(ColumnSet),
-		untracedRelations:   make(map[ColumnResource]bool),
 	}
 }
 
@@ -73,63 +68,71 @@ func (q *querySpanExtractor) findTempTable(rawName string) (*TempTable, bool) {
 	return nil, false
 }
 
-// markUntracedRelation records a relation the statement reads whose rows the
-// analysis cannot follow to a base table.
-func (q *querySpanExtractor) markUntracedRelation(name string) {
-	if q.untracedRelations == nil {
-		q.untracedRelations = make(map[ColumnResource]bool)
-	}
-	q.untracedRelations[ColumnResource{Table: name}] = true
-}
-
-// untracedError reports the values the statement reads that have no column
-// lineage: the temp tables and table variables the batch filled, and the local
-// variables a statement of the batch assigned. It is nil when there are none,
-// and callers only ask for it when the statement returns rows.
+// untracedError reports the values a statement that answers with rows reads
+// and this call cannot trace: a #temp table or @table variable, whose rows the
+// batch's own statements wrote, and a local variable, whose value a statement
+// of the batch assigned. A write and a SELECT ... INTO answer with no rows, so
+// they read nothing a caller has to withhold.
+//
+// The scan is syntactic, so it reports these whether or not the span resolved a
+// table source: a query of only the server's metadata returns before resolution
+// and still reads whatever its FROM clause names. A variable method call (the
+// XML receiver of @x.nodes('/r')) names its variable in the node, not in a
+// child.
 func (q *querySpanExtractor) untracedError(root ast.Node) *UntracedError {
-	relations := make([]ColumnResource, 0, len(q.untracedRelations))
-	for relation := range q.untracedRelations {
-		relations = append(relations, relation)
-	}
-	slices.SortFunc(relations, func(a, b ColumnResource) int {
-		return cmp.Or(cmp.Compare(a.Server, b.Server), cmp.Compare(a.Database, b.Database), cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Table, b.Table))
-	})
-	variables := localVariables(root)
-	if len(relations) == 0 && len(variables) == 0 {
+	if !returnsRows(root) {
 		return nil
 	}
-	slices.Sort(variables)
-	return &UntracedError{Relations: relations, Variables: variables}
-}
-
-// localVariables returns the local variables the statement reads, once each.
-// A variable's value was assigned by a statement of the same batch, from any
-// column, and ResolveQuerySpan sees one statement. A @@ name is a system
-// function, whose value is the server's state rather than a column.
-//
-// A variable method call (the XML receiver of @x.nodes('/r')) names its
-// variable in the node, not in a child, so the walk reads it there.
-func localVariables(root ast.Node) []string {
-	seen := map[string]bool{}
+	seenRelations := map[ColumnResource]bool{}
+	seenVariables := map[string]bool{}
+	var relations []ColumnResource
 	var variables []string
-	add := func(name string) {
-		if name == "" || strings.HasPrefix(name, "@@") || seen[name] {
+	addRelation := func(name string) {
+		// Name the relation as the batch declared it, whatever case the
+		// statement wrote.
+		if tempTable, ok := q.findTempTable(name); ok {
+			name = tempTable.Name
+		}
+		relation := ColumnResource{Table: name}
+		if name == "" || seenRelations[relation] {
 			return
 		}
-		seen[name] = true
+		seenRelations[relation] = true
+		relations = append(relations, relation)
+	}
+	addVariable := func(name string) {
+		// A @@ name is a system function, whose value is the server's state
+		// rather than a column.
+		if name == "" || strings.HasPrefix(name, "@@") || seenVariables[name] {
+			return
+		}
+		seenVariables[name] = true
 		variables = append(variables, name)
 	}
 	ast.Inspect(root, func(node ast.Node) bool {
 		switch n := node.(type) {
 		case *ast.VariableRef:
-			add(n.Name)
+			addVariable(n.Name)
 		case *ast.TableVarMethodCallRef:
-			add(n.Var)
+			addVariable(n.Var)
+		case *ast.TableRef:
+			if strings.HasPrefix(n.Object, "#") {
+				addRelation(n.Object)
+			}
+		case *ast.TableVarRef:
+			addRelation(n.Name)
 		default:
 		}
 		return true
 	})
-	return variables
+	if len(relations) == 0 && len(variables) == 0 {
+		return nil
+	}
+	slices.SortFunc(relations, func(a, b ColumnResource) int {
+		return cmp.Or(cmp.Compare(a.Server, b.Server), cmp.Compare(a.Database, b.Database), cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Table, b.Table))
+	})
+	slices.Sort(variables)
+	return &UntracedError{Relations: relations, Variables: variables}
 }
 
 // tsqlFindTableSchemaByParts resolves a (linkedServer, database, schema, table)
@@ -157,10 +160,8 @@ func (q *querySpanExtractor) tsqlFindTableSchemaByParts(linkedServer, rawDatabas
 		// batch declared and for one it did not: the caller's map carries the
 		// columns, not what filled them.
 		if tempTable, ok := q.findTempTable(rawTable); ok {
-			q.markUntracedRelation(tempTable.Name)
 			return (*physicalTable)(tempTable), nil
 		}
-		q.markUntracedRelation(rawTable)
 		return &pseudoTable{}, nil
 	}
 
@@ -571,17 +572,11 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 	// reasons; those have no result columns. Return early if the root isn't a
 	// real SELECT.
 	if queryType != Select || !isSelect {
-		var untraced *UntracedError
-		if returnsRows(root) {
-			// A SELECT of the system's own metadata still returns the values it
-			// names, so an untraced one has to say so.
-			untraced = q.untracedError(root)
-		}
 		return &ResolvedSpan{
 			Type:          queryType,
 			SourceColumns: accessTables,
 			Results:       []QuerySpanResult{},
-			Untraced:      untraced,
+			Untraced:      q.untracedError(root),
 		}, nil
 	}
 
@@ -1004,7 +999,6 @@ func (q *querySpanExtractor) extractCTEBody(cteName string, body *ast.SelectStmt
 			predicateColumns:    make(ColumnSet),
 			viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
 			source:              q.source,
-			untracedRelations:   q.untracedRelations,
 		}
 	}
 
@@ -1388,7 +1382,6 @@ func (q *querySpanExtractor) resolveTableVar(tv *ast.TableVarRef, alias string) 
 	}
 	name := tv.Name
 	if temp, ok := q.findTempTable(name); ok {
-		q.markUntracedRelation(temp.Name)
 		tableName := name
 		if alias != "" {
 			tableName = alias
@@ -1511,9 +1504,6 @@ func (q *querySpanExtractor) cloneForSubquery() *querySpanExtractor {
 		predicateColumns:    make(ColumnSet),
 		viewResolutionStack: cloneViewResolutionStack(q.viewResolutionStack),
 		source:              q.source,
-		// The clone's writes are the statement's, so they land on the same
-		// records.
-		untracedRelations: q.untracedRelations,
 	}
 	return clone
 }
