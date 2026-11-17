@@ -650,7 +650,7 @@ func (d *Driver) dumpPartition(ctx context.Context, database, name, spec string)
 		return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
 	}
 	defer rows.Close()
-	var storage dumpStorage
+	var reader dumpStorageReader
 	location := ""
 	for rows.Next() {
 		var colName, dataType, comment sql.NullString
@@ -661,7 +661,7 @@ func (d *Driver) dumpPartition(ctx context.Context, database, name, spec string)
 			location = strings.TrimSpace(dataType.String)
 			continue
 		}
-		dumpStorageField(&storage, strings.TrimSpace(colName.String), strings.TrimSpace(dataType.String))
+		reader.read(strings.TrimSpace(colName.String), strings.TrimSpace(dataType.String), strings.TrimSpace(comment.String))
 	}
 	if err := rows.Err(); err != nil {
 		return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
@@ -669,27 +669,49 @@ func (d *Driver) dumpPartition(ctx context.Context, database, name, spec string)
 	if location == "" {
 		return "", dumpStorage{}, fmt.Errorf("%s: no location", query)
 	}
-	return location, storage, nil
+	return location, reader.storage, nil
 }
 
 // dumpStorage is what DESCRIBE FORMATTED states about an object's storage: the
-// classes Hive reads and writes its files with.
+// classes Hive reads and writes its files with, and the parameters the serde
+// takes, such as the delimiter a text table splits on.
 type dumpStorage struct {
 	serde        string
 	inputFormat  string
 	outputFormat string
+	params       map[string]string
 }
 
-// dumpStorageField reads one row of a DESCRIBE FORMATTED storage section into
-// storage, and reports whether the row stated one of the three.
-func dumpStorageField(storage *dumpStorage, label, value string) bool {
-	switch label {
+// dumpStorageReader reads the rows of a DESCRIBE FORMATTED storage section into
+// a dumpStorage.
+type dumpStorageReader struct {
+	storage dumpStorage
+	// params is whether the rows have reached the parameters' heading, after
+	// which a row whose label is empty states one.
+	params bool
+}
+
+// read reads one row's cells and reports whether the row belonged to the
+// section.
+func (r *dumpStorageReader) read(colName, dataType, comment string) bool {
+	switch {
+	case strings.HasPrefix(colName, "Storage Desc Params:"):
+		r.params = true
+		return true
+	case r.params && colName == "" && dataType != "":
+		if r.storage.params == nil {
+			r.storage.params = map[string]string{}
+		}
+		r.storage.params[dataType] = comment
+		return true
+	}
+	switch colName {
 	case "SerDe Library:":
-		storage.serde = value
+		r.storage.serde = dataType
 	case "InputFormat:":
-		storage.inputFormat = value
+		r.storage.inputFormat = dataType
 	case "OutputFormat:":
-		storage.outputFormat = value
+		r.storage.outputFormat = dataType
 	default:
 		return false
 	}
@@ -709,6 +731,21 @@ func dumpStorageDiff(table, partition dumpStorage) string {
 	if partition.outputFormat != table.outputFormat {
 		differ = append(differ, "OutputFormat "+partition.outputFormat)
 	}
+	var keys []string
+	for key := range partition.params {
+		keys = append(keys, key)
+	}
+	for key := range table.params {
+		if _, ok := partition.params[key]; !ok {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		if partition.params[key] != table.params[key] {
+			differ = append(differ, fmt.Sprintf("SerDe property %q=%q", key, partition.params[key]))
+		}
+	}
 	return strings.Join(differ, ", ")
 }
 
@@ -724,7 +761,7 @@ func dumpPartitionSpec(partition string) (string, bool) {
 		if !ok {
 			return "", false
 		}
-		value = dumpUnescape(value)
+		column, value = dumpUnescape(column), dumpUnescape(value)
 		if value == dumpNullPartition {
 			return "", false
 		}
@@ -749,6 +786,37 @@ func dumpUnescape(value string) string {
 			}
 		}
 		b.WriteByte(value[i])
+	}
+	return b.String()
+}
+
+// dumpUnescapeDescribed reads a value DESCRIBE FORMATTED renders: the formatter
+// escapes a parameter Java's way, so a quote comes back as \" and a backslash
+// as \\, which is not the value that was stored.
+func dumpUnescapeDescribed(value string) string {
+	if !strings.Contains(value, `\`) {
+		return value
+	}
+	var b strings.Builder
+	for i := 0; i < len(value); i++ {
+		if value[i] != '\\' || i+1 == len(value) {
+			b.WriteByte(value[i])
+			continue
+		}
+		i++
+		switch value[i] {
+		case 'n':
+			b.WriteByte('\n')
+		case 'r':
+			b.WriteByte('\r')
+		case 't':
+			b.WriteByte('\t')
+		case '\\', '\'', '"':
+			b.WriteByte(value[i])
+		default:
+			b.WriteByte('\\')
+			b.WriteByte(value[i])
+		}
 	}
 	return b.String()
 }

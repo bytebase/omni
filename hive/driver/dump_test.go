@@ -293,6 +293,9 @@ func TestDumpPartitionSpec(t *testing.T) {
 		// A value's quote and backslash are the two a replay escapes again.
 		{name: "dt=a%27b", spec: "`dt`='a\\'b'", ok: true},
 		{name: "dt=a%5Cb", spec: "`dt`='a\\\\b'", ok: true},
+		// Hive escapes a column's name as it escapes a value's.
+		{name: "d%25t=2024-01-01", spec: "`d%t`='2024-01-01'", ok: true},
+		{name: "d%3Di%2Fx=a%2Fb", spec: "`d=i/x`='a/b'", ok: true},
 		{name: "dt=__HIVE_DEFAULT_PARTITION__", ok: false},
 		{name: "dt=a/dt=__HIVE_DEFAULT_PARTITION__", ok: false},
 		{name: "dt", ok: false},
@@ -494,11 +497,11 @@ func TestDumpStorageDiff(t *testing.T) {
 		orcOut       = "org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat"
 	)
 	storage := func(rows ...[3]string) dumpStorage {
-		var s dumpStorage
+		var reader dumpStorageReader
 		for _, row := range rows {
-			dumpStorageField(&s, row[0], row[1])
+			reader.read(row[0], row[1], row[2])
 		}
-		return s
+		return reader.storage
 	}
 	table := storage(
 		[3]string{"SerDe Library:", parquetSerde},
@@ -506,22 +509,56 @@ func TestDumpStorageDiff(t *testing.T) {
 		[3]string{"OutputFormat:", parquetOut},
 		// A row the storage section states that is not one of the three.
 		[3]string{"Compressed:", "No"},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "serialization.format", "1"},
 	)
 	require.Equal(t, "", dumpStorageDiff(table, table), "a partition reading as the table does")
 	require.Equal(t, "SerDe Library "+orcSerde, dumpStorageDiff(table, storage(
 		[3]string{"SerDe Library:", orcSerde},
 		[3]string{"InputFormat:", parquetIn},
 		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "serialization.format", "1"},
 	)))
 	orc := storage(
 		[3]string{"SerDe Library:", orcSerde},
 		[3]string{"InputFormat:", orcIn},
 		[3]string{"OutputFormat:", orcOut},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "serialization.format", "1"},
 	)
 	require.Equal(t,
 		"SerDe Library "+orcSerde+", InputFormat "+orcIn+", OutputFormat "+orcOut,
 		dumpStorageDiff(table, orc),
 	)
+
+	// A table whose serde is the same and splits its files another way.
+	csv := storage(
+		[3]string{"SerDe Library:", parquetSerde},
+		[3]string{"InputFormat:", parquetIn},
+		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "field.delim", "|"},
+		[3]string{"", "serialization.format", "1"},
+	)
+	require.Equal(t, `SerDe property "serialization.format"=""`, dumpStorageDiff(csv, storage(
+		[3]string{"SerDe Library:", parquetSerde},
+		[3]string{"InputFormat:", parquetIn},
+		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Storage Desc Params:", "", ""},
+		[3]string{"", "field.delim", "|"},
+	)), "a parameter the table states and the partition does not")
+	require.Equal(t,
+		`SerDe property "field.delim"=","`,
+		dumpStorageDiff(table, storage(
+			[3]string{"SerDe Library:", parquetSerde},
+			[3]string{"InputFormat:", parquetIn},
+			[3]string{"OutputFormat:", parquetOut},
+			[3]string{"Storage Desc Params:", "", ""},
+			[3]string{"", "field.delim", ","},
+			[3]string{"", "serialization.format", "1"},
+		)),
+		"a parameter the partition states another way")
 
 	// A partition reading its files as the table does is the statement the dump
 	// writes; one that states its own storage is what the dump refuses instead of
@@ -534,4 +571,21 @@ func TestDumpStorageDiff(t *testing.T) {
 	require.EqualError(t, err,
 		"partition dt=2024-01-01 of db.t states its own SerDe Library "+orcSerde+
 			", InputFormat "+orcIn+", OutputFormat "+orcOut+", which ADD PARTITION does not carry")
+}
+
+// TestDumpUnescapeDescribed holds a value DESCRIBE FORMATTED renders: the
+// formatter escapes a parameter Java's way, so what it states is not what the
+// server stored.
+func TestDumpUnescapeDescribed(t *testing.T) {
+	for _, value := range []struct{ name, shown, want string }{
+		{name: "no escape", shown: "the users' rows", want: "the users' rows"},
+		{name: "an escaped backslash", shown: `a\\b`, want: `a\b`},
+		{name: "an escaped quote", shown: `{\"a\":\"b\"}`, want: `{"a":"b"}`},
+		{name: "an escaped line break", shown: `a\nb`, want: "a\nb"},
+		{name: "an escape the formatter does not write", shown: `a\qb`, want: `a\qb`},
+	} {
+		require.Equal(t, value.want, dumpUnescapeDescribed(value.shown), value.name)
+	}
+	// A comment the dump states reads back as the one the server stored.
+	require.Equal(t, "'a\\\\b'", dumpString(dumpUnescapeDescribed(`a\\b`)))
 }

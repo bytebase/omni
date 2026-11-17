@@ -263,6 +263,7 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	defer rows.Close()
 
 	section := columnSection
+	storageReader := dumpStorageReader{}
 	// reading is the field the view section states over several rows.
 	var reading *string
 	for rows.Next() {
@@ -328,12 +329,14 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 				}
 				tableInfo.totalSize = n
 			case trimField(dataTypeValue) == "comment":
-				tableInfo.comment = trimField(commentValue)
+				// The formatter renders a parameter escaped, so a backslash in
+				// the comment is the one it escaped rather than the one stored.
+				tableInfo.comment = dumpUnescapeDescribed(trimField(commentValue))
 			default:
 				// No action needed for other table info fields
 			}
 		case storageSection:
-			dumpStorageField(&tableInfo.storage, trimField(colNameValue), trimField(dataTypeValue))
+			storageReader.read(trimField(colNameValue), trimField(dataTypeValue), trimField(commentValue))
 		case viewSection:
 			switch {
 			case strings.HasPrefix(colNameValue, "View Original Text:"):
@@ -363,6 +366,7 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating rows: %w", err)
 	}
+	tableInfo.storage = storageReader.storage
 
 	return tableInfo, nil
 }
