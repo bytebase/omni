@@ -3,11 +3,14 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
-	"errors"
+	gomssqldb "github.com/microsoft/go-mssqldb"
+
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
@@ -17,9 +20,27 @@ type tableKey struct {
 	Table  string
 }
 
-// SyncDatabase reads the full schema metadata of the driver's database.
+// SyncDatabase reads the full schema metadata of the driver's database. A
+// database that is not there is driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	return SyncDatabase(ctx, d.db, d.databaseName)
+	metadata, err := SyncDatabase(ctx, d.db, d.databaseName)
+	if err != nil {
+		return nil, wrapSyncError(d.databaseName, err)
+	}
+	return metadata, nil
+}
+
+// wrapSyncError reports a database SQL Server says it does not have as
+// driver.ErrNotFound: a sync names the database it reads, so its absence is the
+// object the call asked for and not a failure of the sync. A login that may not
+// open the database gets 4060 too, and the database is as unreachable as a
+// missing one.
+func wrapSyncError(database string, err error) error {
+	var engineError gomssqldb.Error
+	if errors.As(err, &engineError) && (engineError.Number == 4060 || engineError.Number == 911) {
+		return fmt.Errorf("%w: database %q does not exist", driver.ErrNotFound, database)
+	}
+	return err
 }
 
 // SyncDatabase reads the full schema metadata of database through db, a

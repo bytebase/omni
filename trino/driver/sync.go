@@ -2,9 +2,13 @@ package driver
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
+	trinoclient "github.com/trinodb/trino-go-client/trino"
+
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
@@ -20,8 +24,28 @@ const informationSchema = "information_schema"
 // SyncDatabase reads the full schema of Config.Database, as Trino reports it:
 // every schema of the catalog, with its tables, views and their columns. The
 // catalog's information_schema is the server's own metadata, not a schema of
-// the catalog's data, so it is left out.
+// the catalog's data, so it is left out. A catalog that is not there is
+// driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	dbMetadata, err := d.syncDatabase(ctx)
+	if err != nil {
+		return nil, wrapSyncError(d.databaseName, err)
+	}
+	return dbMetadata, nil
+}
+
+// wrapSyncError reports a catalog Trino does not have as driver.ErrNotFound: a
+// sync names the catalog it reads, so its absence is the object the call asked
+// for and not a failure of the sync.
+func wrapSyncError(catalog string, err error) error {
+	var reason *trinoclient.ErrTrino
+	if errors.As(err, &reason) && reason.ErrorName == "CATALOG_NOT_FOUND" {
+		return fmt.Errorf("%w: catalog %q does not exist", driver.ErrNotFound, catalog)
+	}
+	return err
+}
+
+func (d *Driver) syncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	schemaNames, err := d.getSchemaList(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get schema list for catalog %s: %w", d.databaseName, err)

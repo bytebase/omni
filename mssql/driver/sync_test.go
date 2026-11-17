@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -15,6 +16,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	gomssqldb "github.com/microsoft/go-mssqldb"
+
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
@@ -167,5 +171,22 @@ CREATE TABLE [owner's].items (id INT NOT NULL PRIMARY KEY, note NVARCHAR(20));
 	}
 	if !found {
 		t.Fatalf("the schema is missing from %+v", metadata.Schemas)
+	}
+}
+
+// TestSyncDatabaseMissing holds that a database SQL Server says the login may
+// not open is driver.ErrNotFound. A tape cannot hold a failed connection, so the
+// mapping is held on its own rather than through a sync the server refuses.
+func TestSyncDatabaseMissing(t *testing.T) {
+	for _, number := range []int32{4060, 911} {
+		err := wrapSyncError("omni_no_such_database", gomssqldb.Error{Number: number, Message: "Cannot open database"})
+		if !errors.Is(err, driver.ErrNotFound) {
+			t.Errorf("wrapSyncError(%d) = %v, want driver.ErrNotFound", number, err)
+		}
+	}
+	// A failure of another kind keeps its own error.
+	other := gomssqldb.Error{Number: 229, Message: "The SELECT permission was denied"}
+	if err := wrapSyncError("omni_no_such_database", other); errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapSyncError(229) = %v, want the engine's own error", err)
 	}
 }
