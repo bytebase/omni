@@ -25,7 +25,8 @@
 //	sessionToken  the session token of a temporary credential, when
 //	              Config.User and Config.Password are one.
 //	accountId     the AWS account ID SyncInstance names the pseudo database
-//	              from.
+//	              from. When it is absent, SyncInstance asks STS for the
+//	              account the credential belongs to, as Bytebase's driver did.
 //
 // Config.User and Config.Password are the access key ID and secret access key.
 // An empty Config.User means the caller resolved the credential elsewhere, and
@@ -35,11 +36,15 @@
 // arrives here is the assumed role's key pair.
 //
 // The account ID is the one fact DynamoDB itself does not answer: the service
-// identifies an account by the credential, not by an API. Bytebase asked STS
-// for it, which is a second service the endpoint in Config does not name and a
-// second credential path the driver would own. Here the caller passes it, next
-// to the credential it already resolved, and SyncInstance builds the same
-// {account_id}-{region} name Bytebase built.
+// identifies an account by the credential, not by an API. SyncInstance asks STS
+// for it when the caller passes none, as Bytebase's driver did, so a cutover
+// keeps the account ID Bytebase reported and the same {account_id}-{region}
+// name. STS is a second service the endpoint in Config does not name, and the
+// call reaches STS's own endpoint; a caller that already knows the account
+// passes Params[ParamAccountID] and no STS call is made. A failed identity call
+// is reported as Bytebase reported it, "failed to get caller identity: ...",
+// and an identity carrying no account as "account id is empty in the caller
+// identity".
 //
 // Config.TLS supplies the TLS settings for the endpoint's host and makes TLS
 // required, so an endpoint URL that names http is refused rather than reached

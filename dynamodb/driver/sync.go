@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"errors"
+	"fmt"
 	"slices"
 	"strings"
 
@@ -15,9 +16,22 @@ import (
 // {account_id}-{region} because DynamoDB has no databases of its own and
 // Bytebase names one per account and region. DynamoDB reports no version and no
 // roles.
-func (d *Driver) SyncInstance(context.Context) (*driver.Instance, error) {
-	if d.accountID == "" {
-		return nil, errors.New("account id is empty in the driver config")
+//
+// The account ID is the one fact DynamoDB itself does not answer, and this
+// driver asks STS for it as Bytebase's did when the caller passes none. A
+// caller that already knows it passes Params[ParamAccountID] and STS is not
+// asked. The error texts are the ones Bytebase reported.
+func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
+	accountID := d.accountID
+	if accountID == "" {
+		answered, err := d.client.CallerAccount(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get caller identity: %w", err)
+		}
+		if answered == "" {
+			return nil, errors.New("account id is empty in the caller identity")
+		}
+		accountID = answered
 	}
 	if d.region == "" {
 		return nil, errors.New("region is empty in the AWS config")
@@ -25,7 +39,7 @@ func (d *Driver) SyncInstance(context.Context) (*driver.Instance, error) {
 	return &driver.Instance{
 		Databases: []*metadatapb.DatabaseSchemaMetadata{
 			{
-				Name: formatDatabaseName(d.accountID, d.region),
+				Name: formatDatabaseName(accountID, d.region),
 			},
 		},
 	}, nil

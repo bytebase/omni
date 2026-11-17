@@ -13,13 +13,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awssdk "github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	"github.com/bytebase/omni/driver"
 )
 
 // The driver asks DynamoDB for the tables of a region, one table's key schema,
-// and PartiQL statements. These are the calls it makes, and the seam its tests
-// answer from a tape.
+// and PartiQL statements, and STS for the account its credential belongs to.
+// These are the calls it makes, and the seam its tests answer from a tape.
 type client interface {
 	Ping(ctx context.Context) error
 	Close() error
@@ -30,6 +31,11 @@ type client interface {
 	DescribeTable(ctx context.Context, tableName string) (*Table, error)
 	ExecuteStatement(ctx context.Context, request StatementRequest) (StatementAnswer, error)
 	ExecuteTransaction(ctx context.Context, statement string) error
+	// CallerAccount returns the AWS account ID the configured credential
+	// belongs to, or an empty string when the identity states none. It is an
+	// STS call, not a DynamoDB one: the endpoint Config names answers no
+	// identity, and the SDK reaches STS's own.
+	CallerAccount(ctx context.Context) (string, error)
 }
 
 // Table is what a sync reads of one table: the parts of DescribeTable's answer
@@ -122,6 +128,7 @@ func newClient(ctx context.Context, cfg driver.Config) (client, error) {
 	}
 	return &liveClient{
 		client:     awssdk.NewFromConfig(awsConfig, options...),
+		sts:        sts.NewFromConfig(awsConfig),
 		httpClient: httpClient,
 	}, nil
 }
@@ -210,7 +217,21 @@ func endpointHost(endpoint string) string {
 // liveClient is the client the driver opens against a DynamoDB endpoint.
 type liveClient struct {
 	client     *awssdk.Client
+	sts        *sts.Client
 	httpClient *http.Client
+}
+
+// CallerAccount asks STS which account the credential belongs to. Bytebase's
+// driver named its pseudo database from the same answer, so a cutover keeps
+// the account ID it reported. STS is reached through the SDK's own endpoint,
+// not the one Config names: DynamoDB Local and a DynamoDB-compatible endpoint
+// answer no identity.
+func (c *liveClient) CallerAccount(ctx context.Context) (string, error) {
+	out, err := c.sts.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{})
+	if err != nil {
+		return "", err
+	}
+	return aws.ToString(out.Account), nil
 }
 
 // Ping reads one table name, which is the least a DynamoDB endpoint answers:

@@ -98,6 +98,14 @@ func (c *tapeClient) ExecuteTransaction(ctx context.Context, statement string) e
 	return err
 }
 
+func (c *tapeClient) CallerAccount(ctx context.Context) (string, error) {
+	a, err := c.do(ctx, request{Op: opCallerAccount})
+	if err != nil {
+		return "", err
+	}
+	return a.Account, nil
+}
+
 // do sends one call and returns its answer.
 func (c *tapeClient) do(_ context.Context, r request) (answer, error) {
 	text, err := r.text()
@@ -126,6 +134,7 @@ const (
 	opDescribeTable      = "describeTable"
 	opExecuteStatement   = "executeStatement"
 	opExecuteTransaction = "executeTransaction"
+	opCallerAccount      = "callerAccount"
 )
 
 // request is one call as a tape holds it.
@@ -153,6 +162,7 @@ type answer struct {
 	Table                  *table   `json:"table,omitempty"`
 	Items                  []item   `json:"items,omitempty"`
 	NextToken              string   `json:"nextToken,omitempty"`
+	Account                string   `json:"account,omitempty"`
 	Error                  *failure `json:"error,omitempty"`
 }
 
@@ -431,6 +441,17 @@ func live(t testing.TB, endpoint func(testing.TB) (string, error), text string) 
 	var req request
 	if err := unmarshalJSON([]byte(text), &req); err != nil {
 		return "", fmt.Errorf("test: unreadable request %s: %w", text, err)
+	}
+	// The identity call reaches STS, which DynamoDB Local is not and whose
+	// real endpoint a recording must not ask with the fixture's placeholder
+	// key pair. The harness answers as the fixture's account, before any
+	// endpoint starts, so the tape holds the call and the replay needs none.
+	if req.Op == opCallerAccount {
+		b, err := json.Marshal(answer{Account: testcontainer.AccountID})
+		if err != nil {
+			return "", err
+		}
+		return string(b), nil
 	}
 	url, err := endpoint(t)
 	if err != nil {
