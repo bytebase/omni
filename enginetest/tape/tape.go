@@ -148,8 +148,10 @@ func (f *fileState) poison() error {
 // its tape, or, in a recording, the pinned server with every exchange
 // written down. Each call is one stream, named by t, role and how many
 // connections t opened before; the pool holds one connection, so session
-// state (USE, SET SESSION) holds as it would on one live connection. The
-// package's TestMain must run tests through Main.
+// state (USE, SET SESSION) holds as it would on one live connection. A
+// connection the engine refuses is recorded as a connect exchange, and a replay
+// answers the pool's use of it with that error. The package's TestMain must run
+// tests through Main.
 func Open(t testing.TB, s *Server, role string) *sql.DB {
 	t.Helper()
 	ses, f, pin, recording := begin(t, s, role)
