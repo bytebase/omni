@@ -60,13 +60,14 @@ func ExtractChangedResources(statement, database, schema string) (*StatementChan
 		})
 	}
 
+	segments := redshift.Split(statement)
 	searchPath := schema
 	// replaySearchPath is the search path set after the starting one, which the EXPLAIN connection
 	// does not have.
 	var replaySearchPath []string
-	sampleDML := func(text string) {
+	sampleDML := func(stmt redshift.Statement) {
 		changes.DMLCount++
-		text = strings.TrimSpace(text)
+		text := strings.TrimSpace(sampleText(segments, stmt))
 		if len(replaySearchPath) > 0 {
 			text = withSearchPath(text, replaySearchPath)
 		}
@@ -93,10 +94,10 @@ func ExtractChangedResources(statement, database, schema string) (*StatementChan
 			if rows, ok := insertValuesRowCount(n); ok {
 				changes.InsertCount += rows
 			} else {
-				sampleDML(stmt.Text)
+				sampleDML(stmt)
 			}
 		case *ast.UpdateStmt, *ast.DeleteStmt:
-			sampleDML(stmt.Text)
+			sampleDML(stmt)
 		case *ast.MergeStmt:
 			// Redshift documents EXPLAIN only for SELECT, CREATE TABLE AS, INSERT, UPDATE, and DELETE.
 			changes.DMLCount++
@@ -152,6 +153,27 @@ func ddlAffectedTables(stmts []redshift.Statement, database, schema string) map[
 		}
 	}
 	return affected
+}
+
+// sampleText returns the script's text of one statement, from its first token
+// through its terminating semicolon. The parser's own Text ends at the
+// statement's last token, so a comment before that semicolon would move into
+// the next statement's text; a sample taken from the splitter keeps it, and
+// stays one statement EXPLAIN can run.
+func sampleText(segments []redshift.Segment, stmt redshift.Statement) string {
+	start := ast.NodeLoc(stmt.AST).Start
+	if start < 0 {
+		return stmt.Text
+	}
+	for _, segment := range segments {
+		if segment.ByteStart <= start && start < segment.ByteEnd {
+			offset := start - segment.ByteStart
+			if offset >= 0 && offset <= len(segment.Text) {
+				return segment.Text[offset:]
+			}
+		}
+	}
+	return stmt.Text
 }
 
 // insertValuesRowCount returns how many rows INSERT ... VALUES or INSERT ... DEFAULT

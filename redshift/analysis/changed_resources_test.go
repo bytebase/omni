@@ -127,6 +127,20 @@ DROP TABLE c;`,
 			insertCount: 1,
 		},
 		{
+			name: "comment_before_the_semicolon_stays_in_the_sample",
+			statement: `UPDATE t SET c = 1 /* note */;
+DELETE FROM x;`,
+			tables: []table{
+				{database: "db", schema: "public", name: "t"},
+				{database: "db", schema: "public", name: "x"},
+			},
+			dmlStatements: []string{
+				"UPDATE t SET c = 1 /* note */;",
+				"DELETE FROM x;",
+			},
+			dmlCount: 2,
+		},
+		{
 			name:          "every_dml_statement_is_listed",
 			statement:     strings.Repeat("UPDATE t SET c = 1;\n", 12),
 			tables:        []table{{database: "db", schema: "public", name: "t"}},
