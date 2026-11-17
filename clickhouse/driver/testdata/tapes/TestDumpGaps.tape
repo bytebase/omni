@@ -13,6 +13,9 @@
 > exec
 | CREATE MATERIALIZED VIEW `omni_gap_mv`.mv ENGINE = MergeTree ORDER BY id AS SELECT id FROM `omni_gap_mv`.src
 < ok 0 -
+> exec
+| SET format_display_secrets_in_show_and_select = 1
+< ok 0 -
 > query
 |
 | 		SELECT
@@ -122,6 +125,9 @@
 < ok 0 -
 > exec
 | CREATE TABLE `omni_gap_database`.t (id UInt64) ENGINE = MergeTree ORDER BY id
+< ok 0 -
+> exec
+| SET format_display_secrets_in_show_and_select = 1
 < ok 0 -
 > query
 |

@@ -1384,6 +1384,9 @@
 < column "type" "String" "string"
 < column "expr" "String" "string"
 < column "granularity" "UInt64" "uint64"
+> exec
+| SET format_display_secrets_in_show_and_select = 1
+< ok 0 -
 > query
 |
 | 		SELECT

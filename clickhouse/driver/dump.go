@@ -2,6 +2,7 @@ package driver
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"io"
 	"regexp"
@@ -44,7 +45,20 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 	if err != nil {
 		return wrapDatabaseNotFound(err)
 	}
-	objects, err := d.dumpObjects(ctx, database)
+	// The dump runs on one session so it can ask the server to state a secret in
+	// full. Whether one is shown is the server's decision — it needs the
+	// display_secrets_in_show_and_select setting and the
+	// displaySecretsInShowAndSelect privilege — and the server states the
+	// placeholder when it does not show it.
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return wrapDatabaseNotFound(err)
+	}
+	defer func() { _ = conn.Close() }()
+	if _, err := conn.ExecContext(ctx, "SET format_display_secrets_in_show_and_select = 1"); err != nil {
+		return wrapDatabaseNotFound(formatErrorWithQuery(err, "SET format_display_secrets_in_show_and_select = 1"))
+	}
+	objects, err := d.dumpObjects(ctx, conn, database)
 	if err != nil {
 		return wrapDatabaseNotFound(err)
 	}
@@ -58,7 +72,7 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 
 // dumpObjects reads every object of database and the statement the server
 // states for it.
-func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObject, error) {
+func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database string) ([]*dumpObject, error) {
 	// A materialized view with its own engine has a table the server named
 	// itself, ".inner_id.<uuid>". It is the view's storage, not an object of the
 	// database, and a dump that wrote it would create a second one beside the
@@ -70,7 +84,7 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 		FROM system.tables
 		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 		ORDER BY name`
-	rows, err := d.db.QueryContext(ctx, query, database)
+	rows, err := conn.QueryContext(ctx, query, database)
 	if err != nil {
 		return nil, formatErrorWithQuery(err, query)
 	}
@@ -93,7 +107,7 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 	// The statement queries go in name order, which is the order the rows
 	// arrived in, so a recording of them does not depend on a map.
 	for _, o := range objects {
-		if o.stmt, err = d.dumpStatement(ctx, database, o.name); err != nil {
+		if o.stmt, err = d.dumpStatement(ctx, conn, database, o.name); err != nil {
 			return nil, err
 		}
 		o.kind = dumpKind(o.stmt)
@@ -153,9 +167,9 @@ func dumpKind(stmt string) string {
 // dumpStatement returns the statement the server states for one object, without
 // its terminating semicolon. SHOW CREATE TABLE answers one row in one column
 // for every kind of object, a dictionary included.
-func (d *Driver) dumpStatement(ctx context.Context, database, name string) (string, error) {
+func (d *Driver) dumpStatement(ctx context.Context, conn *sql.Conn, database, name string) (string, error) {
 	query := "SHOW CREATE TABLE " + dumpIdentifier(database) + "." + dumpIdentifier(name)
-	rows, err := d.db.QueryContext(ctx, query)
+	rows, err := conn.QueryContext(ctx, query)
 	if err != nil {
 		return "", formatErrorWithQuery(err, query)
 	}

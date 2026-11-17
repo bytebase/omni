@@ -209,6 +209,9 @@
 |
 | CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps
 < ok 0 -
+> exec
+| SET format_display_secrets_in_show_and_select = 1
+< ok 0 -
 > query
 |
 | 		SELECT

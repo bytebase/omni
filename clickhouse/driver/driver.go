@@ -14,9 +14,10 @@
 // the server's own, so each names its object in the database it was read from
 // and a dump restores into a database of that name; the database itself is the
 // caller's to create, since only SHOW CREATE DATABASE states its engine and
-// comment. A definition whose secrets the server hides — ClickHouse writes
-// [HIDDEN] for a credential the session may not see — is written as the server
-// states it. There is no clickhouse/parser or clickhouse/analysis yet, so the
+// comment. A definition's secret is written as the server states it: the dump
+// asks the server to show one in full, which it does only with its
+// display_secrets_in_show_and_select setting and the displaySecretsInShowAndSelect
+// privilege, and writes ClickHouse's [HIDDEN] placeholder otherwise. There is no clickhouse/parser or clickhouse/analysis yet, so the
 // statement handling the driver needs — splitting, limit and explain rewriting,
 // and the read-only check — lives in this package until that tree holds it.
 //
