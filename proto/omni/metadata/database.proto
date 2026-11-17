@@ -116,6 +116,102 @@ message SchemaMetadata {
   // public ones are in DatabaseSchemaMetadata.public_synonyms, and SQL
   // Server's synonyms.
   repeated SynonymMetadata synonyms = 18;
+
+  // The list of user-defined collations in a schema (PostgreSQL CREATE
+  // COLLATION). The collations the server ships in pg_catalog and
+  // information_schema are not in the list: a column that uses one names it
+  // and the server already has it.
+  repeated CollationMetadata collations = 19;
+
+  // The list of user-defined range types in a schema (PostgreSQL CREATE TYPE
+  // ... AS RANGE). A server creates the type's constructor functions and, from
+  // PostgreSQL 14, its multirange type itself, so neither is in the lists here.
+  repeated RangeTypeMetadata range_types = 20;
+}
+
+// RangeTypeMetadata is a range type over a subtype (PostgreSQL CREATE TYPE
+// ... AS RANGE): every value it holds is a range of the subtype.
+message RangeTypeMetadata {
+  // The name of the range type.
+  string name = 1;
+
+  // The subtype the range covers, as the server states it: an emit-ready type
+  // name, schema-qualified when it is not a pg_catalog type. For example
+  // "double precision" or "app.measure".
+  string subtype = 2;
+
+  // The operator class the range's subtype uses, schema-qualified, when it is
+  // not the subtype's default.
+  string subtype_opclass = 3;
+
+  // The collation the subtype is compared with, as an emit-ready identifier
+  // reference (quoted as needed, schema-qualified), when it is not the
+  // subtype's own.
+  string collation = 4;
+
+  // The function that turns a range into its canonical form, when the range
+  // declares one. PostgreSQL creates such a range from a shell type, the
+  // function, then the full type, and the function's definition is a C symbol,
+  // so a dump that writes the type alone cannot restore it; the field is here
+  // so the loss shows in a restored snapshot instead of hiding.
+  string canonical = 5;
+
+  // The function that subtracts two subtype values to size a range's gap, when
+  // the range declares one. It carries canonical's constraint.
+  string subtype_diff = 6;
+
+  // The multirange type the server made beside the range type, as an
+  // emit-ready type name. Empty before PostgreSQL 14, which has no multirange
+  // types.
+  string multirange_name = 7;
+
+  // The comment COMMENT ON TYPE states, if any.
+  string comment = 8;
+
+  // The range type belongs to an extension, so creating the extension creates
+  // it and the dump leaves it out.
+  bool skip_dump = 9;
+}
+
+// CollationMetadata is a collation an object of the schema refers to by name
+// (PostgreSQL CREATE COLLATION). Without it the reference names nothing the
+// dump creates, so an object that sorts or compares with it cannot restore.
+message CollationMetadata {
+  // The name of the collation.
+  string name = 1;
+
+  // The provider that resolves the locale, as PostgreSQL's collprovider
+  // states it: "c" libc, "i" ICU, "b" builtin, or "d" the database default.
+  // Empty when the engine states no provider.
+  string provider = 2;
+
+  // The locale an ICU or builtin provider resolves, as the server states it
+  // (for example "und-u-ks-level2").
+  string locale = 3;
+
+  // The LC_COLLATE a libc provider sorts with.
+  string lc_collate = 4;
+
+  // The LC_CTYPE a libc provider classifies with.
+  string lc_ctype = 5;
+
+  // Whether the collation tells two different strings apart. Unset means the
+  // engine does not state it; PostgreSQL states it only as
+  // deterministic = false, which lets a collation compare 'a' and 'A' equal.
+  optional bool deterministic = 6;
+
+  // The comment COMMENT ON COLLATION states, if any.
+  string comment = 7;
+
+  // The collation belongs to an extension, so creating the extension creates
+  // it and the dump leaves it out.
+  bool skip_dump = 8;
+
+  // The ICU rules the collation tailors its locale with (CREATE COLLATION ...
+  // rules = '...'). PostgreSQL keeps them in collicurules from 16; a release
+  // before that cannot state rules, and a collation that declares none leaves
+  // the field empty.
+  string rules = 9;
 }
 
 // SynonymMetadata is a synonym: another name for an object, which the engine
@@ -662,6 +758,13 @@ message ColumnMetadata {
   // Captured from information_schema.COLUMNS.EXTRA containing INVISIBLE and
   // rendered as the `/*!80023 INVISIBLE */` column attribute.
   bool is_invisible = 22;
+
+  // The schema of the user-defined collation the column names, without quoting
+  // (PostgreSQL). Empty for a collation the server ships in pg_catalog, which
+  // an unqualified name reaches, and for an engine without schemas. A dump
+  // restores with an empty search_path, so a collation outside pg_catalog needs
+  // this written beside the name.
+  string collation_schema = 23;
 }
 
 message GenerationMetadata {

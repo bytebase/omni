@@ -22,7 +22,7 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
-var update = flag.Bool("update", false, "rewrite the golden files under testdata/sync from this run")
+var update = flag.Bool("update", false, "rewrite the golden files under testdata from this run")
 
 func openTestDriver(t *testing.T) *Driver {
 	t.Helper()
@@ -210,15 +210,15 @@ func TestSyncDatabaseMissing(t *testing.T) {
 // not have it.
 const missingDatabase = "omni_no_such_database"
 
-// TestWrapSyncError holds that UNKNOWN_DATABASE is driver.ErrNotFound and that a
-// failure of another kind keeps its own error.
-func TestWrapSyncError(t *testing.T) {
-	err := wrapSyncError(fmt.Errorf("failed to execute query: %w", &clickhouse.Exception{Code: unknownDatabase, Message: "Database omni_no_such_database does not exist"}))
+// TestWrapDatabaseNotFound holds that UNKNOWN_DATABASE is driver.ErrNotFound and
+// that a failure of another kind keeps its own error.
+func TestWrapDatabaseNotFound(t *testing.T) {
+	err := wrapDatabaseNotFound(fmt.Errorf("failed to execute query: %w", &clickhouse.Exception{Code: unknownDatabase, Message: "Database omni_no_such_database does not exist"}))
 	if !errors.Is(err, driver.ErrNotFound) {
-		t.Errorf("wrapSyncError(81) = %v, want driver.ErrNotFound", err)
+		t.Errorf("wrapDatabaseNotFound(81) = %v, want driver.ErrNotFound", err)
 	}
 	other := &clickhouse.Exception{Code: 60, Message: "Unknown table"}
-	if err := wrapSyncError(other); errors.Is(err, driver.ErrNotFound) {
-		t.Errorf("wrapSyncError(60) = %v, want the engine's own error", err)
+	if err := wrapDatabaseNotFound(other); errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapDatabaseNotFound(60) = %v, want the engine's own error", err)
 	}
 }

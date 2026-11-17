@@ -301,7 +301,8 @@
               "position":  5,
               "nullable":  true,
               "type":  "text",
-              "collation":  "ci"
+              "collation":  "ci",
+              "collationSchema":  "app"
             },
             {
               "name":  "mood",
@@ -1444,16 +1445,6 @@
           "signature":  "customer_count()"
         },
         {
-          "name":  "float_range",
-          "definition":  "range_constructor2",
-          "signature":  "float_range(double precision, double precision)"
-        },
-        {
-          "name":  "float_range",
-          "definition":  "range_constructor3",
-          "signature":  "float_range(double precision, double precision, text)"
-        },
-        {
           "name":  "items_named",
           "definition":  "CREATE OR REPLACE FUNCTION app.items_named(p text)\n RETURNS SETOF text\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO 'app'\nAS $function$ SELECT p $function$\n",
           "signature":  "items_named(p text)"
@@ -1630,6 +1621,22 @@
         },
         {
           "name":  "empty_type"
+        }
+      ],
+      "collations":  [
+        {
+          "name":  "ci",
+          "provider":  "i",
+          "locale":  "und-u-ks-level2",
+          "lcCollate":  "und-u-ks-level2",
+          "lcCtype":  "und-u-ks-level2",
+          "deterministic":  false
+        }
+      ],
+      "rangeTypes":  [
+        {
+          "name":  "float_range",
+          "subtype":  "double precision"
         }
       ]
     },

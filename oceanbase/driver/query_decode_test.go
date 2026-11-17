@@ -3,10 +3,13 @@ package driver
 import (
 	"bytes"
 	"context"
+	"database/sql"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/bytebase/omni/driver"
+	"github.com/bytebase/omni/oceanbase/internal/testcontainer"
 )
 
 // columnKindsSetup holds one row of every column kind the client names and the
@@ -86,5 +89,178 @@ func TestQueryColumnKinds(t *testing.T) {
 		if got := nulls[i]; got.Kind != driver.Null {
 			t.Errorf("null %q = %+v, want NULL", columns[i].Name, got)
 		}
+	}
+}
+
+// execScript runs script on sess and fails on the first statement the engine
+// refused: Query returns a statement's error on its result, not from itself.
+func execScript(t *testing.T, sess driver.Session, script string) {
+	t.Helper()
+	results, err := sess.Query(context.Background(), script, driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("script: %v", err)
+	}
+	for _, res := range results {
+		if res.Err != nil {
+			t.Fatalf("%s: %v", res.Statement, res.Err)
+		}
+	}
+}
+
+// temporalKindsSetup holds the temporal shapes an OceanBase column may declare:
+// a TIMESTAMP and a DATETIME at the highest precision, one at the default
+// precision, the DATE the decode path reads as text, and the NULL of each.
+const temporalKindsSetup = `DROP TABLE IF EXISTS qtimes;
+CREATE TABLE qtimes (
+  id BIGINT PRIMARY KEY,
+  ts TIMESTAMP(6) NULL,
+  dt DATETIME(6) NULL,
+  dt0 DATETIME NULL,
+  d DATE NULL
+);
+INSERT INTO qtimes VALUES
+  (1, '2026-03-04 05:06:07.123456', '2026-03-04 05:06:07.123456', '2026-03-04 05:06:07', '2026-03-04'),
+  (2, NULL, NULL, NULL, NULL);`
+
+// TestQueryTemporalKinds runs the decode path over those shapes on a
+// connection whose client parses time, in the default location and eight hours
+// east: a TIMESTAMP or DATETIME answers as Timestamp with the column's
+// precision and the wall clock the column holds under either location, as
+// mysql/driver answers it.
+func TestQueryTemporalKinds(t *testing.T) {
+	ctx := context.Background()
+	const dbName = "omni_qe_temporal"
+	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
+		for _, stmt := range []string{
+			"DROP DATABASE IF EXISTS " + quoteBacktick(dbName),
+			"CREATE DATABASE " + quoteBacktick(dbName),
+		} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	for _, tc := range []struct {
+		name string
+		loc  *time.Location
+	}{
+		{"default-loc", time.UTC},
+		{"loc-plus8", time.FixedZone("UTC+8", 8*3600)},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			db := testcontainer.OpenWith(t, testcontainer.Options{
+				Database:        dbName,
+				MultiStatements: true,
+				ParseTime:       true,
+				Loc:             tc.loc,
+			})
+			t.Cleanup(func() { _ = db.Close() })
+			d := &Driver{db: db, databaseName: dbName}
+			sess, err := d.Session(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = sess.Close() }()
+
+			execScript(t, sess, temporalKindsSetup)
+			times, err := sess.Query(ctx, "SELECT * FROM qtimes ORDER BY id;", driver.QueryOptions{})
+			if err != nil || len(times) != 1 || times[0].Err != nil {
+				t.Fatalf("qtimes query = %+v, %v", times, err)
+			}
+			columns := times[0].Columns
+			var types []string
+			for _, c := range columns {
+				types = append(types, c.TypeName)
+			}
+			wantTypes := []string{"BIGINT", "TIMESTAMP", "DATETIME", "DATETIME", "DATE"}
+			if !slices.Equal(types, wantTypes) {
+				t.Fatalf("qtimes types = %v, want %v", types, wantTypes)
+			}
+
+			filled, nulls := times[0].Rows[0], times[0].Rows[1]
+			for i, want := range []struct {
+				precision int32
+				nano      int
+			}{
+				{6, 123456000},
+				{6, 123456000},
+				{0, 0},
+			} {
+				wantTime := time.Date(2026, 3, 4, 5, 6, 7, want.nano, time.UTC)
+				if got := filled[i+1]; got.Kind != driver.Timestamp || got.Precision != want.precision || !got.Time.Equal(wantTime) {
+					t.Errorf("filled %q = %+v, want Timestamp %s at precision %d", columns[i+1].Name, got, wantTime, want.precision)
+				}
+			}
+			wantDate := time.Date(2026, 3, 4, 0, 0, 0, 0, tc.loc).Format(time.RFC3339Nano)
+			if got := filled[4]; got.Kind != driver.String || got.String != wantDate {
+				t.Errorf("filled %q = %+v, want String %q", columns[4].Name, got, wantDate)
+			}
+			for i := 1; i < len(columns); i++ {
+				if got := nulls[i]; got.Kind != driver.Null {
+					t.Errorf("null %q = %+v, want NULL", columns[i].Name, got)
+				}
+			}
+		})
+	}
+}
+
+// spatialKindsSetup declares a column of every spatial type OceanBase names,
+// each holding a value of its declared type.
+const spatialKindsSetup = `DROP TABLE IF EXISTS qgeo;
+CREATE TABLE qgeo (
+  id BIGINT PRIMARY KEY,
+  g GEOMETRY,
+  p POINT,
+  l LINESTRING,
+  poly POLYGON,
+  mp MULTIPOINT,
+  ml MULTILINESTRING,
+  mpoly MULTIPOLYGON,
+  gc GEOMETRYCOLLECTION
+);
+INSERT INTO qgeo VALUES (1,
+  ST_GeomFromText('POINT(1 2)'),
+  ST_GeomFromText('POINT(1 2)'),
+  ST_GeomFromText('LINESTRING(1 2,3 4)'),
+  ST_GeomFromText('POLYGON((0 0,1 0,1 1,0 0))'),
+  ST_GeomFromText('MULTIPOINT(1 2,3 4)'),
+  ST_GeomFromText('MULTILINESTRING((1 2,3 4))'),
+  ST_GeomFromText('MULTIPOLYGON(((0 0,1 0,1 1,0 0)))'),
+  ST_GeomFromText('GEOMETRYCOLLECTION(POINT(1 2))'));`
+
+// TestQuerySpatialKinds pins that OceanBase names every spatial column GEOMETRY,
+// whatever the column was declared with: the decode path needs only that name,
+// and a narrower one never fires.
+func TestQuerySpatialKinds(t *testing.T) {
+	ctx := context.Background()
+	d := openTestDriver(t, "omni_qe_spatial")
+	sess, err := d.Session(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = sess.Close() }()
+
+	execScript(t, sess, spatialKindsSetup)
+	geo, err := sess.Query(ctx, "SELECT * FROM qgeo ORDER BY id;", driver.QueryOptions{})
+	if err != nil || len(geo) != 1 || geo[0].Err != nil {
+		t.Fatalf("qgeo query = %+v, %v", geo, err)
+	}
+	columns, row := geo[0].Columns, geo[0].Rows[0]
+	wantTypes := []string{"BIGINT", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY", "GEOMETRY"}
+	var types []string
+	for _, c := range columns {
+		types = append(types, c.TypeName)
+	}
+	if !slices.Equal(types, wantTypes) {
+		t.Fatalf("qgeo types = %v, want %v", types, wantTypes)
+	}
+	for i := 1; i < len(columns); i++ {
+		if got := row[i]; got.Kind != driver.Bytes || len(got.Bytes) == 0 {
+			t.Errorf("%q = %+v, want bytes", columns[i].Name, got)
+		}
+	}
+	if !bytes.Equal(row[2].Bytes, row[1].Bytes) {
+		t.Errorf("POINT(1 2) in %q and %q differ: %x and %x", columns[1].Name, columns[2].Name, row[1].Bytes, row[2].Bytes)
 	}
 }
