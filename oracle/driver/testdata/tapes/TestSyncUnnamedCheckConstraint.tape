@@ -177,7 +177,9 @@
 | 			SEARCH_CONDITION,
 | 			R_OWNER,
 | 			R_CONSTRAINT_NAME,
-| 			DELETE_RULE
+| 			DELETE_RULE,
+| 			INDEX_OWNER,
+| 			INDEX_NAME
 | 		FROM SYS.ALL_CONSTRAINTS
 | 		WHERE OWNER = 'OMNI_APP'
 | 		ORDER BY TABLE_NAME, CONSTRAINT_NAME
@@ -189,6 +191,8 @@
 < column "R_OWNER" "NCHAR" "string"
 < column "R_CONSTRAINT_NAME" "NCHAR" "string"
 < column "DELETE_RULE" "NCHAR" "string"
+< column "INDEX_OWNER" "NCHAR" "string"
+< column "INDEX_NAME" "NCHAR" "string"
 < row
 : string
 | C
@@ -201,6 +205,8 @@
 : null
 : null
 : null
+: null
+: null
 < row
 : string
 | C
@@ -210,6 +216,8 @@
 | C
 : string
 | A > 0
+: null
+: null
 : null
 : null
 : null
@@ -344,11 +352,37 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT SEQUENCE_NAME FROM ALL_SEQUENCES
+| 		SELECT
+| 			SEQUENCE_NAME,
+| 			TO_CHAR(MIN_VALUE),
+| 			TO_CHAR(MAX_VALUE),
+| 			TO_CHAR(INCREMENT_BY),
+| 			CYCLE_FLAG,
+| 			ORDER_FLAG,
+| 			TO_CHAR(CACHE_SIZE),
+| 			TO_CHAR(LAST_NUMBER),
+| 			KEEP_VALUE,
+| 			SCALE_FLAG,
+| 			EXTEND_FLAG,
+| 			SESSION_FLAG,
+| 			SHARDED_FLAG
+| 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_APP'
 | 		ORDER BY SEQUENCE_NAME
 < result
 < column "SEQUENCE_NAME" "NCHAR" "string"
+< column "TO_CHAR(MIN_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(MAX_VALUE)" "NCHAR" "string"
+< column "TO_CHAR(INCREMENT_BY)" "NCHAR" "string"
+< column "CYCLE_FLAG" "NCHAR" "string"
+< column "ORDER_FLAG" "NCHAR" "string"
+< column "TO_CHAR(CACHE_SIZE)" "NCHAR" "string"
+< column "TO_CHAR(LAST_NUMBER)" "NCHAR" "string"
+< column "KEEP_VALUE" "NCHAR" "string"
+< column "SCALE_FLAG" "NCHAR" "string"
+< column "EXTEND_FLAG" "NCHAR" "string"
+< column "SESSION_FLAG" "NCHAR" "string"
+< column "SHARDED_FLAG" "NCHAR" "string"
 > query
 |
 | 	SELECT DB_LINK, HOST, USERNAME

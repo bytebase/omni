@@ -116,6 +116,16 @@ func (x schemaIndex) lacksRelation(k tableKey) bool {
 	return true
 }
 
+// constraintName returns the name of the constraint the index backs: the
+// index's own, unless the sync recorded another because Oracle reused an
+// index the schema already had for the constraint.
+func constraintName(idx *metadata.IndexMetadata) string {
+	if name := idx.GetConstraintName(); name != "" {
+		return name
+	}
+	return idx.GetName()
+}
+
 // constraintKind returns the kind of the synced table's constraint of the
 // name: the primary key or a unique constraint, by its index, a foreign
 // key, or a check, which in Oracle a named NOT NULL constraint is too; ok
@@ -123,13 +133,13 @@ func (x schemaIndex) lacksRelation(k tableKey) bool {
 // backs no constraint is none: DROP CONSTRAINT refuses it.
 func constraintKind(t *metadata.TableMetadata, name string) (ast.ConstraintType, bool) {
 	for _, idx := range t.GetIndexes() {
-		if idx.GetName() != name {
+		if constraintName(idx) != name {
 			continue
 		}
 		switch {
 		case idx.GetPrimary():
 			return ast.CONSTRAINT_PRIMARY, true
-		case idx.GetUnique() && idx.GetIsConstraint():
+		case idx.GetIsConstraint():
 			return ast.CONSTRAINT_UNIQUE, true
 		}
 	}
@@ -162,7 +172,7 @@ func (x schemaIndex) constraintNames() map[string]syncedConstraint {
 		k := tableKey{schema: db, name: t.GetName()}
 		names := make([]string, 0, len(t.GetIndexes())+len(t.GetForeignKeys())+len(t.GetCheckConstraints()))
 		for _, idx := range t.GetIndexes() {
-			names = append(names, idx.GetName())
+			names = append(names, constraintName(idx))
 		}
 		for _, fk := range t.GetForeignKeys() {
 			names = append(names, fk.GetName())

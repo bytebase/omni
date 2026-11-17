@@ -71,10 +71,11 @@ func runCases(t *testing.T, rule review.Rule, cases []ruleCase) {
 
 // shop is a small database as Bytebase syncs one, its objects in the
 // schema named "": P with a primary key; T with a primary key, a unique
-// constraint, a plain and a unique index, a foreign key to P, a check, and
-// a named NOT NULL constraint, which Oracle keeps as a check; NOKEY
-// without a key; LONGT with a LONG column; V, a view; MV, a materialized
-// view; and SEQ, a sequence.
+// constraint, a plain and a unique index, a unique constraint reusing an
+// index of another name, a foreign key to P, a check, and a named NOT NULL
+// constraint, which Oracle keeps as a check; NOKEY without a key; LONGT
+// with a LONG column; V, a view; MV, a materialized view; and SEQ, a
+// sequence.
 func shop() *metadata.DatabaseSchemaMetadata {
 	return &metadata.DatabaseSchemaMetadata{
 		Name: "SHOP",
@@ -93,6 +94,10 @@ func shop() *metadata.DatabaseSchemaMetadata {
 						{Name: "UK_CODE", Unique: true, IsConstraint: true},
 						{Name: "IX_N"},
 						{Name: "UX_N", Unique: true},
+						// A unique constraint the schema reuses its own index for:
+						// the constraint's name is not the index's, and the index
+						// stays non-unique.
+						{Name: "IX_REUSED", IsConstraint: true, ConstraintName: "UK_REUSED"},
 					},
 					ForeignKeys:      []*metadata.ForeignKeyMetadata{{Name: "FK_P", ReferencedTable: "P"}},
 					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_N"}, {Name: "NN_CODE", Expression: `"CODE" IS NOT NULL`}},
@@ -403,6 +408,13 @@ func TestDisallowDropConstraint(t *testing.T) {
 				{1, "DROP CONSTRAINT ck_n", "Drops check constraint `CK_N` of `SHOP.T`.", []int{0}},
 				{2, "DROP CONSTRAINT nn_code", "Drops check constraint `NN_CODE` of `T`.", []int{0}},
 				{5, "DROP CONSTRAINT pk_p", "Drops primary key `PK_P` of `P`.", []int{0}},
+			},
+		},
+		{
+			name: "a unique constraint that reuses an index of another name",
+			sql:  "ALTER TABLE t DROP CONSTRAINT uk_reused;\nALTER TABLE t DROP CONSTRAINT ix_reused;",
+			want: []finding{
+				{0, "DROP CONSTRAINT uk_reused", "Drops unique constraint `UK_REUSED` of `T`.", []int{0}},
 			},
 		},
 		{
