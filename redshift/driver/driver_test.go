@@ -125,6 +125,21 @@ func TestConnConfigBuildsTheConnection(t *testing.T) {
 			},
 		},
 		{
+			name: "a dbname in Params is the database",
+			cfg: driver.Config{
+				User:     "dba",
+				Host:     "redshift.example.com",
+				Port:     "5439",
+				Database: "dev",
+				Params:   map[string]string{"dbname": "analytics"},
+			},
+			want: func(t *testing.T, got *pgx.ConnConfig) {
+				if got.Database != "analytics" {
+					t.Errorf("Database = %q, want analytics: Params are applied last", got.Database)
+				}
+			},
+		},
+		{
 			name: "a datashare flag is not a server setting",
 			cfg: driver.Config{
 				User:     "dba",

@@ -491,9 +491,21 @@ func relationQualifiers(tokens []redshiftparser.Token) map[string]bool {
 	names := make(map[string]bool)
 	inRelation := false
 	expectName := false
+	var parens []bool
 	for i := 0; i < len(tokens); i++ {
 		token := tokens[i]
 		switch {
+		case token.Type == '(':
+			// A parenthesis suspends the relation list, and the alias that
+			// follows a subquery is the derived table's.
+			parens = append(parens, inRelation)
+			expectName = false
+		case token.Type == ')':
+			if len(parens) > 0 {
+				inRelation = parens[len(parens)-1]
+				parens = parens[:len(parens)-1]
+			}
+			expectName = inRelation
 		case relationListStart[token.Type]:
 			inRelation, expectName = true, true
 		case relationListEnd[token.Type]:

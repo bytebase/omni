@@ -196,8 +196,15 @@ func connConfig(cfg driver.Config) (*pgx.ConnConfig, error) {
 	}
 	connConfig.User = cfg.User
 	connConfig.Password = cfg.Password
-	connConfig.Database = cfg.Database
-	if connConfig.Database == "" {
+	// Params are applied last, so a dbname they name is the database the
+	// connection uses; Config.Database is the next choice, and Redshift's own
+	// default the last.
+	switch {
+	case cfg.Params["dbname"] != "":
+		connConfig.Database = cfg.Params["dbname"]
+	case cfg.Database != "":
+		connConfig.Database = cfg.Database
+	default:
 		connConfig.Database = defaultDatabase
 	}
 	if cfg.TLS != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/bytebase/omni/driver"
@@ -47,7 +48,32 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	if opts.Transaction == driver.AutoCommit {
 		return d.executeInAutoCommitMode(ctx, commands, opts.Log)
 	}
+	// Redshift commits some statements whatever transaction they run in, so a
+	// script holding one cannot be rolled back as a whole.
+	for _, command := range commands {
+		if err := refuseImplicitCommit(command.Text); err != nil {
+			return 0, err
+		}
+	}
 	return d.executeInTransactionMode(ctx, commands, opts.Log)
+}
+
+// refuseImplicitCommit reports the statements Redshift commits on its own,
+// which a transactional script cannot promise to roll back: TRUNCATE and
+// VACUUM commit the transaction they run in, and a database statement cannot
+// run inside one at all.
+func refuseImplicitCommit(statement string) error {
+	stmts, err := redshift.Parse(statement)
+	if err != nil {
+		return err
+	}
+	for _, stmt := range stmts {
+		switch stmt.AST.(type) {
+		case *ast.TruncateStmt, *ast.VacuumStmt, *ast.CreatedbStmt, *ast.DropdbStmt:
+			return fmt.Errorf("the script holds a statement Redshift commits on its own (%s), so it cannot run in one transaction; run it in autocommit mode", stmt.Text)
+		}
+	}
+	return nil
 }
 
 // executeInTransactionMode runs commands in one transaction and commits it.

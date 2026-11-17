@@ -305,7 +305,7 @@ mutation in the omni worktree, run the parity test, and require a failure; then
 
 ## Differences from Bytebase's driver, each to confirm on a cluster
 
-The port is close to `backend/plugin/db/redshift` and diverges in seventeen places.
+The port is close to `backend/plugin/db/redshift` and diverges in twenty places.
 Every one is a decision the recording settles.
 
 | difference | why |
@@ -327,6 +327,9 @@ Every one is a decision the recording settles.
 | a procedure call's rows are withheld from a caller that masks columns | an OUT or INOUT value has no column lineage to trace, so a masked caller is given the affected-row count instead |
 | a reference that begins with a relation's alias or name is left alone | `FROM app.orders AS shared, shared.products` reads a SUPER column of the aliased relation, so its text is not the database's name |
 | the statements after `CREATE DATABASE` run on a connection to the new database | they initialize it; the driver is open on the database the step started from, and would otherwise create them there |
+| a transactional script refuses TRUNCATE, VACUUM and a database statement | Redshift commits those on their own, so a script holding one cannot be rolled back as a whole; the caller runs it in autocommit mode |
+| a `dbname` in Params is the database the connection uses | Params are applied last, so their value overrides Config.Database and Redshift's default |
+| a derived table's alias is collected like a base table's | the alias after a subquery names the derived table, so a reference beginning with it is a column, not the database |
 
 ## What would unblock it
 

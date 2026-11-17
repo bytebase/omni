@@ -365,6 +365,11 @@ func TestStripDatashareQualifier(t *testing.T) {
 			want:      `SELECT * FROM (SELECT 1) AS x, t`,
 		},
 		{
+			name:      "a derived table's alias is not the database's name",
+			statement: `SELECT p FROM (SELECT products FROM app.orders) AS shared, shared.products AS p`,
+			want:      `SELECT p FROM (SELECT products FROM app.orders) AS shared, shared.products AS p`,
+		},
+		{
 			name:      "a relation alias's SUPER column is not the database's name",
 			statement: `SELECT p FROM app.orders AS shared, shared.products AS p`,
 			want:      `SELECT p FROM app.orders AS shared, shared.products AS p`,
