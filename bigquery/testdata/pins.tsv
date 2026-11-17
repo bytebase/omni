@@ -1,0 +1,9 @@
+# The project this engine's committed answers come from. BigQuery is a Google
+# Cloud service: there is no image and no container, so image names the project
+# and the dataset's location, digest is the SHA-256 of what `datasets.get`
+# states as `<id> <location> <creationTime>`, and the source tag is the day the
+# answers were recorded. A dataset recreated anywhere else answers another
+# creationTime, so its digest moves and the pin fails instead of quietly
+# replaying. The service account is never part of a pin.
+# columns: role, image, digest, source tag
+driver	gcp:bigquery:bytebase-dev:US	sha256:c74c7e884f7ecc98f2efd6c3378029f23aa00cbc0e46a0ca0d8e1f7a88ac7d75	2026-11-17

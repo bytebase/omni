@@ -11,8 +11,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/driver"
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // The live tests ask a real BigQuery project and are the only tests in this
@@ -277,6 +280,21 @@ func TestLiveSyncDatabase(t *testing.T) {
 	}
 	if !found {
 		t.Error("Tables does not hold the corpus's customers table")
+	}
+
+	// The synced metadata is held to the golden the recording committed: a column's
+	// position, a table's row count or a dataset's listing moving is a change to
+	// what every BigQuery instance's metadata says.
+	body, err := os.ReadFile(filepath.Join("testdata", "sync", d.databaseName+".json"))
+	if err != nil {
+		t.Fatalf("read the sync golden: %v", err)
+	}
+	want := &metadatapb.DatabaseSchemaMetadata{}
+	if err := protojson.Unmarshal(body, want); err != nil {
+		t.Fatalf("read the sync golden: %v", err)
+	}
+	if !proto.Equal(database, want) {
+		t.Errorf("SyncDatabase = %v, want testdata/sync/%s.json", database, d.databaseName)
 	}
 }
 
