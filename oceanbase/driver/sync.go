@@ -70,6 +70,7 @@ var (
 	}
 
 	temporalKeywordDefaultRe = regexp.MustCompile(`^(?i)CURRENT_(?:TIMESTAMP|DATE|TIME)(?:\(\d+\))?$`)
+	temporalTypeFspRe        = regexp.MustCompile(`(?i)^(?:datetime|timestamp|time)\((\d+)\)$`)
 	onUpdateCurrentTSRe      = regexp.MustCompile(`(?i)on update CURRENT_TIMESTAMP(?:\((\d+)\))?`)
 )
 
@@ -380,17 +381,15 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 			}
 		}
 		text = strings.ReplaceAll(text, `\'`, `'`)
-		upperExtra := strings.ToUpper(extra)
-		if extra != "" && strings.Contains(upperExtra, virtualGenToken) && len(generationExpr) != 0 {
+		if genType, ok := generatedColumnType(extra); ok && len(generationExpr) != 0 {
 			column.Generation = &metadatapb.GenerationMetadata{
-				Type:       metadatapb.GenerationMetadata_TYPE_VIRTUAL,
+				Type:       genType,
 				Expression: text,
 			}
-		} else if extra != "" && strings.Contains(upperExtra, storedGenToken) && len(generationExpr) != 0 {
-			column.Generation = &metadatapb.GenerationMetadata{
-				Type:       metadatapb.GenerationMetadata_TYPE_STORED,
-				Expression: text,
-			}
+			// OceanBase fills COLUMN_DEFAULT with the generation expression too. The
+			// generation clause is the only statement of it, and a column carries one or
+			// the other, never both.
+			column.Default = ""
 		}
 	}
 	if err := columnRows.Err(); err != nil {
@@ -568,11 +567,14 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 	_ = tableRows.Close()
 
-	materializedViews, err := d.listMaterializedViews(ctx, d.databaseName, schemaMetadata.Tables)
+	materializedViews, containerTables, err := d.listMaterializedViews(ctx, d.databaseName, schemaMetadata.Tables)
 	if err != nil {
 		return nil, err
 	}
 	schemaMetadata.MaterializedViews = materializedViews
+	// A materialized view's container table holds its rows; it is not a table of the
+	// database, and the view's own CREATE makes a container again.
+	schemaMetadata.Tables = withoutTables(schemaMetadata.Tables, containerTables)
 
 	databaseMetadata := &metadatapb.DatabaseSchemaMetadata{
 		Name:    d.databaseName,
@@ -598,8 +600,10 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 
 // listMaterializedViews reads materialized views from oceanbase.DBA_MVIEWS,
 // copying container table comments and indexes and leaving the list empty when
-// the account lacks SELECT on the oceanbase catalog.
-func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata) ([]*metadatapb.MaterializedViewMetadata, error) {
+// the account lacks SELECT on the oceanbase catalog. The second result names the
+// container table of each view read: it is the view's storage, and the server
+// lists it as a table of the database too.
+func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string, tables []*metadatapb.TableMetadata) ([]*metadatapb.MaterializedViewMetadata, []string, error) {
 	const query = `
 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
 		FROM oceanbase.DBA_MVIEWS
@@ -608,9 +612,9 @@ func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string,
 	rows, err := d.db.QueryContext(ctx, query, databaseName)
 	if err != nil {
 		if ctx.Err() != nil {
-			return nil, ctx.Err()
+			return nil, nil, ctx.Err()
 		}
-		return nil, nil
+		return nil, nil, nil
 	}
 	defer rows.Close()
 
@@ -619,16 +623,17 @@ func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string,
 		containers[table.Name] = table
 	}
 	var views []*metadatapb.MaterializedViewMetadata
+	var containerNames []string
 	for rows.Next() {
 		var name, containerName, definition string
 		if err := rows.Scan(&name, &containerName, &definition); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		view := &metadatapb.MaterializedViewMetadata{
 			Name:       name,
 			Definition: definition,
-			SkipDump:   true,
 		}
+		containerNames = append(containerNames, containerName)
 		if container, ok := containers[containerName]; ok {
 			view.Comment = container.Comment
 			for _, index := range container.Indexes {
@@ -638,16 +643,57 @@ func (d *Driver) listMaterializedViews(ctx context.Context, databaseName string,
 		views = append(views, view)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+		return nil, nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
-	return views, nil
+	return views, containerNames, nil
 }
 
-// getEventList lists events by name only: OceanBase rejects SHOW CREATE EVENT,
-// so Definition stays empty and the DDL writer skips them.
+// withoutTables drops the named tables, keeping the order of the rest.
+func withoutTables(tables []*metadatapb.TableMetadata, names []string) []*metadatapb.TableMetadata {
+	if len(names) == 0 {
+		return tables
+	}
+	drop := make(map[string]bool, len(names))
+	for _, name := range names {
+		drop[name] = true
+	}
+	kept := make([]*metadatapb.TableMetadata, 0, len(tables))
+	for _, table := range tables {
+		if !drop[table.Name] {
+			kept = append(kept, table)
+		}
+	}
+	return kept
+}
+
+// eventRow is the part of information_schema.EVENTS that states an event.
+type eventRow struct {
+	name, eventType, executeAt, intervalValue, intervalField string
+	starts, ends, status, onCompletion, comment              string
+	timeZone, sqlMode, definition                            string
+}
+
+// getEventList reads events from information_schema.EVENTS, which states the schedule,
+// whether the event is enabled, and the body. OceanBase rejects SHOW CREATE EVENT, so the
+// statement the dump writes is built here from those columns.
 func (d *Driver) getEventList(ctx context.Context, databaseName string) ([]*metadatapb.EventMetadata, error) {
+	// A caller may open its connection with parseTime, which returns a temporal column as
+	// a time.Time; the cast keeps the scan on a string.
 	const query = `
-		SELECT DISTINCT EVENT_NAME
+		SELECT
+			EVENT_NAME,
+			EVENT_TYPE,
+			IFNULL(CAST(EXECUTE_AT AS CHAR), ''),
+			IFNULL(INTERVAL_VALUE, ''),
+			IFNULL(INTERVAL_FIELD, ''),
+			IFNULL(CAST(STARTS AS CHAR), ''),
+			IFNULL(CAST(ENDS AS CHAR), ''),
+			IFNULL(STATUS, ''),
+			IFNULL(ON_COMPLETION, ''),
+			IFNULL(EVENT_COMMENT, ''),
+			IFNULL(TIME_ZONE, ''),
+			IFNULL(SQL_MODE, ''),
+			IFNULL(EVENT_DEFINITION, '')
 		FROM information_schema.EVENTS
 		WHERE EVENT_SCHEMA = ?
 		ORDER BY EVENT_NAME`
@@ -659,16 +705,80 @@ func (d *Driver) getEventList(ctx context.Context, databaseName string) ([]*meta
 
 	var events []*metadatapb.EventMetadata
 	for rows.Next() {
-		event := &metadatapb.EventMetadata{}
-		if err := rows.Scan(&event.Name); err != nil {
+		r := &eventRow{}
+		if err := rows.Scan(
+			&r.name,
+			&r.eventType,
+			&r.executeAt,
+			&r.intervalValue,
+			&r.intervalField,
+			&r.starts,
+			&r.ends,
+			&r.status,
+			&r.onCompletion,
+			&r.comment,
+			&r.timeZone,
+			&r.sqlMode,
+			&r.definition,
+		); err != nil {
 			return nil, err
 		}
-		events = append(events, event)
+		events = append(events, &metadatapb.EventMetadata{
+			Name:       r.name,
+			Definition: createEventStatement(r),
+			TimeZone:   r.timeZone,
+			SqlMode:    r.sqlMode,
+			Comment:    r.comment,
+		})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
 	}
 	return events, nil
+}
+
+// createEventStatement builds the CREATE EVENT statement one information_schema.EVENTS row
+// states, which is what the dump writes back. It answers "" for a row without a body: an
+// event the account may not read has nothing faithful to write.
+func createEventStatement(r *eventRow) string {
+	body := strings.TrimSuffix(strings.TrimSpace(r.definition), ";")
+	if body == "" {
+		return ""
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "CREATE EVENT %s ON SCHEDULE ", quoteBacktick(r.name))
+	if strings.EqualFold(r.eventType, "ONE TIME") {
+		fmt.Fprintf(&b, "AT '%s'", r.executeAt)
+	} else {
+		fmt.Fprintf(&b, "EVERY %s %s", r.intervalValue, r.intervalField)
+		if r.starts != "" {
+			fmt.Fprintf(&b, " STARTS '%s'", r.starts)
+		}
+		if r.ends != "" {
+			fmt.Fprintf(&b, " ENDS '%s'", r.ends)
+		}
+	}
+	if r.onCompletion != "" {
+		fmt.Fprintf(&b, " ON COMPLETION %s", r.onCompletion)
+	}
+	if strings.EqualFold(r.status, "DISABLED") {
+		b.WriteString(" DISABLE")
+	}
+	if r.comment != "" {
+		fmt.Fprintf(&b, " COMMENT '%s'", escapeEventComment(r.comment, r.sqlMode))
+	}
+	fmt.Fprintf(&b, " DO %s", body)
+	return b.String()
+}
+
+// escapeEventComment writes the comment information_schema.EVENTS states as a string literal
+// the statement's own sql_mode reads back: a backslash escapes the byte after it unless the
+// mode says otherwise, and a quote is always doubled.
+func escapeEventComment(comment, sqlMode string) string {
+	if !strings.Contains(strings.ToUpper(sqlMode), "NO_BACKSLASH_ESCAPES") {
+		comment = strings.ReplaceAll(comment, `\`, `\\`)
+	}
+	return strings.ReplaceAll(comment, "'", "''")
 }
 
 func (d *Driver) getTriggerList(ctx context.Context, databaseName string) (map[string][]*metadatapb.TriggerMetadata, error) {
@@ -702,7 +812,7 @@ func (d *Driver) getTriggerList(ctx context.Context, databaseName string) (map[s
 			Name:                name,
 			Event:               event,
 			Timing:              timing,
-			Body:                statement,
+			Body:                triggerBody(statement),
 			SqlMode:             sqlMode,
 			CharacterSetClient:  charsetClient,
 			CollationConnection: collationConnection,
@@ -712,6 +822,74 @@ func (d *Driver) getTriggerList(ctx context.Context, databaseName string) (map[s
 		return nil, fmt.Errorf("failed to execute query %q: %w", triggersQuery, err)
 	}
 	return triggerMap, nil
+}
+
+// triggerBody returns the body of the CREATE TRIGGER statement OceanBase answers in
+// ACTION_STATEMENT. MySQL answers the body alone; OceanBase repeats the statement's own
+// header as `TRIGGER <name> <timing> <event> ON <table> FOR EACH ROW`, which the DDL writer
+// would state after its own.
+func triggerBody(statement string) string {
+	const head = "TRIGGER "
+	if len(statement) < len(head) || !strings.EqualFold(statement[:len(head)], head) {
+		return statement
+	}
+	// The header ends at the first FOR EACH ROW outside a quoted name: no trigger nests in
+	// another, so a body holds none.
+	header := []string{"FOR", "EACH", "ROW"}
+	next := 0
+	for i := len(head); i < len(statement); {
+		switch c := statement[i]; {
+		case c == '\'' || c == '"' || c == '`':
+			i = skipQuoted(statement, i)
+		case isNameByte(c):
+			start := i
+			for i < len(statement) && isNameByte(statement[i]) {
+				i++
+			}
+			word := statement[start:i]
+			switch {
+			case next < len(header) && strings.EqualFold(word, header[next]):
+				next++
+				if next == len(header) {
+					return strings.TrimSpace(statement[i:])
+				}
+			case strings.EqualFold(word, header[0]):
+				next = 1
+			default:
+				next = 0
+			}
+		default:
+			i++
+		}
+	}
+	return statement
+}
+
+// isNameByte reports whether c can appear in an unquoted keyword or identifier.
+func isNameByte(c byte) bool {
+	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z' || c >= 0x80
+}
+
+// skipQuoted returns the offset just past the quoted run that starts at i, whose opening
+// quote is statement[i]. A doubled quote escapes itself, and a backslash escapes the byte
+// after it outside a backtick-quoted name.
+func skipQuoted(statement string, i int) int {
+	quote := statement[i]
+	for j := i + 1; j < len(statement); j++ {
+		switch statement[j] {
+		case '\\':
+			if quote != '`' {
+				j++
+			}
+		case quote:
+			if j+1 < len(statement) && statement[j+1] == quote {
+				j++
+				continue
+			}
+			return j + 1
+		}
+	}
+	return len(statement)
 }
 
 func (d *Driver) syncRoutines(ctx context.Context, databaseName string) ([]*metadatapb.FunctionMetadata, []*metadatapb.ProcedureMetadata, error) {
@@ -1032,13 +1210,39 @@ const (
 	binaryDefaultHexNotation
 )
 
+// generatedColumnType returns the kind of generated column EXTRA states, if any.
+func generatedColumnType(extra string) (metadatapb.GenerationMetadata_Type, bool) {
+	upper := strings.ToUpper(extra)
+	switch {
+	case strings.Contains(upper, virtualGenToken):
+		return metadatapb.GenerationMetadata_TYPE_VIRTUAL, true
+	case strings.Contains(upper, storedGenToken):
+		return metadatapb.GenerationMetadata_TYPE_STORED, true
+	}
+	return metadatapb.GenerationMetadata_TYPE_UNSPECIFIED, false
+}
+
+// temporalDefaultWithPrecision gives a CURRENT_TIMESTAMP or CURRENT_TIME default the
+// fractional-second precision its column type declares. OceanBase answers COLUMN_DEFAULT
+// without it, and the server refuses a bare CURRENT_TIMESTAMP on a DATETIME(6) column.
+func temporalDefaultWithPrecision(value, columnType string) string {
+	if strings.HasSuffix(value, ")") || strings.EqualFold(value, "CURRENT_DATE") {
+		return value
+	}
+	fsp := temporalTypeFspRe.FindStringSubmatch(columnType)
+	if fsp == nil {
+		return value
+	}
+	return value + "(" + fsp[1] + ")"
+}
+
 func setColumnMetadataDefault(column *metadatapb.ColumnMetadata, defaultStr sql.NullString, nullableBool bool, extra string, binaryFormat binaryDefaultFormat) {
 	if defaultStr.Valid {
 		unquotedDefault := unquoteMySQLString(defaultStr.String)
 		isBinaryDefault := binaryFormat != binaryDefaultVerbatim && isBinaryFamilyColumnType(column.Type)
 		switch {
 		case isTemporalColumnType(column.Type) && temporalKeywordDefaultRe.MatchString(unquotedDefault):
-			column.Default = unquotedDefault
+			column.Default = temporalDefaultWithPrecision(unquotedDefault, column.Type)
 		case strings.Contains(extra, "DEFAULT_GENERATED"):
 			column.Default = fmt.Sprintf("(%s)", unescapeExpressionDefault(unquotedDefault))
 		case isBinaryDefault:
