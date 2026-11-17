@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -171,13 +169,18 @@ func TestLiveSyncDatabase(t *testing.T) {
 	}
 }
 
+// missingDataset is the dataset name the not-found test asks for. It is fixed
+// rather than made up from the clock because a tape replays byte for byte, and
+// the name is part of the INFORMATION_SCHEMA query the recording holds.
+const missingDataset = "omni_driver_missing_dataset"
+
 // TestLiveSyncDatabaseMissing opens a driver on a dataset the project does not
 // have and requires the contract's not-found, which is what a caller uses to tell
 // a database it may drop from a request that failed.
 func TestLiveSyncDatabaseMissing(t *testing.T) {
 	ctx := context.Background()
 	cfg := liveConfig(t)
-	cfg.Database = "omni_missing_" + strconv.FormatInt(time.Now().Unix(), 10)
+	cfg.Database = missingDataset
 	d, err := Open(ctx, cfg)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
