@@ -368,7 +368,7 @@ func (in *instance) start(ctx context.Context) (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	c, err := tcpg.Run(ctx, in.pin.Image,
+	c, err := tcpg.Run(ctx, in.pin.ImageRef(),
 		tcpg.WithDatabase("postgres"),
 		tcpg.WithUsername("postgres"),
 		tcpg.WithPassword("test"),
@@ -436,8 +436,10 @@ func Terminate() {
 	}
 }
 
-// CheckDigest fails unless c runs the image with the pinned repository
-// digest. A tag can be pushed again; a digest cannot.
+// CheckDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func CheckDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

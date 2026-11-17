@@ -334,7 +334,7 @@ func (s *Server) start(ctx context.Context, pin enginetest.Pin) error {
 }
 
 func (s *Server) boot(ctx context.Context, pin enginetest.Pin) error {
-	c, err := tcmysql.Run(ctx, pin.Image,
+	c, err := tcmysql.Run(ctx, pin.ImageRef(),
 		tcmysql.WithDatabase("test"),
 		tcmysql.WithUsername("root"),
 		tcmysql.WithPassword("test"),
@@ -344,7 +344,7 @@ func (s *Server) boot(ctx context.Context, pin enginetest.Pin) error {
 		s.container = c
 	}
 	if err != nil {
-		return fmt.Errorf("start %s: %w", pin.Image, err)
+		return fmt.Errorf("start %s: %w", pin.ImageRef(), err)
 	}
 	if err := checkDigest(ctx, c, pin.Digest); err != nil {
 		return err
@@ -385,8 +385,10 @@ func (s *Server) boot(ctx context.Context, pin enginetest.Pin) error {
 	return nil
 }
 
-// checkDigest fails unless c runs the image with the pinned repository
-// digest. A tag can be pushed again; a digest cannot.
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

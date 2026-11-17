@@ -152,7 +152,7 @@ func boot(ctx context.Context, pin enginetest.Pin) (err error) {
 	}()
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        pin.Image,
+			Image:        pin.ImageRef(),
 			ExposedPorts: []string{Port + "/tcp"},
 			Env:          map[string]string{"CLICKHOUSE_SKIP_USER_SETUP": "1"},
 			// The server's stdout carries the entrypoint's lines only; the
@@ -275,8 +275,10 @@ func escape(name string) string {
 	return strings.ReplaceAll(name, "`", "``")
 }
 
-// checkDigest fails unless c runs the image with the pinned repository
-// digest. A tag can be pushed again; a digest cannot.
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {
