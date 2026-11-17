@@ -460,11 +460,27 @@ func TestDumpMaterializedViewQuery(t *testing.T) {
 			want:        "SELECT `events`.`id` AS `123`, `events`.`dt` FROM `omni_dump`.`events`",
 		},
 		{
+			name:        "a partitioned view whose expansion quotes a name beginning with an underscore",
+			original:    "SELECT id AS _id, dt FROM omni_dump.events",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id` AS `_id`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`",
+			partitioned: true,
+			want:        "SELECT `events`.`id` AS `_id`, `events`.`dt` FROM `omni_dump`.`events`",
+		},
+		{
+			name:        "a partitioned view whose expansion quotes a name holding a dollar sign",
+			original:    "SELECT id AS a$b, dt FROM omni_dump.events",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id` AS `a$b`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`",
+			partitioned: true,
+			want:        "SELECT `events`.`id` AS `a$b`, `events`.`dt` FROM `omni_dump`.`events`",
+		},
+		{
 			name:        "a partitioned view whose expansion quotes a name beginning with a digit",
 			original:    "SELECT id AS 1bad, dt FROM omni_dump.events",
 			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id` AS `1bad`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`",
 			partitioned: true,
-			want:        "SELECT `events`.`id` AS `1bad`, `events`.`dt` FROM `omni_dump`.`events`",
+			// Hive's identifier begins with a letter or a digit, and the corpus
+			// creates a view named that way from the text it states.
+			want: "SELECT id AS 1bad, dt FROM omni_dump.events",
 		},
 		{
 			name:        "a partitioned view whose expansion is no projection",
@@ -474,10 +490,23 @@ func TestDumpMaterializedViewQuery(t *testing.T) {
 			want:        partitionedOriginal,
 		},
 		{
+			name:        "a partitioned view whose literal holds a backquoted name",
+			original:    "SELECT id, dt FROM omni_dump.events WHERE body = \"`x y`\"",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id`, `events`.`dt` FROM `omni_dump`.`events` WHERE `events`.`body` = \"`x y`\") `p_events_mv`",
+			partitioned: true,
+			want:        "SELECT id, dt FROM omni_dump.events WHERE body = \"`x y`\"",
+		},
+		{
 			name:        "a projection over a query of its own",
 			expanded:    "SELECT `a`, `dt` FROM (SELECT `x`.`a`, `x`.`dt` FROM (SELECT `b` AS `a`, `c` AS `dt` FROM `db`.`t`) `x`) `mv`",
 			partitioned: true,
 			want:        "SELECT `x`.`a`, `x`.`dt` FROM (SELECT `b` AS `a`, `c` AS `dt` FROM `db`.`t`) `x`",
+		},
+		{
+			name:        "a query holding a parenthesis in a double-quoted literal",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `id`, `dt` FROM `db`.`t` WHERE `body` = \")\") `mv`",
+			partitioned: true,
+			want:        "SELECT `id`, `dt` FROM `db`.`t` WHERE `body` = \")\"",
 		},
 		{
 			name:        "a query holding a parenthesis in a literal",
@@ -539,6 +568,7 @@ func TestDumpStorageDiff(t *testing.T) {
 		[3]string{"SerDe Library:", orcSerde},
 		[3]string{"InputFormat:", parquetIn},
 		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Compressed:", "No"},
 		[3]string{"Storage Desc Params:", "", ""},
 		[3]string{"", "serialization.format", "1"},
 	)))
@@ -546,6 +576,7 @@ func TestDumpStorageDiff(t *testing.T) {
 		[3]string{"SerDe Library:", orcSerde},
 		[3]string{"InputFormat:", orcIn},
 		[3]string{"OutputFormat:", orcOut},
+		[3]string{"Compressed:", "No"},
 		[3]string{"Storage Desc Params:", "", ""},
 		[3]string{"", "serialization.format", "1"},
 	)
@@ -554,11 +585,29 @@ func TestDumpStorageDiff(t *testing.T) {
 		dumpStorageDiff(table, orc),
 	)
 
+	// A partition whose files sit under the table's own layout another way.
+	require.Equal(t,
+		"Skewed Columns [dt], Skewed Values [[2024-01-01]], Skewed true, Stored As SubDirectories Yes",
+		dumpStorageDiff(table, storage(
+			[3]string{"SerDe Library:", parquetSerde},
+			[3]string{"InputFormat:", parquetIn},
+			[3]string{"OutputFormat:", parquetOut},
+			[3]string{"Compressed:", "No"},
+			[3]string{"Skewed:", "true"},
+			[3]string{"Skewed Columns:", "[dt]"},
+			[3]string{"Skewed Values:", "[[2024-01-01]]"},
+			[3]string{"Stored As SubDirectories:", "Yes"},
+			[3]string{"Storage Desc Params:", "", ""},
+			[3]string{"", "serialization.format", "1"},
+		)),
+		"a layout of the partition's own")
+
 	// A table whose serde is the same and splits its files another way.
 	csv := storage(
 		[3]string{"SerDe Library:", parquetSerde},
 		[3]string{"InputFormat:", parquetIn},
 		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Compressed:", "No"},
 		[3]string{"Storage Desc Params:", "", ""},
 		[3]string{"", "field.delim", "|"},
 		[3]string{"", "serialization.format", "1"},
@@ -567,6 +616,7 @@ func TestDumpStorageDiff(t *testing.T) {
 		[3]string{"SerDe Library:", parquetSerde},
 		[3]string{"InputFormat:", parquetIn},
 		[3]string{"OutputFormat:", parquetOut},
+		[3]string{"Compressed:", "No"},
 		[3]string{"Storage Desc Params:", "", ""},
 		[3]string{"", "field.delim", "|"},
 	)), "a parameter the table states and the partition does not")
@@ -576,6 +626,7 @@ func TestDumpStorageDiff(t *testing.T) {
 			[3]string{"SerDe Library:", parquetSerde},
 			[3]string{"InputFormat:", parquetIn},
 			[3]string{"OutputFormat:", parquetOut},
+			[3]string{"Compressed:", "No"},
 			[3]string{"Storage Desc Params:", "", ""},
 			[3]string{"", "field.delim", ","},
 			[3]string{"", "serialization.format", "1"},

@@ -230,7 +230,7 @@ func dumpClauseStart(stmt string) (int, error) {
 	depth := 0
 	for i := 0; i < len(stmt); i++ {
 		switch stmt[i] {
-		case '`', '\'':
+		case '`', '\'', '"':
 			end, err := dumpQuotedEnd(stmt, i)
 			if err != nil {
 				return 0, fmt.Errorf("the stated CREATE TABLE has an %w", err)
@@ -268,14 +268,15 @@ func dumpQuotedEnd(stmt string, start int) (int, error) {
 			return i, nil
 		}
 		return 0, fmt.Errorf("unterminated identifier")
-	case '\'':
-		// A backslash escapes the character after it, a quote included.
+	case '\'', '"':
+		// A backslash escapes the character after it, a quote included, and
+		// Hive reads a double-quoted literal as a string too.
 		for i := start + 1; i < len(stmt); i++ {
 			if stmt[i] == '\\' {
 				i++
 				continue
 			}
-			if stmt[i] == '\'' {
+			if stmt[i] == stmt[start] {
 				return i, nil
 			}
 		}
@@ -298,7 +299,7 @@ func dumpStatesPartitions(stmt string) bool {
 func dumpKeyword(stmt, keyword string) (int, bool) {
 	for i := 0; i < len(stmt); i++ {
 		switch stmt[i] {
-		case '`', '\'':
+		case '`', '\'', '"':
 			end, err := dumpQuotedEnd(stmt, i)
 			if err != nil {
 				return 0, false
@@ -347,7 +348,7 @@ func dumpQueryInProjection(expanded string) string {
 	depth := 0
 	for i := 0; i < len(text); i++ {
 		switch text[i] {
-		case '`', '\'':
+		case '`', '\'', '"':
 			end, err := dumpQuotedEnd(text, i)
 			if err != nil {
 				return ""
@@ -395,44 +396,61 @@ func dumpStatesAlias(text string) bool {
 // backquotes of.
 func dumpStatesQuotedName(text string) bool {
 	for i := 0; i < len(text); i++ {
-		if text[i] != '`' {
-			continue
+		switch text[i] {
+		case '`':
+			end, err := dumpQuotedEnd(text, i)
+			if err != nil {
+				return true
+			}
+			if !dumpPlainName(text[i+1 : end]) {
+				return true
+			}
+			i = end
+		case '\'', '"':
+			// A literal states no name, whatever it holds.
+			end, err := dumpQuotedEnd(text, i)
+			if err != nil {
+				return true
+			}
+			i = end
 		}
-		end, err := dumpQuotedEnd(text, i)
-		if err != nil {
-			return true
-		}
-		if !dumpPlainName(text[i+1 : end]) {
-			return true
-		}
-		i = end
 	}
 	return false
 }
 
-// dumpPlainName reports whether name is one Hive reads without backquotes: a
-// name begins with a letter, an underscore or a dollar sign, and Hive reads
-// digits alone as the number they spell rather than as a name.
+// dumpPlainName reports whether name is one Hive reads without backquotes: its
+// identifier begins with a letter or a digit and holds letters, digits and
+// underscores, and its lexer reads digits alone as the number they spell rather
+// than as a name.
 func dumpPlainName(name string) bool {
 	if name == "" || dumpReservedWords[strings.ToUpper(name)] {
 		return false
 	}
-	if !dumpNameStart(name[0]) {
+	digit := func(c byte) bool { return '0' <= c && c <= '9' }
+	if !dumpNameLetter(name[0]) && !digit(name[0]) {
 		return false
 	}
 	for i := 0; i < len(name); i++ {
-		c := name[i]
-		if dumpNameStart(c) || ('0' <= c && c <= '9') {
-			continue
+		if c := name[i]; !dumpNameLetter(c) && !digit(c) && c != '_' {
+			return false
 		}
-		return false
 	}
-	return true
+	return !dumpDigits(name)
 }
 
-// dumpNameStart reports whether c is one a name starts with, or holds.
-func dumpNameStart(c byte) bool {
-	return c == '_' || c == '$' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+// dumpNameLetter reports whether c is a letter a name holds.
+func dumpNameLetter(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+}
+
+// dumpDigits reports whether text is the digits alone a number is.
+func dumpDigits(text string) bool {
+	for i := 0; i < len(text); i++ {
+		if text[i] < '0' || '9' < text[i] {
+			return false
+		}
+	}
+	return text != ""
 }
 
 // dumpReservedWords are the names Hive reads as keywords, so that a statement
@@ -537,7 +555,7 @@ func dumpPartitionColumnNames(columns string) ([]string, error) {
 	}
 	for i := 0; i < len(columns); i++ {
 		switch columns[i] {
-		case '`', '\'':
+		case '`', '\'', '"':
 			end, err := dumpQuotedEnd(columns, i)
 			if err != nil {
 				return nil, err
@@ -719,16 +737,31 @@ func (d *Driver) dumpPartition(ctx context.Context, database, name, spec string)
 	defer rows.Close()
 	var reader dumpStorageReader
 	location := ""
+	// storage is whether the rows have reached the section that states how the
+	// partition reads its files, which is the last one the describe states.
+	storage := false
 	for rows.Next() {
 		var colName, dataType, comment sql.NullString
 		if err := rows.Scan(&colName, &dataType, &comment); err != nil {
 			return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
 		}
-		if strings.TrimSpace(colName.String) == "Location:" {
+		label := strings.TrimSpace(colName.String)
+		if label == "Location:" {
 			location = strings.TrimSpace(dataType.String)
 			continue
 		}
-		reader.read(strings.TrimSpace(colName.String), strings.TrimSpace(dataType.String), strings.TrimSpace(comment.String))
+		switch {
+		case strings.HasPrefix(label, "# Storage Information"):
+			storage = true
+			continue
+		case strings.HasPrefix(label, "#"):
+			storage = false
+			continue
+		}
+		if !storage {
+			continue
+		}
+		reader.read(label, strings.TrimSpace(dataType.String), strings.TrimSpace(comment.String))
 	}
 	if err := rows.Err(); err != nil {
 		return "", dumpStorage{}, fmt.Errorf("%s: %w", query, err)
@@ -746,7 +779,11 @@ type dumpStorage struct {
 	serde        string
 	inputFormat  string
 	outputFormat string
-	params       map[string]string
+	// layout is every other value the section states about how the files sit
+	// there, such as whether the table is skewed or bucketed, which a restore
+	// states for the table alone.
+	layout map[string]string
+	params map[string]string
 }
 
 // dumpStorageReader reads the rows of a DESCRIBE FORMATTED storage section into
@@ -779,8 +816,13 @@ func (r *dumpStorageReader) read(colName, dataType, comment string) bool {
 		r.storage.inputFormat = dataType
 	case "OutputFormat:":
 		r.storage.outputFormat = dataType
+	case "":
+		// A blank row states nothing.
 	default:
-		return false
+		if r.storage.layout == nil {
+			r.storage.layout = map[string]string{}
+		}
+		r.storage.layout[colName] = dataType
 	}
 	return true
 }
@@ -798,22 +840,34 @@ func dumpStorageDiff(table, partition dumpStorage) string {
 	if partition.outputFormat != table.outputFormat {
 		differ = append(differ, "OutputFormat "+partition.outputFormat)
 	}
-	var keys []string
-	for key := range partition.params {
-		keys = append(keys, key)
-	}
-	for key := range table.params {
-		if _, ok := partition.params[key]; !ok {
-			keys = append(keys, key)
+	for _, key := range dumpStorageKeys(table.layout, partition.layout) {
+		if partition.layout[key] != table.layout[key] {
+			differ = append(differ, strings.TrimSuffix(key, ":")+" "+partition.layout[key])
 		}
 	}
-	sort.Strings(keys)
-	for _, key := range keys {
+	for _, key := range dumpStorageKeys(table.params, partition.params) {
 		if partition.params[key] != table.params[key] {
 			differ = append(differ, fmt.Sprintf("SerDe property %q=%q", key, partition.params[key]))
 		}
 	}
 	return strings.Join(differ, ", ")
+}
+
+// dumpStorageKeys returns the keys two of the section's maps state, in order.
+func dumpStorageKeys(table, partition map[string]string) []string {
+	keys := make([]string, 0, len(table)+len(partition))
+	seen := make(map[string]bool, len(table)+len(partition))
+	for _, stated := range []map[string]string{table, partition} {
+		for key := range stated {
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // dumpPartitionSpec renders a partition name as the specification ADD PARTITION
