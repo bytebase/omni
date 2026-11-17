@@ -330,6 +330,11 @@ func TestStripDatashareQualifier(t *testing.T) {
 			want:      `SELECT * FROM app.facts`,
 		},
 		{
+			name:      "a schema named like the database keeps its name",
+			statement: `SELECT * FROM shared.shared.facts`,
+			want:      `SELECT * FROM shared.facts`,
+		},
+		{
 			name:      "a longer identifier that ends in the database's name is left alone",
 			statement: `SELECT * FROM not_shared.facts`,
 			want:      `SELECT * FROM not_shared.facts`,

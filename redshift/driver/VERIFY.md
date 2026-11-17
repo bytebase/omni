@@ -88,9 +88,13 @@ CREATE TABLE app.facts (
   seen timestamp,
   notes varchar(80)
 );
-CREATE INDEX facts_lookup_id ON app.facts (lookup_id);
 CREATE VIEW app.recent AS SELECT id, amount FROM app.facts WHERE seen > '2026-01-01';
 ```
+
+Redshift has no `CREATE INDEX`, so the corpus writes none and the sync's index
+read records an empty list: what a Redshift table declares instead is its
+`DISTKEY` and `SORTKEY`, which the sync does not read yet. A record that finds
+an index here is looking at another engine.
 
 The datashare branch (`Params["datashare"]`) is the one path this corpus cannot
 reach: it needs a second account or namespace that shares a database in, which
@@ -309,7 +313,7 @@ Every one is a decision the recording settles.
 | `padZeroes` treats a leading `-` as the value's sign, not as a zone offset | Bytebase's version panicked on `INTERVAL '-00:02:45.25'` (`slice bounds out of range`); `pg/driver` carries the guard |
 | a datashare database is `Params["datashare"]`, not a field on the connection config | the contract carries engine-specific settings in `Params`, as `cosmosdb/driver` does for credentials; the flag is read by this driver and is not sent to the server as a startup parameter |
 | autocommit `Execute` runs the whole script on one connection | each call would borrow a pooled connection of its own, so a `SET search_path` or a temporary table would not hold for the statements after it |
-| a datashare statement loses the database's name from the relations its `FROM` and `JOIN` clauses name, and from nothing else | Bytebase replaced the text everywhere, including inside a literal and in a column qualifier |
+| a datashare statement loses the database's name from the relations its `FROM` and `JOIN` clauses name, and from nothing else | Bytebase replaced the text everywhere, including inside a literal and in a column qualifier; a qualified name loses its first component only, so `shared.shared.facts` keeps the schema |
 | a foreign key's table names are the `pg_class.relname` the constraint joins, not the tail of a quoted `schema.table` | a schema holding a period broke that split, so the constraint was filed under a table that does not exist and dropped from the sync |
 | a foreign key's column lists are found by their parentheses and split between identifiers | a column named `a,b` was read as two columns, `a"b` kept its doubled quote, and a name holding a parenthesis ended the list early |
 | a datashare's columns are read in ordinal order | `SVV_ALL_COLUMNS` answers in no order a tape can hold, and the catalog consumes the slice's order |

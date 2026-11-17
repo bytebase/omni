@@ -420,6 +420,11 @@ func stripDatashareQualifier(statement, databaseName string) string {
 		if !inRelation || token.Type != redshiftparser.IDENT || i+2 >= len(tokens) {
 			continue
 		}
+		if i > 0 && tokens[i-1].Type == '.' {
+			// A schema or column qualifier: the database is a relation's first
+			// component, so shared.shared.facts loses only its database.
+			continue
+		}
 		referenced := tokens[i+2]
 		if tokens[i+1].Type != '.' || !redshiftparser.IsIdentifierTokenType(referenced.Type) {
 			continue

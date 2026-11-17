@@ -55,7 +55,7 @@ func validateEditorStatement(node ast.Node) (bool, bool) {
 			return false, false
 		}
 		return true, true
-	case *ast.RedshiftShowStmt, *ast.VariableShowStmt:
+	case *ast.RedshiftShowStmt, *ast.RedshiftDescStmt, *ast.VariableShowStmt:
 		return true, true
 	case *ast.VariableSetStmt:
 		return true, false

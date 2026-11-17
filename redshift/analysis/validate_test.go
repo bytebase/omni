@@ -257,6 +257,21 @@ func TestValidateQuery(t *testing.T) {
 			wantReturnsData:    true,
 			wantErr:            false,
 		},
+		// DESC and DESCRIBE answer rows of the object's shape.
+		{
+			name:               "DESC DATASHARE",
+			statement:          "DESC DATASHARE salesshare",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
+		{
+			name:               "DESCRIBE TABLE",
+			statement:          "DESCRIBE TABLE app.facts",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
 		{
 			name:               "SHOW GRANTS",
 			statement:          "SHOW GRANTS FOR user1",
