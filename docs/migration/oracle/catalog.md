@@ -242,6 +242,14 @@ replay tests exercise.
 - A constraint backed by an index the statement names (`USING INDEX
   [schema.]index`) is rejected: the metadata holds the constraint's index, not
   the separate index it reuses, so a definition would create both.
+- A cascading composite-key drop compares the complete referenced column set,
+  so a key sharing one column survives.
+- Renaming a qualified trigger rewrites the declaration while keeping its
+  owner.
+- Function-based materialized-view indexes are created after their functions.
+- An identity alteration omits `START WITH` unless the seed changed.
+- A retained virtual column is dropped and recreated around a datatype change
+  to a column it reads.
 - The deparse is byte-for-byte the Bytebase renderer. The fixtures that pin it
   are the Bytebase fixtures.
 

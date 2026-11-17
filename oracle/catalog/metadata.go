@@ -1315,10 +1315,13 @@ func (e *oracleMetadataExtractor) dropIncomingForeignKeysForColumns(tableName st
 		for _, fk := range table.ForeignKeys {
 			matches := fk.ReferencedTable == tableName
 			if matches && len(fk.ReferencedColumns) > 0 {
-				matches = false
-				for _, column := range fk.ReferencedColumns {
-					if columnSet[strings.Trim(column, `"`)] {
-						matches = true
+				matches = len(fk.ReferencedColumns) == len(columnSet)
+				if matches {
+					for _, column := range fk.ReferencedColumns {
+						if !columnSet[strings.Trim(column, `"`)] {
+							matches = false
+							break
+						}
 					}
 				}
 			}
@@ -1880,6 +1883,9 @@ func renameTriggerName(body, oldName, newName string) string {
 	}
 	start := index + len("TRIGGER ")
 	token, tokenStart, tokenEnd := scanTriggerIdentifier(body, start)
+	if tokenEnd < len(body) && body[tokenEnd] == '.' {
+		token, tokenStart, tokenEnd = scanTriggerIdentifier(body, tokenEnd+1)
+	}
 	if !strings.EqualFold(token, oldName) {
 		return body
 	}

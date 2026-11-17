@@ -2343,3 +2343,60 @@ ALTER TABLE T ADD CONSTRAINT UK UNIQUE (C) USING INDEX I`)
 		t.Fatalf("USING INDEX TABLESPACE: %v", err)
 	}
 }
+
+func TestCascadeCompositeKeyMatchesCompleteColumns(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE P (A NUMBER, B NUMBER, C NUMBER, CONSTRAINT U_AB UNIQUE(A,B), CONSTRAINT U_AC UNIQUE(A,C)); CREATE TABLE CH (A NUMBER, C NUMBER, CONSTRAINT CH_FK FOREIGN KEY(A,C) REFERENCES P(A,C)); ALTER TABLE P DROP CONSTRAINT U_AB CASCADE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["CH"].ForeignKeys) != 1 {
+		t.Fatal("foreign key for the retained composite key was removed")
+	}
+}
+
+func TestRenameQualifiedTrigger(t *testing.T) {
+	c := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Triggers: []*metadatapb.TriggerMetadata{{Name: "TR", Body: "CREATE OR REPLACE TRIGGER APP.TR BEFORE INSERT ON APP.T BEGIN NULL; END;"}}}}})
+	if _, err := c.Exec(`ALTER TRIGGER APP.TR RENAME TO TR2`, nil); err != nil {
+		t.Fatal(err)
+	}
+	body := tableByName(c.Metadata().Schemas[0])["T"].Triggers[0].Body
+	if !strings.Contains(body, "TRIGGER APP.TR2") {
+		t.Fatalf("trigger body = %q", body)
+	}
+}
+
+func TestMaterializedViewFunctionIndexAfterFunction(t *testing.T) {
+	old := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP", Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}}})
+	new := catalogFromSchema(&metadatapb.SchemaMetadata{Name: "APP",
+		Tables:            []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}}}},
+		Functions:         []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z(P NUMBER) RETURN NUMBER IS BEGIN RETURN P; END;"}},
+		MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "MV", Definition: "SELECT C FROM T", Indexes: []*metadatapb.IndexMetadata{{Name: "I", Type: "FUNCTION-BASED NORMAL", Expressions: []string{"Z(C)"}, Visible: true}}}},
+	})
+	sql := migrationFor(t, old, new)
+	function := strings.Index(sql, "CREATE OR REPLACE FUNCTION Z")
+	index := strings.Index(sql, `CREATE INDEX "APP"."I"`)
+	if function < 0 || index < 0 || function > index {
+		t.Fatalf("materialized-view index precedes its function:\n%s", sql)
+	}
+}
+
+func TestIdentityModeChangeDoesNotRestart(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_ALWAYS, IdentitySeed: 1, IdentityIncrement: 1}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT, IdentitySeed: 1, IdentityIncrement: 1}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	if strings.Contains(sql, "START WITH") {
+		t.Fatalf("identity mode change restarts the sequence:\n%s", sql)
+	}
+}
+
+func TestVirtualColumnDetachedBeforeSourceTypeChange(t *testing.T) {
+	oldTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}}}
+	newTable := &metadatapb.TableMetadata{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "BINARY_DOUBLE", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: "C+1"}}}}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{oldTable}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{newTable}}))
+	drop := strings.Index(sql, `DROP COLUMN "V"`)
+	modify := strings.Index(sql, `MODIFY "C" BINARY_DOUBLE`)
+	add := strings.LastIndex(sql, `ADD "V"`)
+	if drop < 0 || modify < 0 || add < 0 || !(drop < modify && modify < add) {
+		t.Fatalf("virtual column not detached around source type change:\n%s", sql)
+	}
+}
