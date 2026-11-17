@@ -1,0 +1,198 @@
+package catalog
+
+import (
+	"context"
+	"fmt"
+
+	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/oracle"
+	"github.com/bytebase/omni/oracle/ast"
+)
+
+// Catalog is the in-memory Oracle catalog. Oracle has one schema per user, so a
+// snapshot is normally one schema; the metadata type still carries the list.
+type Catalog struct {
+	meta              *metadatapb.DatabaseSchemaMetadata
+	namedNotNull      map[string]bool
+	primaryKeyNotNull map[string]bool
+}
+
+// New returns an empty catalog.
+func New() *Catalog {
+	return &Catalog{meta: &metadatapb.DatabaseSchemaMetadata{}, namedNotNull: map[string]bool{}, primaryKeyNotNull: map[string]bool{}}
+}
+
+// Metadata returns the catalog's snapshot.
+func (c *Catalog) Metadata() *metadatapb.DatabaseSchemaMetadata {
+	if c == nil || c.meta == nil {
+		return &metadatapb.DatabaseSchemaMetadata{}
+	}
+	return c.meta
+}
+
+// SetMetadata replaces the catalog's snapshot.
+func (c *Catalog) SetMetadata(meta *metadatapb.DatabaseSchemaMetadata) {
+	if meta == nil {
+		meta = &metadatapb.DatabaseSchemaMetadata{}
+	}
+	c.meta = meta
+	c.namedNotNull = map[string]bool{}
+	c.primaryKeyNotNull = map[string]bool{}
+}
+
+// LoadMetadataReport lists snapshot objects that could not be installed as
+// defined. The current catalog stores the snapshot rather than re-executing it,
+// so both maps are empty; they exist for the driver contract and for callers
+// that inspect a report.
+type LoadMetadataReport struct {
+	Degraded map[string]error
+	Missing  map[string]error
+}
+
+// LoadMetadata installs a synced snapshot into the catalog.
+func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSchemaMetadata) (*LoadMetadataReport, error) {
+	report := &LoadMetadataReport{Degraded: map[string]error{}, Missing: map[string]error{}}
+	if err := ctx.Err(); err != nil {
+		return report, err
+	}
+	c.namedNotNull = map[string]bool{}
+	c.primaryKeyNotNull = map[string]bool{}
+	if meta == nil {
+		c.meta = &metadatapb.DatabaseSchemaMetadata{}
+		return report, nil
+	}
+	c.meta = cloneMetadata(meta)
+	return report, nil
+}
+
+// ExecOptions controls Exec.
+type ExecOptions struct {
+	ContinueOnError bool
+}
+
+// ExecResult is the outcome of one statement.
+type ExecResult struct {
+	Index   int
+	SQL     string
+	Line    int
+	Skipped bool
+	Error   error
+}
+
+// Exec parses and applies one or more DDL statements. DML and transaction
+// statements are skipped.
+func (c *Catalog) Exec(sql string, opts *ExecOptions) ([]ExecResult, error) {
+	stmts, err := oracle.Parse(sql)
+	if err != nil {
+		return nil, err
+	}
+	continueOnError := opts != nil && opts.ContinueOnError
+	results := make([]ExecResult, 0, len(stmts))
+	for i, stmt := range stmts {
+		result := ExecResult{Index: i, SQL: stmt.Text, Line: stmt.Start.Line}
+		node, ok := stmt.AST.(ast.StmtNode)
+		if !ok || node == nil {
+			result.Skipped = true
+			results = append(results, result)
+			continue
+		}
+		if isDML(node) {
+			result.Skipped = true
+			results = append(results, result)
+			continue
+		}
+		result.Error = c.applyStatement(node, sql)
+		results = append(results, result)
+		if result.Error != nil && !continueOnError {
+			break
+		}
+	}
+	return results, nil
+}
+
+// LoadSQL returns a catalog built from sql.
+func LoadSQL(sql string) (*Catalog, error) {
+	c := New()
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		return nil, err
+	}
+	for _, result := range results {
+		if result.Error != nil {
+			return c, result.Error
+		}
+	}
+	return c, nil
+}
+
+// LoadSDL is LoadSQL: Oracle's declarative form is its DDL.
+func LoadSDL(sql string) (*Catalog, error) {
+	return LoadSQL(sql)
+}
+
+func isDML(stmt ast.StmtNode) bool {
+	switch stmt.(type) {
+	case *ast.SelectStmt, *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt,
+		*ast.CommitStmt, *ast.RollbackStmt, *ast.SavepointStmt, *ast.SetTransactionStmt,
+		*ast.ExplainPlanStmt, *ast.LockTableStmt, *ast.CallStmt:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Catalog) applyStatement(stmt ast.StmtNode, source string) error {
+	extractor := newMetadataExtractorFromMetadata(c.meta, source)
+	for key := range c.namedNotNull {
+		extractor.namedNotNull[key] = true
+	}
+	for key := range c.primaryKeyNotNull {
+		extractor.primaryKeyNotNull[key] = true
+	}
+	extractor.extractStatement(stmt)
+	if extractor.err != nil {
+		return extractor.err
+	}
+	meta := extractor.databaseMetadata()
+	// Keep any additional schemas the catalog already carried; Oracle's DDL
+	// names one schema at a time.
+	result := cloneMetadata(c.meta)
+	result.Name = meta.GetName()
+	if len(meta.GetSchemas()) > 0 {
+		if len(result.GetSchemas()) == 0 {
+			result.Schemas = meta.Schemas
+		} else {
+			oldSchema, newSchema := result.Schemas[0], meta.Schemas[0]
+			merged := cloneSchema(oldSchema)
+			merged.Name = oldSchema.GetName()
+			if merged.Name == "" && extractor.explicitSchema {
+				merged.Name = newSchema.GetName()
+			}
+			merged.Tables = newSchema.GetTables()
+			merged.Views = newSchema.GetViews()
+			merged.MaterializedViews = newSchema.GetMaterializedViews()
+			merged.Functions = newSchema.GetFunctions()
+			merged.Procedures = newSchema.GetProcedures()
+			merged.Sequences = newSchema.GetSequences()
+			merged.Packages = newSchema.GetPackages()
+			result.Schemas[0] = merged
+		}
+	}
+	c.meta = result
+	c.namedNotNull = extractor.namedNotNull
+	c.primaryKeyNotNull = extractor.primaryKeyNotNull
+	return nil
+}
+
+// Error is an Oracle catalog error.
+type Error struct {
+	Code    string
+	Message string
+}
+
+func (e *Error) Error() string {
+	if e.Code == "" {
+		return e.Message
+	}
+	return fmt.Sprintf("ORA-%s: %s", e.Code, e.Message)
+}
