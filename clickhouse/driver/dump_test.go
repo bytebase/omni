@@ -293,6 +293,14 @@ func TestDumpDictionaryTableReads(t *testing.T) {
 	query, ok := dumpDictionarySourceQuery(byName["inv_table"], "db", byName)
 	require.True(t, ok)
 	require.Equal(t, "SELECT id FROM db.a_mv", query)
+
+	// Another source's query is written for another database, and is not sent to
+	// this one's parser.
+	byName["foreign_query"] = &dumpObject{name: "foreign_query", stmt: "CREATE DICTIONARY db.fq\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(MYSQL(QUERY 'SELECT id FROM db.a_mv'))\nLAYOUT(FLAT())"}
+	byName["fq_table"] = &dumpObject{name: "fq_table", stmt: "CREATE TABLE db.fq_table\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db.fq')"}
+	byName["fq"] = byName["foreign_query"]
+	_, ok = dumpDictionarySourceQuery(byName["fq_table"], "db", byName)
+	require.False(t, ok)
 }
 
 // TestDumpViewTargetReads holds the TO clause a materialized view writes, which
