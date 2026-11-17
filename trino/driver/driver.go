@@ -18,7 +18,9 @@
 // A statement's update count reaches the caller only on the client's exec path,
 // so the driver sends a statement that returns no rows through Executor.
 // Querier decides which statements return rows from their leading keyword;
-// see session.Query.
+// see session.Query. Result.AffectedRows is 0 for a statement that reports no
+// count, such as DDL: the client states the statement's update count as a
+// number, and 0 is what a statement with none reports.
 //
 // Config.TLS supplies the TLS settings for the one host the client dials and
 // selects https; nil selects http. Config.Dial, when set, becomes the

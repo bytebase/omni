@@ -59,7 +59,9 @@
 // googlesql/analysis.RewriteResultLimit, and also caps the rows read when the
 // rewrite cannot (a non-literal LIMIT, a shape the parser does not read).
 // QueryOptions.MaxResultBytes stops the reading once the rows kept pass it and
-// sets Result.Truncated.
+// sets Result.Truncated; the size is measured every doubling of the row count,
+// as Bytebase measured it, so the cut lands on the smallest power-of-two row
+// count whose size passes the cap.
 //
 // QueryOptions.Explain asks for the plan Spanner would run. The plan is a JSON
 // document in the result's rows, as Bytebase rendered it, and Result.Plan says

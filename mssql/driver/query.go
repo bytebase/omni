@@ -55,7 +55,9 @@ func (s *session) Close() error { return s.conn.Close() }
 // statement. A statement that fails ends the script: its Result carries the
 // error, and the error returned is nil. Errors wrapping SQL Server's own
 // unwrap to gomssqldb.Error, whose text the driver unpacks to every message
-// the server sent.
+// the server sent. A batch the parser cannot read, and a statement it can read
+// but not classify (control flow), is the call's error, with the results of the
+// batches before it.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	var results []*driver.Result
 	batch := mssqlanalysis.NewBatcher(script)

@@ -27,7 +27,9 @@
 // QueryOptions.Limit is a page size: it caps a statement at that many rows and
 // a statement that returns more is read page by page until it reaches the
 // limit. QueryOptions.MaxResultBytes stops reading at the cap and sets
-// Result.Truncated.
+// Result.Truncated; the size is measured every doubling of the row count, as
+// Bytebase measured it, so the cut lands on the smallest power-of-two row count
+// whose size passes the cap.
 //
 // A Column's TypeName is Cassandra's own lowercase name for the CQL type (int,
 // text, list), not the upper-case name the contract describes: gocql reports
