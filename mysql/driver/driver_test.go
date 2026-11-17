@@ -735,7 +735,7 @@ func startLockServer(t *testing.T) (*lockServer, string, string) {
 // statementKey names a statement for the counters, from the marker a test puts
 // in it.
 func statementKey(sql string) string {
-	for _, marker := range []string{"UPDATE t", "UPDATE locked", "UPDATE stable", "CREATE TABLE kept", "CREATE TABLE t"} {
+	for _, marker := range []string{"UPDATE t", "UPDATE locked", "UPDATE stable", "CREATE TABLE kept", "CREATE TABLE t", "ALTER TABLE t"} {
 		if strings.Contains(sql, marker) {
 			return marker
 		}
@@ -753,7 +753,7 @@ func (s *lockServer) count(key string) int {
 // that committed nothing may run again, and the logger sees each retry.
 func TestExecuteRetriesLockWaitTimeout(t *testing.T) {
 	server, host, port := startLockServer(t)
-	server.failFirst = []string{"UPDATE t"}
+	server.failFirst = []string{"UPDATE t", "ALTER TABLE t"}
 	server.failAlways = []string{"UPDATE locked"}
 
 	d, err := Open(context.Background(), driver.Config{Host: host, Port: port, User: "root"})
@@ -798,6 +798,26 @@ func TestExecuteRetriesLockWaitTimeout(t *testing.T) {
 	for _, step := range autoLog.steps {
 		if strings.HasPrefix(step, "retry:") {
 			t.Fatalf("auto-commit retried after a committed statement: %v", autoLog.steps)
+		}
+	}
+
+	// A DDL statement that fails on a lock timeout commits the DML before it
+	// before it runs, so the failure cannot be retried even though nothing
+	// succeeded before it.
+	alterLog := &executeStepLogger{}
+	if _, err := d.Execute(context.Background(), "UPDATE t SET a = 2;\nALTER TABLE t ADD COLUMN b INT;", driver.ExecuteOptions{
+		Transaction: driver.Transactional,
+		MaxRetries:  2,
+		Log:         alterLog,
+	}); err == nil {
+		t.Fatal("expected the lock timeout")
+	}
+	if got := server.count("ALTER TABLE t"); got != 1 {
+		t.Errorf("the failing DDL ran %d times, want 1", got)
+	}
+	for _, step := range alterLog.steps {
+		if strings.HasPrefix(step, "retry:") {
+			t.Fatalf("transactional retried after a failing DDL: %v", alterLog.steps)
 		}
 	}
 

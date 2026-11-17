@@ -174,6 +174,18 @@ func retryPlan(commands []driver.Command) (rollbackSafe, repeatable []bool) {
 	return rollbackSafe, repeatable
 }
 
+// retryableAfter reports whether a failed attempt at command i left nothing
+// behind. The failing command counts: MariaDB commits the open transaction
+// before it runs a statement that cannot be rolled back, so a DDL that then
+// fails on a lock timeout has already committed the DML before it, and neither
+// the rollback nor a retry can undo that.
+func retryableAfter(rollbackSafe []bool, i int, earlierSafe bool) bool {
+	if !earlierSafe {
+		return false
+	}
+	return rollbackSafe == nil || rollbackSafe[i]
+}
+
 // rollsBack reports whether a command that succeeded inside a transaction is
 // undone by rolling back. MariaDB commits the open transaction implicitly around
 // DDL, LOCK TABLES, a SET that changes autocommit, and the administrative
@@ -246,7 +258,7 @@ func (d *Driver) executeInTransactionMode(
 			if execErr != nil {
 				d.killQueryOnCancel(execErr, connID)
 				logCommandResponse(log, 0, nil, execErr)
-				retryable = retryable && earlierSafe
+				retryable = retryable && retryableAfter(rollbackSafe, i, earlierSafe)
 				return execErr
 			}
 			if rollbackSafe != nil && !rollbackSafe[i] {

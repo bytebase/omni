@@ -121,6 +121,27 @@ func TestBuildExecuteCommandsDelimiterAndBounds(t *testing.T) {
 	}
 }
 
+func TestRetryableAfter(t *testing.T) {
+	// A command holding one DML statement: retryable while nothing before it
+	// committed.
+	if !retryableAfter([]bool{true, true}, 1, true) {
+		t.Error("a DML command with nothing committed before it is retryable")
+	}
+	// The failing command is the DDL: MariaDB committed the DML before it, so no
+	// retry can start from a state that holds nothing.
+	if retryableAfter([]bool{true, false}, 1, true) {
+		t.Error("a failing DDL command is retryable")
+	}
+	// An earlier command committed on its own.
+	if retryableAfter([]bool{true, true}, 1, false) {
+		t.Error("a command after an implicit commit is retryable")
+	}
+	// No plan (no retries asked for) leaves the answer to the caller.
+	if !retryableAfter(nil, 0, true) {
+		t.Error("no retry plan must not veto a retry")
+	}
+}
+
 func TestRetryPlan(t *testing.T) {
 	// A script past the command limit is one command holding every statement,
 	// so a failure inside it may follow commits that a retry would repeat.
