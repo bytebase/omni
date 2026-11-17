@@ -12679,6 +12679,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"
@@ -25279,6 +25284,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"
@@ -37897,6 +37907,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"
@@ -50393,6 +50408,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"
@@ -63067,6 +63087,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"
@@ -75741,6 +75766,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"
@@ -88879,6 +88909,11 @@
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]'), s.srvtype, s.srvversion
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_server'::regclass
+| 		AND d.objid = s.oid AND d.deptype = 'e'
+| )
 | ORDER BY s.srvname;
 < result
 < column "srvname" "NAME"

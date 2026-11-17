@@ -44,7 +44,7 @@ type DefinitionOptions struct {
 // DatabaseDefinition renders a synced database snapshot as a pg_dump-style
 // restore script, or with opts.SDLFormat as SDL.
 func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts DefinitionOptions) (string, error) {
-	if len(metadata.Schemas) == 0 {
+	if len(metadata.Schemas) == 0 && len(metadata.ForeignDataWrappers) == 0 && len(metadata.ForeignServers) == 0 {
 		return "", nil
 	}
 
@@ -110,6 +110,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	foreignServerMap := make(map[string]*metadatapb.ForeignServerMetadata)
 	externalTables := collectExternalTables(metadata.Schemas)
 	foreignPartitions := collectForeignPartitionIDs(metadata.Schemas, externalTables)
+	foreignPartitionParents := collectForeignPartitionParents(metadata.Schemas, externalTables)
 
 	// Construct functions.
 	functionIDsByName := make(map[string][]string)
@@ -235,6 +236,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(viewID)
 			for _, dependency := range view.DependencyColumns {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
+				if parentID, ok := foreignPartitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
 				graph.AddEdge(dependencyID, viewID)
 			}
 		}
@@ -248,6 +252,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(viewID)
 			for _, dependency := range view.DependencyColumns {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
+				if parentID, ok := foreignPartitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
 				graph.AddEdge(dependencyID, viewID)
 			}
 		}
@@ -2208,6 +2215,25 @@ func collectForeignPartitionIDs(schemas []*metadatapb.SchemaMetadata, externalTa
 		}
 	}
 	return ids
+}
+
+// collectForeignPartitionParents maps a foreign partition's ID to the table
+// that creates and attaches it, so a view that reads the partition waits for
+// the parent rather than for a node of its own.
+func collectForeignPartitionParents(schemas []*metadatapb.SchemaMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) map[string]string {
+	parents := make(map[string]string)
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			parentID := getObjectID(schema.Name, table.Name)
+			walkPartitions(schema.Name, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
+				id := getObjectID(partitionSchema, partition.Name)
+				if externalTables[id] != nil {
+					parents[id] = parentID
+				}
+			})
+		}
+	}
+	return parents
 }
 
 func walkPartitions(schema string, partitions []*metadatapb.TablePartitionMetadata, visit func(string, *metadatapb.TablePartitionMetadata)) {

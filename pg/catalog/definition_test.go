@@ -764,3 +764,66 @@ func TestDatabaseDefinitionScopesQualifiedHandlerToItsSchema(t *testing.T) {
 	assert.Contains(t, result, wrapper)
 	assert.Less(t, strings.Index(result, handler), strings.Index(result, wrapper), "the qualified handler must be written before its wrapper")
 }
+
+// TestDatabaseDefinitionRendersDatabaseLevelObjectsWithoutSchemas checks that a
+// database with no user schemas still dumps its wrappers and servers.
+func TestDatabaseDefinitionRendersDatabaseLevelObjectsWithoutSchemas(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name: "bare_fdw",
+		}},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{Name: "s", Fdw: "bare_fdw"}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	assert.Contains(t, result, `CREATE FOREIGN DATA WRAPPER "bare_fdw";`)
+	assert.Contains(t, result, `CREATE SERVER "s" FOREIGN DATA WRAPPER "bare_fdw";`)
+}
+
+// TestDatabaseDefinitionOrdersViewAfterForeignPartition checks that a view that
+// reads a foreign partition waits for the parent that creates the partition.
+func TestDatabaseDefinitionOrdersViewAfterForeignPartition(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:    "custom_fdw",
+			Handler: "app.handler",
+		}},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "custom_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "handler",
+				Definition: "CREATE FUNCTION app.handler() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+			}},
+		}, {
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:       "pt",
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{Name: "pt_remote", Value: "FOR VALUES FROM (0) TO (10)"}},
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{Name: "pt_remote", ExternalServerName: "s"}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:              "v",
+				Definition:        "SELECT id FROM public.pt_remote",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "pt_remote"}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	partition := `CREATE FOREIGN TABLE "public"."pt_remote"`
+	view := `CREATE VIEW "public"."v"`
+	assert.Contains(t, result, partition)
+	assert.Contains(t, result, view)
+	assert.Less(t, strings.Index(result, partition), strings.Index(result, view), "the foreign partition must exist before the view reads it")
+}
