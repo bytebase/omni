@@ -534,3 +534,25 @@ func TestDatabaseDefinitionConstraintComments(t *testing.T) {
 		}
 	}
 }
+
+// TestSchemaDefinitionWritesAnExtensionSchemasTypes holds SchemaDefinition to
+// the types of the schema it is asked for even when the schema is skipped: the
+// caller asked for this schema, and a table of it that names an enum needs the
+// enum's declaration.
+func TestSchemaDefinitionWritesAnExtensionSchemasTypes(t *testing.T) {
+	got, err := SchemaDefinition(&metadatapb.SchemaMetadata{
+		Name:     "ext",
+		SkipDump: true,
+		EnumTypes: []*metadatapb.EnumTypeMetadata{
+			{Name: "mood", Values: []string{"happy"}},
+		},
+		Tables: []*metadatapb.TableMetadata{
+			{Name: "t", Columns: []*metadatapb.ColumnMetadata{{Name: "m", Type: "ext.mood"}}},
+		},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, got, `CREATE TYPE "ext"."mood" AS ENUM (
+    'happy'
+)`)
+	assert.Contains(t, got, `CREATE TABLE "ext"."t"`)
+}

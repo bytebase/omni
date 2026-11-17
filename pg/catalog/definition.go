@@ -325,7 +325,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	// Construct enums, composite types and range types, each after the types it
 	// is declared over. The schema-level SkipDump filter does not apply here:
 	// the caller asked for this specific schema's definition.
-	if err := writeTypesSection(&buf, collectTypes([]*metadatapb.SchemaMetadata{schema})); err != nil {
+	if err := writeTypesSection(&buf, collectSchemaTypes(schema)); err != nil {
 		return "", err
 	}
 
@@ -974,20 +974,29 @@ func (t qualifiedType) skipDump() bool {
 // the given schemas. Schemas with SkipDump never get a CREATE SCHEMA statement,
 // so their types must not be emitted either.
 func collectTypes(schemas []*metadatapb.SchemaMetadata) []qualifiedType {
-	var types []qualifiedType
+	var kept []qualifiedType
 	for _, schema := range schemas {
 		if schema.SkipDump {
 			continue
 		}
-		for _, enum := range schema.EnumTypes {
-			types = append(types, qualifiedType{Schema: schema.Name, Enum: enum})
-		}
-		for _, composite := range schema.CompositeTypes {
-			types = append(types, qualifiedType{Schema: schema.Name, Composite: composite})
-		}
-		for _, rangeType := range schema.RangeTypes {
-			types = append(types, qualifiedType{Schema: schema.Name, RangeType: rangeType})
-		}
+		kept = append(kept, collectSchemaTypes(schema)...)
+	}
+	return kept
+}
+
+// collectSchemaTypes gathers one schema's dumpable types whether or not the
+// schema itself is dumped: a caller that asked for this schema's definition gets
+// it, though a type an extension owns is still left out.
+func collectSchemaTypes(schema *metadatapb.SchemaMetadata) []qualifiedType {
+	var types []qualifiedType
+	for _, enum := range schema.EnumTypes {
+		types = append(types, qualifiedType{Schema: schema.Name, Enum: enum})
+	}
+	for _, composite := range schema.CompositeTypes {
+		types = append(types, qualifiedType{Schema: schema.Name, Composite: composite})
+	}
+	for _, rangeType := range schema.RangeTypes {
+		types = append(types, qualifiedType{Schema: schema.Name, RangeType: rangeType})
 	}
 	kept := types[:0]
 	for _, t := range types {
