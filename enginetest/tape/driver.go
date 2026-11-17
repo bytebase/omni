@@ -698,8 +698,8 @@ func (s *session) readStream(ctx context.Context, lr driver.Rows, m *sqlexp.Retu
 }
 
 // startMessages gives the test's message stream a replay of the recorded
-// messages, in order. Each MsgNext exposes the result set the live server had
-// at that point; the rows are otherwise the same copy a non-stream answer gets.
+// messages, in order. The rows expose the next result set when Columns asks for
+// it, so the driver reads each set as its MsgNext arrives.
 func (s *session) startMessages(ctx context.Context, r *rows, m *sqlexp.ReturnMessage, msgs []message) error {
 	raw := make([]sqlexp.RawMessage, len(msgs))
 	for i, msg := range msgs {
@@ -713,9 +713,24 @@ func (s *session) startMessages(ctx context.Context, r *rows, m *sqlexp.ReturnMe
 	ctx, cancel := context.WithCancel(ctx)
 	r.cancel = cancel
 	go func() {
+		first := true
 		for _, v := range raw {
 			if _, ok := v.(sqlexp.MsgNext); ok {
+				if !first {
+					// The next set must not become current before the driver
+					// has finished the previous one, or it would read the wrong
+					// set when it asks for columns.
+					done := r.setDone()
+					if done != nil {
+						select {
+						case <-done:
+						case <-ctx.Done():
+							return
+						}
+					}
+				}
 				r.startSet()
+				first = false
 			}
 			if err := sqlexp.ReturnMessageEnqueue(ctx, m, v); err != nil {
 				return
@@ -805,6 +820,7 @@ type rows struct {
 	nrs      []bool
 	nrsIdx   int
 	cancel   func()
+	done     chan struct{} // closed when the current set is finished
 }
 
 func (r *rows) Columns() []string {
@@ -874,23 +890,46 @@ func (r *rows) Close() error {
 	return nil
 }
 
-// startSet moves to the result set the next MsgNext announces. Only a stream
-// answer calls it, from the goroutine replaying the messages.
+// startSet moves to the result set the next MsgNext announces.
 func (r *rows) startSet() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.set++
 	r.row = 0
+	r.done = make(chan struct{})
+}
+
+// setDone returns the channel that closes when the current set is finished.
+func (r *rows) setDone() <-chan struct{} {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return r.done
+}
+
+// finishSet closes the current set's channel, once.
+func (r *rows) finishSet() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.finishSetLocked()
+}
+
+func (r *rows) finishSetLocked() {
+	if r.done != nil {
+		close(r.done)
+		r.done = nil
+	}
 }
 
 func (r *rows) Next(dest []driver.Value) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.set < 0 || r.set >= len(r.sets) {
+		r.finishSetLocked()
 		return io.EOF
 	}
 	s := r.sets[r.set]
 	if r.row >= len(s.rows) {
+		r.finishSetLocked()
 		return io.EOF
 	}
 	for i, v := range s.rows[r.row] {
@@ -917,6 +956,7 @@ func (r *rows) NextResultSet() error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if r.scripted {
+		r.finishSetLocked()
 		if r.nrsIdx >= len(r.nrs) {
 			return io.EOF
 		}
@@ -930,6 +970,7 @@ func (r *rows) NextResultSet() error {
 	if r.set+1 >= len(r.sets) {
 		return io.EOF
 	}
+	r.finishSetLocked()
 	r.set++
 	r.row = 0
 	return nil
