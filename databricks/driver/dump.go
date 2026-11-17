@@ -49,7 +49,7 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 		if catalogName == sysCatalog {
 			continue
 		}
-		if _, err := fmt.Fprintf(writer, "CREATE CATALOG %s\n", quoteBacktick(catalogName)); err != nil {
+		if _, err := fmt.Fprintf(writer, "CREATE CATALOG %s;\n", quoteBacktick(catalogName)); err != nil {
 			return err
 		}
 
@@ -65,7 +65,7 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 				continue
 			}
 			if schemaName != dftSchema {
-				if _, err := fmt.Fprintf(writer, "CREATE SCHEMA %s.%s\n", quoteBacktick(catalogName), quoteBacktick(schemaName)); err != nil {
+				if _, err := fmt.Fprintf(writer, "CREATE SCHEMA %s.%s;\n", quoteBacktick(catalogName), quoteBacktick(schemaName)); err != nil {
 					return err
 				}
 			}

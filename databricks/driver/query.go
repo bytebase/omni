@@ -88,7 +88,23 @@ func (d *Driver) queryStatement(ctx context.Context, statement string, opts driv
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute statement: %w", err)
 	}
-	return resultFromResponse(response, statement, classifyStatement(statement), opts.MaxResultBytes)
+	statementID := response.StatementId
+	for {
+		result, err := resultFromResponse(response, statement, classifyStatement(statement), opts.MaxResultBytes)
+		if err != nil {
+			return nil, err
+		}
+		if response.Result == nil || response.Result.NextChunkIndex == 0 || result.Truncated {
+			return result, nil
+		}
+		next := response.Result.NextChunkIndex
+		chunk, err := d.client.StatementExecution.GetStatementResultChunkNByStatementIdAndChunkIndex(ctx, statementID, next)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch result chunk %d: %w", next, err)
+		}
+		response.Result.DataArray = append(response.Result.DataArray, chunk.DataArray...)
+		response.Result.NextChunkIndex = chunk.NextChunkIndex
+	}
 }
 
 // resultFromResponse turns the statement execution API's answer into the

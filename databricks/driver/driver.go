@@ -83,9 +83,10 @@
 // type its text, which is how Bytebase read a DECIMAL, DATE, TIMESTAMP, ARRAY,
 // MAP and STRUCT. A JSON null arrives as the empty string, so an empty value in
 // any non-STRING column is NULL, exactly as Bytebase read it; an empty STRING is
-// the empty string. Result.AffectedRows stays nil because the API reports no
-// affected count on the statement path this driver holds, and Execute answers 0
-// as Bytebase did.
+// the empty string. A result the service splits into chunks is read to the end,
+// or until MaxResultBytes stops it. Result.AffectedRows stays nil because the
+// API reports no affected count on the statement path this driver holds, and
+// Execute answers 0 as Bytebase did.
 //
 // Execute splits the script and sends its statements in order; a failing
 // statement ends the script and leaves the statements before it committed.

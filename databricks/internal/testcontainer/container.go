@@ -238,6 +238,11 @@ func narrow(route, contentType string, body []byte, status int) ([]byte, string)
 	}
 
 	switch {
+	case strings.Contains(path, "/result/chunks/"):
+		narrowed, ok := narrowResultChunk(body)
+		if ok {
+			return narrowed, "application/json"
+		}
 	case path == "/api/2.0/sql/statements", strings.HasPrefix(path, "/api/2.0/sql/statements/"):
 		narrowed, ok := narrowStatement(body)
 		if ok {
@@ -307,7 +312,11 @@ type column struct {
 }
 
 type result struct {
-	DataArray [][]string `json:"data_array,omitempty"`
+	ChunkIndex     int        `json:"chunk_index,omitempty"`
+	RowOffset      int        `json:"row_offset,omitempty"`
+	RowCount       int        `json:"row_count,omitempty"`
+	DataArray      [][]string `json:"data_array,omitempty"`
+	NextChunkIndex int        `json:"next_chunk_index,omitempty"`
 }
 
 func narrowStatement(body []byte) ([]byte, bool) {
@@ -328,11 +337,21 @@ func narrowStatement(body []byte) ([]byte, bool) {
 	return narrowed, err == nil
 }
 
+func narrowResultChunk(body []byte) ([]byte, bool) {
+	var response result
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, false
+	}
+	narrowed, err := json.Marshal(response)
+	return narrowed, err == nil
+}
+
 func narrowCatalogs(body []byte) ([]byte, bool) {
 	var response struct {
 		Catalogs []struct {
 			Name string `json:"name"`
 		} `json:"catalogs"`
+		NextPageToken string `json:"next_page_token,omitempty"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, false
@@ -347,6 +366,7 @@ func narrowSchemas(body []byte) ([]byte, bool) {
 		Schemas []struct {
 			Name string `json:"name"`
 		} `json:"schemas"`
+		NextPageToken string `json:"next_page_token,omitempty"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, false
@@ -358,7 +378,8 @@ func narrowSchemas(body []byte) ([]byte, bool) {
 
 func narrowTables(body []byte) ([]byte, bool) {
 	var response struct {
-		Tables []table `json:"tables"`
+		Tables        []table `json:"tables"`
+		NextPageToken string  `json:"next_page_token,omitempty"`
 	}
 	if err := json.Unmarshal(body, &response); err != nil {
 		return nil, false

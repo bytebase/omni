@@ -50,14 +50,30 @@ func TestNarrowStatementKeepsWhatTheDriverReads(t *testing.T) {
 		t.Fatal("narrowStatement refused the answer")
 	}
 	text := string(narrowed)
-	for _, want := range []string{`"state":"SUCCEEDED"`, `"name":"n"`, `"data_array":[["1"]]`, `"truncated":false`} {
+	for _, want := range []string{`"state":"SUCCEEDED"`, `"name":"n"`, `"data_array":[["1"]]`, `"truncated":false`, `"next_chunk_index":1`} {
 		if !strings.Contains(text, want) {
 			t.Errorf("narrowed answer %s does not hold %s", text, want)
 		}
 	}
-	for _, unwanted := range []string{"total_chunk_count", "next_chunk_index", "chunks", "row_count"} {
+	for _, unwanted := range []string{"total_chunk_count", "chunks"} {
 		if strings.Contains(text, unwanted) {
 			t.Errorf("narrowed answer %s still holds %s", text, unwanted)
+		}
+	}
+}
+
+// TestNarrowResultChunkKeepsTheContinuation keeps a later chunk's rows and
+// the index that names the one after it.
+func TestNarrowResultChunkKeepsTheContinuation(t *testing.T) {
+	body := []byte(`{"chunk_index":1,"row_offset":5250,"row_count":2,"data_array":[["a"],["b"]],"next_chunk_index":2}`)
+	narrowed, ok := narrowResultChunk(body)
+	if !ok {
+		t.Fatal("narrowResultChunk refused the answer")
+	}
+	text := string(narrowed)
+	for _, want := range []string{`"chunk_index":1`, `"data_array":[["a"],["b"]]`, `"next_chunk_index":2`} {
+		if !strings.Contains(text, want) {
+			t.Errorf("narrowed chunk %s does not hold %s", text, want)
 		}
 	}
 }

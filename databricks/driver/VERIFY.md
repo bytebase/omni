@@ -168,7 +168,8 @@ The request/answer tape must narrow what the service makes up:
   the driver reads, or replace them with stable values.
 - `result.data_array` chunk indexes, `next_chunk_index`,
   `next_chunk_internal_link` and `total_*_count` move with the chunking; keep
-  the first chunk and record what the driver actually reads.
+  every chunk and its next index, because the driver follows the continuation
+  until the result ends or `MaxResultBytes` stops it.
 - `DESC FORMATTED` is no longer part of the dump: the workspace states a
   materialized view's own `SHOW CREATE TABLE`, so the tape carries that answer.
 - A plan's expression IDs (`n#20318`) move between runs; the harness replaces
@@ -185,7 +186,7 @@ the reads, then the writes, then the dump.
 | --- | --- | --- |
 | 1 | `TestSyncDatabase` | `Catalogs.ListAll`, `Schemas.ListAll`, `Tables.ListAll`, and the metadata they build: schemas, tables, columns, views, materialized views, external tables, comments |
 | 2 | `TestSyncInstance` | `SELECT VERSION()` and the catalog names |
-| 3 | `TestQuery` | statement classification, every value kind, NULL versus empty STRING, the row limit, the EXPLAIN text, `MaxResultBytes`, a zero-row query, a failing statement |
+| 3 | `TestQuery` | statement classification, every value kind, NULL versus empty STRING, the row limit, the EXPLAIN text, `MaxResultBytes`, a zero-row query, a result across two chunks, a failing statement |
 | 4 | `TestExecute` | `CREATE SCHEMA`, `CREATE TABLE`, `INSERT`, each committing itself, and the drop in cleanup |
 | 5 | `TestDump` | `SHOW CREATE TABLE` for managed tables, external tables, views and a materialized view, and the dump text |
 | 6 | `TestPing` | `Workspace.ListAll` as the connectivity check |
@@ -246,9 +247,9 @@ recording settles the shape:
   port now uses the server's `SHOW CREATE TABLE`, and the parity harness records
   the difference.
 - The dump writes `CREATE CATALOG` for every catalog and `CREATE SCHEMA` for
-  every schema but `default`, and skips the `system` catalog and each catalog's
-  `information_schema`. The server accepted the quoted identifiers and the
-  sorted object order.
+  every schema but `default`, each terminated so `Execute` can split the dump,
+  and skips the `system` catalog and each catalog's `information_schema`. The
+  server accepted the quoted identifiers and the sorted object order.
 - A `TestDumpRestores` is still future work: the dump text is known to apply to
   the objects it states, but the corpus has not been dropped and replayed.
 

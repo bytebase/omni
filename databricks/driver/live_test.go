@@ -196,6 +196,14 @@ func checkQuery(t *testing.T, d *Driver) {
 		t.Errorf("capped results = %+v, want one truncated result", capped)
 	}
 
+	chunked, err := session.Query(ctx, "SELECT repeat('x', 1000) AS s FROM range(0, 6000)", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query with several result chunks: %v", err)
+	}
+	if len(chunked) != 1 || len(chunked[0].Rows) != 6000 {
+		t.Errorf("chunked result holds %d rows, want 6000 across the server's chunks", len(chunked[0].Rows))
+	}
+
 	empty, err := session.Query(ctx, "SELECT 1 AS n WHERE false", driver.QueryOptions{})
 	if err != nil {
 		t.Fatalf("Query with no rows: %v", err)
