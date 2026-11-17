@@ -36,6 +36,8 @@ func (c *Catalog) SetMetadata(meta *metadatapb.DatabaseSchemaMetadata) {
 		meta = &metadatapb.DatabaseSchemaMetadata{}
 	}
 	c.meta = meta
+	c.namedNotNull = map[string]bool{}
+	c.primaryKeyNotNull = map[string]bool{}
 }
 
 // LoadMetadataReport lists snapshot objects that could not be installed as
@@ -53,6 +55,8 @@ func (c *Catalog) LoadMetadata(ctx context.Context, meta *metadatapb.DatabaseSch
 	if err := ctx.Err(); err != nil {
 		return report, err
 	}
+	c.namedNotNull = map[string]bool{}
+	c.primaryKeyNotNull = map[string]bool{}
 	if meta == nil {
 		c.meta = &metadatapb.DatabaseSchemaMetadata{}
 		return report, nil

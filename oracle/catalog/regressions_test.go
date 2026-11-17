@@ -1914,3 +1914,50 @@ func TestPreAlterVirtualColumnDetachesIndex(t *testing.T) {
 		t.Fatalf("index not detached around virtual alteration:\n%s", sql)
 	}
 }
+
+func TestIdentityDropBeforeRelaxingNull(t *testing.T) {
+	oldColumn := &metadatapb.ColumnMetadata{Name: "ID", Type: "NUMBER", Position: 1, IsIdentity: true, IdentityGeneration: metadatapb.ColumnMetadata_BY_DEFAULT, Nullable: false}
+	newColumn := &metadatapb.ColumnMetadata{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{oldColumn}}}}), catalogFromSchema(&metadatapb.SchemaMetadata{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{newColumn}}}}))
+	drop := strings.Index(sql, "DROP IDENTITY")
+	null := strings.Index(sql, `MODIFY "ID" NULL`)
+	if drop < 0 || null < 0 || drop > null {
+		t.Fatalf("identity not dropped first:\n%s", sql)
+	}
+}
+
+func TestLoadMetadataResetsProvenance(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (ID NUMBER PRIMARY KEY)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{Tables: []*metadatapb.TableMetadata{{Name: "T", Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1}}, Indexes: []*metadatapb.IndexMetadata{{Name: "PK", Primary: true, Unique: true, IsConstraint: true, Expressions: []string{"ID"}}}}}}}}
+	if _, err := c.LoadMetadata(context.Background(), meta); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.Exec(`ALTER TABLE T DROP PRIMARY KEY`, nil); err != nil {
+		t.Fatal(err)
+	}
+	if tableByName(c.Metadata().Schemas[0])["T"].Columns[0].Nullable {
+		t.Fatal("stale provenance cleared a replacement snapshot")
+	}
+}
+
+func TestDropPrimaryKeyCascadeRemovesForeignKey(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE P (ID NUMBER PRIMARY KEY); CREATE TABLE C (P_ID NUMBER REFERENCES P(ID)); ALTER TABLE P DROP PRIMARY KEY CASCADE`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(tableByName(c.Metadata().Schemas[0])["C"].ForeignKeys) != 0 {
+		t.Fatal("cascading key drop left the foreign key")
+	}
+}
+
+func TestSequenceRestartRequiresKnownOldStart(t *testing.T) {
+	oldSeq := &metadatapb.SequenceMetadata{Name: "S"}
+	newSeq := &metadatapb.SequenceMetadata{Name: "S", Start: "1"}
+	sql := migrationFor(t, catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{oldSeq}}), catalogFromSchema(&metadatapb.SchemaMetadata{Sequences: []*metadatapb.SequenceMetadata{newSeq}}))
+	if strings.Contains(sql, "RESTART") {
+		t.Fatalf("restart inferred from unknown start:\n%s", sql)
+	}
+}

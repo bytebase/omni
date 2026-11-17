@@ -843,7 +843,9 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 				return nil, err
 			}
 		}
+		cascade := false
 		if p.cur.Type == kwCASCADE {
+			cascade = true
 			p.advance()
 		}
 		if err := p.parseATKeepDropIndex(); err != nil {
@@ -860,10 +862,15 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 			}
 			constraint = &nodes.TableConstraint{Columns: items, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 		}
+		var options *nodes.List
+		if cascade {
+			options = &nodes.List{Items: []nodes.Node{&nodes.String{Str: "CASCADE"}}}
+		}
 		return &nodes.AlterTableCmd{
 			Action:     nodes.AT_DROP_CONSTRAINT,
 			Constraint: constraint,
 			Subtype:    subtype,
+			Options:    options,
 			Loc:        nodes.Loc{Start: start, End: p.prev.End},
 		}, nil
 

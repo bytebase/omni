@@ -1181,6 +1181,11 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 		writeAlterColumnType(&buf, schemaName, tableName, colDiff.NewColumn.Name, colDiff.NewColumn.Type)
 	}
 
+	identityDropped := false
+	if colDiff.OldColumn.GetIsIdentity() && !colDiff.NewColumn.GetIsIdentity() {
+		writeModifyColumn(&buf, schemaName, tableName, colDiff.NewColumn.Name, "DROP IDENTITY")
+		identityDropped = true
+	}
 	oldDefaultDropped := false
 	// Oracle refuses to relax NOT NULL while DEFAULT ON NULL remains, so remove
 	// that default first.
@@ -1206,7 +1211,7 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiff, notN
 			colDiff.OldColumn.GetIdentityIncrement() != colDiff.NewColumn.GetIdentityIncrement() ||
 			colDiff.OldColumn.GetDefaultOnNull() != colDiff.NewColumn.GetDefaultOnNull()
 	}
-	if identityChanged {
+	if identityChanged && !identityDropped {
 		switch {
 		case colDiff.NewColumn.GetIsIdentity() && !colDiff.OldColumn.GetIsIdentity():
 			_, _ = buf.WriteString("-- oracle/catalog: converting an ordinary column to identity is not supported\n")
@@ -2832,7 +2837,7 @@ func writeRenameConstraint(out *strings.Builder, schema, table, oldName, newName
 
 func writeMigrationAlterSequence(out *strings.Builder, schema string, oldSeq, newSeq *metadatapb.SequenceMetadata) {
 	var clauses []string
-	if oldSeq.GetStart() != newSeq.GetStart() && newSeq.GetStart() != "" {
+	if oldSeq.GetStart() != "" && oldSeq.GetStart() != newSeq.GetStart() && newSeq.GetStart() != "" {
 		clauses = append(clauses, "RESTART START WITH "+newSeq.GetStart())
 	}
 	oldIncrement, newIncrement := oldSeq.GetIncrement(), newSeq.GetIncrement()

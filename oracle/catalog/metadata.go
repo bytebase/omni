@@ -605,6 +605,9 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 				}
 				e.dropConstraintSubtype(table, action.Subtype, columns)
 			}
+			if slices.Contains(stringList(action.Options), "CASCADE") {
+				e.dropIncomingForeignKeys(table.Name)
+			}
 		case ast.AT_ENABLE_DISABLE:
 			if e.err == nil {
 				e.err = fmt.Errorf("constraint enable/disable is not supported by oracle/catalog")

@@ -207,6 +207,10 @@ replay tests exercise.
 - Dependency scanning skips line and block comments.
 - An early virtual-column alteration detaches and restores its dependent
   indexes and constraints.
+- `DROP IDENTITY` runs before relaxing an identity column's NOT NULL.
+- `LoadMetadata`/`SetMetadata` reset provenance maps.
+- `DROP PRIMARY KEY ... CASCADE` removes incoming foreign keys.
+- A sequence restart is emitted only when the old start value is known.
 - A named `NOT NULL` constraint is recorded as sync reports it, a check
   constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
   NULL)` does not carry the name through the parser, so a migration replay keeps
