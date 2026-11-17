@@ -101,11 +101,19 @@ func (d *Driver) executeInTransactionMode(ctx context.Context, commands []driver
 
 // executeInAutoCommitMode runs commands one at a time, each committing itself,
 // and stops at the first failure, which leaves the database partially migrated.
+// Every command runs on one connection, so a script that sets session state (a
+// search path, a temporary table) keeps it for the statements after it.
 func (d *Driver) executeInAutoCommitMode(ctx context.Context, commands []driver.Command, log driver.ExecuteLogger) (int64, error) {
+	conn, err := d.db.Conn(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Close()
+
 	var totalRowsAffected int64
 	for _, command := range commands {
 		logCommandExecute(log, command)
-		sqlResult, err := d.db.ExecContext(ctx, command.Text)
+		sqlResult, err := conn.ExecContext(ctx, command.Text)
 		if err != nil {
 			logCommandResponse(log, 0, nil, err)
 			return totalRowsAffected, err

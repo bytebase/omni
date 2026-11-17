@@ -284,3 +284,66 @@ func TestPadZeroes(t *testing.T) {
 		}
 	}
 }
+
+// TestStripDatashareQualifier holds the rewrite a datashare query needs to
+// what a shared object is addressed by: the database's name comes off an
+// object reference and nothing else changes.
+func TestStripDatashareQualifier(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		statement string
+		want      string
+	}{
+		{
+			name:      "a qualified table loses the database",
+			statement: `SELECT * FROM shared.facts`,
+			want:      `SELECT * FROM facts`,
+		},
+		{
+			name:      "a quoted database name loses it too",
+			statement: `SELECT * FROM "shared".facts JOIN shared.dims ON true`,
+			want:      `SELECT * FROM facts JOIN dims ON true`,
+		},
+		{
+			name:      "every reference in a statement is rewritten",
+			statement: `SELECT * FROM shared.facts WHERE id IN (SELECT id FROM shared.dims)`,
+			want:      `SELECT * FROM facts WHERE id IN (SELECT id FROM dims)`,
+		},
+		{
+			name:      "a literal that spells the same text is left alone",
+			statement: `SELECT 'shared.facts' AS name FROM shared.facts`,
+			want:      `SELECT 'shared.facts' AS name FROM facts`,
+		},
+		{
+			name:      "a comment that spells the same text is left alone",
+			statement: "SELECT * -- shared.facts\nFROM shared.facts",
+			want:      "SELECT * -- shared.facts\nFROM facts",
+		},
+		{
+			name:      "a column qualifier is not a database qualifier",
+			statement: `SELECT shared.id FROM facts AS shared`,
+			want:      `SELECT shared.id FROM facts AS shared`,
+		},
+		{
+			name:      "a schema-qualified name keeps its schema",
+			statement: `SELECT * FROM shared.app.facts`,
+			want:      `SELECT * FROM app.facts`,
+		},
+		{
+			name:      "a longer identifier that ends in the database's name is left alone",
+			statement: `SELECT * FROM not_shared.facts`,
+			want:      `SELECT * FROM not_shared.facts`,
+		},
+		{
+			name:      "a quoted name in another case is another database",
+			statement: `SELECT * FROM "SHARED".facts`,
+			want:      `SELECT * FROM "SHARED".facts`,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := stripDatashareQualifier(tc.statement, "shared"); got != tc.want {
+				t.Errorf("stripDatashareQualifier(%q) = %q, want %q", tc.statement, got, tc.want)
+			}
+		})
+	}
+}

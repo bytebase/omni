@@ -298,7 +298,7 @@ mutation in the omni worktree, run the parity test, and require a failure; then
 
 ## Differences from Bytebase's driver, each to confirm on a cluster
 
-The port is close to `backend/plugin/db/redshift` and diverges in five places.
+The port is close to `backend/plugin/db/redshift` and diverges in nine places.
 Every one is a decision the recording settles.
 
 | difference | why |
@@ -307,7 +307,11 @@ Every one is a decision the recording settles.
 | `Execute` always splits the script; Bytebase collapsed a script over 2 MB or 200 commands into one request | the sheet-size bounds are the caller's; the splitter is lexical and never fails |
 | the database `CREATE DATABASE` names is read from the parse tree; Bytebase trimmed the literal prefix `CREATE DATABASE`, so `create database x` named a database called `create` | a statement Redshift accepts must not be misread by case |
 | `padZeroes` treats a leading `-` as the value's sign, not as a zone offset | Bytebase's version panicked on `INTERVAL '-00:02:45.25'` (`slice bounds out of range`); `pg/driver` carries the guard |
-| a datashare database is `Params["datashare"]`, not a field on the connection config | the contract carries engine-specific settings in `Params`, as `cosmosdb/driver` does for credentials |
+| a datashare database is `Params["datashare"]`, not a field on the connection config | the contract carries engine-specific settings in `Params`, as `cosmosdb/driver` does for credentials; the flag is read by this driver and is not sent to the server as a startup parameter |
+| autocommit `Execute` runs the whole script on one connection | each call would borrow a pooled connection of its own, so a `SET search_path` or a temporary table would not hold for the statements after it |
+| a datashare statement loses the database's name from the relations its `FROM` and `JOIN` clauses name, and from nothing else | Bytebase replaced the text everywhere, including inside a literal and in a column qualifier |
+| a foreign key's table names are the `pg_class.relname` the constraint joins, not the tail of a quoted `schema.table` | a schema holding a period broke that split, so the constraint was filed under a table that does not exist and dropped from the sync |
+| a synced column keeps its numeric precision and scale | `data_type` states `numeric` alone, so `numeric(12,2)` and `numeric(8,4)` synced alike |
 
 ## What would unblock it
 

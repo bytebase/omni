@@ -125,6 +125,21 @@ func TestConnConfigBuildsTheConnection(t *testing.T) {
 			},
 		},
 		{
+			name: "a datashare flag is not a server setting",
+			cfg: driver.Config{
+				User:     "dba",
+				Host:     "redshift.example.com",
+				Port:     "5439",
+				Database: "shared",
+				Params:   map[string]string{ParamDatashare: "true"},
+			},
+			want: func(t *testing.T, got *pgx.ConnConfig) {
+				if value, ok := got.RuntimeParams[ParamDatashare]; ok {
+					t.Errorf("RuntimeParams[%q] = %q: the flag is this driver's, and Redshift refuses a parameter it does not know", ParamDatashare, value)
+				}
+			},
+		},
+		{
 			name: "the application name and Params reach the session",
 			cfg: driver.Config{
 				User:            "dba",

@@ -1,6 +1,9 @@
 package driver
 
-import "testing"
+import (
+	"database/sql"
+	"testing"
+)
 
 // TestGetPgVersionAndRedshiftVersion reads what SELECT version() reports, which
 // is how a sync learns both the PostgreSQL release Redshift speaks and the
@@ -130,17 +133,29 @@ func TestForeignKeyColumnsFromDefinition(t *testing.T) {
 	}
 }
 
-// TestFormatTableNameFromRegclass reduces what
-// quote_ident(schema) || '.' || quote_ident(table) writes.
-func TestFormatTableNameFromRegclass(t *testing.T) {
-	for in, want := range map[string]string{
-		`public.users`:     "users",
-		`"Weird Schema".t`: "t",
-		`users`:            "users",
+// TestColumnType holds a synced column's declared type to the base name
+// INFORMATION_SCHEMA.COLUMNS reports and the modifiers it reports apart.
+func TestColumnType(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		dataType         string
+		characterMaximum sql.NullInt64
+		precision        sql.NullInt64
+		scale            sql.NullInt64
+		want             string
+	}{
+		{name: "a type with no modifier", dataType: "integer", want: "integer"},
+		{name: "a character length", dataType: "character varying", characterMaximum: sql.NullInt64{Int64: 32, Valid: true}, want: "character varying(32)"},
+		{name: "a character type with no declared length", dataType: "character", want: "character"},
+		{name: "a bit length", dataType: "bit varying", characterMaximum: sql.NullInt64{Int64: 8, Valid: true}, want: "bit varying(8)"},
+		{name: "a numeric precision and scale", dataType: "numeric", precision: sql.NullInt64{Int64: 12, Valid: true}, scale: sql.NullInt64{Int64: 2, Valid: true}, want: "numeric(12,2)"},
+		{name: "a numeric with no modifier", dataType: "numeric", want: "numeric"},
 	} {
-		if got := formatTableNameFromRegclass(in); got != want {
-			t.Errorf("formatTableNameFromRegclass(%q) = %q, want %q", in, got, want)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			if got := columnType(tc.dataType, tc.characterMaximum, tc.precision, tc.scale); got != tc.want {
+				t.Errorf("columnType(%q) = %q, want %q", tc.dataType, got, tc.want)
+			}
+		})
 	}
 }
 

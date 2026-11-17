@@ -14,6 +14,7 @@ import (
 	"github.com/bytebase/omni/driver"
 	"github.com/bytebase/omni/redshift"
 	redshiftanalysis "github.com/bytebase/omni/redshift/analysis"
+	redshiftparser "github.com/bytebase/omni/redshift/parser"
 )
 
 // Session opens one server connection held until Close, so session state such
@@ -57,8 +58,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	prepared := make([]preparedStmt, 0, len(statements))
 	for _, statement := range statements {
 		if s.driver.datashare {
-			// A shared object is addressed without the database it came from.
-			statement = strings.ReplaceAll(statement, s.driver.databaseName+".", "")
+			statement = stripDatashareQualifier(statement, s.driver.databaseName)
 		}
 		if opts.Explain {
 			explained, err := redshiftanalysis.ExplainStatement(statement)
@@ -372,4 +372,73 @@ func pgLocation(name string) *time.Location {
 
 func quoteIdent(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+// stripDatashareQualifier removes the database's name from a shared object's
+// qualified name, because a shared object is addressed without the database it
+// came from. Only a relation a FROM or JOIN names is rewritten: a literal, a
+// comment, a column qualifier and a longer identifier that ends in the same
+// text stay as they are.
+func stripDatashareQualifier(statement, databaseName string) string {
+	if databaseName == "" {
+		return statement
+	}
+	tokens := redshiftparser.Tokenize(statement)
+	var b strings.Builder
+	last := 0
+	// inRelation is true while the tokens are a relation list, which is where
+	// the database qualifier belongs.
+	inRelation := false
+	for i, token := range tokens {
+		if relationListStart[token.Type] {
+			inRelation = true
+			continue
+		}
+		if relationListEnd[token.Type] {
+			inRelation = false
+			continue
+		}
+		if !inRelation || token.Type != redshiftparser.IDENT || i+2 >= len(tokens) {
+			continue
+		}
+		referenced := tokens[i+2]
+		if tokens[i+1].Type != '.' || !redshiftparser.IsIdentifierTokenType(referenced.Type) {
+			continue
+		}
+		if token.Loc < len(statement) && statement[token.Loc] == '"' {
+			// A quoted identifier keeps its case, so only the same spelling
+			// names the database.
+			if token.Str != databaseName {
+				continue
+			}
+		} else if !strings.EqualFold(token.Str, databaseName) {
+			continue
+		}
+		b.WriteString(statement[last:token.Loc])
+		last = tokens[i+1].End
+	}
+	if last == 0 {
+		return statement
+	}
+	b.WriteString(statement[last:])
+	return b.String()
+}
+
+// relationListStart and relationListEnd are the keywords that open and close a
+// relation list: a FROM, JOIN, INTO or UPDATE names the relations after it, and
+// the next clause or SELECT ends them.
+var (
+	relationListStart = keywordTokens("FROM", "JOIN", "INTO", "UPDATE")
+	relationListEnd   = keywordTokens("SELECT", "WHERE", "ON", "USING", "SET", "HAVING", "WINDOW", "RETURNING", "UNION", "EXCEPT", "INTERSECT", "GROUP", "ORDER", "LIMIT", "OFFSET", "VALUES")
+)
+
+// keywordTokens maps each keyword's token type, as the lexer reports it.
+func keywordTokens(names ...string) map[int]bool {
+	tokens := make(map[int]bool, len(names))
+	for _, name := range names {
+		if keyword := redshiftparser.LookupKeyword(name); keyword != nil {
+			tokens[keyword.Token] = true
+		}
+	}
+	return tokens
 }

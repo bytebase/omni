@@ -209,6 +209,8 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 		cols.column_name,
 		cols.data_type,
 		cols.character_maximum_length,
+		cols.numeric_precision,
+		cols.numeric_scale,
 		cols.ordinal_position,
 		cols.column_default,
 		cols.is_nullable,
@@ -230,8 +232,9 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 	for rows.Next() {
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable string
-		var characterMaxLength, defaultStr, collation, udtSchema, udtName, comment sql.NullString
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment); err != nil {
+		var defaultStr, collation, udtSchema, udtName, comment sql.NullString
+		var characterMaxLength, numericPrecision, numericScale sql.NullInt64
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &column.Position, &defaultStr, &nullable, &collation, &udtSchema, &udtName, &comment); err != nil {
 			return nil, err
 		}
 		if defaultStr.Valid {
@@ -247,13 +250,8 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 			column.Type = fmt.Sprintf("%s.%s", udtSchema.String, udtName.String)
 		case "ARRAY":
 			column.Type = udtName.String
-		case "character", "character varying", "bit", "bit varying":
-			if characterMaxLength.Valid {
-				// For character varying(n), the character maximum length is n.
-				// For character without a length, key character_maximum_length
-				// is null and no length is appended.
-				column.Type = fmt.Sprintf("%s(%s)", column.Type, characterMaxLength.String)
-			}
+		default:
+			column.Type = columnType(column.Type, characterMaxLength, numericPrecision, numericScale)
 		}
 		column.Collation = collation.String
 		column.Comment = comment.String
@@ -317,7 +315,9 @@ func (d *Driver) getDatashareTableColumns(txn *sql.Tx) (map[tableKey][]*metadata
 		ordinal_position,
 		column_default,
 		is_nullable,
-		character_maximum_length
+		character_maximum_length,
+		numeric_precision,
+		numeric_scale
 	FROM SVV_ALL_COLUMNS
 	WHERE database_name = $1;`
 	rows, err := txn.Query(query, d.databaseName)
@@ -329,8 +329,8 @@ func (d *Driver) getDatashareTableColumns(txn *sql.Tx) (map[tableKey][]*metadata
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable string
 		var defaultStr sql.NullString
-		var varcharMaxLength sql.NullInt32
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &column.Position, &defaultStr, &nullable, &varcharMaxLength); err != nil {
+		var varcharMaxLength, numericPrecision, numericScale sql.NullInt32
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &column.Position, &defaultStr, &nullable, &varcharMaxLength, &numericPrecision, &numericScale); err != nil {
 			return nil, err
 		}
 		if defaultStr.Valid {
@@ -343,6 +343,9 @@ func (d *Driver) getDatashareTableColumns(txn *sql.Tx) (map[tableKey][]*metadata
 		column.Nullable = isNullBool
 		if column.Type == "character varying" && varcharMaxLength.Valid {
 			column.Type = fmt.Sprintf("varchar(%d)", varcharMaxLength.Int32)
+		}
+		if column.Type == "numeric" && numericPrecision.Valid && numericScale.Valid {
+			column.Type = fmt.Sprintf("numeric(%d,%d)", numericPrecision.Int32, numericScale.Int32)
 		}
 		key := tableKey{Schema: schemaName, Table: tableName}
 		columnsMap[key] = append(columnsMap[key], column)
@@ -506,10 +509,10 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 	const query = `
 	SELECT
 		n.nspname AS fk_schema,
-		quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+		fk_cls.relname AS fk_table,
 		conname AS fk_name,
 		ref_nsp.nspname AS fk_ref_schema,
-		quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+		ref_cls.relname AS fk_ref_table,
 		confdeltype AS delete_option,
 		confupdtype AS update_option,
 		confmatchtype AS match_option,
@@ -550,8 +553,6 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 			return nil, err
 		}
 
-		fkTable = formatTableNameFromRegclass(fkTable)
-		fkMetadata.ReferencedTable = formatTableNameFromRegclass(fkMetadata.ReferencedTable)
 		fkMetadata.OnDelete = convertForeignKeyActionCode(fkMetadata.OnDelete)
 		fkMetadata.OnUpdate = convertForeignKeyActionCode(fkMetadata.OnUpdate)
 		fkMetadata.MatchType = convertForeignKeyMatchType(fkMetadata.MatchType)
@@ -639,15 +640,6 @@ func getColumnList(definition string) ([]string, error) {
 	return result, nil
 }
 
-// formatTableNameFromRegclass reduces a quoted "schema"."table" to the table
-// name, which is what the schema-keyed maps hold.
-func formatTableNameFromRegclass(name string) string {
-	if strings.Contains(name, ".") {
-		name = name[1+strings.Index(name, "."):]
-	}
-	return strings.Trim(name, `"`)
-}
-
 // convertYesNo reads the is_nullable answers Redshift's INFORMATION_SCHEMA and
 // SVV_ALL_COLUMNS give.
 func convertYesNo(s string) (bool, error) {
@@ -659,4 +651,26 @@ func convertYesNo(s string) (bool, error) {
 	default:
 		return false, fmt.Errorf("unrecognized isNullable type %q", s)
 	}
+}
+
+// columnType spells the type INFORMATION_SCHEMA.COLUMNS reports, whose data_type
+// names the base type and whose other columns carry its modifiers: a character
+// or bit type's length, and a numeric type's precision and scale.
+func columnType(dataType string, characterMaxLength, numericPrecision, numericScale sql.NullInt64) string {
+	switch dataType {
+	case "character", "character varying", "bit", "bit varying":
+		// For character varying(n), the character maximum length is n. For
+		// character without a length, character_maximum_length is null and no
+		// length is appended.
+		if characterMaxLength.Valid {
+			return fmt.Sprintf("%s(%d)", dataType, characterMaxLength.Int64)
+		}
+	case "numeric":
+		// numeric and decimal have no modifier in data_type, so the precision
+		// and scale are what tells numeric(12,2) apart.
+		if numericPrecision.Valid && numericScale.Valid {
+			return fmt.Sprintf("%s(%d,%d)", dataType, numericPrecision.Int64, numericScale.Int64)
+		}
+	}
+	return dataType
 }

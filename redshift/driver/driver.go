@@ -44,15 +44,16 @@
 // network connection in place of net.Dialer, so an SSH tunnel or a cloud
 // connector reaches the cluster, and a Dial that names its own endpoint may
 // leave Host and Port empty. Config.Params are libpq and pgx connection
-// keywords, applied last so they override the settings above.
+// keywords, applied last so they override the settings above; ParamDatashare is
+// this driver's own flag and is not sent to the server.
 //
 // Params[ParamDatashare] = "true" marks a database a datashare (consumer)
 // database received. Redshift refuses to write one, so Execute refuses the
 // script instead of sending it; the sync reads SVV_ALL_SCHEMAS, SVV_ALL_TABLES
 // and SVV_ALL_COLUMNS, which name the objects inside a shared database, rather
 // than the pg_catalog views a datashare does not publish; and an interactive
-// statement has the database's own name stripped from its qualified names,
-// because a shared object is addressed without it. Config.ReadOnly asks for a
+// statement has the database's own name stripped from the relations its FROM
+// and JOIN clauses name, because a shared object is addressed without it. Config.ReadOnly asks for a
 // read-only session through default_transaction_read_only, and a datashare
 // database leaves that unset: Redshift does not support read-only transactions
 // on one.
@@ -180,6 +181,11 @@ func connConfig(cfg driver.Config) (*pgx.ConnConfig, error) {
 		dsn = append(dsn, "sslmode=require")
 	}
 	for key, value := range cfg.Params {
+		if key == ParamDatashare {
+			// A startup parameter the server does not know is a connection
+			// error, and this flag is read here rather than by Redshift.
+			continue
+		}
 		dsn = append(dsn, key+"="+value)
 	}
 	connConfig, err := pgx.ParseConfig(strings.Join(dsn, " "))
