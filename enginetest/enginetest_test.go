@@ -19,6 +19,9 @@ func TestLoadPin(t *testing.T) {
 	if got, want := p.String(), "default img:1 sha256:abc v1"; got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
+	if got, want := p.ImageRef(), "img:1@sha256:abc"; got != want {
+		t.Errorf("ImageRef = %q, want %q", got, want)
+	}
 	if _, err := LoadPin(path, "nosuch"); err == nil {
 		t.Errorf("a missing role loaded")
 	}
