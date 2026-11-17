@@ -7,7 +7,7 @@
 | CREATE SEQUENCE public.remote_id;
 | CREATE FUNCTION public.remote_token() RETURNS text LANGUAGE sql AS $$ SELECT 'x'::text $$;
 | CREATE FOREIGN TABLE public.remote_defaults (
-|     id bigint DEFAULT nextval('public.remote_id'),
+|     id bigint OPTIONS (column_name 'remote_id') DEFAULT nextval('public.remote_id'),
 |     token text DEFAULT public.remote_token()
 | ) SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');
 < ok 0 -
@@ -164,7 +164,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -202,6 +203,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -231,6 +233,8 @@
 | int8
 : null
 : null
+: string
+| ["column_name=remote_id"]
 < row
 : string
 | public
@@ -260,6 +264,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -1077,8 +1083,6 @@
 |
 | COMMENT ON EXTENSION "postgres_fdw" IS 'foreign-data wrapper for remote PostgreSQL servers';
 |
-| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
-|
 | CREATE SEQUENCE "public"."remote_id"
 |     AS bigint
 | 	START WITH 1
@@ -1090,6 +1094,8 @@
 |
 | SET default_tablespace = '';
 |
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
 | CREATE OR REPLACE FUNCTION public.remote_token()
 |  RETURNS text
 |  LANGUAGE sql
@@ -1097,7 +1103,7 @@
 | ;
 |
 | CREATE FOREIGN TABLE "public"."remote_defaults" (
-|     "id" bigint DEFAULT nextval('public.remote_id'::regclass),
+|     "id" bigint OPTIONS (column_name 'remote_id') DEFAULT nextval('public.remote_id'::regclass),
 |     "token" text DEFAULT public.remote_token()
 | ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'defaults');
 |
@@ -1267,7 +1273,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -1305,6 +1312,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -1334,6 +1342,8 @@
 | int8
 : null
 : null
+: string
+| ["column_name=remote_id"]
 < row
 : string
 | public
@@ -1363,6 +1373,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT

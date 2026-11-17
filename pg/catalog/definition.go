@@ -80,15 +80,6 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 	}
 
-	// Construct the foreign data wrappers the database declares itself, before
-	// the servers that name them. An extension-provided wrapper is written by
-	// its extension above.
-	for _, wrapper := range metadata.ForeignDataWrappers {
-		if err := writeForeignDataWrapper(&buf, wrapper); err != nil {
-			return "", err
-		}
-	}
-
 	// Construct user-defined collations, before the columns that sort with
 	// them.
 	for _, schema := range metadata.Schemas {
@@ -108,14 +99,6 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		return "", err
 	}
 
-	// Construct foreign servers after the extensions that provide their
-	// wrappers.
-	for _, server := range metadata.ForeignServers {
-		if err := writeForeignServer(&buf, server); err != nil {
-			return "", err
-		}
-	}
-
 	// Build the graph for topological sort.
 	graph := newDefinitionGraph()
 	functionMap := make(map[string]*metadatapb.FunctionMetadata)
@@ -123,6 +106,8 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	viewMap := make(map[string]*metadatapb.ViewMetadata)
 	materializedViewMap := make(map[string]*metadatapb.MaterializedViewMetadata)
 	foreignTableMap := make(map[string]*metadatapb.ExternalTableMetadata)
+	foreignDataWrapperMap := make(map[string]*metadatapb.ForeignDataWrapperMetadata)
+	foreignServerMap := make(map[string]*metadatapb.ForeignServerMetadata)
 	externalTables := collectExternalTables(metadata.Schemas)
 	foreignPartitions := collectForeignPartitionIDs(metadata.Schemas, externalTables)
 
@@ -137,11 +122,34 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			functionMap[funcID] = function
 			qualified := schema.Name + "." + function.Name
 			functionIDsByName[qualified] = append(functionIDsByName[qualified], funcID)
+			functionIDsByName[function.Name] = append(functionIDsByName[function.Name], funcID)
 			graph.AddNode(funcID)
 			for _, dependency := range function.DependencyTables {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
 				graph.AddEdge(dependencyID, funcID)
 			}
+		}
+	}
+
+	// A wrapper the database declares itself follows the functions its handler
+	// and validator name; an extension-provided wrapper is already written.
+	wrapperIDsByName := make(map[string]string)
+	for _, wrapper := range metadata.ForeignDataWrappers {
+		wrapperID := getObjectID("\x00fdw", wrapper.Name)
+		foreignDataWrapperMap[wrapperID] = wrapper
+		wrapperIDsByName[wrapper.Name] = wrapperID
+		graph.AddNode(wrapperID)
+		addFunctionNameEdges(graph, functionIDsByName, wrapper.Handler, wrapperID)
+		addFunctionNameEdges(graph, functionIDsByName, wrapper.Validator, wrapperID)
+	}
+	serverIDsByName := make(map[string]string)
+	for _, server := range metadata.ForeignServers {
+		serverID := getObjectID("\x00server", server.Name)
+		foreignServerMap[serverID] = server
+		serverIDsByName[server.Name] = serverID
+		graph.AddNode(serverID)
+		if wrapperID := wrapperIDsByName[server.Fdw]; wrapperID != "" {
+			graph.AddEdge(wrapperID, serverID)
 		}
 	}
 
@@ -194,7 +202,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			tableMap[tableID] = table
 			graph.AddNode(tableID)
 			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table)
-			addForeignPartitionFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table, externalTables)
+			addForeignPartitionEdges(graph, functionMap, functionIDsByName, schema.Name, table, externalTables, serverIDsByName)
 		}
 
 		for _, externalTable := range schema.ExternalTables {
@@ -213,6 +221,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 				Name:    externalTable.Name,
 				Columns: externalTable.Columns,
 			})
+			if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
+				graph.AddEdge(serverID, externalTableID)
+			}
 		}
 
 		for _, view := range schema.Views {
@@ -246,7 +257,21 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	if err != nil {
 		// If topological sort fails (e.g., due to circular dependencies),
 		// fall back to a safe dependency order: tables -> views -> materialized views -> functions
-		orderedList = make([]string, 0, len(functionMap)+len(tableMap)+len(viewMap)+len(materializedViewMap)+len(foreignTableMap))
+		orderedList = make([]string, 0, len(functionMap)+len(tableMap)+len(viewMap)+len(materializedViewMap)+len(foreignTableMap)+len(foreignDataWrapperMap)+len(foreignServerMap))
+
+		// Add wrappers and servers first, then tables.
+		var wrapperIDs []string
+		for id := range foreignDataWrapperMap {
+			wrapperIDs = append(wrapperIDs, id)
+		}
+		slices.Sort(wrapperIDs)
+		orderedList = append(orderedList, wrapperIDs...)
+		var serverIDs []string
+		for id := range foreignServerMap {
+			serverIDs = append(serverIDs, id)
+		}
+		slices.Sort(serverIDs)
+		orderedList = append(orderedList, serverIDs...)
 
 		// Add tables first (sorted alphabetically within each category)
 		var tableIDs []string
@@ -289,8 +314,21 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		orderedList = append(orderedList, functionIDs...)
 	}
 
-	// Construct functions, tables, views and materialized views in order.
+	// Construct functions, wrappers, servers, tables, views and materialized
+	// views in order.
 	for _, objectID := range orderedList {
+		if wrapper, ok := foreignDataWrapperMap[objectID]; ok {
+			if err := writeForeignDataWrapper(&buf, wrapper); err != nil {
+				return "", err
+			}
+			continue
+		}
+		if server, ok := foreignServerMap[objectID]; ok {
+			if err := writeForeignServer(&buf, server); err != nil {
+				return "", err
+			}
+			continue
+		}
 		if function, ok := functionMap[objectID]; ok {
 			if err := writeFunction(&buf, getSchemaNameFromID(objectID), function); err != nil {
 				return "", err
@@ -1556,9 +1594,11 @@ func writeForeignOptionName(out io.Writer, name string) error {
 		_, err := io.WriteString(out, name)
 		return err
 	}
+	// An unquoted PostgreSQL identifier folds to lower case, so an upper-case
+	// character in an option name has to be quoted to keep its spelling.
 	simple := name != ""
 	for i, r := range name {
-		if r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || i > 0 && r >= '0' && r <= '9' {
+		if r == '_' || r >= 'a' && r <= 'z' || i > 0 && r >= '0' && r <= '9' {
 			continue
 		}
 		simple = false
@@ -2170,9 +2210,20 @@ func walkPartitions(schema string, partitions []*metadatapb.TablePartitionMetada
 	}
 }
 
-// addForeignPartitionFunctionEdges makes the functions a foreign partition's
-// columns call precede the parent table that creates the partition.
-func addForeignPartitionFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) {
+// addFunctionNameEdges makes every function a name resolves to precede node.
+func addFunctionNameEdges(graph *definitionGraph, functionIDsByName map[string][]string, name, node string) {
+	if name == "" {
+		return
+	}
+	for _, functionID := range functionIDsByName[name] {
+		graph.AddEdge(functionID, node)
+	}
+}
+
+// addForeignPartitionEdges makes the functions a foreign partition's columns
+// call, and its server, precede the parent table that creates the partition.
+func addForeignPartitionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata, serverIDsByName map[string]string) {
+	parentID := getObjectID(schema, table.Name)
 	walkPartitions(schema, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
 		externalTable := externalTables[getObjectID(partitionSchema, partition.Name)]
 		if externalTable == nil {
@@ -2182,6 +2233,9 @@ func addForeignPartitionFunctionEdges(graph *definitionGraph, functionMap map[st
 			Name:    table.Name,
 			Columns: externalTable.Columns,
 		})
+		if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
+			graph.AddEdge(serverID, parentID)
+		}
 	})
 }
 
@@ -2210,6 +2264,11 @@ func writeColumnDefinition(out io.Writer, column *metadatapb.ColumnMetadata) err
 	}
 
 	if _, err := io.WriteString(out, column.Type); err != nil {
+		return err
+	}
+
+	// A foreign table's column options map its name for the wrapper.
+	if err := writeForeignOptions(out, column.Options); err != nil {
 		return err
 	}
 

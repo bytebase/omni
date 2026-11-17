@@ -149,7 +149,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -187,6 +188,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | public
@@ -215,6 +217,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -244,6 +248,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | public
@@ -273,6 +279,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -301,6 +309,8 @@
 | text
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT

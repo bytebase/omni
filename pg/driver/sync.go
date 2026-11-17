@@ -1038,7 +1038,8 @@ SELECT
 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 	COALESCE(bt.typname, t.typname) AS udt_name,
 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 FROM pg_catalog.pg_attribute a
 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -1070,9 +1071,15 @@ func getTableColumns(txn *sql.Tx, isAtLeastPG12 bool) (map[tableKey][]*metadatap
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable, generationKind string
 		var characterMaxLength, numericPrecision, numericScale, datetimePrecision, defaultStr, generationExpression, collation, collationSchema, udtSchema, udtName, identityGeneration, comment sql.NullString
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &collationSchema, &udtSchema, &udtName, &identityGeneration, &comment); err != nil {
+		var columnOptions string
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &collationSchema, &udtSchema, &udtName, &identityGeneration, &comment, &columnOptions); err != nil {
 			return nil, err
 		}
+		options, err := decodeOptionList(columnOptions)
+		if err != nil {
+			return nil, fmt.Errorf("column %q.%q.%q options: %w", schemaName, tableName, column.Name, err)
+		}
+		column.Options = options
 		// A generated column carries its expression instead of a default, and
 		// attgenerated gives its storage: 's' STORED or 'v' PG18 VIRTUAL.
 		if generationExpression.Valid {

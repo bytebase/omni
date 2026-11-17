@@ -1333,7 +1333,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -1371,6 +1372,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -1399,6 +1401,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -1427,6 +1431,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1455,6 +1461,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1483,6 +1491,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1511,6 +1521,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1539,6 +1551,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1567,6 +1581,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1595,6 +1611,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1623,6 +1641,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1651,6 +1671,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1679,6 +1701,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1707,6 +1731,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1735,6 +1761,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1763,6 +1791,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1791,6 +1821,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1819,6 +1851,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1848,6 +1882,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1877,6 +1913,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1906,6 +1944,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -1936,6 +1976,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1966,6 +2008,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -1995,6 +2039,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2023,6 +2069,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2052,6 +2100,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2080,6 +2130,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2108,6 +2160,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2137,6 +2191,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2166,6 +2222,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2194,6 +2252,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2222,6 +2282,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2250,6 +2312,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2279,6 +2343,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2308,6 +2374,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2336,6 +2404,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2364,6 +2434,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2392,6 +2464,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2420,6 +2494,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2448,6 +2524,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2476,6 +2554,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2504,6 +2584,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2532,6 +2614,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2560,6 +2644,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2588,6 +2674,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2616,6 +2704,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2645,6 +2735,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2674,6 +2766,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2703,6 +2797,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2732,6 +2828,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2760,6 +2858,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2788,6 +2888,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2816,6 +2918,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2844,6 +2948,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2873,6 +2979,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2901,6 +3009,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2929,6 +3039,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2957,6 +3069,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -2985,6 +3099,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3014,6 +3130,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3042,6 +3160,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3070,6 +3190,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3098,6 +3220,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3126,6 +3250,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3154,6 +3280,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3182,6 +3310,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3210,6 +3340,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3238,6 +3370,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3266,6 +3400,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3294,6 +3430,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3322,6 +3460,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3350,6 +3490,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3378,6 +3520,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3406,6 +3550,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3434,6 +3580,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3462,6 +3610,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3490,6 +3640,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3518,6 +3670,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3546,6 +3700,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3574,6 +3730,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3602,6 +3760,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3630,6 +3790,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3658,6 +3820,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3686,6 +3850,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3714,6 +3880,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3742,6 +3910,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3770,6 +3940,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3799,6 +3971,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3827,6 +4001,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3855,6 +4031,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3883,6 +4061,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3911,6 +4091,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3939,6 +4121,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3967,6 +4151,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -3995,6 +4181,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4023,6 +4211,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4052,6 +4242,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4080,6 +4272,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4108,6 +4302,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4136,6 +4332,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4164,6 +4362,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4192,6 +4392,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4220,6 +4422,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4248,6 +4452,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -4277,6 +4483,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -4305,6 +4513,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -4333,6 +4543,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -4361,6 +4573,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -4389,6 +4603,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -4417,6 +4633,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -4445,6 +4663,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -4474,6 +4694,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -4502,6 +4724,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -4530,6 +4754,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -13745,7 +13971,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -13783,6 +14010,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -13811,6 +14039,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -13839,6 +14069,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -13867,6 +14099,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -13895,6 +14129,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -13923,6 +14159,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -13951,6 +14189,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -13979,6 +14219,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14007,6 +14249,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14035,6 +14279,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14063,6 +14309,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14091,6 +14339,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14119,6 +14369,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14147,6 +14399,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14175,6 +14429,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14203,6 +14459,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14231,6 +14489,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14260,6 +14520,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14289,6 +14551,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14318,6 +14582,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -14348,6 +14614,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14378,6 +14646,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14407,6 +14677,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14435,6 +14707,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14464,6 +14738,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14492,6 +14768,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14520,6 +14798,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14549,6 +14829,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14578,6 +14860,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14606,6 +14890,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14634,6 +14920,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14662,6 +14950,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14691,6 +14981,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14720,6 +15012,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14748,6 +15042,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14776,6 +15072,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14804,6 +15102,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14832,6 +15132,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14860,6 +15162,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14888,6 +15192,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14916,6 +15222,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14944,6 +15252,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -14972,6 +15282,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15000,6 +15312,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15028,6 +15342,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15057,6 +15373,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15086,6 +15404,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15115,6 +15435,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15144,6 +15466,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15172,6 +15496,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15200,6 +15526,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15228,6 +15556,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15256,6 +15586,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15285,6 +15617,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15313,6 +15647,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15341,6 +15677,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15369,6 +15707,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15397,6 +15737,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15426,6 +15768,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15454,6 +15798,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15482,6 +15828,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15510,6 +15858,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15538,6 +15888,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15566,6 +15918,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15594,6 +15948,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15622,6 +15978,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15650,6 +16008,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15678,6 +16038,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15706,6 +16068,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15734,6 +16098,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15762,6 +16128,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15790,6 +16158,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15818,6 +16188,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15846,6 +16218,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15874,6 +16248,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15902,6 +16278,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15930,6 +16308,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15958,6 +16338,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -15986,6 +16368,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16014,6 +16398,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16042,6 +16428,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16070,6 +16458,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16098,6 +16488,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16126,6 +16518,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16154,6 +16548,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16182,6 +16578,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16211,6 +16609,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16239,6 +16639,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16267,6 +16669,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16295,6 +16699,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16323,6 +16729,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16351,6 +16759,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16379,6 +16789,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16407,6 +16819,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16435,6 +16849,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16464,6 +16880,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16492,6 +16910,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16520,6 +16940,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16548,6 +16970,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16576,6 +17000,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16604,6 +17030,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16632,6 +17060,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16660,6 +17090,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -16689,6 +17121,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -16717,6 +17151,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -16745,6 +17181,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -16773,6 +17211,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -16801,6 +17241,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -16829,6 +17271,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -16857,6 +17301,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -16886,6 +17332,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -16914,6 +17362,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -16942,6 +17392,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -26115,7 +26567,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -26153,6 +26606,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -26181,6 +26635,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -26209,6 +26665,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26237,6 +26695,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26265,6 +26725,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26293,6 +26755,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26321,6 +26785,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26349,6 +26815,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26377,6 +26845,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26405,6 +26875,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26433,6 +26905,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26461,6 +26935,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26489,6 +26965,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26517,6 +26995,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26545,6 +27025,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26573,6 +27055,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26601,6 +27085,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26630,6 +27116,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26659,6 +27147,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26688,6 +27178,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -26718,6 +27210,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26748,6 +27242,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26777,6 +27273,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26805,6 +27303,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26834,6 +27334,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26862,6 +27364,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26890,6 +27394,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26919,6 +27425,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26948,6 +27456,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -26976,6 +27486,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27004,6 +27516,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27032,6 +27546,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27061,6 +27577,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27090,6 +27608,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27118,6 +27638,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27146,6 +27668,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27174,6 +27698,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27202,6 +27728,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27230,6 +27758,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27258,6 +27788,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27286,6 +27818,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27314,6 +27848,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27342,6 +27878,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27370,6 +27908,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27398,6 +27938,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27427,6 +27969,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27456,6 +28000,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27485,6 +28031,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27514,6 +28062,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27542,6 +28092,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27570,6 +28122,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27598,6 +28152,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27626,6 +28182,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27655,6 +28213,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27683,6 +28243,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27711,6 +28273,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27739,6 +28303,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27767,6 +28333,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27796,6 +28364,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27824,6 +28394,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27852,6 +28424,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27880,6 +28454,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27908,6 +28484,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27936,6 +28514,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27964,6 +28544,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -27992,6 +28574,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28020,6 +28604,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28048,6 +28634,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28076,6 +28664,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28104,6 +28694,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28132,6 +28724,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28160,6 +28754,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28188,6 +28784,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28216,6 +28814,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28244,6 +28844,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28272,6 +28874,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28300,6 +28904,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28328,6 +28934,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28356,6 +28964,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28384,6 +28994,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28412,6 +29024,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28440,6 +29054,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28468,6 +29084,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28496,6 +29114,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28524,6 +29144,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28552,6 +29174,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28581,6 +29205,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28609,6 +29235,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28637,6 +29265,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28665,6 +29295,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28693,6 +29325,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28721,6 +29355,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28749,6 +29385,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28777,6 +29415,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28805,6 +29445,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28834,6 +29476,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28862,6 +29506,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28890,6 +29536,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28918,6 +29566,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28946,6 +29596,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -28974,6 +29626,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -29002,6 +29656,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -29030,6 +29686,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -29059,6 +29717,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -29087,6 +29747,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -29115,6 +29777,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -29143,6 +29807,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -29171,6 +29837,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -29199,6 +29867,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -29227,6 +29897,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -29256,6 +29928,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -29284,6 +29958,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -29312,6 +29988,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -38505,7 +39183,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -38543,6 +39222,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -38571,6 +39251,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -38599,6 +39281,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38627,6 +39311,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38655,6 +39341,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38683,6 +39371,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38711,6 +39401,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38739,6 +39431,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38767,6 +39461,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38795,6 +39491,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38823,6 +39521,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38851,6 +39551,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38879,6 +39581,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38907,6 +39611,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38935,6 +39641,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38963,6 +39671,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -38991,6 +39701,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39020,6 +39732,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39049,6 +39763,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39078,6 +39794,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -39108,6 +39826,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39138,6 +39858,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39167,6 +39889,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39195,6 +39919,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39224,6 +39950,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39252,6 +39980,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39280,6 +40010,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39309,6 +40041,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39338,6 +40072,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39366,6 +40102,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39394,6 +40132,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39422,6 +40162,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39451,6 +40193,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39480,6 +40224,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39508,6 +40254,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39536,6 +40284,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39564,6 +40314,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39592,6 +40344,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39620,6 +40374,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39648,6 +40404,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39676,6 +40434,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39704,6 +40464,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39732,6 +40494,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39760,6 +40524,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39788,6 +40554,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39817,6 +40585,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39846,6 +40616,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39875,6 +40647,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39904,6 +40678,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39932,6 +40708,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39960,6 +40738,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -39988,6 +40768,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40016,6 +40798,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40045,6 +40829,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40073,6 +40859,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40101,6 +40889,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40129,6 +40919,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40157,6 +40949,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40186,6 +40980,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40214,6 +41010,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40242,6 +41040,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40270,6 +41070,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40298,6 +41100,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40326,6 +41130,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40354,6 +41160,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40382,6 +41190,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40410,6 +41220,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40438,6 +41250,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40466,6 +41280,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40494,6 +41310,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40522,6 +41340,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40550,6 +41370,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40578,6 +41400,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40606,6 +41430,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40634,6 +41460,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40662,6 +41490,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40690,6 +41520,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40718,6 +41550,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40746,6 +41580,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40774,6 +41610,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40802,6 +41640,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40830,6 +41670,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40858,6 +41700,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40886,6 +41730,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40914,6 +41760,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40942,6 +41790,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40971,6 +41821,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -40999,6 +41851,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41027,6 +41881,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41055,6 +41911,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41083,6 +41941,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41111,6 +41971,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41139,6 +42001,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41167,6 +42031,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41195,6 +42061,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41224,6 +42092,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41252,6 +42122,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41280,6 +42152,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41308,6 +42182,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41336,6 +42212,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41364,6 +42242,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41392,6 +42272,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41420,6 +42302,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -41449,6 +42333,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -41477,6 +42363,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -41505,6 +42393,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -41533,6 +42423,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -41561,6 +42453,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -41589,6 +42483,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -41617,6 +42513,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -41646,6 +42544,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -41674,6 +42574,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -41702,6 +42604,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -50793,7 +51697,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -50831,6 +51736,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -50859,6 +51765,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -50887,6 +51795,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -50915,6 +51825,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -50943,6 +51855,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -50971,6 +51885,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -50999,6 +51915,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51027,6 +51945,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51055,6 +51975,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51083,6 +52005,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51111,6 +52035,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51139,6 +52065,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51167,6 +52095,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51195,6 +52125,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51223,6 +52155,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51251,6 +52185,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51279,6 +52215,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51308,6 +52246,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51337,6 +52277,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51366,6 +52308,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -51396,6 +52340,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51426,6 +52372,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51455,6 +52403,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51483,6 +52433,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51512,6 +52464,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51540,6 +52494,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51568,6 +52524,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51597,6 +52555,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51626,6 +52586,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51654,6 +52616,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51682,6 +52646,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51710,6 +52676,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51739,6 +52707,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51768,6 +52738,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51796,6 +52768,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51824,6 +52798,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51852,6 +52828,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51880,6 +52858,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51908,6 +52888,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51936,6 +52918,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51964,6 +52948,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -51992,6 +52978,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52020,6 +53008,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52048,6 +53038,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52076,6 +53068,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52105,6 +53099,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52134,6 +53130,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52163,6 +53161,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52192,6 +53192,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52220,6 +53222,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52248,6 +53252,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52276,6 +53282,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52304,6 +53312,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52333,6 +53343,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52361,6 +53373,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52389,6 +53403,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52417,6 +53433,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52445,6 +53463,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52474,6 +53494,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52502,6 +53524,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52530,6 +53554,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52558,6 +53584,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52586,6 +53614,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52614,6 +53644,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52642,6 +53674,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52670,6 +53704,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52698,6 +53734,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52726,6 +53764,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52754,6 +53794,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52782,6 +53824,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52810,6 +53854,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52838,6 +53884,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52866,6 +53914,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52894,6 +53944,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52922,6 +53974,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52950,6 +54004,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -52978,6 +54034,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53006,6 +54064,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53034,6 +54094,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53062,6 +54124,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53090,6 +54154,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53118,6 +54184,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53146,6 +54214,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53174,6 +54244,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53202,6 +54274,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53230,6 +54304,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53259,6 +54335,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53287,6 +54365,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53315,6 +54395,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53343,6 +54425,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53371,6 +54455,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53399,6 +54485,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53427,6 +54515,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53455,6 +54545,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53483,6 +54575,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53512,6 +54606,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53540,6 +54636,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53568,6 +54666,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53596,6 +54696,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53624,6 +54726,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53652,6 +54756,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53680,6 +54786,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53708,6 +54816,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -53737,6 +54847,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -53765,6 +54877,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -53793,6 +54907,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -53821,6 +54937,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -53849,6 +54967,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -53877,6 +54997,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -53905,6 +55027,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -53934,6 +55058,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -53962,6 +55088,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -53990,6 +55118,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -63235,7 +64365,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -63273,6 +64404,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -63301,6 +64433,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -63329,6 +64463,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63357,6 +64493,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63385,6 +64523,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63413,6 +64553,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63441,6 +64583,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63469,6 +64613,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63497,6 +64643,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63525,6 +64673,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63553,6 +64703,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63581,6 +64733,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63609,6 +64763,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63637,6 +64793,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63665,6 +64823,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63693,6 +64853,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63721,6 +64883,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63750,6 +64914,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63779,6 +64945,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63808,6 +64976,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -63838,6 +65008,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63868,6 +65040,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63897,6 +65071,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63925,6 +65101,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63954,6 +65132,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -63982,6 +65162,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64010,6 +65192,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64039,6 +65223,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64068,6 +65254,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64096,6 +65284,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64124,6 +65314,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64152,6 +65344,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64181,6 +65375,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64210,6 +65406,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64238,6 +65436,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64266,6 +65466,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64294,6 +65496,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64322,6 +65526,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64350,6 +65556,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64378,6 +65586,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64406,6 +65616,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64434,6 +65646,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64462,6 +65676,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64490,6 +65706,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64518,6 +65736,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64547,6 +65767,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64576,6 +65798,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64605,6 +65829,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64634,6 +65860,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64662,6 +65890,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64690,6 +65920,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64718,6 +65950,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64746,6 +65980,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64775,6 +66011,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64803,6 +66041,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64831,6 +66071,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64859,6 +66101,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64887,6 +66131,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64916,6 +66162,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64944,6 +66192,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -64972,6 +66222,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65000,6 +66252,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65028,6 +66282,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65056,6 +66312,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65084,6 +66342,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65112,6 +66372,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65140,6 +66402,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65168,6 +66432,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65196,6 +66462,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65224,6 +66492,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65252,6 +66522,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65280,6 +66552,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65308,6 +66582,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65336,6 +66612,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65364,6 +66642,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65392,6 +66672,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65420,6 +66702,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65448,6 +66732,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65476,6 +66762,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65504,6 +66792,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65532,6 +66822,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65560,6 +66852,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65588,6 +66882,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65616,6 +66912,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65644,6 +66942,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65672,6 +66972,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65701,6 +67003,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65729,6 +67033,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65757,6 +67063,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65785,6 +67093,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65813,6 +67123,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65841,6 +67153,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65869,6 +67183,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65897,6 +67213,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65925,6 +67243,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65954,6 +67274,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -65982,6 +67304,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66010,6 +67334,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66038,6 +67364,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66066,6 +67394,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66094,6 +67424,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66122,6 +67454,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66150,6 +67484,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -66179,6 +67515,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -66207,6 +67545,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -66235,6 +67575,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -66263,6 +67605,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -66291,6 +67635,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -66319,6 +67665,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -66347,6 +67695,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -66376,6 +67726,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -66404,6 +67756,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -66432,6 +67786,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT
@@ -75743,7 +77099,8 @@
 | 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 | 	COALESCE(bt.typname, t.typname) AS udt_name,
 | 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
-| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment
+| 	pg_catalog.col_description(c.oid, a.attnum) AS column_comment,
+| 	COALESCE(array_to_json(a.attfdwoptions)::text, '[]') AS column_options
 | FROM pg_catalog.pg_attribute a
 | 	LEFT JOIN pg_catalog.pg_attrdef ad ON a.attrelid = ad.adrelid AND a.attnum = ad.adnum
 | 	JOIN pg_catalog.pg_class c ON a.attrelid = c.oid
@@ -75781,6 +77138,7 @@
 < column "udt_name" "NAME"
 < column "identity_generation" "TEXT"
 < column "column_comment" "TEXT"
+< column "column_options" "TEXT"
 < row
 : string
 | Mixed Case
@@ -75809,6 +77167,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | Mixed Case
@@ -75837,6 +77197,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -75865,6 +77227,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -75893,6 +77257,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -75921,6 +77287,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -75949,6 +77317,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -75977,6 +77347,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76005,6 +77377,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76033,6 +77407,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76061,6 +77437,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76089,6 +77467,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76117,6 +77497,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76145,6 +77527,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76173,6 +77557,8 @@
 | tstzrange
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76201,6 +77587,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76229,6 +77617,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76258,6 +77648,8 @@
 : string
 | ALWAYS
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76287,6 +77679,8 @@
 : string
 | BY DEFAULT
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76316,6 +77710,8 @@
 : null
 : string
 | unique email
+: string
+| []
 < row
 : string
 | app
@@ -76346,6 +77742,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76376,6 +77774,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76405,6 +77805,8 @@
 | mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76433,6 +77835,8 @@
 | address
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76462,6 +77866,8 @@
 | _text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76490,6 +77896,8 @@
 | _int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76518,6 +77926,8 @@
 | hstore
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76547,6 +77957,8 @@
 | jsonb
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76576,6 +77988,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76604,6 +78018,8 @@
 | float8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76632,6 +78048,8 @@
 | float4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76660,6 +78078,8 @@
 | int2
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76689,6 +78109,8 @@
 | bool
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76718,6 +78140,8 @@
 | timestamp
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76746,6 +78170,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76774,6 +78200,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76802,6 +78230,8 @@
 | timetz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76830,6 +78260,8 @@
 | interval
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76858,6 +78290,8 @@
 | bit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76886,6 +78320,8 @@
 | varbit
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76914,6 +78350,8 @@
 | inet
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76942,6 +78380,8 @@
 | macaddr
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76970,6 +78410,8 @@
 | point
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -76998,6 +78440,8 @@
 | tsvector
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77026,6 +78470,8 @@
 | uuid
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77055,6 +78501,8 @@
 | bytea
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77084,6 +78532,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77113,6 +78563,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77142,6 +78594,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77170,6 +78624,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77198,6 +78654,8 @@
 | timestamptz
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77226,6 +78684,8 @@
 | _mood
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77254,6 +78714,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77283,6 +78745,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77311,6 +78775,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77339,6 +78805,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77367,6 +78835,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77395,6 +78865,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77424,6 +78896,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77452,6 +78926,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77480,6 +78956,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77508,6 +78986,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77536,6 +79016,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77564,6 +79046,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77592,6 +79076,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77620,6 +79106,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77648,6 +79136,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77676,6 +79166,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77704,6 +79196,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77732,6 +79226,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77760,6 +79256,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77788,6 +79286,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77816,6 +79316,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77844,6 +79346,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77872,6 +79376,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77900,6 +79406,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77928,6 +79436,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77956,6 +79466,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -77984,6 +79496,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78012,6 +79526,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78040,6 +79556,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78068,6 +79586,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78096,6 +79616,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78124,6 +79646,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78152,6 +79676,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78180,6 +79706,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78209,6 +79737,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78237,6 +79767,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78265,6 +79797,8 @@
 | date
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78293,6 +79827,8 @@
 | numeric
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78321,6 +79857,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78349,6 +79887,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78377,6 +79917,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78405,6 +79947,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78433,6 +79977,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78462,6 +80008,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78490,6 +80038,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78518,6 +80068,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78546,6 +80098,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78574,6 +80128,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78602,6 +80158,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78630,6 +80188,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78658,6 +80218,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | app
@@ -78687,6 +80249,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -78715,6 +80279,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -78743,6 +80309,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -78771,6 +80339,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -78799,6 +80369,8 @@
 | varchar
 : null
 : null
+: string
+| []
 < row
 : string
 | audit
@@ -78827,6 +80399,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -78855,6 +80429,8 @@
 | int8
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -78884,6 +80460,8 @@
 | int4
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -78912,6 +80490,8 @@
 | text
 : null
 : null
+: string
+| []
 < row
 : string
 | public
@@ -78940,6 +80520,8 @@
 | int4
 : null
 : null
+: string
+| []
 > query
 |
 | SELECT

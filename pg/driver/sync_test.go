@@ -477,7 +477,8 @@ SELECT
 	cols.udt_schema,
 	cols.udt_name,
 	cols.identity_generation,
-	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment
+	pg_catalog.col_description(c.oid, cols.ordinal_position::int) as column_comment,
+	COALESCE(array_to_json(pa.attfdwoptions)::text, '[]') AS column_options
 FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')

@@ -575,7 +575,7 @@ func TestDatabaseDefinitionWritesForeignServerBeforeForeignTable(t *testing.T) {
 				Name:               "remote_orders",
 				ExternalServerName: "loopback",
 				Columns: []*metadatapb.ColumnMetadata{
-					{Name: "id", Type: "integer", Nullable: false},
+					{Name: "id", Type: "integer", Nullable: false, Options: []string{"column_name=remote_id"}},
 					{Name: "note", Type: "text", Nullable: true},
 				},
 				Options: []string{"schema_name=public", "table_name=orders"},
@@ -588,7 +588,7 @@ func TestDatabaseDefinitionWritesForeignServerBeforeForeignTable(t *testing.T) {
 
 	server := `CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');`
 	table := `CREATE FOREIGN TABLE "audit"."remote_orders" (
-    "id" integer NOT NULL,
+    "id" integer OPTIONS (column_name 'remote_id') NOT NULL,
     "note" text
 ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');`
 	assert.Contains(t, result, server)
@@ -606,7 +606,7 @@ func TestDatabaseDefinitionWritesForeignDataWrapperBeforeServer(t *testing.T) {
 			Name:      "custom_fdw",
 			Handler:   "custom_handler",
 			Validator: "custom_validator",
-			Options:   []string{"debug=true"},
+			Options:   []string{"debug=true", "ApiKey=secret"},
 		}},
 		ForeignServers: []*metadatapb.ForeignServerMetadata{{
 			Name: "custom_server",
@@ -618,9 +618,42 @@ func TestDatabaseDefinitionWritesForeignDataWrapperBeforeServer(t *testing.T) {
 	result, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 
-	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER custom_handler VALIDATOR custom_validator OPTIONS (debug 'true');`
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER custom_handler VALIDATOR custom_validator OPTIONS (debug 'true', "ApiKey" 'secret');`
 	server := `CREATE SERVER "custom_server" FOREIGN DATA WRAPPER "custom_fdw";`
 	assert.Contains(t, result, wrapper)
 	assert.Contains(t, result, server)
+	assert.Less(t, strings.Index(result, wrapper), strings.Index(result, server), "the wrapper must be written before its server")
+}
+
+// TestDatabaseDefinitionOrdersForeignDataWrapperAfterItsFunctions checks that a
+// database-declared wrapper follows a user function its handler or validator
+// names.
+func TestDatabaseDefinitionOrdersForeignDataWrapperAfterItsFunctions(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "handler",
+				Definition: "CREATE FUNCTION app.handler() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+			}},
+		}},
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:    "custom_fdw",
+			Handler: "app.handler",
+		}},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{Name: "custom_server", Fdw: "custom_fdw"}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	function := `CREATE FUNCTION app.handler()`
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER app.handler;`
+	server := `CREATE SERVER "custom_server" FOREIGN DATA WRAPPER "custom_fdw";`
+	assert.Contains(t, result, function)
+	assert.Contains(t, result, wrapper)
+	assert.Contains(t, result, server)
+	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the handler must be written before its wrapper")
 	assert.Less(t, strings.Index(result, wrapper), strings.Index(result, server), "the wrapper must be written before its server")
 }

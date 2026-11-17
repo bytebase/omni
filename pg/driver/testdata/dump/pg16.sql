@@ -76,8 +76,6 @@ CREATE TYPE "app"."float_range" AS RANGE (
     multirange_type_name = app.float_multirange
 );
 
-CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
-
 CREATE SEQUENCE "app"."counter"
     AS integer
 	START WITH 10
@@ -135,6 +133,8 @@ CREATE SEQUENCE "public"."plain_a_seq"
 	NO CYCLE;
 
 SET default_tablespace = '';
+
+CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
 
 CREATE TABLE "Mixed Case"."Table" (
     "Id" integer NOT NULL,
@@ -552,11 +552,6 @@ END
 $function$
 ;
 
-CREATE FOREIGN TABLE "audit"."remote_orders" (
-    "id" integer NOT NULL,
-    "note" character varying(30)
-) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
-
 CREATE TABLE "audit"."scratch" (
     "note" text
 );
@@ -577,6 +572,11 @@ CREATE TABLE "public"."z_source" (
 );
 
 ALTER TABLE "public"."z_source" OWNER TO "postgres";
+
+CREATE FOREIGN TABLE "audit"."remote_orders" (
+    "id" integer NOT NULL,
+    "note" character varying(30)
+) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 
 CREATE VIEW "app"."customer_names" AS 
  SELECT id,

@@ -2935,6 +2935,11 @@ type ColumnMetadata struct {
 	IdentitySeed int64 `protobuf:"varint,18,opt,name=identity_seed,json=identitySeed,proto3" json:"identity_seed,omitempty"`
 	// The identity_increment is for identity columns, MSSQL only.
 	IdentityIncrement int64 `protobuf:"varint,19,opt,name=identity_increment,json=identityIncrement,proto3" json:"identity_increment,omitempty"`
+	// The options the engine states on a foreign table's column, as PostgreSQL's
+	// pg_attribute.attfdwoptions does: each entry is "key=value", with the value
+	// unquoted. Empty for a column that declares none, and for an engine that
+	// states no column options.
+	Options []string `protobuf:"bytes,24,rep,name=options,proto3" json:"options,omitempty"`
 	// The default_constraint_name is the name of the default constraint, MSSQL only.
 	// In MSSQL, default values are implemented as named constraints. When modifying or
 	// dropping a column's default value, you must reference the constraint by name.
@@ -3109,6 +3114,13 @@ func (x *ColumnMetadata) GetIdentityIncrement() int64 {
 		return x.IdentityIncrement
 	}
 	return 0
+}
+
+func (x *ColumnMetadata) GetOptions() []string {
+	if x != nil {
+		return x.Options
+	}
+	return nil
 }
 
 func (x *ColumnMetadata) GetDefaultConstraintName() string {
@@ -5211,7 +5223,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\vLINEAR_HASH\x10\x06\x12\a\n" +
 	"\x03KEY\x10\a\x12\x0e\n" +
 	"\n" +
-	"LINEAR_KEY\x10\b\"\xd2\x06\n" +
+	"LINEAR_KEY\x10\b\"\xec\x06\n" +
 	"\x0eColumnMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\bposition\x18\x02 \x01(\x05R\bposition\x12\x18\n" +
@@ -5231,7 +5243,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"isIdentity\x12a\n" +
 	"\x13identity_generation\x18\x0f \x01(\x0e20.omni.metadata.ColumnMetadata.IdentityGenerationR\x12identityGeneration\x12#\n" +
 	"\ridentity_seed\x18\x12 \x01(\x03R\fidentitySeed\x12-\n" +
-	"\x12identity_increment\x18\x13 \x01(\x03R\x11identityIncrement\x126\n" +
+	"\x12identity_increment\x18\x13 \x01(\x03R\x11identityIncrement\x12\x18\n" +
+	"\aoptions\x18\x18 \x03(\tR\aoptions\x126\n" +
 	"\x17default_constraint_name\x18\x14 \x01(\tR\x15defaultConstraintName\x12\x17\n" +
 	"\x04srid\x18\x15 \x01(\rH\x00R\x04srid\x88\x01\x01\x12!\n" +
 	"\fis_invisible\x18\x16 \x01(\bR\visInvisible\x12)\n" +

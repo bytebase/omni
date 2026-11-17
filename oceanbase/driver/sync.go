@@ -1349,10 +1349,16 @@ func skipQuotedText(text string, i int, quote byte) int {
 }
 
 // readQuotedText reads text[i] as its opening quote and returns the unescaped
-// content and the index after the closing quote. A doubled quote is literal.
+// content and the index after the closing quote. A doubled quote is literal, as
+// is a MySQL backslash escape in a string.
 func readQuotedText(text string, i int, quote byte) (string, int) {
 	var b strings.Builder
 	for j := i + 1; j < len(text); j++ {
+		if text[j] == '\\' && quote != '`' && j+1 < len(text) {
+			b.WriteString(unescapeMySQLByte(text[j+1]))
+			j++
+			continue
+		}
 		if text[j] != quote {
 			b.WriteByte(text[j])
 			continue
@@ -1365,6 +1371,26 @@ func readQuotedText(text string, i int, quote byte) (string, int) {
 		return b.String(), j + 1
 	}
 	return b.String(), len(text)
+}
+
+// unescapeMySQLByte is the value MySQL writes for a backslash escape.
+func unescapeMySQLByte(c byte) string {
+	switch c {
+	case '0':
+		return "\x00"
+	case 'b':
+		return "\b"
+	case 'n':
+		return "\n"
+	case 'r':
+		return "\r"
+	case 't':
+		return "\t"
+	case 'Z':
+		return "\x1a"
+	default:
+		return string(c)
+	}
 }
 
 // readParenthesized reads the parenthesized text that starts at i and returns
@@ -1395,6 +1421,18 @@ func normalizeExternalFormat(format string) string {
 	pendingSpace := false
 	for i := 0; i < len(format); i++ {
 		c := format[i]
+		if inQuote && c == '\\' && i+1 < len(format) {
+			if pendingSpace {
+				if b.Len() > 0 {
+					b.WriteByte(' ')
+				}
+				pendingSpace = false
+			}
+			b.WriteByte(c)
+			b.WriteByte(format[i+1])
+			i++
+			continue
+		}
 		if c == '\'' {
 			if inQuote && i+1 < len(format) && format[i+1] == '\'' {
 				if pendingSpace {

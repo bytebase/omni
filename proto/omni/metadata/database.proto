@@ -788,6 +788,12 @@ message ColumnMetadata {
   // The identity_increment is for identity columns, MSSQL only.
   int64 identity_increment = 19;
 
+  // The options the engine states on a foreign table's column, as PostgreSQL's
+  // pg_attribute.attfdwoptions does: each entry is "key=value", with the value
+  // unquoted. Empty for a column that declares none, and for an engine that
+  // states no column options.
+  repeated string options = 24;
+
   // The default_constraint_name is the name of the default constraint, MSSQL only.
   // In MSSQL, default values are implemented as named constraints. When modifying or
   // dropping a column's default value, you must reference the constraint by name.

@@ -306,4 +306,16 @@ func TestExternalTableFacts(t *testing.T) {
 	if location != "file:///tmp" || format != "" {
 		t.Errorf("without FORMAT = %q, %q; want %q, empty", location, format, "file:///tmp")
 	}
+
+	// A MySQL backslash escape in a column comment must not end the quote
+	// before LOCATION and FORMAT.
+	ddl = "CREATE EXTERNAL TABLE `ext_t` (`c1` int COMMENT 'owner\\'s note') " +
+		"LOCATION='file:///tmp/it\\'s' FORMAT (TYPE = 'CSV')"
+	location, format = externalTableFacts(ddl)
+	if location != "file:///tmp/it's" {
+		t.Errorf("escaped location = %q, want %q", location, "file:///tmp/it's")
+	}
+	if format != "TYPE = 'CSV'" {
+		t.Errorf("escaped format = %q, want %q", format, "TYPE = 'CSV'")
+	}
 }
