@@ -1059,20 +1059,36 @@ func TestLoadMetadataInstallsComments(t *testing.T) {
 		}},
 		EnumTypes: []*metadata.EnumTypeMetadata{{Name: "mood", Values: []string{"ok"}, Comment: "enum note"}},
 		Sequences: []*metadata.SequenceMetadata{{Name: "s", DataType: "bigint", Comment: "sequence note"}},
-		Tables: []*metadata.TableMetadata{{
-			Name: "t", Comment: "table note",
-			Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer", Comment: "column note"}},
-			Indexes: []*metadata.IndexMetadata{
-				{Name: "t_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree", Comment: "key note"},
-				{Name: "t_id_idx", Expressions: []string{"id"}, Type: "btree", Comment: "index note"},
+		Tables: []*metadata.TableMetadata{
+			{
+				Name: "t", Comment: "table note",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer", Comment: "column note"}},
+				Indexes: []*metadata.IndexMetadata{
+					{Name: "t_pkey", Expressions: []string{"id"}, Primary: true, Unique: true, IsConstraint: true, Type: "btree", Comment: "key note"},
+					{Name: "t_id_idx", Expressions: []string{"id"}, Type: "btree", Comment: "index note"},
+				},
 			},
-		}},
+			{
+				Name: "pt", Comment: "partitioned table note",
+				Columns: []*metadata.ColumnMetadata{{Name: "id", Type: "integer"}, {Name: "v", Type: "text"}},
+				Partitions: []*metadata.TablePartitionMetadata{{
+					Name: "pt_archive", Schema: "archive", Comment: "partition note",
+					Type: metadata.TablePartitionMetadata_RANGE, Expression: "RANGE (id)",
+					Value: "FOR VALUES FROM (1) TO (2)",
+					Subpartitions: []*metadata.TablePartitionMetadata{{
+						Name: "pt_archive_x", Comment: "subpartition note",
+						Type: metadata.TablePartitionMetadata_LIST, Expression: "LIST (v)",
+						Value: "FOR VALUES IN ('x')",
+					}},
+				}},
+			},
+		},
 		Views: []*metadata.ViewMetadata{{Name: "v", Definition: "SELECT t.id FROM public.t", Comment: "view note"}},
 		Functions: []*metadata.FunctionMetadata{{
 			Name: "f", Signature: "f(integer)", Comment: "function note",
 			Definition: "CREATE FUNCTION public.f(x integer) RETURNS integer LANGUAGE sql AS $$ SELECT x $$",
 		}},
-	})
+	}, &metadata.SchemaMetadata{Name: "archive"})
 	requireCleanReport(t, report)
 
 	var got []string
@@ -1080,7 +1096,7 @@ func TestLoadMetadataInstallsComments(t *testing.T) {
 		got = append(got, e)
 	}
 	slices.Sort(got)
-	want := []string{"attribute note", "column note", "enum note", "function note", "index note", "key note", "schema note", "sequence note", "table note", "type note", "view note"}
+	want := []string{"attribute note", "column note", "enum note", "function note", "index note", "key note", "partition note", "partitioned table note", "schema note", "sequence note", "subpartition note", "table note", "type note", "view note"}
 	if !slices.Equal(got, want) {
 		t.Errorf("comments = %q, want %q", got, want)
 	}

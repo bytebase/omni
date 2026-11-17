@@ -326,16 +326,19 @@ func partitionSchemaName(parent string, p *metadata.TablePartitionMetadata) stri
 	return cmp.Or(p.GetSchema(), parent)
 }
 
-// forEachPartition calls f for each of t's partitions and their subpartitions.
-func forEachPartition(t *metadata.TableMetadata, f func(*metadata.TablePartitionMetadata)) {
-	var walk func([]*metadata.TablePartitionMetadata)
-	walk = func(partitions []*metadata.TablePartitionMetadata) {
+// forEachPartition calls f for each of t's partitions and their subpartitions,
+// with the schema each one resolves to: a partition that names no schema lives
+// beside its immediate parent.
+func forEachPartition(schema string, t *metadata.TableMetadata, f func(schema string, p *metadata.TablePartitionMetadata)) {
+	var walk func(parent string, partitions []*metadata.TablePartitionMetadata)
+	walk = func(parent string, partitions []*metadata.TablePartitionMetadata) {
 		for _, p := range partitions {
-			f(p)
-			walk(p.GetSubpartitions())
+			partitionSchema := partitionSchemaName(parent, p)
+			f(partitionSchema, p)
+			walk(partitionSchema, p.GetSubpartitions())
 		}
 	}
-	walk(t.GetPartitions())
+	walk(schema, t.GetPartitions())
 }
 
 // appendPartitionConstraintObjects adds the indexes and constraints of the
@@ -1220,8 +1223,7 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 			comment("TABLE "+qualified(t.GetName()), t.GetComment())
 			columns(t.GetName(), t.GetColumns())
 			indexes(s.GetName(), t.GetName(), t.GetIndexes())
-			forEachPartition(t, func(p *metadata.TablePartitionMetadata) {
-				partitionSchema := partitionSchemaName(s.GetName(), p)
+			forEachPartition(s.GetName(), t, func(partitionSchema string, p *metadata.TablePartitionMetadata) {
 				comment("TABLE "+quoteIdent(partitionSchema)+"."+quoteIdent(p.GetName()), p.GetComment())
 				indexes(partitionSchema, p.GetName(), p.GetIndexes())
 			})
