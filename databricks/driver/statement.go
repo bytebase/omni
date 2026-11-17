@@ -71,13 +71,13 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 			if line != "" {
 				contentEnd = byteOffset + len(line)
 			}
-			scanLineQuotes(line, &quote)
-			if quote == 0 && strings.HasSuffix(line, ";") {
+			if scanLineQuotes(line, &quote) {
 				execute = true
 			}
 		} else {
+			endsWithSemicolon := false
 			if !comment {
-				scanLineQuotes(line, &quote)
+				endsWithSemicolon = scanLineQuotes(line, &quote)
 			}
 			switch {
 			case strings.HasPrefix(line, "/*"):
@@ -104,10 +104,10 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 			case line == "DELIMITER ;" && delimiter:
 				delimiter = false
 				execute = true
-			case strings.HasSuffix(line, ";"):
+			case endsWithSemicolon:
 				hasContent = true
 				contentEnd = byteOffset + len(line)
-				if !delimiter && quote == 0 {
+				if !delimiter {
 					execute = true
 				}
 			default:
@@ -138,37 +138,43 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 }
 
 // scanLineQuotes advances quote across one line, ignoring comment text after a
-// -- or /* that is outside a quoted string. A semicolon at the end of a line is
-// a terminator only when quote is 0 after the line.
-func scanLineQuotes(line string, quote *rune) {
+// -- or /* that is outside a quoted string, and reports whether the last
+// content outside both is a semicolon.
+func scanLineQuotes(line string, quote *rune) bool {
+	last := byte(0)
 	for i := 0; i < len(line); {
-		c := rune(line[i])
+		c := line[i]
 		if *quote != 0 {
 			if c == '\\' && *quote == '\'' && i+1 < len(line) {
 				i += 2
+				last = 'x'
 				continue
 			}
-			if c == *quote {
-				if i+1 < len(line) && rune(line[i+1]) == *quote {
+			if c == byte(*quote) {
+				if i+1 < len(line) && line[i+1] == c {
 					i += 2
+					last = c
 					continue
 				}
 				*quote = 0
 			}
 			i++
+			last = c
 			continue
 		}
 		if c == '-' && i+1 < len(line) && line[i+1] == '-' {
-			return
+			break
 		}
 		if c == '/' && i+1 < len(line) && line[i+1] == '*' {
-			return
+			break
 		}
 		if c == '\'' || c == '"' || c == '`' {
-			*quote = c
+			*quote = rune(c)
 		}
 		i++
+		last = c
 	}
+	return *quote == 0 && last == ';'
 }
 
 // errCommentEnd is the splitter's answer to a block comment whose closing does
