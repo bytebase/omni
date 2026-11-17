@@ -140,6 +140,8 @@
 | 	cols.column_name,
 | 	cols.data_type,
 | 	cols.character_maximum_length,
+| 	cols.numeric_precision,
+| 	cols.numeric_scale,
 | 	cols.ordinal_position,
 | 	cols.column_default,
 | 	cols.is_nullable,
@@ -158,6 +160,8 @@
 < column "column_name" "TEXT"
 < column "data_type" "TEXT"
 < column "character_maximum_length" "INT8"
+< column "numeric_precision" "INT8"
+< column "numeric_scale" "INT8"
 < column "ordinal_position" "INT8"
 < column "column_default" "TEXT"
 < column "is_nullable" "TEXT"
@@ -175,6 +179,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : string
 | unique_rowid()
@@ -196,6 +202,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 2
 : null
 : string
@@ -215,6 +223,8 @@
 | email
 : string
 | text
+: null
+: null
 : null
 : int64 3
 : null
@@ -237,6 +247,8 @@
 : string
 | character varying
 : int64 50
+: null
+: null
 : int64 4
 : string
 | 'anon' COLLATE en_US
@@ -259,6 +271,8 @@
 : string
 | USER-DEFINED
 : null
+: null
+: null
 : int64 5
 : string
 | 'happy'
@@ -280,6 +294,8 @@
 : string
 | USER-DEFINED
 : null
+: null
+: null
 : int64 6
 : null
 : string
@@ -299,6 +315,8 @@
 | tags
 : string
 | ARRAY
+: null
+: null
 : null
 : int64 7
 : string
@@ -321,6 +339,8 @@
 : string
 | numeric
 : null
+: int64 12
+: int64 2
 : int64 8
 : string
 | 0
@@ -342,6 +362,8 @@
 : string
 | double precision
 : null
+: int64 53
+: null
 : int64 9
 : null
 : string
@@ -362,6 +384,8 @@
 : string
 | smallint
 : null
+: int64 16
+: int64 0
 : int64 10
 : null
 : string
@@ -381,6 +405,8 @@
 | created
 : string
 | timestamp with time zone
+: null
+: null
 : null
 : int64 11
 : string
@@ -403,6 +429,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
@@ -423,6 +451,8 @@
 : string
 | character varying
 : int64 50
+: null
+: null
 : int64 2
 : null
 : string
@@ -444,6 +474,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 3
 : null
 : string
@@ -464,6 +496,8 @@
 : string
 | numeric
 : null
+: int64 10
+: int64 2
 : int64 4
 : null
 : string
@@ -484,6 +518,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
@@ -503,6 +539,8 @@
 | total
 : string
 | numeric
+: null
+: null
 : null
 : int64 2
 : null
@@ -524,6 +562,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 3
 : string
 | unique_rowid()
@@ -545,6 +585,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 1
 : null
 : string
@@ -565,6 +607,8 @@
 : string
 | bigint
 : null
+: int64 64
+: int64 0
 : int64 2
 : null
 : string
@@ -585,6 +629,8 @@
 : string
 | numeric
 : null
+: int64 10
+: int64 2
 : int64 3
 : null
 : string
@@ -604,6 +650,8 @@
 | placed_at
 : string
 | timestamp without time zone
+: null
+: null
 : null
 : int64 4
 : null
