@@ -193,18 +193,13 @@ parse:
 		// continue processing quoted string or multiline comment
 		case b.quote != 0 || b.comment:
 
-		// We do not care about the variable reference for now.
-		// Handle variable references
-		// case c == '$' && next == '(':
-		// 	vi, ok := readVariableReference(b.raw, i+2, b.rawLen)
-		// 	if ok {
-		// 		b.addVariableLocation(i, string(b.raw[i+2:vi]))
-		// 		i = vi
-
-		// 	} else {
-		// 		err = syntaxError(b.linecount)
-		// 		break parse
-		// 	}
+		// A variable reference is neither a command nor a batch boundary:
+		// T-SQL's @v stays in the batch text for the server to bind, and
+		// sqlcmd's $(v) is not substituted here, so a caller that wants
+		// substitution does it before splitting. SQL Server scopes a local
+		// variable to the batch this splitter delimits (error 137 in the next
+		// one), while a temp table the batch created outlives the GO; see the
+		// package doc.
 
 		// Commands have to be alone on the line
 		case !scannedCommand:

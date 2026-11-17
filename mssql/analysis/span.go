@@ -3,6 +3,7 @@ package analysis
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
@@ -39,6 +40,18 @@ type ColumnResource struct {
 	Column   string
 }
 
+// String renders the resource as the T-SQL multi-part name it was written as,
+// with the linked server first when the statement named one.
+func (c ColumnResource) String() string {
+	parts := make([]string, 0, 5)
+	for _, part := range []string{c.Server, c.Database, c.Schema, c.Table, c.Column} {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return strings.Join(parts, ".")
+}
+
 // ColumnSet is a set of columns.
 type ColumnSet map[ColumnResource]bool
 
@@ -66,6 +79,80 @@ type ResolvedSpan struct {
 	// NotFoundError is set when a table the query names is not in the catalog.
 	// Results is then empty.
 	NotFoundError *NotFoundError
+	// Untraced is set when the statement reads a value whose columns this
+	// package cannot trace. The statement is legal and its rows are right; a
+	// masking caller must withhold them, because it cannot tell which column a
+	// policy applies to.
+	Untraced *UntracedError
+}
+
+// UntracedError reports the values a statement reads that this package cannot
+// trace to a column of a table the synced metadata describes, so a masking
+// caller must withhold the rows the statement returns. ResolveQuerySpan sees
+// one statement and the batch's temp tables as the caller carries them, which
+// is why the batch's own writes and variable assignments are out of reach; see
+// the package doc.
+type UntracedError struct {
+	// Relations are the temp tables and table variables the statement reads,
+	// each with an empty Column field. The batch's own statements wrote their
+	// rows.
+	Relations []ColumnResource
+	// Variables are the local variables the statement reads, with their
+	// leading @. A statement of the same batch assigned each value, from a
+	// column this package did not see.
+	Variables []string
+}
+
+// Error names what the statement reads that has no column lineage.
+func (e *UntracedError) Error() string {
+	parts := make([]string, 0, 2)
+	if len(e.Relations) > 0 {
+		names := make([]string, 0, len(e.Relations))
+		for _, relation := range e.Relations {
+			names = append(names, relation.String())
+		}
+		slices.Sort(names)
+		parts = append(parts, fmt.Sprintf("%s (whose rows the batch's own statements wrote)", strings.Join(names, ", ")))
+	}
+	if len(e.Variables) > 0 {
+		variables := slices.Clone(e.Variables)
+		slices.Sort(variables)
+		parts = append(parts, fmt.Sprintf("%s (whose value a statement of the batch assigned)", strings.Join(variables, ", ")))
+	}
+	return "the statement's rows cannot be traced to columns: it reads " + strings.Join(parts, " and ")
+}
+
+// LinkedServerError reports a statement that reads a relation on a linked
+// server, or through an ad-hoc provider, whose columns the connected
+// instance's metadata does not describe. It is returned as an error rather
+// than carried on the span: the server, not the connected instance, resolves
+// the relation, so a span without its columns would read as a statement that
+// touches nothing sensitive and a masking caller would return the rows.
+type LinkedServerError struct {
+	// Server is the linked server as written; empty for an ad-hoc provider
+	// (OPENROWSET, OPENDATASOURCE).
+	Server string
+	// Table is the relation as written after the server, when the statement
+	// names one: a four-part name's database, schema and table.
+	Table string
+	// PassThrough marks a call whose query text the remote server runs
+	// (OPENQUERY), so the statement spells none of the columns even when it
+	// names no server.
+	PassThrough bool
+}
+
+// Error names the server the read goes through and why it has no lineage.
+func (e *LinkedServerError) Error() string {
+	switch {
+	case e.Table != "":
+		return fmt.Sprintf("linked server %q: the connected instance's metadata does not describe %q, so the columns it returns cannot be traced", e.Server, e.Table)
+	case e.Server != "":
+		return fmt.Sprintf("linked server %q: a pass-through query's columns are the remote server's, so they cannot be traced", e.Server)
+	case e.PassThrough:
+		return "a pass-through query's columns are the remote server's, so they cannot be traced"
+	default:
+		return "an ad-hoc provider read's columns are the provider's, not the connected instance's, so they cannot be traced"
+	}
 }
 
 // NotFoundError reports a database, schema, table or column the catalog does
