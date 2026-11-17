@@ -33,10 +33,13 @@
 // carries no type name, because Elasticsearch's answer states none. A number in
 // an answer keeps its digits, so a long past 2^53 is not rounded.
 //
-// A statement's error is the driver's own text: a request the server refused
-// keeps its HTTP status and the answer's body, because Elasticsearch states a
-// failure as a JSON body rather than as an error the client raises. Only a
-// failure of the transport underneath is wrapped.
+// A statement's error is the driver's own. A request the server refused is a
+// *ResponseError, whose Status is the HTTP status and whose Body is the answer
+// as Elasticsearch wrote it: a failure is a JSON body there, and that body names
+// the error's own type, reason and subject (an "index_not_found_exception" and
+// the index it is about). A failure of the transport underneath is wrapped, so
+// errors.As reaches the *url.Error net/http raises for a request that got no
+// answer.
 //
 // Open builds the HTTP client and reaches nothing; Ping does. Every method is
 // safe for concurrent use.
@@ -312,6 +315,17 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	return results, nil
 }
 
+// ResponseError is a request the server refused: the status it answered with and
+// the body it wrote, which states the error's type and reason.
+type ResponseError struct {
+	Status int
+	Body   string
+}
+
+func (e *ResponseError) Error() string {
+	return fmt.Sprintf("request failed with status code %d: %s", e.Status, e.Body)
+}
+
 // run sends one request and reads its answer.
 func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts driver.QueryOptions) (*driver.Result, error) {
 	// For NDJSON endpoints (_msearch, _bulk, etc.), each JSON object must be
@@ -335,7 +349,7 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("request failed with status code %d: %s", resp.StatusCode, string(respBytes))
+		return nil, &ResponseError{Status: resp.StatusCode, Body: string(respBytes)}
 	}
 
 	result := &driver.Result{Statement: requestText(request, data)}
