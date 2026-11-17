@@ -42,6 +42,12 @@ func ExtractChangedResources(sql, currentDatabase, currentSchema string) (*Chang
 	if err != nil {
 		return nil, err
 	}
+	return ExtractChangedResourcesFromStatements(stmts, currentDatabase, currentSchema), nil
+}
+
+// ExtractChangedResourcesFromStatements is ExtractChangedResources over
+// statements the caller already parsed.
+func ExtractChangedResourcesFromStatements(stmts []Statement, currentDatabase, currentSchema string) *ChangeSummary {
 	if currentSchema == "" {
 		currentSchema = "public"
 	}
@@ -98,7 +104,7 @@ func ExtractChangedResources(sql, currentDatabase, currentSchema string) (*Chang
 		b := summary.Tables[j]
 		return fmt.Sprintf("%s.%s.%s", a.Database, a.Schema, a.Name) < fmt.Sprintf("%s.%s.%s", b.Database, b.Schema, b.Name)
 	})
-	return summary, nil
+	return summary
 }
 
 func addChangedRangeVar(tables map[string]ChangedTable, rv *ast.RangeVar, currentDatabase, currentSchema string, kind ChangeKind, affected bool) {
