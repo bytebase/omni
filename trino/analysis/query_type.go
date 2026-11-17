@@ -19,7 +19,7 @@ func QueryTypeOf(node ast.Node) (QueryType, bool) {
 		return Unknown, false
 	}
 	switch n := node.(type) {
-	case *parser.QueryStmt:
+	case *parser.QueryStmt, *parser.WithFunctionStmt:
 		return Select, false
 	case *parser.ExplainStmt:
 		if n.Analyze {

@@ -31,7 +31,37 @@ func wrapResultLimit(statement string, limit int) string {
 	if limit > 0 {
 		limitPart = fmt.Sprintf(" LIMIT %d", limit)
 	}
-	return fmt.Sprintf("WITH result AS (%s) SELECT * FROM result%s;", trimStatement(statement), limitPart)
+
+	// The CTE holds one statement, without its terminator. The splitter returns
+	// each statement with the ';' and anything after it excluded, so a trailing
+	// comment that follows the terminator does not end up inside the CTE.
+	inner := trimStatement(statement)
+	if segments := parser.Split(statement); len(segments) == 1 {
+		inner = strings.TrimSpace(statement[segments[0].ByteStart:segments[0].ByteEnd])
+	}
+
+	// A trailing comment would otherwise comment out the closing parenthesis;
+	// start the wrapper's own SQL on a new line instead.
+	closing := ""
+	if hasTrailingComment(inner) {
+		closing = "\n"
+	}
+	return fmt.Sprintf("WITH result AS (%s%s) SELECT * FROM result%s;", inner, closing, limitPart)
+}
+
+// hasTrailingComment reports whether statement ends in trivia after its last
+// token, which is whitespace or a comment. A line comment there would swallow
+// the character that follows it on the same line.
+func hasTrailingComment(statement string) bool {
+	tokens, _ := parser.Tokenize(statement)
+	end := 0
+	for _, token := range tokens {
+		if token.Type == 0 {
+			break
+		}
+		end = token.Loc.End
+	}
+	return strings.TrimSpace(statement[end:]) != ""
 }
 
 // trimStatement removes the whitespace and trailing semicolons the CTE wrapper

@@ -30,6 +30,7 @@ func TestQueryTypeClassification(t *testing.T) {
 		wantIsAnalyze bool
 	}{
 		{name: "SELECT statement", sql: "SELECT * FROM users", wantQueryType: Select},
+		{name: "WITH FUNCTION query", sql: "WITH FUNCTION f(x bigint) RETURNS bigint RETURN x + 1 SELECT f(10)", wantQueryType: Select},
 		{name: "EXPLAIN statement", sql: "EXPLAIN SELECT * FROM users", wantQueryType: Explain},
 		{name: "EXPLAIN ANALYZE statement", sql: "EXPLAIN ANALYZE SELECT * FROM users", wantQueryType: Select, wantIsAnalyze: true},
 		{name: "INSERT statement", sql: "INSERT INTO users (id, name) VALUES (1, 'John')", wantQueryType: DML},
