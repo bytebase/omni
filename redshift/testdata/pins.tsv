@@ -4,3 +4,4 @@
 # were read, which is the pin's source tag.
 # columns: role, image, digest, source tag
 default	https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html	sha256:7f3b2ea3e1081db8a627bff3caec95c79f80a05bb6eb5e04d0c6197dce438007	2026-11-13
+driver	aws:redshift:1.0.539507	sha256:afc4041fe6e35ce273970308e430eb8245ea9c4bbf597c497bb8eb8bb00810d2	2026-11-17

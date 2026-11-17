@@ -13,23 +13,85 @@ on PostgreSQL. A PostgreSQL stand-in therefore fails the sync for the wrong
 reason and proves nothing about Redshift, which is why `redshift/parser` is
 judged by the AWS docs and why this package's tests skip.
 
+## What the recording found (2026-11-17)
+
+Recorded from a single-node `rg.large` cluster in us-west-2, `Redshift
+1.0.539507` on PostgreSQL 8.0.2, pinned as `driver aws:redshift:1.0.539507` in
+`redshift/testdata/pins.tsv` by the SHA-256 of `SELECT version()`. The cluster
+was scratch and is deleted; the corpus is `redshift/driver/testdata/corpus.sql`.
+
+defects this package had, each found only by asking the server:
+
+- **The sync failed on every non-superuser login.** `getViews` and
+  `getTableColumns` read Redshift's own schemas (`pg_auto_copy`, `pg_internal`),
+  and `obj_description` on `pg_auto_copy.copy_job_detail` is `permission denied
+  for schema pg_auto_copy` (SQLSTATE 42501). Only `pg_catalog` and
+  `information_schema` were excluded. The predicate is now
+  `substr(name, 1, 3) <> 'pg_' AND name <> 'information_schema'`: the server
+  refuses the literal `pg_` prefix in `CREATE SCHEMA` (`unacceptable schema
+  name ... The prefix "pg_" is reserved for system schemas`), while `pgdata` is
+  a legal user schema, so a `pg_%` LIKE would hide it. `getSchemas` applied the
+  same filter, because `SVV_ALL_SCHEMAS` reports `pg_catalog` and
+  `information_schema` and they were being emitted as empty user schemas.
+- **Three sync queries had no order.** `getDatabases`, `getTables` and the
+  `SVV_DATASHARES` read were unordered, and `getIndexes` iterated a Go map into
+  each table's index list. A tape recorded twice writes different bytes. All
+  now order, and the map is sorted.
+- **`ANALYZE` was refused in a transactional script.** It shares VACUUM's parse
+  node (`ast.VacuumStmt`), so `refuseImplicitCommit` rejected it. A cluster runs
+  `BEGIN; CREATE TABLE ...; ANALYZE ...; ROLLBACK` and the table is gone, so
+  ANALYZE does not commit; only `IsVacuumCmd` is refused now. `VACUUM` inside a
+  transaction really is refused by the server (`VACUUM cannot run inside a
+  transaction block`).
+- **The row-estimate test made a temporary table** and read its estimate on a
+  pooled connection that need not see it. It uses a permanent table now.
+- **The creation test named its database from the clock**, which no tape can
+  hold. It uses a fixed name and drops it first.
+
+what the server disagreed with in these documents:
+
+- **`ON DELETE CASCADE` is not supported.** Step 2's corpus failed with
+  `ERROR: ON DELETE is not supported`; the constraint states no action, and the
+  corpus says so.
+- **A primary key is an index.** "Redshift has no CREATE INDEX, so ... the
+  sync's index read records an empty list" is wrong: `pg_indexes` and
+  `pg_index` report `lookup_pkey` and `facts_pkey`, and the golden holds them.
+  Redshift has no *secondary* index, which is what the corpus writes none of.
+- **`PG_VIEWS.definition` is not truncated at 256 here.** A 546-character view
+  is stated whole, byte-for-byte as `SHOW VIEW` states it. `SHOW VIEW` remains
+  correct, but the truncation it was ported to work around does not reproduce
+  on 1.0.539507; the golden pins a long definition coming back whole.
+- **`version()` ends with a NUL byte.** The server's `length(version())` is 123
+  and `ascii(substr(version(), 123, 1))` is 0; a driver receives 122 bytes. The
+  pin digest hashes what the driver reads.
+- **`SHOW server_version` needs a superuser** (`must be superuser to examine
+  "server_version"`); the master user is not one. `getVersion`'s choice of
+  `SELECT version()` is not optional.
+- **A foreign key's `confmatchtype` is `u`** (unspecified) for a constraint that
+  states no match type, where PostgreSQL says `s` (simple). The sync passes the
+  server's letter through; the contract calls the field PostgreSQL-specific.
+- A public endpoint accepted TCP 5439 a few minutes *after* `describe_clusters`
+  said `available`; the first `psql` connection timed out.
+
 ## What is here, and what is missing
 
 | capability | state |
 | --- | --- |
-| `SyncInstance`, `SyncDatabase` | ported from `backend/plugin/db/redshift`, needs a cluster |
-| `Session.Query` (decode, limit, explain, `MaxResultBytes`, search path) | ported, needs a cluster |
-| `Execute` (one transaction, autocommit, `CreateDatabase`) | ported, needs a cluster |
-| `CountAffectedRows` | ported, needs a cluster |
+| `SyncInstance`, `SyncDatabase` | ported from `backend/plugin/db/redshift`, recorded from a cluster |
+| `Session.Query` (decode, limit, explain, `MaxResultBytes`, search path) | ported, recorded from a cluster |
+| `Execute` (one transaction, autocommit, `CreateDatabase`) | ported, recorded from a cluster |
+| `CountAffectedRows` | ported, recorded from a cluster |
 | `Dump` | **not implemented**: `redshift/catalog` has no `DatabaseDefinition` |
-| tapes (`testdata/tapes`) | **none**: nothing has been recorded |
-| sync goldens (`testdata/sync`) | **none**: same reason |
-| `driver` row in `redshift/testdata/pins.tsv` | **none**: no server to pin yet |
-| live tests (`live_test.go`) | written, never run; skip without a DSN |
+| tapes (`testdata/tapes`) | six, recorded on 2026-11-17 and byte-identical across two recordings |
+| sync goldens (`testdata/sync`) | `dev.json`, compared with `proto.Equal` |
+| `driver` row in `redshift/testdata/pins.tsv` | `aws:redshift:1.0.539507`, digest of `SELECT version()` |
+| live tests (`live_test.go`) | replay tapes with no credentials; record with `OMNI_RECORD=1` and `REDSHIFT_DSN` |
 
-The unit tests that do run cover the connection configuration, statement
-classification, the value conversions, the row estimate's plan reading, the
-foreign-key and version helpers, and `redshift/analysis.SplitSearchPath`.
+The unit tests that do run without a server cover the connection configuration,
+statement classification, the value conversions, the row estimate's plan
+reading, the foreign-key and version helpers, and
+`redshift/analysis.SplitSearchPath`. The recorded tests replay the tapes and
+need nothing.
 
 ## Step 1 — the cluster
 
@@ -73,39 +135,32 @@ accepts, are then judged by the same engine.
 ## Step 2 — the fixtures
 
 Load one corpus into the scratch database before recording, because the sync
-reads whatever is there and a tape of an empty database pins nothing:
+reads whatever is there and a tape of an empty database pins nothing. The
+corpus is committed as `redshift/driver/testdata/corpus.sql`; load it into an
+empty database before recording:
 
-```sql
-CREATE SCHEMA app;
-CREATE TABLE public.lookup (id int PRIMARY KEY, label varchar(20) NOT NULL DEFAULT 'x');
-COMMENT ON TABLE public.lookup IS 'a synced comment';
-COMMENT ON COLUMN public.lookup.label IS 'a column comment';
-CREATE TABLE app.facts (
-  id bigint PRIMARY KEY,
-  lookup_id int REFERENCES public.lookup (id) ON DELETE CASCADE,
-  amount numeric(12,2),
-  flag boolean,
-  seen timestamp,
-  notes varchar(80)
-);
-CREATE VIEW app.recent AS SELECT id, amount FROM app.facts WHERE seen > '2026-01-01';
+```bash
+psql "$REDSHIFT_DSN" -v ON_ERROR_STOP=1 -f redshift/driver/testdata/corpus.sql
 ```
 
-Redshift has no `CREATE INDEX`, so the corpus writes none and the sync's index
-read records an empty list: what a Redshift table declares instead is its
-`DISTKEY` and `SORTKEY`, which the sync does not read yet. A record that finds
-an index here is looking at another engine.
+The corpus writes no `ON DELETE` action, because Redshift refuses one
+(`ON DELETE is not supported`). A primary key is the only index a Redshift
+table reports, and the sync reads it: `lookup_pkey` and `facts_pkey` are in the
+golden. What a table also declares is its `DISTKEY` and `SORTKEY`, which the
+sync does not read yet.
 
 The datashare branch (`Params["datashare"]`) is the one path this corpus cannot
 reach: it needs a second account or namespace that shares a database in, which
 `SVV_DATASHARES` then reports. `SVV_ALL_TABLES` lists a shared view with
 `table_type` `VIEW`, and the sync leaves it out: a datashare has no view
 definition to report, so the recording is what decides whether a shared view
-should be a view with a definition here or not synced at all. Record it last, on its own, and skip it if
-provisioning one is unattractive — say so in the PR that records, rather than
-leaving a tape that pretends. `TestLiveSyncDatabaseDatashare` reads the share
-out of the cluster instead of being told its name: it skips, naming this
-provisioning step, when `SVV_DATASHARES` reports no consumer database.
+should be a view with a definition here or not synced at all. **The 2026-11-17
+recording skipped it**: one scratch cluster in one account has no share, so
+`TestSyncDatabaseDatashare` skips and has no tape, and the `SVV_ALL_*` queries
+were read only against an ordinary database. `TestSyncDatabaseDatashare` reads
+the share out of the cluster instead of being told its name: it skips, naming
+this provisioning step, when `SVV_DATASHARES` reports no consumer database.
+It is the one test that still reads `REDSHIFT_DSN` rather than a tape.
 
 ## Step 3 — the pin row
 
@@ -163,24 +218,21 @@ the reads, then the writes, then the estimate.
 | 7 | `TestSyncDatabaseDatashare` | the `SVV_ALL_*` branch, on a shared-in database |
 
 The table names each test by what it records, which is the name it takes once it
-replays a tape. `live_test.go` holds `TestLiveSyncDatabase`,
-`TestLiveSyncInstance`, `TestLiveQuery`, `TestLiveExecute`,
-`TestLiveExecuteCreateDatabase`, `TestLiveCountAffectedRows` and
-`TestLiveSyncDatabaseDatashare` today, so the commands below name those, and
-step 4's conversion renames them. Every row has a test.
+replays a tape. `live_test.go` holds `TestSyncDatabase`, `TestSyncInstance`,
+`TestQuery`, `TestExecute`, `TestExecuteCreateDatabase`, `TestCountAffectedRows`
+and `TestSyncDatabaseDatashare`, and the tapes are named for them.
 
-Recording commands, one test at a time so a failure is attributable. They name
-the tests that exist today: a `-run` pattern that matches nothing exits 0 and
-records nothing, which reads as a pass:
+Recording commands, one test at a time so a failure is attributable. A `-run`
+pattern that matches nothing exits 0 and records nothing, which reads as a pass:
 
 ```bash
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveQuery$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveExecute$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveExecuteCreateDatabase$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveCountAffectedRows$' -count=1 -v
-OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncDatabaseDatashare$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestSyncDatabase$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestSyncInstance$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestQuery$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestExecute$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestExecuteCreateDatabase$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestCountAffectedRows$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestSyncDatabaseDatashare$' -count=1 -v
 ```
 
 Then record everything twice and require byte-identical tapes. Two runs of one
@@ -203,11 +255,11 @@ Fix the driver, never the tape.
 
 ## Step 6 — the sync goldens
 
-After the tapes, commit `redshift/driver/testdata/sync/<database>.json`: the
-protojson of `SyncDatabase`'s output, compared with `proto.Equal` in the test
-rather than byte-for-byte, because protojson spacing moves between builds. One
-golden per database kind: the corpus database, and the datashare one if Step 2
-produced it.
+Committed as `redshift/driver/testdata/sync/dev.json`: the protojson of
+`SyncDatabase`'s output, written by `checkSyncGolden` in a recording and
+compared with `proto.Equal` in a replay rather than byte-for-byte, because
+protojson spacing moves between builds. The datashare golden does not exist,
+because Step 2 produced no share.
 
 ## Step 7 — the dump
 
@@ -279,6 +331,52 @@ mutation in the omni worktree, run the parity test, and require a failure; then
    `redshift/analysis.RewriteResultLimit`;
 5. read the table estimate from the last plan line instead of the first;
 6. map a foreign key's `confdeltype` `c` to `RESTRICT` instead of `CASCADE`.
+
+## What the parity harness found (2026-11-17)
+
+Run against the same cluster, with Bytebase's `backend/plugin/db/redshift` at
+`origin/main` (`db28e088d6`) and `go.mod` replacing omni with the recording
+worktree:
+
+| area | result |
+| --- | --- |
+| `SyncInstance` | the same version text (`Redshift 1.0.539507 based on PostgreSQL 8.0.2`), the same user databases (`dev`) and the same roles and attributes |
+| `SyncDBSchema` vs `SyncDatabase` | Bytebase's sync **succeeded**; the metadata agreed on every table, column, index, foreign key, view definition, comment and character set except below |
+| `QueryConn` vs `Session.Query` | column names and `TypeName`s, every cell, the rewritten statement (LIMIT included), the EXPLAIN text and the error text agreed; the two differences below are the contract's |
+| `Execute` | the same affected rows (3), and the same count (6) after both rolled a failing script back |
+| `CountAffectedRows` | 100 from both, off the same plan |
+
+What differed, and why it is not a defect:
+
+- **A synced column keeps precision and scale in omni.** Bytebase syncs
+  `numeric`; omni syncs `numeric(12,2)` and `numeric(14,2)`. The server's
+  `data_type` says `numeric` and states the precision and scale beside it, so
+  Bytebase's value loses what the column declares. This is one of the port's
+differences, confirmed by the cluster.
+- **Bytebase emits two empty schemas omni omits.** `pg_catalog` and
+  `information_schema` are in `SVV_ALL_SCHEMAS`, and Bytebase reports both with
+  no tables or views; omni excludes them. A sync reports user schemas.
+- **An affected-row result is a column in Bytebase and a count in omni.**
+  Bytebase answers `CREATE TEMP TABLE` with one `Affected Rows` INT column and a
+  row of `0`; omni sets `Result.AffectedRows` and returns no columns, as the
+  contract states.
+- **A plan is marked in omni.** Bytebase returns EXPLAIN's rows with
+  `QueryPlan` unset; omni sets `Result.Plan.Format = "TEXT"`. The rows are the
+  same plan lines.
+
+The harness can fail: mapping a foreign key's `confdeltype` `a` to `CASCADE`
+in omni made `TestParitySyncDatabase` report the differing `on_delete`, and the
+mutation was reverted. The six mutations above could not all be tried, because
+this corpus cannot observe them: an empty table's `reltuples` is 0.001 and
+`::bigint` already gives the clamp's 0; the plan's only `rows=` line is its
+first; the foreign key states `a`, and Redshift refuses `CASCADE`; and the
+corpus has no `BIT` value, no `INSERT` in a query, and no `FOR UPDATE`.
+
+What the harness did **not** exercise: an inbound datashare (no share existed,
+so the rewrite and `SVV_ALL_*` are uncompared), `SHOW VIEW` against a view the
+login does not own, `MaxResultBytes` truncation, and a search path across two
+schemas. Bytebase's driver also never failed on the corpus, so the permission
+bug the sync had is fixed by omni's exclusion rather than observed in both.
 
 ## Step 9 — what a failure means
 

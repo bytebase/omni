@@ -46,7 +46,12 @@
 // codec gives each a stand-in: the token that resumes a PartiQL read, which
 // names the moment the table was created, and the request ID an error's text
 // carries, which names one request. A stand-in is what a recording compares and
-// what a replay answers, so two recordings write the same bytes.
+// what a replay answers, so two recordings write the same bytes. The two
+// endpoints spell a request ID differently: DynamoDB Local writes a UUID, and
+// the real service in us-west-2 wrote 52 upper-case letters and digits
+// (`64MQM2JG6L55RB5H2B2F65IA5JVV4KQNSO5AEMVJF66Q9ASUAAJG`), so the codec matches
+// both shapes. That shape is the one thing here read from the service rather
+// than the container, and no tape holds one.
 //
 // Two orders the endpoint chooses are held in one canonical order instead: the
 // items of a read that names no ORDER BY, whose table iteration differs between
@@ -116,15 +121,17 @@ func (codec) EncodeError(error) (string, bool) { return "", false }
 func (codec) DecodeError(text string) error { return fmt.Errorf("%s", text) } //nolint:revive // an answer's text, not a cause to wrap
 
 // madeUp matches the two values an endpoint makes up that a tape holds as
-// stand-ins: a page token and the request ID of an error's text.
-var madeUp = regexp.MustCompile(`"nextToken":"[A-Za-z0-9+/=]+"|RequestID: [0-9a-f-]{36}`)
+// stand-ins: a page token and the request ID of an error's text. A request ID
+// is a UUID from DynamoDB Local and 52 upper-case letters and digits from the
+// real service, which a recording asks when it is not made from the container.
+var madeUp = regexp.MustCompile(`"nextToken":"[A-Za-z0-9+/=]+"|RequestID: (?:[0-9a-f-]{36}|[A-Z0-9]{52})`)
 
 func (codec) MadeUp() *regexp.Regexp { return madeUp }
 
 // StandIn is a made-up value's stand-in, counting n from 1. A token becomes one
 // that says it is a stand-in, base64-encoded as the endpoint's own tokens are;
-// a request ID becomes the all-zero one, since a UUID a test reads means
-// nothing.
+// a request ID becomes the all-zero UUID, since the ID a test reads means
+// nothing whatever shape the service wrote it in.
 func (codec) StandIn(name string, n int) string {
 	if strings.HasPrefix(name, `"nextToken"`) {
 		token := base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("omni-token-%d", n)))

@@ -1,0 +1,254 @@
+{
+  "name": "dev",
+  "schemas": [
+    {
+      "name": "app",
+      "tables": [
+        {
+          "name": "facts",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint"
+            },
+            {
+              "name": "lookup_id",
+              "position": 2,
+              "nullable": true,
+              "type": "integer"
+            },
+            {
+              "name": "amount",
+              "position": 3,
+              "nullable": true,
+              "type": "numeric(12,2)"
+            },
+            {
+              "name": "flag",
+              "position": 4,
+              "nullable": true,
+              "type": "boolean"
+            },
+            {
+              "name": "seen",
+              "position": 5,
+              "nullable": true,
+              "type": "timestamp without time zone"
+            },
+            {
+              "name": "notes",
+              "position": 6,
+              "nullable": true,
+              "type": "character varying(80)"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "facts_pkey",
+              "expressions": [
+                "id"
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX facts_pkey ON app.facts USING btree (id)"
+            }
+          ],
+          "foreignKeys": [
+            {
+              "name": "facts_lookup_id_fkey",
+              "columns": [
+                "lookup_id"
+              ],
+              "referencedSchema": "public",
+              "referencedTable": "lookup",
+              "referencedColumns": [
+                "id"
+              ],
+              "onDelete": "NO ACTION",
+              "onUpdate": "NO ACTION",
+              "matchType": "u"
+            }
+          ]
+        }
+      ],
+      "views": [
+        {
+          "name": "long_view",
+          "definition": "SELECT f.id, f.amount, f.notes, f.flag, f.seen, f.lookup_id, (f.id + 1) AS next_id, (f.amount * (2)::numeric) AS doubled FROM app.facts f WHERE ((f.seen > '2025-01-01 00:00:00'::timestamp without time zone) AND (f.flag = true));",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "amount",
+              "position": 2,
+              "nullable": true,
+              "type": "numeric(12,2)"
+            },
+            {
+              "name": "notes",
+              "position": 3,
+              "nullable": true,
+              "type": "character varying(80)"
+            },
+            {
+              "name": "flag",
+              "position": 4,
+              "nullable": true,
+              "type": "boolean"
+            },
+            {
+              "name": "seen",
+              "position": 5,
+              "nullable": true,
+              "type": "timestamp without time zone"
+            },
+            {
+              "name": "lookup_id",
+              "position": 6,
+              "nullable": true,
+              "type": "integer"
+            },
+            {
+              "name": "next_id",
+              "position": 7,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "doubled",
+              "position": 8,
+              "nullable": true,
+              "type": "numeric(14,2)"
+            }
+          ]
+        },
+        {
+          "name": "recent",
+          "definition": "SELECT facts.id, facts.amount FROM app.facts WHERE (facts.seen > '2026-01-01 00:00:00'::timestamp without time zone);",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "amount",
+              "position": 2,
+              "nullable": true,
+              "type": "numeric(12,2)"
+            }
+          ]
+        },
+        {
+          "name": "very_long_view",
+          "definition": "SELECT f.id AS identifier_column_one, f.amount AS amount_column_two, f.notes AS notes_column_three, f.flag AS flag_column_four, f.seen AS seen_column_five, f.lookup_id AS lookup_column_six, (f.id + 1) AS next_identifier_seven, (f.amount * (2)::numeric) AS doubled_amount_eight, (f.id * 3) AS tripled_identifier_nine, ((f.notes)::text || 'x'::text) AS notes_with_suffix_ten FROM app.facts f WHERE ((((f.seen > '2025-01-01 00:00:00'::timestamp without time zone) AND (f.flag = true)) AND (f.amount > (0)::numeric(12,2))) AND (f.notes IS NOT NULL));",
+          "columns": [
+            {
+              "name": "identifier_column_one",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "amount_column_two",
+              "position": 2,
+              "nullable": true,
+              "type": "numeric(12,2)"
+            },
+            {
+              "name": "notes_column_three",
+              "position": 3,
+              "nullable": true,
+              "type": "character varying(80)"
+            },
+            {
+              "name": "flag_column_four",
+              "position": 4,
+              "nullable": true,
+              "type": "boolean"
+            },
+            {
+              "name": "seen_column_five",
+              "position": 5,
+              "nullable": true,
+              "type": "timestamp without time zone"
+            },
+            {
+              "name": "lookup_column_six",
+              "position": 6,
+              "nullable": true,
+              "type": "integer"
+            },
+            {
+              "name": "next_identifier_seven",
+              "position": 7,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "doubled_amount_eight",
+              "position": 8,
+              "nullable": true,
+              "type": "numeric(14,2)"
+            },
+            {
+              "name": "tripled_identifier_nine",
+              "position": 9,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "notes_with_suffix_ten",
+              "position": 10,
+              "nullable": true,
+              "type": "text"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "public",
+      "tables": [
+        {
+          "name": "lookup",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "integer"
+            },
+            {
+              "name": "label",
+              "position": 2,
+              "default": "'x'::character varying",
+              "type": "character varying(20)",
+              "comment": "a column comment"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "lookup_pkey",
+              "expressions": [
+                "id"
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX lookup_pkey ON lookup USING btree (id)"
+            }
+          ],
+          "comment": "a synced comment"
+        }
+      ]
+    }
+  ],
+  "characterSet": "UNICODE"
+}

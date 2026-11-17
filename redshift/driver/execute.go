@@ -61,16 +61,22 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 // refuseImplicitCommit reports the statements a transactional script cannot
 // hold: TRUNCATE and VACUUM commit the transaction they run in, a database
 // statement cannot run inside one at all, and a transaction-control statement
-// would commit or end the transaction this call promised to own.
+// would commit or end the transaction this call promised to own. ANALYZE shares
+// VACUUM's parse node but runs inside one on a cluster and rolls back with it,
+// so only VACUUM is refused.
 func refuseImplicitCommit(statement string) error {
 	stmts, err := redshift.Parse(statement)
 	if err != nil {
 		return err
 	}
 	for _, stmt := range stmts {
-		switch stmt.AST.(type) {
-		case *ast.TruncateStmt, *ast.VacuumStmt, *ast.CreatedbStmt, *ast.DropdbStmt:
+		switch node := stmt.AST.(type) {
+		case *ast.TruncateStmt, *ast.CreatedbStmt, *ast.DropdbStmt:
 			return fmt.Errorf("the script holds a statement Redshift commits on its own (%s), so it cannot run in one transaction; run it in autocommit mode", stmt.Text)
+		case *ast.VacuumStmt:
+			if node.IsVacuumCmd {
+				return fmt.Errorf("the script holds a statement Redshift commits on its own (%s), so it cannot run in one transaction; run it in autocommit mode", stmt.Text)
+			}
 		case *ast.TransactionStmt:
 			// BEGIN, COMMIT, END and ROLLBACK in a script would decide the
 			// transaction this call promised to own.

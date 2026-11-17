@@ -49,3 +49,31 @@ func TestFixture(t *testing.T) {
 		}
 	})
 }
+
+// TestCodecNamesTheRequestIDsBothEndpointsWrite holds the request ID an error's
+// text carries to the stand-in. DynamoDB Local writes a UUID and the real
+// service writes 52 upper-case letters and digits; a recording from either
+// must replace what it wrote, or two recordings of one failure differ.
+func TestCodecNamesTheRequestIDsBothEndpointsWrite(t *testing.T) {
+	c := codec{}
+	for _, in := range []string{
+		`RequestID: 123e4567-e89b-12d3-a456-426614174000`,
+		`RequestID: 64MQM2JG6L55RB5H2B2F65IA5JVV4KQNSO5AEMVJF66Q9ASUAAJG`,
+		`"nextToken":"vBTmMeYwW6Y0+/="`,
+	} {
+		if !c.MadeUp().MatchString(in) {
+			t.Errorf("MadeUp does not match %q", in)
+		}
+	}
+	for _, in := range []string{
+		`RequestID: 123`,
+		`RequestID: lower-case-request-id`,
+	} {
+		if c.MadeUp().MatchString(in) {
+			t.Errorf("MadeUp matches %q, which names no request", in)
+		}
+	}
+	if got, want := c.StandIn(`RequestID: x`, 3), "RequestID: 00000000-0000-0000-0000-000000000003"; got != want {
+		t.Errorf("StandIn = %q, want %q", got, want)
+	}
+}
