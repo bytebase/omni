@@ -211,12 +211,20 @@ The gate that a tape cannot be: Bytebase's driver and this one, on the same
 cluster, compared cell by cell. It lives in a throwaway Bytebase worktree and is
 never committed.
 
+Start a worktree of the omni branch this file landed on, and a scratch Bytebase
+worktree beside it (never the shared checkout):
+
 ```bash
+git -C <omni repo root> worktree add ~/omni-worktrees/redshift-verify -b redshift-verify origin/redshift-prep
 git -C <bytebase repo root> worktree add ~/bb-worktrees/redshift-parity -b redshift-parity origin/main
 cd ~/bb-worktrees/redshift-parity
-go mod edit -replace github.com/bytebase/omni=$HOME/omni-worktrees/redshift-prep
+go mod edit -replace github.com/bytebase/omni=$HOME/omni-worktrees/redshift-verify
 go mod tidy
 ```
+
+Records happen in `~/omni-worktrees/redshift-verify`; the parity harness is
+`backend/plugin/db/redshift/parity_omni_test.go` in `~/bb-worktrees/redshift-parity`,
+and neither worktree is committed. Remove both when the recording lands.
 
 Add `backend/plugin/db/redshift/parity_omni_test.go` (package `redshift_test`,
 skipping without `REDSHIFT_DSN`) and compare, for every case in a corpus that
