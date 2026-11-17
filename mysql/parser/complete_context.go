@@ -729,16 +729,16 @@ func closedBeforeCursor(tokens []completionScopeToken, selectIdx, depth, cursorO
 }
 
 // selectArmEnd returns where the SELECT starting at start is no longer its own
-// query block: the set operator that ends its arm, or the ')' that closes the
-// group holding it. Crossing the ')' would read a sibling block's FROM clause
-// at the same depth.
+// query block: the set operator that ends its arm, the next query block, or the
+// ')' that closes the group holding it. Crossing either would read a sibling
+// block's FROM clause at the same depth.
 func selectArmEnd(tokens []completionScopeToken, start, depth int) int {
-	for i := start; i < len(tokens); i++ {
+	for i := start + 1; i < len(tokens); i++ {
 		if tokens[i].depth != depth {
 			continue
 		}
 		switch tokens[i].Type {
-		case kwUNION, kwINTERSECT, kwEXCEPT, ')':
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwSELECT, ')':
 			return i
 		}
 	}
