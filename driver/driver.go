@@ -109,7 +109,9 @@ type Syncer interface {
 // metadata it is given and nothing else: a caller that leaves schemas out
 // removes them first. An engine whose server states its own DDL and has no
 // catalog to render metadata with dumps that instead, and its package says the
-// metadata narrows nothing (Spanner).
+// metadata narrows nothing (Spanner). An engine whose metadata cannot recreate
+// its objects dumps nothing and reports no error, so that a caller's dump and
+// restore runs and restores nothing; its package says what the metadata lacks.
 type Dumper interface {
 	Dump(ctx context.Context, w io.Writer, db *metadata.DatabaseSchemaMetadata) error
 }

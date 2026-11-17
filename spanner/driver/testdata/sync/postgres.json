@@ -1,0 +1,163 @@
+{
+  "name": "pgsync",
+  "schemas": [
+    {
+      "name": "public",
+      "tables": [
+        {
+          "name": "albums",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint"
+            },
+            {
+              "name": "singer_id",
+              "position": 2,
+              "type": "bigint"
+            },
+            {
+              "name": "title",
+              "position": 3,
+              "default": "'untitled'::text",
+              "type": "character varying(1024)"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY_KEY",
+              "expressions": [
+                "id"
+              ],
+              "unique": true,
+              "primary": true
+            }
+          ],
+          "foreignKeys": [
+            {
+              "name": "fk_singer",
+              "referencedSchema": "public",
+              "referencedTable": "singers",
+              "onDelete": "NO ACTION",
+              "onUpdate": "NO ACTION",
+              "matchType": "NONE"
+            }
+          ]
+        },
+        {
+          "name": "singers",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint"
+            },
+            {
+              "name": "first_name",
+              "position": 2,
+              "nullable": true,
+              "type": "character varying"
+            },
+            {
+              "name": "last_name",
+              "position": 3,
+              "type": "character varying(1024)"
+            },
+            {
+              "name": "active",
+              "position": 4,
+              "nullable": true,
+              "type": "boolean"
+            },
+            {
+              "name": "rating",
+              "position": 5,
+              "nullable": true,
+              "type": "double precision"
+            },
+            {
+              "name": "photo",
+              "position": 6,
+              "nullable": true,
+              "type": "bytea"
+            },
+            {
+              "name": "born",
+              "position": 7,
+              "nullable": true,
+              "type": "date"
+            },
+            {
+              "name": "updated_at",
+              "position": 8,
+              "nullable": true,
+              "type": "timestamp with time zone"
+            },
+            {
+              "name": "meta",
+              "position": 9,
+              "nullable": true,
+              "type": "jsonb"
+            },
+            {
+              "name": "scores",
+              "position": 10,
+              "nullable": true,
+              "type": "bigint[]"
+            },
+            {
+              "name": "wallet",
+              "position": 11,
+              "nullable": true,
+              "type": "numeric"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "PRIMARY_KEY",
+              "expressions": [
+                "id"
+              ],
+              "unique": true,
+              "primary": true
+            },
+            {
+              "name": "singers_by_first_name",
+              "expressions": [
+                "first_name"
+              ],
+              "unique": true
+            },
+            {
+              "name": "singers_by_last_name",
+              "expressions": [
+                "last_name"
+              ]
+            }
+          ]
+        }
+      ],
+      "views": [
+        {
+          "name": "singer_names",
+          "definition": "SELECT id, last_name FROM singers s",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "last_name",
+              "position": 2,
+              "nullable": true,
+              "type": "character varying"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
