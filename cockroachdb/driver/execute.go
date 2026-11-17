@@ -12,6 +12,7 @@ import (
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
 	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/bytebase/omni/driver"
@@ -66,7 +67,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 			if !strings.HasSuffix(strings.TrimRightFunc(ct, unicode.IsSpace), ";") {
 				ct += ";"
 			}
-			command.Text = fmt.Sprintf("SET LOCAL ROLE NONE;%sSET LOCAL ROLE '%s';", ct, owner)
+			command.Text = fmt.Sprintf("SET LOCAL ROLE NONE;%sSET LOCAL ROLE %s;", ct, quoteLiteral(owner))
 		}
 		orderedCommands = append(orderedCommands, command)
 		if nonTransactional {
@@ -82,7 +83,7 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	if opts.Transaction == driver.AutoCommit {
 		return d.executeInAutoCommitMode(ctx, owner, script, orderedCommands, opts.Log, isPlsql)
 	}
-	return d.executeInTransactionMode(ctx, owner, script, txCommands, nonTransactionAndSetRoleStmts, opts.Log, isPlsql)
+	return d.executeInTransactionMode(ctx, owner, script, txCommands, nonTransactionAndSetRoleStmts, opts.Isolation, opts.Log, isPlsql)
 }
 
 func (d *Driver) executeInTransactionMode(
@@ -91,6 +92,7 @@ func (d *Driver) executeInTransactionMode(
 	script string,
 	commands []driver.Command,
 	nonTransactionAndSetRoleStmts []driver.Command,
+	isolation driver.IsolationLevel,
 	log driver.ExecuteLogger,
 	isPlsql bool,
 ) (int64, error) {
@@ -103,7 +105,7 @@ func (d *Driver) executeInTransactionMode(
 	if isPlsql {
 		// USE SET SESSION ROLE to set the role for the current session.
 		if err := crdb.Execute(func() error {
-			_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE '%s'", owner)) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
+			_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE %s", quoteLiteral(owner))) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
 			return err
 		}); err != nil {
 			return 0, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
@@ -134,7 +136,11 @@ func (d *Driver) executeInTransactionMode(
 			usedPgx = true
 			conn := sc.Conn()
 
-			tx, err := conn.Begin(ctx)
+			iso, err := pgxIsolation(isolation)
+			if err != nil {
+				return err
+			}
+			tx, err := conn.BeginTx(ctx, pgx.TxOptions{IsoLevel: iso})
 			if err != nil {
 				logTransactionControl(log, driver.Begin, err)
 				return fmt.Errorf("failed to begin transaction: %w", err)
@@ -151,7 +157,7 @@ func (d *Driver) executeInTransactionMode(
 			}()
 
 			// Set the current transaction role to the database owner so that the owner of created objects will be the same as the database owner.
-			if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL ROLE '%s'", owner)); err != nil {
+			if _, err := tx.Exec(ctx, fmt.Sprintf("SET LOCAL ROLE %s", quoteLiteral(owner))); err != nil {
 				return err
 			}
 
@@ -187,7 +193,7 @@ func (d *Driver) executeInTransactionMode(
 			return nil
 		})
 		if err == nil && !usedPgx {
-			totalRowsAffected, err = d.executeSQLTx(ctx, conn, owner, commands, log)
+			totalRowsAffected, err = d.executeSQLTx(ctx, conn, owner, commands, isolation, log)
 		}
 		if err != nil {
 			return 0, err
@@ -196,7 +202,7 @@ func (d *Driver) executeInTransactionMode(
 
 	// USE SET SESSION ROLE to set the role for the current session.
 	if err := crdb.Execute(func() error {
-		_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE '%s'", owner)) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
+		_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE %s", quoteLiteral(owner))) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
 		return err
 	}); err != nil {
 		return 0, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
@@ -223,9 +229,14 @@ func (d *Driver) executeSQLTx(
 	conn *sql.Conn,
 	owner string,
 	commands []driver.Command,
+	isolation driver.IsolationLevel,
 	log driver.ExecuteLogger,
 ) (int64, error) {
-	tx, err := conn.BeginTx(ctx, nil)
+	iso, err := sqlIsolation(isolation)
+	if err != nil {
+		return 0, err
+	}
+	tx, err := conn.BeginTx(ctx, &sql.TxOptions{Isolation: iso})
 	if err != nil {
 		logTransactionControl(log, driver.Begin, err)
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
@@ -244,7 +255,7 @@ func (d *Driver) executeSQLTx(
 		logTransactionControl(log, driver.Rollback, rollbackErr)
 	}()
 
-	if _, err := tx.ExecContext(ctx, fmt.Sprintf("SET LOCAL ROLE '%s'", owner)); err != nil {
+	if _, err := tx.ExecContext(ctx, fmt.Sprintf("SET LOCAL ROLE %s", quoteLiteral(owner))); err != nil {
 		return 0, err
 	}
 
@@ -290,7 +301,7 @@ func (d *Driver) executeInAutoCommitMode(
 	if isPlsql {
 		// USE SET SESSION ROLE to set the role for the current session.
 		if err := crdb.Execute(func() error {
-			_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE '%s'", owner)) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
+			_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE %s", quoteLiteral(owner))) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
 			return err
 		}); err != nil {
 			return 0, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
@@ -308,7 +319,7 @@ func (d *Driver) executeInAutoCommitMode(
 
 	// USE SET SESSION ROLE to set the role for the current session.
 	if err := crdb.Execute(func() error {
-		_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE '%s'", owner)) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
+		_, err := conn.ExecContext(ctx, fmt.Sprintf("SET SESSION ROLE %s", quoteLiteral(owner))) // NOSONAR(go:S2077) owner is from pg_roles system catalog, not user input
 		return err
 	}); err != nil {
 		return 0, fmt.Errorf("failed to set role to database owner %q: %w", owner, err)
@@ -372,6 +383,40 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, statement string) er
 		}
 	}
 	return nil
+}
+
+func pgxIsolation(level driver.IsolationLevel) (pgx.TxIsoLevel, error) {
+	switch level {
+	case "":
+		return "", nil
+	case driver.ReadUncommitted:
+		return pgx.ReadUncommitted, nil
+	case driver.ReadCommitted:
+		return pgx.ReadCommitted, nil
+	case driver.RepeatableRead:
+		return pgx.RepeatableRead, nil
+	case driver.Serializable:
+		return pgx.Serializable, nil
+	default:
+		return "", fmt.Errorf("unsupported isolation level %q", level)
+	}
+}
+
+func sqlIsolation(level driver.IsolationLevel) (sql.IsolationLevel, error) {
+	switch level {
+	case "":
+		return sql.LevelDefault, nil
+	case driver.ReadUncommitted:
+		return sql.LevelReadUncommitted, nil
+	case driver.ReadCommitted:
+		return sql.LevelReadCommitted, nil
+	case driver.RepeatableRead:
+		return sql.LevelRepeatableRead, nil
+	case driver.Serializable:
+		return sql.LevelSerializable, nil
+	default:
+		return sql.LevelDefault, fmt.Errorf("unsupported isolation level %q", level)
+	}
 }
 
 // vacuumReg is the one statement classification CockroachDB's parser cannot

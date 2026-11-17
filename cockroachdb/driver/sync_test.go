@@ -202,3 +202,38 @@ CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;`)
 	}
 	t.Fatal("schema app's is missing")
 }
+
+// TestSyncForeignKeyQuotedSchema syncs a foreign key whose schema holds a
+// period. The catalog query returns the relation name on its own, so the
+// period is not mistaken for a qualifier.
+func TestSyncForeignKeyQuotedSchema(t *testing.T) {
+	d := openTestDriver(t)
+	mustExec(t, d.db, `
+CREATE SCHEMA "sales.eu";
+CREATE TABLE "sales.eu".parent (id INT8 PRIMARY KEY);
+CREATE TABLE "sales.eu".child (id INT8 PRIMARY KEY, parent_id INT8 REFERENCES "sales.eu".parent(id));`)
+
+	got, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, schema := range got.Schemas {
+		if schema.Name != "sales.eu" {
+			continue
+		}
+		for _, table := range schema.Tables {
+			if table.Name != "child" {
+				continue
+			}
+			if len(table.ForeignKeys) != 1 {
+				t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
+			}
+			if table.ForeignKeys[0].ReferencedTable != "parent" {
+				t.Errorf("referenced table = %q, want parent", table.ForeignKeys[0].ReferencedTable)
+			}
+			return
+		}
+		t.Fatal("table child is missing")
+	}
+	t.Fatal("schema sales.eu is missing")
+}

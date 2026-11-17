@@ -153,6 +153,26 @@ INSERT INTO other.thing VALUES (7);`)
 		}
 	})
 
+	t.Run("returning", func(t *testing.T) {
+		results, err := session.Query(ctx, "INSERT INTO app.people (id, name) VALUES (3, 'three') RETURNING id, name;", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		res := results[0]
+		if len(res.Columns) != 2 || len(res.Rows) != 1 {
+			t.Fatalf("columns/rows = %d/%d, want 2/1", len(res.Columns), len(res.Rows))
+		}
+		if got := res.Rows[0][0]; got.Kind != driver.Int64 || got.Int64 != 3 {
+			t.Errorf("id = %+v, want int64 3", got)
+		}
+		if got := res.Rows[0][1]; got.Kind != driver.String || got.String != "three" {
+			t.Errorf("name = %+v, want string three", got)
+		}
+	})
+
 	t.Run("error stops the script", func(t *testing.T) {
 		results, err := session.Query(ctx, "SELECT 1; SELECT * FROM app.missing; SELECT 3;", driver.QueryOptions{})
 		if err != nil {

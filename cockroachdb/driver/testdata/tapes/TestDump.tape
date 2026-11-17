@@ -361,10 +361,10 @@
 |
 | SELECT
 | 	n.nspname AS fk_schema,
-| 	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+| 	fk_cls.relname AS fk_table,
 | 	conname AS fk_name,
 | 	ref_nsp.nspname AS fk_ref_schema,
-| 	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+| 	ref_cls.relname AS fk_ref_table,
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
@@ -382,10 +382,10 @@
 | ORDER BY fk_schema, fk_table, fk_name;
 < result
 < column "fk_schema" "NAME"
-< column "fk_table" "TEXT"
+< column "fk_table" "NAME"
 < column "fk_name" "NAME"
 < column "fk_ref_schema" "NAME"
-< column "fk_ref_table" "TEXT"
+< column "fk_ref_table" "NAME"
 < column "delete_option" "CHAR"
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
@@ -394,13 +394,13 @@
 : string
 | app
 : string
-| app.child
+| child
 : string
 | child_parent_id_fkey
 : string
 | app
 : string
-| app.parent
+| parent
 : string
 | c
 : string
@@ -1058,10 +1058,10 @@
 |
 | SELECT
 | 	n.nspname AS fk_schema,
-| 	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+| 	fk_cls.relname AS fk_table,
 | 	conname AS fk_name,
 | 	ref_nsp.nspname AS fk_ref_schema,
-| 	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+| 	ref_cls.relname AS fk_ref_table,
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
@@ -1079,10 +1079,10 @@
 | ORDER BY fk_schema, fk_table, fk_name;
 < result
 < column "fk_schema" "NAME"
-< column "fk_table" "TEXT"
+< column "fk_table" "NAME"
 < column "fk_name" "NAME"
 < column "fk_ref_schema" "NAME"
-< column "fk_ref_table" "TEXT"
+< column "fk_ref_table" "NAME"
 < column "delete_option" "CHAR"
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
@@ -1091,13 +1091,13 @@
 : string
 | app
 : string
-| app.child
+| child
 : string
 | child_parent_id_fkey
 : string
 | app
 : string
-| app.parent
+| parent
 : string
 | c
 : string

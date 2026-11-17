@@ -166,10 +166,10 @@ func warpTablePartitions(m map[tableKey][]*metadatapb.TablePartitionMetadata, sc
 var listForeignKeyQuery = `
 SELECT
 	n.nspname AS fk_schema,
-	quote_ident(fk_nsp.nspname) || '.' || quote_ident(fk_cls.relname) AS fk_table,
+	fk_cls.relname AS fk_table,
 	conname AS fk_name,
 	ref_nsp.nspname AS fk_ref_schema,
-	quote_ident(ref_nsp.nspname) || '.' || quote_ident(ref_cls.relname) AS fk_ref_table,
+	ref_cls.relname AS fk_ref_table,
 	confdeltype AS delete_option,
 	confupdtype AS update_option,
 	confmatchtype AS match_option,
@@ -211,8 +211,6 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 			return nil, err
 		}
 
-		fkTable = formatTableNameFromRegclass(fkTable)
-		fkMetadata.ReferencedTable = formatTableNameFromRegclass(fkMetadata.ReferencedTable)
 		fkMetadata.OnDelete = convertForeignKeyActionCode(fkMetadata.OnDelete)
 		fkMetadata.OnUpdate = convertForeignKeyActionCode(fkMetadata.OnUpdate)
 		fkMetadata.MatchType = convertForeignKeyMatchType(fkMetadata.MatchType)
@@ -289,13 +287,6 @@ func getColumnList(definition string) ([]string, error) {
 		result = append(result, name)
 	}
 	return result, nil
-}
-
-func formatTableNameFromRegclass(name string) string {
-	if strings.Contains(name, ".") {
-		name = name[1+strings.Index(name, "."):]
-	}
-	return strings.Trim(name, `"`)
 }
 
 var listSchemaQuery = fmt.Sprintf(`

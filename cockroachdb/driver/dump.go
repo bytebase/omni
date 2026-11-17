@@ -20,6 +20,7 @@ func (d *Driver) Dump(ctx context.Context, w io.Writer, _ *metadatapb.DatabaseSc
 	if err := crdb.ExecuteTx(ctx, d.db, &sql.TxOptions{
 		ReadOnly: true,
 	}, func(txn *sql.Tx) error {
+		sb.Reset()
 		createSchemas, err := dumpCreateSchemas(ctx, txn)
 		if err != nil {
 			return err

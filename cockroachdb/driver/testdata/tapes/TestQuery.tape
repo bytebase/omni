@@ -159,6 +159,22 @@
 : string
 | UTC
 > query
+| INSERT INTO app.people (id, name) VALUES (3, 'three') RETURNING id, name;
+< result
+< column "id" "INT8"
+< column "name" "TEXT"
+< row
+: int64 3
+: string
+| three
+> query
+| SHOW timezone
+< result
+< column "timezone" "TEXT"
+< row
+: string
+| UTC
+> query
 | SELECT 1;
 < result
 < column "?column?" "INT8"

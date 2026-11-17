@@ -163,6 +163,23 @@ func validateQuery(statement string) (readOnly, returnsData bool, err error) {
 		nodes = append(nodes, stmt.AST)
 	}
 	readOnly, returnsData = pganalysis.ValidateQuery(nodes)
+	if !returnsData {
+		for _, node := range nodes {
+			switch n := node.(type) {
+			case *ast.InsertStmt:
+				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
+			case *ast.UpdateStmt:
+				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
+			case *ast.DeleteStmt:
+				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
+			case *ast.MergeStmt:
+				returnsData = n.ReturningList != nil && len(n.ReturningList.Items) > 0
+			}
+			if returnsData {
+				break
+			}
+		}
+	}
 	return readOnly, returnsData, nil
 }
 
