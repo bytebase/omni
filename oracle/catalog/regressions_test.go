@@ -2875,3 +2875,59 @@ func TestQuotedKeyWithSpacesIsAChange(t *testing.T) {
 		t.Fatal("a quoted key compared unequal to the same raw key")
 	}
 }
+
+func TestReusedIndexConstraintRendersUsingIndex(t *testing.T) {
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		Tables: []*metadatapb.TableMetadata{{
+			Name: "T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false},
+				{Name: "CODE", Type: "VARCHAR2(20)", Position: 2, Nullable: true},
+			},
+			Indexes: []*metadatapb.IndexMetadata{
+				{
+					Name:         "T_CODE_IDX",
+					Type:         "NORMAL",
+					Expressions:  []string{`"CODE"`},
+					Descending:   []bool{false},
+					Visible:      true,
+					IsConstraint: true,
+					Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "T_CODE_UK", Columns: []string{`"CODE"`}}},
+				},
+				{
+					Name:         "T_ID_IDX",
+					Type:         "NORMAL",
+					Primary:      true,
+					Expressions:  []string{`"ID"`},
+					Descending:   []bool{false},
+					Visible:      true,
+					IsConstraint: true,
+					Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "T_PK", Columns: []string{`"ID"`}, Primary: true}},
+				},
+			},
+		}},
+	})
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(definition, `CONSTRAINT "T_CODE_UK",`) {
+		t.Fatalf("a reused-index constraint was rendered inline without its type:\n%s", definition)
+	}
+	index := strings.Index(definition, `CREATE INDEX "T_CODE_IDX" ON "T" ("CODE" ASC)`)
+	constraint := strings.Index(definition, `ALTER TABLE "T" ADD CONSTRAINT "T_CODE_UK" UNIQUE ("CODE") USING INDEX "T_CODE_IDX"`)
+	if index < 0 || constraint < 0 || index > constraint {
+		t.Fatalf("the constraint does not follow the index it reuses (index=%d constraint=%d):\n%s", index, constraint, definition)
+	}
+	if !strings.Contains(definition, `ADD CONSTRAINT "T_PK" PRIMARY KEY ("ID") USING INDEX "T_ID_IDX"`) {
+		t.Fatalf("the primary key does not name its index:\n%s", definition)
+	}
+
+	sql := migrationFor(t, New(), to)
+	index = strings.Index(sql, `CREATE INDEX "APP"."T_CODE_IDX"`)
+	constraint = strings.Index(sql, `ADD CONSTRAINT "T_CODE_UK" UNIQUE ("CODE") USING INDEX "T_CODE_IDX"`)
+	if index < 0 || constraint < 0 || index > constraint {
+		t.Fatalf("the migration does not create the index before its constraint (index=%d constraint=%d):\n%s", index, constraint, sql)
+	}
+}

@@ -106,6 +106,33 @@
 > exec
 |
 |
+| -- A unique constraint and a primary key, each backed by an index the
+| -- statement names, which the sync reports as a constraint on a non-unique
+| -- index.
+| CREATE TABLE REUSED (
+|   ID NUMBER NOT NULL,
+|   CODE VARCHAR2(20)
+| )
+< ok 0 0
+> exec
+|
+| CREATE INDEX REUSED_CODE_IDX ON REUSED (CODE)
+< ok 0 0
+> exec
+|
+| ALTER TABLE REUSED ADD CONSTRAINT REUSED_CODE_UK UNIQUE (CODE) USING INDEX REUSED_CODE_IDX
+< ok 0 0
+> exec
+|
+| CREATE INDEX REUSED_ID_IDX ON REUSED (ID)
+< ok 0 0
+> exec
+|
+| ALTER TABLE REUSED ADD CONSTRAINT REUSED_PK PRIMARY KEY (ID) USING INDEX REUSED_ID_IDX
+< ok 0 0
+> exec
+|
+|
 | CREATE VIEW PARENT_VIEW AS SELECT ID, NAME FROM PARENT
 < ok 0 0
 > exec
@@ -550,6 +577,64 @@
 : null
 : string
 | N
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| ID
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| CODE
+: string
+| VARCHAR2
+: string
+| 20
+: null
+: null
+: string
+| B
+: string
+| 20
+: string
+| 2
+: null
+: string
+| Y
 : string
 | USING_NLS_COMP
 : string
@@ -1012,7 +1097,21 @@
 | ID
 < row
 : string
-| TYPES
+| REUSED
+: string
+| REUSED_CODE_UK
+: string
+| CODE
+< row
+: string
+| REUSED
+: string
+| REUSED_PK
+: string
+| ID
+< row
+: string
+| REUSED
 : string
 | SYS_C9000010
 : string
@@ -1023,12 +1122,19 @@
 : string
 | SYS_C9000011
 : string
-| AMOUNT
+| ID
 < row
 : string
 | TYPES
 : string
 | SYS_C9000012
+: string
+| AMOUNT
+< row
+: string
+| TYPES
+: string
+| SYS_C9000013
 : string
 | LABEL
 < row
@@ -1282,7 +1388,37 @@
 | SYS_C_SNAP$_9000009PARENT_PK
 < row
 : string
-| TYPES
+| REUSED
+: string
+| REUSED_CODE_UK
+: string
+| U
+: null
+: null
+: null
+: null
+: string
+| OMNI_DUMP
+: string
+| REUSED_CODE_IDX
+< row
+: string
+| REUSED
+: string
+| REUSED_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: string
+| OMNI_DUMP
+: string
+| REUSED_ID_IDX
+< row
+: string
+| REUSED
 : string
 | SYS_C9000010
 : string
@@ -1302,7 +1438,7 @@
 : string
 | C
 : string
-| "AMOUNT" IS NOT NULL
+| "ID" IS NOT NULL
 : null
 : null
 : null
@@ -1313,6 +1449,20 @@
 | TYPES
 : string
 | SYS_C9000012
+: string
+| C
+: string
+| "AMOUNT" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| TYPES
+: string
+| SYS_C9000013
 : string
 | C
 : string
@@ -1473,6 +1623,28 @@
 | PARENT_MV
 : string
 | SYS_C_SNAP$_9000009PARENT_PK
+: string
+| ID
+: string
+| ASC
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_CODE_IDX
+: string
+| CODE
+: string
+| ASC
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_ID_IDX
 : string
 | ID
 : string
@@ -1662,6 +1834,32 @@
 : string
 | OMNI_DUMP
 : string
+| REUSED
+: string
+| REUSED_CODE_IDX
+: string
+| NONUNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_ID_IDX
+: string
+| NONUNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_DUMP
+: string
 | TYPES
 : string
 | TYPES_LABEL_UK
@@ -1767,6 +1965,12 @@
 | OMNI_DUMP
 : string
 | PARENT
+: null
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
 : null
 < row
 : string
@@ -65309,6 +65513,34 @@
 > exec
 |
 |
+| CREATE TABLE "REUSED" (
+|   "ID" NUMBER NOT NULL,
+|   "CODE" VARCHAR2(20 BYTE)
+| )
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX "REUSED_CODE_IDX" ON "REUSED" ("CODE" ASC)
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE "REUSED" ADD CONSTRAINT "REUSED_CODE_UK" UNIQUE ("CODE") USING INDEX "REUSED_CODE_IDX"
+< ok 0 0
+> exec
+|
+|
+| CREATE INDEX "REUSED_ID_IDX" ON "REUSED" ("ID" ASC)
+< ok 0 0
+> exec
+|
+|
+| ALTER TABLE "REUSED" ADD CONSTRAINT "REUSED_PK" PRIMARY KEY ("ID") USING INDEX "REUSED_ID_IDX"
+< ok 0 0
+> exec
+|
+|
 | CREATE TABLE "TYPES" (
 |   "ID" NUMBER(10) NOT NULL,
 |   "AMOUNT" NUMBER(12,2) DEFAULT 0 NOT NULL,
@@ -65567,7 +65799,7 @@
 : string
 | 1
 : string
-| "OMNI_DUMP"."ISEQ$$_9000013".nextval
+| "OMNI_DUMP"."ISEQ$$_9000014".nextval
 : string
 | N
 : null
@@ -65800,6 +66032,64 @@
 : null
 : string
 | N
+: string
+| USING_NLS_COMP
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| ID
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| CODE
+: string
+| VARCHAR2
+: string
+| 20
+: null
+: null
+: string
+| B
+: string
+| 20
+: string
+| 2
+: null
+: string
+| Y
 : string
 | USING_NLS_COMP
 : string
@@ -66187,14 +66477,14 @@
 : string
 | CHILD
 : string
-| SYS_C9000014
+| SYS_C9000015
 : string
 | ID
 < row
 : string
 | CHILD
 : string
-| SYS_C9000015
+| SYS_C9000016
 : string
 | PARENT_ID
 < row
@@ -66208,7 +66498,7 @@
 : string
 | IDENT
 : string
-| SYS_C9000016
+| SYS_C9000017
 : string
 | ID
 < row
@@ -66229,56 +66519,77 @@
 : string
 | PARENT
 : string
-| SYS_C9000017
+| SYS_C9000018
 : string
 | ID
 < row
 : string
 | PARENT
 : string
-| SYS_C9000018
-: string
-| NAME
-< row
-: string
-| PARENT_MV
-: string
 | SYS_C9000019
 : string
-| ID
+| NAME
 < row
 : string
 | PARENT_MV
 : string
 | SYS_C9000020
 : string
+| ID
+< row
+: string
+| PARENT_MV
+: string
+| SYS_C9000021
+: string
 | NAME
 < row
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000021PARENT_PK
+| SYS_C_SNAP$_9000022PARENT_PK
 : string
 | ID
 < row
 : string
-| TYPES
+| REUSED
 : string
-| SYS_C9000022
+| REUSED_CODE_UK
+: string
+| CODE
+< row
+: string
+| REUSED
+: string
+| REUSED_PK
 : string
 | ID
 < row
 : string
-| TYPES
+| REUSED
 : string
 | SYS_C9000023
+: string
+| ID
+< row
+: string
+| TYPES
+: string
+| SYS_C9000024
+: string
+| ID
+< row
+: string
+| TYPES
+: string
+| SYS_C9000025
 : string
 | AMOUNT
 < row
 : string
 | TYPES
 : string
-| SYS_C9000024
+| SYS_C9000026
 : string
 | LABEL
 < row
@@ -66376,7 +66687,7 @@
 : string
 | CHILD
 : string
-| SYS_C9000014
+| SYS_C9000015
 : string
 | C
 : string
@@ -66390,7 +66701,7 @@
 : string
 | CHILD
 : string
-| SYS_C9000015
+| SYS_C9000016
 : string
 | C
 : string
@@ -66419,7 +66730,7 @@
 : string
 | IDENT
 : string
-| SYS_C9000016
+| SYS_C9000017
 : string
 | C
 : string
@@ -66463,7 +66774,7 @@
 : string
 | PARENT
 : string
-| SYS_C9000017
+| SYS_C9000018
 : string
 | C
 : string
@@ -66477,25 +66788,11 @@
 : string
 | PARENT
 : string
-| SYS_C9000018
-: string
-| C
-: string
-| "NAME" IS NOT NULL
-: null
-: null
-: null
-: null
-: null
-< row
-: string
-| PARENT_MV
-: string
 | SYS_C9000019
 : string
 | C
 : string
-| "ID" IS NOT NULL
+| "NAME" IS NOT NULL
 : null
 : null
 : null
@@ -66509,6 +66806,20 @@
 : string
 | C
 : string
+| "ID" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| PARENT_MV
+: string
+| SYS_C9000021
+: string
+| C
+: string
 | "NAME" IS NOT NULL
 : null
 : null
@@ -66519,7 +66830,7 @@
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000021PARENT_PK
+| SYS_C_SNAP$_9000022PARENT_PK
 : string
 | P
 : null
@@ -66529,12 +66840,42 @@
 : string
 | OMNI_DUMP
 : string
-| SYS_C_SNAP$_9000021PARENT_PK
+| SYS_C_SNAP$_9000022PARENT_PK
 < row
 : string
-| TYPES
+| REUSED
 : string
-| SYS_C9000022
+| REUSED_CODE_UK
+: string
+| U
+: null
+: null
+: null
+: null
+: string
+| OMNI_DUMP
+: string
+| REUSED_CODE_IDX
+< row
+: string
+| REUSED
+: string
+| REUSED_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: string
+| OMNI_DUMP
+: string
+| REUSED_ID_IDX
+< row
+: string
+| REUSED
+: string
+| SYS_C9000023
 : string
 | C
 : string
@@ -66548,7 +66889,21 @@
 : string
 | TYPES
 : string
-| SYS_C9000023
+| SYS_C9000024
+: string
+| C
+: string
+| "ID" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| TYPES
+: string
+| SYS_C9000025
 : string
 | C
 : string
@@ -66562,7 +66917,7 @@
 : string
 | TYPES
 : string
-| SYS_C9000024
+| SYS_C9000026
 : string
 | C
 : string
@@ -66722,7 +67077,29 @@
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000021PARENT_PK
+| SYS_C_SNAP$_9000022PARENT_PK
+: string
+| ID
+: string
+| ASC
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_CODE_IDX
+: string
+| CODE
+: string
+| ASC
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_ID_IDX
 : string
 | ID
 : string
@@ -66901,9 +67278,35 @@
 : string
 | PARENT_MV
 : string
-| SYS_C_SNAP$_9000021PARENT_PK
+| SYS_C_SNAP$_9000022PARENT_PK
 : string
 | UNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_CODE_IDX
+: string
+| NONUNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
+: string
+| REUSED_ID_IDX
+: string
+| NONUNIQUE
 : string
 | NORMAL
 : string
@@ -67017,6 +67420,12 @@
 | OMNI_DUMP
 : string
 | PARENT
+: null
+< row
+: string
+| OMNI_DUMP
+: string
+| REUSED
 : null
 < row
 : string
@@ -67171,7 +67580,7 @@
 < column "SHARDED_FLAG" "NCHAR" "string"
 < row
 : string
-| ISEQ$$_9000013
+| ISEQ$$_9000014
 : string
 | 1
 : string

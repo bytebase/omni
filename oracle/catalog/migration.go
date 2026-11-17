@@ -868,7 +868,9 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 					}
 					if indexDiff.NewIndex.IsConstraint {
 						// Add constraint (primary key or unique constraint)
-						if indexDiff.NewIndex.Primary {
+						if needsReusedIndexClause(indexDiff.NewIndex) {
+							writeMigrationReusedConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
+						} else if indexDiff.NewIndex.Primary {
 							writeMigrationPrimaryKey(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
 						} else if indexDiff.NewIndex.Unique {
 							writeMigrationUniqueKey(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.NewIndex)
@@ -983,7 +985,9 @@ func generateCreateTable(schemaName, tableName string, table *metadatapb.TableMe
 
 	// Add constraints (primary key, unique)
 	for _, index := range table.Indexes {
-		if index.Primary {
+		if needsReusedIndexClause(index) {
+			writeMigrationReusedConstraint(&buf, schemaName, tableName, index)
+		} else if index.Primary {
 			writeMigrationPrimaryKey(&buf, schemaName, tableName, index)
 		} else if index.Unique && index.IsConstraint {
 			writeMigrationUniqueKey(&buf, schemaName, tableName, index)
@@ -1707,6 +1711,8 @@ func (d columnDependents) writeDrops(out *strings.Builder, schemaName, tableName
 func (d columnDependents) writeCreates(out *strings.Builder, schemaName, tableName string) {
 	for _, index := range d.indexes {
 		switch {
+		case needsReusedIndexClause(index):
+			writeMigrationReusedConstraint(out, schemaName, tableName, index)
 		case index.Primary:
 			writeMigrationPrimaryKey(out, schemaName, tableName, index)
 		case index.IsConstraint:
@@ -2627,7 +2633,44 @@ func writeMigrationCreateTable(out *strings.Builder, schema, table string, colum
 }
 
 // writePrimaryKey writes an ALTER TABLE ADD PRIMARY KEY statement
+// writeMigrationReusedConstraint writes the index a constraint reuses, then the
+// constraint that names it with USING INDEX.
+func writeMigrationReusedConstraint(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	writeMigrationIndex(out, schema, table, index)
+	constraints := index.GetConstraints()
+	if len(constraints) == 0 {
+		constraints = []*metadatapb.IndexConstraintMetadata{{Name: index.GetName(), Columns: index.GetExpressions(), Primary: index.GetPrimary()}}
+	}
+	for _, constraint := range constraints {
+		_, _ = out.WriteString(`ALTER TABLE `)
+		if schema != "" {
+			_, _ = out.WriteString(`"` + schema + `".`)
+		}
+		_, _ = out.WriteString(`"` + table + `" ADD CONSTRAINT "` + constraint.GetName() + `"`)
+		if constraint.GetPrimary() {
+			_, _ = out.WriteString(` PRIMARY KEY (`)
+		} else {
+			_, _ = out.WriteString(` UNIQUE (`)
+		}
+		columns := constraint.GetColumns()
+		if len(columns) == 0 {
+			columns = index.GetExpressions()
+		}
+		for i, column := range columns {
+			if i != 0 {
+				_, _ = out.WriteString(`, `)
+			}
+			_, _ = out.WriteString(keyColumn(column))
+		}
+		_, _ = out.WriteString(`) USING INDEX "` + index.GetName() + `";` + "\n")
+	}
+}
+
 func writeMigrationPrimaryKey(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	if needsReusedIndexClause(index) {
+		writeMigrationReusedConstraint(out, schema, table, index)
+		return
+	}
 	_, _ = out.WriteString(`ALTER TABLE `)
 	if schema != "" {
 		_, _ = out.WriteString(`"`)
@@ -2653,6 +2696,10 @@ func writeMigrationPrimaryKey(out *strings.Builder, schema, table string, index 
 
 // writeUniqueKey writes an ALTER TABLE ADD UNIQUE statement
 func writeMigrationUniqueKey(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	if needsReusedIndexClause(index) {
+		writeMigrationReusedConstraint(out, schema, table, index)
+		return
+	}
 	_, _ = out.WriteString(`ALTER TABLE `)
 	if schema != "" {
 		_, _ = out.WriteString(`"`)
