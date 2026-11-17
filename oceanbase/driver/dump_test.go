@@ -72,45 +72,15 @@ func TestDumpRestores(t *testing.T) {
 }
 
 // TestDumpGaps pins OceanBase objects that a dump cannot faithfully restore
-// yet: generated columns (OceanBase fills COLUMN_DEFAULT alongside
-// GENERATION_EXPRESSION, so the dump emits both GENERATED ALWAYS and DEFAULT),
-// external tables, materialized views, and name-only events.
+// yet: external tables.
 func TestDumpGaps(t *testing.T) {
 	for _, gap := range []struct {
 		name, db, setup, wantErr string
 	}{
 		{
-			name:    "generated column carries COLUMN_DEFAULT",
-			db:      "omni_gap_gen",
-			setup:   "CREATE TABLE gen_t (id INT PRIMARY KEY, a VARCHAR(32), b VARCHAR(32) GENERATED ALWAYS AS (LOWER(a)) VIRTUAL);",
-			wantErr: "syntax",
-		},
-		{
-			name:    "datetime(6) default current_timestamp loses precision",
-			db:      "omni_gap_dt6",
-			setup:   "CREATE TABLE dt6_t (id INT PRIMARY KEY, ts DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6));",
-			wantErr: "invalid default value",
-		},
-		{
-			name:    "trigger ACTION_STATEMENT repeats header",
-			db:      "omni_gap_trg",
-			setup:   "CREATE TABLE trg_t (id INT PRIMARY KEY, v INT);\n\nCREATE TRIGGER trg_1 BEFORE INSERT ON trg_t FOR EACH ROW SET NEW.v = 1;",
-			wantErr: "syntax",
-		},
-		{
 			name:  "external table",
 			db:    "omni_gap_ext",
 			setup: "CREATE EXTERNAL TABLE ext_t (c1 INT) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');",
-		},
-		{
-			name:  "materialized view",
-			db:    "omni_gap_mv",
-			setup: "CREATE TABLE base_t (id INT PRIMARY KEY);\n\nCREATE MATERIALIZED VIEW mv_t AS SELECT id FROM base_t;",
-		},
-		{
-			name:  "event",
-			db:    "omni_gap_ev",
-			setup: "CREATE TABLE ev_t (id INT PRIMARY KEY);\n\nCREATE EVENT ev_1 ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM ev_t;",
 		},
 	} {
 		t.Run(gap.name, func(t *testing.T) {
@@ -168,6 +138,7 @@ func dumpAndRestore(t *testing.T, dbName, setup string) (*metadatapb.DatabaseSch
 	if err != nil {
 		t.Fatal(err)
 	}
+	sourceColumns := materializedViewColumnTypes(t, db, dbName)
 	var dumpBuf strings.Builder
 	if err := src.Dump(ctx, &dumpBuf, source); err != nil {
 		t.Fatal(err)
@@ -193,7 +164,47 @@ func dumpAndRestore(t *testing.T, dbName, setup string) (*metadatapb.DatabaseSch
 	for _, v := range restored.Schemas[0].Views {
 		v.Definition = strings.ReplaceAll(v.Definition, quoteBacktick(restoredName)+".", quoteBacktick(dbName)+".")
 	}
+	for _, v := range restored.Schemas[0].MaterializedViews {
+		v.Definition = strings.ReplaceAll(v.Definition, quoteBacktick(restoredName)+".", quoteBacktick(dbName)+".")
+	}
+	// The snapshot carries no materialized view's columns, so the restored container's own
+	// are compared here: a view materialized from a temporary placeholder takes the
+	// placeholder's literal types instead of the real view's.
+	if diff := cmp.Diff(sourceColumns, materializedViewColumnTypes(t, db, restoredName)); diff != "" {
+		t.Errorf("restored materialized view columns differ from source (-source +restored):\n%s", diff)
+	}
 	return source, restored, nil
+}
+
+// materializedViewColumnTypes reads the column type of every materialized view's container
+// table in dbName, keyed by view and column, so a container's storage is compared across a
+// round trip that the snapshot cannot compare.
+func materializedViewColumnTypes(t *testing.T, db *sql.DB, dbName string) map[string]string {
+	t.Helper()
+	const query = `
+		SELECT m.MVIEW_NAME, c.COLUMN_NAME, c.COLUMN_TYPE
+		FROM oceanbase.DBA_MVIEWS m
+		JOIN information_schema.COLUMNS c
+		ON c.TABLE_SCHEMA = m.OWNER AND c.TABLE_NAME = m.CONTAINER_NAME
+		WHERE m.OWNER = ?
+		ORDER BY m.MVIEW_NAME, c.ORDINAL_POSITION`
+	rows, err := db.QueryContext(context.Background(), query, dbName)
+	if err != nil {
+		t.Fatalf("materialized view columns of %s: %v", dbName, err)
+	}
+	defer rows.Close()
+	columns := make(map[string]string)
+	for rows.Next() {
+		var view, column, columnType string
+		if err := rows.Scan(&view, &column, &columnType); err != nil {
+			t.Fatal(err)
+		}
+		columns[view+"."+column] = columnType
+	}
+	if err := rows.Err(); err != nil {
+		t.Fatal(err)
+	}
+	return columns
 }
 
 func splitLikeMySQLClient(script string) []string {

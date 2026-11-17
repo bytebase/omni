@@ -404,10 +404,6 @@ func (p *Parser) parsePLSQLStatements() (*nodes.List, error) {
 		}
 		stmts.Items = append(stmts.Items, stmt)
 	}
-	return nil,
-
-		// parsePLSQLStatement parses a single PL/SQL statement.
-		nil
 }
 
 // requirePLSQLStatement reports a syntax error at the current token when
@@ -422,6 +418,7 @@ func (p *Parser) requirePLSQLStatement(stmts *nodes.List) error {
 	return nil
 }
 
+// parsePLSQLStatement parses a single PL/SQL statement.
 func (p *Parser) parsePLSQLStatement() (nodes.StmtNode, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err

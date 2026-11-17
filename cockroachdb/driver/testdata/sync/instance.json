@@ -1,0 +1,16 @@
+{
+    "databases": [
+      "defaultdb UTF8 en_US.utf8",
+      "omni_testsyncinstance UTF8 en_US.utf8",
+      "sync_extra UTF8 en_US.utf8"
+    ],
+    "roles": [
+      "admin: Superuser Create role Create DB",
+      "node: Superuser Create role Create DB Cannot login",
+      "root: Superuser Create role Create DB",
+      "sync_admin: Create role Create DB",
+      "sync_login: ",
+      "sync_reader: Cannot login"
+    ],
+    "version": "25.2"
+  }

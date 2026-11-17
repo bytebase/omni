@@ -240,7 +240,7 @@ func waitForAnswer(ctx context.Context, pin enginetest.Pin) error {
 }
 
 // empty drops every database but the image's own, creates database empty,
-// and drops every account but the image's default.
+// and drops every account and role but the image's default.
 func empty(ctx context.Context, database string) error {
 	db := sql.OpenDB(connector("default"))
 	defer db.Close()
@@ -265,6 +265,13 @@ func empty(ctx context.Context, database string) error {
 		if name != User {
 			stmts = append(stmts, "DROP USER IF EXISTS `"+escape(name)+"`")
 		}
+	}
+	roles, err := names(ctx, db, "SELECT name FROM system.roles")
+	if err != nil {
+		return err
+	}
+	for _, name := range roles {
+		stmts = append(stmts, "DROP ROLE IF EXISTS `"+escape(name)+"`")
 	}
 	for _, stmt := range stmts {
 		if _, err := db.ExecContext(ctx, stmt); err != nil {

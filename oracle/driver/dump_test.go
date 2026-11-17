@@ -157,6 +157,9 @@ func TestDumpGaps(t *testing.T) {
 		// prepare runs before setup on the same session, and a failure is
 		// ignored: it clears what an earlier recording left behind.
 		prepare string
+		// cleanup runs after the subtest, even when its setup fails, with the
+		// session back in SYSTEM's schema.
+		cleanup string
 		// ownerSession runs the setup on a session of the schema's own user,
 		// which an object owned by the session user needs (a database link).
 		ownerSession bool
@@ -187,6 +190,7 @@ func TestDumpGaps(t *testing.T) {
 			name:         "database link",
 			prepare:      `DROP PUBLIC DATABASE LINK OMNIGAP_LINK`,
 			setup:        `CREATE TABLE T (C NUMBER); CREATE PUBLIC DATABASE LINK OMNIGAP_LINK CONNECT TO U IDENTIFIED BY P USING 'example.com:1521/x';`,
+			cleanup:      `DROP PUBLIC DATABASE LINK OMNIGAP_LINK`,
 			ownerSession: true,
 			// A link belongs to the instance, not the schema: a restore into the
 			// same instance still sees it, so what the dump loses is the
@@ -256,6 +260,14 @@ func TestDumpGaps(t *testing.T) {
 		t.Run(gap.name, func(t *testing.T) {
 			schema := fmt.Sprintf("OMNI_GAP_%d", i)
 			createSchema(t, db, schema)
+			if gap.cleanup != "" {
+				t.Cleanup(func() {
+					// A session whose current schema is another user's cannot
+					// drop a public link, even as SYSTEM.
+					execIgnoringErrors(t, db, "ALTER SESSION SET CURRENT_SCHEMA = SYSTEM")
+					execIgnoringErrors(t, db, gap.cleanup)
+				})
+			}
 			if gap.ownerSession {
 				userDB := testcontainer.Open(t, schema)
 				if gap.prepare != "" {

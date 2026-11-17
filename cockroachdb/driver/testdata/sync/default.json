@@ -1,0 +1,372 @@
+{
+  "name": "omni_testsyncdatabase",
+  "schemas": [
+    {
+      "name": "Mixed Case"
+    },
+    {
+      "name": "app",
+      "tables": [
+        {
+          "name": "customer",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "default": "unique_rowid()",
+              "type": "bigint"
+            },
+            {
+              "name": "alt_id",
+              "position": 2,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "email",
+              "position": 3,
+              "type": "text",
+              "comment": "login"
+            },
+            {
+              "name": "name",
+              "position": 4,
+              "default": "'anon' COLLATE en_US",
+              "type": "character varying(50)",
+              "collation": "en_US"
+            },
+            {
+              "name": "mood",
+              "position": 5,
+              "default": "'happy'",
+              "nullable": true,
+              "type": "app.mood"
+            },
+            {
+              "name": "home",
+              "position": 6,
+              "nullable": true,
+              "type": "app.address"
+            },
+            {
+              "name": "tags",
+              "position": 7,
+              "default": "ARRAY[]",
+              "nullable": true,
+              "type": "_text"
+            },
+            {
+              "name": "balance",
+              "position": 8,
+              "default": "0",
+              "nullable": true,
+              "type": "numeric(12,2)"
+            },
+            {
+              "name": "ratio",
+              "position": 9,
+              "nullable": true,
+              "type": "double precision"
+            },
+            {
+              "name": "small",
+              "position": 10,
+              "nullable": true,
+              "type": "smallint"
+            },
+            {
+              "name": "created",
+              "position": 11,
+              "default": "now()",
+              "nullable": true,
+              "type": "timestamp with time zone"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "customer_alt_id_key",
+              "expressions": [
+                "alt_id"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "definition": "CREATE UNIQUE INDEX customer_alt_id_key ON omni_testsyncdatabase.app.customer USING btree (alt_id ASC)"
+            },
+            {
+              "name": "customer_name_idx",
+              "expressions": [
+                "name"
+              ],
+              "descending": [
+                true
+              ],
+              "type": "btree",
+              "comment": "names",
+              "definition": "CREATE INDEX customer_name_idx ON omni_testsyncdatabase.app.customer USING btree (name DESC) STORING (balance)"
+            },
+            {
+              "name": "customer_pkey",
+              "expressions": [
+                "id"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX customer_pkey ON omni_testsyncdatabase.app.customer USING btree (id ASC)"
+            }
+          ],
+          "comment": "a customer",
+          "checkConstraints": [
+            {
+              "name": "check_balance",
+              "expression": "((balance >= 0))"
+            },
+            {
+              "name": "customer_email_check",
+              "expression": "((email != ''::STRING))"
+            }
+          ]
+        },
+        {
+          "name": "orders",
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "type": "bigint"
+            },
+            {
+              "name": "customer_id",
+              "position": 2,
+              "type": "bigint"
+            },
+            {
+              "name": "amount",
+              "position": 3,
+              "type": "numeric(10,2)"
+            },
+            {
+              "name": "placed_at",
+              "position": 4,
+              "nullable": true,
+              "type": "timestamp without time zone"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "orders_customer_idx",
+              "expressions": [
+                "customer_id"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "definition": "CREATE INDEX orders_customer_idx ON omni_testsyncdatabase.app.orders USING btree (customer_id ASC)"
+            },
+            {
+              "name": "orders_pkey",
+              "expressions": [
+                "id"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX orders_pkey ON omni_testsyncdatabase.app.orders USING btree (id ASC)"
+            }
+          ],
+          "comment": "an order",
+          "foreignKeys": [
+            {
+              "name": "orders_customer_id_fkey",
+              "columns": [
+                "customer_id"
+              ],
+              "referencedSchema": "app",
+              "referencedTable": "customer",
+              "referencedColumns": [
+                "id"
+              ],
+              "onDelete": "CASCADE",
+              "onUpdate": "RESTRICT",
+              "matchType": "SIMPLE"
+            }
+          ],
+          "checkConstraints": [
+            {
+              "name": "orders_amount_positive",
+              "expression": "((amount > 0))"
+            }
+          ]
+        }
+      ],
+      "views": [
+        {
+          "name": "customer_orders",
+          "definition": "SELECT c.id, c.name, o.id AS order_id, o.amount FROM omni_testsyncdatabase.app.customer AS c JOIN omni_testsyncdatabase.app.orders AS o ON o.customer_id = c.id",
+          "dependencyColumns": [
+            {
+              "schema": "app",
+              "table": "customer",
+              "column": "id"
+            },
+            {
+              "schema": "app",
+              "table": "customer",
+              "column": "name"
+            },
+            {
+              "schema": "app",
+              "table": "orders",
+              "column": "amount"
+            },
+            {
+              "schema": "app",
+              "table": "orders",
+              "column": "customer_id"
+            },
+            {
+              "schema": "app",
+              "table": "orders",
+              "column": "id"
+            }
+          ],
+          "columns": [
+            {
+              "name": "id",
+              "position": 1,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "name",
+              "position": 2,
+              "nullable": true,
+              "type": "character varying(50)",
+              "collation": "en_US"
+            },
+            {
+              "name": "order_id",
+              "position": 3,
+              "nullable": true,
+              "type": "bigint"
+            },
+            {
+              "name": "amount",
+              "position": 4,
+              "nullable": true,
+              "type": "numeric(10,2)"
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "add",
+          "definition": "CREATE FUNCTION app.add(a INT8, b INT8)\n\tRETURNS INT8\n\tIMMUTABLE\n\tNOT LEAKPROOF\n\tCALLED ON NULL INPUT\n\tLANGUAGE SQL\n\tSECURITY INVOKER\n\tAS $$\n\tSELECT a + b;\n$$",
+          "signature": "add(int8, int8)"
+        }
+      ],
+      "materializedViews": [
+        {
+          "name": "order_totals",
+          "definition": "SELECT customer_id, sum(amount) AS total FROM omni_testsyncdatabase.app.orders GROUP BY customer_id",
+          "dependencyColumns": [
+            {
+              "schema": "app",
+              "table": "orders",
+              "column": "amount"
+            },
+            {
+              "schema": "app",
+              "table": "orders",
+              "column": "customer_id"
+            }
+          ],
+          "indexes": [
+            {
+              "name": "order_totals_pkey",
+              "expressions": [
+                "rowid"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX order_totals_pkey ON omni_testsyncdatabase.app.order_totals USING btree (rowid ASC)"
+            }
+          ]
+        }
+      ],
+      "sequences": [
+        {
+          "name": "counter",
+          "dataType": "INT8",
+          "start": "10",
+          "minValue": "-100",
+          "maxValue": "1000",
+          "increment": "5"
+        }
+      ],
+      "enumTypes": [
+        {
+          "name": "mood",
+          "values": [
+            "happy",
+            "sad",
+            "it's complicated"
+          ]
+        }
+      ],
+      "compositeTypes": [
+        {
+          "name": "address",
+          "attributes": [
+            {
+              "name": "street",
+              "type": "text"
+            },
+            {
+              "name": "city",
+              "type": "character varying(50)"
+            },
+            {
+              "name": "zip",
+              "type": "bigint"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "audit",
+      "sequences": [
+        {
+          "name": "big_seq",
+          "dataType": "INT8",
+          "start": "1",
+          "minValue": "1",
+          "maxValue": "9223372036854775807",
+          "increment": "1"
+        }
+      ]
+    },
+    {
+      "name": "public"
+    }
+  ],
+  "characterSet": "UTF8",
+  "collation": "en_US.utf8",
+  "searchPath": "\"$user\", public"
+}
