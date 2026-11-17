@@ -2211,13 +2211,73 @@ func walkPartitions(schema string, partitions []*metadatapb.TablePartitionMetada
 }
 
 // addFunctionNameEdges makes every function a name resolves to precede node.
+// regproc writes a name that needs quoting quoted, so the map's unquoted keys
+// are tried too.
 func addFunctionNameEdges(graph *definitionGraph, functionIDsByName map[string][]string, name, node string) {
 	if name == "" {
 		return
 	}
-	for _, functionID := range functionIDsByName[name] {
-		graph.AddEdge(functionID, node)
+	seen := make(map[string]bool)
+	for _, key := range functionNameKeys(name) {
+		for _, functionID := range functionIDsByName[key] {
+			if seen[functionID] {
+				continue
+			}
+			seen[functionID] = true
+			graph.AddEdge(functionID, node)
+		}
 	}
+}
+
+// functionNameKeys is a SQL-qualified name's unquoted forms: its qualified name
+// and its bare name. regproc writes app."MyHandler" where the function map holds
+// app.MyHandler.
+func functionNameKeys(name string) []string {
+	parts, ok := splitQualifiedIdentifier(name)
+	if !ok {
+		return []string{name}
+	}
+	keys := []string{strings.Join(parts, ".")}
+	if len(parts) > 1 {
+		keys = append(keys, parts[len(parts)-1])
+	}
+	return keys
+}
+
+func splitQualifiedIdentifier(name string) ([]string, bool) {
+	var parts []string
+	var b strings.Builder
+	inQuote := false
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if inQuote {
+			if c != '"' {
+				b.WriteByte(c)
+				continue
+			}
+			if i+1 < len(name) && name[i+1] == '"' {
+				b.WriteByte('"')
+				i++
+				continue
+			}
+			inQuote = false
+			continue
+		}
+		switch c {
+		case '"':
+			inQuote = true
+		case '.':
+			parts = append(parts, b.String())
+			b.Reset()
+		case ' ', '\t':
+		default:
+			b.WriteByte(c)
+		}
+	}
+	if inQuote {
+		return nil, false
+	}
+	return append(parts, b.String()), true
 }
 
 // addForeignPartitionEdges makes the functions a foreign partition's columns

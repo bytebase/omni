@@ -1014,3 +1014,22 @@ func TestSDLViewStatesColumnList(t *testing.T) {
 		t.Fatalf("SDL round trip differs: %+v", diff.Views)
 	}
 }
+
+// TestExternalTableLocationEscapesBackslash checks that a decoded location's
+// backslash is written escaped, so OceanBase reads the same path back.
+func TestExternalTableLocationEscapesBackslash(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{
+		Name: "test",
+		Schemas: []*metadata.SchemaMetadata{{
+			Name: "test",
+			ExternalTables: []*metadata.ExternalTableMetadata{{
+				Name:     "ext",
+				Location: `a\b`,
+				Format:   "TYPE = 'CSV'",
+			}},
+		}},
+	}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.Contains(t, def, `LOCATION = 'a\\b'`)
+}

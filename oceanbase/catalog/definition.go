@@ -607,7 +607,9 @@ func writeExternalTable(out *strings.Builder, table *metadata.ExternalTableMetad
 		return err
 	}
 	if table.Location != "" {
-		if _, err := fmt.Fprintf(out, "\nLOCATION = '%s'", strings.ReplaceAll(table.Location, "'", "''")); err != nil {
+		location := strings.ReplaceAll(table.Location, `\`, `\\`)
+		location = strings.ReplaceAll(location, "'", "''")
+		if _, err := fmt.Fprintf(out, "\nLOCATION = '%s'", location); err != nil {
 			return err
 		}
 	}

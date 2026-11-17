@@ -657,3 +657,31 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterItsFunctions(t *testing.
 	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the handler must be written before its wrapper")
 	assert.Less(t, strings.Index(result, wrapper), strings.Index(result, server), "the wrapper must be written before its server")
 }
+
+// TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedHandler checks that a
+// handler regproc writes with quotes still resolves to its function.
+func TestDatabaseDefinitionOrdersForeignDataWrapperAfterQuotedHandler(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "app",
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:       "MyHandler",
+				Definition: `CREATE FUNCTION app."MyHandler"() RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;`,
+			}},
+		}},
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:    "custom_fdw",
+			Handler: `app."MyHandler"`,
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	function := `CREATE FUNCTION app."MyHandler"()`
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" HANDLER app."MyHandler";`
+	assert.Contains(t, result, function)
+	assert.Contains(t, result, wrapper)
+	assert.Less(t, strings.Index(result, function), strings.Index(result, wrapper), "the quoted handler must be written before its wrapper")
+}
