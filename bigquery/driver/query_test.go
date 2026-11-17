@@ -223,10 +223,68 @@ func TestConvertValue(t *testing.T) {
 			want:      driver.Value{Kind: driver.String, String: "12"},
 		},
 		{
-			name:      "an ARRAY reads as Go's rendering of the slice",
+			name:      "an ARRAY is its elements in order, each by its own rule",
 			value:     []bigquery.Value{"a", int64(1)},
 			fieldType: bigquery.StringFieldType,
-			want:      driver.Value{Kind: driver.String, String: "[a 1]"},
+			want:      driver.Value{Kind: driver.String, String: "[a, 1]"},
+		},
+		{
+			name:      "an empty ARRAY states no elements",
+			value:     []bigquery.Value{},
+			fieldType: bigquery.StringFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[]"},
+		},
+		{
+			name:      "an ARRAY of NUMERIC states each decimal, not a ratio",
+			value:     []bigquery.Value{big.NewRat(3, 2), big.NewRat(9, 4)},
+			fieldType: bigquery.NumericFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[1.5, 2.25]"},
+		},
+		{
+			// The client hands over a record's values in the field's order and
+			// the names live in the field's nested schema, which the conversion is
+			// not given: a record reads as a list, which VERIFY.md pins.
+			name:      "a RECORD reads as its values in order",
+			value:     []bigquery.Value{int64(1), "x"},
+			fieldType: bigquery.RecordFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[1, x]"},
+		},
+		{
+			// Go's own rendering of the client's []bigquery.Value prints the
+			// element as an address, so an array of ranges is rendered here.
+			name: "an ARRAY of RANGE is each element's literal",
+			value: []bigquery.Value{
+				&bigquery.RangeValue{Start: civil.Date{Year: 2026, Month: 1, Day: 1}, End: civil.Date{Year: 2026, Month: 2, Day: 1}},
+				&bigquery.RangeValue{},
+			},
+			fieldType: bigquery.RangeFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[[2026-01-01, 2026-02-01), [UNBOUNDED, UNBOUNDED)]"},
+		},
+		{
+			name:      "a RANGE is the half-open literal the service states",
+			value:     &bigquery.RangeValue{Start: civil.Date{Year: 2026, Month: 1, Day: 1}, End: civil.Date{Year: 2026, Month: 2, Day: 1}},
+			fieldType: bigquery.RangeFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[2026-01-01, 2026-02-01)"},
+		},
+		{
+			name:      "a RANGE with no bounds is UNBOUNDED on both sides",
+			value:     &bigquery.RangeValue{},
+			fieldType: bigquery.RangeFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[UNBOUNDED, UNBOUNDED)"},
+		},
+		{
+			name:      "a DATETIME bound is written with a T, and its microseconds kept",
+			value:     &bigquery.RangeValue{Start: civil.DateTime{Date: civil.Date{Year: 2026, Month: 1, Day: 2}, Time: civil.Time{Hour: 3, Minute: 4, Second: 5, Nanosecond: 123456000}}},
+			fieldType: bigquery.RangeFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[2026-01-02T03:04:05.123456, UNBOUNDED)"},
+		},
+		{
+			// The service's own rendering of the same range drops the fraction;
+			// this keeps it, which the test pins so the choice stays deliberate.
+			name:      "a TIMESTAMP bound is a UTC wall clock, and its microseconds kept",
+			value:     &bigquery.RangeValue{Start: time.Date(2026, 1, 2, 3, 4, 5, 123456000, time.UTC)},
+			fieldType: bigquery.RangeFieldType,
+			want:      driver.Value{Kind: driver.String, String: "[2026-01-02 03:04:05.123456, UNBOUNDED)"},
 		},
 		{
 			name:      "a value whose Go type is not the declared one falls back",
