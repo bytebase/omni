@@ -87,7 +87,7 @@ estimate is all there is, and the row is a prediction, not a cost.
 | 8 | `ELASTICSEARCH` | `db/elasticsearch` | own | `elasticsearch/driver` (tapes) | thin adapter; `Options{OpenSearch, Transport}` | measured: neither seam blocks — a caller `Dial` reaches the client and `Options.Transport` carries SigV4, both by test. Ten behaviour changes, and one of them (AWS ping hints) is a product decision | 347 / 0 callers, 0 files |
 | 9 | `TRINO` | `db/trino` | own | `trino/driver` (tapes) | thin adapter | measured: none. No caller changed; `QueryConn` ignores its `*sql.Conn`, so a session is per call | 234 / 0 callers |
 | 10 | `CLICKHOUSE` | `db/clickhouse` | own; parser is `standard`/`mysql` | `clickhouse/driver` (tapes) | thin adapter; `Dumper` now exists | session, as trino's (per call, not a caller change) | unmeasured |
-| 11 | `DORIS` | `db/doris` | own; imports `db/mysql` helpers | `doris/driver` (tapes) | thin adapter + shared MySQL config builder | session; the shared builder is a precondition | unmeasured |
+| 11 | `DORIS` | `db/doris` | own; imports `db/mysql` helpers | `doris/driver` (tapes) | thin adapter; its own config mapping, so the shared MySQL builder was not a precondition | measured: none of wave 0's seams. Two items are open — `MaximumSQLResultSize` of 0 now means no cap, and a procedure created qualified syncs qualified | 363 / 0 callers, 0 files |
 | 12 | `STARROCKS` | `db/starrocks` | own; imports `db/mysql` helpers | `starrocks/driver` (tapes) | thin adapter + shared MySQL config builder | session; the shared builder is a precondition | unmeasured |
 | 13 | `MSSQL` | `db/mssql` | own | `mssql/driver` (tapes) | thin adapter + `CountAffectedRows` | measured: the shared `GetDB` retirement only. No advisor probe, no plancheck change; masking and batch delegate. Azure AD IAM is refused loudly — **superseded 2026-11-17 by #1389:** `Config.TokenProvider` carries the login ([contract](2026-11-15-driver-contract-design.md#decisions)) | 497 / 8 files |
 | 14 | `COCKROACHDB` | `db/cockroachdb` | own; parser handlers are pg's, design says alias pg | `cockroachdb/driver` (tapes) | thin adapter; do not alias pg | plancheck only | unmeasured |
@@ -143,6 +143,11 @@ against the emulator digest in its `pins.tsv` row, and elasticsearch against 8.1
 on, one container at a time; each proof's per-file diff and verbatim failures are in its session's
 report, and this section keeps the totals and the decisions they force.
 
+**Amended 2026-11-17.** Doris is the tenth: 363 adapter lines, package 1,248 → 363 non-test, 0
+callers, 0 product files and no wave-0 seam. Its report names its own omni commit and per-file diff,
+so the paragraph above counts nine; its row is in both tables below, and its open items are §11 and
+§12 of the [open decisions](2026-11-17-cutover-open-decisions.md).
+
 The omni side needed work twice, none of it contract-shaped. `cassandra/driver`'s package doc
 promised an empty schema where the code returns `driver.ErrNotFound` (fixed on that proof's branch,
 `5fcf51383`). mssql's live suite found five driver defects, enumerated in §6, all fixed in #1385.
@@ -168,6 +173,10 @@ revision was written, so their rows keep the prototype's number and nothing here
 neighbouring engine — not from doris to starrocks, not from mysql to mariadb, not from a driver's
 tapes to a cutover.
 
+**Amended 2026-11-17.** Row 11 has reported, so the unmeasured set is 2-4, 7, 10, 12, 14, 17-19 and
+21-24, and MariaDB and DynamoDB are the two still running. Doris's 363 measured lines replace the
+prototype's 100, and nothing is inferred from it to starrocks.
+
 | Engine | Prototype adapter | Measured adapter, non-test | Deleted | Callers changed | Product-side diff |
 | --- | --- | --- | --- | --- | --- |
 | trino | 101 | 234 (166 code) + 120 shared conversion | 665 driver + 169 tests | **0** | 2 result-shape expectations in the package's own tests; `plugin/schema/trino`: 4 dump strings, +14 lines for views |
@@ -179,6 +188,7 @@ tapes to a cutover.
 | redis | 154 | 283 (one file, ~120 of it result conversion and probe dispatch) | `sync.go` 148 deleted, `redis.go` 373 → 283; package 521 → 283 non-test; tests 191 → 205 | **0** | **0 files.** The pin bump *is* the cutover: Bytebase's pin (`8851de182`) predates `redis/driver` (`9be754a6`), so the driver enters the dependency for the first time; the testcontainer image moves to `redis:7.4.12-alpine` |
 | spanner | 120 | 333 (one file, `spanner.go`: config mapping, result conversion, `executeLogger`) | `sync.go` 371 and `dump.go` 28 deleted; driver 1,127 → 333 (−70.5%), package 1,553 → 809; 314 test lines deleted, 2 live tests ported | **0** | **0 files.** `go.mod`'s replace is the only line outside the package. The server-DDL dump is byte-identical for both dialects, with and without the sync runner's metadata |
 | elasticsearch | 169 (+11 SigV4) | 347 (one file: `Open`/dial, result mapping, execute logger, sync mapping, dump) | `sync.go` 429, `query_plan.go` 113, `role.go` 57, `dump.go` 13 deleted; driver 1,180 → 347 (−833); the package's own tests 405 → 541, plus a shared container fixture (+60) | **0** | **0 product files**, and two dependencies leave Bytebase: `elastic/go-elasticsearch/v7` and `rs/dnscache` (go.sum −16) |
+| doris | 100 | 363 (config mapping and result conversion inside it: it needed no wave-0 seam) | package 1,248 → 363 non-test | **0** | **0 files.** The `Dump` is not parity: the `SET @OLD_UNIQUE_CHECKS …` prologue and epilogue and the placeholder `CREATE VIEW … 1 AS col` are gone, and procedures, functions and sync materialized views appear. The old text could not be replayed at all, so this is a fix to name in the release note |
 
 | Engine | Did the prototype's verdict hold? | Therefore, do this first |
 | --- | --- | --- |
@@ -191,6 +201,7 @@ tapes to a cutover.
 | redis | Yes on the seams, no on size — the reverse of the usual miss. 154 → 283, but both seams it might have wanted (`SQLDB`, `Prober`) were inapplicable, and the all-nodes probe came through `driver.AllNodesQuerier` with a mutation check. What no estimate could see is the dependency: the pin predates `redis/driver`, so this cutover is also a first install. | Bump the pin first and keep the all-nodes branch. A silent fallback to one session's `Query` passes a single-node cluster, so the test that matters is the refusal on a standalone server, not the row count. Accept one round trip per command (200 `PING`s: 2.4 ms → 13.8–23.4 ms on localhost) as the price of fail-fast `Execute` and per-command errors. |
 | spanner | Half. 120 → 333, but zero seams, zero product files, and the dump byte-identical with and without the sync runner's metadata. What it could not see is that a *capability* arrives with the driver — PostgreSQL-dialect databases, which the old driver filtered — so the expensive part is a product decision, not adapter code. | Decide the dialect listing before writing the adapter. omni lists, syncs and dumps PG-dialect databases; `SPANNER`'s `SplitMultiSQL`/`GetQuerySpan` is GoogleSQL-only, so keep the old filter in `SyncInstance` until the product routes by database dialect. Ship the two halves together or not at all. |
 | elasticsearch | Mostly. 169 → 347, 0 callers, 0 seams, and both seam questions answered by test: a caller `Dial` reaches the client, `Transport` carries SigV4. What it could not see is how many behaviours move at once (ten), and that one of them is support-facing: the AWS ping/sync error text loses its role-ARN hint. | Run the old driver beside the adapter on one pinned server before deciding anything; the ten changes only exist as a side-by-side diff, and three shapes expected to move (`hits`, `_cat`, refused-request text) came back identical. Decide the AWS hint first — it is the only one a support case would notice. |
+| doris | Half. The prototype's verdict — "a config mapping and nothing else" — held on the seam list: 0 callers, 0 product files, no wave-0 seam. The size did not: 363 against 100. What no estimate could see is that the old `Dump` text was not replayable, so the pin bump changes schema output rather than its format, and that `MaximumSQLResultSize` of 0 means a zero-byte cap on one side and no cap on the other. | Decide the zero cap before the adapter ([open decisions §11](2026-11-17-cutover-open-decisions.md#11-maximumsqlresultsize-of-0-means-the-opposite-on-each-side)) and name the dump change in the release note. Run the fixture pass for the one doris parser expectation that moves: `backend/plugin/parser/doris/limit_test.go:197` (`SELECT * FROM t # hash comment`), because Doris refuses `#` and the new rewrite wraps the statement instead of splicing the limit before the comment. |
 
 Every measured row pays these, so every unmeasured row should budget them too:
 
@@ -213,7 +224,12 @@ Every measured row pays these, so every unmeasured row should budget them too:
   range: redis's pin predates `redis/driver` entirely, so its bump introduces the dependency; and
   where an engine renders no schema the bump moves nothing — spanner's dump is byte-identical for
   both dialects, redis's and elasticsearch's are empty before and after, and the syncer's history
-  says so.
+  says so. Doris is the engine whose bump fixes a renderer that was broken rather than moves a
+  format: the prologue and epilogue and the placeholder view go, procedures, functions and sync
+  materialized views arrive, and the old text could not be replayed at all. It also moves one parser
+  expectation — `backend/plugin/parser/doris/limit_test.go:197`, `SELECT * FROM t # hash comment` —
+  because Doris refuses `#`, so the limit rewrite wraps the statement instead of splicing the limit
+  in front of the comment.
 - **The driver, not the adapter, is where behavior breaks.** mssql's five defects and spanner's
   credential/emulator conflict (§6) are findings no compile can produce, and neither can a review of
   the adapter body. The one exception is oracle's private-link guard, which is a product compile
@@ -504,7 +520,8 @@ fifth: 347 lines, ten behaviour changes, and the one decision a support case cou
 `doris` and `starrocks` follow once wave 0's shared builder exists: they appear in no plancheck,
 advisor or ghost switch, and trino showed the session seam costs no caller. `hive` keeps its
 documented limit (forward a local port); `elasticsearch` no longer has one, because both of its
-seams were proven by test.
+seams were proven by test. **Amended 2026-11-17:** doris has measured 363 lines with no wave-0 seam,
+so it does not wait on the shared builder either, and it joins the zero-product-file group.
 
 Cassandra-first survives, on one clause. The plan's reason was size — 126 lines, the smallest
 prototype — and the size was wrong: 312, a 2.5× miss, and redis now measures smaller at 283. What
