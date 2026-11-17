@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/civil"
 	"google.golang.org/api/iterator"
 
 	"github.com/bytebase/omni/driver"
@@ -305,6 +307,13 @@ func (s *session) dryRunStatement(ctx context.Context, statement string) (*drive
 // convertValue converts one cell of a result row. A cell whose declared type has
 // no kind here falls back to Go's own rendering of the value, which is what
 // Bytebase's driver returned.
+//
+// A NUMERIC and a BIGNUMERIC arrive as a *big.Rat, whose own rendering is a ratio
+// ("25/2" for 12.5), so they are written as the exact decimal text BigQuery's
+// literal states. A TIMESTAMP is an instant and a DATETIME a wall clock, which are
+// the contract's TimestampTZ and Timestamp; both hold microseconds, and BigQuery
+// states no other scale for either. DATE, TIME, JSON, GEOGRAPHY, INTERVAL, a
+// RECORD and an ARRAY keep Go's rendering of the value.
 func convertValue(value bigquery.Value, fieldType bigquery.FieldType) driver.Value {
 	if value == nil {
 		return driver.Value{Kind: driver.Null}
@@ -330,10 +339,53 @@ func convertValue(value bigquery.Value, fieldType bigquery.FieldType) driver.Val
 		if b, ok := value.(bool); ok {
 			return driver.Value{Kind: driver.Bool, Bool: b}
 		}
+	case bigquery.NumericFieldType, bigquery.BigNumericFieldType:
+		if rat, ok := value.(*big.Rat); ok {
+			return driver.Value{Kind: driver.String, String: decimalText(rat)}
+		}
+	case bigquery.TimestampFieldType:
+		if instant, ok := value.(time.Time); ok {
+			return driver.Value{Kind: driver.TimestampTZ, Time: instant, Precision: bigqueryFractionalDigits}
+		}
+	case bigquery.DateTimeFieldType:
+		if wallClock, ok := value.(civil.DateTime); ok {
+			return driver.Value{Kind: driver.Timestamp, Time: wallClock.In(time.UTC), Precision: bigqueryFractionalDigits}
+		}
 	default:
-		// A TIMESTAMP, DATE, TIME, DATETIME, NUMERIC, BIGNUMERIC, GEOGRAPHY,
-		// INTERVAL, JSON, RANGE, a RECORD and an ARRAY fall back to Go's own
-		// rendering of the value.
+		// A DATE, TIME, JSON, GEOGRAPHY, INTERVAL, a RECORD and an ARRAY fall
+		// back to Go's own rendering of the value.
 	}
 	return driver.Value{Kind: driver.String, String: fmt.Sprintf("%v", value)}
+}
+
+// bigqueryFractionalDigits is the fractional-second digits a BigQuery TIMESTAMP
+// and DATETIME hold. The service states no per-column scale for either.
+const bigqueryFractionalDigits = 6
+
+// decimalText returns rat's exact decimal text: the shortest string of digits that
+// names it, which is how BigQuery states a NUMERIC and a BIGNUMERIC. A denominator
+// the client only ever builds from a decimal literal is a product of twos and
+// fives, so the text is finite; one that is not is rounded to the digits the
+// service allows rather than rendered as a ratio.
+func decimalText(rat *big.Rat) string {
+	denominator := new(big.Int).Set(rat.Denom())
+	two, five, remainder := big.NewInt(2), big.NewInt(5), new(big.Int)
+	scale := 0
+	for denominator.Cmp(big.NewInt(1)) != 0 {
+		switch {
+		case remainder.Mod(denominator, two).Sign() == 0:
+			denominator.Div(denominator, two)
+		case remainder.Mod(denominator, five).Sign() == 0:
+			denominator.Div(denominator, five)
+		default:
+			return rat.FloatString(scale + 38)
+		}
+		scale++
+	}
+	text := rat.FloatString(scale)
+	if !strings.Contains(text, ".") {
+		return text
+	}
+	text = strings.TrimRight(text, "0")
+	return strings.TrimSuffix(text, ".")
 }
