@@ -2657,3 +2657,78 @@ func TestFunctionIndexDetachesBeforeOrdinaryTypeChange(t *testing.T) {
 		t.Fatalf("a function-based index does not detach around a datatype change (drop=%d modify=%d create=%d):\n%s", drop, modify, create, sql)
 	}
 }
+
+func TestModifyConstraintStateIsRejected(t *testing.T) {
+	_, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT UK UNIQUE (C)); ALTER TABLE T MODIFY CONSTRAINT UK DISABLE`)
+	if err == nil || !strings.Contains(err.Error(), "constraint enable/disable is not supported") {
+		t.Fatalf("MODIFY CONSTRAINT UK DISABLE: %v, want the unsupported-state error", err)
+	}
+}
+
+func TestVirtualColumnDetachesWhenSourceLeavesTheExpression(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE T (C NUMBER, D NUMBER, V AS (C + 1))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	to, err := LoadSQL(`CREATE TABLE T (C BINARY_DOUBLE, D NUMBER, V AS (D + 1))`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := migrationFor(t, from, to)
+	drop := strings.Index(sql, `DROP COLUMN "V"`)
+	modify := strings.Index(sql, `MODIFY "C" BINARY_DOUBLE`)
+	if drop < 0 || modify < 0 || drop > modify {
+		t.Fatalf("the old virtual expression's source change precedes its detach (drop=%d modify=%d):\n%s", drop, modify, sql)
+	}
+}
+
+func TestCreateSequenceIfNotExistsKeepsTheSequence(t *testing.T) {
+	c, err := LoadSQL(`CREATE SEQUENCE S START WITH 100 INCREMENT BY 10; CREATE SEQUENCE IF NOT EXISTS S`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sequences := c.Metadata().Schemas[0].Sequences
+	if len(sequences) != 1 || sequences[0].Start != "100" || sequences[0].Increment != "10" {
+		t.Fatalf("CREATE SEQUENCE IF NOT EXISTS replaced the sequence: %v", sequences)
+	}
+}
+
+func TestCycleFallbackWritesFunctionBeforeView(t *testing.T) {
+	table := func(name, other string) *metadatapb.TableMetadata {
+		return &metadatapb.TableMetadata{
+			Name:    name,
+			Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, Nullable: true}},
+			ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+				Name:              name + "_FK",
+				Columns:           []string{"ID"},
+				ReferencedTable:   other,
+				ReferencedColumns: []string{"ID"},
+			}},
+		}
+	}
+	schema := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name:   "APP",
+		Tables: []*metadatapb.TableMetadata{table("A", "B"), table("B", "A")},
+		Functions: []*metadatapb.FunctionMetadata{{
+			Name:       "F",
+			Definition: "CREATE OR REPLACE FUNCTION \"F\" (X NUMBER) RETURN NUMBER AS BEGIN RETURN X; END;",
+		}},
+		Views: []*metadatapb.ViewMetadata{{
+			Name:       "V",
+			Definition: "SELECT F(ID) FROM A",
+		}},
+	})
+	definition, err := DatabaseDefinition(schema.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	function, view := strings.Index(definition, `FUNCTION "F"`), strings.Index(definition, `CREATE VIEW "V"`)
+	if function < 0 || view < 0 || function > view {
+		t.Fatalf("the cycle fallback writes the view before the function it calls (function=%d view=%d):\n%s", function, view, definition)
+	}
+	sql := migrationFor(t, New(), schema)
+	function, view = strings.Index(sql, `FUNCTION "F"`), strings.Index(sql, `CREATE VIEW`)
+	if function < 0 || view < 0 || function > view {
+		t.Fatalf("the migration's cycle fallback writes the view before the function it calls (function=%d view=%d):\n%s", function, view, sql)
+	}
+}

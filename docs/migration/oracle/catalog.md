@@ -250,6 +250,12 @@ replay tests exercise.
   function, which Oracle disables with it.
 - A procedure whose declaration splits `CREATE` from `OR REPLACE` with any SQL
   whitespace is still altered, not created again.
+- A virtual column detaches when either its old or its target expression reads a
+  datatype-changing column, and the foreign-key cycle fallback writes a function
+  before a view that calls it.
+- `ALTER TABLE ... MODIFY CONSTRAINT` enable/disable is rejected like the
+  `ENABLE`/`DISABLE` form, and `CREATE SEQUENCE IF NOT EXISTS` leaves an
+  existing sequence unchanged.
 - A trigger declaration's `DISABLE` clause is removed with whatever whitespace
   precedes it, so a later enable leaves no stale keyword.
 - A constraint backed by an index the statement names (`USING INDEX

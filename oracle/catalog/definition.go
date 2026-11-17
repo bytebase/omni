@@ -175,6 +175,29 @@ func DatabaseDefinition(to *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				}
 			}
 		}
+		// A view that calls a function needs it before the view, as a virtual
+		// column does.
+		checkView := func(definition string) error {
+			for _, function := range schema.Functions {
+				if !prewrittenFunctions[function.Name] && expressionReferencesFunction(definition, function.Name) {
+					if err := writeFunction(&buf, function); err != nil {
+						return err
+					}
+					prewrittenFunctions[function.Name] = true
+				}
+			}
+			return nil
+		}
+		for _, view := range schema.Views {
+			if err := checkView(view.Definition); err != nil {
+				return "", err
+			}
+		}
+		for _, definition := range materializedViewDefinitions(schema) {
+			if err := checkView(definition); err != nil {
+				return "", err
+			}
+		}
 		if err := writeViewsInDependencyOrder(&buf, schema); err != nil {
 			return "", err
 		}
@@ -318,6 +341,16 @@ func writeViewsInDependencyOrder(buf *strings.Builder, schema *metadatapb.Schema
 		}
 	}
 	return nil
+}
+
+// materializedViewDefinitions returns the query text of each materialized view,
+// for the passes that ask whether a definition calls a function.
+func materializedViewDefinitions(schema *metadatapb.SchemaMetadata) []string {
+	var definitions []string
+	for _, view := range schema.MaterializedViews {
+		definitions = append(definitions, view.GetDefinition())
+	}
+	return definitions
 }
 
 func writeDeferredFunctionIndexes(buf *strings.Builder, tables []*metadatapb.TableMetadata) error {

@@ -731,11 +731,45 @@ func createObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames cons
 			}
 		}
 
+		// A view that calls a function needs it first, as a virtual column does.
+		for _, functionDiff := range functionMap {
+			function := functionDiff.NewFunction
+			if function == nil {
+				function = functionDiff.OldFunction
+			}
+			if function == nil || prewrittenFunctions[functionDiff.SchemaName+"."+function.Name] {
+				continue
+			}
+			called := false
+			for _, viewDiff := range viewMap {
+				view := viewDiff.NewView
+				if view == nil {
+					view = viewDiff.OldView
+				}
+				if view != nil && expressionReferencesFunction(view.Definition, function.Name) {
+					called = true
+				}
+			}
+			for _, viewDiff := range materializedViewMap {
+				view := viewDiff.NewMaterializedView
+				if view == nil {
+					view = viewDiff.OldMaterializedView
+				}
+				if view != nil && expressionReferencesFunction(view.Definition, function.Name) {
+					called = true
+				}
+			}
+			if called {
+				writeFunctionDiff(buf, functionDiff)
+				prewrittenFunctions[functionDiff.SchemaName+"."+function.Name] = true
+			}
+		}
+
 		writeMigrationViewsInDependencyOrder(buf, viewMap, materializedViewMap)
 
 		// Create functions
 		for functionID, funcDiff := range functionMap {
-			if prewrittenFunctions[functionID] {
+			if prewrittenFunctions[functionID] || prewrittenFunctions[funcDiff.SchemaName+"."+funcDiff.FunctionName] {
 				continue
 			}
 			writeFunctionDiff(buf, funcDiff)
@@ -1285,6 +1319,12 @@ func virtualColumnsRebuiltByTypeChanges(tableDiff *TableDiff) []virtualRebuild {
 	if len(typeChanged) == 0 {
 		return nil
 	}
+	oldExpressions := map[string]string{}
+	for _, column := range tableDiff.OldTable.GetColumns() {
+		if column.GetGeneration() != nil {
+			oldExpressions[column.GetName()] = column.GetGeneration().GetExpression()
+		}
+	}
 	var result []virtualRebuild
 	for _, column := range tableDiff.NewTable.GetColumns() {
 		if column.GetGeneration() == nil {
@@ -1293,7 +1333,10 @@ func virtualColumnsRebuiltByTypeChanges(tableDiff *TableDiff) []virtualRebuild {
 		if colDiff := diffs[column.GetName()]; colDiff != nil && colDiff.Action == DiffActionDrop {
 			continue
 		}
-		if !indexReferencesColumnsInExpression(column.GetGeneration().GetExpression(), typeChanged) {
+		// The source change is refused while the existing virtual column still
+		// reads it (ORA-54033), and while the target one does after the change.
+		if !indexReferencesColumnsInExpression(column.GetGeneration().GetExpression(), typeChanged) &&
+			!indexReferencesColumnsInExpression(oldExpressions[column.GetName()], typeChanged) {
 			continue
 		}
 		result = append(result, virtualRebuild{column: column, diff: diffs[column.GetName()]})

@@ -703,7 +703,7 @@ func (e *oracleMetadataExtractor) extractAlterTable(n *ast.AlterTableStmt) {
 			if slices.Contains(stringList(action.Options), "CASCADE") {
 				e.dropIncomingForeignKeysForColumns(table.Name, droppedColumns)
 			}
-		case ast.AT_ENABLE_DISABLE:
+		case ast.AT_ENABLE_DISABLE, ast.AT_MODIFY_CONSTRAINT:
 			if e.err == nil {
 				e.err = fmt.Errorf("constraint enable/disable is not supported by oracle/catalog")
 			}
@@ -1744,6 +1744,9 @@ func (e *oracleMetadataExtractor) materializedViewPrefix(n *ast.CreateViewStmt) 
 func (e *oracleMetadataExtractor) extractCreateSequence(n *ast.CreateSequenceStmt) {
 	sequenceName := objectName(n.Name)
 	if sequenceName == "" || !e.useSchema(n.Name.Schema) {
+		return
+	}
+	if n.IfNotExists && e.sequences[sequenceName] != nil {
 		return
 	}
 	sequence := &metadatapb.SequenceMetadata{Name: sequenceName}
