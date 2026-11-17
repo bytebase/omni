@@ -188,7 +188,9 @@
 : string
 | UTC
 > query
-| SELECT 1:::INT8 AS v;
+| WITH result AS (
+| SELECT 1:::INT8 AS v
+| ) SELECT * FROM result LIMIT 1;
 < result
 < column "v" "INT8"
 < row

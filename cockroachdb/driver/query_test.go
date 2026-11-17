@@ -193,7 +193,7 @@ INSERT INTO other.thing VALUES (7);`)
 	})
 
 	t.Run("cockroach syntax", func(t *testing.T) {
-		results, err := session.Query(ctx, "SELECT 1:::INT8 AS v; SHOW CLUSTER SETTING version;", driver.QueryOptions{})
+		results, err := session.Query(ctx, "SELECT 1:::INT8 AS v; SHOW CLUSTER SETTING version;", driver.QueryOptions{Limit: 1})
 		if err != nil {
 			t.Fatal(err)
 		}

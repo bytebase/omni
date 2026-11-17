@@ -222,7 +222,18 @@ func statementWithResultLimit(statement string, limit int) string {
 	if rewritten, err := pganalysis.RewriteResultLimit(statement, limit); err == nil {
 		return rewritten
 	}
-	return fmt.Sprintf("WITH result AS (\n%s\n) SELECT * FROM result LIMIT %d;", trimStatement(statement), limit)
+	// The PostgreSQL grammar cannot rewrite CockroachDB's native statements
+	// such as SHOW; a CTE wrapper would not be valid there either, so leave
+	// everything but a SELECT unchanged.
+	parsed, err := crrawparser.Parse(statement)
+	if err != nil || len(parsed) != 1 {
+		return statement
+	}
+	switch parsed[0].AST.(type) {
+	case *crrawparsertree.Select, *crrawparsertree.ParenSelect:
+		return fmt.Sprintf("WITH result AS (\n%s\n) SELECT * FROM result LIMIT %d;", trimStatement(statement), limit)
+	}
+	return statement
 }
 
 func readRows(rows *sql.Rows, location *time.Location, maxResultBytes int64) (*driver.Result, error) {
