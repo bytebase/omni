@@ -21,7 +21,7 @@ func TestStatementWhereDisallowFunctionsAndCalculations(t *testing.T) {
 	logs := table("LOGS", "ID")
 	logs.Partitions = []*metadata.TablePartitionMetadata{{Name: "P1", Subpartitions: []*metadata.TablePartitionMetadata{{Name: "SP1"}}}}
 	db := &metadata.DatabaseSchemaMetadata{Name: "SHOP", Schemas: []*metadata.SchemaMetadata{
-		{Name: "", Tables: []*metadata.TableMetadata{table("BOOK", "ID", "NAME"), table("Mixed", "Id"), logs}},
+		{Name: "", Tables: []*metadata.TableMetadata{table("BOOK", "ID", "NAME"), table("Mixed", "Id"), table("QUOTED", `"Id"`), logs}},
 		{Name: "HR", Tables: []*metadata.TableMetadata{table("BOOK", "NOTE")}},
 	}}
 	sensitive := v1review.Schema{Metadata: db, ObjectCaseSensitive: true}
@@ -55,6 +55,7 @@ func TestStatementWhereDisallowFunctionsAndCalculations(t *testing.T) {
 		{name: "nested node reported once per path", sql: "SELECT * FROM book WHERE abs(abs(id)) = 1", schema: sensitive, want: []whereFinding{fn("ID", "ABS", "abs(id)"), fn("ID", "ABS", "abs(id)")}},
 		{name: "prior", sql: "SELECT * FROM book CONNECT BY abs(PRIOR id) = id", schema: sensitive, want: []whereFinding{fn("ID", "ABS", "abs(PRIOR id)")}},
 		{name: "quoted table keeps its case, columns compare upper-cased", sql: `SELECT * FROM "Mixed" WHERE abs("Id") = 1`, schema: sensitive, want: []whereFinding{fn("ID", "ABS", `abs("Id")`)}},
+		{name: "quoted index expression, columns compare upper-cased", sql: `SELECT * FROM quoted WHERE abs("Id") = 1`, schema: sensitive, want: []whereFinding{fn("ID", "ABS", `abs("Id")`)}},
 		{name: "unquoted table is upper-cased", sql: `SELECT * FROM mixed WHERE abs(id) = 1`, schema: sensitive},
 		{name: "case-insensitive lower-cases", sql: `SELECT * FROM mixed WHERE abs("ID") = 1`, schema: v1review.Schema{Metadata: db}, want: []whereFinding{fn("id", "ABS", `abs("ID")`)}},
 		{name: "partition finds its table", sql: "SELECT * FROM sp1 WHERE abs(id) = 1", schema: sensitive, want: []whereFinding{fn("ID", "ABS", "abs(id)")}},
