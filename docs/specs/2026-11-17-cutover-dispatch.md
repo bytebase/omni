@@ -183,7 +183,7 @@ prototype's 100, and nothing is inferred from it to starrocks.
 | pg | 226 | 658 (the delegation layer inside it is ~219) | package 5,376 → 1,741; `sync.go`, `role.go`, `stats.go` gone; 2,043 test lines across 3 files | 8 for `GetDB`, 7 for the advisor probe | +199 / −45 (net +154) across 14 product files and 4 test files |
 | mysql | 136 | 706 (450 core, 68 retained helpers, 155 legacy `*sql.DB` probe bridge, 33 synonyms) | 2,952 → 706 non-test; 5 driver files (2,196 lines); 3 test files, 2,163 lines, no longer compile | 17 files | +363 / −104 (net +259), plus 9 blank parser imports |
 | cassandra | 126 | 312 (one file) | 802 driver + 126 tests (928 lines, net −507) | **0** | **0 files.** `go.mod`'s pin replace and `ultimate.go`'s blank import are the only two lines outside the package |
-| mssql | 188 | 497 (359 `mssql.go`, 124 `query.go`, 14 `dump.go`) | 2,952 non-test (5 files); 40 test lines deleted, `mssql_test.go` 535 → 500 | 8 files (all `GetDB`; 3 test files touched only to compile) | +50 / −16 (net +34). No advisor seam, no plancheck change. Its `Dump` now renders through omni's catalog, so a filtered index keeps `WHERE ([amount] IS NOT NULL)` and the doubled `;` after a view definition is gone — 921 → 948 bytes on the same synced schema, a user-visible change no test pins yet |
+| mssql | 188 | 497 (359 `mssql.go`, 124 `query.go`, 14 `dump.go`) | 2,952 non-test (5 files); 40 test lines deleted, `mssql_test.go` 535 → 500 | 8 files (all `GetDB`; 3 test files touched only to compile) | +50 / −16 (net +34). No advisor seam, no plancheck change. Its `Dump` now renders through omni's catalog, so a filtered index keeps `WHERE ([amount] IS NOT NULL)` and the doubled `;` after a view definition is gone — 921 → 948 bytes on the same synced schema, a user-visible change no test pins yet — **superseded 2026-11-17 by #1391** (`8a34a4e4e`), which pins both in `mssql/driver/dump_test.go` and its corpus |
 | oracle | 143 | 390 (212 `oracle.go`, 139 `query.go`, 26 `sync.go`, 13 `dump.go`) + the same 120 shared conversion | package 2,672 → 390; 2,526 lines deleted; tests 1,435 → 843 | 12 files (+ 6 test files touched only to compile) | +243 / −36 (net +207) |
 | redis | 154 | 283 (one file, ~120 of it result conversion and probe dispatch) | `sync.go` 148 deleted, `redis.go` 373 → 283; package 521 → 283 non-test; tests 191 → 205 | **0** | **0 files.** The pin bump *is* the cutover: Bytebase's pin (`8851de182`) predates `redis/driver` (`9be754a6`), so the driver enters the dependency for the first time; the testcontainer image moves to `redis:7.4.12-alpine` |
 | spanner | 120 | 333 (one file, `spanner.go`: config mapping, result conversion, `executeLogger`) | `sync.go` 371 and `dump.go` 28 deleted; driver 1,127 → 333 (−70.5%), package 1,553 → 809; 314 test lines deleted, 2 live tests ported | **0** | **0 files.** `go.mod`'s replace is the only line outside the package. The server-DDL dump is byte-identical for both dialects, with and without the sync runner's metadata |
@@ -422,6 +422,12 @@ schema. Nobody wrote a rule that changed; the renderer did, so the only way to s
 same schema through both. No test pins it yet, which is worth saying plainly: a behaviour change
 that a user sees in a stored `raw_dump` and that the diff suite does not compare is the gap the next
 mssql pass should close first.
+
+**Superseded 2026-11-17 by #1391** (`8a34a4e4e`), which closed that gap: the corpus gained a
+filtered index with an `INCLUDE` list and a two-term predicate, and `TestDumpRestores` now asserts
+the predicate in the position SQL Server reported it and a view body ending in exactly one
+semicolon. The reason is the one above — both changes restore cleanly either way, so the round trip
+alone could not hold them.
 
 **spanner found one, of a second flavour: a library refusing a combination.** Pointing an instance
 that carries a stored Cloud credential at the emulator made the driver build a credential option and
