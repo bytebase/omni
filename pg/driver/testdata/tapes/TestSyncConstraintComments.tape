@@ -1007,6 +1007,24 @@
 < column "comment" "TEXT"
 > query
 |
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw

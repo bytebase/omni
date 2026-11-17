@@ -4,7 +4,7 @@
 > exec
 | CREATE EXTENSION postgres_fdw;
 | CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
-| CREATE TABLE public.pt (id integer) PARTITION BY RANGE (id);
+| CREATE TABLE public.pt (id integer CHECK (id > 0)) PARTITION BY RANGE (id);
 | CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)
 |     SERVER loopback OPTIONS (schema_name 'public', table_name 'x');
 < ok 0 -
@@ -374,6 +374,26 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| public
+: string
+| pt
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: null
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -1013,6 +1033,24 @@
 < column "comment" "TEXT"
 > query
 |
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+> query
+|
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
 | FROM pg_catalog.pg_foreign_server s
 | 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
@@ -1056,13 +1094,15 @@
 | SET default_tablespace = '';
 |
 | CREATE TABLE "public"."pt" (
-|     "id" integer
+|     "id" integer,
+|     CONSTRAINT "pt_id_check" CHECK (id > 0)
 | ) PARTITION BY RANGE (id);
 |
 | ALTER TABLE "public"."pt" OWNER TO "postgres";
 |
 | CREATE FOREIGN TABLE "public"."pt_remote" (
-|     "id" integer
+|     "id" integer,
+|     CONSTRAINT "pt_id_check" CHECK (id > 0)
 | ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'x');
 |
 | ALTER TABLE ONLY "public"."pt" ATTACH PARTITION "public"."pt_remote" FOR VALUES FROM (0) TO (10);
@@ -1446,6 +1486,26 @@
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
 < column "obj_description" "TEXT"
+< row
+: string
+| public
+: string
+| pt
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: null
+< row
+: string
+| public
+: string
+| pt_remote
+: string
+| pt_id_check
+: string
+| CHECK (id > 0)
+: null
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -2083,6 +2143,24 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT w.fdwname,
+| 	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+| 	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+| 	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_data_wrapper w
+| WHERE NOT EXISTS (
+| 	SELECT 1 FROM pg_catalog.pg_depend d
+| 	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+| 		AND d.objid = w.oid AND d.deptype = 'e'
+| )
+| ORDER BY w.fdwname;
+< result
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
+< column "coalesce" "TEXT"
 > query
 |
 | SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')

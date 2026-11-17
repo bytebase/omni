@@ -57,6 +57,32 @@ message DatabaseSchemaMetadata {
   // dump writes the server before the table. An engine that holds no foreign
   // server leaves it empty.
   repeated ForeignServerMetadata foreign_servers = 14;
+
+  // The foreign data wrappers the database declares itself (PostgreSQL CREATE
+  // FOREIGN DATA WRAPPER). A wrapper an extension provides is not in the list:
+  // the extension creates it. An engine that holds no foreign data wrapper
+  // leaves it empty.
+  repeated ForeignDataWrapperMetadata foreign_data_wrappers = 15;
+}
+
+// ForeignDataWrapperMetadata is a foreign data wrapper the database declares
+// itself: what a foreign server names as the code that reaches its data.
+message ForeignDataWrapperMetadata {
+  // The name of the foreign data wrapper.
+  string name = 1;
+
+  // The handler function the wrapper states, as PostgreSQL's
+  // pg_foreign_data_wrapper.fdwhandler names it. Empty when it declares none.
+  string handler = 2;
+
+  // The validator function the wrapper states, as PostgreSQL's
+  // pg_foreign_data_wrapper.fdwvalidator names it. Empty when it declares none.
+  string validator = 3;
+
+  // The wrapper's options as pg_foreign_data_wrapper.fdwoptions states them:
+  // each entry is "key=value", with the value unquoted. Empty when it declares
+  // none.
+  repeated string options = 4;
 }
 
 // ForeignServerMetadata is a foreign server (PostgreSQL CREATE SERVER): the

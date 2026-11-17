@@ -193,6 +193,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		return nil, fmt.Errorf("failed to get event triggers from database %q: %w", d.databaseName, err)
 	}
 
+	foreignDataWrappers, err := getForeignDataWrappers(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get foreign data wrappers from database %q: %w", d.databaseName, err)
+	}
+
 	foreignServers, err := getForeignServers(txn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get foreign servers from database %q: %w", d.databaseName, err)
@@ -237,6 +242,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	databaseMetadata.Extensions = extensions
 	databaseMetadata.EventTriggers = eventTriggers
+	databaseMetadata.ForeignDataWrappers = foreignDataWrappers
 	databaseMetadata.ForeignServers = foreignServers
 
 	return databaseMetadata, err
@@ -580,6 +586,51 @@ func getListForeignTableQuery() string {
 		JOIN pg_catalog.pg_foreign_server s ON s.oid = t.ftserver
 	WHERE c.relkind = 'f'
 	ORDER BY n.nspname, c.relname;`
+}
+
+// listForeignDataWrapperQuery reads the wrappers the database declares itself,
+// leaving out the ones an extension provides; the extension creates those.
+var listForeignDataWrapperQuery = `
+SELECT w.fdwname,
+	COALESCE(CASE WHEN w.fdwhandler = 0 THEN '' ELSE w.fdwhandler::regproc::text END, ''),
+	COALESCE(CASE WHEN w.fdwvalidator = 0 THEN '' ELSE w.fdwvalidator::regproc::text END, ''),
+	COALESCE(array_to_json(w.fdwoptions)::text, '[]')
+FROM pg_catalog.pg_foreign_data_wrapper w
+WHERE NOT EXISTS (
+	SELECT 1 FROM pg_catalog.pg_depend d
+	WHERE d.classid = 'pg_catalog.pg_foreign_data_wrapper'::regclass
+		AND d.objid = w.oid AND d.deptype = 'e'
+)
+ORDER BY w.fdwname;`
+
+func getForeignDataWrappers(txn *sql.Tx) ([]*metadatapb.ForeignDataWrapperMetadata, error) {
+	rows, err := txn.Query(listForeignDataWrapperQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var wrappers []*metadatapb.ForeignDataWrapperMetadata
+	for rows.Next() {
+		var name, handler, validator, optionsJSON string
+		if err := rows.Scan(&name, &handler, &validator, &optionsJSON); err != nil {
+			return nil, err
+		}
+		options, err := decodeOptionList(optionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("foreign data wrapper %q options: %w", name, err)
+		}
+		wrappers = append(wrappers, &metadatapb.ForeignDataWrapperMetadata{
+			Name:      name,
+			Handler:   handler,
+			Validator: validator,
+			Options:   options,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return wrappers, nil
 }
 
 // listForeignServerQuery reads a server's name, the wrapper it uses and its

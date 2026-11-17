@@ -80,6 +80,15 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 	}
 
+	// Construct the foreign data wrappers the database declares itself, before
+	// the servers that name them. An extension-provided wrapper is written by
+	// its extension above.
+	for _, wrapper := range metadata.ForeignDataWrappers {
+		if err := writeForeignDataWrapper(&buf, wrapper); err != nil {
+			return "", err
+		}
+	}
+
 	// Construct user-defined collations, before the columns that sort with
 	// them.
 	for _, schema := range metadata.Schemas {
@@ -294,7 +303,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			}
 		}
 		if externalTable, ok := foreignTableMap[objectID]; ok {
-			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable); err != nil {
+			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable, nil); err != nil {
 				return "", err
 			}
 		}
@@ -1434,7 +1443,29 @@ func signatureTypesOnly(signature string) string {
 // writeCollation writes a user-defined collation and its comment. The provider
 // decides which locale fields PostgreSQL takes: ICU and builtin take a locale,
 // libc takes the pair it sorts and classifies with.
-// writeForeignServer writes CREATE SERVER and the options the server states.
+// writeForeignDataWrapper writes CREATE FOREIGN DATA WRAPPER and the handler,
+// validator and options it states. It is written before the servers that use it.
+func writeForeignDataWrapper(out io.Writer, wrapper *metadatapb.ForeignDataWrapperMetadata) error {
+	if _, err := fmt.Fprintf(out, "CREATE FOREIGN DATA WRAPPER \"%s\"", escapeIdentifier(wrapper.Name)); err != nil {
+		return err
+	}
+	if wrapper.Handler != "" {
+		if _, err := fmt.Fprintf(out, " HANDLER %s", wrapper.Handler); err != nil {
+			return err
+		}
+	}
+	if wrapper.Validator != "" {
+		if _, err := fmt.Fprintf(out, " VALIDATOR %s", wrapper.Validator); err != nil {
+			return err
+		}
+	}
+	if err := writeForeignOptions(out, wrapper.Options); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
 // It is written after extensions, which provide the wrapper, and before every
 // foreign table that names it.
 func writeForeignServer(out io.Writer, server *metadatapb.ForeignServerMetadata) error {
@@ -1449,9 +1480,10 @@ func writeForeignServer(out io.Writer, server *metadatapb.ForeignServerMetadata)
 	return err
 }
 
-// writeForeignTable writes CREATE FOREIGN TABLE with the columns the sync read
-// and the options the table states itself. The server must already exist.
-func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalTableMetadata) error {
+// writeForeignTable writes CREATE FOREIGN TABLE with the columns the sync read,
+// any check constraints a partition carries, and the options the table states
+// itself. The server must already exist.
+func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalTableMetadata, checks []*metadatapb.CheckConstraintMetadata) error {
 	if _, err := fmt.Fprintf(out, "CREATE FOREIGN TABLE \"%s\".\"%s\" (",
 		escapeIdentifier(schema), escapeIdentifier(table.Name)); err != nil {
 		return err
@@ -1465,6 +1497,11 @@ func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalT
 			return err
 		}
 		if err := writeColumnDefinition(out, column); err != nil {
+			return err
+		}
+	}
+	for _, check := range checks {
+		if _, err := fmt.Fprintf(out, ",\n    CONSTRAINT \"%s\" CHECK %s", escapeIdentifier(check.Name), check.Expression); err != nil {
 			return err
 		}
 	}
@@ -2567,7 +2604,7 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 	for _, partition := range table.Partitions {
 		partitionSchema := partitionSchemaName(schema, partition)
 		if externalTable, ok := externalTables[getObjectID(partitionSchema, partition.Name)]; ok {
-			if err := writeForeignTable(out, partitionSchema, externalTable); err != nil {
+			if err := writeForeignTable(out, partitionSchema, externalTable, partition.CheckConstraints); err != nil {
 				return err
 			}
 			continue
@@ -3246,7 +3283,7 @@ func writePartitionTable(out io.Writer, parentSchema string, columns []*metadata
 	for _, subpartition := range partition.Subpartitions {
 		subpartitionSchema := partitionSchemaName(schema, subpartition)
 		if externalTable, ok := externalTables[getObjectID(subpartitionSchema, subpartition.Name)]; ok {
-			if err := writeForeignTable(out, subpartitionSchema, externalTable); err != nil {
+			if err := writeForeignTable(out, subpartitionSchema, externalTable, subpartition.CheckConstraints); err != nil {
 				return err
 			}
 			continue

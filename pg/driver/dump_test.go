@@ -151,10 +151,26 @@ func TestDumpRestoresForeignTableDefaults(t *testing.T) {
 func TestDumpRestoresForeignPartition(t *testing.T) {
 	setup := "CREATE EXTENSION postgres_fdw;\n" +
 		"CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
-		"CREATE TABLE public.pt (id integer) PARTITION BY RANGE (id);\n" +
+		"CREATE TABLE public.pt (id integer CHECK (id > 0)) PARTITION BY RANGE (id);\n" +
 		"CREATE FOREIGN TABLE public.pt_remote PARTITION OF public.pt FOR VALUES FROM (0) TO (10)\n" +
 		"    SERVER loopback OPTIONS (schema_name 'public', table_name 'x');"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_partition", setup)
+	if diff := restoreDiff(source, restored); diff != "" {
+		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
+	}
+}
+
+// TestDumpRestoresForeignDataWrapper checks that a wrapper the database
+// declares itself is written before the server that names it, with its handler,
+// validator and options.
+func TestDumpRestoresForeignDataWrapper(t *testing.T) {
+	setup := "CREATE EXTENSION postgres_fdw;\n" +
+		"CREATE FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE SERVER bare_server FOREIGN DATA WRAPPER bare_fdw;\n" +
+		"CREATE FOREIGN DATA WRAPPER handled_fdw HANDLER postgres_fdw_handler VALIDATOR postgres_fdw_validator;\n" +
+		"CREATE SERVER handled_server FOREIGN DATA WRAPPER handled_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
+		"CREATE FOREIGN TABLE public.handled_remote (id integer) SERVER handled_server OPTIONS (schema_name 'public', table_name 'x');"
+	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_wrapper", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)
 	}
