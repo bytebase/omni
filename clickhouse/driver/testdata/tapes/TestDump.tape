@@ -612,3 +612,771 @@
 |     ` omni_testdump.a_mv_dict_table `.id,
 |     'm' AS name
 | FROM omni_testdump.src AS ` omni_testdump.a_mv_dict_table `
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.a_after TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'y' AS name
+| FROM omni_testdump.`nl\nmv`
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump a_after (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier a_after
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Literal 'y' (alias name)
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.nl
+< row
+: string
+| mv
+< row
+: string
+|  ViewTargets
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.a_dict TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'z' AS name
+| FROM omni_testdump.dict_table
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump a_dict (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier a_dict
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Literal 'z' (alias name)
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.dict_table
+< row
+: string
+|  ViewTargets
+> query
+| EXPLAIN AST CREATE VIEW omni_testdump.a_first
+| (
+|     `id` UInt64
+| )
+| AS SELECT id
+| FROM omni_testdump.v_names
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump a_first (children 4)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier a_first
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 1)
+< row
+: string
+|      Identifier id
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.v_names
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.a_top TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     name
+| FROM omni_testdump.v_bridge
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump a_top (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier a_top
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Identifier name
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.v_bridge
+< row
+: string
+|  ViewTargets
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.mv_base TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'omni_testdump.a_top' AS name
+| FROM omni_testdump.src
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump mv_base (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier mv_base
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Literal 'omni_testdump.a_top' (alias name)
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.src
+< row
+: string
+|  ViewTargets
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.mv_own
+| (
+|     `id` UInt64
+| )
+| ENGINE = MergeTree
+| ORDER BY id
+| SETTINGS index_granularity = 8192
+| AS SELECT id
+| FROM omni_testdump.src
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump mv_own (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier mv_own
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 1)
+< row
+: string
+|      Identifier id
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.src
+< row
+: string
+|  ViewTargets (children 1)
+< row
+: string
+|   Storage definition (children 3)
+< row
+: string
+|    Function MergeTree
+< row
+: string
+|    Identifier id
+< row
+: string
+|    Set
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.`nl\nmv` TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'x' AS name
+| FROM omni_testdump.src
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump nl
+< row
+: string
+| mv (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier nl
+< row
+: string
+| mv
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Literal 'x' (alias name)
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.src
+< row
+: string
+|  ViewTargets
+> query
+| EXPLAIN AST CREATE VIEW omni_testdump.v_bridge
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     name
+| FROM omni_testdump.mv_base
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump v_bridge (children 4)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier v_bridge
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Identifier name
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.mv_base
+> query
+| EXPLAIN AST CREATE VIEW omni_testdump.v_names
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     name
+| FROM omni_testdump.src
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump v_names (children 4)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier v_names
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier id
+< row
+: string
+|      Identifier name
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.src
+> query
+| EXPLAIN AST CREATE VIEW omni_testdump.v_source
+| (
+|     `id` UInt64
+| )
+| AS SELECT id
+| FROM omni_testdump.src
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump v_source (children 4)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier v_source
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 1)
+< row
+: string
+|      Identifier id
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.src
+> query
+| EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdump.z_src_mv TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     ` omni_testdump.a_mv_dict_table `.id,
+|     'm' AS name
+| FROM omni_testdump.src AS ` omni_testdump.a_mv_dict_table `
+< result
+< column "explain" "String" "string"
+< row
+: string
+| CreateQuery omni_testdump z_src_mv (children 5)
+< row
+: string
+|  Identifier omni_testdump
+< row
+: string
+|  Identifier z_src_mv
+< row
+: string
+|  Columns definition (children 1)
+< row
+: string
+|   ExpressionList (children 2)
+< row
+: string
+|    ColumnDeclaration id (children 1)
+< row
+: string
+|     DataType UInt64
+< row
+: string
+|    ColumnDeclaration name (children 1)
+< row
+: string
+|     DataType String
+< row
+: string
+|  SelectWithUnionQuery (children 1)
+< row
+: string
+|   ExpressionList (children 1)
+< row
+: string
+|    SelectQuery (children 2)
+< row
+: string
+|     ExpressionList (children 2)
+< row
+: string
+|      Identifier  omni_testdump.a_mv_dict_table .id
+< row
+: string
+|      Literal 'm' (alias name)
+< row
+: string
+|     TablesInSelectQuery (children 1)
+< row
+: string
+|      TablesInSelectQueryElement (children 1)
+< row
+: string
+|       TableExpression (children 1)
+< row
+: string
+|        TableIdentifier omni_testdump.src (alias  omni_testdump.a_mv_dict_table )
+< row
+: string
+|  ViewTargets

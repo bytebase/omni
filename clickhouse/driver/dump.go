@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"io"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -131,7 +130,11 @@ func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database strin
 			o.reads = dumpDictionaryTableReads(o, byName)
 			continue
 		}
-		o.reads = dumpReads(o, database, definitions)
+		reads, err := d.dumpReads(ctx, conn, database, o, definitions)
+		if err != nil {
+			return nil, err
+		}
+		o.reads = reads
 	}
 	for _, o := range objects {
 		if o.kind == dumpMaterializedView || o.kind == dumpDictionaryTable {
@@ -269,46 +272,73 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 	return sorted
 }
 
-// dumpReads returns the other definitions in definitions that o reads.
-// ClickHouse's rendering names every table a statement reads with its database,
-// so one is found by the qualified spelling the dump would use for it, and o's
-// own name in its CREATE statement is not a read.
-func dumpReads(o *dumpObject, database string, definitions map[string]*dumpObject) []string {
+// dumpReads returns the other definitions in definitions that o reads, as the
+// server parses o's statement: EXPLAIN AST renders every table a statement names
+// after the marker TableIdentifier, so a name inside a string literal, a column
+// or an alias is not a read, and neither is a name that merely starts another.
+func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database string, o *dumpObject, definitions map[string]*dumpObject) ([]string, error) {
+	query := "EXPLAIN AST " + o.stmt
+	rows, err := conn.QueryContext(ctx, query)
+	if err != nil {
+		return nil, formatErrorWithQuery(err, query)
+	}
+	defer rows.Close()
+	var ast strings.Builder
+	for rows.Next() {
+		var line string
+		if err := rows.Scan(&line); err != nil {
+			return nil, formatErrorWithQuery(err, query)
+		}
+		ast.WriteString(line)
+		ast.WriteString("\n")
+	}
+	if err := rows.Err(); err != nil {
+		return nil, formatErrorWithQuery(err, query)
+	}
+
 	var reads []string
 	for name := range definitions {
-		if name != o.name && dumpReferences(o.stmt, database, name) {
+		if name != o.name && dumpASTNames(ast.String(), "TableIdentifier "+database+"."+name) {
 			reads = append(reads, name)
 		}
 	}
 	sort.Strings(reads)
-	return reads
+	return reads, nil
 }
 
-// dumpDictionaryEngine matches the dictionary a table on the Dictionary engine
-// reads, which the server states as ENGINE = Dictionary('<database>.<name>').
-var dumpDictionaryEngine = regexp.MustCompile(`ENGINE = Dictionary\('([^']+)'\)`)
+// dumpASTNames reports whether the AST names reference, which the rendering ends
+// with a line break, or with the space before an alias.
+func dumpASTNames(ast, reference string) bool {
+	for offset := 0; offset < len(ast); {
+		start := strings.Index(ast[offset:], reference)
+		if start < 0 {
+			return false
+		}
+		end := start + offset + len(reference)
+		if end == len(ast) || ast[end] == '\n' || ast[end] == ' ' {
+			return true
+		}
+		offset = end
+	}
+	return false
+}
 
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
 // reads: creating the table loads the dictionary, and the dictionary reads its
 // source, which may be a table, a view or a materialized view of this database.
-// Both are stated as string literals — the table's ENGINE clause and the
-// dictionary's SOURCE — so the names come from those literals.
+// The server states the dictionary in the table's ENGINE clause and the source in
+// the dictionary's SOURCE, both as string literals.
 func dumpDictionaryTableReads(o *dumpObject, byName map[string]*dumpObject) []string {
-	engine := dumpDictionaryEngine.FindStringSubmatch(o.stmt)
-	if engine == nil {
-		return nil
-	}
-	dictionary := byName[dumpQualifiedName(engine[1])]
-	if dictionary == nil {
-		return nil
-	}
 	seen := make(map[string]bool, len(byName))
-	for _, literal := range dumpLiterals(dictionary.stmt) {
-		name := dumpQualifiedName(literal)
-		if name != o.name && byName[name] != nil {
-			seen[name] = true
+	for _, name := range dumpNamedLiterals(o.stmt, byName) {
+		seen[name] = true
+		if dictionary := byName[name]; dictionary != nil {
+			for _, source := range dumpNamedLiterals(dictionary.stmt, byName) {
+				seen[source] = true
+			}
 		}
 	}
+	delete(seen, o.name)
 	reads := make([]string, 0, len(seen))
 	for name := range seen {
 		reads = append(reads, name)
@@ -317,15 +347,20 @@ func dumpDictionaryTableReads(o *dumpObject, byName map[string]*dumpObject) []st
 	return reads
 }
 
-// dumpQualifiedName returns the object part of a name the server states, which
-// may be qualified with its database.
-func dumpQualifiedName(qualified string) string {
-	return qualified[strings.LastIndex(qualified, ".")+1:]
+// dumpNamedLiterals returns the objects of byName that stmt names as a string
+// literal, with or without their database.
+func dumpNamedLiterals(stmt string, byName map[string]*dumpObject) []string {
+	var names []string
+	for _, literal := range dumpLiterals(stmt) {
+		if name := literal[strings.LastIndex(literal, ".")+1:]; byName[name] != nil {
+			names = append(names, name)
+		}
+	}
+	return names
 }
 
 // dumpLiterals returns the contents of the single-quoted strings in stmt, with a
-// backslash escape resolved, which is how a dictionary states its source and a
-// table states the dictionary it reads.
+// backslash escape resolved.
 func dumpLiterals(stmt string) []string {
 	var literals []string
 	var text strings.Builder
@@ -372,73 +407,6 @@ func dumpExpandedReads(o *dumpObject, definitions map[string]*dumpObject) []stri
 	}
 	sort.Strings(expanded)
 	return expanded
-}
-
-// dumpReferences reports whether stmt names database.name outside a string
-// literal, and not as the tail of a longer identifier. A reference inside a
-// literal is not a read: an edge it added could close a cycle and make the order
-// fall back to names.
-func dumpReferences(stmt, database, name string) bool {
-	// ClickHouse writes each part of a reference bare where it can and in
-	// backquotes where it must — and in backquotes for the keywords it quotes
-	// anyway — so every spelling is looked for.
-	for _, db := range []string{database, dumpIdentifier(database)} {
-		for _, object := range []string{name, dumpIdentifier(name)} {
-			if dumpNamesUnquoted(stmt, db+"."+object) {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-// dumpNamesUnquoted reports whether stmt holds reference outside a quote, and not
-// as the tail of a longer identifier.
-func dumpNamesUnquoted(stmt, reference string) bool {
-	for offset := 0; offset < len(stmt); {
-		start := strings.Index(stmt[offset:], reference)
-		if start < 0 {
-			return false
-		}
-		start += offset
-		end := start + len(reference)
-		if !dumpReferenceRune(stmt, start-1) && !dumpReferenceRune(stmt, end) && dumpQuoted(stmt, start) == 0 {
-			return true
-		}
-		offset = end
-	}
-	return false
-}
-
-// dumpReferenceRune reports whether the byte at i continues an identifier or a
-// qualified name, so a match beside it is part of a longer one.
-func dumpReferenceRune(s string, i int) bool {
-	if i < 0 || i >= len(s) {
-		return false
-	}
-	c := s[i]
-	return c == '_' || c == '$' || c == '.' || c == '`' ||
-		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
-}
-
-// dumpQuoted returns the quote the byte at want is inside, and 0 when it is not
-// quoted: ClickHouse's rendering escapes a quote inside a string or a name with a
-// backslash, writes a string in single quotes, and writes a name in backquotes or
-// double quotes. A reference inside either is not one: inside a string it is
-// text, and inside a name it is part of that name.
-func dumpQuoted(stmt string, want int) byte {
-	quote := byte(0)
-	for i := 0; i < want && i < len(stmt); i++ {
-		switch c := stmt[i]; {
-		case quote == 0 && (c == '\'' || c == '`' || c == '"'):
-			quote = c
-		case quote != 0 && c == '\\':
-			i++
-		case quote != 0 && c == quote:
-			quote = 0
-		}
-	}
-	return quote
 }
 
 // dumpIdentifier writes name in backquotes, with the escapes ClickHouse writes
