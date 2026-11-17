@@ -31,12 +31,12 @@
 : string
 | omni_fk_local
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 < row
 : bytes
 | child
@@ -92,8 +92,8 @@
 : string
 | omni_fk_local
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"

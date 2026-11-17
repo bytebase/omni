@@ -15,11 +15,11 @@ import (
 	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
-	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/stdlib"
 
+	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 	"github.com/bytebase/omni/driver"
 	omnipg "github.com/bytebase/omni/pg"
 	pganalysis "github.com/bytebase/omni/pg/analysis"
@@ -172,7 +172,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 // readOnly is Bytebase's editor question and comes from the PostgreSQL
 // grammar when that grammar accepts the statement.
 func validateQuery(statement string) (readOnly, returnsData bool, err error) {
-	parsed, err := crrawparser.Parse(statement)
+	parsed, err := crrawanalysis.Parse(statement)
 	if err != nil {
 		return false, false, err
 	}
@@ -198,7 +198,7 @@ func validateQuery(statement string) (readOnly, returnsData bool, err error) {
 // describeExplain reports a directly submitted EXPLAIN's format and whether
 // it executed the statement it plans.
 func describeExplain(statement string) (format string, executed bool, ok bool) {
-	parsed, err := crrawparser.Parse(statement)
+	parsed, err := crrawanalysis.Parse(statement)
 	if err != nil || len(parsed) != 1 {
 		return "", false, false
 	}
@@ -225,7 +225,7 @@ func statementWithResultLimit(statement string, limit int) string {
 	// The PostgreSQL grammar cannot rewrite CockroachDB's native statements
 	// such as SHOW; a CTE wrapper would not be valid there either, so leave
 	// everything but a SELECT unchanged.
-	parsed, err := crrawparser.Parse(statement)
+	parsed, err := crrawanalysis.Parse(statement)
 	if err != nil || len(parsed) != 1 {
 		return statement
 	}

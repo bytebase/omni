@@ -4,13 +4,9 @@ import (
 	"strings"
 	"unicode"
 
-	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
+	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
-	// Registers parser.ParseDoBlockFn; without it the SQL parser panics on a DO block.
-	_ "github.com/cockroachdb/cockroachdb-parser/pkg/sql/plpgsql/parser"
-
-	omnipg "github.com/bytebase/omni/pg"
-	"github.com/bytebase/omni/pg/ast"
+	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 )
 
 // sqlStatement is one statement of a script with its text and byte offsets.
@@ -27,7 +23,7 @@ type sqlStatement struct {
 // written on each statement.
 func splitStatements(script string) ([]sqlStatement, error) {
 	trimmed := strings.TrimRightFunc(script, isSpaceOrSemicolon) + ";"
-	parsed, err := crrawparser.Parse(trimmed)
+	parsed, err := crrawanalysis.Parse(trimmed)
 	if err != nil {
 		return nil, err
 	}
@@ -70,13 +66,10 @@ func isSpaceOrSemicolon(r rune) bool {
 // isPlSQLBlock reports whether stmt is a PL/pgSQL anonymous code block (DO
 // statement). Bytebase runs one as a single statement outside a transaction.
 func isPlSQLBlock(stmt string) bool {
-	stmts, err := omnipg.Parse(stmt)
-	if err != nil {
+	stmts, err := crrawanalysis.Parse(stmt)
+	if err != nil || len(stmts) != 1 {
 		return false
 	}
-	if len(stmts) != 1 {
-		return false
-	}
-	_, ok := stmts[0].AST.(*ast.DoStmt)
+	_, ok := stmts[0].AST.(*crrawparsertree.DoBlock)
 	return ok
 }

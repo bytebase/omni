@@ -7,15 +7,15 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 11.8.8-MariaDB-ubu2404
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
-< column "Value" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
+< column "Value" "VARCHAR" "string"
 < row
 : bytes
 | lower_case_table_names
@@ -32,8 +32,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "User" "CHAR"
-< column "Host" "CHAR"
+< column "User" "CHAR" "string"
+< column "Host" "CHAR" "string"
 < row
 : bytes
 | mariadb.sys
@@ -57,7 +57,7 @@
 > query
 | SHOW GRANTS FOR 'mariadb.sys'@'localhost'
 < result
-< column "Grants for mariadb.sys@localhost" "VARCHAR"
+< column "Grants for mariadb.sys@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `mariadb.sys`@`localhost`
@@ -67,7 +67,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`%` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -77,7 +77,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -87,7 +87,7 @@
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'
@@ -104,9 +104,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_inst_db
@@ -126,15 +126,15 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 10.11.19-MariaDB-ubu2204
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
-< column "Value" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
+< column "Value" "VARCHAR" "string"
 < row
 : bytes
 | lower_case_table_names
@@ -151,8 +151,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "User" "CHAR"
-< column "Host" "CHAR"
+< column "User" "CHAR" "string"
+< column "Host" "CHAR" "string"
 < row
 : bytes
 | mariadb.sys
@@ -176,7 +176,7 @@
 > query
 | SHOW GRANTS FOR 'mariadb.sys'@'localhost'
 < result
-< column "Grants for mariadb.sys@localhost" "VARCHAR"
+< column "Grants for mariadb.sys@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `mariadb.sys`@`localhost`
@@ -186,7 +186,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`%` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -196,7 +196,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -206,7 +206,7 @@
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'
@@ -223,9 +223,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_inst_db
@@ -245,15 +245,15 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 10.7.8-MariaDB-1:10.7.8+maria~ubu2004
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
-< column "Value" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
+< column "Value" "VARCHAR" "string"
 < row
 : bytes
 | lower_case_table_names
@@ -270,8 +270,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "User" "CHAR"
-< column "Host" "CHAR"
+< column "User" "CHAR" "string"
+< column "Host" "CHAR" "string"
 < row
 : bytes
 | mariadb.sys
@@ -295,7 +295,7 @@
 > query
 | SHOW GRANTS FOR 'mariadb.sys'@'localhost'
 < result
-< column "Grants for mariadb.sys@localhost" "VARCHAR"
+< column "Grants for mariadb.sys@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `mariadb.sys`@`localhost`
@@ -305,14 +305,14 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`%` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -322,7 +322,7 @@
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'
@@ -339,9 +339,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_inst_db
@@ -361,15 +361,15 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 11.4.13-MariaDB-ubu2404
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
-< column "Value" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
+< column "Value" "VARCHAR" "string"
 < row
 : bytes
 | lower_case_table_names
@@ -386,8 +386,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "User" "CHAR"
-< column "Host" "CHAR"
+< column "User" "CHAR" "string"
+< column "Host" "CHAR" "string"
 < row
 : bytes
 | mariadb.sys
@@ -411,7 +411,7 @@
 > query
 | SHOW GRANTS FOR 'mariadb.sys'@'localhost'
 < result
-< column "Grants for mariadb.sys@localhost" "VARCHAR"
+< column "Grants for mariadb.sys@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `mariadb.sys`@`localhost`
@@ -421,7 +421,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`%` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -431,7 +431,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT ALL PRIVILEGES ON *.* TO `root`@`localhost` IDENTIFIED BY PASSWORD '*94BDCEBE19083CE2A1F959FD02F964C7AF4CFC29' WITH GRANT OPTION
@@ -441,7 +441,7 @@
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%` IDENTIFIED BY PASSWORD '*0EB931DD0E0457476ABFBD89F6B34EA17B7C84C5'
@@ -458,9 +458,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_inst_db

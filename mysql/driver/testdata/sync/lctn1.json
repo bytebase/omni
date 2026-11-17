@@ -1,656 +1,662 @@
 {
-  "name": "omni_sync_corpus",
-  "schemas": [
+  "name":  "omni_sync_corpus",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "accounts",
-          "columns": [
+          "name":  "accounts",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "default": "AUTO_INCREMENT",
-              "type": "bigint"
+              "name":  "id",
+              "position":  1,
+              "default":  "AUTO_INCREMENT",
+              "type":  "bigint"
             },
             {
-              "name": "email",
-              "position": 2,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci"
+              "name":  "email",
+              "position":  2,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci"
             },
             {
-              "name": "bio",
-              "position": 3,
-              "default": "NULL",
-              "nullable": true,
-              "type": "text",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci"
+              "name":  "bio",
+              "position":  3,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "text",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci"
             },
             {
-              "name": "status",
-              "position": 4,
-              "default": "'open'",
-              "type": "enum('open','closed')",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci"
+              "name":  "status",
+              "position":  4,
+              "default":  "'open'",
+              "type":  "enum('open','closed')",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci"
             },
             {
-              "name": "flags",
-              "position": 5,
-              "default": "'alpha'",
-              "nullable": true,
-              "type": "set('alpha','beta')",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci"
+              "name":  "flags",
+              "position":  5,
+              "default":  "'alpha'",
+              "nullable":  true,
+              "type":  "set('alpha','beta')",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci"
             },
             {
-              "name": "balance",
-              "position": 6,
-              "default": "'0.0000'",
-              "type": "decimal(12,4)"
+              "name":  "balance",
+              "position":  6,
+              "default":  "'0.0000'",
+              "type":  "decimal(12,4)"
             },
             {
-              "name": "raw_token",
-              "position": 7,
-              "default": "'ab'",
-              "type": "binary(8)"
+              "name":  "raw_token",
+              "position":  7,
+              "default":  "'ab'",
+              "type":  "binary(8)"
             },
             {
-              "name": "raw_bytes",
-              "position": 8,
-              "default": "0x01",
-              "type": "varbinary(16)"
+              "name":  "raw_bytes",
+              "position":  8,
+              "default":  "0x01",
+              "type":  "varbinary(16)"
             },
             {
-              "name": "secret_code",
-              "position": 9,
-              "default": "'hidden'",
-              "nullable": true,
-              "type": "varchar(32)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci",
-              "isInvisible": true
+              "name":  "secret_code",
+              "position":  9,
+              "default":  "'hidden'",
+              "nullable":  true,
+              "type":  "varchar(32)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci",
+              "isInvisible":  true
             },
             {
-              "name": "meta",
-              "position": 10,
-              "default": "NULL",
-              "nullable": true,
-              "type": "json"
+              "name":  "meta",
+              "position":  10,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "json"
             },
             {
-              "name": "coords",
-              "position": 11,
-              "type": "point",
-              "srid": 4326
+              "name":  "coords",
+              "position":  11,
+              "type":  "point",
+              "srid":  4326
             },
             {
-              "name": "geom",
-              "position": 12,
-              "default": "NULL",
-              "nullable": true,
-              "type": "geometry",
-              "srid": 0
+              "name":  "geom",
+              "position":  12,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "geometry",
+              "srid":  0
             },
             {
-              "name": "email_lower",
-              "position": 13,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci",
-              "generation": {
-                "type": "TYPE_VIRTUAL",
-                "expression": "lower(`email`)"
+              "name":  "email_lower",
+              "position":  13,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci",
+              "generation":  {
+                "type":  "TYPE_VIRTUAL",
+                "expression":  "lower(`email`)"
               }
             },
             {
-              "name": "display_tag",
-              "position": 14,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(220)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci",
-              "generation": {
-                "type": "TYPE_STORED",
-                "expression": "concat(`email`,_utf8mb4':',_utf8mb4'v1')"
+              "name":  "display_tag",
+              "position":  14,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(220)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci",
+              "generation":  {
+                "type":  "TYPE_STORED",
+                "expression":  "concat(`email`,_utf8mb4':',_utf8mb4'v1')"
               }
             },
             {
-              "name": "external_id",
-              "position": 15,
-              "default": "(uuid())",
-              "nullable": true,
-              "type": "varchar(36)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci"
+              "name":  "external_id",
+              "position":  15,
+              "default":  "(uuid())",
+              "nullable":  true,
+              "type":  "varchar(36)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci"
             },
             {
-              "name": "created_at",
-              "position": 16,
-              "default": "CURRENT_TIMESTAMP",
-              "type": "datetime"
+              "name":  "created_at",
+              "position":  16,
+              "default":  "CURRENT_TIMESTAMP",
+              "type":  "datetime"
             },
             {
-              "name": "updated_at",
-              "position": 17,
-              "default": "CURRENT_TIMESTAMP(6)",
-              "onUpdate": "CURRENT_TIMESTAMP(6)",
-              "type": "datetime(6)"
+              "name":  "updated_at",
+              "position":  17,
+              "default":  "CURRENT_TIMESTAMP(6)",
+              "onUpdate":  "CURRENT_TIMESTAMP(6)",
+              "type":  "datetime(6)"
             },
             {
-              "name": "note",
-              "position": 18,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(100)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci",
-              "comment": "owner\\'s note \\\\ path"
+              "name":  "note",
+              "position":  18,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(100)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci",
+              "comment":  "owner\\'s note \\\\ path"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY",
-              "expressions": [
+              "name":  "PRIMARY",
+              "expressions":  [
                 "id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "primary": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
             },
             {
-              "name": "ft_bio",
-              "expressions": [
+              "name":  "ft_bio",
+              "expressions":  [
                 "bio"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "FULLTEXT",
-              "visible": true
+              "type":  "FULLTEXT",
+              "visible":  true
             },
             {
-              "name": "idx_bio_prefix",
-              "expressions": [
+              "name":  "idx_bio_prefix",
+              "expressions":  [
                 "bio"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "32"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             },
             {
-              "name": "idx_created_desc",
-              "expressions": [
+              "name":  "idx_created_desc",
+              "expressions":  [
                 "created_at"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 true
               ],
-              "type": "BTREE",
-              "visible": true,
-              "comment": "newest first"
+              "type":  "BTREE",
+              "visible":  true,
+              "comment":  "newest first"
             },
             {
-              "name": "idx_expr",
-              "expressions": [
+              "name":  "idx_expr",
+              "expressions":  [
                 "(lower(`status`))"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             },
             {
-              "name": "idx_invisible",
-              "expressions": [
+              "name":  "idx_invisible",
+              "expressions":  [
                 "status"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE"
+              "type":  "BTREE"
             },
             {
-              "name": "sp_coords",
-              "expressions": [
+              "name":  "sp_coords",
+              "expressions":  [
                 "coords"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "32"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "SPATIAL",
-              "visible": true
+              "type":  "SPATIAL",
+              "visible":  true
             },
             {
-              "name": "uk_email",
-              "expressions": [
+              "name":  "uk_email",
+              "expressions":  [
                 "email"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_0900_ai_ci",
-          "charset": "utf8mb4",
-          "dataSize": "16384",
-          "indexSize": "131072",
-          "comment": "customer\\'s accounts",
-          "checkConstraints": [
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_0900_ai_ci",
+          "charset":  "utf8mb4",
+          "dataSize":  "16384",
+          "indexSize":  "131072",
+          "comment":  "customer\\'s accounts",
+          "checkConstraints":  [
             {
-              "name": "chk_balance",
-              "expression": "((`balance` >= 0) and (`status` in (_utf8mb4'open',_utf8mb4'closed')))"
+              "name":  "chk_balance",
+              "expression":  "((`balance` >= 0) and (`status` in (_utf8mb4'open',_utf8mb4'closed')))"
             }
           ]
         },
         {
-          "name": "metrics_hash",
-          "columns": [
+          "name":  "metrics_hash",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "type": "int"
+              "name":  "id",
+              "position":  1,
+              "type":  "int"
             },
             {
-              "name": "val",
-              "position": 2,
-              "type": "int"
+              "name":  "val",
+              "position":  2,
+              "type":  "int"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY",
-              "expressions": [
+              "name":  "PRIMARY",
+              "expressions":  [
                 "id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "primary": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_0900_ai_ci",
-          "charset": "utf8mb4",
-          "dataSize": "65536",
-          "createOptions": "partitioned",
-          "partitions": [
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_0900_ai_ci",
+          "charset":  "utf8mb4",
+          "dataSize":  "65536",
+          "createOptions":  "partitioned",
+          "partitions":  [
             {
-              "name": "p0",
-              "type": "HASH",
-              "expression": "`id`",
-              "useDefault": "4"
+              "name":  "p0",
+              "type":  "HASH",
+              "expression":  "`id`",
+              "useDefault":  "4"
             },
             {
-              "name": "p1",
-              "type": "HASH",
-              "expression": "`id`",
-              "useDefault": "4"
+              "name":  "p1",
+              "type":  "HASH",
+              "expression":  "`id`",
+              "useDefault":  "4"
             },
             {
-              "name": "p2",
-              "type": "HASH",
-              "expression": "`id`",
-              "useDefault": "4"
+              "name":  "p2",
+              "type":  "HASH",
+              "expression":  "`id`",
+              "useDefault":  "4"
             },
             {
-              "name": "p3",
-              "type": "HASH",
-              "expression": "`id`",
-              "useDefault": "4"
+              "name":  "p3",
+              "type":  "HASH",
+              "expression":  "`id`",
+              "useDefault":  "4"
             }
           ]
         },
         {
-          "name": "metrics_range",
-          "columns": [
+          "name":  "metrics_range",
+          "columns":  [
             {
-              "name": "ts",
-              "position": 1,
-              "type": "int"
+              "name":  "ts",
+              "position":  1,
+              "type":  "int"
             },
             {
-              "name": "region",
-              "position": 2,
-              "type": "int"
+              "name":  "region",
+              "position":  2,
+              "type":  "int"
             },
             {
-              "name": "val",
-              "position": 3,
-              "type": "bigint"
+              "name":  "val",
+              "position":  3,
+              "type":  "bigint"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY",
-              "expressions": [
+              "name":  "PRIMARY",
+              "expressions":  [
                 "ts",
                 "region"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1",
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false,
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "primary": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_0900_ai_ci",
-          "charset": "utf8mb4",
-          "dataSize": "65536",
-          "createOptions": "partitioned",
-          "partitions": [
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_0900_ai_ci",
+          "charset":  "utf8mb4",
+          "dataSize":  "65536",
+          "createOptions":  "partitioned",
+          "partitions":  [
             {
-              "name": "p0",
-              "type": "RANGE",
-              "expression": "`ts`",
-              "value": "100",
-              "subpartitions": [
+              "name":  "p0",
+              "type":  "RANGE",
+              "expression":  "`ts`",
+              "value":  "100",
+              "subpartitions":  [
                 {
-                  "name": "p0sp0",
-                  "type": "HASH",
-                  "expression": "`region`",
-                  "useDefault": "2"
+                  "name":  "p0sp0",
+                  "type":  "HASH",
+                  "expression":  "`region`",
+                  "useDefault":  "2",
+                  "comment":  "first"
                 },
                 {
-                  "name": "p0sp1",
-                  "type": "HASH",
-                  "expression": "`region`",
-                  "useDefault": "2"
+                  "name":  "p0sp1",
+                  "type":  "HASH",
+                  "expression":  "`region`",
+                  "useDefault":  "2",
+                  "comment":  "first"
                 }
-              ]
+              ],
+              "comment":  "first"
             },
             {
-              "name": "p1",
-              "type": "RANGE",
-              "expression": "`ts`",
-              "value": "MAXVALUE",
-              "subpartitions": [
+              "name":  "p1",
+              "type":  "RANGE",
+              "expression":  "`ts`",
+              "value":  "MAXVALUE",
+              "subpartitions":  [
                 {
-                  "name": "p1sp0",
-                  "type": "HASH",
-                  "expression": "`region`",
-                  "useDefault": "2"
+                  "name":  "p1sp0",
+                  "type":  "HASH",
+                  "expression":  "`region`",
+                  "useDefault":  "2",
+                  "comment":  "last"
                 },
                 {
-                  "name": "p1sp1",
-                  "type": "HASH",
-                  "expression": "`region`",
-                  "useDefault": "2"
+                  "name":  "p1sp1",
+                  "type":  "HASH",
+                  "expression":  "`region`",
+                  "useDefault":  "2",
+                  "comment":  "last"
                 }
-              ]
+              ],
+              "comment":  "last"
             }
           ]
         },
         {
-          "name": "orders",
-          "columns": [
+          "name":  "orders",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "default": "AUTO_INCREMENT",
-              "type": "bigint"
+              "name":  "id",
+              "position":  1,
+              "default":  "AUTO_INCREMENT",
+              "type":  "bigint"
             },
             {
-              "name": "account_id",
-              "position": 2,
-              "type": "bigint"
+              "name":  "account_id",
+              "position":  2,
+              "type":  "bigint"
             },
             {
-              "name": "parent_order_id",
-              "position": 3,
-              "default": "NULL",
-              "nullable": true,
-              "type": "bigint"
+              "name":  "parent_order_id",
+              "position":  3,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "bigint"
             },
             {
-              "name": "total",
-              "position": 4,
-              "type": "int"
+              "name":  "total",
+              "position":  4,
+              "type":  "int"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY",
-              "expressions": [
+              "name":  "PRIMARY",
+              "expressions":  [
                 "id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "primary": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
             },
             {
-              "name": "idx_account",
-              "expressions": [
+              "name":  "idx_account",
+              "expressions":  [
                 "account_id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             },
             {
-              "name": "idx_parent",
-              "expressions": [
+              "name":  "idx_parent",
+              "expressions":  [
                 "parent_order_id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_0900_ai_ci",
-          "charset": "utf8mb4",
-          "dataSize": "16384",
-          "indexSize": "32768",
-          "foreignKeys": [
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_0900_ai_ci",
+          "charset":  "utf8mb4",
+          "dataSize":  "16384",
+          "indexSize":  "32768",
+          "foreignKeys":  [
             {
-              "name": "fk_orders_account",
-              "columns": [
+              "name":  "fk_orders_account",
+              "columns":  [
                 "account_id"
               ],
-              "referencedTable": "accounts",
-              "referencedColumns": [
+              "referencedTable":  "accounts",
+              "referencedColumns":  [
                 "id"
               ],
-              "onDelete": "CASCADE",
-              "onUpdate": "RESTRICT",
-              "matchType": "NONE"
+              "onDelete":  "CASCADE",
+              "onUpdate":  "RESTRICT",
+              "matchType":  "NONE"
             },
             {
-              "name": "fk_orders_parent",
-              "columns": [
+              "name":  "fk_orders_parent",
+              "columns":  [
                 "parent_order_id"
               ],
-              "referencedTable": "orders",
-              "referencedColumns": [
+              "referencedTable":  "orders",
+              "referencedColumns":  [
                 "id"
               ],
-              "onDelete": "SET NULL",
-              "onUpdate": "NO ACTION",
-              "matchType": "NONE"
+              "onDelete":  "SET NULL",
+              "onUpdate":  "NO ACTION",
+              "matchType":  "NONE"
             }
           ],
-          "triggers": [
+          "triggers":  [
             {
-              "name": "trg_orders_bi",
-              "event": "INSERT",
-              "timing": "BEFORE",
-              "body": "BEGIN\n\tIF NEW.total < 0 THEN\n\t\tSET NEW.total = 0;\n\tEND IF;\nEND",
-              "sqlMode": "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
-              "characterSetClient": "utf8mb4",
-              "collationConnection": "utf8mb4_general_ci"
+              "name":  "trg_orders_bi",
+              "event":  "INSERT",
+              "timing":  "BEFORE",
+              "body":  "BEGIN\n\tIF NEW.total < 0 THEN\n\t\tSET NEW.total = 0;\n\tEND IF;\nEND",
+              "sqlMode":  "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
+              "characterSetClient":  "utf8mb4",
+              "collationConnection":  "utf8mb4_general_ci"
             }
           ]
         }
       ],
-      "views": [
+      "views":  [
         {
-          "name": "v_named_cols",
-          "definition": "select `accounts`.`id` AS `id` from `accounts`",
-          "columns": [
+          "name":  "v_named_cols",
+          "definition":  "select `accounts`.`id` AS `id` from `accounts`",
+          "columns":  [
             {
-              "name": "renamed_id",
-              "position": 1,
-              "default": "'0'",
-              "type": "bigint"
+              "name":  "renamed_id",
+              "position":  1,
+              "default":  "'0'",
+              "type":  "bigint"
             }
           ]
         },
         {
-          "name": "v_named_cols_ref",
-          "definition": "select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`",
-          "columns": [
+          "name":  "v_named_cols_ref",
+          "definition":  "select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`",
+          "columns":  [
             {
-              "name": "renamed_id",
-              "position": 1,
-              "default": "'0'",
-              "type": "bigint"
+              "name":  "renamed_id",
+              "position":  1,
+              "default":  "'0'",
+              "type":  "bigint"
             }
           ]
         },
         {
-          "name": "v_open_accounts",
-          "definition": "select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')",
-          "columns": [
+          "name":  "v_open_accounts",
+          "definition":  "select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where (`accounts`.`status` = 'open')",
+          "columns":  [
             {
-              "name": "acct_id",
-              "position": 1,
-              "default": "'0'",
-              "type": "bigint"
+              "name":  "acct_id",
+              "position":  1,
+              "default":  "'0'",
+              "type":  "bigint"
             },
             {
-              "name": "acct_email",
-              "position": 2,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_0900_ai_ci"
+              "name":  "acct_email",
+              "position":  2,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_0900_ai_ci"
             }
           ]
         },
         {
-          "name": "v_order_totals",
-          "definition": "select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`",
-          "columns": [
+          "name":  "v_order_totals",
+          "definition":  "select `a`.`acct_id` AS `acct_id`,count(`o`.`id`) AS `order_count` from (`v_open_accounts` `a` left join `orders` `o` on((`o`.`account_id` = `a`.`acct_id`))) group by `a`.`acct_id`",
+          "columns":  [
             {
-              "name": "acct_id",
-              "position": 1,
-              "default": "'0'",
-              "type": "bigint"
+              "name":  "acct_id",
+              "position":  1,
+              "default":  "'0'",
+              "type":  "bigint"
             },
             {
-              "name": "order_count",
-              "position": 2,
-              "default": "'0'",
-              "type": "bigint"
+              "name":  "order_count",
+              "position":  2,
+              "default":  "'0'",
+              "type":  "bigint"
             }
           ]
         }
       ],
-      "functions": [
+      "functions":  [
         {
-          "name": "fn_format_tag",
-          "definition": "CREATE FUNCTION `fn_format_tag`(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT) RETURNS varchar(64)\n    NO SQL\n    DETERMINISTIC\n    COMMENT 'formats a tag'\nBEGIN\n\tRETURN CONCAT(p_prefix, '-', p_id);\nEND",
-          "characterSetClient": "utf8mb4",
-          "collationConnection": "utf8mb4_general_ci",
-          "databaseCollation": "utf8mb4_0900_ai_ci",
-          "sqlMode": "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
-          "comment": "formats a tag"
+          "name":  "fn_format_tag",
+          "definition":  "CREATE FUNCTION `fn_format_tag`(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT) RETURNS varchar(64)\n    NO SQL\n    DETERMINISTIC\n    COMMENT 'formats a tag'\nBEGIN\n\tRETURN CONCAT(p_prefix, '-', p_id);\nEND",
+          "characterSetClient":  "utf8mb4",
+          "collationConnection":  "utf8mb4_general_ci",
+          "databaseCollation":  "utf8mb4_0900_ai_ci",
+          "sqlMode":  "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
+          "comment":  "formats a tag"
         }
       ],
-      "procedures": [
+      "procedures":  [
         {
-          "name": "sp_touch_order",
-          "definition": "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    COMMENT 'reads order total'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
-          "characterSetClient": "utf8mb4",
-          "collationConnection": "utf8mb4_general_ci",
-          "databaseCollation": "utf8mb4_0900_ai_ci",
-          "sqlMode": "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
-          "comment": "reads order total"
+          "name":  "sp_touch_order",
+          "definition":  "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    COMMENT 'reads order total'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
+          "characterSetClient":  "utf8mb4",
+          "collationConnection":  "utf8mb4_general_ci",
+          "databaseCollation":  "utf8mb4_0900_ai_ci",
+          "sqlMode":  "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
+          "comment":  "reads order total"
         }
       ],
-      "events": [
+      "events":  [
         {
-          "name": "ev_daily_check",
-          "definition": "CREATE DEFINER=`root`@`%` EVENT `ev_daily_check` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE DO BEGIN\n\tDELETE FROM orders WHERE total < 0;\nEND",
-          "timeZone": "SYSTEM",
-          "sqlMode": "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
-          "characterSetClient": "utf8mb4",
-          "collationConnection": "utf8mb4_general_ci"
+          "name":  "ev_daily_check",
+          "definition":  "CREATE DEFINER=`root`@`%` EVENT `ev_daily_check` ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' ON COMPLETION NOT PRESERVE DISABLE DO BEGIN\n\tDELETE FROM orders WHERE total < 0;\nEND",
+          "timeZone":  "SYSTEM",
+          "sqlMode":  "ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION",
+          "characterSetClient":  "utf8mb4",
+          "collationConnection":  "utf8mb4_general_ci"
         }
       ]
     }
   ],
-  "characterSet": "utf8mb4",
-  "collation": "utf8mb4_0900_ai_ci"
+  "characterSet":  "utf8mb4",
+  "collation":  "utf8mb4_0900_ai_ci"
 }

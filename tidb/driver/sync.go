@@ -541,7 +541,8 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 			SUBPARTITION_METHOD,
 			PARTITION_EXPRESSION,
 			SUBPARTITION_EXPRESSION,
-			PARTITION_DESCRIPTION
+			PARTITION_DESCRIPTION,
+			PARTITION_COMMENT
 		FROM INFORMATION_SCHEMA.PARTITIONS
 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -561,7 +562,7 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 
 	for rows.Next() {
 		var tableName, partitionName, partitionMethod string
-		var subpartitionName, subpartitionMethod, subpartitionExpression, partitionExpression, partitionDescription sql.NullString
+		var subpartitionName, subpartitionMethod, subpartitionExpression, partitionExpression, partitionDescription, partitionComment sql.NullString
 		if err := rows.Scan(
 			&tableName,
 			&partitionName,
@@ -571,6 +572,7 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 			&partitionExpression,
 			&subpartitionExpression,
 			&partitionDescription,
+			&partitionComment,
 		); err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)
 		}
@@ -585,6 +587,7 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 				Type:          tp,
 				Expression:    partitionExpression.String,
 				Value:         partitionDescription.String,
+				Comment:       partitionComment.String,
 				Subpartitions: []*metadatapb.TablePartitionMetadata{},
 			}
 			partitionMap[pk] = len(result[tableName])
@@ -599,6 +602,7 @@ func (d *Driver) listPartitionTables(ctx context.Context, databaseName string) (
 				Name:          subpartitionName.String,
 				Type:          tp,
 				Expression:    subpartitionExpression.String,
+				Comment:       partitionComment.String,
 				Subpartitions: []*metadatapb.TablePartitionMetadata{},
 			}
 			if idx, ok := partitionMap[pk]; ok {

@@ -201,6 +201,12 @@
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
 |
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
+|
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
 |     SELECT c.id, c.name, o.total FROM app.customer c JOIN app.orders o ON o.customer_id = c.id
@@ -1745,6 +1751,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | customer
 : string
 | id
@@ -4115,6 +4175,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -5444,6 +5558,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967762
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -5453,7 +5579,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -5465,7 +5591,7 @@
 : string
 | postgres
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -5477,7 +5603,7 @@
 : string
 | postgres
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -5489,7 +5615,7 @@
 : string
 | postgres
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -5501,7 +5627,7 @@
 : string
 | postgres
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -5513,7 +5639,7 @@
 : string
 | postgres
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -5525,7 +5651,7 @@
 : string
 | postgres
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -5537,7 +5663,7 @@
 : string
 | postgres
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -5549,7 +5675,7 @@
 : string
 | postgres
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | audit
 : string
@@ -5561,7 +5687,7 @@
 : string
 | postgres
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | public
 : string
@@ -5573,7 +5699,7 @@
 : string
 | postgres
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | public
 : string
@@ -5593,7 +5719,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -5618,6 +5745,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -5633,6 +5761,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -5648,6 +5777,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -5663,6 +5793,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -5678,6 +5809,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -5693,6 +5826,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -5708,6 +5842,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -5723,6 +5858,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -5738,6 +5874,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -5753,6 +5890,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -5768,6 +5906,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -5785,7 +5941,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -5796,7 +5952,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -5811,7 +5967,7 @@
 : string
 | happy ones
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -5821,7 +5977,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -5831,7 +5987,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | public
 : string
@@ -6078,7 +6234,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -6614,12 +6770,6 @@
 : int64 4294967742
 : int64 0
 < row
-: int64 4294967779
-: int64 0
-< row
-: int64 4294967779
-: int64 0
-< row
 : int64 4294967780
 : int64 0
 < row
@@ -6638,9 +6788,6 @@
 : int64 4294967782
 : int64 0
 < row
-: int64 4294967782
-: int64 0
-< row
 : int64 4294967783
 : int64 0
 < row
@@ -6648,6 +6795,15 @@
 : int64 0
 < row
 : int64 4294967783
+: int64 0
+< row
+: int64 4294967784
+: int64 0
+< row
+: int64 4294967784
+: int64 0
+< row
+: int64 4294967784
 : int64 0
 > query
 |
@@ -6675,7 +6831,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -6692,7 +6848,7 @@
 : string
 | adds integers
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -6708,7 +6864,7 @@
 |
 : null
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -6724,7 +6880,7 @@
 |
 : null
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -6735,7 +6891,7 @@
 | multirange_constructor0
 : null
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -6746,7 +6902,7 @@
 | multirange_constructor2
 : null
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | app
 : string
@@ -6757,7 +6913,7 @@
 | multirange_constructor1
 : null
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -6768,7 +6924,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -6779,7 +6935,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -6796,7 +6952,7 @@
 |
 : null
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -6815,7 +6971,7 @@
 |
 : null
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -6833,7 +6989,7 @@
 |
 : null
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | app
 : string
@@ -6853,7 +7009,7 @@
 |
 : null
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | audit
 : string
@@ -11611,28 +11767,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967792
-: int64 4294967761
+: int64 4294967793
+: int64 4294967762
 : int64 31
 < row
-: int64 4294967793
-: int64 4294967761
-: int64 1
-< row
 : int64 4294967794
-: int64 4294967761
-: int64 2
+: int64 4294967762
+: int64 1
 < row
 : int64 4294967795
-: int64 4294967765
-: int64 1
+: int64 4294967762
+: int64 2
 < row
 : int64 4294967796
-: int64 4294967771
+: int64 4294967766
 : int64 1
 < row
 : int64 4294967797
-: int64 4294967768
+: int64 4294967772
+: int64 1
+< row
+: int64 4294967798
+: int64 4294967769
 : int64 2
 > query
 |
@@ -11670,7 +11826,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967798
+: int64 4294967799
 : string
 | app
 : string
@@ -11687,7 +11843,7 @@
 : string
 | counts by five
 < row
-: int64 4294967794
+: int64 4294967795
 : string
 | app
 : string
@@ -11703,7 +11859,7 @@
 : null
 : null
 < row
-: int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -11719,7 +11875,7 @@
 : null
 : null
 < row
-: int64 4294967795
+: int64 4294967796
 : string
 | app
 : string
@@ -11735,7 +11891,7 @@
 : null
 : null
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -11751,7 +11907,7 @@
 : null
 : null
 < row
-: int64 4294967797
+: int64 4294967798
 : string
 | app
 : string
@@ -11767,7 +11923,7 @@
 : null
 : null
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | audit
 : string
@@ -11783,7 +11939,7 @@
 : null
 : null
 < row
-: int64 4294967796
+: int64 4294967797
 : string
 | public
 : string
@@ -11869,7 +12025,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -11879,7 +12035,7 @@
 : string
 | how it feels
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -11889,7 +12045,7 @@
 : string
 | how it feels
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -11943,8 +12099,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967801
 : int64 4294967802
+: int64 4294967803
 : string
 | app
 : string
@@ -11960,8 +12116,8 @@
 : string
 | street line
 < row
-: int64 4294967801
 : int64 4294967802
+: int64 4294967803
 : string
 | app
 : string
@@ -11975,8 +12131,8 @@
 : null
 : null
 < row
-: int64 4294967801
 : int64 4294967802
+: int64 4294967803
 : string
 | app
 : string
@@ -11990,8 +12146,8 @@
 : null
 : null
 < row
-: int64 4294967803
 : int64 4294967804
+: int64 4294967805
 : string
 | app
 : string
@@ -12004,8 +12160,8 @@
 : null
 : null
 < row
-: int64 4294967803
 : int64 4294967804
+: int64 4294967805
 : string
 | app
 : string
@@ -12018,8 +12174,8 @@
 : null
 : null
 < row
-: int64 4294967805
 : int64 4294967806
+: int64 4294967807
 : string
 | app
 : string
@@ -12054,7 +12210,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967807
+: int64 4294967808
 : string
 | corpus_ddl
 : string
@@ -12070,7 +12226,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967808
+: int64 4294967809
 : string
 | corpus_drop
 : string
@@ -12280,6 +12436,12 @@
 | CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
+|
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
 |
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
@@ -13771,6 +13933,60 @@
 | pg_catalog
 : string
 | tstzrange
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 < row
@@ -16147,6 +16363,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -17476,6 +17746,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967738
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -17485,7 +17767,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967738
+: int64 4294967739
 : string
 | app
 : string
@@ -17497,7 +17779,7 @@
 : string
 | postgres
 < row
-: int64 4294967739
+: int64 4294967740
 : string
 | app
 : string
@@ -17509,7 +17791,7 @@
 : string
 | postgres
 < row
-: int64 4294967740
+: int64 4294967741
 : string
 | app
 : string
@@ -17521,7 +17803,7 @@
 : string
 | postgres
 < row
-: int64 4294967741
+: int64 4294967742
 : string
 | app
 : string
@@ -17533,7 +17815,7 @@
 : string
 | postgres
 < row
-: int64 4294967742
+: int64 4294967743
 : string
 | app
 : string
@@ -17545,7 +17827,7 @@
 : string
 | postgres
 < row
-: int64 4294967743
+: int64 4294967744
 : string
 | app
 : string
@@ -17557,7 +17839,7 @@
 : string
 | postgres
 < row
-: int64 4294967744
+: int64 4294967745
 : string
 | app
 : string
@@ -17569,7 +17851,7 @@
 : string
 | postgres
 < row
-: int64 4294967745
+: int64 4294967746
 : string
 | app
 : string
@@ -17581,7 +17863,7 @@
 : string
 | postgres
 < row
-: int64 4294967746
+: int64 4294967747
 : string
 | audit
 : string
@@ -17593,7 +17875,7 @@
 : string
 | postgres
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | public
 : string
@@ -17605,7 +17887,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | public
 : string
@@ -17625,7 +17907,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -17650,6 +17933,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -17665,6 +17949,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -17680,6 +17965,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -17695,6 +17981,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -17710,6 +17997,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -17725,6 +18014,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -17740,6 +18030,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -17755,6 +18046,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -17770,6 +18062,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -17785,6 +18078,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -17800,6 +18094,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -17817,7 +18129,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | app
 : string
@@ -17828,7 +18140,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | app
 : string
@@ -17843,7 +18155,7 @@
 : string
 | happy ones
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | app
 : string
@@ -17853,7 +18165,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -17863,7 +18175,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | public
 : string
@@ -18110,7 +18422,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -18850,16 +19162,16 @@
 : int64 4294967721
 : int64 0
 < row
-: int64 4294967755
-: int64 0
-< row
-: int64 4294967755
-: int64 0
-< row
 : int64 4294967756
 : int64 0
 < row
 : int64 4294967756
+: int64 0
+< row
+: int64 4294967757
+: int64 0
+< row
+: int64 4294967757
 : int64 0
 > query
 |
@@ -18887,7 +19199,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -18904,7 +19216,7 @@
 : string
 | adds integers
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -18920,7 +19232,7 @@
 |
 : null
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -18936,7 +19248,7 @@
 |
 : null
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -18947,7 +19259,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -18958,7 +19270,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -18975,7 +19287,7 @@
 |
 : null
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -18994,7 +19306,7 @@
 |
 : null
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -19012,7 +19324,7 @@
 |
 : null
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -19032,7 +19344,7 @@
 |
 : null
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | audit
 : string
@@ -23566,28 +23878,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967765
-: int64 4294967737
+: int64 4294967766
+: int64 4294967738
 : int64 31
 < row
-: int64 4294967766
-: int64 4294967737
-: int64 1
-< row
 : int64 4294967767
-: int64 4294967737
-: int64 2
+: int64 4294967738
+: int64 1
 < row
 : int64 4294967768
-: int64 4294967741
-: int64 1
+: int64 4294967738
+: int64 2
 < row
 : int64 4294967769
-: int64 4294967747
+: int64 4294967742
 : int64 1
 < row
 : int64 4294967770
-: int64 4294967744
+: int64 4294967748
+: int64 1
+< row
+: int64 4294967771
+: int64 4294967745
 : int64 2
 > query
 |
@@ -23625,7 +23937,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | app
 : string
@@ -23642,7 +23954,7 @@
 : string
 | counts by five
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -23658,7 +23970,7 @@
 : null
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -23674,7 +23986,7 @@
 : null
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -23690,7 +24002,7 @@
 : null
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -23706,7 +24018,7 @@
 : null
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -23722,7 +24034,7 @@
 : null
 : null
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | audit
 : string
@@ -23738,7 +24050,7 @@
 : null
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | public
 : string
@@ -23824,7 +24136,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -23834,7 +24146,7 @@
 : string
 | how it feels
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -23844,7 +24156,7 @@
 : string
 | how it feels
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -23898,8 +24210,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967774
 : int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -23915,8 +24227,8 @@
 : string
 | street line
 < row
-: int64 4294967774
 : int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -23930,8 +24242,8 @@
 : null
 : null
 < row
-: int64 4294967774
 : int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -23945,8 +24257,8 @@
 : null
 : null
 < row
-: int64 4294967776
 : int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -23959,8 +24271,8 @@
 : null
 : null
 < row
-: int64 4294967776
 : int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -23973,8 +24285,8 @@
 : null
 : null
 < row
-: int64 4294967778
 : int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -24009,7 +24321,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | corpus_ddl
 : string
@@ -24025,7 +24337,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | corpus_drop
 : string
@@ -24235,6 +24547,12 @@
 | CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
+|
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
 |
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
@@ -25728,6 +26046,60 @@
 | pg_catalog
 : string
 | tstzrange
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 < row
@@ -28104,6 +28476,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -29433,6 +29859,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967739
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -29442,7 +29880,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967739
+: int64 4294967740
 : string
 | app
 : string
@@ -29454,7 +29892,7 @@
 : string
 | postgres
 < row
-: int64 4294967740
+: int64 4294967741
 : string
 | app
 : string
@@ -29466,7 +29904,7 @@
 : string
 | postgres
 < row
-: int64 4294967741
+: int64 4294967742
 : string
 | app
 : string
@@ -29478,7 +29916,7 @@
 : string
 | postgres
 < row
-: int64 4294967742
+: int64 4294967743
 : string
 | app
 : string
@@ -29490,7 +29928,7 @@
 : string
 | postgres
 < row
-: int64 4294967743
+: int64 4294967744
 : string
 | app
 : string
@@ -29502,7 +29940,7 @@
 : string
 | postgres
 < row
-: int64 4294967744
+: int64 4294967745
 : string
 | app
 : string
@@ -29514,7 +29952,7 @@
 : string
 | postgres
 < row
-: int64 4294967745
+: int64 4294967746
 : string
 | app
 : string
@@ -29526,7 +29964,7 @@
 : string
 | postgres
 < row
-: int64 4294967746
+: int64 4294967747
 : string
 | app
 : string
@@ -29538,7 +29976,7 @@
 : string
 | postgres
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | audit
 : string
@@ -29550,7 +29988,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | public
 : string
@@ -29562,7 +30000,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | public
 : string
@@ -29582,7 +30020,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -29607,6 +30046,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -29622,6 +30062,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -29637,6 +30078,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -29652,6 +30094,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -29667,6 +30110,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -29682,6 +30127,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -29697,6 +30143,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -29712,6 +30159,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -29727,6 +30175,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -29742,6 +30191,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -29757,6 +30207,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -29774,7 +30242,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | app
 : string
@@ -29785,7 +30253,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | app
 : string
@@ -29800,7 +30268,7 @@
 : string
 | happy ones
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -29810,7 +30278,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -29820,7 +30288,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | public
 : string
@@ -30067,7 +30535,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -30807,16 +31275,16 @@
 : int64 4294967722
 : int64 0
 < row
-: int64 4294967756
-: int64 0
-< row
-: int64 4294967756
-: int64 0
-< row
 : int64 4294967757
 : int64 0
 < row
 : int64 4294967757
+: int64 0
+< row
+: int64 4294967758
+: int64 0
+< row
+: int64 4294967758
 : int64 0
 > query
 |
@@ -30844,7 +31312,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -30861,7 +31329,7 @@
 : string
 | adds integers
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -30877,7 +31345,7 @@
 |
 : null
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -30893,7 +31361,7 @@
 |
 : null
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -30904,7 +31372,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -30915,7 +31383,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -30932,7 +31400,7 @@
 |
 : null
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -30951,7 +31419,7 @@
 |
 : null
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -30969,7 +31437,7 @@
 |
 : null
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -30989,7 +31457,7 @@
 |
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | audit
 : string
@@ -35539,28 +36007,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967766
-: int64 4294967738
+: int64 4294967767
+: int64 4294967739
 : int64 31
 < row
-: int64 4294967767
-: int64 4294967738
-: int64 1
-< row
 : int64 4294967768
-: int64 4294967738
-: int64 2
+: int64 4294967739
+: int64 1
 < row
 : int64 4294967769
-: int64 4294967742
-: int64 1
+: int64 4294967739
+: int64 2
 < row
 : int64 4294967770
-: int64 4294967748
+: int64 4294967743
 : int64 1
 < row
 : int64 4294967771
-: int64 4294967745
+: int64 4294967749
+: int64 1
+< row
+: int64 4294967772
+: int64 4294967746
 : int64 2
 > query
 |
@@ -35598,7 +36066,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -35615,7 +36083,7 @@
 : string
 | counts by five
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -35631,7 +36099,7 @@
 : null
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -35647,7 +36115,7 @@
 : null
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -35663,7 +36131,7 @@
 : null
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -35679,7 +36147,7 @@
 : null
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | app
 : string
@@ -35695,7 +36163,7 @@
 : null
 : null
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | audit
 : string
@@ -35711,7 +36179,7 @@
 : null
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | public
 : string
@@ -35797,7 +36265,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -35807,7 +36275,7 @@
 : string
 | how it feels
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -35817,7 +36285,7 @@
 : string
 | how it feels
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -35871,8 +36339,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967775
 : int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -35888,8 +36356,8 @@
 : string
 | street line
 < row
-: int64 4294967775
 : int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -35903,8 +36371,8 @@
 : null
 : null
 < row
-: int64 4294967775
 : int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -35918,8 +36386,8 @@
 : null
 : null
 < row
-: int64 4294967777
 : int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -35932,8 +36400,8 @@
 : null
 : null
 < row
-: int64 4294967777
 : int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -35946,8 +36414,8 @@
 : null
 : null
 < row
-: int64 4294967779
 : int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -35982,7 +36450,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | corpus_ddl
 : string
@@ -35998,7 +36466,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | corpus_drop
 : string
@@ -36208,6 +36676,12 @@
 | CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
+|
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
 |
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
@@ -37705,6 +38179,60 @@
 | pg_catalog
 : string
 | tstzrange
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 < row
@@ -40081,6 +40609,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -41410,6 +41992,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967741
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -41419,7 +42013,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967741
+: int64 4294967742
 : string
 | app
 : string
@@ -41431,7 +42025,7 @@
 : string
 | postgres
 < row
-: int64 4294967742
+: int64 4294967743
 : string
 | app
 : string
@@ -41443,7 +42037,7 @@
 : string
 | postgres
 < row
-: int64 4294967743
+: int64 4294967744
 : string
 | app
 : string
@@ -41455,7 +42049,7 @@
 : string
 | postgres
 < row
-: int64 4294967744
+: int64 4294967745
 : string
 | app
 : string
@@ -41467,7 +42061,7 @@
 : string
 | postgres
 < row
-: int64 4294967745
+: int64 4294967746
 : string
 | app
 : string
@@ -41479,7 +42073,7 @@
 : string
 | postgres
 < row
-: int64 4294967746
+: int64 4294967747
 : string
 | app
 : string
@@ -41491,7 +42085,7 @@
 : string
 | postgres
 < row
-: int64 4294967747
+: int64 4294967748
 : string
 | app
 : string
@@ -41503,7 +42097,7 @@
 : string
 | postgres
 < row
-: int64 4294967748
+: int64 4294967749
 : string
 | app
 : string
@@ -41515,7 +42109,7 @@
 : string
 | postgres
 < row
-: int64 4294967749
+: int64 4294967750
 : string
 | audit
 : string
@@ -41527,7 +42121,7 @@
 : string
 | postgres
 < row
-: int64 4294967750
+: int64 4294967751
 : string
 | public
 : string
@@ -41539,7 +42133,7 @@
 : string
 | postgres
 < row
-: int64 4294967751
+: int64 4294967752
 : string
 | public
 : string
@@ -41559,7 +42153,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -41584,6 +42179,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -41599,6 +42195,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -41614,6 +42211,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -41629,6 +42227,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -41644,6 +42243,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -41659,6 +42260,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -41674,6 +42276,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -41689,6 +42292,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -41704,6 +42308,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -41719,6 +42324,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -41734,6 +42340,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -41751,7 +42375,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967752
+: int64 4294967753
 : string
 | app
 : string
@@ -41762,7 +42386,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -41777,7 +42401,7 @@
 : string
 | happy ones
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -41787,7 +42411,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -41797,7 +42421,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | public
 : string
@@ -42044,7 +42668,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -42568,12 +43192,6 @@
 : int64 4294967721
 : int64 0
 < row
-: int64 4294967758
-: int64 0
-< row
-: int64 4294967758
-: int64 0
-< row
 : int64 4294967759
 : int64 0
 < row
@@ -42592,9 +43210,6 @@
 : int64 4294967761
 : int64 0
 < row
-: int64 4294967761
-: int64 0
-< row
 : int64 4294967762
 : int64 0
 < row
@@ -42602,6 +43217,15 @@
 : int64 0
 < row
 : int64 4294967762
+: int64 0
+< row
+: int64 4294967763
+: int64 0
+< row
+: int64 4294967763
+: int64 0
+< row
+: int64 4294967763
 : int64 0
 > query
 |
@@ -42629,7 +43253,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | app
 : string
@@ -42646,7 +43270,7 @@
 : string
 | adds integers
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -42662,7 +43286,7 @@
 |
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -42678,7 +43302,7 @@
 |
 : null
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -42689,7 +43313,7 @@
 | multirange_constructor0
 : null
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | app
 : string
@@ -42700,7 +43324,7 @@
 | multirange_constructor2
 : null
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | app
 : string
@@ -42711,7 +43335,7 @@
 | multirange_constructor1
 : null
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -42722,7 +43346,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -42733,7 +43357,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -42750,7 +43374,7 @@
 |
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -42769,7 +43393,7 @@
 |
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | app
 : string
@@ -42787,7 +43411,7 @@
 |
 : null
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -42807,7 +43431,7 @@
 |
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | audit
 : string
@@ -47421,28 +48045,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967771
-: int64 4294967740
+: int64 4294967772
+: int64 4294967741
 : int64 31
 < row
-: int64 4294967772
-: int64 4294967740
-: int64 1
-< row
 : int64 4294967773
-: int64 4294967740
-: int64 2
+: int64 4294967741
+: int64 1
 < row
 : int64 4294967774
-: int64 4294967744
-: int64 1
+: int64 4294967741
+: int64 2
 < row
 : int64 4294967775
-: int64 4294967750
+: int64 4294967745
 : int64 1
 < row
 : int64 4294967776
-: int64 4294967747
+: int64 4294967751
+: int64 1
+< row
+: int64 4294967777
+: int64 4294967748
 : int64 2
 > query
 |
@@ -47480,7 +48104,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -47497,7 +48121,7 @@
 : string
 | counts by five
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -47513,7 +48137,7 @@
 : null
 : null
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -47529,7 +48153,7 @@
 : null
 : null
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -47545,7 +48169,7 @@
 : null
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | app
 : string
@@ -47561,7 +48185,7 @@
 : null
 : null
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -47577,7 +48201,7 @@
 : null
 : null
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | audit
 : string
@@ -47593,7 +48217,7 @@
 : null
 : null
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | public
 : string
@@ -47679,7 +48303,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -47689,7 +48313,7 @@
 : string
 | how it feels
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -47699,7 +48323,7 @@
 : string
 | how it feels
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -47753,8 +48377,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967780
 : int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -47770,8 +48394,8 @@
 : string
 | street line
 < row
-: int64 4294967780
 : int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -47785,8 +48409,8 @@
 : null
 : null
 < row
-: int64 4294967780
 : int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -47800,8 +48424,8 @@
 : null
 : null
 < row
-: int64 4294967782
 : int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -47814,8 +48438,8 @@
 : null
 : null
 < row
-: int64 4294967782
 : int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -47828,8 +48452,8 @@
 : null
 : null
 < row
-: int64 4294967784
 : int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -47864,7 +48488,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | corpus_ddl
 : string
@@ -47880,7 +48504,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | corpus_drop
 : string
@@ -48090,6 +48714,12 @@
 | CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
+|
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
 |
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
@@ -49617,6 +50247,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | customer
 : string
 | id
@@ -51987,6 +52671,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -53316,6 +54054,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967753
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -53325,7 +54075,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -53337,7 +54087,7 @@
 : string
 | postgres
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -53349,7 +54099,7 @@
 : string
 | postgres
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -53361,7 +54111,7 @@
 : string
 | postgres
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -53373,7 +54123,7 @@
 : string
 | postgres
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -53385,7 +54135,7 @@
 : string
 | postgres
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -53397,7 +54147,7 @@
 : string
 | postgres
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -53409,7 +54159,7 @@
 : string
 | postgres
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -53421,7 +54171,7 @@
 : string
 | postgres
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | audit
 : string
@@ -53433,7 +54183,7 @@
 : string
 | postgres
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | public
 : string
@@ -53445,7 +54195,7 @@
 : string
 | postgres
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | public
 : string
@@ -53465,7 +54215,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -53490,6 +54241,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -53505,6 +54257,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -53520,6 +54273,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -53535,6 +54289,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -53550,6 +54305,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -53565,6 +54322,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -53580,6 +54338,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -53595,6 +54354,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -53610,6 +54370,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -53625,6 +54386,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -53640,6 +54402,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -53657,7 +54437,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -53668,7 +54448,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -53683,7 +54463,7 @@
 : string
 | happy ones
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -53693,7 +54473,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -53703,7 +54483,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | public
 : string
@@ -53950,7 +54730,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -54486,12 +55266,6 @@
 : int64 4294967733
 : int64 0
 < row
-: int64 4294967770
-: int64 0
-< row
-: int64 4294967770
-: int64 0
-< row
 : int64 4294967771
 : int64 0
 < row
@@ -54510,9 +55284,6 @@
 : int64 4294967773
 : int64 0
 < row
-: int64 4294967773
-: int64 0
-< row
 : int64 4294967774
 : int64 0
 < row
@@ -54520,6 +55291,15 @@
 : int64 0
 < row
 : int64 4294967774
+: int64 0
+< row
+: int64 4294967775
+: int64 0
+< row
+: int64 4294967775
+: int64 0
+< row
+: int64 4294967775
 : int64 0
 > query
 |
@@ -54547,7 +55327,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -54564,7 +55344,7 @@
 : string
 | adds integers
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -54580,7 +55360,7 @@
 |
 : null
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -54596,7 +55376,7 @@
 |
 : null
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -54607,7 +55387,7 @@
 | multirange_constructor0
 : null
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -54618,7 +55398,7 @@
 | multirange_constructor2
 : null
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -54629,7 +55409,7 @@
 | multirange_constructor1
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -54640,7 +55420,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | app
 : string
@@ -54651,7 +55431,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -54668,7 +55448,7 @@
 |
 : null
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -54687,7 +55467,7 @@
 |
 : null
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -54705,7 +55485,7 @@
 |
 : null
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -54725,7 +55505,7 @@
 |
 : null
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | audit
 : string
@@ -59483,28 +60263,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967783
-: int64 4294967752
+: int64 4294967784
+: int64 4294967753
 : int64 31
 < row
-: int64 4294967784
-: int64 4294967752
-: int64 1
-< row
 : int64 4294967785
-: int64 4294967752
-: int64 2
+: int64 4294967753
+: int64 1
 < row
 : int64 4294967786
-: int64 4294967756
-: int64 1
+: int64 4294967753
+: int64 2
 < row
 : int64 4294967787
-: int64 4294967762
+: int64 4294967757
 : int64 1
 < row
 : int64 4294967788
-: int64 4294967759
+: int64 4294967763
+: int64 1
+< row
+: int64 4294967789
+: int64 4294967760
 : int64 2
 > query
 |
@@ -59542,7 +60322,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -59559,7 +60339,7 @@
 : string
 | counts by five
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -59575,7 +60355,7 @@
 : null
 : null
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -59591,7 +60371,7 @@
 : null
 : null
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -59607,7 +60387,7 @@
 : null
 : null
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -59623,7 +60403,7 @@
 : null
 : null
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -59639,7 +60419,7 @@
 : null
 : null
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | audit
 : string
@@ -59655,7 +60435,7 @@
 : null
 : null
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | public
 : string
@@ -59741,7 +60521,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -59751,7 +60531,7 @@
 : string
 | how it feels
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -59761,7 +60541,7 @@
 : string
 | how it feels
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -59815,8 +60595,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967792
 : int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -59832,8 +60612,8 @@
 : string
 | street line
 < row
-: int64 4294967792
 : int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -59847,8 +60627,8 @@
 : null
 : null
 < row
-: int64 4294967792
 : int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -59862,8 +60642,8 @@
 : null
 : null
 < row
-: int64 4294967794
 : int64 4294967795
+: int64 4294967796
 : string
 | app
 : string
@@ -59876,8 +60656,8 @@
 : null
 : null
 < row
-: int64 4294967794
 : int64 4294967795
+: int64 4294967796
 : string
 | app
 : string
@@ -59890,8 +60670,8 @@
 : null
 : null
 < row
-: int64 4294967796
 : int64 4294967797
+: int64 4294967798
 : string
 | app
 : string
@@ -59926,7 +60706,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967798
+: int64 4294967799
 : string
 | corpus_ddl
 : string
@@ -59942,7 +60722,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | corpus_drop
 : string
@@ -60152,6 +60932,12 @@
 | CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
+|
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
 |
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
@@ -61679,6 +62465,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | customer
 : string
 | id
@@ -64049,6 +64889,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -65378,6 +66272,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967753
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -65387,7 +66293,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967753
+: int64 4294967754
 : string
 | app
 : string
@@ -65399,7 +66305,7 @@
 : string
 | postgres
 < row
-: int64 4294967754
+: int64 4294967755
 : string
 | app
 : string
@@ -65411,7 +66317,7 @@
 : string
 | postgres
 < row
-: int64 4294967755
+: int64 4294967756
 : string
 | app
 : string
@@ -65423,7 +66329,7 @@
 : string
 | postgres
 < row
-: int64 4294967756
+: int64 4294967757
 : string
 | app
 : string
@@ -65435,7 +66341,7 @@
 : string
 | postgres
 < row
-: int64 4294967757
+: int64 4294967758
 : string
 | app
 : string
@@ -65447,7 +66353,7 @@
 : string
 | postgres
 < row
-: int64 4294967758
+: int64 4294967759
 : string
 | app
 : string
@@ -65459,7 +66365,7 @@
 : string
 | postgres
 < row
-: int64 4294967759
+: int64 4294967760
 : string
 | app
 : string
@@ -65471,7 +66377,7 @@
 : string
 | postgres
 < row
-: int64 4294967760
+: int64 4294967761
 : string
 | app
 : string
@@ -65483,7 +66389,7 @@
 : string
 | postgres
 < row
-: int64 4294967761
+: int64 4294967762
 : string
 | audit
 : string
@@ -65495,7 +66401,7 @@
 : string
 | postgres
 < row
-: int64 4294967762
+: int64 4294967763
 : string
 | public
 : string
@@ -65507,7 +66413,7 @@
 : string
 | postgres
 < row
-: int64 4294967763
+: int64 4294967764
 : string
 | public
 : string
@@ -65527,7 +66433,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -65552,6 +66459,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -65567,6 +66475,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -65582,6 +66491,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -65597,6 +66507,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -65612,6 +66523,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -65627,6 +66540,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -65642,6 +66556,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -65657,6 +66572,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -65672,6 +66588,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -65687,6 +66604,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -65702,6 +66620,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -65719,7 +66655,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967764
+: int64 4294967765
 : string
 | app
 : string
@@ -65730,7 +66666,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967765
+: int64 4294967766
 : string
 | app
 : string
@@ -65745,7 +66681,7 @@
 : string
 | happy ones
 < row
-: int64 4294967766
+: int64 4294967767
 : string
 | app
 : string
@@ -65755,7 +66691,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967767
+: int64 4294967768
 : string
 | app
 : string
@@ -65765,7 +66701,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967768
+: int64 4294967769
 : string
 | public
 : string
@@ -66012,7 +66948,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967769
+: int64 4294967770
 : string
 | app
 : string
@@ -66548,12 +67484,6 @@
 : int64 4294967733
 : int64 0
 < row
-: int64 4294967770
-: int64 0
-< row
-: int64 4294967770
-: int64 0
-< row
 : int64 4294967771
 : int64 0
 < row
@@ -66572,9 +67502,6 @@
 : int64 4294967773
 : int64 0
 < row
-: int64 4294967773
-: int64 0
-< row
 : int64 4294967774
 : int64 0
 < row
@@ -66582,6 +67509,15 @@
 : int64 0
 < row
 : int64 4294967774
+: int64 0
+< row
+: int64 4294967775
+: int64 0
+< row
+: int64 4294967775
+: int64 0
+< row
+: int64 4294967775
 : int64 0
 > query
 |
@@ -66609,7 +67545,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967775
+: int64 4294967776
 : string
 | app
 : string
@@ -66626,7 +67562,7 @@
 : string
 | adds integers
 < row
-: int64 4294967776
+: int64 4294967777
 : string
 | app
 : string
@@ -66642,7 +67578,7 @@
 |
 : null
 < row
-: int64 4294967777
+: int64 4294967778
 : string
 | app
 : string
@@ -66658,7 +67594,7 @@
 |
 : null
 < row
-: int64 4294967772
+: int64 4294967773
 : string
 | app
 : string
@@ -66669,7 +67605,7 @@
 | multirange_constructor0
 : null
 < row
-: int64 4294967774
+: int64 4294967775
 : string
 | app
 : string
@@ -66680,7 +67616,7 @@
 | multirange_constructor2
 : null
 < row
-: int64 4294967773
+: int64 4294967774
 : string
 | app
 : string
@@ -66691,7 +67627,7 @@
 | multirange_constructor1
 : null
 < row
-: int64 4294967770
+: int64 4294967771
 : string
 | app
 : string
@@ -66702,7 +67638,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967771
+: int64 4294967772
 : string
 | app
 : string
@@ -66713,7 +67649,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967778
+: int64 4294967779
 : string
 | app
 : string
@@ -66730,7 +67666,7 @@
 |
 : null
 < row
-: int64 4294967779
+: int64 4294967780
 : string
 | app
 : string
@@ -66749,7 +67685,7 @@
 |
 : null
 < row
-: int64 4294967780
+: int64 4294967781
 : string
 | app
 : string
@@ -66767,7 +67703,7 @@
 |
 : null
 < row
-: int64 4294967781
+: int64 4294967782
 : string
 | app
 : string
@@ -66787,7 +67723,7 @@
 |
 : null
 < row
-: int64 4294967782
+: int64 4294967783
 : string
 | audit
 : string
@@ -71545,28 +72481,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967783
-: int64 4294967752
+: int64 4294967784
+: int64 4294967753
 : int64 31
 < row
-: int64 4294967784
-: int64 4294967752
-: int64 1
-< row
 : int64 4294967785
-: int64 4294967752
-: int64 2
+: int64 4294967753
+: int64 1
 < row
 : int64 4294967786
-: int64 4294967756
-: int64 1
+: int64 4294967753
+: int64 2
 < row
 : int64 4294967787
-: int64 4294967762
+: int64 4294967757
 : int64 1
 < row
 : int64 4294967788
-: int64 4294967759
+: int64 4294967763
+: int64 1
+< row
+: int64 4294967789
+: int64 4294967760
 : int64 2
 > query
 |
@@ -71604,7 +72540,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -71621,7 +72557,7 @@
 : string
 | counts by five
 < row
-: int64 4294967785
+: int64 4294967786
 : string
 | app
 : string
@@ -71637,7 +72573,7 @@
 : null
 : null
 < row
-: int64 4294967784
+: int64 4294967785
 : string
 | app
 : string
@@ -71653,7 +72589,7 @@
 : null
 : null
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -71669,7 +72605,7 @@
 : null
 : null
 < row
-: int64 4294967783
+: int64 4294967784
 : string
 | app
 : string
@@ -71685,7 +72621,7 @@
 : null
 : null
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -71701,7 +72637,7 @@
 : null
 : null
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | audit
 : string
@@ -71717,7 +72653,7 @@
 : null
 : null
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | public
 : string
@@ -71803,7 +72739,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -71813,7 +72749,7 @@
 : string
 | how it feels
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -71823,7 +72759,7 @@
 : string
 | how it feels
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -71877,8 +72813,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967792
 : int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -71894,8 +72830,8 @@
 : string
 | street line
 < row
-: int64 4294967792
 : int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -71909,8 +72845,8 @@
 : null
 : null
 < row
-: int64 4294967792
 : int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -71924,8 +72860,8 @@
 : null
 : null
 < row
-: int64 4294967794
 : int64 4294967795
+: int64 4294967796
 : string
 | app
 : string
@@ -71938,8 +72874,8 @@
 : null
 : null
 < row
-: int64 4294967794
 : int64 4294967795
+: int64 4294967796
 : string
 | app
 : string
@@ -71952,8 +72888,8 @@
 : null
 : null
 < row
-: int64 4294967796
 : int64 4294967797
+: int64 4294967798
 : string
 | app
 : string
@@ -71988,7 +72924,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967798
+: int64 4294967799
 : string
 | corpus_ddl
 : string
@@ -72004,7 +72940,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | corpus_drop
 : string
@@ -72214,6 +73150,12 @@
 | CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attached_x_positive CHECK (id > 0));
 | ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 | CREATE INDEX attached_x_id ON app.attached_x (id);
+|
+| -- A partition can live beside its parent in another schema, and its comment
+| -- is its own.
+| CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+| CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE audit.cross_schema_a IS 'remote';
 |
 | -- Views, dependencies, rules, triggers on views.
 | CREATE VIEW app.happy_customer AS
@@ -73807,6 +74749,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | customer
 : string
 | id
@@ -76177,6 +77173,60 @@
 : string
 | audit
 : string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| audit
+: string
 | remote_orders
 : string
 | id
@@ -77506,6 +78556,18 @@
 : string
 | app
 : string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967786
+: string
+| app
+: string
 | customer
 : int64 8192
 : int64 114688
@@ -77515,7 +78577,7 @@
 : string
 | corpus_owner
 < row
-: int64 4294967786
+: int64 4294967787
 : string
 | app
 : string
@@ -77527,7 +78589,7 @@
 : string
 | postgres
 < row
-: int64 4294967787
+: int64 4294967788
 : string
 | app
 : string
@@ -77539,7 +78601,7 @@
 : string
 | postgres
 < row
-: int64 4294967788
+: int64 4294967789
 : string
 | app
 : string
@@ -77551,7 +78613,7 @@
 : string
 | postgres
 < row
-: int64 4294967789
+: int64 4294967790
 : string
 | app
 : string
@@ -77563,7 +78625,7 @@
 : string
 | postgres
 < row
-: int64 4294967790
+: int64 4294967791
 : string
 | app
 : string
@@ -77575,7 +78637,7 @@
 : string
 | postgres
 < row
-: int64 4294967791
+: int64 4294967792
 : string
 | app
 : string
@@ -77587,7 +78649,7 @@
 : string
 | postgres
 < row
-: int64 4294967792
+: int64 4294967793
 : string
 | app
 : string
@@ -77599,7 +78661,7 @@
 : string
 | postgres
 < row
-: int64 4294967793
+: int64 4294967794
 : string
 | app
 : string
@@ -77611,7 +78673,7 @@
 : string
 | postgres
 < row
-: int64 4294967794
+: int64 4294967795
 : string
 | audit
 : string
@@ -77623,7 +78685,7 @@
 : string
 | postgres
 < row
-: int64 4294967795
+: int64 4294967796
 : string
 | public
 : string
@@ -77635,7 +78697,7 @@
 : string
 | postgres
 < row
-: int64 4294967796
+: int64 4294967797
 : string
 | public
 : string
@@ -77655,7 +78717,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -77680,6 +78743,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -77695,6 +78759,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (logdate)
+: null
 < row
 : string
 | app
@@ -77710,6 +78775,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -77725,6 +78791,7 @@
 | DEFAULT
 : string
 | LIST (region)
+: null
 < row
 : string
 | app
@@ -77740,6 +78807,8 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE (logdate)
+: string
+| this year
 < row
 : string
 | app
@@ -77755,6 +78824,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -77770,6 +78840,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -77785,6 +78856,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("On")
+: null
 < row
 : string
 | app
@@ -77800,6 +78872,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -77815,6 +78888,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -77830,6 +78904,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| audit
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -77847,7 +78939,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967797
+: int64 4294967798
 : string
 | app
 : string
@@ -77858,7 +78950,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967798
+: int64 4294967799
 : string
 | app
 : string
@@ -77873,7 +78965,7 @@
 : string
 | happy ones
 < row
-: int64 4294967799
+: int64 4294967800
 : string
 | app
 : string
@@ -77883,7 +78975,7 @@
 |    FROM app.customer;
 : null
 < row
-: int64 4294967800
+: int64 4294967801
 : string
 | app
 : string
@@ -77893,7 +78985,7 @@
 |    FROM app.happy_customer;
 : null
 < row
-: int64 4294967801
+: int64 4294967802
 : string
 | public
 : string
@@ -78140,7 +79232,7 @@
 < column "definition" "TEXT"
 < column "obj_description" "TEXT"
 < row
-: int64 4294967802
+: int64 4294967803
 : string
 | app
 : string
@@ -78718,12 +79810,6 @@
 : int64 4294967742
 : int64 0
 < row
-: int64 4294967803
-: int64 0
-< row
-: int64 4294967803
-: int64 0
-< row
 : int64 4294967804
 : int64 0
 < row
@@ -78742,9 +79828,6 @@
 : int64 4294967806
 : int64 0
 < row
-: int64 4294967806
-: int64 0
-< row
 : int64 4294967807
 : int64 0
 < row
@@ -78752,6 +79835,15 @@
 : int64 0
 < row
 : int64 4294967807
+: int64 0
+< row
+: int64 4294967808
+: int64 0
+< row
+: int64 4294967808
+: int64 0
+< row
+: int64 4294967808
 : int64 0
 > query
 |
@@ -78779,7 +79871,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967808
+: int64 4294967809
 : string
 | app
 : string
@@ -78796,7 +79888,7 @@
 : string
 | adds integers
 < row
-: int64 4294967809
+: int64 4294967810
 : string
 | app
 : string
@@ -78812,7 +79904,7 @@
 |
 : null
 < row
-: int64 4294967810
+: int64 4294967811
 : string
 | app
 : string
@@ -78828,7 +79920,7 @@
 |
 : null
 < row
-: int64 4294967805
+: int64 4294967806
 : string
 | app
 : string
@@ -78839,7 +79931,7 @@
 | multirange_constructor0
 : null
 < row
-: int64 4294967807
+: int64 4294967808
 : string
 | app
 : string
@@ -78850,7 +79942,7 @@
 | multirange_constructor2
 : null
 < row
-: int64 4294967806
+: int64 4294967807
 : string
 | app
 : string
@@ -78861,7 +79953,7 @@
 | multirange_constructor1
 : null
 < row
-: int64 4294967803
+: int64 4294967804
 : string
 | app
 : string
@@ -78872,7 +79964,7 @@
 | range_constructor2
 : null
 < row
-: int64 4294967804
+: int64 4294967805
 : string
 | app
 : string
@@ -78883,7 +79975,7 @@
 | range_constructor3
 : null
 < row
-: int64 4294967811
+: int64 4294967812
 : string
 | app
 : string
@@ -78900,7 +79992,7 @@
 |
 : null
 < row
-: int64 4294967812
+: int64 4294967813
 : string
 | app
 : string
@@ -78919,7 +80011,7 @@
 |
 : null
 < row
-: int64 4294967813
+: int64 4294967814
 : string
 | app
 : string
@@ -78937,7 +80029,7 @@
 |
 : null
 < row
-: int64 4294967814
+: int64 4294967815
 : string
 | app
 : string
@@ -78957,7 +80049,7 @@
 |
 : null
 < row
-: int64 4294967815
+: int64 4294967816
 : string
 | audit
 : string
@@ -84071,28 +85163,28 @@
 < column "owning_tab" "OID"
 < column "owning_col" "INT4"
 < row
-: int64 4294967816
-: int64 4294967785
+: int64 4294967817
+: int64 4294967786
 : int64 31
 < row
-: int64 4294967817
-: int64 4294967785
-: int64 1
-< row
 : int64 4294967818
-: int64 4294967785
-: int64 2
+: int64 4294967786
+: int64 1
 < row
 : int64 4294967819
-: int64 4294967789
-: int64 1
+: int64 4294967786
+: int64 2
 < row
 : int64 4294967820
-: int64 4294967795
+: int64 4294967790
 : int64 1
 < row
 : int64 4294967821
-: int64 4294967792
+: int64 4294967796
+: int64 1
+< row
+: int64 4294967822
+: int64 4294967793
 : int64 2
 > query
 |
@@ -84130,7 +85222,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967822
+: int64 4294967823
 : string
 | app
 : string
@@ -84147,7 +85239,7 @@
 : string
 | counts by five
 < row
-: int64 4294967818
+: int64 4294967819
 : string
 | app
 : string
@@ -84163,7 +85255,7 @@
 : null
 : null
 < row
-: int64 4294967817
+: int64 4294967818
 : string
 | app
 : string
@@ -84179,7 +85271,7 @@
 : null
 : null
 < row
-: int64 4294967819
+: int64 4294967820
 : string
 | app
 : string
@@ -84195,7 +85287,7 @@
 : null
 : null
 < row
-: int64 4294967816
+: int64 4294967817
 : string
 | app
 : string
@@ -84211,7 +85303,7 @@
 : null
 : null
 < row
-: int64 4294967821
+: int64 4294967822
 : string
 | app
 : string
@@ -84227,7 +85319,7 @@
 : null
 : null
 < row
-: int64 4294967823
+: int64 4294967824
 : string
 | audit
 : string
@@ -84243,7 +85335,7 @@
 : null
 : null
 < row
-: int64 4294967820
+: int64 4294967821
 : string
 | public
 : string
@@ -84329,7 +85421,7 @@
 < column "enum_value" "NAME"
 < column "enum_comment" "TEXT"
 < row
-: int64 4294967824
+: int64 4294967825
 : string
 | app
 : string
@@ -84339,7 +85431,7 @@
 : string
 | how it feels
 < row
-: int64 4294967824
+: int64 4294967825
 : string
 | app
 : string
@@ -84349,7 +85441,7 @@
 : string
 | how it feels
 < row
-: int64 4294967824
+: int64 4294967825
 : string
 | app
 : string
@@ -84403,8 +85495,8 @@
 < column "attribute_collation" "TEXT"
 < column "attribute_comment" "TEXT"
 < row
-: int64 4294967825
 : int64 4294967826
+: int64 4294967827
 : string
 | app
 : string
@@ -84420,8 +85512,8 @@
 : string
 | street line
 < row
-: int64 4294967825
 : int64 4294967826
+: int64 4294967827
 : string
 | app
 : string
@@ -84435,8 +85527,8 @@
 : null
 : null
 < row
-: int64 4294967825
 : int64 4294967826
+: int64 4294967827
 : string
 | app
 : string
@@ -84450,8 +85542,8 @@
 : null
 : null
 < row
-: int64 4294967827
 : int64 4294967828
+: int64 4294967829
 : string
 | app
 : string
@@ -84464,8 +85556,8 @@
 : null
 : null
 < row
-: int64 4294967827
 : int64 4294967828
+: int64 4294967829
 : string
 | app
 : string
@@ -84478,8 +85570,8 @@
 : null
 : null
 < row
-: int64 4294967829
 : int64 4294967830
+: int64 4294967831
 : string
 | app
 : string
@@ -84514,7 +85606,7 @@
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
 < row
-: int64 4294967831
+: int64 4294967832
 : string
 | corpus_ddl
 : string
@@ -84530,7 +85622,7 @@
 : string
 | logs DDL
 < row
-: int64 4294967832
+: int64 4294967833
 : string
 | corpus_drop
 : string

@@ -4,7 +4,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
@@ -28,17 +28,17 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "INDEX_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "COLLATION" "VARCHAR"
-< column "IFNULL(SUB_PART, -1)" "BIGINT"
+< column "IFNULL(SUB_PART, -1)" "BIGINT" "int64"
 < column "EXPRESSION" "TEXT"
-< column "SEQ_IN_INDEX" "UNSIGNED INT"
-< column "INDEX_TYPE" "VARCHAR"
-< column "NON_UNIQUE" "INT"
-< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT"
-< column "INDEX_COMMENT" "VARCHAR"
+< column "SEQ_IN_INDEX" "UNSIGNED INT" "uint32"
+< column "INDEX_TYPE" "VARCHAR" "string"
+< column "NON_UNIQUE" "INT" "int32"
+< column "CASE IS_VISIBLE WHEN 'YES' THEN 1 ELSE 0 END" "INT" "int32"
+< column "INDEX_COMMENT" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -60,16 +60,16 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "IFNULL(COLUMN_NAME, '')" "VARCHAR"
-< column "ORDINAL_POSITION" "UNSIGNED INT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "IFNULL(COLUMN_NAME, '')" "VARCHAR" "string"
+< column "ORDINAL_POSITION" "UNSIGNED INT" "uint32"
 < column "CASE WHEN COLUMN_DEFAULT is NULL THEN NULL ELSE QUOTE(COLUMN_DEFAULT) END" "TEXT"
-< column "IS_NULLABLE" "VARCHAR"
-< column "COLUMN_TYPE" "TEXT"
-< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR"
-< column "IFNULL(COLLATION_NAME, '')" "VARCHAR"
+< column "IS_NULLABLE" "VARCHAR" "string"
+< column "COLUMN_TYPE" "TEXT" "string"
+< column "IFNULL(CHARACTER_SET_NAME, '')" "VARCHAR" "string"
+< column "IFNULL(COLLATION_NAME, '')" "VARCHAR" "string"
 < column "QUOTE(COLUMN_COMMENT)" "TEXT"
-< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB"
+< column "convert(GENERATION_EXPRESSION using BINARY)" "BLOB" "[]uint8"
 < column "EXTRA" "VARCHAR"
 < column "SRS_ID" "UNSIGNED INT"
 > query
@@ -88,9 +88,9 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "CONSTRAINT_NAME" "VARCHAR"
-< column "CHECK_CLAUSE" "TEXT"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "CONSTRAINT_NAME" "VARCHAR" "string"
+< column "CHECK_CLAUSE" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -102,7 +102,7 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "VIEW_DEFINITION" "TEXT"
 > query
 |
@@ -122,14 +122,14 @@
 : string
 | omni_no_such_database
 < result
-< column "TRIGGER_NAME" "VARCHAR"
-< column "EVENT_OBJECT_TABLE" "VARCHAR"
-< column "EVENT_MANIPULATION" "ENUM"
-< column "ACTION_TIMING" "ENUM"
-< column "ACTION_STATEMENT" "TEXT"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "TRIGGER_NAME" "VARCHAR" "string"
+< column "EVENT_OBJECT_TABLE" "VARCHAR" "string"
+< column "EVENT_MANIPULATION" "ENUM" "string"
+< column "ACTION_TIMING" "ENUM" "string"
+< column "ACTION_STATEMENT" "TEXT" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 > query
 |
 | 	SELECT
@@ -145,11 +145,11 @@
 : string
 | omni_no_such_database
 < result
-< column "EVENT_NAME" "VARCHAR"
-< column "TIME_ZONE" "VARCHAR"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
+< column "EVENT_NAME" "VARCHAR" "string"
+< column "TIME_ZONE" "VARCHAR" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -165,12 +165,12 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
-< column "REFERENCED_TABLE_NAME" "VARCHAR"
-< column "DELETE_RULE" "ENUM"
-< column "UPDATE_RULE" "ENUM"
-< column "MATCH_OPTION" "ENUM"
+< column "REFERENCED_TABLE_NAME" "VARCHAR" "string"
+< column "DELETE_RULE" "ENUM" "string"
+< column "UPDATE_RULE" "ENUM" "string"
+< column "MATCH_OPTION" "ENUM" "string"
 > query
 |
 | 		SELECT
@@ -187,8 +187,8 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_SCHEMA" "VARCHAR"
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_SCHEMA" "VARCHAR" "string"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "CONSTRAINT_NAME" "VARCHAR"
 < column "COLUMN_NAME" "VARCHAR"
 < column "REFERENCED_TABLE_SCHEMA" "VARCHAR"
@@ -203,7 +203,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -211,7 +212,7 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
 < column "PARTITION_NAME" "VARCHAR"
 < column "SUBPARTITION_NAME" "VARCHAR"
 < column "PARTITION_METHOD" "VARCHAR"
@@ -219,6 +220,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -237,13 +239,13 @@
 : string
 | omni_no_such_database
 < result
-< column "ROUTINE_NAME" "VARCHAR"
-< column "ROUTINE_TYPE" "ENUM"
-< column "SQL_MODE" "SET"
-< column "CHARACTER_SET_CLIENT" "VARCHAR"
-< column "COLLATION_CONNECTION" "VARCHAR"
-< column "DATABASE_COLLATION" "VARCHAR"
-< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
+< column "ROUTINE_NAME" "VARCHAR" "string"
+< column "ROUTINE_TYPE" "ENUM" "string"
+< column "SQL_MODE" "SET" "string"
+< column "CHARACTER_SET_CLIENT" "VARCHAR" "string"
+< column "COLLATION_CONNECTION" "VARCHAR" "string"
+< column "DATABASE_COLLATION" "VARCHAR" "string"
+< column "IFNULL(ROUTINE_COMMENT, '')" "TEXT" "string"
 > query
 |
 | 		SELECT
@@ -266,17 +268,17 @@
 : string
 | omni_no_such_database
 < result
-< column "TABLE_NAME" "VARCHAR"
-< column "TABLE_TYPE" "ENUM"
-< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR"
-< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL"
-< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL"
-< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR"
+< column "TABLE_NAME" "VARCHAR" "string"
+< column "TABLE_TYPE" "ENUM" "string"
+< column "IFNULL(TABLES.ENGINE, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_COLLATION, '')" "VARCHAR" "string"
+< column "IFNULL(TABLES.TABLE_ROWS, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.INDEX_LENGTH, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.DATA_FREE, 0)" "DECIMAL" "string" precision 21 scale 0
+< column "IFNULL(TABLES.CREATE_OPTIONS, '')" "VARCHAR" "string"
 < column "QUOTE(IFNULL(TABLES.TABLE_COMMENT, ''))" "TEXT"
-< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR"
+< column "IFNULL(CCSA.CHARACTER_SET_NAME, '')" "VARCHAR" "string"
 > query
 |
 | 		SELECT
@@ -287,5 +289,5 @@
 : string
 | omni_no_such_database
 < result
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"

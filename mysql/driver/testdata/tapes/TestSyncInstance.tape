@@ -14,14 +14,14 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
 < column "Value" "VARCHAR"
 < row
 : bytes
@@ -39,8 +39,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "user" "CHAR"
-< column "host" "CHAR"
+< column "user" "CHAR" "string"
+< column "host" "CHAR" "string"
 < row
 : bytes
 | omni_test
@@ -69,7 +69,7 @@
 > query
 | SHOW GRANTS FOR 'omni_test'@'%'
 < result
-< column "Grants for omni_test@%" "VARCHAR"
+< column "Grants for omni_test@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `omni_test`@`%`
@@ -79,7 +79,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`%` WITH GRANT OPTION
@@ -89,7 +89,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
@@ -102,14 +102,14 @@
 > query
 | SHOW GRANTS FOR 'sync''quote'@'%'
 < result
-< column "Grants for sync'quote@%" "VARCHAR"
+< column "Grants for sync'quote@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync'quote`@`%`
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%`
@@ -126,9 +126,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_extra
@@ -156,14 +156,14 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.46
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
 < column "Value" "VARCHAR"
 < row
 : bytes
@@ -181,8 +181,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "user" "CHAR"
-< column "host" "CHAR"
+< column "user" "CHAR" "string"
+< column "host" "CHAR" "string"
 < row
 : bytes
 | omni_test
@@ -211,7 +211,7 @@
 > query
 | SHOW GRANTS FOR 'omni_test'@'%'
 < result
-< column "Grants for omni_test@%" "VARCHAR"
+< column "Grants for omni_test@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `omni_test`@`%`
@@ -221,7 +221,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`%` WITH GRANT OPTION
@@ -231,7 +231,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
@@ -244,14 +244,14 @@
 > query
 | SHOW GRANTS FOR 'sync''quote'@'%'
 < result
-< column "Grants for sync'quote@%" "VARCHAR"
+< column "Grants for sync'quote@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync'quote`@`%`
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%`
@@ -269,8 +269,8 @@
 | 		ORDER BY SCHEMA_NAME
 < result
 < column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_extra
@@ -298,14 +298,14 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.4.13
 > query
 | SHOW VARIABLES LIKE 'lower_case_table_names'
 < result
-< column "Variable_name" "VARCHAR"
+< column "Variable_name" "VARCHAR" "string"
 < column "Value" "VARCHAR"
 < row
 : bytes
@@ -323,8 +323,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "user" "CHAR"
-< column "host" "CHAR"
+< column "user" "CHAR" "string"
+< column "host" "CHAR" "string"
 < row
 : bytes
 | omni_test
@@ -353,7 +353,7 @@
 > query
 | SHOW GRANTS FOR 'omni_test'@'%'
 < result
-< column "Grants for omni_test@%" "VARCHAR"
+< column "Grants for omni_test@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `omni_test`@`%`
@@ -363,7 +363,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'%'
 < result
-< column "Grants for root@%" "VARCHAR"
+< column "Grants for root@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`%` WITH GRANT OPTION
@@ -373,7 +373,7 @@
 > query
 | SHOW GRANTS FOR 'root'@'localhost'
 < result
-< column "Grants for root@localhost" "VARCHAR"
+< column "Grants for root@localhost" "VARCHAR" "string"
 < row
 : bytes
 | GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, RELOAD, SHUTDOWN, PROCESS, FILE, REFERENCES, INDEX, ALTER, SHOW DATABASES, SUPER, CREATE TEMPORARY TABLES, LOCK TABLES, EXECUTE, REPLICATION SLAVE, REPLICATION CLIENT, CREATE VIEW, SHOW VIEW, CREATE ROUTINE, ALTER ROUTINE, CREATE USER, EVENT, TRIGGER, CREATE TABLESPACE, CREATE ROLE, DROP ROLE ON *.* TO `root`@`localhost` WITH GRANT OPTION
@@ -386,14 +386,14 @@
 > query
 | SHOW GRANTS FOR 'sync''quote'@'%'
 < result
-< column "Grants for sync'quote@%" "VARCHAR"
+< column "Grants for sync'quote@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync'quote`@`%`
 > query
 | SHOW GRANTS FOR 'sync_reader'@'%'
 < result
-< column "Grants for sync_reader@%" "VARCHAR"
+< column "Grants for sync_reader@%" "VARCHAR" "string"
 < row
 : bytes
 | GRANT USAGE ON *.* TO `sync_reader`@`%`
@@ -410,9 +410,9 @@
 | 		WHERE LOWER(SCHEMA_NAME) NOT IN ('LBACSYS', 'ORAAUDITOR', 'SYS', '__public', 'information_schema', 'mysql', 'oceanbase', 'performance_schema', 'sys')
 | 		ORDER BY SCHEMA_NAME
 < result
-< column "SCHEMA_NAME" "VARCHAR"
-< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR"
-< column "DEFAULT_COLLATION_NAME" "VARCHAR"
+< column "SCHEMA_NAME" "VARCHAR" "string"
+< column "DEFAULT_CHARACTER_SET_NAME" "VARCHAR" "string"
+< column "DEFAULT_COLLATION_NAME" "VARCHAR" "string"
 < row
 : bytes
 | sync_extra

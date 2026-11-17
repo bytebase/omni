@@ -4,7 +4,7 @@
 > query
 | SELECT VERSION()
 < result
-< column "VERSION()" "VARCHAR"
+< column "VERSION()" "VARCHAR" "string"
 < row
 : bytes
 | 8.0.11-TiDB-v8.5.5
@@ -29,8 +29,8 @@
 | 	ORDER BY user, host
 | 	
 < result
-< column "user" "CHAR"
-< column "host" "CHAR"
+< column "user" "CHAR" "string"
+< column "host" "CHAR" "string"
 < row
 : bytes
 | root

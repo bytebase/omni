@@ -130,10 +130,12 @@ type metadataObject struct {
 	// partitionKey is a partitioned table's PARTITION BY clause, without the
 	// keywords, as sync reports it: "RANGE (created_at)".
 	partitionKey string
-	// partitionOf names the table a partition belongs to, and partitionBound
-	// is its FOR VALUES or DEFAULT clause.
-	partitionOf    string
-	partitionBound string
+	// partitionOf names the table a partition belongs to, partitionParentSchema
+	// is the schema that table lives in, and partitionBound is its FOR VALUES
+	// or DEFAULT clause.
+	partitionOf           string
+	partitionParentSchema string
+	partitionBound        string
 	// parentIndexKey is the key of the partitioned table's index a
 	// partition's index is attached to.
 	parentIndexKey string
@@ -293,51 +295,63 @@ func appendPartitionTables(out []*metadataObject, schema string, t *metadata.Tab
 	for _, col := range t.GetColumns() {
 		columns = append(columns, &metadata.ColumnMetadata{Name: col.GetName(), Type: col.GetType(), Nullable: col.GetNullable(), Collation: col.GetCollation()})
 	}
-	var walk func(parent string, partitions []*metadata.TablePartitionMetadata)
-	walk = func(parent string, partitions []*metadata.TablePartitionMetadata) {
+	var walk func(parentSchema, parent string, partitions []*metadata.TablePartitionMetadata)
+	walk = func(parentSchema, parent string, partitions []*metadata.TablePartitionMetadata) {
 		for _, p := range partitions {
+			partitionSchema := partitionSchemaName(parentSchema, p)
 			o := &metadataObject{
 				kind:   metadataTable,
-				schema: schema,
+				schema: partitionSchema,
 				name:   p.GetName(),
 				table:  &metadata.TableMetadata{Name: p.GetName(), Columns: columns},
 			}
 			if p.GetExpression() != "" && p.GetValue() != "" {
-				o.partitionOf, o.partitionBound = parent, p.GetValue()
+				o.partitionOf, o.partitionParentSchema, o.partitionBound = parent, parentSchema, p.GetValue()
 				if len(p.GetSubpartitions()) > 0 {
 					o.partitionKey = p.GetSubpartitions()[0].GetExpression()
 				}
 			}
 			out = append(out, o)
-			walk(p.GetName(), p.GetSubpartitions())
+			walk(partitionSchema, p.GetName(), p.GetSubpartitions())
 		}
 	}
-	walk(t.GetName(), t.GetPartitions())
+	walk(schema, t.GetName(), t.GetPartitions())
 	return out
 }
 
-// forEachPartition calls f for each of t's partitions and their subpartitions.
-func forEachPartition(t *metadata.TableMetadata, f func(*metadata.TablePartitionMetadata)) {
-	var walk func([]*metadata.TablePartitionMetadata)
-	walk = func(partitions []*metadata.TablePartitionMetadata) {
+// partitionSchemaName is the schema a partition lives in. A snapshot that
+// predates the field leaves it empty, and the partition then lives beside its
+// parent.
+func partitionSchemaName(parent string, p *metadata.TablePartitionMetadata) string {
+	return cmp.Or(p.GetSchema(), parent)
+}
+
+// forEachPartition calls f for each of t's partitions and their subpartitions,
+// with the schema each one resolves to: a partition that names no schema lives
+// beside its immediate parent.
+func forEachPartition(schema string, t *metadata.TableMetadata, f func(schema string, p *metadata.TablePartitionMetadata)) {
+	var walk func(parent string, partitions []*metadata.TablePartitionMetadata)
+	walk = func(parent string, partitions []*metadata.TablePartitionMetadata) {
 		for _, p := range partitions {
-			f(p)
-			walk(p.GetSubpartitions())
+			partitionSchema := partitionSchemaName(parent, p)
+			f(partitionSchema, p)
+			walk(partitionSchema, p.GetSubpartitions())
 		}
 	}
-	walk(t.GetPartitions())
+	walk(schema, t.GetPartitions())
 }
 
 // appendPartitionConstraintObjects adds the indexes and constraints of the
 // partitions of parent and of their subpartitions. An index attached to its
 // parent's waits for that index.
-func appendPartitionConstraintObjects(out []*metadataObject, schema, parent string, partitions []*metadata.TablePartitionMetadata) []*metadataObject {
+func appendPartitionConstraintObjects(out []*metadataObject, parentSchema, parent string, partitions []*metadata.TablePartitionMetadata) []*metadataObject {
 	for _, p := range partitions {
+		schema := partitionSchemaName(parentSchema, p)
 		first := len(out)
 		out = appendConstraintObjects(out, schema, p.GetName(), p.GetIndexes(), p.GetCheckConstraints(), p.GetExcludeConstraints())
 		for _, o := range out[first:] {
 			if o.index != nil && o.index.GetParentIndexName() != "" {
-				o.parentIndexKey = "idx:" + cmp.Or(o.index.GetParentIndexSchema(), schema) + "." + parent + "." + o.index.GetParentIndexName()
+				o.parentIndexKey = "idx:" + cmp.Or(o.index.GetParentIndexSchema(), parentSchema) + "." + parent + "." + o.index.GetParentIndexName()
 			}
 		}
 		out = appendPartitionConstraintObjects(out, schema, p.GetName(), p.GetSubpartitions())
@@ -551,7 +565,7 @@ func (o *metadataObject) dependencies(byKey map[string]*metadataObject, function
 			addType(col.GetType())
 		}
 		if o.partitionOf != "" {
-			add(metadataRelationKey(o.schema, o.partitionOf))
+			add(metadataRelationKey(o.partitionParentSchema, o.partitionOf))
 		}
 	case metadataView, metadataMatView:
 		// A view whose body does not parse installs as a stand-in, which needs nothing.
@@ -995,7 +1009,7 @@ func metadataTableStmt(o *metadataObject, full bool) (*nodes.CreateStmt, error) 
 // which also partitions it when it has subpartitions.
 func metadataPartitionStmt(o *metadataObject) (*nodes.CreateStmt, error) {
 	sql := fmt.Sprintf("CREATE TABLE %s.%s PARTITION OF %s.%s %s",
-		quoteIdent(o.schema), quoteIdent(o.name), quoteIdent(o.schema), quoteIdent(o.partitionOf), o.partitionBound)
+		quoteIdent(o.schema), quoteIdent(o.name), quoteIdent(o.partitionParentSchema), quoteIdent(o.partitionOf), o.partitionBound)
 	if o.partitionKey != "" {
 		sql += " PARTITION BY " + o.partitionKey
 	}
@@ -1181,7 +1195,8 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 				comment("COLUMN "+qualified(relation)+"."+quoteIdent(col.GetName()), col.GetComment())
 			}
 		}
-		indexes := func(relation string, idxs []*metadata.IndexMetadata) {
+		indexes := func(schemaName, relation string, idxs []*metadata.IndexMetadata) {
+			qualified := func(name string) string { return quoteIdent(schemaName) + "." + quoteIdent(name) }
 			for _, idx := range idxs {
 				if isKeyIndex(idx) {
 					comment("CONSTRAINT "+quoteIdent(idx.GetName())+" ON "+qualified(relation), idx.GetComment())
@@ -1207,9 +1222,10 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 		for _, t := range s.GetTables() {
 			comment("TABLE "+qualified(t.GetName()), t.GetComment())
 			columns(t.GetName(), t.GetColumns())
-			indexes(t.GetName(), t.GetIndexes())
-			forEachPartition(t, func(p *metadata.TablePartitionMetadata) {
-				indexes(p.GetName(), p.GetIndexes())
+			indexes(s.GetName(), t.GetName(), t.GetIndexes())
+			forEachPartition(s.GetName(), t, func(partitionSchema string, p *metadata.TablePartitionMetadata) {
+				comment("TABLE "+quoteIdent(partitionSchema)+"."+quoteIdent(p.GetName()), p.GetComment())
+				indexes(partitionSchema, p.GetName(), p.GetIndexes())
 			})
 		}
 		for _, v := range s.GetViews() {
@@ -1218,7 +1234,7 @@ func (c *Catalog) installMetadataComments(meta *metadata.DatabaseSchemaMetadata)
 		}
 		for _, mv := range s.GetMaterializedViews() {
 			comment("MATERIALIZED VIEW "+qualified(mv.GetName()), mv.GetComment())
-			indexes(mv.GetName(), mv.GetIndexes())
+			indexes(s.GetName(), mv.GetName(), mv.GetIndexes())
 		}
 		for _, fn := range s.GetFunctions() {
 			if fn.GetSignature() == "" {

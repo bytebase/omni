@@ -10,11 +10,11 @@ import (
 	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
-	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
+	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 	"github.com/bytebase/omni/driver"
 )
 
@@ -428,7 +428,7 @@ var vacuumReg = regexp.MustCompile(`(?i)^\s*VACUUM`)
 // superuser privileges. CockroachDB's own AST decides, so a keyword inside a
 // string literal or comment cannot change the classification.
 func classifyStatement(stmt string) (nonTransactional, sessionRole, superuser bool) {
-	parsed, err := crrawparser.Parse(stmt)
+	parsed, err := crrawanalysis.Parse(stmt)
 	if err != nil || len(parsed) != 1 {
 		return false, false, false
 	}
@@ -448,7 +448,7 @@ func classifyStatement(stmt string) (nonTransactional, sessionRole, superuser bo
 }
 
 func getDatabaseInCreateDatabaseStatement(createDatabaseStatement string) (string, error) {
-	parsed, err := crrawparser.Parse(createDatabaseStatement)
+	parsed, err := crrawanalysis.Parse(createDatabaseStatement)
 	if err != nil {
 		return "", err
 	}

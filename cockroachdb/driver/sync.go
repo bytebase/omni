@@ -12,9 +12,9 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 	pganalysis "github.com/bytebase/omni/pg/analysis"
 
-	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
 	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
+	crrawanalysis "github.com/bytebase/omni/cockroachdb/analysis"
 	"github.com/bytebase/omni/driver"
 )
 
@@ -43,7 +43,7 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 
 	var filteredDatabases []*metadatapb.DatabaseSchemaMetadata
 	for _, database := range databases {
-		if isSystemDatabase(database.Name) {
+		if crrawanalysis.IsSystemDatabase(database.Name) {
 			continue
 		}
 		filteredDatabases = append(filteredDatabases, database)
@@ -184,7 +184,7 @@ FROM
 WHERE
 	n.nspname NOT IN(%s)
 	AND c.contype = 'f'
-ORDER BY fk_schema, fk_table, fk_name;`, systemSchemaWhereClause)
+ORDER BY fk_schema, fk_table, fk_name;`, crrawanalysis.SystemSchemaWhereClause)
 
 func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata, error) {
 	foreignKeysMap := make(map[tableKey][]*metadatapb.ForeignKeyMetadata)
@@ -411,7 +411,7 @@ SELECT nspname
 FROM pg_catalog.pg_namespace
 WHERE nspname NOT IN (%s)
 ORDER BY nspname;
-`, systemSchemaWhereClause)
+`, crrawanalysis.SystemSchemaWhereClause)
 
 func getSchemas(txn *sql.Tx) ([]string, error) {
 	rows, err := txn.Query(listSchemaQuery)
@@ -426,7 +426,7 @@ func getSchemas(txn *sql.Tx) ([]string, error) {
 		if err := rows.Scan(&schemaName); err != nil {
 			return nil, err
 		}
-		if isSystemSchema(schemaName) {
+		if crrawanalysis.IsSystemSchema(schemaName) {
 			continue
 		}
 		schemaNames = append(schemaNames, schemaName)
@@ -461,7 +461,7 @@ func getListTableQuery(isAtLeastPG10 bool) string {
 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')` + fmt.Sprintf(`
 	WHERE tbl.schemaname NOT IN (%s)%s
-	ORDER BY tbl.schemaname, tbl.tablename;`, systemSchemaWhereClause, relisPartition)
+	ORDER BY tbl.schemaname, tbl.tablename;`, crrawanalysis.SystemSchemaWhereClause, relisPartition)
 }
 
 // getTables gets all tables of a database.
@@ -572,7 +572,7 @@ WHERE
 	((c.relkind = 'r'::"char") OR (c.relkind = 'f'::"char") OR (c.relkind = 'p'::"char"))
 	AND c.relispartition IS TRUE ` + fmt.Sprintf(`
 	AND n.nspname NOT IN (%s)
-ORDER BY c.oid;`, systemSchemaWhereClause)
+ORDER BY c.oid;`, crrawanalysis.SystemSchemaWhereClause)
 
 func getTablePartitions(txn *sql.Tx) (map[tableKey][]*metadatapb.TablePartitionMetadata, error) {
 	result := make(map[tableKey][]*metadatapb.TablePartitionMetadata)
@@ -632,7 +632,7 @@ FROM INFORMATION_SCHEMA.COLUMNS AS cols
 LEFT JOIN pg_namespace n ON n.nspname = cols.table_schema
 LEFT JOIN pg_class c ON c.relname = cols.table_name AND c.relnamespace = n.oid AND c.relkind IN ('r', 'v', 'm', 'p', 'f')` + fmt.Sprintf(`
 WHERE cols.table_schema NOT IN (%s)
-ORDER BY cols.table_schema, cols.table_name, cols.ordinal_position;`, systemSchemaWhereClause)
+ORDER BY cols.table_schema, cols.table_name, cols.ordinal_position;`, crrawanalysis.SystemSchemaWhereClause)
 
 // getTableColumns gets the columns of a table.
 func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
@@ -693,7 +693,7 @@ FROM pg_catalog.pg_matviews m
 LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
 LEFT JOIN pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid AND c.relkind = 'm'` + fmt.Sprintf(`
 WHERE m.schemaname NOT IN (%s)
-ORDER BY m.schemaname, m.matviewname;`, systemSchemaWhereClause)
+ORDER BY m.schemaname, m.matviewname;`, crrawanalysis.SystemSchemaWhereClause)
 
 func getMaterializedViews(txn *sql.Tx) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
 	matviewMap := make(map[string][]*metadatapb.MaterializedViewMetadata)
@@ -749,7 +749,7 @@ FROM pg_catalog.pg_views v
 LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
 LEFT JOIN pg_class c ON c.relname = v.viewname AND c.relnamespace = n.oid AND c.relkind = 'v'` + fmt.Sprintf(`
 WHERE v.schemaname NOT IN (%s)
-ORDER BY v.schemaname, v.viewname;`, systemSchemaWhereClause)
+ORDER BY v.schemaname, v.viewname;`, crrawanalysis.SystemSchemaWhereClause)
 
 // getViews gets all views of a database.
 func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
@@ -919,7 +919,7 @@ FROM pg_indexes AS idx
 LEFT JOIN pg_namespace n ON n.nspname = idx.schemaname
 LEFT JOIN pg_class c ON c.relname = idx.indexname AND c.relnamespace = n.oid AND c.relkind = 'i'` + fmt.Sprintf(`
 WHERE idx.schemaname NOT IN (%s)
-ORDER BY idx.schemaname, idx.tablename, idx.indexname;`, systemSchemaWhereClause)
+ORDER BY idx.schemaname, idx.tablename, idx.indexname;`, crrawanalysis.SystemSchemaWhereClause)
 
 // getIndexes gets all indices of a database.
 func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
@@ -939,7 +939,7 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 			return nil, err
 		}
 
-		nodes, err := crrawparser.Parse(statement)
+		nodes, err := crrawanalysis.Parse(statement)
 		if err != nil {
 			return nil, err
 		}
@@ -1014,7 +1014,7 @@ left join pg_namespace n on p.pronamespace = n.oid
 left join pg_language l on p.prolang = l.oid
 left join pg_type t on t.oid = p.prorettype ` + fmt.Sprintf(`
 where n.nspname not in (%s)
-order by function_schema, function_name;`, systemSchemaWhereClause)
+order by function_schema, function_name;`, crrawanalysis.SystemSchemaWhereClause)
 
 // getFunctions gets all functions of a database.
 func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error) {
