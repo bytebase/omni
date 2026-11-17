@@ -184,6 +184,40 @@ func TestCreateView_WithViewComment(t *testing.T) {
 	}
 }
 
+// SHOW CREATE VIEW states SECURITY NONE for every view, and the grammar takes the
+// clause after the view's comment (StarRocks.g4:607 createViewStatement).
+func TestCreateView_Security(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want string
+	}{
+		{"none", "CREATE VIEW v (k) SECURITY NONE AS SELECT k FROM t", "NONE"},
+		{"invoker", "CREATE VIEW v (k) SECURITY INVOKER AS SELECT k FROM t", "INVOKER"},
+		{"after a comment", "CREATE VIEW v (k) COMMENT 'c' SECURITY INVOKER AS SELECT k FROM t", "INVOKER"},
+		{"absent", "CREATE VIEW v (k) AS SELECT k FROM t", ""},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stmt := parseCreateViewStmt(t, test.sql)
+			if stmt.Security != test.want {
+				t.Errorf("Security = %q, want %q", stmt.Security, test.want)
+			}
+		})
+	}
+}
+
+func TestCreateView_SecurityRejectsOtherWords(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE VIEW v SECURITY AS SELECT 1 AS k",
+		"CREATE VIEW v SECURITY DEFINER AS SELECT 1 AS k",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("parseForTest(%q) accepted a SECURITY clause the grammar does not state", sql)
+		}
+	}
+}
+
 func TestCreateView_QualifiedName(t *testing.T) {
 	stmt := parseCreateViewStmt(t, "CREATE VIEW example_db.example_view (k1, k2, k3, v1) AS SELECT c1 AS k1, k2, k3, SUM(v1) FROM example_table WHERE k1 = 20160112 GROUP BY k1, k2, k3")
 	if stmt.Name.String() != "example_db.example_view" {

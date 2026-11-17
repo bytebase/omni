@@ -2741,15 +2741,15 @@ reject	reject	engine	createViewStatement(comment)?/comment!truncate	CREATE VIEW 
 reject	reject	engine	createViewStatement(comment)?/comment!insert	CREATE VIEW a COMMENT 'a' zzz AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(comment)?/comment!swap	CREATE VIEW a COMMIT 'a' AS SELECT CURRENT_USER;
 accept	accept	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/%empty	CREATE VIEW a AS SELECT CURRENT_USER;
-reject	accept	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)	CREATE VIEW a SECURITY NONE AS SELECT CURRENT_USER;
+accept	accept	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)	CREATE VIEW a SECURITY NONE AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)!drop-1	CREATE VIEW a NONE AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)!drop-2	CREATE VIEW a SECURITY AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)!truncate	CREATE VIEW a SECURITY
 reject	reject	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)!insert	CREATE VIEW a SECURITY NONE zzz AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(SECURITY_(NONE|INVOKER))?/SECURITY_(NONE|INVOKER)!swap	CREATE VIEW a SELECT NONE AS SELECT CURRENT_USER;
-reject	accept	engine	createViewStatement(NONE|INVOKER)/NONE	CREATE VIEW a SECURITY NONE AS SELECT CURRENT_USER;
+accept	accept	engine	createViewStatement(NONE|INVOKER)/NONE	CREATE VIEW a SECURITY NONE AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(NONE|INVOKER)/NONE!swap	CREATE VIEW a SECURITY NOT AS SELECT CURRENT_USER;
-reject	accept	engine	createViewStatement(NONE|INVOKER)/INVOKER	CREATE VIEW a SECURITY INVOKER AS SELECT CURRENT_USER;
+accept	accept	engine	createViewStatement(NONE|INVOKER)/INVOKER	CREATE VIEW a SECURITY INVOKER AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(NONE|INVOKER)/INVOKER!insert	CREATE VIEW a SECURITY INVOKER zzz AS SELECT CURRENT_USER;
 reject	reject	engine	createViewStatement(NONE|INVOKER)/INVOKER!swap	CREATE VIEW a SECURITY IS AS SELECT CURRENT_USER;
 accept	accept	engine	alterViewStatement/ALTER_VIEW_qualifiedName_((_columnNameWithComment_(,_co~9e235b2d	ALTER VIEW a AS SELECT CURRENT_USER;
