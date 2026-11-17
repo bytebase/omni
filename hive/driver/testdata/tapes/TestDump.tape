@@ -313,3 +313,17 @@
 < row
 : string
 | CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`
+> query
+| EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`a_top`
+< result
+< column "Explain" "STRING"
+< row
+: string
+| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_dump@ext_users","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_dump@z_base]"}],"input_partitions":[]}
+> query
+| EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`z_base`
+< result
+< column "Explain" "STRING"
+< row
+: string
+| {"input_tables":[{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@ext_users","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_dump@z_base]"}],"input_partitions":[]}

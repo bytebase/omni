@@ -2327,6 +2327,13 @@
 : string
 | CREATE VIEW `omni_gap_view_comment`.`v` AS SELECT `t`.`id` FROM `omni_gap_view_comment`.`t`
 > query
+| EXPLAIN DEPENDENCY SELECT * FROM `omni_gap_view_comment`.`v`
+< result
+< column "Explain" "STRING"
+< row
+: string
+| {"input_tables":[{"tablename":"omni_gap_view_comment@v","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_gap_view_comment@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_gap_view_comment@v]"}],"input_partitions":[]}
+> query
 | SHOW TABLES FROM `omni_gap_view_comment`
 < result
 < column "tab_name" "STRING"

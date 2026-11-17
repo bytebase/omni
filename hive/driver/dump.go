@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
@@ -19,7 +20,8 @@ const dumpViewPrefix = "CREATE VIEW "
 
 // dumpObject is one object a dump writes: the name the server lists, the
 // statement the server states for it, whether that statement is a view's, and
-// the views in the same database the statement reads, which orders the views.
+// the views in the same database that creating it resolves, which orders the
+// views.
 type dumpObject struct {
 	name   string
 	stmt   string
@@ -78,9 +80,17 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 		}
 	}
 	for _, o := range objects {
-		if o.isView {
-			o.reads = dumpReads(o, database, views)
+		if !o.isView {
+			continue
 		}
+		reads, err := d.dumpReads(ctx, database, o.name, views)
+		if err != nil {
+			// Hive answers a view whose source is gone with an error here — the
+			// statement it states is still the view's, so the dump carries it,
+			// ordered by name like any definition the server cannot place.
+			continue
+		}
+		o.reads = reads
 	}
 	return objects, nil
 }
@@ -204,69 +214,56 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 	return sorted
 }
 
-// dumpReads returns the other views in views that o reads. Hive's rendering
-// writes every reference in a view's statement in backquotes and qualified with
-// its database, which is what the dump would write for it, so a reference is a
-// substring bounded by backquotes, and o's own name in its CREATE statement is
-// not a read.
-func dumpReads(o *dumpObject, database string, views map[string]bool) []string {
+// dumpReads returns the views in views that creating o resolves, as the server
+// states them. EXPLAIN DEPENDENCY names every table a query reads and the table
+// whose query reads it, so the entry whose parent is o is a view o reads. The
+// statement Hive renders cannot be read for this: a qualified column of a table
+// aliased with the database's name is spelled like a reference to another view,
+// and so is a name inside a string literal.
+func (d *Driver) dumpReads(ctx context.Context, database, name string, views map[string]bool) ([]string, error) {
+	query := "EXPLAIN DEPENDENCY SELECT * FROM " + quoteBacktick(database) + "." + quoteBacktick(name)
+	rows, err := d.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	var dependencies dumpDependencies
+	if rows.Next() {
+		var text string
+		if err := rows.Scan(&text); err != nil {
+			return nil, fmt.Errorf("%s: %w", query, err)
+		}
+		if err := json.Unmarshal([]byte(text), &dependencies); err != nil {
+			return nil, fmt.Errorf("%s: %w", query, err)
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+
+	// The parents Hive states are the table whose query reads this one, written
+	// as it stores them: database@table, in whatever case they were created.
 	var reads []string
-	for name := range views {
-		if name != o.name && dumpReferences(o.stmt, database, name) {
-			reads = append(reads, name)
+	for _, table := range dependencies.InputTables {
+		parent := table.Parents
+		parent = strings.TrimSuffix(strings.TrimPrefix(parent, "["), "]")
+		if !strings.EqualFold(parent, database+"@"+name) {
+			continue
+		}
+		read := table.Name[strings.LastIndex(table.Name, "@")+1:]
+		if views[read] {
+			reads = append(reads, read)
 		}
 	}
 	sort.Strings(reads)
-	return reads
+	return reads, nil
 }
 
-// dumpReferences reports whether stmt names database.name outside a string
-// literal. A name inside a literal is not a read, and the edge it would add can
-// close a cycle and leave the order to names. Hive resolves an identifier
-// whatever its case and renders the stored one, so the reference is matched
-// without regard to case: a caller may spell the database another way than the
-// server stores it.
-func dumpReferences(stmt, database, name string) bool {
-	reference := quoteBacktick(database) + "." + quoteBacktick(name)
-	for offset := 0; offset < len(stmt); {
-		start := indexFold(stmt[offset:], reference)
-		if start < 0 {
-			return false
-		}
-		start += offset
-		if !dumpInString(stmt, start) {
-			return true
-		}
-		offset = start + len(reference)
-	}
-	return false
-}
-
-// indexFold returns the index of reference in s, ignoring ASCII case, or -1.
-func indexFold(s, reference string) int {
-	for i := 0; i+len(reference) <= len(s); i++ {
-		if strings.EqualFold(s[i:i+len(reference)], reference) {
-			return i
-		}
-	}
-	return -1
-}
-
-// dumpInString reports whether the byte at want is inside a string literal.
-// Hive's rendering quotes a string with ' or ", escapes with a backslash, and
-// writes a name in backquotes, where a quote is a character of the name and
-// needs no escaping.
-func dumpInString(stmt string, want int) bool {
-	quote := byte(0)
-	for i := 0; i < want && i < len(stmt); i++ {
-		switch c := stmt[i]; {
-		case quote == 0 && (c == '\'' || c == '"' || c == '`'):
-			quote = c
-		case quote != 0 && c == '\\':
-			i++
-		case quote != 0 && c == quote:
-			quote = 0
-		}
-	}
-	return quote == '\'' || quote == '"'
+// dumpDependencies is what EXPLAIN DEPENDENCY answers: the tables a query reads,
+// each with the table whose query reads it.
+type dumpDependencies struct {
+	InputTables []struct {
+		Name    string `json:"tablename"`
+		Parents string `json:"tableParents"`
+	} `json:"input_tables"`
 }
