@@ -1130,6 +1130,24 @@ func TestWriteViewsInDependencyOrderIsStable(t *testing.T) {
 	got := buf.String()
 	require.Less(t, strings.Index(got, "`V`"), strings.Index(got, "`a_mv`"), "the view a materialized view spells is written first")
 	require.Less(t, strings.Index(got, "`a_mv`"), strings.Index(got, "`v`"), "the materialized view a view reads is written first")
+
+	// A stored body ending in WITH CHECK OPTION parses only as a whole view, and its relation
+	// still orders it: a checked view created over the temporary placeholder of another view
+	// is not updatable.
+	schema = &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			{Name: "b_base", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "z_checked", Definition: "select `db`.`b_base`.`id` AS `id` from `db`.`b_base` where (`db`.`b_base`.`id` > 0) WITH CASCADED CHECK OPTION"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			{Name: "a_mv2", Definition: "select `db`.`z_checked`.`id` AS `id` from `db`.`z_checked`"},
+		},
+	}
+	buf = &strings.Builder{}
+	require.NoError(t, writeViewsInDependencyOrder(buf, "db", schema))
+	got = buf.String()
+	require.Less(t, strings.Index(got, "`b_base`"), strings.Index(got, "`z_checked`"), "the view a checked view reads is written first")
+	require.Less(t, strings.Index(got, "`z_checked`"), strings.Index(got, "`a_mv2`"), "the checked view a materialized view reads is written first")
 }
 
 // TestWriteMaterializedViewStatesSQLMode pins the mode a materialized view's section needs:

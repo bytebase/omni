@@ -1885,16 +1885,15 @@ type relationRef struct {
 // folded name, which a dump cannot use: a tenant with lower_case_table_names=0 holds views
 // that differ only in case, and folding them together would order one against another.
 func viewReferences(definition, ownDB string) []relationRef {
-	list, err := obparser.Parse(definition)
-	if err != nil || list == nil || len(list.Items) == 0 {
-		return nil
-	}
-	stmt, ok := list.Items[0].(*nodes.SelectStmt)
-	if !ok {
+	// A stored body may end in WITH CHECK OPTION, so it parses only as a whole view. A body
+	// the parser cannot read yields no edge and the object is written in name order: the
+	// definition came from the server, which accepted it, so the dump still writes it.
+	stmt, err := parseFirstStatement[*nodes.CreateViewStmt]("CREATE VIEW `v` AS " + definition)
+	if err != nil || stmt.Select == nil {
 		return nil
 	}
 	var refs []relationRef
-	for _, ref := range selectTableRefs(stmt) {
+	for _, ref := range selectTableRefs(stmt.Select) {
 		if ref == nil || ref.Name == "" {
 			continue
 		}
