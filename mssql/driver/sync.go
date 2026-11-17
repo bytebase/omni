@@ -32,13 +32,20 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 
 // wrapSyncError reports a database SQL Server says it does not have as
 // driver.ErrNotFound: a sync names the database it reads, so its absence is the
-// object the call asked for and not a failure of the sync. A login that may not
-// open the database gets 4060 too, and the database is as unreachable as a
-// missing one.
+// object the call asked for and not a failure of the sync.
+//
+// 4060 and 911 are the server's answer for a database the login may not open;
+// 4063 is what it says when the login may fall back to its default database,
+// which go-mssqldb reports as the connect error. A database that is not there
+// is refused when the connection opens, so the answer arrives before any
+// statement does.
 func wrapSyncError(database string, err error) error {
 	var engineError gomssqldb.Error
-	if errors.As(err, &engineError) && (engineError.Number == 4060 || engineError.Number == 911) {
-		return fmt.Errorf("%w: database %q does not exist", driver.ErrNotFound, database)
+	if errors.As(err, &engineError) {
+		switch engineError.Number {
+		case 911, 4060, 4063:
+			return fmt.Errorf("%w: database %q does not exist", driver.ErrNotFound, database)
+		}
 	}
 	return err
 }
