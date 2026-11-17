@@ -18,7 +18,7 @@
 | 		SELECT
 | 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
+| 		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 | 		ORDER BY name
 : string
 | omni_gap_mv
@@ -128,7 +128,7 @@
 | 		SELECT
 | 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
+| 		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 | 		ORDER BY name
 : string
 | omni_gap_database

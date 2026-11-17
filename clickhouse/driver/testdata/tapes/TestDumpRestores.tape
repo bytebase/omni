@@ -55,6 +55,17 @@
 > exec
 |
 |
+| -- A name the internal-table pattern must not take for one: its underscores are
+| -- what a LIKE pattern would read as wildcards.
+| CREATE TABLE `.innerXid.events` (
+|   id UInt64
+| )
+| ENGINE = MergeTree
+| ORDER BY id;
+< ok 0 -
+> exec
+|
+|
 | CREATE TABLE `line
 | break` (
 |   id UInt64
@@ -102,10 +113,16 @@
 > exec
 |
 |
-| -- A materialized view resolves its source when it is created, so the dump has to
-| -- write mv_base first whatever the names say; the literal above names a_top and
-| -- is not a read.
-| CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM mv_base;
+| -- An ordinary view reads mv_base, and a materialized view reads that view: a
+| -- materialized view resolves its source when it is created, through the view, so
+| -- the dump has to write mv_base first whatever the names say. The literal above
+| -- names a_top and is not a read.
+| CREATE VIEW v_bridge AS SELECT id, name FROM mv_base;
+< ok 0 -
+> exec
+|
+|
+| CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM v_bridge;
 < ok 0 -
 > exec
 |
@@ -152,6 +169,24 @@
 < row
 : string
 | .events
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| .innerXid.events
 : string
 | id
 : uint64 1
@@ -496,6 +531,42 @@
 |
 < row
 : string
+| v_bridge
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| v_bridge
+: string
+| name
+: uint64 2
+: string
+|
+: string
+| 0
+: string
+| String
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | v_names
 : string
 | id
@@ -572,6 +643,21 @@
 | id
 < row
 : string
+| .innerXid.events
+: string
+| MergeTree
+: uint64 0
+: uint64 0
+: string
+| CREATE TABLE omni_testdumprestores.`.innerXid.events` (`id` UInt64) ENGINE = MergeTree ORDER BY id SETTINGS index_granularity = 8192
+: string
+|
+: string
+| id
+: string
+| id
+< row
+: string
 | a_after
 : string
 | MaterializedView
@@ -608,7 +694,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testdumprestores.mv_base
+| CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testdumprestores.v_bridge
 : string
 |
 : string
@@ -739,6 +825,21 @@
 | id
 < row
 : string
+| v_bridge
+: string
+| View
+: uint64 0
+: uint64 0
+: string
+| CREATE VIEW omni_testdumprestores.v_bridge (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testdumprestores.mv_base
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | v_names
 : string
 | View
@@ -766,6 +867,16 @@
 | omni_testdumprestores
 : string
 | .events
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| .innerXid.events
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"
@@ -886,7 +997,7 @@
 | 		SELECT
 | 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
+| 		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 | 		ORDER BY name
 : string
 | omni_testdumprestores
@@ -895,6 +1006,9 @@
 < row
 : string
 | .events
+< row
+: string
+| .innerXid.events
 < row
 : string
 | a_after
@@ -932,6 +1046,9 @@
 | target
 < row
 : string
+| v_bridge
+< row
+: string
 | v_names
 > query
 | SHOW CREATE TABLE omni_testdumprestores.`.events`
@@ -940,6 +1057,19 @@
 < row
 : string
 | CREATE TABLE omni_testdumprestores.`.events`
+| (
+|     `id` UInt64
+| )
+| ENGINE = MergeTree
+| ORDER BY id
+| SETTINGS index_granularity = 8192
+> query
+| SHOW CREATE TABLE omni_testdumprestores.`.innerXid.events`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE TABLE omni_testdumprestores.`.innerXid.events`
 | (
 |     `id` UInt64
 | )
@@ -987,7 +1117,7 @@
 | AS SELECT
 |     id,
 |     name
-| FROM omni_testdumprestores.mv_base
+| FROM omni_testdumprestores.v_bridge
 > query
 | SHOW CREATE TABLE omni_testdumprestores.dict
 < result
@@ -1102,6 +1232,21 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
+| SHOW CREATE TABLE omni_testdumprestores.v_bridge
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE VIEW omni_testdumprestores.v_bridge
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     name
+| FROM omni_testdumprestores.mv_base
+> query
 | SHOW CREATE TABLE omni_testdumprestores.v_names
 < result
 < column "statement" "String" "string"
@@ -1129,6 +1274,20 @@
 | -- Table structure for `.events`
 | --
 | CREATE TABLE omni_testdumprestores.`.events`
+| (
+|     `id` UInt64
+| )
+| ENGINE = MergeTree
+| ORDER BY id
+| SETTINGS index_granularity = 8192;
+< ok 0 -
+> exec
+|
+|
+| --
+| -- Table structure for `.innerXid.events`
+| --
+| CREATE TABLE omni_testdumprestores.`.innerXid.events`
 | (
 |     `id` UInt64
 | )
@@ -1242,6 +1401,22 @@
 |
 |
 | --
+| -- View structure for v_bridge
+| --
+| CREATE VIEW omni_testdumprestores.v_bridge
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     name
+| FROM omni_testdumprestores.mv_base;
+< ok 0 -
+> exec
+|
+|
+| --
 | -- View structure for v_names
 | --
 | CREATE VIEW omni_testdumprestores.v_names
@@ -1316,7 +1491,7 @@
 | AS SELECT
 |     id,
 |     name
-| FROM omni_testdumprestores.mv_base;
+| FROM omni_testdumprestores.v_bridge;
 < ok 0 -
 > commit
 < ok
@@ -1350,6 +1525,24 @@
 < row
 : string
 | .events
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| .innerXid.events
 : string
 | id
 : uint64 1
@@ -1694,6 +1887,42 @@
 |
 < row
 : string
+| v_bridge
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| v_bridge
+: string
+| name
+: uint64 2
+: string
+|
+: string
+| 0
+: string
+| String
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | v_names
 : string
 | id
@@ -1770,6 +1999,21 @@
 | id
 < row
 : string
+| .innerXid.events
+: string
+| MergeTree
+: uint64 0
+: uint64 0
+: string
+| CREATE TABLE omni_testdumprestores.`.innerXid.events` (`id` UInt64) ENGINE = MergeTree ORDER BY id SETTINGS index_granularity = 8192
+: string
+|
+: string
+| id
+: string
+| id
+< row
+: string
 | a_after
 : string
 | MaterializedView
@@ -1806,7 +2050,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testdumprestores.mv_base
+| CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testdumprestores.v_bridge
 : string
 |
 : string
@@ -1937,6 +2181,21 @@
 | id
 < row
 : string
+| v_bridge
+: string
+| View
+: uint64 0
+: uint64 0
+: string
+| CREATE VIEW omni_testdumprestores.v_bridge (`id` UInt64, `name` String) AS SELECT id, name FROM omni_testdumprestores.mv_base
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | v_names
 : string
 | View
@@ -1964,6 +2223,16 @@
 | omni_testdumprestores
 : string
 | .events
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| .innerXid.events
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"

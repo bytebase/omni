@@ -10,6 +10,17 @@ ORDER BY id
 SETTINGS index_granularity = 8192;
 
 --
+-- Table structure for `.innerXid.events`
+--
+CREATE TABLE omni_testdump.`.innerXid.events`
+(
+    `id` UInt64
+)
+ENGINE = MergeTree
+ORDER BY id
+SETTINGS index_granularity = 8192;
+
+--
 -- Table structure for `line\nbreak`
 --
 CREATE TABLE omni_testdump.`line\nbreak`
@@ -91,6 +102,19 @@ AS SELECT id
 FROM omni_testdump.v_names;
 
 --
+-- View structure for v_bridge
+--
+CREATE VIEW omni_testdump.v_bridge
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    name
+FROM omni_testdump.mv_base;
+
+--
 -- View structure for v_names
 --
 CREATE VIEW omni_testdump.v_names
@@ -166,5 +190,5 @@ CREATE MATERIALIZED VIEW omni_testdump.a_top TO omni_testdump.target
 AS SELECT
     id,
     name
-FROM omni_testdump.mv_base;
+FROM omni_testdump.v_bridge;
 

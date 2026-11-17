@@ -60,14 +60,15 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 // states for it.
 func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObject, error) {
 	// A materialized view with its own engine has a table the server named
-	// itself, ".inner_id.<uuid>" (".inner.<name>" before 21.4). It is the
-	// view's storage, not an object of the database, and a dump that wrote it
-	// would create a second one beside the view's.
+	// itself, ".inner_id.<uuid>". It is the view's storage, not an object of the
+	// database, and a dump that wrote it would create a second one beside the
+	// view's. The shape is matched as the server writes it rather than by a
+	// prefix a user's own name could take.
 	const query = `
 		SELECT
 			name
 		FROM system.tables
-		WHERE database = ? AND name NOT LIKE '.inner_id.%' AND name NOT LIKE '.inner.%'
+		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
 		ORDER BY name`
 	rows, err := d.db.QueryContext(ctx, query, database)
 	if err != nil {
@@ -97,15 +98,20 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 		}
 		o.kind = dumpKind(o.stmt)
 	}
-	materializedViews := make(map[string]bool, len(objects))
+	definitions := make(map[string]*dumpObject, len(objects))
 	for _, o := range objects {
-		if o.kind == dumpMaterializedView {
-			materializedViews[o.name] = true
+		if o.kind == dumpView || o.kind == dumpMaterializedView {
+			definitions[o.name] = o
+		}
+	}
+	for _, o := range objects {
+		if _, ok := definitions[o.name]; ok {
+			o.reads = dumpReads(o, database, definitions)
 		}
 	}
 	for _, o := range objects {
 		if o.kind == dumpMaterializedView {
-			o.reads = dumpReads(o, database, materializedViews)
+			o.reads = dumpExpandedReads(o, definitions)
 		}
 	}
 	return objects, nil
@@ -192,7 +198,8 @@ func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 }
 
 // orderDumpMaterializedViews orders materialized views so that one follows every
-// materialized view it reads, names breaking ties so the dump is deterministic.
+// materialized view it reads, directly or through a view, names breaking ties so
+// the dump is deterministic.
 // A reference cycle cannot exist on the server, which refuses the creation that
 // would close it; were one found anyway, the remaining views are written in name
 // order so the dump still carries them.
@@ -239,19 +246,46 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 	return sorted
 }
 
-// dumpReads returns the other materialized views in names that o reads.
-// ClickHouse's rendering names every table a materialized view reads with its
-// database, so one is found by the qualified spelling the dump would use for it,
-// and o's own name in its CREATE statement is not a read.
-func dumpReads(o *dumpObject, database string, names map[string]bool) []string {
+// dumpReads returns the other definitions in definitions that o reads.
+// ClickHouse's rendering names every table a statement reads with its database,
+// so one is found by the qualified spelling the dump would use for it, and o's
+// own name in its CREATE statement is not a read.
+func dumpReads(o *dumpObject, database string, definitions map[string]*dumpObject) []string {
 	var reads []string
-	for name := range names {
+	for name := range definitions {
 		if name != o.name && dumpReferences(o.stmt, database, name) {
 			reads = append(reads, name)
 		}
 	}
 	sort.Strings(reads)
 	return reads
+}
+
+// dumpExpandedReads returns every definition o reads, directly or through a view:
+// creating a view does not resolve the query it holds, so a view may be created
+// before what it reads, but creating a materialized view resolves its own query
+// through the views it names.
+func dumpExpandedReads(o *dumpObject, definitions map[string]*dumpObject) []string {
+	seen := make(map[string]bool, len(definitions))
+	var walk func(reads []string)
+	walk = func(reads []string) {
+		for _, name := range reads {
+			if seen[name] || name == o.name {
+				continue
+			}
+			seen[name] = true
+			if read := definitions[name]; read != nil {
+				walk(read.reads)
+			}
+		}
+	}
+	walk(o.reads)
+	expanded := make([]string, 0, len(seen))
+	for name := range seen {
+		expanded = append(expanded, name)
+	}
+	sort.Strings(expanded)
+	return expanded
 }
 
 // dumpReferences reports whether stmt names database.name outside a string

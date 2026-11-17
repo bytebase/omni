@@ -39,6 +39,14 @@ CREATE TABLE `.events` (
 ENGINE = MergeTree
 ORDER BY id;
 
+-- A name the internal-table pattern must not take for one: its underscores are
+-- what a LIKE pattern would read as wildcards.
+CREATE TABLE `.innerXid.events` (
+  id UInt64
+)
+ENGINE = MergeTree
+ORDER BY id;
+
 CREATE TABLE `line
 break` (
   id UInt64
@@ -68,10 +76,13 @@ CREATE VIEW a_first AS SELECT id FROM v_names;
 
 CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id, '$database.a_top' AS name FROM src;
 
--- A materialized view resolves its source when it is created, so the dump has to
--- write mv_base first whatever the names say; the literal above names a_top and
--- is not a read.
-CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM mv_base;
+-- An ordinary view reads mv_base, and a materialized view reads that view: a
+-- materialized view resolves its source when it is created, through the view, so
+-- the dump has to write mv_base first whatever the names say. The literal above
+-- names a_top and is not a read.
+CREATE VIEW v_bridge AS SELECT id, name FROM mv_base;
+
+CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM v_bridge;
 
 -- A materialized view whose name holds a line break, and one that reads it under
 -- a name that sorts first: the reference the dump looks for is the rendering
