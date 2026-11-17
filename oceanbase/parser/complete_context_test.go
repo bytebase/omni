@@ -190,6 +190,21 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{},
 		},
 		{
+			name: "insert row alias for duplicate key update",
+			sql:  "INSERT INTO t (a) VALUES (1) AS incoming(x) ON DUPLICATE KEY UPDATE a = incoming.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"incoming"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}, {table: "incoming", alias: "incoming"}}, dml: "->t"},
+		},
+		{
+			name: "update inside a routine body",
+			sql:  "CREATE PROCEDURE p() BEGIN UPDATE t SET x = |; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "delete after a statement in a routine body",
+			sql:  "CREATE PROCEDURE p() BEGIN SELECT 1; DELETE FROM d WHERE x = |; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "d"}}, dml: "->d"},
+		},
+		{
 			name: "joined aliases",
 			sql:  "SELECT * FROM t1 a JOIN t2 AS b ON a.id = b.id WHERE |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}},
@@ -806,7 +821,7 @@ func TestCollectCompletionReferenceColumns(t *testing.T) {
 		},
 		{
 			name:  "expression items name no column",
-			sql:   "SELECT * FROM (SELECT a + b, a + t.b, count(*), t.a AS z FROM t) d WHERE d.|",
+			sql:   "SELECT * FROM (SELECT a + b, a + t.b, a * b, count(*), t.a AS z FROM t) d WHERE d.|",
 			local: map[string][]string{"d": {"z"}},
 		},
 		{

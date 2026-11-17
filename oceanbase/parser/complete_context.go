@@ -306,6 +306,11 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	// The whole statement, not just its main clause: the WITH clause holds
 	// query blocks the cursor may be in.
 	cteMap := rangeReferenceMap(collectVisibleCTEs(stmtTokens, cursorOffset))
+	// A routine body holds statements of its own: the cursor's is the one the
+	// DML dispatch and its outer references read.
+	if bodyStart := cursorStatementStart(stmtTokens, cursorOffset); bodyStart > mainStart {
+		mainStart = bodyStart
+	}
 	mainTokens := sliceScopeTokens(stmtTokens, mainStart, len(stmtTokens))
 	target, dmlRefs := collectDMLScope(mainTokens, cteMap)
 	var enclosing []RangeReference
@@ -355,6 +360,30 @@ func completionScopeTokens(tokens []Token) []completionScopeToken {
 		}
 	}
 	return result
+}
+
+// cursorStatementStart returns the index of the token that starts the statement
+// holding the cursor. Inside a stored routine's body that is the statement after
+// the last ';', BEGIN, THEN, ELSE, DO, LOOP, or REPEAT, not the CREATE.
+func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
+	start := 0
+	for i, tok := range tokens {
+		if tok.Loc >= cursorOffset {
+			break
+		}
+		if tok.Type == ';' {
+			start = i + 1
+			continue
+		}
+		switch tok.Type {
+		case kwBEGIN, kwTHEN, kwELSE, kwDO, kwLOOP, kwREPEAT:
+			start = i + 1
+		}
+	}
+	if start >= len(tokens) {
+		return 0
+	}
+	return start
 }
 
 // sliceScopeTokens returns tokens[start:end] as a token slice of its own, with
@@ -651,6 +680,10 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 		refs[0].Kind = RangeReferenceDMLTarget
 		// An INSERT target takes a column list, which names no alias.
 		refs[0].Loc = tokenLoc(tokens[idx], tokens[next-1])
+		if row, ok := insertRowAlias(tokens, tokens[first].depth); ok {
+			// ON DUPLICATE KEY UPDATE names the incoming row by its alias.
+			refs = append(refs, row)
+		}
 		return &refs[0], refs
 	}
 	return nil, nil
@@ -825,6 +858,46 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 		}
 	}
 	return &targets[0], targets, true
+}
+
+// insertRowAlias returns the row alias an INSERT declares for ON DUPLICATE KEY
+// UPDATE, as in INSERT ... VALUES (...) AS incoming(x). Only a statement that
+// has an ON DUPLICATE KEY UPDATE clause can name it.
+func insertRowAlias(tokens []completionScopeToken, depth int) (RangeReference, bool) {
+	onIdx := -1
+	for i := 0; i+1 < len(tokens); i++ {
+		if tokens[i].depth == depth && tokens[i].Type == kwON && tokens[i+1].depth == depth && tokens[i+1].Type == kwDUPLICATE {
+			onIdx = i
+			break
+		}
+	}
+	if onIdx < 0 {
+		return RangeReference{}, false
+	}
+	for i := onIdx - 1; i >= 0; i-- {
+		if tokens[i].depth != depth || tokens[i].Type != kwAS {
+			continue
+		}
+		if i+1 >= len(tokens) || tokens[i+1].depth != depth || !isCompletionIdent(tokens[i+1]) || isAliasBoundary(tokens[i+1].Type) {
+			return RangeReference{}, false
+		}
+		alias := tokens[i+1].Str
+		ref := RangeReference{
+			Kind:  RangeReferenceRelation,
+			Table: alias,
+			Alias: alias,
+			Loc:   tokenLoc(tokens[i+1], tokens[i+1]),
+		}
+		if i+2 < len(tokens) && tokens[i+2].depth == depth && tokens[i+2].Type == '(' {
+			if closeIdx := matchingParen(tokens, i+2); closeIdx > 0 {
+				ref.Columns = identNames(tokens, i+3, closeIdx)
+				ref.AliasColumns = ref.Columns
+				ref.Loc.End = tokens[closeIdx].End
+			}
+		}
+		return ref, true
+	}
+	return RangeReference{}, false
 }
 
 // parseDeleteTarget reads one name of a DELETE target list, which may end in
@@ -1823,7 +1896,7 @@ func selectItemAlias(tokens []completionScopeToken, start, end, depth int) (Sele
 // operand.
 func endsSelectExpression(tok completionScopeToken) bool {
 	switch tok.Type {
-	case tokIDENT, ')', '*', tokSCONST, tokICONST, tokFCONST, tokXCONST, tokBCONST:
+	case tokIDENT, ')', tokSCONST, tokICONST, tokFCONST, tokXCONST, tokBCONST:
 		return true
 	case kwNULL, kwTRUE, kwFALSE, kwEND:
 		return true
