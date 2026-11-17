@@ -399,6 +399,7 @@
         {
           "name": "PARENT_VIEW",
           "definition": "SELECT ID, NAME FROM OMNI_APP.PARENT",
+          "comment": "the parents, without the quantity",
           "dependencyColumns": [
             {
               "schema": "OMNI_APP",
@@ -431,7 +432,7 @@
         {
           "name": "PARENT_MV",
           "definition": "SELECT ID, NAME FROM OMNI_APP.PARENT\n",
-          "comment": "snapshot table for snapshot OMNI_APP.PARENT_MV",
+          "comment": "the parents, kept",
           "dependencyColumns": [
             {
               "schema": "OMNI_APP",

@@ -131,6 +131,13 @@
 > exec
 |
 |
+| -- A view is commented with COMMENT ON TABLE: COMMENT ON VIEW is refused with
+| -- ORA-32594.
+| COMMENT ON TABLE OMNI_APP.PARENT_VIEW IS 'the parents, without the quantity'
+< ok 0 0
+> exec
+|
+|
 | CREATE SEQUENCE OMNI_APP.ORDER_SEQ START WITH 10 INCREMENT BY 2 CACHE 20
 < ok 0 0
 > exec
@@ -151,12 +158,17 @@
 > exec
 |
 |
+| COMMENT ON MATERIALIZED VIEW OMNI_APP.PARENT_MV IS 'the parents, kept'
+< ok 0 0
+> exec
+|
+|
 | CREATE PROCEDURE OMNI_APP.TOUCH (P_ID IN NUMBER) AS BEGIN NULL; END;
 < ok 0 0
 > query
 | SELECT BANNER FROM v$version WHERE banner LIKE 'Oracle%'
 < result
-< column "BANNER" "NCHAR"
+< column "BANNER" "NCHAR" "string"
 < row
 : string
 | Oracle AI Database 26ai Free Release 23.26.3.0.0 - Develop, Learn, and Run for Free
@@ -167,7 +179,7 @@
 | 		SELECT username FROM all_users
 | 		WHERE username NOT IN ('ANONYMOUS','APPQOSSYS','AUDSYS','CTXSYS','DBSFWUSER','DBSNMP','DGPDB_INT','DIP','DVF','DVSYS','GGSYS','GSMADMIN_INTERNAL','GSMCATUSER','GSMROOTUSER','GSMUSER','LBACSYS','MDDATA','MDSYS','OPS$ORACLE','ORACLE_OCM','OUTLN','REMOTE_SCHEDULER_AGENT','SYS','SYS$UMF','SYSBACKUP','SYSDG','SYSKM','SYSRAC','SYSTEM','XDB','XS$NULL','XS$$NULL','FLOWS_FILES','HR','MDSYS','EXFSYS','MGMT_VIEW','OLAPSYS','ORDDATA','ORDPLUGINS','ORDSYS','OWBSYS','OWBSYS_AUDIT','SCOTT','SI_INFORMTN_SCHEMA','SPATIAL_CSW_ADMIN_USR','SPATIAL_WFS_ADMIN_USR','SYSMAN','WMSYS','OJVMSYS') AND username NOT LIKE 'APEX_%' ORDER BY username
 < result
-< column "USERNAME" "NCHAR"
+< column "USERNAME" "NCHAR" "string"
 < row
 : string
 | BAASSYS
