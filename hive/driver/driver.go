@@ -27,9 +27,14 @@
 //   - Config.ApplicationName and Config.EngineVersion: HiveServer2 carries no
 //     application name, and a driver opened without reaching the server records
 //     no version; SyncInstance asks for one.
-//   - Config.Dial: gohive dials the host itself, so a caller that must reach
-//     HiveServer2 over an SSH tunnel or a cloud connector cannot use this
-//     driver yet.
+//   - Config.Dial: gohive v2 keeps its dialer in an unexported connect
+//     configuration that HiveConnector fills from a fixed list of exported
+//     fields, none of which holds one, so this driver opens the socket itself
+//     and cannot take a caller's tunnel. A caller that must reach HiveServer2
+//     over an SSH tunnel or a cloud connector forwards a local port and names
+//     it as Config.Host and Config.Port; its Config.TLS receives that
+//     forwarded host, so it names the server's own host in the tls.Config it
+//     returns.
 //   - QueryOptions.Limit: the driver does not rewrite HiveQL — there is no
 //     hive/parser to place a LIMIT with — and Bytebase never asked for one, so
 //     QueryOptions.MaxResultBytes is the only cap a statement gets.

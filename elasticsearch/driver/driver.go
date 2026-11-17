@@ -14,9 +14,12 @@
 // (https://search.example.com) and port; Config.Port applies when the host
 // carries neither and defaults to 9200. Config.User and Config.Password are the
 // basic-auth login. Config.TLS makes the endpoint https and answers for its
-// host. Config.Dial is not used: Elasticsearch's client is HTTP, and an SSH
-// tunnel or a cloud connector belongs in Options.Transport, which also carries
-// a managed OpenSearch domain's AWS SigV4 signer.
+// host. Config.Dial opens the endpoint's connection in place of net.Dialer, so
+// an SSH tunnel or a cloud connector reaches it, and TLS is negotiated over
+// what Dial returns. Options.Transport is the caller's own round tripper, which
+// dials for itself (a managed OpenSearch domain's AWS SigV4 signer wraps one);
+// Open refuses it together with Config.Dial, rather than letting one of the two
+// win silently.
 //
 // Config.Database does nothing: an Elasticsearch cluster is one namespace, and
 // SyncDatabase reads it whole. Config.Params, Config.ApplicationName,
@@ -111,6 +114,9 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
+	if opt.Transport != nil && cfg.Dial != nil {
+		return nil, errors.New("Config.Dial and Options.Transport both open the endpoint's connections: the caller's transport dials, so Config.Dial cannot be honoured")
+	}
 	secure := cfg.TLS != nil || opt.Transport != nil
 	base, err := endpoint(cfg.Host, cfg.Port, secure)
 	if err != nil {
@@ -129,6 +135,7 @@ func Open(_ context.Context, cfg driver.Config, opts ...Options) (*Driver, error
 			IdleConnTimeout:       90 * time.Second,
 			ResponseHeaderTimeout: 5 * time.Second,
 			TLSClientConfig:       tlsConfig,
+			DialContext:           cfg.Dial,
 		}
 		httpClient.Transport = transport
 	}
