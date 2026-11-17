@@ -192,7 +192,7 @@ func TestCollectCompletionSignals(t *testing.T) {
 		{
 			name: "insert row alias for duplicate key update",
 			sql:  "INSERT INTO t (a) VALUES (1) AS incoming(x) ON DUPLICATE KEY UPDATE a = incoming.|",
-			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"incoming"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}, {table: "incoming", alias: "incoming"}}, dml: "->t"},
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"incoming"}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}, {table: "t", alias: "incoming"}}, dml: "->t"},
 		},
 		{
 			name: "update inside a routine body",
@@ -658,6 +658,36 @@ func TestCollectCompletionSignals(t *testing.T) {
 			name: "case expression inside a routine body",
 			sql:  "CREATE PROCEDURE p() BEGIN UPDATE t SET x = CASE WHEN y = 1 THEN | ELSE 0 END; END",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "parenthesized set operation names the first arm",
+			sql:  "(SELECT a AS x FROM t) UNION (SELECT b AS y FROM u) ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, aliases: []string{"x"}},
+		},
+		{
+			name: "comma item is not part of a join condition",
+			sql:  "SELECT * FROM t1, t2 JOIN t3 ON |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "nested join condition sees its operands",
+			sql:  "SELECT * FROM t1 JOIN (t2 JOIN t3 ON |) ON t1.x = 2",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "wrapped with body names its output after the clause",
+			sql:  "WITH c AS ((WITH d AS (SELECT 1 AS wrong) SELECT 2 AS actual)) SELECT c.| FROM c",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"actual"}}, cols: map[string][]string{"c": {"actual"}}},
+		},
+		{
+			name: "unterminated derived table hides its siblings",
+			sql:  "SELECT * FROM t, (SELECT |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}},
+		},
+		{
+			name: "insert row alias without columns binds the table",
+			sql:  "INSERT INTO db.t (a) VALUES (1) AS incoming ON DUPLICATE KEY UPDATE a = incoming.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"incoming"}, local: []ref{{kind: RangeReferenceDMLTarget, database: "db", table: "t"}, {database: "db", table: "t", alias: "incoming"}}, dml: "->db.t"},
 		},
 		{
 			name: "inside a text literal",

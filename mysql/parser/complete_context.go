@@ -158,7 +158,8 @@ type RangeReference struct {
 	AliasColumns []string
 
 	// Loc spans the reference including its alias; BodyLoc spans the
-	// parenthesized body of a derived table or CTE.
+	// parenthesized body of a derived table or CTE. BodyLoc.End is -1 when
+	// the group is unterminated and the body runs to the end of the text.
 	Loc     nodes.Loc
 	BodyLoc nodes.Loc
 
@@ -292,7 +293,7 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	_, mainStart := collectCTEs(stmtTokens)
 	// The whole statement, not just its main clause: the WITH clause holds
 	// query blocks the cursor may be in.
-	cteMap := rangeReferenceMap(collectVisibleCTEs(stmtTokens, cursorOffset))
+	cteMap := mapCTELookup(rangeReferenceMap(collectVisibleCTEs(stmtTokens, cursorOffset)))
 	// A routine body holds statements of its own: the cursor's is the one the
 	// DML dispatch and its outer references read.
 	if bodyStart := cursorStatementStart(stmtTokens, cursorOffset); bodyStart > mainStart {
@@ -697,6 +698,51 @@ func collectCTEsAt(tokens []completionScopeToken, withIdx, nesting int) ([]Range
 	return ctes, idx
 }
 
+// cteLookup resolves a table name to the CTE definition in scope at the cursor
+// or frame it was built for. It exists so a frame's environment can be resolved
+// innermost-first without materializing a map of every enclosing definition.
+type cteLookup func(name string) (RangeReference, bool)
+
+// mapCTELookup returns a lookup over a finished map.
+func mapCTELookup(refs map[string]RangeReference) cteLookup {
+	if len(refs) == 0 {
+		return nil
+	}
+	return func(name string) (RangeReference, bool) {
+		ref, ok := refs[name]
+		return ref, ok
+	}
+}
+
+// cteFrameLookup returns the lookup for the frame at token idx: the definitions
+// of the blocks holding it, innermost block first, later definitions of a name
+// shadowing earlier ones, and a definition whose own body holds the frame
+// excluded unless its clause is recursive.
+func cteFrameLookup(blocks []completionCTEBlock, idx, loc int) cteLookup {
+	return func(name string) (RangeReference, bool) {
+		for i := len(blocks) - 1; i >= 0; i-- {
+			block := blocks[i]
+			if block.withIdx > idx {
+				continue
+			}
+			if idx >= block.end {
+				continue
+			}
+			for j := len(block.defs) - 1; j >= 0; j-- {
+				def := block.defs[j]
+				if !strings.EqualFold(def.Table, name) {
+					continue
+				}
+				if !cteDefinitionVisible(def, loc, block.recursive) {
+					continue
+				}
+				return def, true
+			}
+		}
+		return RangeReference{}, false
+	}
+}
+
 func rangeReferenceMap(refs []RangeReference) map[string]RangeReference {
 	if len(refs) == 0 {
 		return nil
@@ -711,7 +757,7 @@ func rangeReferenceMap(refs []RangeReference) map[string]RangeReference {
 // collectDMLScope returns the reference an UPDATE, DELETE, INSERT, or REPLACE
 // statement writes and every reference the statement brings into scope. The
 // target is also the first of those references.
-func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReference) (*RangeReference, []RangeReference) {
+func collectDMLScope(tokens []completionScopeToken, ctes cteLookup) (*RangeReference, []RangeReference) {
 	first := statementVerb(tokens)
 	if first < 0 {
 		return nil, nil
@@ -762,7 +808,7 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 		refs[0].Kind = RangeReferenceDMLTarget
 		// An INSERT target takes a column list, which names no alias.
 		refs[0].Loc = tokenLoc(tokens[idx], tokens[next-1])
-		if row, ok := insertRowAlias(tokens, tokens[first].depth); ok {
+		if row, ok := insertRowAlias(tokens, tokens[first].depth, refs[0]); ok {
 			// ON DUPLICATE KEY UPDATE names the incoming row by its alias.
 			refs = append(refs, row)
 		}
@@ -884,7 +930,7 @@ func indexTable(tokens []completionScopeToken, idx, depth int) []RangeReference 
 // collectDeleteScope reads DELETE's target and, for the multi-table forms
 // DELETE t1, t2 FROM ... and DELETE FROM t1 USING ..., the references the
 // statement reads.
-func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[string]RangeReference) (*RangeReference, []RangeReference, bool) {
+func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes cteLookup) (*RangeReference, []RangeReference, bool) {
 	depth := tokens[deleteIdx].depth
 	// DELETE LOW_PRIORITY | QUICK | IGNORE precede the form's own keywords.
 	idx := deleteIdx + 1
@@ -945,7 +991,7 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 // insertRowAlias returns the row alias an INSERT declares for ON DUPLICATE KEY
 // UPDATE, as in INSERT ... VALUES (...) AS incoming(x). Only a statement that
 // has an ON DUPLICATE KEY UPDATE clause can name it.
-func insertRowAlias(tokens []completionScopeToken, depth int) (RangeReference, bool) {
+func insertRowAlias(tokens []completionScopeToken, depth int, target RangeReference) (RangeReference, bool) {
 	onIdx := -1
 	for i := 0; i+1 < len(tokens); i++ {
 		if tokens[i].depth == depth && tokens[i].Type == kwON && tokens[i+1].depth == depth && tokens[i+1].Type == kwDUPLICATE {
@@ -964,11 +1010,15 @@ func insertRowAlias(tokens []completionScopeToken, depth int) (RangeReference, b
 			return RangeReference{}, false
 		}
 		alias := tokens[i+1].Str
+		// The row is the destination's row, named by the alias: a caller
+		// resolves its columns from the table, not from a table called
+		// "incoming".
 		ref := RangeReference{
-			Kind:  RangeReferenceRelation,
-			Table: alias,
-			Alias: alias,
-			Loc:   tokenLoc(tokens[i+1], tokens[i+1]),
+			Kind:     RangeReferenceRelation,
+			Database: target.Database,
+			Table:    target.Table,
+			Alias:    alias,
+			Loc:      tokenLoc(tokens[i+1], tokens[i+1]),
 		}
 		if i+2 < len(tokens) && tokens[i+2].depth == depth && tokens[i+2].Type == '(' {
 			if closeIdx := matchingParen(tokens, i+2); closeIdx > 0 {
@@ -1098,7 +1148,10 @@ type completionSelectFrame struct {
 // LATERAL.
 func (f completionSelectFrame) refsVisibleFrom(cursorOffset int) []RangeReference {
 	for _, ref := range f.localRefs {
-		if ref.BodyLoc.Start < 0 || cursorOffset < ref.BodyLoc.Start || cursorOffset > ref.BodyLoc.End {
+		if ref.BodyLoc.Start < 0 || cursorOffset < ref.BodyLoc.Start {
+			continue
+		}
+		if ref.BodyLoc.End >= 0 && cursorOffset > ref.BodyLoc.End {
 			continue
 		}
 		if !ref.Lateral {
@@ -1113,6 +1166,57 @@ func (f completionSelectFrame) refsVisibleFrom(cursorOffset int) []RangeReferenc
 		return refs
 	}
 	return f.localRefs
+}
+
+// joinOperandRefs returns the references the ON condition at onIdx can name:
+// the join's two operands.
+func joinOperandRefs(tokens []completionScopeToken, refs []RangeReference, onIdx, depth int) []RangeReference {
+	joinIdx := -1
+	for i := onIdx - 1; i >= 0; i-- {
+		if tokens[i].depth != depth {
+			continue
+		}
+		if tokens[i].Type == kwJOIN || tokens[i].Type == kwSTRAIGHT_JOIN {
+			joinIdx = i
+			break
+		}
+	}
+	if joinIdx < 0 {
+		return referencesBefore(refs, tokens[onIdx].Loc)
+	}
+	var out []RangeReference
+	if joinIdx > 0 && tokens[joinIdx-1].Type == ')' {
+		if open := openParenBefore(tokens, joinIdx-1); open >= 0 {
+			for _, ref := range refs {
+				if ref.Loc.Start >= tokens[open].Loc && ref.Loc.End <= tokens[joinIdx].Loc {
+					out = append(out, ref)
+				}
+			}
+		}
+	}
+	if len(out) == 0 {
+		for _, ref := range refs {
+			if ref.Loc.End <= tokens[joinIdx].Loc {
+				out = []RangeReference{ref}
+			}
+		}
+	}
+	for _, ref := range refs {
+		if ref.Loc.Start >= tokens[joinIdx].Loc && ref.Loc.End <= tokens[onIdx].Loc {
+			out = append(out, ref)
+		}
+	}
+	return out
+}
+
+// openParenBefore returns the index of the '(' matching the ')' at closeIdx.
+func openParenBefore(tokens []completionScopeToken, closeIdx int) int {
+	for i := closeIdx - 1; i >= 0; i-- {
+		if tokens[i].Type == '(' && tokens[i].close == closeIdx {
+			return i
+		}
+	}
+	return -1
 }
 
 // selectFramesForCursor returns the query blocks holding the cursor, outermost
@@ -1136,6 +1240,7 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 	}
 	var frames []completionSelectFrame
 	blocks := collectCTEBlocks(tokens)
+	armEnds := selectArmEnds(tokens)
 	for i, tok := range tokens {
 		if tok.Loc > cursorOffset {
 			break
@@ -1157,7 +1262,7 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			continue
 		}
 		depth := tok.depth
-		armEnd := selectArmEnd(tokens, i+1, depth)
+		armEnd := armEnds[i]
 		if armEnd < len(tokens) && tokens[armEnd].Loc < cursorOffset {
 			continue
 		}
@@ -1167,17 +1272,19 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 			continue
 		}
 		var local []RangeReference
-		frameCTEs := rangeReferenceMap(ctesVisibleAt(blocks, tokens, i, tok.Loc, true))
+		frameCTEs := cteFrameLookup(blocks, i, tok.Loc)
 		if tablePrimary {
 			if sources, _, ok := parseTableSource(tokens, i+1, frameCTEs); ok {
 				local = sources
 			}
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
 			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs, 0)
-			if onIdx := onPredicateToken(tokens, cursorOffset, depth); onIdx >= 0 {
-				// A join condition names only the operands before it: the
-				// sources after it are not in scope there.
-				local = referencesBefore(local, tokens[onIdx].Loc)
+			if onIdx := onPredicateToken(tokens, cursorOffset, cursorDepth); onIdx >= 0 {
+				// A join condition names its own join's operands: a comma
+				// before the join starts an unrelated list item, and a
+				// parenthesized operand contributes all its members. The
+				// condition may sit in a group the frame's FROM opened.
+				local = joinOperandRefs(tokens, local, onIdx, cursorDepth)
 			}
 		}
 		frames = append(frames, completionSelectFrame{selectIdx: i, depth: depth, localRefs: local})
@@ -1273,6 +1380,32 @@ func closedBeforeCursor(tokens []completionScopeToken, selectIdx, depth, cursorO
 	return false
 }
 
+// selectArmEnds returns, for every token, where the query block starting there
+// ends: the next token at the same depth that ends an arm. One backward pass,
+// so a statement with many frames does not rescan the tail per frame.
+func selectArmEnds(tokens []completionScopeToken) []int {
+	ends := make([]int, len(tokens))
+	maxDepth := 0
+	for _, tok := range tokens {
+		if tok.depth > maxDepth {
+			maxDepth = tok.depth
+		}
+	}
+	stopAt := make([]int, maxDepth+1)
+	for i := range stopAt {
+		stopAt[i] = len(tokens)
+	}
+	for i := len(tokens) - 1; i >= 0; i-- {
+		depth := tokens[i].depth
+		ends[i] = stopAt[depth]
+		switch tokens[i].Type {
+		case kwUNION, kwINTERSECT, kwEXCEPT, kwSELECT, ')':
+			stopAt[depth] = i
+		}
+	}
+	return ends
+}
+
 // selectArmEnd returns where the SELECT starting at start is no longer its own
 // query block: the set operator that ends its arm, the next query block, or the
 // ')' that closes the group holding it. Crossing either would read a sibling
@@ -1304,7 +1437,7 @@ func collectClauseEnd(tokens []completionScopeToken, start, depth int) int {
 	return len(tokens)
 }
 
-func parseFromReferences(tokens []completionScopeToken, start, end, depth int, ctes map[string]RangeReference, nesting int) []RangeReference {
+func parseFromReferences(tokens []completionScopeToken, start, end, depth int, ctes cteLookup, nesting int) []RangeReference {
 	if nesting >= maxNestingDepth {
 		return nil
 	}
@@ -1363,7 +1496,7 @@ func parseFromReferences(tokens []completionScopeToken, start, end, depth int, c
 // parseTableSource reads the table source at token idx and returns every
 // reference it contributes: a plain table or CTE contributes one, and a
 // parenthesized join contributes a reference per member.
-func parseTableSource(tokens []completionScopeToken, idx int, ctes map[string]RangeReference) ([]RangeReference, int, bool) {
+func parseTableSource(tokens []completionScopeToken, idx int, ctes cteLookup) ([]RangeReference, int, bool) {
 	if idx >= len(tokens) {
 		return nil, idx, false
 	}
@@ -1386,8 +1519,8 @@ func parseTableSource(tokens []completionScopeToken, idx int, ctes map[string]Ra
 		return nil, idx, false
 	}
 	ref.Lateral = lateral
-	if ref.Database == "" {
-		if cte, ok := ctes[foldName(ref.Table)]; ok {
+	if ref.Database == "" && ctes != nil {
+		if cte, ok := ctes(foldName(ref.Table)); ok {
 			ref.Kind = RangeReferenceCTE
 			ref.Columns = append([]string{}, cte.Columns...)
 		}
@@ -1471,7 +1604,7 @@ func skipIndexHints(tokens []completionScopeToken, idx, depth int) int {
 // a derived table, or a parenthesized join. A derived table contributes one
 // reference whether or not it has an alias; a parenthesized join contributes its
 // members' references, or one reference when it has an alias of its own.
-func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, lateral bool, ctes map[string]RangeReference) ([]RangeReference, int, bool) {
+func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, lateral bool, ctes cteLookup) ([]RangeReference, int, bool) {
 	// Each nested group re-enters this function through parseFromReferences,
 	// so the group's parenthesis depth is the recursion depth. Stop at the
 	// depth Parse itself rejects: the statement is not valid input, and a
@@ -1485,8 +1618,19 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 		return nil, closeIdx + 1, false
 	}
 	if closeIdx < 0 {
-		// Unterminated group: its body is what is being typed, and the
-		// cursor's own scope reader will read it.
+		// Unterminated group: its body is what is being typed. A query body
+		// is still a derived table, so the enclosing FROM's references stay
+		// invisible to it unless it is LATERAL.
+		if parenOpensQuery(tokens, idx) {
+			// An unterminated body runs to the end of the text: End is -1 so
+			// the visibility rule sees the cursor inside it.
+			return []RangeReference{{
+				Kind:    RangeReferenceSubquery,
+				Loc:     tokenLoc(tokens[idx], tokens[len(tokens)-1]),
+				BodyLoc: nodes.Loc{Start: tokens[idx].Loc, End: -1},
+				Lateral: lateral,
+			}}, len(tokens), true
+		}
 		return nil, idx + 1, false
 	}
 	depth := tokens[idx].depth
@@ -1725,12 +1869,19 @@ func selectListColumns(tokens []completionScopeToken, lo, hi, nesting int) []str
 	if lo < 0 || hi > len(tokens) || lo >= hi {
 		return nil
 	}
-	// A body may open with a WITH clause: its output columns are the query
-	// after the clause, not a CTE's own select list.
-	for lo < hi && tokens[lo].Type == kwWITH {
+	// A body may open with parentheses and WITH clauses: its output columns
+	// are the query inside them, not a CTE's own select list.
+	for lo < hi {
+		if tokens[lo].Type == '(' {
+			lo++
+			continue
+		}
+		if tokens[lo].Type != kwWITH {
+			break
+		}
 		_, next := collectCTEsAt(tokens, lo, nesting+1)
 		if next <= lo || next >= hi {
-			break
+			return nil
 		}
 		lo = next
 	}
@@ -1738,9 +1889,6 @@ func selectListColumns(tokens []completionScopeToken, lo, hi, nesting int) []str
 		return nil
 	}
 	depth := tokens[lo].depth
-	if tokens[lo].Type == '(' {
-		depth = tokens[lo].depth + 1
-	}
 	selectIdx := -1
 	for i := lo; i < hi; i++ {
 		if tokens[i].Type == kwSELECT {
@@ -1854,18 +2002,32 @@ func collectSelectAliases(sql string, cursorOffset int) []SelectAlias {
 		return nil
 	}
 	frames := selectFramesForCursor(sliceScopeTokens(tokens, start, end), cursorOffset)
-	if len(frames) == 0 {
-		return nil
-	}
-	selectIdx := frames[len(frames)-1].selectIdx + start
-	depth := tokens[selectIdx].depth
-	if inSetOperationGlobalClause(tokens, cursorOffset, depth) {
-		// The ORDER BY or LIMIT after a UNION belongs to the result, whose
-		// column names come from the first arm.
-		if first := firstArmSelect(tokens, selectIdx, depth); first >= 0 {
-			selectIdx = first
+	selectIdx := -1
+	if len(frames) > 0 {
+		selectIdx = frames[len(frames)-1].selectIdx + start
+		if inSetOperationGlobalClause(tokens, cursorOffset, tokens[selectIdx].depth) {
+			// The ORDER BY or LIMIT after a UNION belongs to the result, whose
+			// column names come from the first arm.
+			if first := firstArmSelect(tokens, selectIdx, tokens[selectIdx].depth); first >= 0 {
+				selectIdx = first
+			}
+		}
+	} else {
+		// A set operation whose arms are parenthesized has no open frame at a
+		// global ORDER BY, and the result's names still come from its first
+		// arm.
+		depth := 0
+		if idx := tokenIndexAtOrBefore(tokens, cursorOffset); idx >= 0 {
+			depth = tokens[idx].depth
+		}
+		if inSetOperationGlobalClause(tokens, cursorOffset, depth) {
+			selectIdx = firstSetOperationArm(tokens, start, cursorOffset, depth)
 		}
 	}
+	if selectIdx < 0 {
+		return nil
+	}
+	depth := tokens[selectIdx].depth
 	limit := selectArmEnd(tokens, selectIdx+1, depth)
 	listEnd := selectListEnd(tokens, selectIdx+1, limit, depth)
 	var aliases []SelectAlias
@@ -1928,6 +2090,24 @@ func hasSetOperatorBefore(tokens []completionScopeToken, idx, depth int) bool {
 
 // firstArmSelect returns the SELECT that names a set operation's result
 // columns: the first arm's, which is the first SELECT of the query block.
+// firstSetOperationArm returns the first arm's SELECT of the set operation at
+// depth whose global clause holds the cursor, whether or not the arm is
+// parenthesized.
+func firstSetOperationArm(tokens []completionScopeToken, start, cursorOffset, depth int) int {
+	for i := start; i < len(tokens); i++ {
+		if tokens[i].Loc >= cursorOffset {
+			break
+		}
+		switch {
+		case tokens[i].Type == kwSELECT:
+			return i
+		case tokens[i].depth == depth && (tokens[i].Type == kwUNION || tokens[i].Type == kwINTERSECT || tokens[i].Type == kwEXCEPT):
+			return -1
+		}
+	}
+	return -1
+}
+
 func firstArmSelect(tokens []completionScopeToken, sel, depth int) int {
 	start := 0
 	for i := sel - 1; i >= 0; i-- {
