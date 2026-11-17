@@ -2,29 +2,46 @@ package parser
 
 import (
 	"os"
+	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 )
 
-// legacyLexerPath is the absolute path to the legacy SnowflakeLexer.g4
-// grammar file used as the source of truth for keyword drift detection.
-// If the file is missing (e.g. on a CI machine without the legacy parser
-// checkout), the tests in this file are skipped.
-const legacyLexerPath = "/Users/h3n4l/OpenSource/parser/snowflake/SnowflakeLexer.g4"
+// legacyLexerFile is the legacy SnowflakeLexer.g4 grammar, the source of
+// truth for keyword drift detection. It is mirrored under
+// testdata/legacy_grammar (see the README there for provenance).
+const legacyLexerFile = "SnowflakeLexer.g4"
 
-// legacyReservedScript is the absolute path to the Python script that
-// defines the reserved keyword set in the legacy parser.
-const legacyReservedScript = "/Users/h3n4l/OpenSource/parser/snowflake/build_id_contains_non_reserved_keywords.py"
+// legacyReservedScriptFile is the legacy build_id_contains_non_reserved_keywords.py
+// script, whose snowflake_reserved_keyword dict defines the reserved keyword
+// set. Also mirrored under testdata/legacy_grammar.
+const legacyReservedScriptFile = "build_id_contains_non_reserved_keywords.py"
+
+// legacyGrammarPath returns the absolute path of one of the mirrored legacy
+// files. The files are part of the repo, so a missing one is a real error,
+// never a skip.
+func legacyGrammarPath(t *testing.T, name string) string {
+	t.Helper()
+	_, thisFile, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("runtime.Caller failed; cannot locate legacy grammar")
+	}
+	path := filepath.Join(filepath.Dir(thisFile), "testdata", "legacy_grammar", name)
+	if _, err := os.Stat(path); err != nil {
+		t.Fatalf("legacy grammar not found at %s: %v", path, err)
+	}
+	return path
+}
 
 // TestKeywordCompleteness asserts that every single-word keyword token
 // defined in SnowflakeLexer.g4 has a corresponding entry in keywordMap.
-//
-// Skips with t.Skip if the legacy grammar file is missing.
 func TestKeywordCompleteness(t *testing.T) {
-	data, err := os.ReadFile(legacyLexerPath)
+	lexerPath := legacyGrammarPath(t, legacyLexerFile)
+	data, err := os.ReadFile(lexerPath)
 	if err != nil {
-		t.Skipf("legacy grammar not available at %s: %v", legacyLexerPath, err)
+		t.Fatalf("reading legacy lexer grammar %s: %v", lexerPath, err)
 	}
 
 	// Match lines like:  ABORT : 'ABORT';
@@ -32,7 +49,7 @@ func TestKeywordCompleteness(t *testing.T) {
 	re := regexp.MustCompile(`(?m)^[A-Z_][A-Z0-9_]*\s*:\s*'([A-Z][A-Z0-9_]*)'\s*;`)
 	matches := re.FindAllStringSubmatch(string(data), -1)
 	if len(matches) == 0 {
-		t.Fatalf("no keyword tokens extracted from %s — regex broken?", legacyLexerPath)
+		t.Fatalf("no keyword tokens extracted from %s — regex broken?", lexerPath)
 	}
 
 	missing := []string{}
@@ -59,12 +76,11 @@ func TestKeywordCompleteness(t *testing.T) {
 // not actually emit as token rules. The omni lexer cannot mark a keyword
 // as reserved if it has no kw* token, so these phantoms are deliberately
 // excluded from keywordReserved (see the comment in keywords.go).
-//
-// Skips with t.Skip if the script is missing.
 func TestReservedKeywordsCompleteness(t *testing.T) {
-	data, err := os.ReadFile(legacyReservedScript)
+	scriptPath := legacyGrammarPath(t, legacyReservedScriptFile)
+	data, err := os.ReadFile(scriptPath)
 	if err != nil {
-		t.Skipf("legacy reserved-keyword script not available at %s: %v", legacyReservedScript, err)
+		t.Fatalf("reading legacy reserved-keyword script %s: %v", scriptPath, err)
 	}
 
 	// knownPhantoms are keyword names that the Python reserved-set file
@@ -89,7 +105,7 @@ func TestReservedKeywordsCompleteness(t *testing.T) {
 	re := regexp.MustCompile(`(?m)^\s*"([A-Z_][A-Z0-9_]*)"\s*:\s*True\s*,?`)
 	matches := re.FindAllStringSubmatch(string(data), -1)
 	if len(matches) == 0 {
-		t.Fatalf("no reserved keywords extracted from %s — regex broken?", legacyReservedScript)
+		t.Fatalf("no reserved keywords extracted from %s — regex broken?", scriptPath)
 	}
 
 	missing := []string{}
