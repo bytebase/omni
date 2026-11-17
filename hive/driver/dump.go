@@ -85,9 +85,13 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 		}
 		reads, err := d.dumpReads(ctx, database, o.name, views)
 		if err != nil {
-			// Hive answers a view whose source is gone with an error here — the
+			// Hive answers a view whose source is gone with an error here: the
 			// statement it states is still the view's, so the dump carries it,
-			// ordered by name like any definition the server cannot place.
+			// ordered by name like any definition the server cannot place. A
+			// call that was cancelled or timed out is not that view.
+			if ctx.Err() != nil {
+				return nil, err
+			}
 			continue
 		}
 		o.reads = reads
@@ -241,19 +245,21 @@ func (d *Driver) dumpReads(ctx context.Context, database, name string, views map
 		return nil, fmt.Errorf("%s: %w", query, err)
 	}
 
-	// The parents Hive states are the table whose query reads this one, written
-	// as it stores them: database@table, in whatever case they were created.
+	// Hive states each table as database@table and the table whose query reads
+	// it as [database@table], in whatever case they were created. Only the views
+	// of this database order the dump, so a dependency in another database is
+	// not a read of anything here.
 	var reads []string
 	for _, table := range dependencies.InputTables {
-		parent := table.Parents
-		parent = strings.TrimSuffix(strings.TrimPrefix(parent, "["), "]")
+		parent := strings.TrimSuffix(strings.TrimPrefix(table.Parents, "["), "]")
 		if !strings.EqualFold(parent, database+"@"+name) {
 			continue
 		}
-		read := table.Name[strings.LastIndex(table.Name, "@")+1:]
-		if views[read] {
-			reads = append(reads, read)
+		readDatabase, readName, ok := strings.Cut(table.Name, "@")
+		if !ok || !strings.EqualFold(readDatabase, database) || !views[readName] {
+			continue
 		}
+		reads = append(reads, readName)
 	}
 	sort.Strings(reads)
 	return reads, nil

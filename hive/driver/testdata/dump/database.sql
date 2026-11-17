@@ -88,7 +88,7 @@ TBLPROPERTIES (
 --
 -- View structure for `z_base`
 --
-CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`;
+CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`;
 
 --
 -- View structure for `a_top`

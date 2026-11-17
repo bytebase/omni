@@ -8,9 +8,19 @@ CREATE EXTERNAL TABLE omni_dump.ext_users (id INT COMMENT 'the id', name STRING)
 -- SHOW TABLES answers is a table's.
 CREATE TABLE omni_dump.events__ (id INT) STORED AS PARQUET
 
+-- A view in another database named as a_top is, which z_base reads: a
+-- dependency outside the database dumped is not one of its views.
+DROP DATABASE IF EXISTS omni_other CASCADE
+
+CREATE DATABASE omni_other
+
+CREATE TABLE omni_other.t (id INT) STORED AS PARQUET
+
+CREATE VIEW omni_other.a_top AS SELECT id FROM omni_other.t
+
 -- A view holding the other's qualified name in a literal, which is not a read:
 -- counting it would close a cycle with a_top's and leave the order to names.
-CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
+CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_other.a_top
 
 -- Only the order of the views, not their names, can replay this one, and the
 -- backquoted alias holds a quote the scanner has to leave alone.

@@ -3134,6 +3134,434 @@
 | SELECT `t`.`id` FROM `omni_gap_view_comment`.`t`
 : null
 
+== TestDumpGaps/a_view_whose_source_is_gone default#1
+> exec
+| CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET
+< ok - -
+> exec
+| CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t
+< ok - -
+> exec
+| DROP TABLE `omni_gap_broken_view`.t
+< ok - -
+> query
+| SHOW TABLES IN `omni_gap_broken_view`
+< result
+< column "tab_name" "STRING"
+< row
+: string
+| v
+> query
+| SHOW CREATE TABLE `omni_gap_broken_view`.`v`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE VIEW `omni_gap_broken_view`.`v` AS SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+> query
+| EXPLAIN DEPENDENCY SELECT * FROM `omni_gap_broken_view`.`v`
+< error
+| 40000
+| Error while compiling statement: FAILED: SemanticException Line 1:21 Table not found 't' in definition of VIEW v [
+| SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+| ] used as v at Line 1:33
+> query
+| SHOW TABLES FROM `omni_gap_broken_view`
+< result
+< column "tab_name" "STRING"
+< row
+: string
+| v
+> query
+| DESCRIBE FORMATTED `omni_gap_broken_view`.`v`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_gap_broken_view
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Table Type:         
+: string
+| VIRTUAL_VIEW        
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| null                
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id FROM omni_gap_broken_view.t
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+: null
+> exec
+| DROP DATABASE IF EXISTS `omni_gap_broken_view` CASCADE
+< ok - -
+> exec
+| CREATE DATABASE `omni_gap_broken_view`
+< ok - -
+> exec
+| USE `omni_gap_broken_view`
+< ok - -
+> exec
+| --
+| -- View structure for `v`
+| --
+| CREATE VIEW `omni_gap_broken_view`.`v` AS SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+< error
+| 10001
+| Error while compiling statement: FAILED: SemanticException [Error 10001]: Line 4:63 Table not found 't'
+
+== TestDumpGaps/a_view_whose_source_is_gone#01 default#1
+> exec
+| CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET
+< ok - -
+> exec
+| CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t
+< ok - -
+> exec
+| DROP TABLE `omni_gap_broken_view`.t
+< ok - -
+> query
+| SHOW TABLES IN `omni_gap_broken_view`
+< result
+< column "tab_name" "STRING"
+< row
+: string
+| v
+> query
+| SHOW CREATE TABLE `omni_gap_broken_view`.`v`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE VIEW `omni_gap_broken_view`.`v` AS SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+> query
+| EXPLAIN DEPENDENCY SELECT * FROM `omni_gap_broken_view`.`v`
+< error
+| 40000
+| Error while compiling statement: FAILED: SemanticException Line 1:21 Table not found 't' in definition of VIEW v [
+| SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+| ] used as v at Line 1:33
+> query
+| SHOW TABLES FROM `omni_gap_broken_view`
+< result
+< column "tab_name" "STRING"
+< row
+: string
+| v
+> query
+| DESCRIBE FORMATTED `omni_gap_broken_view`.`v`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_gap_broken_view
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Table Type:         
+: string
+| VIRTUAL_VIEW        
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| null                
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.mapred.TextInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id FROM omni_gap_broken_view.t
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+: null
+> exec
+| DROP DATABASE IF EXISTS `omni_gap_broken_view` CASCADE
+< ok - -
+> exec
+| CREATE DATABASE `omni_gap_broken_view`
+< ok - -
+> exec
+| USE `omni_gap_broken_view`
+< ok - -
+> exec
+| --
+| -- View structure for `v`
+| --
+| CREATE VIEW `omni_gap_broken_view`.`v` AS SELECT `t`.`id` FROM `omni_gap_broken_view`.`t`
+< error
+| 10001
+| Error while compiling statement: FAILED: SemanticException [Error 10001]: Line 4:63 Table not found 't'
+
 == TestDumpGaps/the_database_itself default#1
 > exec
 | DROP DATABASE IF EXISTS `omni_gap_database` CASCADE

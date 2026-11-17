@@ -14,9 +14,23 @@
 | CREATE TABLE omni_dump.events__ (id INT) STORED AS PARQUET
 < ok - -
 > exec
+| -- A view in another database named as a_top is, which z_base reads: a
+| -- dependency outside the database dumped is not one of its views.
+| DROP DATABASE IF EXISTS omni_other CASCADE
+< ok - -
+> exec
+| CREATE DATABASE omni_other
+< ok - -
+> exec
+| CREATE TABLE omni_other.t (id INT) STORED AS PARQUET
+< ok - -
+> exec
+| CREATE VIEW omni_other.a_top AS SELECT id FROM omni_other.t
+< ok - -
+> exec
 | -- A view holding the other's qualified name in a literal, which is not a read:
 | -- counting it would close a cycle with a_top's and leave the order to names.
-| CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
+| CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_other.a_top
 < ok - -
 > exec
 | -- Only the order of the views, not their names, can replay this one, and the
@@ -312,18 +326,18 @@
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`
+| CREATE VIEW `omni_dump`.`z_base` AS SELECT `a_top`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_other`.`a_top`
 > query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`a_top`
 < result
 < column "Explain" "STRING"
 < row
 : string
-| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_dump@ext_users","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_dump@z_base]"}],"input_partitions":[]}
+| {"input_tables":[{"tablename":"omni_dump@a_top","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@a_top]"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}
 > query
 | EXPLAIN DEPENDENCY SELECT * FROM `OMNI_DUMP`.`z_base`
 < result
 < column "Explain" "STRING"
 < row
 : string
-| {"input_tables":[{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_dump@ext_users","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_dump@z_base]"}],"input_partitions":[]}
+| {"input_tables":[{"tablename":"omni_dump@z_base","tabletype":"VIRTUAL_VIEW"},{"tablename":"omni_other@a_top","tabletype":"VIRTUAL_VIEW","tableParents":"[omni_dump@z_base]"},{"tablename":"omni_other@t","tabletype":"EXTERNAL_TABLE","tableParents":"[omni_other@a_top]"}],"input_partitions":[]}

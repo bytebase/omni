@@ -132,10 +132,12 @@ type gapResult struct {
 func TestDumpGaps(t *testing.T) {
 	for _, gap := range []struct {
 		// database names the gap's own database, and check holds the loss the
-		// gap describes.
+		// gap describes. A gap with wantErr is one the server refuses to replay
+		// at all.
 		name     string
 		database string
 		setup    []string
+		wantErr  bool
 		check    func(t *testing.T, g gapResult)
 	}{
 		{
@@ -230,6 +232,36 @@ func TestDumpGaps(t *testing.T) {
 			},
 		},
 		{
+			// A view whose source is gone keeps the statement the server states,
+			// and the server refuses to create it again: Hive resolves a view's
+			// query when it creates the view, and the table it reads is not
+			// there. The dump carries the view, ordered by name because the
+			// server cannot say what it reads.
+			name:     "a view whose source is gone",
+			database: "omni_gap_broken_view",
+			setup: []string{
+				"CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET",
+				"CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t",
+				"DROP TABLE `omni_gap_broken_view`.t",
+			},
+			wantErr: true,
+		},
+		{
+			// A view whose source is gone keeps the statement the server states,
+			// and the server refuses to create it again: Hive resolves a view's
+			// query when it creates the view, and the table it reads is not
+			// there. The dump carries the view, ordered by name because the
+			// server cannot say what it reads.
+			name:     "a view whose source is gone",
+			database: "omni_gap_broken_view",
+			setup: []string{
+				"CREATE TABLE `omni_gap_broken_view`.t (id INT) STORED AS PARQUET",
+				"CREATE VIEW `omni_gap_broken_view`.v AS SELECT id FROM `omni_gap_broken_view`.t",
+				"DROP TABLE `omni_gap_broken_view`.t",
+			},
+			wantErr: true,
+		},
+		{
 			// The dump carries a database's objects, not the database: SHOW
 			// CREATE DATABASE states its comment, owner and location, and the
 			// caller creates the database a restore goes into. A dump that
@@ -267,6 +299,10 @@ func TestDumpGaps(t *testing.T) {
 			source := syncDatabase(t, d)
 			recreateDatabase(t, d, gap.database)
 			_, err := d.Execute(ctx, dumped.String(), driver.ExecuteOptions{})
+			if gap.wantErr {
+				require.Error(t, err, "the dump replays a statement the server refuses")
+				return
+			}
 			require.NoError(t, err, "restoring the dump")
 			gap.check(t, gapResult{driver: d, source: source, dumped: dumped.String(), restored: syncDatabase(t, d)})
 		})
