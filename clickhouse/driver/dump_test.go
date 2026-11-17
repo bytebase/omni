@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -204,5 +205,28 @@ func recreateDatabase(t *testing.T, d *Driver, name string) {
 		if _, err := conn.ExecContext(ctx, statement); err != nil {
 			t.Fatalf("%s: %v", statement, err)
 		}
+	}
+}
+
+// TestDumpStorageTablePattern holds the shape the dump leaves out: the server's
+// own tables for an object, a materialized view's and a TimeSeries table's, and
+// not a name a user gave one.
+func TestDumpStorageTablePattern(t *testing.T) {
+	pattern, err := regexp.Compile(dumpStorageTablePattern)
+	require.NoError(t, err)
+	for _, table := range []struct {
+		name  string
+		owned bool
+	}{
+		{".inner_id.dedbe44b-c0d9-4414-831b-1e6b7b766089", true},
+		{".inner_id.samples.dedbe44b-c0d9-4414-831b-1e6b7b766089", true},
+		{".inner_id.recent_samples.dedbe44b-c0d9-4414-831b-1e6b7b766089", true},
+		{".inner_id.notes", false},
+		{".events", false},
+		{".innerXid.events", false},
+		{"events__", false},
+		{"dedbe44b-c0d9-4414-831b-1e6b7b766089", false},
+	} {
+		require.Equal(t, table.owned, pattern.MatchString(table.name), table.name)
 	}
 }

@@ -54,9 +54,9 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 		return wrapDatabaseNotFound(err)
 	}
 	defer func() { _ = conn.Close() }()
-	if _, err := conn.ExecContext(ctx, "SET format_display_secrets_in_show_and_select = 1"); err != nil {
-		return wrapDatabaseNotFound(formatErrorWithQuery(err, "SET format_display_secrets_in_show_and_select = 1"))
-	}
+	// A session that may not change a setting — readonly = 1 — answers with an
+	// error and still states every object, with the placeholder for a secret.
+	_, _ = conn.ExecContext(ctx, "SET format_display_secrets_in_show_and_select = 1")
 	objects, err := d.dumpObjects(ctx, conn, database)
 	if err != nil {
 		return wrapDatabaseNotFound(err)
@@ -72,18 +72,18 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 // dumpObjects reads every object of database and the statement the server
 // states for it.
 func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database string) ([]*dumpObject, error) {
-	// A materialized view with its own engine has a table the server named
-	// itself, ".inner_id.<uuid>". It is the view's storage, not an object of the
-	// database, and a dump that wrote it would create a second one beside the
-	// view's. The shape is matched as the server writes it rather than by a
-	// prefix a user's own name could take.
+	// The server keeps an object's own tables in the ".inner_id." namespace: a
+	// materialized view with its own engine has ".inner_id.<uuid>", and a
+	// TimeSeries table has one per role, ".inner_id.<role>.<uuid>". They are the
+	// object's storage, not objects of the database, and a dump that wrote them
+	// would make a second one beside the object's own.
 	const query = `
 		SELECT
 			name
 		FROM system.tables
-		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+		WHERE database = ? AND NOT match(name, ?)
 		ORDER BY name`
-	rows, err := conn.QueryContext(ctx, query, database)
+	rows, err := conn.QueryContext(ctx, query, database, dumpStorageTablePattern)
 	if err != nil {
 		return nil, formatErrorWithQuery(err, query)
 	}
@@ -127,7 +127,7 @@ func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database strin
 			continue
 		}
 		if o.kind == dumpDictionaryTable {
-			o.reads = dumpDictionaryTableReads(o, byName)
+			o.reads = dumpDictionaryTableReads(o, database, byName)
 			continue
 		}
 		reads, err := d.dumpReads(ctx, conn, database, o, definitions)
@@ -143,6 +143,11 @@ func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database strin
 	}
 	return objects, nil
 }
+
+// dumpStorageTablePattern matches the tables the server makes for an object. The
+// shape is matched as the server writes it rather than by a prefix a user's own
+// name could take.
+const dumpStorageTablePattern = `^[.]inner_id[.]([a-z_]+[.])?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`
 
 // dumpKind names the object a statement creates. SHOW CREATE TABLE states a
 // dictionary as CREATE DICTIONARY, a view and a materialized view as their own
@@ -306,16 +311,27 @@ func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database string,
 	return reads, nil
 }
 
-// dumpASTNames reports whether the AST names reference, which the rendering ends
-// with a line break, or with the space before an alias.
+// dumpASTNames reports whether the AST names reference as a node of its own: the
+// marker starts a line once its indentation is skipped — so a string literal that
+// spells it out, which is escaped and mid-line, is not one — and ends with a line
+// break or with the space before an alias.
 func dumpASTNames(ast, reference string) bool {
+	indentation := func(start int) bool {
+		for i := start - 1; i >= 0 && ast[i] != '\n'; i-- {
+			if ast[i] != ' ' && ast[i] != '\t' {
+				return false
+			}
+		}
+		return true
+	}
 	for offset := 0; offset < len(ast); {
 		start := strings.Index(ast[offset:], reference)
 		if start < 0 {
 			return false
 		}
-		end := start + offset + len(reference)
-		if end == len(ast) || ast[end] == '\n' || ast[end] == ' ' {
+		start += offset
+		end := start + len(reference)
+		if indentation(start) && (end == len(ast) || ast[end] == '\n' || ast[end] == ' ') {
 			return true
 		}
 		offset = end
@@ -328,12 +344,12 @@ func dumpASTNames(ast, reference string) bool {
 // source, which may be a table, a view or a materialized view of this database.
 // The server states the dictionary in the table's ENGINE clause and the source in
 // the dictionary's SOURCE, both as string literals.
-func dumpDictionaryTableReads(o *dumpObject, byName map[string]*dumpObject) []string {
+func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]*dumpObject) []string {
 	seen := make(map[string]bool, len(byName))
-	for _, name := range dumpNamedLiterals(o.stmt, byName) {
+	for _, name := range dumpNamedLiterals(o.stmt, database, byName) {
 		seen[name] = true
 		if dictionary := byName[name]; dictionary != nil {
-			for _, source := range dumpNamedLiterals(dictionary.stmt, byName) {
+			for _, source := range dumpNamedLiterals(dictionary.stmt, database, byName) {
 				seen[source] = true
 			}
 		}
@@ -348,12 +364,21 @@ func dumpDictionaryTableReads(o *dumpObject, byName map[string]*dumpObject) []st
 }
 
 // dumpNamedLiterals returns the objects of byName that stmt names as a string
-// literal, with or without their database.
-func dumpNamedLiterals(stmt string, byName map[string]*dumpObject) []string {
+// literal. The server writes the name as it was given, so it may be qualified
+// with its database and may hold a dot of its own: the literal is tried whole,
+// then without its database, and only then by its last part.
+func dumpNamedLiterals(stmt, database string, byName map[string]*dumpObject) []string {
 	var names []string
 	for _, literal := range dumpLiterals(stmt) {
-		if name := literal[strings.LastIndex(literal, ".")+1:]; byName[name] != nil {
-			names = append(names, name)
+		for _, name := range []string{
+			literal,
+			strings.TrimPrefix(literal, database+"."),
+			literal[strings.LastIndex(literal, ".")+1:],
+		} {
+			if byName[name] != nil {
+				names = append(names, name)
+				break
+			}
 		}
 	}
 	return names

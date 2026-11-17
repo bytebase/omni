@@ -21,10 +21,12 @@
 | 		SELECT
 | 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+| 		WHERE database = ? AND NOT match(name, ?)
 | 		ORDER BY name
 : string
 | omni_gap_mv
+: string
+| ^[.]inner_id[.]([a-z_]+[.])?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 < result
 < column "name" "String" "string"
 < row
@@ -209,10 +211,12 @@
 | 		SELECT
 | 			name
 | 		FROM system.tables
-| 		WHERE database = ? AND NOT match(name, '^[.]inner_id[.][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$')
+| 		WHERE database = ? AND NOT match(name, ?)
 | 		ORDER BY name
 : string
 | omni_gap_database
+: string
+| ^[.]inner_id[.]([a-z_]+[.])?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$
 < result
 < column "name" "String" "string"
 < row
