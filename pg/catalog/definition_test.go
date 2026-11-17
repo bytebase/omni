@@ -1323,3 +1323,41 @@ func TestDatabaseDefinitionOrdersForeignPartitionAfterCheckRowType(t *testing.T)
 	assert.Contains(t, result, parent)
 	assert.Less(t, strings.Index(result, z), strings.Index(result, parent), "the CHECK's row type must be written before the parent")
 }
+
+// TestDatabaseDefinitionOrdersForeignKeyTableAfterViewRowType checks that a
+// foreign table using a view's row type follows the view.
+func TestDatabaseDefinitionOrdersForeignKeyTableAfterViewRowType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "t",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+			}},
+			Views: []*metadatapb.ViewMetadata{{
+				Name:              "v",
+				Definition:        "SELECT id FROM public.t",
+				DependencyColumns: []*metadatapb.DependencyColumn{{Schema: "public", Table: "t"}},
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "a",
+				ExternalServerName: "s",
+				Columns:            []*metadatapb.ColumnMetadata{{Name: "r", Type: "public.v"}},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	view := `CREATE VIEW "public"."v"`
+	table := `CREATE FOREIGN TABLE "public"."a"`
+	assert.Contains(t, result, view)
+	assert.Contains(t, result, table)
+	assert.Less(t, strings.Index(result, view), strings.Index(result, table), "the view's row type must be written first")
+}
