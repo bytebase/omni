@@ -87,9 +87,9 @@ estimate is all there is, and the row is a prediction, not a cost.
 | 8 | `ELASTICSEARCH` | `db/elasticsearch` | own | `elasticsearch/driver` (tapes) | thin adapter; `Options{OpenSearch, Transport}` | measured: neither seam blocks — a caller `Dial` reaches the client and `Options.Transport` carries SigV4, both by test. Ten behaviour changes, and one of them (AWS ping hints) is a product decision | 347 / 0 callers, 0 files |
 | 9 | `TRINO` | `db/trino` | own | `trino/driver` (tapes) | thin adapter | measured: none. No caller changed; `QueryConn` ignores its `*sql.Conn`, so a session is per call | 234 / 0 callers |
 | 10 | `CLICKHOUSE` | `db/clickhouse` | own; parser is `standard`/`mysql` | `clickhouse/driver` (tapes) | thin adapter; `Dumper` now exists | session, as trino's (per call, not a caller change) | unmeasured |
-| 11 | `DORIS` | `db/doris` | own; imports `db/mysql` helpers | `doris/driver` (tapes) | thin adapter + shared MySQL config builder | session; the shared builder is a precondition | unmeasured |
+| 11 | `DORIS` | `db/doris` | own; imports `db/mysql` helpers | `doris/driver` (tapes) | thin adapter; its own config mapping, so the shared MySQL builder was not a precondition | measured: none of wave 0's seams. Two items are open — `MaximumSQLResultSize` of 0 now means no cap, and a procedure created qualified syncs qualified | 363 / 0 callers, 0 files |
 | 12 | `STARROCKS` | `db/starrocks` | own; imports `db/mysql` helpers | `starrocks/driver` (tapes) | thin adapter + shared MySQL config builder | session; the shared builder is a precondition | unmeasured |
-| 13 | `MSSQL` | `db/mssql` | own | `mssql/driver` (tapes) | thin adapter + `CountAffectedRows` | measured: the shared `GetDB` retirement only. No advisor probe, no plancheck change; masking and batch delegate. Azure AD IAM is refused loudly | 497 / 8 files |
+| 13 | `MSSQL` | `db/mssql` | own | `mssql/driver` (tapes) | thin adapter + `CountAffectedRows` | measured: the shared `GetDB` retirement only. No advisor probe, no plancheck change; masking and batch delegate. Azure AD IAM is refused loudly — **superseded 2026-11-17 by #1389:** `Config.TokenProvider` carries the login ([contract](2026-11-15-driver-contract-design.md#decisions)) | 497 / 8 files |
 | 14 | `COCKROACHDB` | `db/cockroachdb` | own; parser handlers are pg's, design says alias pg | `cockroachdb/driver` (tapes) | thin adapter; do not alias pg | plancheck only | unmeasured |
 | 15 | `POSTGRES` | `db/pg` | own; parser also serves CockroachDB | `pg/driver` (tapes) + `Options{TenantMode}` | thin adapter | measured: the advisor probe is forced and `GetDB` retires in 8 files. plancheck was **not** forced; `QueryConn`'s `*sql.Conn` is dead but tolerated | 658 / 16 files |
 | 16 | `MYSQL` | `db/mysql` | registers `MYSQL` and `MARIADB` | `mysql/driver` (tapes) | thin adapter; keep the shared MySQL config builder | measured: an engine-specific `DriverHandle` for the advisors, plancheck's 7 assertions plus 9 blank parser imports, `GetDB`, and gh-ost failing closed | 706 / 17 files |
@@ -143,6 +143,11 @@ against the emulator digest in its `pins.tsv` row, and elasticsearch against 8.1
 on, one container at a time; each proof's per-file diff and verbatim failures are in its session's
 report, and this section keeps the totals and the decisions they force.
 
+**Amended 2026-11-17.** Doris is the tenth: 363 adapter lines, package 1,248 → 363 non-test, 0
+callers, 0 product files and no wave-0 seam. Its report names its own omni commit and per-file diff,
+so the paragraph above counts nine; its row is in both tables below, and its open items are §11 and
+§12 of the [open decisions](2026-11-17-cutover-open-decisions.md).
+
 The omni side needed work twice, none of it contract-shaped. `cassandra/driver`'s package doc
 promised an empty schema where the code returns `driver.ErrNotFound` (fixed on that proof's branch,
 `5fcf51383`). mssql's live suite found five driver defects, enumerated in §6, all fixed in #1385.
@@ -152,11 +157,25 @@ One capability resisted: `mssql/driver` always builds the plain sqlserver connec
 cannot hand it Azure AD's token-fetching connector, and the adapter refuses that mode loudly. That
 needs a contract decision, and it is the only shipped feature any proof could not carry.
 
+**Superseded 2026-11-17 by #1389**, which made that decision: a third piece of omni work, and the
+first contract-shaped one. `driver.Config.TokenProvider` is `func(ctx context.Context) (string,
+error)`, called per connection, and `mssql/driver` opens the client's security-token connector with
+it, so `Config.TLS` and `Config.Dial` still apply. The Bytebase adapter passes a closure over
+`azidentity` that returns an access token for `https://database.windows.net/.default` — its
+client-secret credential or its default credential chain — with `User` allowed to be empty and
+`Password` unused; the Azure SDK and the client's connector stay on Bytebase's side. The
+[contract's Decisions](2026-11-15-driver-contract-design.md#decisions) and the
+[parity note](2026-11-17-driver-method-parity.md#dialer-and-probe-support) carry the wording.
+
 The remaining rows stay `unmeasured`: rows 2-4, 7, 10-12, 14, 17-19 and 21-24, whose §2 estimate is
 the adapter prototype's, not a cutover's. Doris, MariaDB and DynamoDB were still running when this
 revision was written, so their rows keep the prototype's number and nothing here is inferred from a
 neighbouring engine — not from doris to starrocks, not from mysql to mariadb, not from a driver's
 tapes to a cutover.
+
+**Amended 2026-11-17.** Row 11 has reported, so the unmeasured set is 2-4, 7, 10, 12, 14, 17-19 and
+21-24, and MariaDB and DynamoDB are the two still running. Doris's 363 measured lines replace the
+prototype's 100, and nothing is inferred from it to starrocks.
 
 | Engine | Prototype adapter | Measured adapter, non-test | Deleted | Callers changed | Product-side diff |
 | --- | --- | --- | --- | --- | --- |
@@ -164,11 +183,12 @@ tapes to a cutover.
 | pg | 226 | 658 (the delegation layer inside it is ~219) | package 5,376 → 1,741; `sync.go`, `role.go`, `stats.go` gone; 2,043 test lines across 3 files | 8 for `GetDB`, 7 for the advisor probe | +199 / −45 (net +154) across 14 product files and 4 test files |
 | mysql | 136 | 706 (450 core, 68 retained helpers, 155 legacy `*sql.DB` probe bridge, 33 synonyms) | 2,952 → 706 non-test; 5 driver files (2,196 lines); 3 test files, 2,163 lines, no longer compile | 17 files | +363 / −104 (net +259), plus 9 blank parser imports |
 | cassandra | 126 | 312 (one file) | 802 driver + 126 tests (928 lines, net −507) | **0** | **0 files.** `go.mod`'s pin replace and `ultimate.go`'s blank import are the only two lines outside the package |
-| mssql | 188 | 497 (359 `mssql.go`, 124 `query.go`, 14 `dump.go`) | 2,952 non-test (5 files); 40 test lines deleted, `mssql_test.go` 535 → 500 | 8 files (all `GetDB`; 3 test files touched only to compile) | +50 / −16 (net +34). No advisor seam, no plancheck change. Its `Dump` now renders through omni's catalog, so a filtered index keeps `WHERE ([amount] IS NOT NULL)` and the doubled `;` after a view definition is gone — 921 → 948 bytes on the same synced schema, a user-visible change no test pins yet |
+| mssql | 188 | 497 (359 `mssql.go`, 124 `query.go`, 14 `dump.go`) | 2,952 non-test (5 files); 40 test lines deleted, `mssql_test.go` 535 → 500 | 8 files (all `GetDB`; 3 test files touched only to compile) | +50 / −16 (net +34). No advisor seam, no plancheck change. Its `Dump` now renders through omni's catalog, so a filtered index keeps `WHERE ([amount] IS NOT NULL)` and the doubled `;` after a view definition is gone — 921 → 948 bytes on the same synced schema, a user-visible change no test pins yet — **superseded 2026-11-17 by #1391** (`8a34a4e4e`), which pins both in `mssql/driver/dump_test.go` and its corpus |
 | oracle | 143 | 390 (212 `oracle.go`, 139 `query.go`, 26 `sync.go`, 13 `dump.go`) + the same 120 shared conversion | package 2,672 → 390; 2,526 lines deleted; tests 1,435 → 843 | 12 files (+ 6 test files touched only to compile) | +243 / −36 (net +207) |
 | redis | 154 | 283 (one file, ~120 of it result conversion and probe dispatch) | `sync.go` 148 deleted, `redis.go` 373 → 283; package 521 → 283 non-test; tests 191 → 205 | **0** | **0 files.** The pin bump *is* the cutover: Bytebase's pin (`8851de182`) predates `redis/driver` (`9be754a6`), so the driver enters the dependency for the first time; the testcontainer image moves to `redis:7.4.12-alpine` |
 | spanner | 120 | 333 (one file, `spanner.go`: config mapping, result conversion, `executeLogger`) | `sync.go` 371 and `dump.go` 28 deleted; driver 1,127 → 333 (−70.5%), package 1,553 → 809; 314 test lines deleted, 2 live tests ported | **0** | **0 files.** `go.mod`'s replace is the only line outside the package. The server-DDL dump is byte-identical for both dialects, with and without the sync runner's metadata |
 | elasticsearch | 169 (+11 SigV4) | 347 (one file: `Open`/dial, result mapping, execute logger, sync mapping, dump) | `sync.go` 429, `query_plan.go` 113, `role.go` 57, `dump.go` 13 deleted; driver 1,180 → 347 (−833); the package's own tests 405 → 541, plus a shared container fixture (+60) | **0** | **0 product files**, and two dependencies leave Bytebase: `elastic/go-elasticsearch/v7` and `rs/dnscache` (go.sum −16) |
+| doris | 100 | 363 (config mapping and result conversion inside it: it needed no wave-0 seam) | package 1,248 → 363 non-test | **0** | **0 files.** The `Dump` is not parity: the `SET @OLD_UNIQUE_CHECKS …` prologue and epilogue and the placeholder `CREATE VIEW … 1 AS col` are gone, and procedures, functions and sync materialized views appear. The old text could not be replayed at all, so this is a fix to name in the release note |
 
 | Engine | Did the prototype's verdict hold? | Therefore, do this first |
 | --- | --- | --- |
@@ -176,11 +196,12 @@ tapes to a cutover.
 | pg | Half. 226 was the delegation layer (measured ~219); the adapter is 658 because connection resolution Bytebase still owns (~99), `driver.Result` → `v1pb` conversion (~168) and the advisor probe (~75) are part of it. The forced interface was the **advisor probe**, not plancheck, contrary to the prototype's framing. | `advisor.Prober` and `Context.Prober` first (+77/−19 across the new `prober.go`, `advisor.go` and five pg rule files), and the rest of the cutover then compiles. `GetDB` retirement and the 3 `sql_service` sites follow; `rollout_service` (+63/−3) is the one rewrite, onto omni's `Activity()`. |
 | mysql | No. 136 → 706, a 5× miss, and the seam list held in kind but not in shape: a generic probe could not answer MySQL's rules (§5), and 2,163 lines of package tests stopped compiling — a cost no compile can show. | `DriverHandle` for the mysql/mariadb rules first, because the generic prober does not fit them; then gh-ost's fail-closed validator, the only silent feature loss in any proof. If wave 2 has not replaced plancheck's assertions by then, do it here (+24/−62 plus nine imports) — the mysql proof did, and would again, because it removes the pin that keeps `*mysqldriver.Driver` alive. |
 | cassandra | Yes on the claim that matters, no on size. Every wave-1 precondition held exactly — `GetDB` nil before and after, `QueryConn` ignoring its `*sql.Conn`, no product package naming `*cassandra.Driver` — and it was the only measured cutover with zero product files when it reported; redis, spanner and elasticsearch have since matched that. 312 against 126, and it found four behavior deltas the plan does not name. | Land it first: this is the one cutover a reviewer can approve as a driver swap plus a deletion. Decide its four deltas as part of the change — a dropped keyspace is now `driver.ErrNotFound` instead of an empty schema, `Execute` now emits task-run logs, the adapter gains an SSH `Dial`, and the dead read-only branch is preserved. |
-| mssql | Yes on cost, no on the seam list. The predicted blockers mostly were not: no `Prober` (mssql's advisors are static AST rules), no plancheck change (the `*mssql.Driver` assertion still holds), and all 8 caller files are the shared `GetDB` retirement, none mssql-specific. What broke was driver-side — five defects that only a live suite finds — and its `Dump` text moved without a test noticing. 497 against 188. | Reuse wave 0's `db.SQLDB` and change nothing engine-specific on the caller side. #1385's five driver fixes are on main (`81b91221d`) and are a precondition, not a follow-up, because the adapter is correct only on top of them; record the Azure AD IAM refusal as a contract decision rather than an adapter shortcut. |
+| mssql | Yes on cost, no on the seam list. The predicted blockers mostly were not: no `Prober` (mssql's advisors are static AST rules), no plancheck change (the `*mssql.Driver` assertion still holds), and all 8 caller files are the shared `GetDB` retirement, none mssql-specific. What broke was driver-side — five defects that only a live suite finds — and its `Dump` text moved without a test noticing. 497 against 188. | Reuse wave 0's `db.SQLDB` and change nothing engine-specific on the caller side. #1385's five driver fixes are on main (`81b91221d`) and are a precondition, not a follow-up, because the adapter is correct only on top of them; record the Azure AD IAM refusal as a contract decision rather than an adapter shortcut — **superseded 2026-11-17 by #1389:** the decision is made and `Config.TokenProvider` is the hook ([contract](2026-11-15-driver-contract-design.md#decisions)), so the adapter passes a token closure instead of refusing the mode. |
 | oracle | Mostly, in the opposite direction. 143 → 390 adapter lines, but the two blockers the plan named as product work mostly were not: `CountAffectedRows` needed **zero** product change, plancheck was never touched, and the `Version` seam disappeared because omni reads `version_full` itself, leaving an 8-line deletion. What did hold is the advisor `Prober`, reused verbatim from pg, and one blocker no one predicted: the private-link guard's interface loses its `*sql.Conn`. | Reuse pg's `prober.go` and `Context.Prober` without re-deriving them, delete the `*oracle.Driver` version assertion instead of porting it, and budget the private-link guard's signature change — it is the one oracle-specific caller edit. |
 | redis | Yes on the seams, no on size — the reverse of the usual miss. 154 → 283, but both seams it might have wanted (`SQLDB`, `Prober`) were inapplicable, and the all-nodes probe came through `driver.AllNodesQuerier` with a mutation check. What no estimate could see is the dependency: the pin predates `redis/driver`, so this cutover is also a first install. | Bump the pin first and keep the all-nodes branch. A silent fallback to one session's `Query` passes a single-node cluster, so the test that matters is the refusal on a standalone server, not the row count. Accept one round trip per command (200 `PING`s: 2.4 ms → 13.8–23.4 ms on localhost) as the price of fail-fast `Execute` and per-command errors. |
 | spanner | Half. 120 → 333, but zero seams, zero product files, and the dump byte-identical with and without the sync runner's metadata. What it could not see is that a *capability* arrives with the driver — PostgreSQL-dialect databases, which the old driver filtered — so the expensive part is a product decision, not adapter code. | Decide the dialect listing before writing the adapter. omni lists, syncs and dumps PG-dialect databases; `SPANNER`'s `SplitMultiSQL`/`GetQuerySpan` is GoogleSQL-only, so keep the old filter in `SyncInstance` until the product routes by database dialect. Ship the two halves together or not at all. |
 | elasticsearch | Mostly. 169 → 347, 0 callers, 0 seams, and both seam questions answered by test: a caller `Dial` reaches the client, `Transport` carries SigV4. What it could not see is how many behaviours move at once (ten), and that one of them is support-facing: the AWS ping/sync error text loses its role-ARN hint. | Run the old driver beside the adapter on one pinned server before deciding anything; the ten changes only exist as a side-by-side diff, and three shapes expected to move (`hits`, `_cat`, refused-request text) came back identical. Decide the AWS hint first — it is the only one a support case would notice. |
+| doris | Half. The prototype's verdict — "a config mapping and nothing else" — held on the seam list: 0 callers, 0 product files, no wave-0 seam. The size did not: 363 against 100. What no estimate could see is that the old `Dump` text was not replayable, so the pin bump changes schema output rather than its format, and that `MaximumSQLResultSize` of 0 means a zero-byte cap on one side and no cap on the other. | Decide the zero cap before the adapter ([open decisions §11](2026-11-17-cutover-open-decisions.md#11-maximumsqlresultsize-of-0-means-the-opposite-on-each-side)) and name the dump change in the release note. Run the fixture pass for the one doris parser expectation that moves: `backend/plugin/parser/doris/limit_test.go:197` (`SELECT * FROM t # hash comment`), because Doris refuses `#` and the new rewrite wraps the statement instead of splicing the limit before the comment. |
 
 Every measured row pays these, so every unmeasured row should budget them too:
 
@@ -203,7 +224,12 @@ Every measured row pays these, so every unmeasured row should budget them too:
   range: redis's pin predates `redis/driver` entirely, so its bump introduces the dependency; and
   where an engine renders no schema the bump moves nothing — spanner's dump is byte-identical for
   both dialects, redis's and elasticsearch's are empty before and after, and the syncer's history
-  says so.
+  says so. Doris is the engine whose bump fixes a renderer that was broken rather than moves a
+  format: the prologue and epilogue and the placeholder view go, procedures, functions and sync
+  materialized views arrive, and the old text could not be replayed at all. It also moves one parser
+  expectation — `backend/plugin/parser/doris/limit_test.go:197`, `SELECT * FROM t # hash comment` —
+  because Doris refuses `#`, so the limit rewrite wraps the statement instead of splicing the limit
+  in front of the comment.
 - **The driver, not the adapter, is where behavior breaks.** mssql's five defects and spanner's
   credential/emulator conflict (§6) are findings no compile can produce, and neither can a review of
   the adapter body. The one exception is oracle's private-link guard, which is a product compile
@@ -397,6 +423,12 @@ same schema through both. No test pins it yet, which is worth saying plainly: a 
 that a user sees in a stored `raw_dump` and that the diff suite does not compare is the gap the next
 mssql pass should close first.
 
+**Superseded 2026-11-17 by #1391** (`8a34a4e4e`), which closed that gap: the corpus gained a
+filtered index with an `INCLUDE` list and a two-term predicate, and `TestDumpRestores` now asserts
+the predicate in the position SQL Server reported it and a view body ending in exactly one
+semicolon. The reason is the one above — both changes restore cleanly either way, so the round trip
+alone could not hold them.
+
 **spanner found one, of a second flavour: a library refusing a combination.** Pointing an instance
 that carries a stored Cloud credential at the emulator made the driver build a credential option and
 `WithoutAuthentication` together:
@@ -494,7 +526,8 @@ fifth: 347 lines, ten behaviour changes, and the one decision a support case cou
 `doris` and `starrocks` follow once wave 0's shared builder exists: they appear in no plancheck,
 advisor or ghost switch, and trino showed the session seam costs no caller. `hive` keeps its
 documented limit (forward a local port); `elasticsearch` no longer has one, because both of its
-seams were proven by test.
+seams were proven by test. **Amended 2026-11-17:** doris has measured 363 lines with no wave-0 seam,
+so it does not wait on the shared builder either, and it joins the zero-product-file group.
 
 Cassandra-first survives, on one clause. The plan's reason was size — 126 lines, the smallest
 prototype — and the size was wrong: 312, a 2.5× miss, and redis now measures smaller at 283. What
