@@ -1,4 +1,5 @@
-// Package analysis extracts structural information from parsed MongoDB statements.
+// Package analysis extracts structural information from parsed MongoDB
+// statements and decides the statement an EXPLAIN request runs.
 package analysis
 
 import "github.com/bytebase/omni/mongo/ast"
