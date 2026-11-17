@@ -70,11 +70,14 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 	initialSearchPath := searchPath
 	// sessionSearchPath leaves out SET LOCAL, which lasts until the transaction ends.
 	sessionSearchPath := searchPath
+	// sessionGeneration counts non-local SETs, so restoring a savepoint can tell
+	// one made since it even when the value it assigned equals the saved one.
+	sessionGeneration := 0
 	// savepoints holds the search path each savepoint saw, so ROLLBACK TO SAVEPOINT
 	// restores it; a savepoint is scoped to its transaction.
 	type searchPathSnapshot struct {
 		searchPath        []string
-		sessionSearchPath []string
+		sessionGeneration int
 	}
 	savepoints := map[tree.Name]searchPathSnapshot{}
 	var savepointOrder []tree.Name
@@ -86,7 +89,7 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 			return false
 		}
 		snapshot := savepoints[name]
-		if slices.Equal(sessionSearchPath, snapshot.sessionSearchPath) {
+		if sessionGeneration == snapshot.sessionGeneration {
 			searchPath = snapshot.searchPath
 		} else {
 			// A non-local SET since the savepoint is not rolled back.
@@ -269,7 +272,7 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 			if index := slices.Index(savepointOrder, n.Name); index >= 0 {
 				savepointOrder = slices.Delete(savepointOrder, index, index+1)
 			}
-			savepoints[n.Name] = searchPathSnapshot{searchPath: searchPath, sessionSearchPath: sessionSearchPath}
+			savepoints[n.Name] = searchPathSnapshot{searchPath: searchPath, sessionGeneration: sessionGeneration}
 			savepointOrder = append(savepointOrder, n.Name)
 		case *tree.RollbackToSavepoint:
 			// CockroachDB rolls a SET LOCAL back to the savepoint; a SET since then stays.
@@ -283,6 +286,7 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 		case *tree.Discard:
 			if n.Mode == tree.DiscardModeAll {
 				searchPath, sessionSearchPath = initialSearchPath, initialSearchPath
+				sessionGeneration++
 			}
 		case *tree.CommitTransaction, *tree.RollbackTransaction:
 			// Unlike PostgreSQL, CockroachDB keeps a SET made in a transaction that rolls back.
@@ -294,6 +298,7 @@ func ExtractChangedResources(stmts statements.Statements, database string, searc
 				searchPath = getSearchPath(n, initialSearchPath)
 				if !n.Local {
 					sessionSearchPath = searchPath
+					sessionGeneration++
 				}
 			}
 		default:

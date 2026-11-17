@@ -549,3 +549,19 @@ COMMIT;`
 		t.Errorf("resources mismatch (-want +got):\n%s", diff)
 	}
 }
+
+func TestExtractChangedResourcesSavepointKeepsNonLocalSet(t *testing.T) {
+	// The non-local SET assigns the value the savepoint already had, so only an
+	// event, not a value comparison, can tell that it happened.
+	const statement = `BEGIN;
+SET LOCAL search_path = app;
+SAVEPOINT s;
+SET search_path = public;
+ROLLBACK TO SAVEPOINT s;
+DELETE FROM t;
+COMMIT;`
+	got := ExtractChangedResources(mustParse(t, statement), "db", []string{"public"}, nil)
+	if diff := cmp.Diff([]string{"db.public.t"}, resourceNames(got)); diff != "" {
+		t.Errorf("resources mismatch (-want +got):\n%s", diff)
+	}
+}
