@@ -322,6 +322,9 @@ func (c *Catalog) Definition(opts DefinitionOptions) (string, error) {
 func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 	for _, schema := range schemas {
 		for _, table := range schema.Tables {
+			if table.GetSkipDump() {
+				continue
+			}
 			for _, trigger := range table.Triggers {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue
@@ -330,6 +333,9 @@ func writeTriggers(out *strings.Builder, schemas []*metadata.SchemaMetadata) {
 			}
 		}
 		for _, view := range schema.Views {
+			if view.GetSkipDump() {
+				continue
+			}
 			for _, trigger := range view.Triggers {
 				if trigger.Body == "" || trigger.SkipDump {
 					continue

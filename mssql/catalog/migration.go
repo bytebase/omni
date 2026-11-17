@@ -1440,10 +1440,13 @@ func computedColumnChanged(diff *ColumnDiffEntry) bool {
 	if diff.OldColumn == nil || diff.NewColumn == nil {
 		return false
 	}
-	if diff.OldColumn.Type == diff.NewColumn.Type {
+	computed := isComputedColumnType(diff.OldColumn.Type) || isComputedColumnType(diff.NewColumn.Type)
+	if !computed {
 		return false
 	}
-	return isComputedColumnType(diff.OldColumn.Type) || isComputedColumnType(diff.NewColumn.Type)
+	// ALTER COLUMN cannot change a computed expression or its explicit
+	// nullability, so either difference takes the drop/add path.
+	return diff.OldColumn.Type != diff.NewColumn.Type || diff.OldColumn.Nullable != diff.NewColumn.Nullable
 }
 
 func isComputedColumnType(columnType string) bool {
@@ -1523,18 +1526,19 @@ func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 
 func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry, droppedDefaults map[string]bool) string {
 	var buf strings.Builder
-	if !typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) {
-		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ALTER COLUMN %s %s", quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name), colDiff.NewColumn.Type)
-		if colDiff.NewColumn.Collation != "" {
-			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
+	oldDefault := getColumnDefaultValue(colDiff.OldColumn)
+	newDefault := getColumnDefaultValue(colDiff.NewColumn)
+	alterColumn := !typesEqual(colDiff.OldColumn.Type, colDiff.NewColumn.Type) ||
+		colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable ||
+		colDiff.OldColumn.Collation != colDiff.NewColumn.Collation
+	droppedDefaultForAlter := false
+	if alterColumn {
+		// SQL Server refuses ALTER COLUMN while a default is bound to the
+		// column, even when that default is unchanged.
+		if oldDefault != "" && colDiff.OldColumn.DefaultConstraintName != "" && !droppedDefaults[schemaName+"."+colDiff.OldColumn.DefaultConstraintName] {
+			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schemaName), quote(tableName), quote(colDiff.OldColumn.DefaultConstraintName))
+			droppedDefaultForAlter = true
 		}
-		if colDiff.NewColumn.Nullable {
-			buf.WriteString(" NULL")
-		} else {
-			buf.WriteString(" NOT NULL")
-		}
-		buf.WriteString(";\n")
-	} else if colDiff.OldColumn.Nullable != colDiff.NewColumn.Nullable || colDiff.OldColumn.Collation != colDiff.NewColumn.Collation {
 		fmt.Fprintf(&buf, "ALTER TABLE %s.%s ALTER COLUMN %s %s", quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name), colDiff.NewColumn.Type)
 		if colDiff.NewColumn.Collation != "" {
 			fmt.Fprintf(&buf, " COLLATE %s", colDiff.NewColumn.Collation)
@@ -1552,10 +1556,8 @@ func generateAlterColumn(schemaName, tableName string, colDiff *ColumnDiffEntry,
 		fmt.Fprintf(&buf, "-- UNSUPPORTED: identity property change on %s.%s.%s requires a table rebuild; left unchanged.\n",
 			quote(schemaName), quote(tableName), quote(colDiff.NewColumn.Name))
 	}
-	oldDefault := getColumnDefaultValue(colDiff.OldColumn)
-	newDefault := getColumnDefaultValue(colDiff.NewColumn)
-	if oldDefault != newDefault {
-		if oldDefault != "" && colDiff.OldColumn.DefaultConstraintName != "" && !droppedDefaults[schemaName+"."+colDiff.OldColumn.DefaultConstraintName] {
+	if oldDefault != newDefault || (droppedDefaultForAlter && newDefault != "") {
+		if !droppedDefaultForAlter && oldDefault != "" && colDiff.OldColumn.DefaultConstraintName != "" && !droppedDefaults[schemaName+"."+colDiff.OldColumn.DefaultConstraintName] {
 			fmt.Fprintf(&buf, "ALTER TABLE %s.%s DROP CONSTRAINT %s;\n", quote(schemaName), quote(tableName), quote(colDiff.OldColumn.DefaultConstraintName))
 		}
 		if newDefault != "" {

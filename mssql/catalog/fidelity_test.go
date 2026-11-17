@@ -315,3 +315,82 @@ func execScript(t *testing.T, db *sql.DB, script string) {
 	}
 	flush()
 }
+
+// TestColumnDefaultChangeFidelity round-trips a column type change that
+// keeps its bound default: SQL Server refuses ALTER COLUMN until the default
+// is dropped, and the migration restores it afterward.
+func TestColumnDefaultChangeFidelity(t *testing.T) {
+	columnChangeFidelity(t, `CREATE SCHEMA [fid_default];
+GO
+CREATE TABLE [fid_default].[t] (
+    [id] INT NOT NULL,
+    [v] INT NOT NULL CONSTRAINT [DF_t_v] DEFAULT (0),
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`, `CREATE SCHEMA [fid_default];
+GO
+CREATE TABLE [fid_default].[t] (
+    [id] INT NOT NULL,
+    [v] BIGINT NOT NULL CONSTRAINT [DF_t_v] DEFAULT (0),
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`)
+}
+
+// TestComputedNullabilityFidelity round-trips a computed column whose explicit
+// NOT NULL changes. ALTER COLUMN cannot express that, so the migration drops
+// and recreates the column.
+func TestComputedNullabilityFidelity(t *testing.T) {
+	columnChangeFidelity(t, `CREATE SCHEMA [fid_computed];
+GO
+CREATE TABLE [fid_computed].[t] (
+    [id] INT NOT NULL,
+    [a] INT NULL,
+    [c] AS ([a] + 1) PERSISTED,
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`, `CREATE SCHEMA [fid_computed];
+GO
+CREATE TABLE [fid_computed].[t] (
+    [id] INT NOT NULL,
+    [a] INT NULL,
+    [c] AS ([a] + 1) PERSISTED NOT NULL,
+    CONSTRAINT [PK_t] PRIMARY KEY ([id])
+);
+GO
+`)
+}
+
+func columnChangeFidelity(t *testing.T, sourceSQL, targetSQL string) {
+	t.Helper()
+	db := testcontainer.Open(t)
+	ctx := context.Background()
+	execScript(t, db, sourceSQL)
+	stored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+	require.NoError(t, err)
+	from := catalog.New()
+	require.NoError(t, from.LoadMetadata(ctx, stored))
+
+	execScript(t, db, dropScript(stored))
+	execScript(t, db, targetSQL)
+	target, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+	require.NoError(t, err)
+	to := catalog.New()
+	require.NoError(t, to.LoadMetadata(ctx, target))
+	plan := catalog.GenerateMigration(from, to, catalog.Diff(from, to))
+	require.False(t, plan.IsEmpty())
+
+	execScript(t, db, dropScript(target))
+	execScript(t, db, sourceSQL)
+	execScript(t, db, plan.SQL())
+	restored, err := driver.SyncDatabase(ctx, db, testcontainer.Database(t))
+	require.NoError(t, err)
+	want, err := catalog.DatabaseDefinition(target, catalog.DefinitionOptions{})
+	require.NoError(t, err)
+	got, err := catalog.DatabaseDefinition(filterTo(restored, target), catalog.DefinitionOptions{})
+	require.NoError(t, err)
+	require.Equal(t, want, got, "migration %q", plan.SQL())
+}

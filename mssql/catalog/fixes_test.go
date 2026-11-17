@@ -712,3 +712,50 @@ EXEC sp_addextendedproperty @value=N'a description', @name=N'MS_Description', @l
 	require.NoError(t, err)
 	require.Equal(t, "a description", c.GetTable("dbo", "t").Comment)
 }
+
+func TestDefinitionSkipsTriggersOnSkippedObjects(t *testing.T) {
+	meta := &metadata.DatabaseSchemaMetadata{Schemas: []*metadata.SchemaMetadata{{
+		Name: "dbo",
+		Tables: []*metadata.TableMetadata{{
+			Name: "hidden", SkipDump: true,
+			Triggers: []*metadata.TriggerMetadata{{
+				Name: "trg_hidden", Body: "CREATE TRIGGER [dbo].[trg_hidden] ON [dbo].[hidden] AFTER INSERT AS SELECT 1",
+			}},
+		}},
+		Views: []*metadata.ViewMetadata{{
+			Name: "hidden_view", SkipDump: true,
+			Definition: "CREATE VIEW [dbo].[hidden_view] AS SELECT 1 AS n",
+			Triggers: []*metadata.TriggerMetadata{{
+				Name: "trg_hidden_view", Body: "CREATE TRIGGER [dbo].[trg_hidden_view] ON [dbo].[hidden_view] AFTER INSERT AS SELECT 1",
+			}},
+		}},
+	}}}
+	def, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	require.NotContains(t, def, "trg_hidden")
+	require.NotContains(t, def, "hidden")
+}
+
+func TestMigrationDropsDefaultAroundColumnTypeChange(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] int NOT NULL CONSTRAINT [DF_v] DEFAULT (0), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([id] int NOT NULL, [v] bigint NOT NULL CONSTRAINT [DF_v] DEFAULT (0), CONSTRAINT [PK_t] PRIMARY KEY ([id]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP CONSTRAINT [DF_v]")
+	require.Contains(t, sql, "ALTER COLUMN [v] bigint NOT NULL")
+	require.Contains(t, sql, "ADD CONSTRAINT [DF_v] DEFAULT (0) FOR [v]")
+	require.Less(t, strings.Index(sql, "DROP CONSTRAINT [DF_v]"), strings.Index(sql, "ALTER COLUMN [v]"))
+	require.Less(t, strings.Index(sql, "ALTER COLUMN [v]"), strings.Index(sql, "ADD CONSTRAINT [DF_v]"))
+}
+
+func TestMigrationRebuildsComputedColumnForNullability(t *testing.T) {
+	from, err := LoadSQL(`CREATE TABLE [dbo].[t] ([a] int NULL, [c] AS ([a] + 1) PERSISTED, CONSTRAINT [PK_t] PRIMARY KEY ([a]));`)
+	require.NoError(t, err)
+	to, err := LoadSQL(`CREATE TABLE [dbo].[t] ([a] int NULL, [c] AS ([a] + 1) PERSISTED NOT NULL, CONSTRAINT [PK_t] PRIMARY KEY ([a]));`)
+	require.NoError(t, err)
+	sql := GenerateMigration(from, to, Diff(from, to)).SQL()
+	require.Contains(t, sql, "DROP COLUMN [c]")
+	require.Contains(t, sql, "ADD [c] AS ([a] + 1) PERSISTED NOT NULL")
+	require.NotContains(t, sql, "ALTER COLUMN [c] AS")
+}
