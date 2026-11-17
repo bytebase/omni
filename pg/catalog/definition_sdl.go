@@ -259,6 +259,13 @@ func databaseSDL(metadata *metadatapb.DatabaseSchemaMetadata) (string, error) {
 				return "", err
 			}
 
+			// Write the table's partitions before its indexes: a partition takes
+			// the parent's indexes at its own creation, under names of the
+			// server's making rather than the snapshot's.
+			if err := writePartitionTablesSDL(&buf, schema.Name, table); err != nil {
+				return "", err
+			}
+
 			// Write table comment if present
 			if len(table.Comment) > 0 {
 				if err := writeTableCommentSDL(&buf, schema.Name, table); err != nil {
@@ -277,6 +284,11 @@ func databaseSDL(metadata *metadatapb.DatabaseSchemaMetadata) (string, error) {
 
 			// Write CREATE INDEX statements for non-constraint indexes
 			if err := writeIndexesSDL(&buf, schema.Name, table); err != nil {
+				return "", err
+			}
+
+			// Write each partition's own indexes, attached to the parent's.
+			if err := writePartitionIndexesSDL(&buf, schema.Name, table); err != nil {
 				return "", err
 			}
 
@@ -778,8 +790,19 @@ func writeCreateTableSDL(out io.Writer, schemaName string, table *metadatapb.Tab
 		return err
 	}
 
-	_, err := io.WriteString(out, "\n)")
-	return err
+	if _, err := io.WriteString(out, "\n)"); err != nil {
+		return err
+	}
+
+	if len(table.Partitions) > 0 && !tableMissingColumnMetadata(table) {
+		if _, err := io.WriteString(out, " PARTITION BY "); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, table.Partitions[0].Expression); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeTableConstraintsSDL(out io.Writer, table *metadatapb.TableMetadata, writeSep func() error, tablesMissingColumns map[string]bool) error {
@@ -875,6 +898,201 @@ func writeIndexesSDL(out io.Writer, schemaName string, table *metadatapb.TableMe
 
 func writeIndexSDL(out io.Writer, schemaName string, tableName string, index *metadatapb.IndexMetadata, useOnlyClause bool) error {
 	return writeIndexInternal(out, schemaName, tableName, index, useOnlyClause, false)
+}
+
+// sdltable is the part of a table a partition's definition needs: the name it
+// is a partition of, the columns a snapshot without the partition's bound falls
+// back to, and the constraints its partitions inherit instead of listing.
+type sdltable struct {
+	name     string
+	columns  []*metadatapb.ColumnMetadata
+	checks   []*metadatapb.CheckConstraintMetadata
+	excludes []*metadatapb.ExcludeConstraintMetadata
+}
+
+// writePartitionTablesSDL writes t's partitions, each as CREATE TABLE ...
+// PARTITION OF its parent, parents before children: a partition takes its
+// parent's columns, so listing them again would only repeat what CREATE TABLE
+// PARTITION OF derives.
+func writePartitionTablesSDL(out io.Writer, schemaName string, table *metadatapb.TableMetadata) error {
+	if tableMissingColumnMetadata(table) {
+		// The partition's definition would name columns the snapshot lacks.
+		return nil
+	}
+	return writePartitionsSDL(out, schemaName, sdltable{
+		name:     table.Name,
+		columns:  table.Columns,
+		checks:   table.CheckConstraints,
+		excludes: table.ExcludeConstraints,
+	}, table.Partitions)
+}
+
+func writePartitionsSDL(out io.Writer, schemaName string, parent sdltable, partitions []*metadatapb.TablePartitionMetadata) error {
+	for _, partition := range partitions {
+		if err := writePartitionSDL(out, schemaName, parent, partition); err != nil {
+			return err
+		}
+		if err := writePartitionsSDL(out, schemaName, sdltable{
+			name:     partition.Name,
+			columns:  parent.columns,
+			checks:   partition.CheckConstraints,
+			excludes: partition.ExcludeConstraints,
+		}, partition.Subpartitions); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func writePartitionSDL(out io.Writer, schemaName string, parent sdltable, partition *metadatapb.TablePartitionMetadata) error {
+	if partition.Value == "" {
+		// A snapshot that holds no bound for the partition cannot say what it
+		// holds; the parent's columns make it the plain table LoadMetadata
+		// installs from the same snapshot.
+		if err := writeCreateTableSDL(out, schemaName, &metadatapb.TableMetadata{
+			Name:               partition.Name,
+			Columns:            parent.columns,
+			CheckConstraints:   partition.CheckConstraints,
+			ExcludeConstraints: partition.ExcludeConstraints,
+		}, nil, nil); err != nil {
+			return err
+		}
+		_, err := io.WriteString(out, ";\n\n")
+		return err
+	}
+
+	if _, err := fmt.Fprintf(out, `CREATE TABLE "%s"."%s" PARTITION OF "%s"."%s"`, escapeIdentifier(schemaName), escapeIdentifier(partition.Name), escapeIdentifier(schemaName), escapeIdentifier(parent.name)); err != nil {
+		return err
+	}
+	if err := writePartitionElementsSDL(out, parent, partition); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, " %s", partition.Value); err != nil {
+		return err
+	}
+	// A partition's own key is the expression its subpartitions report.
+	if len(partition.Subpartitions) > 0 {
+		if _, err := fmt.Fprintf(out, " PARTITION BY %s", partition.Subpartitions[0].Expression); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
+// writePartitionElementsSDL writes the element list of a partition's CREATE
+// TABLE ... PARTITION OF: the constraints the partition does not inherit, which
+// are the ones named unlike its parent's, and any key it holds alone.
+func writePartitionElementsSDL(out io.Writer, parent sdltable, partition *metadatapb.TablePartitionMetadata) error {
+	inherited := make(map[string]bool, len(parent.checks)+len(parent.excludes))
+	for _, check := range parent.checks {
+		inherited[check.Name] = true
+	}
+	for _, exclude := range parent.excludes {
+		inherited[exclude.Name] = true
+	}
+
+	first := true
+	writeItemSep := func() error {
+		if first {
+			first = false
+			_, err := io.WriteString(out, " (\n    ")
+			return err
+		}
+		_, err := io.WriteString(out, ",\n    ")
+		return err
+	}
+
+	// A partition can hold a primary key or unique constraint of its own, which
+	// a snapshot records among its indexes with no parent's index to attach it
+	// to; the parent's copies are attached and come with PARTITION OF. An
+	// EXCLUDE constraint is written below, and a unique index that backs no
+	// constraint is written as the index it is.
+	for _, index := range partition.Indexes {
+		if index.ParentIndexName != "" || (!index.Primary && !(index.Unique && index.IsConstraint)) {
+			continue
+		}
+		if err := writeItemSep(); err != nil {
+			return err
+		}
+		if index.Primary {
+			if err := writePrimaryKeyConstraintSDL(out, index); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := writeUniqueKeyConstraintSDL(out, index); err != nil {
+			return err
+		}
+	}
+	for _, check := range partition.CheckConstraints {
+		if inherited[check.Name] {
+			continue
+		}
+		if err := writeItemSep(); err != nil {
+			return err
+		}
+		if err := writeCheckConstraintSDL(out, check); err != nil {
+			return err
+		}
+	}
+	for _, exclude := range partition.ExcludeConstraints {
+		if inherited[exclude.Name] {
+			continue
+		}
+		if err := writeItemSep(); err != nil {
+			return err
+		}
+		if err := writeExcludeConstraintSDL(out, exclude); err != nil {
+			return err
+		}
+	}
+
+	if first {
+		return nil
+	}
+	_, err := io.WriteString(out, "\n)")
+	return err
+}
+
+// writePartitionIndexesSDL writes the indexes of each partition and attaches
+// each to the parent's index it belongs to: a partitioned index is one index
+// per partition, and only the attachment makes the parent's complete. A key
+// constraint is written with the partition's definition instead.
+func writePartitionIndexesSDL(out io.Writer, schemaName string, table *metadatapb.TableMetadata) error {
+	if tableMissingColumnMetadata(table) {
+		// The partitions were not written, so no table holds their indexes.
+		return nil
+	}
+	return writeSubPartitionIndexesSDL(out, schemaName, table.Partitions)
+}
+
+func writeSubPartitionIndexesSDL(out io.Writer, schemaName string, partitions []*metadatapb.TablePartitionMetadata) error {
+	for _, partition := range partitions {
+		for _, index := range partition.Indexes {
+			if index.Primary || index.IsConstraint {
+				continue
+			}
+			if err := writeIndexSDL(out, schemaName, partition.Name, index, len(partition.Subpartitions) > 0); err != nil {
+				return err
+			}
+			if _, err := io.WriteString(out, ";\n\n"); err != nil {
+				return err
+			}
+			if len(index.Comment) > 0 {
+				if err := writeIndexCommentSDL(out, schemaName, index); err != nil {
+					return err
+				}
+			}
+			if err := writeAttachIndex(out, schemaName, index); err != nil {
+				return err
+			}
+		}
+		if err := writeSubPartitionIndexesSDL(out, schemaName, partition.Subpartitions); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeViewSDL(out io.Writer, schemaName string, view *metadatapb.ViewMetadata) error {
