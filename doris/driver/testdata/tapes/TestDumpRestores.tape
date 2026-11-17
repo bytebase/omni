@@ -152,6 +152,13 @@
 : bytes
 | omni_dump_roundtrip
 > query
+| SELECT current_catalog()
+< result
+< column "current_catalog()" "CHAR"
+< row
+: bytes
+| internal
+> query
 | SELECT Name FROM mv_infos("database"="omni_dump_roundtrip") ORDER BY Name
 < result
 < column "Name" "TEXT"
@@ -1043,6 +1050,13 @@
 < row
 : bytes
 | omni_dump_roundtrip
+> query
+| SELECT current_catalog()
+< result
+< column "current_catalog()" "CHAR"
+< row
+: bytes
+| internal
 > query
 | SELECT Name FROM mv_infos("database"="omni_dump_roundtrip") ORDER BY Name
 < result

@@ -105,9 +105,10 @@ var dumpGaps = []struct {
 }{
 	{
 		name: "function-definition",
-		reason: "Doris states no definition for a user-defined function: SHOW CREATE FUNCTION " +
-			"is not a statement, SHOW FUNCTIONS lists the name only, and information_schema.routines " +
-			"has no row for one. The dump therefore omits every UDF, and a restore loses it.",
+		reason: "Doris states a user-defined function's definition with SHOW CREATE FUNCTION name(types), " +
+			"but nothing states the argument types: SHOW FUNCTIONS lists a name only, and " +
+			"information_schema.routines and parameters have no row for a UDF. The dump cannot build " +
+			"the signature a definition is asked with, so it omits every function.",
 		check: func(t *testing.T) {
 			const (
 				db       = "omni_dump_gap_function"
@@ -121,10 +122,29 @@ var dumpGaps = []struct {
 			}
 
 			ctx := context.Background()
-			if rows, err := d.db.QueryContext(ctx, "SHOW CREATE FUNCTION "+quoteBacktick(function)); err == nil {
-				rows.Close()
-				t.Errorf("the server states a function's definition now (SHOW CREATE FUNCTION); remove this entry and dump it")
+			// The definition is stateable once the signature is known: the gap is
+			// that nothing states the signature, not that the server keeps it.
+			var signature, statement string
+			if err := d.db.QueryRowContext(ctx, "SHOW CREATE FUNCTION "+function+"(INT)").Scan(&signature, &statement); err != nil {
+				t.Fatalf("SHOW CREATE FUNCTION %s(INT): %v", function, err)
 			}
+			if !strings.Contains(statement, "CREATE ALIAS FUNCTION") {
+				t.Errorf("SHOW CREATE FUNCTION stated %q; the entry's reason no longer holds", statement)
+			}
+
+			rows, err := d.db.QueryContext(ctx, "SHOW FUNCTIONS LIKE '"+function+"'")
+			if err != nil {
+				t.Fatal(err)
+			}
+			columns, err := rows.Columns()
+			rows.Close()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(columns) != 1 {
+				t.Errorf("SHOW FUNCTIONS states %v now, so a signature may be discoverable; remove this entry and dump the function", columns)
+			}
+
 			var count int
 			if err := d.db.QueryRowContext(ctx,
 				"SELECT COUNT(*) FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND SPECIFIC_NAME = ?",
@@ -242,61 +262,77 @@ func TestDumpDefinitionReads(t *testing.T) {
 	tests := []struct {
 		name     string
 		stmt     string
+		catalog  string
 		database string
 		want     []string
 	}{
 		{
 			name:     "view reads a table",
 			stmt:     "CREATE VIEW `v` (k) AS SELECT `internal`.`db`.`t`.`k` AS `k` FROM `internal`.`db`.`t`",
+			catalog:  "internal",
 			database: "db",
 			want:     []string{"t"},
 		},
 		{
 			name:     "view reads a view",
 			stmt:     "CREATE VIEW `v` (k) AS SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w`",
+			catalog:  "internal",
 			database: "db",
 			want:     []string{"w"},
 		},
 		{
 			name:     "another database is not the dump's object",
 			stmt:     "CREATE VIEW `v` (k) AS SELECT `k` FROM `other`.`t`",
+			catalog:  "internal",
+			database: "db",
+			want:     nil,
+		},
+		{
+			name:     "another catalog with the same database name is not the dump's object",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT `k` FROM `external`.`db`.`t`",
+			catalog:  "internal",
 			database: "db",
 			want:     nil,
 		},
 		{
 			name:     "a CTE is not an object",
 			stmt:     "CREATE VIEW `v` (k) AS WITH `w` AS (SELECT 1 AS k) SELECT k FROM w",
+			catalog:  "internal",
 			database: "db",
 			want:     nil,
 		},
 		{
 			name:     "a CTE body reads a view",
 			stmt:     "CREATE VIEW `v` (k) AS WITH `c` AS (SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w`) SELECT `c`.`k` AS `k` FROM c",
+			catalog:  "internal",
 			database: "db",
 			want:     []string{"w"},
 		},
 		{
 			name:     "a set operation's operand reads a view",
 			stmt:     "CREATE VIEW `v` (k) AS SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w` UNION ALL SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w`",
+			catalog:  "internal",
 			database: "db",
 			want:     []string{"w", "w"},
 		},
 		{
 			name:     "a subquery reads a view",
 			stmt:     "CREATE VIEW `v` (k) AS SELECT (SELECT max(`internal`.`db`.`w`.`k`) FROM `internal`.`db`.`w`) AS `k`",
+			catalog:  "internal",
 			database: "db",
 			want:     []string{"w"},
 		},
 		{
 			name:     "materialized view reads a table",
 			stmt:     "CREATE MATERIALIZED VIEW mv (k) BUILD DEFERRED REFRESH COMPLETE ON MANUAL DISTRIBUTED BY HASH(k) BUCKETS 1 AS SELECT `internal`.`db`.`t`.`k` AS `k` FROM `internal`.`db`.`t`",
+			catalog:  "internal",
 			database: "db",
 			want:     []string{"t"},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			got, err := dumpDefinitionReads(test.stmt, test.database)
+			got, err := dumpDefinitionReads(test.stmt, test.catalog, test.database)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -14,6 +14,13 @@
 : bytes
 | omni_dump_gap_function
 > query
+| SELECT current_catalog()
+< result
+< column "current_catalog()" "CHAR"
+< row
+: bytes
+| internal
+> query
 | SELECT Name FROM mv_infos("database"="omni_dump_gap_function") ORDER BY Name
 < result
 < column "Name" "TEXT"
@@ -31,11 +38,22 @@
 < result
 < column "SPECIFIC_NAME" "CHAR"
 > query
-| SHOW CREATE FUNCTION `dump_gap_abs`
-< error
-| 1105 HY000 errCode = 2, detailMessage = 
-| mismatched input '<EOF>' expecting '('(line 1, pos 35)
-|
+| SHOW CREATE FUNCTION dump_gap_abs(INT)
+< result
+< column "Function Signature" "CHAR"
+< column "Create Function" "CHAR"
+< row
+: bytes
+| dump_gap_abs(int)
+: bytes
+| CREATE ALIAS FUNCTION dump_gap_abs(int) WITH PARAMETER(a) AS abs(`a`);
+> query
+| SHOW FUNCTIONS LIKE 'dump_gap_abs'
+< result
+< column "Function Name" "CHAR"
+< row
+: bytes
+| dump_gap_abs
 > query
 | SELECT COUNT(*) FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND SPECIFIC_NAME = ?
 : string
@@ -97,6 +115,13 @@
 < row
 : bytes
 | omni_dump_gap_rollup
+> query
+| SELECT current_catalog()
+< result
+< column "current_catalog()" "CHAR"
+< row
+: bytes
+| internal
 > query
 | SELECT Name FROM mv_infos("database"="omni_dump_gap_rollup") ORDER BY Name
 < result
@@ -179,6 +204,13 @@
 < row
 : bytes
 | omni_dump_gap_relocate
+> query
+| SELECT current_catalog()
+< result
+< column "current_catalog()" "CHAR"
+< row
+: bytes
+| internal
 > query
 | SELECT Name FROM mv_infos("database"="omni_dump_gap_relocate") ORDER BY Name
 < result

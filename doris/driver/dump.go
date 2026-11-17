@@ -31,6 +31,10 @@ const (
 const (
 	dumpDatabaseQuery = `SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME = ?`
 
+	// A view or materialized view states every reference with three parts, and
+	// only the ones under the session's own catalog are this database's objects.
+	dumpCatalogQuery = `SELECT current_catalog()`
+
 	dumpTablesQuery = `SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.tables WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME`
 
 	// information_schema.tables lists an asynchronous materialized view as a
@@ -63,8 +67,10 @@ type dumpObject struct {
 // materialized views and procedures, in an order that replays. The metadata is
 // not rendered and does not narrow the dump, because a Doris table's definition
 // is more than its columns and information_schema states none of the rest, so
-// the server's own SHOW CREATE statements are the only complete definition. The
-// caller creates the database; the dump carries the objects in it.
+// the server's own SHOW CREATE statements are the only complete definition. A
+// user-defined function is not in the dump: no catalogue states a function's
+// argument types, and SHOW CREATE FUNCTION requires them. The caller creates the
+// database; the dump carries the objects in it.
 func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.DatabaseSchemaMetadata) error {
 	if d.databaseName == "" {
 		return errors.New("dump needs a database")
@@ -72,7 +78,11 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 	if err := d.dumpDatabaseExists(ctx); err != nil {
 		return err
 	}
-	objects, err := d.dumpObjects(ctx)
+	catalog, err := d.dumpCatalog(ctx)
+	if err != nil {
+		return err
+	}
+	objects, err := d.dumpObjects(ctx, catalog)
 	if err != nil {
 		return err
 	}
@@ -95,8 +105,18 @@ func (d *Driver) dumpDatabaseExists(ctx context.Context) error {
 	return err
 }
 
+// dumpCatalog returns the session's catalog, which a definition's three-part
+// references name first.
+func (d *Driver) dumpCatalog(ctx context.Context) (string, error) {
+	var catalog string
+	if err := d.db.QueryRowContext(ctx, dumpCatalogQuery).Scan(&catalog); err != nil {
+		return "", fmt.Errorf("%s: %w", dumpCatalogQuery, err)
+	}
+	return catalog, nil
+}
+
 // dumpObjects reads every object's statement from the server.
-func (d *Driver) dumpObjects(ctx context.Context) ([]*dumpObject, error) {
+func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject, error) {
 	materializedViews, err := d.dumpMaterializedViewNames(ctx)
 	if err != nil {
 		return nil, err
@@ -155,7 +175,7 @@ func (d *Driver) dumpObjects(ctx context.Context) ([]*dumpObject, error) {
 		}
 		o.stmt = stmt
 		if o.kind == dumpView || o.kind == dumpMaterializedView {
-			if o.reads, err = dumpDefinitionReads(stmt, d.databaseName); err != nil {
+			if o.reads, err = dumpDefinitionReads(stmt, catalog, d.databaseName); err != nil {
 				return nil, fmt.Errorf("%s %q: %w", o.kind, o.name, err)
 			}
 		}
@@ -250,9 +270,9 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name string) (string, 
 
 // dumpDefinitionReads returns the objects in database that a view's or a
 // materialized view's definition reads. The definition is the server's own
-// rendering, so every reference is qualified with its database and the parser
-// sees the statement the server stored.
-func dumpDefinitionReads(stmt, database string) ([]string, error) {
+// rendering, so every reference is qualified with its catalog and database and
+// the parser sees the statement the server stored.
+func dumpDefinitionReads(stmt, catalog, database string) ([]string, error) {
 	file, err := dorisparser.Parse(stmt)
 	if err != nil {
 		return nil, err
@@ -278,7 +298,7 @@ func dumpDefinitionReads(stmt, database string) ([]string, error) {
 				// A table-valued function such as mv_infos() is not an object
 				// the dump creates.
 				if n.Func == nil {
-					if name := dumpReferencedName(n.Name, database); name != "" {
+					if name := dumpReferencedName(n.Name, catalog, database); name != "" {
 						reads = append(reads, name)
 					}
 				}
@@ -297,21 +317,23 @@ func dumpDefinitionReads(stmt, database string) ([]string, error) {
 }
 
 // dumpReferencedName returns the object a table reference names when it is in
-// database, and "" when it is not: a reference to another database is not the
-// dump's to create. SHOW CREATE qualifies every object a view or materialized
+// database under catalog, and "" when it is not: a reference to another database
+// or another catalog is not the dump's to create. SHOW CREATE qualifies every object a view or materialized
 // view reads, so an unqualified name is a CTE or a table-valued function, and
 // taking one for an object would invent a dependency that can reverse a real
 // one: a view named like a CTE in another definition's WITH clause would read
 // that definition and be read by it.
-func dumpReferencedName(name *ast.ObjectName, database string) string {
+func dumpReferencedName(name *ast.ObjectName, catalog, database string) string {
 	switch len(name.Parts) {
 	case 2:
 		if strings.EqualFold(name.Parts[0], database) {
 			return name.Parts[1]
 		}
 	case 3:
-		// catalog.database.table
-		if strings.EqualFold(name.Parts[1], database) {
+		// catalog.database.table, and only under the session's own catalog: a
+		// reference into an external catalog whose database has the same name is
+		// not this database's object.
+		if strings.EqualFold(name.Parts[0], catalog) && strings.EqualFold(name.Parts[1], database) {
 			return name.Parts[2]
 		}
 	}

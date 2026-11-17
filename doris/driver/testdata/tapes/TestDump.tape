@@ -152,6 +152,13 @@
 : bytes
 | omni_dump_corpus
 > query
+| SELECT current_catalog()
+< result
+< column "current_catalog()" "CHAR"
+< row
+: bytes
+| internal
+> query
 | SELECT Name FROM mv_infos("database"="omni_dump_corpus") ORDER BY Name
 < result
 < column "Name" "TEXT"
