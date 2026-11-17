@@ -345,7 +345,7 @@ settles.
 | a zero-row query keeps its columns | Bytebase dropped the result when `DataArray` was empty, losing the column list; the contract keeps the result set |
 | `QueryOptions.MaxResultBytes` stops reading | Bytebase had no cap; the contract asks for one, counted while the rows are read |
 | `QueryOptions.Explain` is `EXPLAIN FORMATTED` and leaves an existing plan alone | Databricks' plan is Spark's FORMATTED tree; Bytebase's standard rewrite also avoided planning a plan |
-| `Execute` returns 0 and logs each command | the API reports no affected count on this path; Bytebase returned 0 and logged nothing |
+| `Execute` returns the server's affected rows and logs each command | the API states a write's count in a `num_affected_rows` result column; Bytebase read no count and returned 0 |
 | `Dump` sorts and quotes identifiers | Bytebase's map iteration and raw interpolation were not stable; the workspace accepted the quoted form |
 | a materialized view is the server's `SHOW CREATE TABLE` | the workspace states the query and columns; Bytebase's `DESC FORMATTED` rendering had no `AS SELECT` and was not restorable |
 | a 404 joins `driver.ErrNotFound` | Bytebase returned a plain error; the contract gives callers a not-found marker |
@@ -366,3 +366,12 @@ whole version text). The sixth, classifying `INSERT` as returning rows, is not
 observable on this workspace because the service states `num_affected_rows`
 columns for an `INSERT`; the package's `TestClassifyStatement` is what fails
 under it.
+
+Re-verified against the same workspace on 2026-11-17, after the fixes merged:
+the six tapes replay with no credentials, all six live tests pass,
+`SELECT VERSION()` still answers `4.2.0 0000000000000000000000000000000000000000`,
+and a materialized view's `SHOW CREATE TABLE` still states the stored query and
+replays. That run corrected one claim above: every write states
+`num_affected_rows`, and `testdata/tapes/TestExecute.tape` already held a `2`
+for its `INSERT`, so `Execute` now sums the count instead of returning 0. No
+tape was re-recorded.

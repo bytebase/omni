@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/driver"
 )
@@ -14,8 +15,9 @@ import (
 // statement commits itself. ExecuteOptions.Transaction, .Isolation,
 // .CreateDatabase and .MaxRetries therefore change nothing, which is what
 // Bytebase's driver did. A failing statement ends the script and leaves the
-// statements before it committed. The API reports no affected count on this
-// path, so each response is logged with 0, and so is the total.
+// statements before it committed. A write states its count in a
+// num_affected_rows result column, which Execute sums; a statement that states
+// no count contributes 0.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
 	commands, err := splitCommands(script)
 	if err != nil {
@@ -25,19 +27,49 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		return 0, nil
 	}
 
+	var total int64
 	for _, command := range commands {
 		if opts.Log != nil {
 			opts.Log.CommandExecute(command)
 		}
-		if _, err := d.queryStatement(ctx, trimStatement(command.Text), driver.QueryOptions{}); err != nil {
+		result, err := d.queryStatement(ctx, trimStatement(command.Text), driver.QueryOptions{})
+		if err != nil {
 			if opts.Log != nil {
 				opts.Log.CommandResponse(0, nil, err)
 			}
 			return 0, err
 		}
+		affected := affectedRows(result)
+		total += affected
 		if opts.Log != nil {
-			opts.Log.CommandResponse(0, []int64{0}, nil)
+			opts.Log.CommandResponse(affected, []int64{affected}, nil)
 		}
 	}
-	return 0, nil
+	return total, nil
+}
+
+// affectedRows reads the count a writing statement states in its result set.
+// The Statement Execution API has no affected-row field, so a write states the
+// count as a num_affected_rows column instead.
+func affectedRows(result *driver.Result) int64 {
+	if result == nil {
+		return 0
+	}
+	for column, header := range result.Columns {
+		if !strings.EqualFold(header.Name, "num_affected_rows") {
+			continue
+		}
+		var total int64
+		for _, row := range result.Rows {
+			if column >= len(row) {
+				continue
+			}
+			switch row[column].Kind {
+			case driver.Int32, driver.Int64:
+				total += row[column].Int64
+			}
+		}
+		return total
+	}
+	return 0
 }

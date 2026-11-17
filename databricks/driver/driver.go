@@ -87,15 +87,16 @@
 // any non-STRING column is NULL, exactly as Bytebase read it; an empty STRING is
 // the empty string. A result the service splits into chunks is read to the end,
 // or until MaxResultBytes stops it. Result.AffectedRows stays nil because the
-// API reports no affected count on the statement path this driver holds, and
-// Execute answers 0 as Bytebase did.
+// API states a write's count as a num_affected_rows result column rather than
+// as a field; Execute sums those columns.
 //
 // Execute splits the script and sends its statements in order; a failing
 // statement ends the script and leaves the statements before it committed.
 // Databricks' Statement Execution API exposes no transaction control, so
 // ExecuteOptions.Transaction, .Isolation, .CreateDatabase and .MaxRetries
 // change nothing, which is also what Bytebase's driver did. ExecuteOptions.Log
-// receives each command and its response, with 0 affected rows.
+// receives each command and its response, with the rows its num_affected_rows
+// states, or 0 when it states none.
 //
 // A failure the workspace's REST API reports is a *apierr.APIError, which this
 // package wraps without replacing, and driver.ErrNotFound is joined when the
