@@ -189,18 +189,26 @@ func (s *session) runStatement(ctx context.Context, statement string, returnsDat
 			return nil
 		}
 		usedPgx = true
-		results, err := sc.Conn().PgConn().Exec(ctx, statement).ReadAll()
-		if err != nil {
-			return err
-		}
+		mrr := sc.Conn().PgConn().Exec(ctx, statement)
 		result = &driver.Result{}
 		var affectedRows int64
 		var reported bool
-		for _, r := range results {
-			if n, ok := commandTagRowsAffected(r.CommandTag); ok {
+		for mrr.NextResult() {
+			// Close drains any rows without retaining them: a DML statement with
+			// RETURNING, or a SELECT with a data-modifying CTE, is classified as
+			// not returning data, but can still answer with a large result set.
+			tag, err := mrr.ResultReader().Close()
+			if err != nil {
+				_ = mrr.Close()
+				return err
+			}
+			if n, ok := commandTagRowsAffected(tag); ok {
 				affectedRows += n
 				reported = true
 			}
+		}
+		if err := mrr.Close(); err != nil {
+			return err
 		}
 		if reported {
 			result.AffectedRows = &affectedRows

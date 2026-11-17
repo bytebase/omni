@@ -478,6 +478,12 @@ func TestSessionAffectedRowsFromCommandTag(t *testing.T) {
 			return wireReply{tags: []string{"INSERT 0 3"}}
 		case strings.HasPrefix(sql, "UPDATE"):
 			return wireReply{tags: []string{"UPDATE 0"}}
+		case strings.HasPrefix(sql, "DELETE FROM t RETURNING"):
+			return wireReply{
+				fields: []pgproto3.FieldDescription{{Name: []byte("id"), DataTypeOID: pgtype.Int4OID, TypeModifier: -1}},
+				rows:   [][][]byte{{[]byte("1")}, {[]byte("2")}},
+				tags:   []string{"DELETE 2"},
+			}
 		case strings.HasPrefix(sql, "DELETE"):
 			return wireReply{tags: []string{"DELETE 2"}}
 		case strings.HasPrefix(sql, "COPY"):
@@ -505,6 +511,7 @@ ALTER TABLE t ADD COLUMN note text;
 TRUNCATE t;
 INSERT INTO t VALUES (1), (2), (3);
 UPDATE t SET note = 'x' WHERE false;
+DELETE FROM t RETURNING id;
 DELETE FROM t WHERE id = 1;
 COPY t TO '/tmp/t';
 CREATE TABLE t_archive AS SELECT 1;
@@ -520,6 +527,7 @@ SET search_path TO public;`, driver.QueryOptions{})
 		nil,      // TRUNCATE
 		count(3), // INSERT
 		count(0), // UPDATE 0
+		count(2), // DELETE ... RETURNING, whose rows are drained
 		count(2), // DELETE
 		count(4), // COPY
 		count(1), // CREATE TABLE AS reports the SELECT's count
