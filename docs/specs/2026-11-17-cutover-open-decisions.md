@@ -410,9 +410,20 @@ that reopens them is a different change:
 - No omni driver behavior gap surfaced in the five landed proofs. The one omni defect is the
   `cassandra/driver` comment that promises the opposite of its code (§6); the gh-ost binlog probe
   and the plancheck interface are Bytebase product work, and the truncation difference is a
-  contract decision already made.
+  contract decision already made. **Superseded 2026-11-17 by #1387:** that comment was corrected on
+  main (`3f1e34d8d`), so main no longer carries the false claim §6 describes.
 
 ## Still in flight
+
+**Superseded 2026-11-17.** The mssql proof has reported: the dispatch plan's §3 carries its measured
+cost (497 adapter lines, 8 caller files, all of them the shared `GetDB` retirement) and §6 its five
+driver defects and the moved `Dump` text. Its Azure AD half is no longer a contract question — #1389
+added `driver.Config.TokenProvider`, which `mssql/driver` hands to the client's security-token
+connector, and the adapter passes a closure over `azidentity` returning the
+`database.windows.net` token; the [contract's Decisions](2026-11-15-driver-contract-design.md#decisions)
+and the [parity note](2026-11-17-driver-method-parity.md#dialer-and-probe-support) own that wording.
+The masking question below is still unrecorded: the contract's Decisions still list `MaskingEnabled`
+as open for the query slice.
 
 The mssql proof had not reported when this was written, so none of its choices are recorded here.
 The dispatch plan's measured section already carries two of its facts: masking and batch delegation
