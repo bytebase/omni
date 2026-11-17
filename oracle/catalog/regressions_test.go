@@ -2194,3 +2194,152 @@ RENAME V TO V2`)
 		t.Fatal("renaming an index was silently ignored")
 	}
 }
+
+func TestQuotedFunctionReferenceOrdersBeforeTable(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{Schemas: []*metadatapb.SchemaMetadata{{
+		Tables:    []*metadatapb.TableMetadata{{Name: "A", Columns: []*metadatapb.ColumnMetadata{{Name: "C", Type: "NUMBER", Position: 1}, {Name: "V", Type: "NUMBER", Position: 2, Generation: &metadatapb.GenerationMetadata{Type: metadatapb.GenerationMetadata_TYPE_VIRTUAL, Expression: `"Z"(C)`}}}}},
+		Functions: []*metadatapb.FunctionMetadata{{Name: "Z", Definition: "FUNCTION Z(P NUMBER) RETURN NUMBER IS BEGIN RETURN P; END;"}},
+	}}}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, "CREATE OR REPLACE FUNCTION Z")
+	table := strings.Index(definition, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("quoted function dependency missing:\n%s", definition)
+	}
+}
+
+func TestMaterializedViewKeepsScheduleWithoutMethod(t *testing.T) {
+	meta, err := metadataFromSQL(`CREATE TABLE T (C NUMBER); CREATE MATERIALIZED VIEW MV REFRESH START WITH SYSDATE NEXT SYSDATE + 1 AS SELECT C FROM T`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(meta)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, "START WITH SYSDATE NEXT SYSDATE + 1") {
+		t.Fatalf("schedule missing:\n%s", definition)
+	}
+}
+
+func TestRenameViewRewritesTriggerTarget(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE VIEW V AS SELECT C FROM T; CREATE TRIGGER TR INSTEAD OF INSERT ON V BEGIN NULL; END; RENAME V TO U`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var view *metadatapb.ViewMetadata
+	for _, candidate := range c.Metadata().Schemas[0].Views {
+		if candidate.Name == "U" {
+			view = candidate
+		}
+	}
+	if view == nil || len(view.Triggers) != 1 || !strings.Contains(view.Triggers[0].Body, " ON U ") {
+		t.Fatalf("view trigger = %+v", view)
+	}
+}
+
+func TestUsingExistingIndexConstraintIsRejected(t *testing.T) {
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER); CREATE UNIQUE INDEX I ON T(C); ALTER TABLE T ADD CONSTRAINT UK UNIQUE(C) USING INDEX I`); err == nil {
+		t.Fatal("USING INDEX constraint accepted")
+	}
+}
+
+func TestQuotedFunctionDependencyOrder(t *testing.T) {
+	c, err := LoadSQL(`CREATE FUNCTION "Z" (C NUMBER) RETURN NUMBER AS BEGIN RETURN C; END;
+CREATE TABLE A (C NUMBER, V GENERATED ALWAYS AS ("Z"(C)) VIRTUAL)`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	function := strings.Index(definition, `FUNCTION "Z"`)
+	table := strings.Index(definition, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("a table precedes the function its virtual column calls:\n%s", definition)
+	}
+	sql := migrationFor(t, New(), c)
+	function, table = strings.Index(sql, `FUNCTION "Z"`), strings.Index(sql, `CREATE TABLE "A"`)
+	if function < 0 || table < 0 || function > table {
+		t.Fatalf("a migration creates the table before its function:\n%s", sql)
+	}
+}
+
+func TestMaterializedViewKeepsScheduleWithoutRefreshMode(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER);
+CREATE MATERIALIZED VIEW MV REFRESH START WITH SYSDATE NEXT SYSDATE + 1 AS SELECT C FROM T`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, "REFRESH START WITH SYSDATE NEXT SYSDATE + 1") {
+		t.Fatalf("the definition dropped the refresh schedule:\n%s", definition)
+	}
+
+	without := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name:              "APP",
+		MaterializedViews: []*metadatapb.MaterializedViewMetadata{{Name: "MV", Definition: "SELECT C FROM T\n"}},
+	})
+	if Diff(without, c).IsEmpty() {
+		t.Fatal("a refresh schedule added to a materialized view produced an empty diff")
+	}
+	if sql := migrationFor(t, without, c); !strings.Contains(sql, "REFRESH START WITH") {
+		t.Fatalf("the migration dropped the refresh schedule:\n%s", sql)
+	}
+}
+
+func TestRenameMovesAttachedTriggers(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE T (C NUMBER);
+CREATE VIEW V AS SELECT C FROM T;
+CREATE TRIGGER TR INSTEAD OF INSERT ON V BEGIN NULL; END;
+RENAME V TO U`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definition, err := DatabaseDefinition(c.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `CREATE VIEW "U"`) {
+		t.Fatalf("the view did not move:\n%s", definition)
+	}
+	if strings.Contains(definition, " ON V ") {
+		t.Fatalf("the view's trigger still targets the old name:\n%s", definition)
+	}
+	if !strings.Contains(definition, ` ON U `) {
+		t.Fatalf("the view's trigger did not follow the rename:\n%s", definition)
+	}
+
+	extractor := &oracleMetadataExtractor{
+		materializedViews: map[string]*metadatapb.MaterializedViewMetadata{
+			"MV": {Name: "MV", Triggers: []*metadatapb.TriggerMetadata{{Body: `CREATE OR REPLACE TRIGGER "TR" BEFORE INSERT ON MV FOR EACH ROW BEGIN NULL; END;`}}},
+		},
+		currentSchema: "APP",
+	}
+	if !extractor.renameMaterializedView("MV", "MV2") {
+		t.Fatal("the materialized view was not renamed")
+	}
+	if body := extractor.materializedViews["MV2"].Triggers[0].Body; !strings.Contains(body, " ON MV2 ") {
+		t.Fatalf("the materialized view's trigger did not follow the rename: %s", body)
+	}
+}
+
+func TestConstraintUsingExistingIndexIsRejected(t *testing.T) {
+	_, err := LoadSQL(`CREATE TABLE T (C NUMBER);
+CREATE UNIQUE INDEX I ON T (C);
+ALTER TABLE T ADD CONSTRAINT UK UNIQUE (C) USING INDEX I`)
+	if err == nil || !strings.Contains(err.Error(), `backed by the existing index "I"`) {
+		t.Fatalf("a constraint backed by an existing index: %v, want the unsupported error", err)
+	}
+	// The physical-properties form names no index and stays a documented gap.
+	if _, err := LoadSQL(`CREATE TABLE T (C NUMBER, CONSTRAINT UK UNIQUE (C) USING INDEX TABLESPACE USERS)`); err != nil {
+		t.Fatalf("USING INDEX TABLESPACE: %v", err)
+	}
+}

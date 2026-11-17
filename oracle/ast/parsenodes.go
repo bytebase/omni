@@ -1665,6 +1665,7 @@ type ColumnConstraint struct {
 	Deferrable      bool           // DEFERRABLE
 	Initially       string         // INITIALLY DEFERRED/IMMEDIATE
 	Tablespace      string         // USING INDEX TABLESPACE
+	UsingIndex      string         // USING INDEX [schema.]index, or the nested CREATE INDEX's name
 	UsingIndexLocal bool           // USING INDEX LOCAL
 	Loc             Loc            // start location
 }
@@ -1683,6 +1684,7 @@ type TableConstraint struct {
 	Deferrable      bool           // DEFERRABLE
 	Initially       string         // INITIALLY DEFERRED/IMMEDIATE
 	Tablespace      string         // USING INDEX TABLESPACE
+	UsingIndex      string         // USING INDEX [schema.]index, or the nested CREATE INDEX's name
 	UsingIndexLocal bool           // USING INDEX LOCAL
 	Loc             Loc            // start location
 }

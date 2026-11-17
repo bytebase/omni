@@ -226,12 +226,22 @@ replay tests exercise.
 - Deferrable CHECKs are rejected, and table-wide trigger enable/disable is
   rejected.
 - View dependency lookups resolve an empty owner to the view's schema.
+- Quoted function names are recognized as virtual-column dependencies.
+- Materialized-view refresh schedules render without an explicit method/mode.
+- Renaming a view rewrites its attached trigger targets.
+- A constraint that reuses an existing index is rejected.
 - A definition orders views through the schema being defined when a
   dependency leaves its owner empty, and `CASCADE` on an unnamed `DROP PRIMARY
   KEY` removes only the foreign keys on that key's columns.
 - `CREATE SCHEMA AUTHORIZATION` validates the owner against the schema already
   loaded, and a standalone `RENAME` moves a sequence, view or materialized
-  view, while an object the catalog does not hold is rejected.
+  view, with the triggers attached to a view, while an object the catalog does
+  not hold is rejected.
+- A materialized view's refresh schedule renders even when it names no refresh
+  method or mode, and a quoted function name counts as a call in a dependency.
+- A constraint backed by an index the statement names (`USING INDEX
+  [schema.]index`) is rejected: the metadata holds the constraint's index, not
+  the separate index it reuses, so a definition would create both.
 - The deparse is byte-for-byte the Bytebase renderer. The fixtures that pin it
   are the Bytebase fixtures.
 
@@ -270,7 +280,8 @@ closes:
 - **Routine and package bodies are stored text, not re-rendered.** A body that
   depends on editioning or a session setting is restored only as that text.
 - **Storage clauses, tablespace placement, compression, parallelism and other
-  physical attributes** are not in the metadata and are not emitted.
+  physical attributes** are not in the metadata and are not emitted, including
+  a constraint's `USING INDEX` properties.
 - **Partitioning** is neither synced nor emitted, so a partitioned table
   restores as a single heap table.
 - **External tables** are not carried either: `ORGANIZATION EXTERNAL` and its

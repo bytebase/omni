@@ -710,6 +710,7 @@ func (p *Parser) parseAlterTableModifyConstraint(start int) (*nodes.AlterTableCm
 	tc.Deferrable = cs.Deferrable
 	tc.Initially = cs.Initially
 	tc.Tablespace = cs.Tablespace
+	tc.UsingIndex = cs.UsingIndex
 	tc.UsingIndexLocal = cs.UsingIndexLocal
 	tc.Loc = nodes.Loc{Start: start, End: p.prev.End}
 	cmd.Constraint = tc

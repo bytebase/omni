@@ -1484,6 +1484,7 @@ func (p *Parser) parseColumnConstraintInline() (*nodes.ColumnConstraint, error) 
 	cc.Deferrable = cs.Deferrable
 	cc.Initially = cs.Initially
 	cc.Tablespace = cs.Tablespace
+	cc.UsingIndex = cs.UsingIndex
 	cc.UsingIndexLocal = cs.UsingIndexLocal
 
 	cc.Loc.End = p.prev.End
@@ -1507,6 +1508,7 @@ func (p *Parser) parseTableConstraint() (*nodes.TableConstraint, error) {
 	tc.Deferrable = cs.Deferrable
 	tc.Initially = cs.Initially
 	tc.Tablespace = cs.Tablespace
+	tc.UsingIndex = cs.UsingIndex
 	tc.UsingIndexLocal = cs.UsingIndexLocal
 
 	tc.Loc.End = p.prev.End

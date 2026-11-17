@@ -422,7 +422,7 @@ func (e *oracleMetadataExtractor) clearNamedNotNull(table *metadatapb.TableMetad
 }
 
 func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstraint, table *metadatapb.TableMetadata, column *metadatapb.ColumnMetadata) {
-	if e.constraintDisabled(n.Loc) {
+	if e.constraintDisabled(n.Loc) || e.constraintUsesExistingIndex(n.UsingIndex) {
 		return
 	}
 	switch n.Type {
@@ -496,7 +496,7 @@ func (e *oracleMetadataExtractor) extractColumnConstraint(n *ast.ColumnConstrain
 }
 
 func (e *oracleMetadataExtractor) extractTableConstraint(n *ast.TableConstraint, table *metadatapb.TableMetadata) {
-	if e.constraintDisabled(n.Loc) {
+	if e.constraintDisabled(n.Loc) || e.constraintUsesExistingIndex(n.UsingIndex) {
 		return
 	}
 	columns := stringList(n.Columns)
@@ -611,6 +611,9 @@ func (e *oracleMetadataExtractor) renameView(oldName, newName string) bool {
 	}
 	delete(e.views, oldName)
 	view.Name = newName
+	for _, trigger := range view.Triggers {
+		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
+	}
 	e.views[newName] = view
 	return true
 }
@@ -622,6 +625,9 @@ func (e *oracleMetadataExtractor) renameMaterializedView(oldName, newName string
 	}
 	delete(e.materializedViews, oldName)
 	view.Name = newName
+	for _, trigger := range view.Triggers {
+		trigger.Body = renameTriggerTarget(trigger.Body, oldName, newName)
+	}
 	e.materializedViews[newName] = view
 	return true
 }
@@ -989,31 +995,56 @@ func writeRenamedIdentifier(out *strings.Builder, name string, forceQuote bool) 
 }
 
 func expressionReferencesFunction(expression, function string) bool {
-	upper := strings.ToUpper(expression)
-	name := strings.ToUpper(function)
-	for offset := 0; ; {
-		index := strings.Index(upper[offset:], name)
-		if index < 0 {
-			return false
-		}
-		start := offset + index
-		end := start + len(name)
-		if start > 0 && isIdentifierByte(expression[start-1]) {
-			offset = end
+	for i := 0; i < len(expression); {
+		if end, ok := alternativeQuoteEnd(expression, i); ok {
+			i = end
 			continue
 		}
-		if end < len(expression) && isIdentifierByte(expression[end]) {
-			offset = end
+		if expression[i] == '\'' {
+			if end := strings.IndexByte(expression[i+1:], '\''); end >= 0 {
+				i += end + 2
+			} else {
+				return false
+			}
 			continue
 		}
-		for end < len(expression) && (expression[end] == ' ' || expression[end] == '\t' || expression[end] == '\n' || expression[end] == '\r') {
+		if expression[i] == '"' {
+			end := i + 1
+			for end < len(expression) && expression[end] != '"' {
+				end++
+			}
+			token := expression[i+1 : end]
+			if end < len(expression) {
+				end++
+			}
+			next := end
+			for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+				next++
+			}
+			if token == function && next < len(expression) && expression[next] == '(' {
+				return true
+			}
+			i = end
+			continue
+		}
+		if !isIdentifierByte(expression[i]) {
+			i++
+			continue
+		}
+		end := i + 1
+		for end < len(expression) && isIdentifierByte(expression[end]) {
 			end++
 		}
-		if end < len(expression) && expression[end] == '(' {
+		next := end
+		for next < len(expression) && (expression[next] == ' ' || expression[next] == '\t' || expression[next] == '\n' || expression[next] == '\r') {
+			next++
+		}
+		if strings.EqualFold(expression[i:end], function) && next < len(expression) && expression[next] == '(' {
 			return true
 		}
-		offset = end
+		i = end
 	}
+	return false
 }
 
 func isIdentifierByte(c byte) bool {
@@ -1367,6 +1398,23 @@ func (e *oracleMetadataExtractor) dropTrigger(name string) {
 	}
 }
 
+// constraintUsesExistingIndex reports a constraint that Oracle backs with an
+// index the statement names (USING INDEX [schema.]index), or that it asks
+// Oracle to create inline (USING INDEX (CREATE INDEX ...)). The snapshot holds
+// the constraint's index, not the separate index it reuses, so the definition
+// would create both. The physical properties form (USING INDEX TABLESPACE ...,
+// USING INDEX LOCAL) names no index and stays a documented gap: the catalog
+// ignores it like every other storage clause.
+func (e *oracleMetadataExtractor) constraintUsesExistingIndex(indexName string) bool {
+	if indexName == "" {
+		return false
+	}
+	if e.err == nil {
+		e.err = fmt.Errorf("a constraint backed by the existing index %q is not supported by oracle/catalog", indexName)
+	}
+	return true
+}
+
 func (e *oracleMetadataExtractor) constraintDisabled(loc ast.Loc) bool {
 	if loc.Start < 0 || loc.End < loc.Start || loc.End > len(e.schemaText) {
 		return false
@@ -1661,7 +1709,7 @@ func (e *oracleMetadataExtractor) materializedViewPrefix(n *ast.CreateViewStmt) 
 	if n.BuildMode != "" {
 		parts = append(parts, "BUILD "+strings.ToUpper(n.BuildMode))
 	}
-	if n.RefreshMethod != "" || n.RefreshMode != "" {
+	if n.RefreshMethod != "" || n.RefreshMode != "" || n.StartWith != nil || n.Next != nil {
 		refresh := "REFRESH"
 		if n.RefreshMethod != "" {
 			refresh += " " + strings.ToUpper(n.RefreshMethod)

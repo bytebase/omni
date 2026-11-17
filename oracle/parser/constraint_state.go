@@ -8,6 +8,7 @@ type constraintState struct {
 	Deferrable      bool
 	Initially       string // "DEFERRED" or "IMMEDIATE"
 	Tablespace      string // USING INDEX ... TABLESPACE
+	UsingIndex      string // USING INDEX [schema.]index, or the nested CREATE INDEX's name
 	UsingIndexLocal bool   // USING INDEX LOCAL
 }
 
@@ -189,6 +190,7 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 		if indexName == nil || indexName.Name == "" {
 			return p.syntaxErrorAtCur()
 		}
+		cs.UsingIndex = indexName.Name
 		if p.cur.Type != kwON {
 			return p.syntaxErrorAtCur()
 		}
@@ -234,6 +236,7 @@ func (p *Parser) parseUsingIndexClause(cs *constraintState) error {
 		if name == nil || name.Name == "" {
 			return p.syntaxErrorAtCur()
 		}
+		cs.UsingIndex = name.Name
 		return nil
 	}
 
