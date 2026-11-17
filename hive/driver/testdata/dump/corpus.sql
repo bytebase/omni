@@ -63,7 +63,8 @@ CREATE VIEW omni_dump.z_users COMMENT 'the users\' rows' AS SELECT id AS 1bad, n
 
 -- A materialized view over that view, named so that name order alone would place
 -- it before the view it resolves.
-CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad` FROM omni_dump.z_users
+CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad`
+FROM omni_dump.z_users
 
 -- A partitioned materialized view: the statement states a partition as a table
 -- does, with the column's type, and a materialized view takes it without.

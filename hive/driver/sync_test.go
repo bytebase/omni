@@ -136,19 +136,21 @@ func TestSyncDatabase(t *testing.T) {
 
 // TestSyncMaterializedView reads a materialized view: DESCRIBE FORMATTED states
 // its query under a heading of its own, "# Materialized View Information", and
-// its comment beside the table parameters every table's describe holds.
+// its comment beside the table parameters every table's describe holds. The
+// query spans two lines, which the answer continues in rows of its own.
 func TestSyncMaterializedView(t *testing.T) {
 	d := openTestDatabase(t, "omni_sync_materialized_view")
 	execCorpus(t, d.db, `CREATE TABLE src (id INT) STORED AS PARQUET
 
-CREATE MATERIALIZED VIEW src_mv DISABLE REWRITE COMMENT 'a materialized view' AS SELECT id FROM src`)
+CREATE MATERIALIZED VIEW src_mv DISABLE REWRITE COMMENT 'a materialized view' AS SELECT id
+FROM src`)
 
 	got, err := d.SyncDatabase(context.Background())
 	require.NoError(t, err)
 	require.Len(t, got.Schemas, 1)
 	want := &metadatapb.MaterializedViewMetadata{
 		Name:       "src_mv",
-		Definition: "SELECT id FROM src",
+		Definition: "SELECT id\nFROM src",
 		Comment:    "a materialized view",
 	}
 	require.Equal(t, []*metadatapb.MaterializedViewMetadata{want}, got.Schemas[0].MaterializedViews)

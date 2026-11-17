@@ -5,7 +5,8 @@
 | CREATE TABLE src (id INT) STORED AS PARQUET
 < ok - -
 > exec
-| CREATE MATERIALIZED VIEW src_mv DISABLE REWRITE COMMENT 'a materialized view' AS SELECT id FROM src
+| CREATE MATERIALIZED VIEW src_mv DISABLE REWRITE COMMENT 'a materialized view' AS SELECT id
+| FROM src
 < ok - -
 > query
 | SHOW TABLES FROM `omni_sync_materialized_view`
@@ -425,14 +426,28 @@
 : string
 | Original Query:     
 : string
-| SELECT id FROM src  
+| SELECT id           
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM src            
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `src`.`id` FROM `omni_sync_materialized_view`.`src`
+| SELECT `src`.`id`   
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM `omni_sync_materialized_view`.`src`
 < row
 : string
 | Rewrite Enabled:    

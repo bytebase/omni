@@ -85,7 +85,8 @@
 > exec
 | -- A materialized view over that view, named so that name order alone would place
 | -- it before the view it resolves.
-| CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad` FROM omni_dump.z_users
+| CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad`
+| FROM omni_dump.z_users
 < ok - -
 > exec
 | -- A partitioned materialized view: the statement states a partition as a table
@@ -479,14 +480,28 @@
 : string
 | Original Query:     
 : string
-| SELECT 1bad FROM omni_dump.z_users
+| SELECT 1bad         
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM omni_dump.z_users
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
+| SELECT `z_users`.`1bad`
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM `omni_dump`.`z_users`
 < row
 : string
 | Rewrite Enabled:    
@@ -2234,14 +2249,28 @@
 : string
 | Original Query:     
 : string
-| SELECT 1bad FROM omni_dump.z_users
+| SELECT 1bad         
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM omni_dump.z_users
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
+| SELECT `z_users`.`1bad`
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM `omni_dump`.`z_users`
 < row
 : string
 | Rewrite Enabled:    
@@ -4700,7 +4729,8 @@
 | TBLPROPERTIES (
 |   'bucketing_version'='2', 
 |   'transient_lastDdlTime'='1000000000')
-| AS SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
+| AS SELECT `z_users`.`1bad`
+| FROM `omni_dump`.`z_users`
 < ok - -
 > exec
 |
@@ -5110,14 +5140,28 @@
 : string
 | Original Query:     
 : string
-| SELECT z_users.1bad FROM omni_dump.z_users
+| SELECT z_users.1bad 
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM omni_dump.z_users
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
+| SELECT `z_users`.`1bad`
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM `omni_dump`.`z_users`
 < row
 : string
 | Rewrite Enabled:    
@@ -6879,14 +6923,28 @@
 : string
 | Original Query:     
 : string
-| SELECT z_users.1bad FROM omni_dump.z_users
+| SELECT z_users.1bad 
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM omni_dump.z_users
 < row
 : string
 | Expanded Query:     
 : string
-| SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
+| SELECT `z_users`.`1bad`
 : null
+< row
+: string
+|
+: string
+|                     
+: string
+| FROM `omni_dump`.`z_users`
 < row
 : string
 | Rewrite Enabled:    

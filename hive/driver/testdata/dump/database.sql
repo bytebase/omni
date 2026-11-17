@@ -126,7 +126,8 @@ LOCATION
 TBLPROPERTIES (
   'bucketing_version'='2', 
   'transient_lastDdlTime'='1000000000')
-AS SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`;
+AS SELECT `z_users`.`1bad`
+FROM `omni_dump`.`z_users`;
 
 --
 -- Materialized view structure for `p_events_mv`
