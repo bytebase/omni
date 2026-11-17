@@ -84,7 +84,7 @@ Before handoff, in order:
 
 1. `gofmt -w` on the Go files you modified. Parts of the tree are not gofmt-clean; format only what you touched.
 2. `go build ./...`
-3. `go vet` on the changed packages, and fix every finding your change introduced. Some packages carry older findings (unreachable code in `oracle/parser`); leave those to their own PR.
+3. `go vet ./...` and fix every finding; the tree carries none.
 4. `go generate` for any AST package you changed, then confirm `git status --porcelain` is empty apart from your edits.
 5. `go test ./<engine>/...` for every engine you touched. To see what CI will run, `scripts/affected-packages.sh origin/main`.
 6. For `proto/`: run the buf commands from the proto step of [.github/workflows/ci.yml](.github/workflows/ci.yml), which holds the only buf version pin.
