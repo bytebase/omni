@@ -65,6 +65,9 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			stop = true
 		}
 		result.Latency = time.Since(startTime)
+		if !stop {
+			result.Plan = describeExplain(result.Statement)
+		}
 		results = append(results, result)
 		if stop {
 			break
@@ -196,6 +199,39 @@ func explainStatement(statement string, format string) (string, error) {
 		return "EXPLAIN (FORMAT JSON) " + planned, nil
 	}
 	return "EXPLAIN " + planned, nil
+}
+
+// describeExplain reports the plan a statement answered with, when it is one:
+// an explain request rewrites the statement, and a caller's own EXPLAIN runs as
+// written. Trino states the plan's format in the statement, and only EXPLAIN
+// ANALYZE runs what it plans.
+func describeExplain(statement string) *driver.Plan {
+	file, err := parser.Parse(statement)
+	if err != nil || file == nil || len(file.Stmts) != 1 {
+		return nil
+	}
+	explain, ok := file.Stmts[0].(*parser.ExplainStmt)
+	if !ok {
+		return nil
+	}
+	// TYPE VALIDATE answers whether the statement validates, which is one boolean
+	// column and not a plan of anything.
+	if explain.Type == parser.ExplainTypeValidate {
+		return nil
+	}
+	format := "TEXT"
+	switch explain.Format {
+	case parser.ExplainFormatJSON:
+		format = "JSON"
+	case parser.ExplainFormatGraphviz:
+		format = "GRAPHVIZ"
+	case parser.ExplainFormatUnset:
+		// The IO plan is a JSON document unless a FORMAT option says otherwise.
+		if explain.Type == parser.ExplainTypeIO {
+			format = "JSON"
+		}
+	}
+	return &driver.Plan{Format: format, Executed: explain.Analyze}
 }
 
 // errExplainAnalyzeExecutes is what an EXPLAIN ANALYZE request gets: planning it

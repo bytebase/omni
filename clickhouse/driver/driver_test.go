@@ -292,6 +292,33 @@ func TestExplainFormatOf(t *testing.T) {
 	}
 }
 
+// TestDescribeExplain holds what a statement's plan says about itself, which the
+// one plan ClickHouse cannot tape (the timings EXPLAIN ANALYZE prints move
+// between runs) can only be read from the text.
+func TestDescribeExplain(t *testing.T) {
+	for _, tc := range []struct {
+		statement, format string
+		executed, ok      bool
+	}{
+		{statement: "SELECT 1"},
+		{statement: "  -- leading comment\nSELECT 1"},
+		{statement: "EXPLAIN SELECT 1", format: "TEXT", ok: true},
+		{statement: "EXPLAIN json = 1, indexes = 1 SELECT 1", format: "JSON", ok: true},
+		{statement: "EXPLAIN ANALYZE SELECT 1", format: "TEXT", executed: true, ok: true},
+		{statement: "EXPLAIN ANALYZE json = 1 SELECT 1", format: "JSON", executed: true, ok: true},
+	} {
+		plan := describeExplain(tc.statement)
+		switch {
+		case !tc.ok && plan != nil:
+			t.Errorf("%q = %+v, want no plan", tc.statement, plan)
+		case tc.ok && plan == nil:
+			t.Errorf("%q = no plan, want %s", tc.statement, tc.format)
+		case tc.ok && (plan.Format != tc.format || plan.Executed != tc.executed || plan.Content != ""):
+			t.Errorf("%q = %+v, want %s executed=%v", tc.statement, plan, tc.format, tc.executed)
+		}
+	}
+}
+
 func TestConvertTemporal(t *testing.T) {
 	at := time.Date(2026, 3, 4, 5, 6, 7, 891000000, time.UTC)
 	for _, tc := range []struct {

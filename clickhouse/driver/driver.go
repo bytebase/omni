@@ -34,8 +34,10 @@
 // statement with EXPLAIN, and JSON with `indexes = 1`; a statement that already
 // starts with EXPLAIN runs as written. QueryOptions.MaskingEnabled does
 // nothing: a ClickHouse query returns only the columns its statement traces.
-// Result.Plan stays nil because ClickHouse answers a plan as rows and nothing
-// here states its format.
+// Result.Plan is set for a statement that is a plan, whatever asked for it: its
+// Format is the one the statement states, and its Executed is true only for
+// EXPLAIN ANALYZE, which is the one kind that runs what it plans. The rows are
+// the plan, so Content stays empty.
 //
 // ExecuteOptions.CreateDatabase and ExecuteOptions.MaxRetries do nothing:
 // Bytebase ignored them. ExecuteOptions.Isolation is passed to the client when
