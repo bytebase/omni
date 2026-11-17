@@ -17,9 +17,10 @@
 //
 // QueryOptions.Explain runs the statement's plan in ExplainFormat. Result.Plan
 // is set for a statement that is a plan, whatever asked for it: its Format is
-// the one the statement states, and only EXPLAIN ANALYZE, which the driver runs
-// as written, executed the statement it plans. The rows are the plan, so
-// Content stays empty.
+// the one the statement states (TYPE IO answers JSON unless a FORMAT option says
+// otherwise, and TYPE VALIDATE answers no plan), and only EXPLAIN ANALYZE, which
+// the driver runs as written, executed the statement it plans. The rows are the
+// plan, so Content stays empty.
 //
 // A statement's update count reaches the caller only on the client's exec path,
 // so the driver sends a statement that returns no rows through Executor.

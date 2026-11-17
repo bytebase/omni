@@ -214,12 +214,22 @@ func describeExplain(statement string) *driver.Plan {
 	if !ok {
 		return nil
 	}
+	// TYPE VALIDATE answers whether the statement validates, which is one boolean
+	// column and not a plan of anything.
+	if explain.Type == parser.ExplainTypeValidate {
+		return nil
+	}
 	format := "TEXT"
 	switch explain.Format {
 	case parser.ExplainFormatJSON:
 		format = "JSON"
 	case parser.ExplainFormatGraphviz:
 		format = "GRAPHVIZ"
+	case parser.ExplainFormatUnset:
+		// The IO plan is a JSON document unless a FORMAT option says otherwise.
+		if explain.Type == parser.ExplainTypeIO {
+			format = "JSON"
+		}
 	}
 	return &driver.Plan{Format: format, Executed: explain.Analyze}
 }

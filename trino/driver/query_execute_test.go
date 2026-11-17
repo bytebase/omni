@@ -489,6 +489,9 @@ func TestDescribeExplain(t *testing.T) {
 		{statement: "EXPLAIN (FORMAT JSON) SELECT 1", format: "JSON", ok: true},
 		{statement: "EXPLAIN (FORMAT GRAPHVIZ) SELECT 1", format: "GRAPHVIZ", ok: true},
 		{statement: "EXPLAIN (TYPE DISTRIBUTED) SELECT 1", format: "TEXT", ok: true},
+		{statement: "EXPLAIN (TYPE IO) SELECT 1", format: "JSON", ok: true},
+		{statement: "EXPLAIN (TYPE IO, FORMAT TEXT) SELECT 1", format: "TEXT", ok: true},
+		{statement: "EXPLAIN (TYPE VALIDATE) SELECT 1"},
 		{statement: "EXPLAIN ANALYZE SELECT 1", format: "TEXT", executed: true, ok: true},
 		{statement: "explain analyze verbose select 1", format: "TEXT", executed: true, ok: true},
 	} {
