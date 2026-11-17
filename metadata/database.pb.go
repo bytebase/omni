@@ -2294,8 +2294,16 @@ type TablePartitionMetadata struct {
 	Indexes            []*IndexMetadata             `protobuf:"bytes,7,rep,name=indexes,proto3" json:"indexes,omitempty"`
 	CheckConstraints   []*CheckConstraintMetadata   `protobuf:"bytes,8,rep,name=check_constraints,json=checkConstraints,proto3" json:"check_constraints,omitempty"`
 	ExcludeConstraints []*ExcludeConstraintMetadata `protobuf:"bytes,9,rep,name=exclude_constraints,json=excludeConstraints,proto3" json:"exclude_constraints,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// The schema is the schema the partition lives in. A partition can live in
+	// a schema other than its parent's; an engine that keeps every partition in
+	// its table's schema leaves it empty.
+	Schema string `protobuf:"bytes,10,opt,name=schema,proto3" json:"schema,omitempty"`
+	// The comment is the comment the engine states on the partition itself:
+	// PostgreSQL's COMMENT ON TABLE for a partition, MySQL's PARTITION ...
+	// COMMENT. An engine that states no partition comment leaves it empty.
+	Comment       string `protobuf:"bytes,11,opt,name=comment,proto3" json:"comment,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *TablePartitionMetadata) Reset() {
@@ -2389,6 +2397,20 @@ func (x *TablePartitionMetadata) GetExcludeConstraints() []*ExcludeConstraintMet
 		return x.ExcludeConstraints
 	}
 	return nil
+}
+
+func (x *TablePartitionMetadata) GetSchema() string {
+	if x != nil {
+		return x.Schema
+	}
+	return ""
+}
+
+func (x *TablePartitionMetadata) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
 }
 
 // ColumnMetadata is the metadata for columns.
@@ -4621,7 +4643,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14external_server_name\x18\x02 \x01(\tR\x12externalServerName\x124\n" +
 	"\x16external_database_name\x18\x03 \x01(\tR\x14externalDatabaseName\x127\n" +
-	"\acolumns\x18\x04 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\"\x85\x05\n" +
+	"\acolumns\x18\x04 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\"\xb7\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -4634,7 +4656,10 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\rsubpartitions\x18\x06 \x03(\v2%.omni.metadata.TablePartitionMetadataR\rsubpartitions\x126\n" +
 	"\aindexes\x18\a \x03(\v2\x1c.omni.metadata.IndexMetadataR\aindexes\x12S\n" +
 	"\x11check_constraints\x18\b \x03(\v2&.omni.metadata.CheckConstraintMetadataR\x10checkConstraints\x12Y\n" +
-	"\x13exclude_constraints\x18\t \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraints\"\x8a\x01\n" +
+	"\x13exclude_constraints\x18\t \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraints\x12\x16\n" +
+	"\x06schema\x18\n" +
+	" \x01(\tR\x06schema\x12\x18\n" +
+	"\acomment\x18\v \x01(\tR\acomment\"\x8a\x01\n" +
 	"\x04Type\x12\x14\n" +
 	"\x10TYPE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05RANGE\x10\x01\x12\x11\n" +

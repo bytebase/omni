@@ -54,8 +54,8 @@ CREATE TABLE `metrics_range` (
   PRIMARY KEY (`ts`) /*T![clustered_index] CLUSTERED */
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin
 /*!50100 PARTITION BY RANGE (`ts`)
-(PARTITION p_low VALUES LESS THAN (100) ENGINE=InnoDB,
- PARTITION p_high VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */;
+(PARTITION p_low VALUES LESS THAN (100) ENGINE=InnoDB COMMENT 'first',
+ PARTITION p_high VALUES LESS THAN MAXVALUE ENGINE=InnoDB COMMENT 'last') */;
 
 --
 -- Table structure for `sharded_events`

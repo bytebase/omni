@@ -38,6 +38,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -143,6 +147,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -795,6 +806,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -1140,6 +1205,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -1851,7 +1970,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -1863,7 +1982,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -1875,7 +1994,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -1887,7 +2018,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -1899,7 +2030,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -1919,7 +2050,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -1944,6 +2076,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -1959,6 +2092,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -1974,6 +2108,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -1989,6 +2124,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -2004,6 +2140,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -2019,6 +2156,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -2034,6 +2172,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -2049,6 +2188,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -2064,6 +2204,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -2079,6 +2220,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -2094,6 +2236,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -2109,6 +2252,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -2398,6 +2559,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -2459,6 +2622,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -2603,9 +2775,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -3258,6 +3437,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -3603,6 +3836,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -4314,7 +4601,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -4326,7 +4613,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -4338,7 +4625,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -4350,7 +4649,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -4362,7 +4661,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -4382,7 +4681,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -4407,6 +4707,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -4422,6 +4723,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -4437,6 +4739,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -4452,6 +4755,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -4467,6 +4771,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -4482,6 +4787,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -4497,6 +4803,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -4512,6 +4836,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -4527,6 +4852,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -4542,6 +4868,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -4557,6 +4884,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -4572,6 +4900,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -4889,6 +5218,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -4994,6 +5327,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -5646,6 +5986,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -5991,6 +6385,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -6702,7 +7150,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -6714,7 +7162,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -6726,7 +7174,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -6738,7 +7198,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -6750,7 +7210,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -6770,7 +7230,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -6795,6 +7256,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -6810,6 +7272,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -6825,6 +7288,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -6840,6 +7304,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -6855,6 +7320,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -6870,6 +7336,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -6885,6 +7352,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -6900,6 +7368,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -6915,6 +7384,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -6930,6 +7400,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -6945,6 +7416,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -6960,6 +7432,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -7249,6 +7739,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -7310,6 +7802,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -7454,9 +7955,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -8109,6 +8617,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -8454,6 +9016,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -9165,7 +9781,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -9177,7 +9793,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -9189,7 +9805,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -9201,7 +9829,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -9213,7 +9841,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -9233,7 +9861,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -9258,6 +9887,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -9273,6 +9903,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -9288,6 +9919,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -9303,6 +9935,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -9318,6 +9951,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -9333,6 +9967,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -9348,6 +9983,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -9363,6 +10016,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -9378,6 +10032,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -9393,6 +10048,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -9408,6 +10064,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -9423,6 +10080,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -9740,6 +10398,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -9845,6 +10507,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -10497,6 +11166,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -10842,6 +11565,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -11553,7 +12330,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -11565,7 +12342,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -11577,7 +12354,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -11589,7 +12378,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -11601,7 +12390,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -11621,7 +12410,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -11646,6 +12436,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -11661,6 +12452,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -11676,6 +12468,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -11691,6 +12484,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -11706,6 +12500,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -11721,6 +12516,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -11736,6 +12532,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -11751,6 +12548,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -11766,6 +12564,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -11781,6 +12580,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -11796,6 +12596,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -11811,6 +12612,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -12100,6 +12919,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -12161,6 +12982,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -12305,9 +13135,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -12960,6 +13797,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -13305,6 +14196,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -14016,7 +14961,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -14028,7 +14973,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -14040,7 +14985,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -14052,7 +15009,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -14064,7 +15021,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -14084,7 +15041,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -14109,6 +15067,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -14124,6 +15083,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -14139,6 +15099,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -14154,6 +15115,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -14169,6 +15131,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -14184,6 +15147,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -14199,6 +15163,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -14214,6 +15196,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -14229,6 +15212,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -14244,6 +15228,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -14259,6 +15244,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -14274,6 +15260,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -14591,6 +15578,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -14696,6 +15687,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -15348,6 +16346,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -15693,6 +16745,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -16404,7 +17510,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -16416,7 +17522,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -16428,7 +17534,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -16440,7 +17558,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -16452,7 +17570,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -16472,7 +17590,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -16497,6 +17616,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -16512,6 +17632,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -16527,6 +17648,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -16542,6 +17664,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -16557,6 +17680,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -16572,6 +17696,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -16587,6 +17712,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -16602,6 +17728,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -16617,6 +17744,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -16632,6 +17760,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -16647,6 +17776,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -16662,6 +17792,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -16951,6 +18099,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -17012,6 +18162,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -17156,9 +18315,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -17811,6 +18977,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -18156,6 +19376,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -18867,7 +20141,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -18879,7 +20153,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -18891,7 +20165,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -18903,7 +20189,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -18915,7 +20201,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -18935,7 +20221,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -18960,6 +20247,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -18975,6 +20263,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -18990,6 +20279,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -19005,6 +20295,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -19020,6 +20311,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -19035,6 +20327,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -19050,6 +20343,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -19065,6 +20376,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -19080,6 +20392,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -19095,6 +20408,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -19110,6 +20424,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -19125,6 +20440,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -19442,6 +20758,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -19547,6 +20867,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -20199,6 +21526,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -20544,6 +21925,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -21255,7 +22690,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -21267,7 +22702,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -21279,7 +22714,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -21291,7 +22738,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -21303,7 +22750,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -21323,7 +22770,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -21348,6 +22796,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -21363,6 +22812,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -21378,6 +22828,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -21393,6 +22844,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -21408,6 +22860,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -21423,6 +22876,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -21438,6 +22892,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -21453,6 +22908,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -21468,6 +22924,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -21483,6 +22940,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -21498,6 +22956,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -21513,6 +22972,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -21802,6 +23279,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -21863,6 +23342,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -22007,9 +23495,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -22662,6 +24157,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -23007,6 +24556,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -23718,7 +25321,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -23730,7 +25333,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -23742,7 +25345,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -23754,7 +25369,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -23766,7 +25381,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -23786,7 +25401,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -23811,6 +25427,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -23826,6 +25443,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -23841,6 +25459,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -23856,6 +25475,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -23871,6 +25491,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -23886,6 +25507,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -23901,6 +25523,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -23916,6 +25556,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -23931,6 +25572,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -23946,6 +25588,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -23961,6 +25604,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -23976,6 +25620,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -24293,6 +25938,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -24398,6 +26047,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -25050,6 +26706,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -25395,6 +27105,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -26106,7 +27870,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -26118,7 +27882,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -26130,7 +27894,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -26142,7 +27918,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -26154,7 +27930,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -26174,7 +27950,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -26199,6 +27976,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -26214,6 +27992,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -26229,6 +28008,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -26244,6 +28024,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -26259,6 +28040,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -26274,6 +28056,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -26289,6 +28072,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -26304,6 +28088,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -26319,6 +28104,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -26334,6 +28120,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -26349,6 +28136,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -26364,6 +28152,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -26653,6 +28459,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -26714,6 +28522,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -26858,9 +28675,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -27513,6 +29337,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -27858,6 +29736,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -28569,7 +30501,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -28581,7 +30513,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -28593,7 +30525,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -28605,7 +30549,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -28617,7 +30561,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -28637,7 +30581,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -28662,6 +30607,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -28677,6 +30623,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -28692,6 +30639,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -28707,6 +30655,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -28722,6 +30671,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -28737,6 +30687,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -28752,6 +30703,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -28767,6 +30736,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -28782,6 +30752,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -28797,6 +30768,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -28812,6 +30784,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -28827,6 +30800,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -29144,6 +31118,10 @@
 | ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 | CREATE INDEX late_x_id ON app.late_x (id);
 | ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+| CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+| CREATE SCHEMA other;
+| CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+| COMMENT ON TABLE other.cross_schema_a IS 'remote';
 |
 < ok 0 -
 > query
@@ -29249,6 +31227,13 @@
 : int64 4294967297
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967298
+: string
+| other
 : string
 | postgres
 : null
@@ -29901,6 +31886,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -30246,6 +32285,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -30957,7 +33050,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967298
+: int64 4294967299
 : string
 | app
 : string
@@ -30969,7 +33062,7 @@
 : string
 | postgres
 < row
-: int64 4294967299
+: int64 4294967300
 : string
 | app
 : string
@@ -30981,7 +33074,19 @@
 : string
 | postgres
 < row
-: int64 4294967300
+: int64 4294967301
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967302
 : string
 | app
 : string
@@ -30993,7 +33098,7 @@
 : string
 | postgres
 < row
-: int64 4294967301
+: int64 4294967303
 : string
 | app
 : string
@@ -31005,7 +33110,7 @@
 : string
 | postgres
 < row
-: int64 4294967302
+: int64 4294967304
 : string
 | app
 : string
@@ -31025,7 +33130,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -31050,6 +33156,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -31065,6 +33172,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -31080,6 +33188,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -31095,6 +33204,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -31110,6 +33220,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -31125,6 +33236,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -31140,6 +33252,7 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -31155,6 +33268,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -31170,6 +33284,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -31185,6 +33300,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -31200,6 +33316,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -31215,6 +33332,24 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -31504,6 +33639,8 @@
 > exec
 | CREATE SCHEMA IF NOT EXISTS "app";
 |
+| CREATE SCHEMA IF NOT EXISTS "other";
+|
 | COMMENT ON SCHEMA "public" IS 'standard public schema';
 |
 | CREATE TABLE "app"."Measure" (
@@ -31565,6 +33702,15 @@
 | CREATE TABLE "app"."bounds_low" PARTITION OF "app"."bounds" FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE);
 |
 | CREATE TABLE "app"."bounds_high" PARTITION OF "app"."bounds" FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE);
+|
+| CREATE TABLE "app"."cross_schema" (
+|     "id" integer NOT NULL,
+|     "v" text
+| ) PARTITION BY LIST (v);
+|
+| CREATE TABLE "other"."cross_schema_a" PARTITION OF "app"."cross_schema" FOR VALUES IN ('a');
+|
+| COMMENT ON TABLE "other"."cross_schema_a" IS 'remote';
 |
 | CREATE TABLE "app"."late" (
 |     "id" integer NOT NULL,
@@ -31709,9 +33855,16 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967303
+: int64 4294967305
 : string
 | app
+: string
+| postgres
+: null
+< row
+: int64 4294967306
+: string
+| other
 : string
 | postgres
 : null
@@ -32364,6 +34517,60 @@
 : string
 | app
 : string
+| cross_schema
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| app
+: string
+| cross_schema
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
+: null
+: null
+< row
+: string
+| app
+: string
 | late
 : string
 | id
@@ -32709,6 +34916,60 @@
 | pg_catalog
 : string
 | int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| v
+: string
+| text
+: null
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| text
 : null
 : null
 > query
@@ -33420,7 +35681,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967304
+: int64 4294967307
 : string
 | app
 : string
@@ -33432,7 +35693,7 @@
 : string
 | postgres
 < row
-: int64 4294967305
+: int64 4294967308
 : string
 | app
 : string
@@ -33444,7 +35705,19 @@
 : string
 | postgres
 < row
-: int64 4294967306
+: int64 4294967309
+: string
+| app
+: string
+| cross_schema
+: int64 0
+: int64 0
+: int64 0
+: null
+: string
+| postgres
+< row
+: int64 4294967310
 : string
 | app
 : string
@@ -33456,7 +35729,7 @@
 : string
 | postgres
 < row
-: int64 4294967307
+: int64 4294967311
 : string
 | app
 : string
@@ -33468,7 +35741,7 @@
 : string
 | postgres
 < row
-: int64 4294967308
+: int64 4294967312
 : string
 | app
 : string
@@ -33488,7 +35761,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -33513,6 +35787,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 < row
 : string
 | app
@@ -33528,6 +35803,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -33543,6 +35819,7 @@
 | FOR VALUES IN ('eu')
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -33558,6 +35835,7 @@
 | DEFAULT
 : string
 | LIST ("Region")
+: null
 < row
 : string
 | app
@@ -33573,6 +35851,7 @@
 | FOR VALUES FROM ('2026-01-01') TO ('2027-01-01')
 : string
 | RANGE ("Day")
+: null
 < row
 : string
 | app
@@ -33588,6 +35867,7 @@
 | FOR VALUES FROM (MINVALUE, MINVALUE) TO (10, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
 < row
 : string
 | app
@@ -33603,6 +35883,24 @@
 | FOR VALUES FROM (10, MAXVALUE) TO (MAXVALUE, MAXVALUE)
 : string
 | RANGE (a, b)
+: null
+< row
+: string
+| other
+: string
+| cross_schema_a
+: string
+| app
+: string
+| cross_schema
+: string
+| l
+: string
+| FOR VALUES IN ('a')
+: string
+| LIST (v)
+: string
+| remote
 < row
 : string
 | app
@@ -33618,6 +35916,7 @@
 | FOR VALUES IN ('x')
 : string
 | LIST (v)
+: null
 < row
 : string
 | app
@@ -33633,6 +35932,7 @@
 | FOR VALUES FROM ('2025-01-01') TO ('2026-01-01')
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -33648,6 +35948,7 @@
 | DEFAULT
 : string
 | RANGE (d)
+: null
 < row
 : string
 | app
@@ -33663,6 +35964,7 @@
 | FOR VALUES WITH (modulus 2, remainder 0)
 : string
 | HASH (id)
+: null
 < row
 : string
 | app
@@ -33678,6 +35980,7 @@
 | FOR VALUES WITH (modulus 2, remainder 1)
 : string
 | HASH (id)
+: null
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)

@@ -50,7 +50,7 @@
 > query
 | EXPLAIN FORMAT=JSON SELECT 1 FROM items WHERE id <= 2
 < result
-< column "EXPLAIN" "VARCHAR"
+< column "EXPLAIN" "VARCHAR" "string"
 < row
 : bytes
 | {
@@ -82,7 +82,7 @@
 | EXPLAIN UPDATE items SET note = 'x' WHERE id = 1
 < result
 < column "id" "UNSIGNED BIGINT"
-< column "select_type" "VARCHAR"
+< column "select_type" "VARCHAR" "string"
 < column "table" "VARCHAR"
 < column "type" "VARCHAR"
 < column "possible_keys" "VARCHAR"
@@ -90,7 +90,7 @@
 < column "key_len" "VARCHAR"
 < column "ref" "VARCHAR"
 < column "rows" "VARCHAR"
-< column "Extra" "VARCHAR"
+< column "Extra" "VARCHAR" "string"
 < row
 : uint64 1
 : bytes
@@ -122,13 +122,13 @@
 | 				CAST('' AS BINARY) AS empty_bin,
 | 				NULL AS nul;
 < result
-< column "i" "INT"
-< column "f" "DECIMAL"
-< column "s" "VARCHAR"
-< column "dt" "DATETIME"
-< column "bin" "VARBINARY"
-< column "empty_bin" "VARBINARY"
-< column "nul" "NULL"
+< column "i" "INT" "int32"
+< column "f" "DECIMAL" "string" precision 2 scale 1
+< column "s" "VARCHAR" "string"
+< column "dt" "DATETIME" precision 6 scale 6
+< column "bin" "VARBINARY" "[]uint8"
+< column "empty_bin" "VARBINARY" "[]uint8"
+< column "nul" "NULL" "*interface {}"
 < row
 : int64 42
 : bytes
@@ -145,7 +145,7 @@
 > query
 | SELECT id FROM items ORDER BY id LIMIT 2;
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < row
 : int64 1
 < row
@@ -153,7 +153,7 @@
 > query
 | EXPLAIN FORMAT=JSON SELECT note FROM items WHERE id > 1
 < result
-< column "EXPLAIN" "VARCHAR"
+< column "EXPLAIN" "VARCHAR" "string"
 < row
 : bytes
 | {
@@ -185,13 +185,13 @@
 > query
 | SELECT COUNT(*) FROM items WHERE id = 99;
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
 > query
 | SELECT 1;
 < result
-< column "1" "INT"
+< column "1" "INT" "int32"
 < row
 : int64 1
 > query
@@ -202,7 +202,7 @@
 > query
 | SELECT id, repeat('x', 80) FROM items ORDER BY id;
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < column "repeat('x', 80)" "VARCHAR"
 < row
 : int64 1
@@ -220,7 +220,7 @@
 |
 | SELECT 7;
 < result
-< column "7" "INT"
+< column "7" "INT" "int32"
 < row
 : int64 7
 
@@ -273,7 +273,7 @@
 > query
 | EXPLAIN FORMAT=JSON SELECT 1 FROM items WHERE id <= 2
 < result
-< column "EXPLAIN" "VARCHAR"
+< column "EXPLAIN" "VARCHAR" "string"
 < row
 : bytes
 | {
@@ -299,7 +299,7 @@
 | EXPLAIN UPDATE items SET note = 'x' WHERE id = 1
 < result
 < column "id" "UNSIGNED BIGINT"
-< column "select_type" "VARCHAR"
+< column "select_type" "VARCHAR" "string"
 < column "table" "VARCHAR"
 < column "type" "VARCHAR"
 < column "possible_keys" "VARCHAR"
@@ -307,7 +307,7 @@
 < column "key_len" "VARCHAR"
 < column "ref" "VARCHAR"
 < column "rows" "VARCHAR"
-< column "Extra" "VARCHAR"
+< column "Extra" "VARCHAR" "string"
 < row
 : uint64 1
 : bytes
@@ -339,13 +339,13 @@
 | 				CAST('' AS BINARY) AS empty_bin,
 | 				NULL AS nul;
 < result
-< column "i" "INT"
-< column "f" "DECIMAL"
-< column "s" "VARCHAR"
-< column "dt" "DATETIME"
-< column "bin" "VARBINARY"
-< column "empty_bin" "VARBINARY"
-< column "nul" "NULL"
+< column "i" "INT" "int32"
+< column "f" "DECIMAL" "string" precision 2 scale 1
+< column "s" "VARCHAR" "string"
+< column "dt" "DATETIME" precision 6 scale 6
+< column "bin" "VARBINARY" "[]uint8"
+< column "empty_bin" "VARBINARY" "[]uint8"
+< column "nul" "NULL" "*interface {}"
 < row
 : int64 42
 : bytes
@@ -362,7 +362,7 @@
 > query
 | SELECT id FROM items ORDER BY id LIMIT 2;
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < row
 : int64 1
 < row
@@ -370,7 +370,7 @@
 > query
 | EXPLAIN FORMAT=JSON SELECT note FROM items WHERE id > 1
 < result
-< column "EXPLAIN" "VARCHAR"
+< column "EXPLAIN" "VARCHAR" "string"
 < row
 : bytes
 | {
@@ -395,13 +395,13 @@
 > query
 | SELECT COUNT(*) FROM items WHERE id = 99;
 < result
-< column "COUNT(*)" "BIGINT"
+< column "COUNT(*)" "BIGINT" "int64"
 < row
 : int64 0
 > query
 | SELECT 1;
 < result
-< column "1" "INT"
+< column "1" "INT" "int32"
 < row
 : int64 1
 > query
@@ -412,7 +412,7 @@
 > query
 | SELECT id, repeat('x', 80) FROM items ORDER BY id;
 < result
-< column "id" "INT"
+< column "id" "INT" "int32"
 < column "repeat('x', 80)" "VARCHAR"
 < row
 : int64 1
@@ -430,6 +430,6 @@
 |
 | SELECT 7;
 < result
-< column "7" "INT"
+< column "7" "INT" "int32"
 < row
 : int64 7

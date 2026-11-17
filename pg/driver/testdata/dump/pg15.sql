@@ -205,6 +205,22 @@ CREATE TABLE "app"."booking" (
 
 ALTER TABLE "app"."booking" OWNER TO "postgres";
 
+CREATE TABLE "app"."cross_schema" (
+    "id" integer NOT NULL,
+    "v" text NOT NULL
+) PARTITION BY LIST (v);
+
+ALTER TABLE "app"."cross_schema" OWNER TO "postgres";
+
+CREATE TABLE "audit"."cross_schema_a" (
+    "id" integer NOT NULL,
+    "v" text NOT NULL
+);
+
+COMMENT ON TABLE "audit"."cross_schema_a" IS 'remote';
+
+ALTER TABLE ONLY "app"."cross_schema" ATTACH PARTITION "audit"."cross_schema_a" FOR VALUES IN ('a');
+
 CREATE TABLE "app"."customer" (
     "id" bigint NOT NULL,
     "alt_id" integer NOT NULL,
@@ -374,6 +390,8 @@ CREATE TABLE "app"."measurement_2026" (
 );
 
 COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
+
+COMMENT ON TABLE "app"."measurement_2026" IS 'this year';
 
 ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 

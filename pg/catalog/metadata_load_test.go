@@ -979,9 +979,13 @@ func TestLoadMetadataInstallsPartitions(t *testing.T) {
 					}},
 				},
 				{Name: "orders_other", Type: metadata.TablePartitionMetadata_RANGE, Expression: "RANGE (created_at)", Value: "DEFAULT"},
+				{
+					Name: "orders_2023", Schema: "archive", Type: metadata.TablePartitionMetadata_RANGE,
+					Expression: "RANGE (created_at)", Value: "FOR VALUES FROM ('2023-01-01') TO ('2024-01-01')",
+				},
 			},
 		}},
-	})
+	}, &metadata.SchemaMetadata{Name: "archive"})
 	requireCleanReport(t, report)
 
 	orders := requireRelation(t, c, "public", "orders")
@@ -989,15 +993,16 @@ func TestLoadMetadataInstallsPartitions(t *testing.T) {
 		t.Fatalf("orders: relkind %c, partition info %+v; want a table partitioned by range", orders.RelKind, orders.PartitionInfo)
 	}
 	for _, tt := range []struct {
-		name, parent string
-		relkind      byte
+		name, schema, parent, parentSchema string
+		relkind                            byte
 	}{
-		{"orders_2024", "orders", 'p'},
-		{"orders_2024_eu", "orders_2024", 'r'},
-		{"orders_other", "orders", 'r'},
+		{"orders_2024", "public", "orders", "public", 'p'},
+		{"orders_2024_eu", "public", "orders_2024", "public", 'r'},
+		{"orders_other", "public", "orders", "public", 'r'},
+		{"orders_2023", "archive", "orders", "public", 'r'},
 	} {
-		rel := requireRelation(t, c, "public", tt.name)
-		parent := requireRelation(t, c, "public", tt.parent)
+		rel := requireRelation(t, c, tt.schema, tt.name)
+		parent := requireRelation(t, c, tt.parentSchema, tt.parent)
 		if rel.PartitionOf != parent.OID || rel.PartitionBound == nil || rel.RelKind != tt.relkind {
 			t.Errorf("%s: relkind %c, partition of %d with bound %+v; want relkind %c, a partition of %s", tt.name, rel.RelKind, rel.PartitionOf, rel.PartitionBound, tt.relkind, tt.parent)
 		}
