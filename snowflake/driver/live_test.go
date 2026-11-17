@@ -150,6 +150,81 @@ func TestLiveSyncDatabase(t *testing.T) {
 	}
 }
 
+// TestLiveSyncDatabaseShare covers the inbound-share branch of
+// getDatabaseNames: a database a second account shared in is left out of the
+// account's list, because a share is immutable and its DDL is not the account's
+// to read.
+//
+// Creating the share needs a second Snowflake account, so the test reads what
+// this account's SHOW SHARES answers instead of naming a database in the
+// environment, and skips when the account consumes no share at all.
+func TestLiveSyncDatabaseShare(t *testing.T) {
+	ctx := context.Background()
+	d := openLive(t)
+
+	session, err := d.Session(ctx)
+	if err != nil {
+		t.Fatalf("Session: %v", err)
+	}
+	defer func() { _ = session.Close() }()
+	results, err := session.Query(ctx, "SHOW SHARES", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query SHOW SHARES: %v", err)
+	}
+	if len(results) != 1 || results[0].Err != nil {
+		t.Fatalf("SHOW SHARES = %+v, want one result carrying no error", results)
+	}
+	shared := inboundShareDatabases(t, results[0])
+	if len(shared) == 0 {
+		t.Skipf("no inbound share on this account: the branch needs a second Snowflake account that shares a database into this one, so SHOW SHARES reports it as INBOUND and there is one for the sync to leave out (VERIFY.md step 2)")
+	}
+
+	instance, err := d.SyncInstance(ctx)
+	if err != nil {
+		t.Fatalf("SyncInstance: %v", err)
+	}
+	listed := make(map[string]bool, len(instance.Databases))
+	for _, database := range instance.Databases {
+		listed[database.Name] = true
+	}
+	for _, name := range shared {
+		if listed[name] {
+			t.Errorf("Databases holds %q, which SHOW SHARES reports as an inbound share", name)
+		}
+	}
+}
+
+// inboundShareDatabases reads the database names a SHOW SHARES answer states for
+// its INBOUND rows. The columns are read by name, as the driver reads them.
+func inboundShareDatabases(t *testing.T, result *driver.Result) []string {
+	t.Helper()
+	kindIndex, databaseIndex := -1, -1
+	for i, column := range result.Columns {
+		switch {
+		case strings.EqualFold(column.Name, "kind"):
+			kindIndex = i
+		case strings.EqualFold(column.Name, "database_name"):
+			databaseIndex = i
+		}
+	}
+	if kindIndex < 0 || databaseIndex < 0 {
+		t.Fatalf("SHOW SHARES Columns = %+v, want kind and database_name", result.Columns)
+	}
+	var shared []string
+	for _, row := range result.Rows {
+		if kindIndex >= len(row) || databaseIndex >= len(row) {
+			t.Fatalf("SHOW SHARES row = %+v, want a cell per column", row)
+		}
+		if row[kindIndex].Kind != driver.String || row[kindIndex].String != "INBOUND" {
+			continue
+		}
+		if name := row[databaseIndex].String; name != "" {
+			shared = append(shared, name)
+		}
+	}
+	return shared
+}
+
 // TestLiveQuery runs statements through a session: a query that returns rows, a
 // command that reports affected rows, the limit rewrite and the plan.
 func TestLiveQuery(t *testing.T) {

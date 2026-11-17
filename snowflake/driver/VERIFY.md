@@ -110,7 +110,9 @@ go test ./snowflake/driver/ -run '^TestLive' -count=1 -v
 Each of the five must pass before anything is recorded. A failure here is the
 account, not the driver: `SyncInstance` failing names the `ACCOUNT_USAGE` grant,
 `Dump` failing names the database, and `Ping` failing is the login, the network
-policy or MFA.
+policy or MFA. `TestLiveSyncDatabaseShare` is the sixth: it passes where the
+account consumes a share, and skips naming the second account it needs when
+`SHOW SHARES` reports none.
 
 ## Step 2 — the fixtures
 
@@ -156,7 +158,9 @@ The inbound-share branch of `getDatabaseNames` is the one path this corpus canno
 reach: it needs a second account that shares a database in, which `SHOW SHARES`
 then reports and the sync leaves out. Record it last, on its own, and skip it if
 provisioning one is unattractive — say so in the PR that records, rather than
-leaving a tape that pretends.
+leaving a tape that pretends. `TestLiveSyncDatabaseShare` reads `SHOW SHARES`
+itself and skips, naming this provisioning step, when the account consumes no
+share.
 
 ## Step 3 — the pin row
 
@@ -228,13 +232,10 @@ reads, then the writes, then the dump.
 Recording commands, one test at a time so a failure is attributable. The table
 names each test by what it records, which is the name it takes once it replays a
 tape; `live_test.go` holds `TestLiveSyncDatabase`, `TestLiveSyncInstance`,
-`TestLiveQuery`, `TestLiveExecute` and `TestLiveDump` today, so the commands
-below name those and step 4's conversion renames them. They name the tests that
-exist: a `-run` pattern that matches nothing exits 0 and records nothing, which
-reads as a pass. `TestSyncDatabaseShare` has no test yet: write it against a
-database shared in from a second account, then record it with
-`-run '^TestSyncDatabaseShare$'`, or say in the recording PR that no second
-account was available.
+`TestLiveQuery`, `TestLiveExecute`, `TestLiveDump` and
+`TestLiveSyncDatabaseShare` today, so the commands below name those and step 4's
+conversion renames them. They name the tests that exist: a `-run` pattern that
+matches nothing exits 0 and records nothing, which reads as a pass.
 
 ```bash
 OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
@@ -242,6 +243,7 @@ OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^
 OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveQuery$' -count=1 -v
 OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveExecute$' -count=1 -v
 OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveDump$' -count=1 -v
+OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveSyncDatabaseShare$' -count=1 -v
 ```
 
 Then record everything twice and require byte-identical tapes. Two runs of one
