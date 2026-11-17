@@ -61,6 +61,32 @@ func TestVersionReadsASourceTag(t *testing.T) {
 	}
 }
 
+// TestOIDNumberingIsPerServer pins that each pin role numbers the OIDs it
+// reads from its own start. Two servers' counters start wherever the run
+// left them, so a stand-in shared between roles would make a tape depend on
+// what the recording did before instead of on the data it recorded.
+func TestOIDNumberingIsPerServer(t *testing.T) {
+	one, other := oidNumbering(t.Name(), Default), oidNumbering(t.Name(), PG18)
+	if one == other {
+		t.Fatal("two pin roles share one numbering")
+	}
+	if got, want := one.number(16388), int64(1<<32+1); got != want {
+		t.Errorf("the first OID of a role is stand-in %d, want %d", got, want)
+	}
+	if got, want := one.number(16388), int64(1<<32+1); got != want {
+		t.Errorf("rereading an OID changed its stand-in to %d, want %d", got, want)
+	}
+	if got, want := one.number(16390), int64(1<<32+2); got != want {
+		t.Errorf("the next OID of a role is stand-in %d, want %d", got, want)
+	}
+	if got, want := other.number(16388), int64(1<<32+1); got != want {
+		t.Errorf("another role's first OID is stand-in %d, want %d: its server counts on its own", got, want)
+	}
+	if again := oidNumbering(t.Name(), Default); again != one {
+		t.Error("a role's second connection got another numbering")
+	}
+}
+
 // TestCodecRenamesOIDs pins that the codec is a tape.Renamer whose stand-ins
 // it matches itself, so a stand-in a test sends back reaches the server as
 // the OID it stands for, and that no OID's text is one.

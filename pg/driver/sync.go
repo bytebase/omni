@@ -234,6 +234,10 @@ func warpTablePartitions(m map[tableKey][]*metadatapb.TablePartitionMetadata, sc
 	return []*metadatapb.TablePartitionMetadata{}
 }
 
+// listExtensionDependQuery is ordered because its OIDs are numbered in the
+// order the rows arrive (testcontainer.OpenRoleNumberingOIDs): the same data
+// read in another order records different stand-ins, and every OID the sync
+// reads after it with them.
 var listExtensionDependQuery = `
 SELECT
 	objid
@@ -241,6 +245,7 @@ FROM
 	pg_depend
 WHERE
 	deptype = 'e'
+ORDER BY objid
 `
 
 func getExtensionDepend(txn *sql.Tx) (map[int]bool, error) {
@@ -306,7 +311,8 @@ SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true
         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
         WHERE contype = 'x' and ` + fmt.Sprintf(`nsp.nspname NOT IN (%s)
         AND nsp.nspname NOT LIKE 'pg_temp%%'
-        AND nsp.nspname NOT LIKE 'pg_toast%%'`, pganalysis.SystemSchemaWhereClause)
+        AND nsp.nspname NOT LIKE 'pg_toast%%'
+        ORDER BY nsp.nspname, rel.relname, con.conname`, pganalysis.SystemSchemaWhereClause)
 
 func getExcludeConstraints(txn *sql.Tx) (map[tableKey][]*metadatapb.ExcludeConstraintMetadata, error) {
 	excludesMap := make(map[tableKey][]*metadatapb.ExcludeConstraintMetadata)
@@ -749,6 +755,7 @@ FROM
   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 `
 
 func getIndexInheritance(txn *sql.Tx) (map[indexKey]*indexKey, error) {
@@ -1557,7 +1564,8 @@ func getSequenceOwners(txn *sql.Tx) (map[int]ColumnOidKey, error) {
                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
                 d.objsubid = 0 AND
                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;`
+	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+	ORDER BY c.oid;`
 
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -1893,6 +1901,7 @@ where n.nspname not in (%s)
   AND n.nspname NOT LIKE 'pg_toast%%'
   AND p.prokind <> 'a'
   AND pt.typrelid IS NOT NULL
+order by function_oid, table_oid
 `, pganalysis.SystemSchemaWhereClause)
 
 func getFunctionDependencyTables(txn *sql.Tx) (map[int][]int, error) {

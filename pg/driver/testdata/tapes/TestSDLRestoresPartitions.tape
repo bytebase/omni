@@ -112,6 +112,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -1155,48 +1156,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -1210,11 +1176,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
+| Measure 2025 EU_City_Day_idx
 : string
 | app
 : string
-| measure_key
+| Measure 2025_City_Day_idx
 < row
 : string
 | app
@@ -1228,11 +1194,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -1755,6 +1757,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -1850,7 +1853,7 @@
 : string
 | postgres
 < row
-: int64 4294967309
+: int64 4294967299
 : string
 | app
 : string
@@ -1862,7 +1865,7 @@
 : string
 | postgres
 < row
-: int64 4294967310
+: int64 4294967300
 : string
 | app
 : string
@@ -1874,7 +1877,7 @@
 : string
 | postgres
 < row
-: int64 4294967311
+: int64 4294967301
 : string
 | app
 : string
@@ -1886,7 +1889,7 @@
 : string
 | postgres
 < row
-: int64 4294967312
+: int64 4294967302
 : string
 | app
 : string
@@ -2193,6 +2196,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -2234,7 +2238,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -2560,6 +2565,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -2587,7 +2593,7 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967313
+: int64 4294967303
 : string
 | app
 : string
@@ -3603,6 +3609,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -3613,29 +3620,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
 | Measure 2025 EU_City_Day_Region_idx
 : string
 | app
 : string
 | Measure 2025_City_Day_Region_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -3663,6 +3652,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -4203,6 +4210,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -4286,7 +4294,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967314
+: int64 4294967304
 : string
 | app
 : string
@@ -4298,7 +4306,7 @@
 : string
 | postgres
 < row
-: int64 4294967315
+: int64 4294967305
 : string
 | app
 : string
@@ -4310,7 +4318,7 @@
 : string
 | postgres
 < row
-: int64 4294967316
+: int64 4294967306
 : string
 | app
 : string
@@ -4322,7 +4330,7 @@
 : string
 | postgres
 < row
-: int64 4294967317
+: int64 4294967307
 : string
 | app
 : string
@@ -4334,7 +4342,7 @@
 : string
 | postgres
 < row
-: int64 4294967318
+: int64 4294967308
 : string
 | app
 : string
@@ -4641,6 +4649,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -4682,7 +4691,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -4933,6 +4943,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -5976,57 +5987,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
 < row
 : string
 | app
@@ -6040,6 +6007,15 @@
 : string
 | app
 : string
+| Measure 2025 EU_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
 | Measure 2025 Other_City_Day_Region_idx
 : string
 | app
@@ -6049,11 +6025,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -6576,6 +6588,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -7014,6 +7027,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -7055,7 +7069,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -7381,6 +7396,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -8424,30 +8440,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -8484,6 +8483,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -9024,6 +9041,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -9462,6 +9480,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -9503,7 +9522,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -9754,6 +9774,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -10797,57 +10818,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
 < row
 : string
 | app
@@ -10861,6 +10838,15 @@
 : string
 | app
 : string
+| Measure 2025 EU_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
 | Measure 2025 Other_City_Day_Region_idx
 : string
 | app
@@ -10870,11 +10856,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -11397,6 +11419,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -11835,6 +11858,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -11876,7 +11900,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -12202,6 +12227,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -13245,30 +13271,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -13305,6 +13314,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -13845,6 +13872,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -14283,6 +14311,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -14324,7 +14353,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -14575,6 +14605,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -15618,48 +15649,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -15673,11 +15669,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
+| Measure 2025 EU_City_Day_idx
 : string
 | app
 : string
-| measure_key
+| Measure 2025_City_Day_idx
 < row
 : string
 | app
@@ -15691,11 +15687,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -16218,6 +16250,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -16313,7 +16346,7 @@
 : string
 | postgres
 < row
-: int64 4294967309
+: int64 4294967299
 : string
 | app
 : string
@@ -16325,7 +16358,7 @@
 : string
 | postgres
 < row
-: int64 4294967310
+: int64 4294967300
 : string
 | app
 : string
@@ -16337,7 +16370,7 @@
 : string
 | postgres
 < row
-: int64 4294967311
+: int64 4294967301
 : string
 | app
 : string
@@ -16349,7 +16382,7 @@
 : string
 | postgres
 < row
-: int64 4294967312
+: int64 4294967302
 : string
 | app
 : string
@@ -16656,6 +16689,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -16697,7 +16731,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -17023,6 +17058,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -17050,7 +17086,7 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967313
+: int64 4294967303
 : string
 | app
 : string
@@ -18066,6 +18102,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -18076,29 +18113,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
 | Measure 2025 EU_City_Day_Region_idx
 : string
 | app
 : string
 | Measure 2025_City_Day_Region_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -18126,6 +18145,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -18666,6 +18703,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -18749,7 +18787,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967314
+: int64 4294967304
 : string
 | app
 : string
@@ -18761,7 +18799,7 @@
 : string
 | postgres
 < row
-: int64 4294967315
+: int64 4294967305
 : string
 | app
 : string
@@ -18773,7 +18811,7 @@
 : string
 | postgres
 < row
-: int64 4294967316
+: int64 4294967306
 : string
 | app
 : string
@@ -18785,7 +18823,7 @@
 : string
 | postgres
 < row
-: int64 4294967317
+: int64 4294967307
 : string
 | app
 : string
@@ -18797,7 +18835,7 @@
 : string
 | postgres
 < row
-: int64 4294967318
+: int64 4294967308
 : string
 | app
 : string
@@ -19104,6 +19142,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -19145,7 +19184,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -19396,6 +19436,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -20439,48 +20480,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -20494,11 +20500,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
+| Measure 2025 EU_City_Day_idx
 : string
 | app
 : string
-| measure_key
+| Measure 2025_City_Day_idx
 < row
 : string
 | app
@@ -20512,11 +20518,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -21039,6 +21081,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -21134,7 +21177,7 @@
 : string
 | postgres
 < row
-: int64 4294967309
+: int64 4294967299
 : string
 | app
 : string
@@ -21146,7 +21189,7 @@
 : string
 | postgres
 < row
-: int64 4294967310
+: int64 4294967300
 : string
 | app
 : string
@@ -21158,7 +21201,7 @@
 : string
 | postgres
 < row
-: int64 4294967311
+: int64 4294967301
 : string
 | app
 : string
@@ -21170,7 +21213,7 @@
 : string
 | postgres
 < row
-: int64 4294967312
+: int64 4294967302
 : string
 | app
 : string
@@ -21477,6 +21520,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -21518,7 +21562,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -21844,6 +21889,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -21871,7 +21917,7 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967313
+: int64 4294967303
 : string
 | app
 : string
@@ -22887,6 +22933,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -22897,29 +22944,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
 | Measure 2025 EU_City_Day_Region_idx
 : string
 | app
 : string
 | Measure 2025_City_Day_Region_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -22947,6 +22976,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -23487,6 +23534,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -23570,7 +23618,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967314
+: int64 4294967304
 : string
 | app
 : string
@@ -23582,7 +23630,7 @@
 : string
 | postgres
 < row
-: int64 4294967315
+: int64 4294967305
 : string
 | app
 : string
@@ -23594,7 +23642,7 @@
 : string
 | postgres
 < row
-: int64 4294967316
+: int64 4294967306
 : string
 | app
 : string
@@ -23606,7 +23654,7 @@
 : string
 | postgres
 < row
-: int64 4294967317
+: int64 4294967307
 : string
 | app
 : string
@@ -23618,7 +23666,7 @@
 : string
 | postgres
 < row
-: int64 4294967318
+: int64 4294967308
 : string
 | app
 : string
@@ -23925,6 +23973,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -23966,7 +24015,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -24217,6 +24267,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -25260,48 +25311,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -25315,11 +25331,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
+| Measure 2025 EU_City_Day_idx
 : string
 | app
 : string
-| measure_key
+| Measure 2025_City_Day_idx
 < row
 : string
 | app
@@ -25333,11 +25349,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -25860,6 +25912,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -25955,7 +26008,7 @@
 : string
 | postgres
 < row
-: int64 4294967309
+: int64 4294967299
 : string
 | app
 : string
@@ -25967,7 +26020,7 @@
 : string
 | postgres
 < row
-: int64 4294967310
+: int64 4294967300
 : string
 | app
 : string
@@ -25979,7 +26032,7 @@
 : string
 | postgres
 < row
-: int64 4294967311
+: int64 4294967301
 : string
 | app
 : string
@@ -25991,7 +26044,7 @@
 : string
 | postgres
 < row
-: int64 4294967312
+: int64 4294967302
 : string
 | app
 : string
@@ -26298,6 +26351,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -26339,7 +26393,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -26665,6 +26720,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -26692,7 +26748,7 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967313
+: int64 4294967303
 : string
 | app
 : string
@@ -27708,6 +27764,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -27718,29 +27775,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
 | Measure 2025 EU_City_Day_Region_idx
 : string
 | app
 : string
 | Measure 2025_City_Day_Region_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -27768,6 +27807,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -28308,6 +28365,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -28391,7 +28449,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967314
+: int64 4294967304
 : string
 | app
 : string
@@ -28403,7 +28461,7 @@
 : string
 | postgres
 < row
-: int64 4294967315
+: int64 4294967305
 : string
 | app
 : string
@@ -28415,7 +28473,7 @@
 : string
 | postgres
 < row
-: int64 4294967316
+: int64 4294967306
 : string
 | app
 : string
@@ -28427,7 +28485,7 @@
 : string
 | postgres
 < row
-: int64 4294967317
+: int64 4294967307
 : string
 | app
 : string
@@ -28439,7 +28497,7 @@
 : string
 | postgres
 < row
-: int64 4294967318
+: int64 4294967308
 : string
 | app
 : string
@@ -28746,6 +28804,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -28787,7 +28846,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -29038,6 +29098,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -30081,48 +30142,13 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
 < column "nspname" "NAME"
 < column "relname" "NAME"
-< row
-: string
-| app
-: string
-| Measure 2025 EU_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
-< row
-: string
-| app
-: string
-| Measure 2025 Other_City_Day_idx
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-< row
-: string
-| app
-: string
-| Measure 2026_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -30136,11 +30162,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
+| Measure 2025 EU_City_Day_idx
 : string
 | app
 : string
-| measure_key
+| Measure 2025_City_Day_idx
 < row
 : string
 | app
@@ -30154,11 +30180,47 @@
 : string
 | app
 : string
+| Measure 2025 Other_City_Day_idx
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
+< row
+: string
+| app
+: string
 | Measure 2026_City_Day_Region_idx
 : string
 | app
 : string
 | measure_key
+< row
+: string
+| app
+: string
+| Measure 2026_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -30681,6 +30743,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -30776,7 +30839,7 @@
 : string
 | postgres
 < row
-: int64 4294967319
+: int64 4294967299
 : string
 | app
 : string
@@ -30788,7 +30851,7 @@
 : string
 | postgres
 < row
-: int64 4294967320
+: int64 4294967300
 : string
 | app
 : string
@@ -30800,7 +30863,7 @@
 : string
 | postgres
 < row
-: int64 4294967321
+: int64 4294967301
 : string
 | app
 : string
@@ -30812,7 +30875,7 @@
 : string
 | postgres
 < row
-: int64 4294967322
+: int64 4294967302
 : string
 | app
 : string
@@ -31119,6 +31182,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -31160,7 +31224,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -31486,6 +31551,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -31513,7 +31579,7 @@
 < column "schema_owner" "NAME"
 < column "schema_comment" "TEXT"
 < row
-: int64 4294967323
+: int64 4294967303
 : string
 | app
 : string
@@ -32529,6 +32595,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -32539,29 +32606,11 @@
 : string
 | app
 : string
-| Measure 2025_City_Day_Region_idx
-: string
-| app
-: string
-| measure_key
-< row
-: string
-| app
-: string
 | Measure 2025 EU_City_Day_Region_idx
 : string
 | app
 : string
 | Measure 2025_City_Day_Region_idx
-< row
-: string
-| app
-: string
-| Measure 2025_City_Day_idx
-: string
-| app
-: string
-| measure_city
 < row
 : string
 | app
@@ -32589,6 +32638,24 @@
 | app
 : string
 | Measure 2025_City_Day_idx
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_Region_idx
+: string
+| app
+: string
+| measure_key
+< row
+: string
+| app
+: string
+| Measure 2025_City_Day_idx
+: string
+| app
+: string
+| measure_city
 < row
 : string
 | app
@@ -33129,6 +33196,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -33212,7 +33280,7 @@
 < column "comment" "TEXT"
 < column "tableowner" "NAME"
 < row
-: int64 4294967324
+: int64 4294967304
 : string
 | app
 : string
@@ -33224,7 +33292,7 @@
 : string
 | postgres
 < row
-: int64 4294967325
+: int64 4294967305
 : string
 | app
 : string
@@ -33236,7 +33304,7 @@
 : string
 | postgres
 < row
-: int64 4294967326
+: int64 4294967306
 : string
 | app
 : string
@@ -33248,7 +33316,7 @@
 : string
 | postgres
 < row
-: int64 4294967327
+: int64 4294967307
 : string
 | app
 : string
@@ -33260,7 +33328,7 @@
 : string
 | postgres
 < row
-: int64 4294967328
+: int64 4294967308
 : string
 | app
 : string
@@ -33567,6 +33635,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -33608,7 +33677,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
