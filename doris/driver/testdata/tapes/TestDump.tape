@@ -95,6 +95,21 @@
 | CREATE MATERIALIZED VIEW smv_total AS SELECT k, sum(v) AS s FROM sync_mv_base GROUP BY k;
 < ok 0 0
 > exec
+| -- A name that needs quoting, which SHOW CREATE MATERIALIZED VIEW must keep. It
+| -- is on a table of its own because Doris refuses a second ALTER on a table whose
+| -- schema change is still running, which a restore would hit for two views on one.
+| CREATE TABLE select_mv_base (
+| 	k INT NOT NULL,
+| 	v INT NULL
+| ) ENGINE=OLAP
+| DUPLICATE KEY(k)
+| DISTRIBUTED BY HASH(k) BUCKETS 1
+| PROPERTIES("replication_num" = "1");
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW `select` AS SELECT k, max(v) AS m FROM select_mv_base GROUP BY k;
+< ok 0 0
+> exec
 | CREATE TABLE materialized_view_base (
 | 	k INT NOT NULL,
 | 	v INT NULL
@@ -269,6 +284,11 @@
 < row
 : bytes
 | materialized_view_base
+: bytes
+| BASE TABLE
+< row
+: bytes
+| select_mv_base
 : bytes
 | BASE TABLE
 < row
@@ -763,6 +783,142 @@
 | true
 : bytes
 |
+: bytes
+|
+> query
+| DESC `omni_dump_corpus`.`select_mv_base` ALL
+< result
+< column "IndexName" "CHAR"
+< column "IndexKeysType" "CHAR"
+< column "Field" "CHAR"
+< column "Type" "CHAR"
+< column "InternalType" "CHAR"
+< column "Null" "CHAR"
+< column "Key" "CHAR"
+< column "Default" "CHAR"
+< column "Extra" "CHAR"
+< column "Visible" "CHAR"
+< column "DefineExpr" "CHAR"
+< column "WhereClause" "CHAR"
+< row
+: bytes
+| select_mv_base
+: bytes
+| DUP_KEYS
+: bytes
+| k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| v
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| NONE
+: bytes
+| true
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+< row
+: bytes
+| select
+: bytes
+| AGG_KEYS
+: bytes
+| mv_k
+: bytes
+| int
+: bytes
+| int
+: bytes
+| No
+: bytes
+| true
+: null
+: bytes
+|
+: bytes
+| true
+: bytes
+| `k`
+: bytes
+|
+< row
+: bytes
+|
+: bytes
+|
+: bytes
+| mva_MAX__`v`
+: bytes
+| int
+: bytes
+| int
+: bytes
+| Yes
+: bytes
+| false
+: null
+: bytes
+| MAX
+: bytes
+| true
+: bytes
+| `v`
 : bytes
 |
 > query
@@ -1411,7 +1567,48 @@
 | "group_commit_data_bytes" = "134217728"
 | );
 > query
-| SHOW CREATE MATERIALIZED VIEW smv_total ON `omni_dump_corpus`.`sync_mv_base`
+| SHOW CREATE MATERIALIZED VIEW `select` ON `omni_dump_corpus`.`select_mv_base`
+< result
+< column "TableName" "CHAR"
+< column "ViewName" "CHAR"
+< column "CreateStmt" "CHAR"
+< row
+: bytes
+| select_mv_base
+: bytes
+| select
+: bytes
+| CREATE MATERIALIZED VIEW `select` AS SELECT k, max(v) AS m FROM select_mv_base GROUP BY k;
+> query
+| SHOW CREATE TABLE `omni_dump_corpus`.`select_mv_base`
+< result
+< column "Table" "CHAR"
+< column "Create Table" "CHAR"
+< row
+: bytes
+| select_mv_base
+: bytes
+| CREATE TABLE `select_mv_base` (
+|   `k` int NOT NULL,
+|   `v` int NULL
+| ) ENGINE=OLAP
+| DUPLICATE KEY(`k`)
+| DISTRIBUTED BY HASH(`k`) BUCKETS 1
+| PROPERTIES (
+| "replication_allocation" = "tag.location.default: 1",
+| "min_load_replica_num" = "-1",
+| "is_being_synced" = "false",
+| "storage_medium" = "hdd",
+| "storage_format" = "V2",
+| "inverted_index_storage_format" = "V2",
+| "light_schema_change" = "true",
+| "disable_auto_compaction" = "false",
+| "enable_single_replica_compaction" = "false",
+| "group_commit_interval_ms" = "10000",
+| "group_commit_data_bytes" = "134217728"
+| );
+> query
+| SHOW CREATE MATERIALIZED VIEW `smv_total` ON `omni_dump_corpus`.`sync_mv_base`
 < result
 < column "TableName" "CHAR"
 < column "ViewName" "CHAR"

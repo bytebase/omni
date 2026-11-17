@@ -81,6 +81,19 @@ PROPERTIES("replication_num" = "1");
 
 CREATE MATERIALIZED VIEW smv_total AS SELECT k, sum(v) AS s FROM sync_mv_base GROUP BY k;
 
+-- A name that needs quoting, which SHOW CREATE MATERIALIZED VIEW must keep. It
+-- is on a table of its own because Doris refuses a second ALTER on a table whose
+-- schema change is still running, which a restore would hit for two views on one.
+CREATE TABLE select_mv_base (
+	k INT NOT NULL,
+	v INT NULL
+) ENGINE=OLAP
+DUPLICATE KEY(k)
+DISTRIBUTED BY HASH(k) BUCKETS 1
+PROPERTIES("replication_num" = "1");
+
+CREATE MATERIALIZED VIEW `select` AS SELECT k, max(v) AS m FROM select_mv_base GROUP BY k;
+
 CREATE TABLE materialized_view_base (
 	k INT NOT NULL,
 	v INT NULL

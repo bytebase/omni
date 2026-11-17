@@ -371,7 +371,7 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name, table string) (s
 		query = "SHOW CREATE TABLE " + qualified
 	case dumpSyncMaterializedView:
 		// The view is scoped to its base table, which the statement names.
-		query = "SHOW CREATE MATERIALIZED VIEW " + name + " ON " + quoteBacktick(d.databaseName) + "." + quoteBacktick(table)
+		query = "SHOW CREATE MATERIALIZED VIEW " + quoteBacktick(name) + " ON " + quoteBacktick(d.databaseName) + "." + quoteBacktick(table)
 		// TableName, ViewName, CreateStmt.
 		statementColumn = 2
 	case dumpFunction:

@@ -167,6 +167,29 @@ PROPERTIES (
 );
 
 --
+-- Table structure for `select_mv_base`
+--
+CREATE TABLE `select_mv_base` (
+  `k` int NOT NULL,
+  `v` int NULL
+) ENGINE=OLAP
+DUPLICATE KEY(`k`)
+DISTRIBUTED BY HASH(`k`) BUCKETS 1
+PROPERTIES (
+"replication_allocation" = "tag.location.default: 1",
+"min_load_replica_num" = "-1",
+"is_being_synced" = "false",
+"storage_medium" = "hdd",
+"storage_format" = "V2",
+"inverted_index_storage_format" = "V2",
+"light_schema_change" = "true",
+"disable_auto_compaction" = "false",
+"enable_single_replica_compaction" = "false",
+"group_commit_interval_ms" = "10000",
+"group_commit_data_bytes" = "134217728"
+);
+
+--
 -- Table structure for `sync_mv_base`
 --
 CREATE TABLE `sync_mv_base` (
@@ -214,6 +237,8 @@ PROPERTIES (
 "group_commit_data_bytes" = "134217728",
 "enable_mow_light_delete" = "false"
 );
+
+CREATE MATERIALIZED VIEW `select` AS SELECT k, max(v) AS m FROM select_mv_base GROUP BY k;
 
 CREATE MATERIALIZED VIEW smv_total AS SELECT k, sum(v) AS s FROM sync_mv_base GROUP BY k;
 

@@ -27,7 +27,8 @@ const dumpCorpusPath = "testdata/dump/corpus.sql"
 func TestDump(t *testing.T) {
 	d := openTestDriver(t, "omni_dump_corpus")
 	execDumpScript(t, d.db, readDumpCorpus(t))
-	awaitSyncMaterializedView(t, d.databaseName, "sync_mv_base")
+	awaitSyncMaterializedView(t, d.databaseName, "sync_mv_base", "smv_total")
+	awaitSyncMaterializedView(t, d.databaseName, "select_mv_base", "select")
 	got := dumpScript(t, d)
 
 	golden := filepath.Join("testdata", "dump", "default.sql")
@@ -58,7 +59,8 @@ func TestDumpRestores(t *testing.T) {
 	ctx := context.Background()
 	d := openTestDriver(t, "omni_dump_roundtrip")
 	execDumpScript(t, d.db, readDumpCorpus(t))
-	awaitSyncMaterializedView(t, d.databaseName, "sync_mv_base")
+	awaitSyncMaterializedView(t, d.databaseName, "sync_mv_base", "smv_total")
+	awaitSyncMaterializedView(t, d.databaseName, "select_mv_base", "select")
 	first := dumpScript(t, d)
 
 	for _, stmt := range []string{
@@ -71,7 +73,8 @@ func TestDumpRestores(t *testing.T) {
 		}
 	}
 	execDumpScript(t, d.db, first)
-	awaitSyncMaterializedView(t, d.databaseName, "sync_mv_base")
+	awaitSyncMaterializedView(t, d.databaseName, "sync_mv_base", "smv_total")
+	awaitSyncMaterializedView(t, d.databaseName, "select_mv_base", "select")
 
 	if diff := cmp.Diff(first, dumpScript(t, d)); diff != "" {
 		t.Errorf("restoring the dump changes it (-dumped +restored):\n%s", diff)
@@ -83,7 +86,7 @@ func TestDumpRestores(t *testing.T) {
 // change to finish: the statement returns before either is true, so a dump
 // taken immediately would miss the view, and a DROP DATABASE would be refused
 // while the change runs.
-func awaitSyncMaterializedView(t *testing.T, dbName, table string) {
+func awaitSyncMaterializedView(t *testing.T, dbName, table string, want ...string) {
 	t.Helper()
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
 		deadline := time.Now().Add(3 * time.Minute)
@@ -97,14 +100,22 @@ func awaitSyncMaterializedView(t *testing.T, dbName, table string) {
 				if err != nil {
 					return err
 				}
+				have := make(map[string]bool, len(names))
 				for _, name := range names {
-					if !strings.EqualFold(name, table) {
-						return nil
+					have[name] = true
+				}
+				missing := false
+				for _, name := range want {
+					if !have[name] {
+						missing = true
 					}
+				}
+				if !missing {
+					return nil
 				}
 			}
 			if time.Now().After(deadline) {
-				return fmt.Errorf("%s does not carry its synchronous materialized view", table)
+				return fmt.Errorf("%s does not carry its synchronous materialized views %v", table, want)
 			}
 			time.Sleep(time.Second)
 		}
@@ -237,6 +248,10 @@ var dumpGaps = []struct {
 				t.Errorf("SHOW FULL FUNCTIONS states %q, not the compact variadic form; the entry's reason no longer holds", signature)
 			}
 
+			if dumped := dumpScript(t, d); strings.Contains(dumped, function) {
+				t.Errorf("the dump carries the variadic function now; remove this entry and test it")
+			}
+
 			var statedSignature, statement string
 			if err := d.db.QueryRowContext(ctx, "SHOW CREATE FUNCTION "+function+"(int, ...)").Scan(&statedSignature, &statement); err != nil {
 				t.Fatalf("SHOW CREATE FUNCTION %s(int, ...): %v", function, err)
@@ -251,8 +266,13 @@ var dumpGaps = []struct {
 				t.Errorf("SHOW CREATE FUNCTION %s is accepted now; remove this entry and dump the function", signature)
 			}
 
-			if dumped := dumpScript(t, d); strings.Contains(dumped, function) {
-				t.Errorf("the dump carries the variadic function now; remove this entry and test it")
+			// Nor does the definition the accepted form states replay: apply it
+			// to the same database, once the function it names is gone.
+			if _, err := d.db.ExecContext(ctx, "DROP FUNCTION "+function+"(int, ...)"); err != nil {
+				t.Fatalf("DROP FUNCTION %s(int, ...): %v", function, err)
+			}
+			if _, err := d.db.ExecContext(ctx, statement); err == nil {
+				t.Errorf("the stated definition replays now (%q); remove this entry and dump the function", statement)
 			}
 		},
 	},
@@ -308,7 +328,7 @@ DUPLICATE KEY(k)
 DISTRIBUTED BY HASH(k) BUCKETS 1
 ROLLUP (r1 (v, k))
 PROPERTIES("replication_num" = "1")`)
-			awaitSyncMaterializedView(t, db, table)
+			awaitSyncMaterializedView(t, db, table, "r1")
 
 			ctx := context.Background()
 			names, err := dumpIndexNames(ctx, d.db, "DESC "+quoteBacktick(db)+"."+quoteBacktick(table)+" ALL")

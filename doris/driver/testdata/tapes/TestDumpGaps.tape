@@ -414,7 +414,7 @@
 | "group_commit_data_bytes" = "134217728"
 | );
 > query
-| SHOW CREATE MATERIALIZED VIEW r1 ON `omni_dump_gap_rollup`.`r`
+| SHOW CREATE MATERIALIZED VIEW `r1` ON `omni_dump_gap_rollup`.`r`
 < result
 < column "TableName" "CHAR"
 < column "ViewName" "CHAR"
@@ -443,22 +443,6 @@
 | NULL
 : bytes
 | {"parameter":"a","origin_function":"abs(`a`)"}
-> query
-| SHOW CREATE FUNCTION dump_gap_arity(int, ...)
-< result
-< column "Function Signature" "CHAR"
-< column "Create Function" "CHAR"
-< row
-: bytes
-| dump_gap_arity(int...)
-: bytes
-| CREATE ALIAS FUNCTION dump_gap_arity(int...) WITH PARAMETER(a) AS abs(`a`);
-> query
-| SHOW CREATE FUNCTION dump_gap_arity(int...)
-< error
-| 1105 HY000 errCode = 2, detailMessage = 
-| extraneous input '...' expecting ')'(line 1, pos 39)
-|
 > query
 | SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME = ?
 : string
@@ -511,6 +495,31 @@
 | omni_dump_gap_variadic
 < result
 < column "SPECIFIC_NAME" "CHAR"
+> query
+| SHOW CREATE FUNCTION dump_gap_arity(int, ...)
+< result
+< column "Function Signature" "CHAR"
+< column "Create Function" "CHAR"
+< row
+: bytes
+| dump_gap_arity(int...)
+: bytes
+| CREATE ALIAS FUNCTION dump_gap_arity(int...) WITH PARAMETER(a) AS abs(`a`);
+> query
+| SHOW CREATE FUNCTION dump_gap_arity(int...)
+< error
+| 1105 HY000 errCode = 2, detailMessage = 
+| extraneous input '...' expecting ')'(line 1, pos 39)
+|
+> exec
+| DROP FUNCTION dump_gap_arity(int, ...)
+< ok 0 0
+> exec
+| CREATE ALIAS FUNCTION dump_gap_arity(int...) WITH PARAMETER(a) AS abs(`a`);
+< error
+| 1105 HY000 errCode = 2, detailMessage = 
+| extraneous input '...' expecting ')'(line 1, pos 40)
+|
 
 == TestDumpGaps/view-definition-database-qualifier default#1
 > exec
