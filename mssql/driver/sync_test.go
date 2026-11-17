@@ -85,6 +85,48 @@ func TestSyncDatabase(t *testing.T) {
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Errorf("SyncDatabase differs from %s (-want +got):\n%s", golden, diff)
 	}
+
+	var sequences, indexes int
+	for _, schema := range got.Schemas {
+		if schema.Name != "app" {
+			continue
+		}
+		for _, sequence := range schema.Sequences {
+			switch sequence.Name {
+			case "seq_orders":
+				sequences++
+				if sequence.Start != "10" || sequence.Increment != "2" || sequence.MinValue != "1" ||
+					sequence.MaxValue != "10000" || !sequence.Cycle || sequence.CacheSize != "50" {
+					t.Errorf("seq_orders synced without its options: %+v", sequence)
+				}
+			case "seq_decimal":
+				sequences++
+				if sequence.DataType != "decimal(38,0)" {
+					t.Errorf("seq_decimal synced without its precision: %q", sequence.DataType)
+				}
+			}
+		}
+		for _, table := range schema.Tables {
+			if table.Name != "accounts" {
+				continue
+			}
+			for _, index := range table.Indexes {
+				if index.Name != "idx_accounts_status" {
+					continue
+				}
+				indexes++
+				if len(index.Expressions) != 1 || index.Expressions[0] != "status" {
+					t.Errorf("idx_accounts_status synced its INCLUDE column as a key: %v", index.Expressions)
+				}
+				if !strings.Contains(index.Definition, "INCLUDE:email") || !strings.Contains(index.Definition, "WHERE (") {
+					t.Errorf("idx_accounts_status synced without its INCLUDE or predicate: %q", index.Definition)
+				}
+			}
+		}
+	}
+	if sequences != 2 || indexes != 1 {
+		t.Fatalf("the corpus objects are missing from the sync: %d sequences, %d indexes", sequences, indexes)
+	}
 }
 
 func readGolden(t *testing.T, path string) *metadatapb.DatabaseSchemaMetadata {
