@@ -673,6 +673,18 @@ func TestQuerySpan_ScalarSubqueryReadsAreReported(t *testing.T) {
 	}
 }
 
+func TestQuerySpan_SubqueryReadDoesNotSuppressDirectLineage(t *testing.T) {
+	// The subquery's read of T.A must not make the direct T.A reference look
+	// already-seen: result lineage and subquery reads are separate sets.
+	span := mustExtract(t, "SELECT (SELECT MAX(a) FROM t) + t.a AS x FROM t")
+
+	keys := resultSourceKeys(span, 0)
+	want := []string{"..T.A"}
+	if len(keys) != 1 || keys[0] != want[0] {
+		t.Fatalf("result sources: got %v, want %v", keys, want)
+	}
+}
+
 func TestQuerySpan_ExistsSubqueryReadsAreReported(t *testing.T) {
 	span := mustExtract(t, "SELECT EXISTS (SELECT 1 FROM inner_t) AS present FROM outer_t")
 

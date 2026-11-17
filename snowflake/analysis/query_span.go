@@ -635,8 +635,9 @@ func collectColumnRefs(expr ast.Node, fromEntries []tableEntry, scope *queryScop
 	if expr == nil {
 		return nil, nil
 	}
-	seen := make(map[sourceKey]bool)
-	add := func(dst *[]*SourceColumn, sc *SourceColumn) {
+	seenRefs := make(map[sourceKey]bool)
+	seenScanned := make(map[sourceKey]bool)
+	add := func(dst *[]*SourceColumn, seen map[sourceKey]bool, sc *SourceColumn) {
 		k := toSourceKey(sc)
 		if !seen[k] {
 			seen[k] = true
@@ -651,23 +652,23 @@ func collectColumnRefs(expr ast.Node, fromEntries []tableEntry, scope *queryScop
 		switch n := node.(type) {
 		case *ast.ColumnRef:
 			for _, sc := range resolveColumnRef(n, fromEntries) {
-				add(&refs, sc)
+				add(&refs, seenRefs, sc)
 			}
 			return false // don't recurse into ColumnRef parts
 		case *ast.StarExpr:
 			// COUNT(*) or similar — pseudo source with no table.
-			add(&refs, &SourceColumn{Column: "*"})
+			add(&refs, seenRefs, &SourceColumn{Column: "*"})
 			return false
 		case *ast.SubqueryExpr:
 			for _, sc := range extractSpan(n.Query, scope).Sources {
-				add(&scanned, sc)
+				add(&scanned, seenScanned, sc)
 			}
 			return false
 		case *ast.ExistsExpr:
 			// EXISTS returns a boolean, not a value from the subquery, but the
 			// subquery's reads are still reads of the enclosing statement.
 			for _, sc := range extractSpan(n.Query, scope).Sources {
-				add(&scanned, sc)
+				add(&scanned, seenScanned, sc)
 			}
 			return false
 		}
