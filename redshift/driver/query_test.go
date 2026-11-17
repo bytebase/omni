@@ -419,6 +419,8 @@ func TestReturnsRowsWithMasking(t *testing.T) {
 		{name: "a procedure call is read", stmt: "CALL app.load_facts(1)", want: true},
 		{name: "a procedure call's rows are withheld with masking on", stmt: "CALL app.load_facts(1)", masking: true, want: false},
 		{name: "a command reports rows affected", stmt: "INSERT INTO t VALUES (1)", want: false},
+		{name: "a fetch is read", stmt: "FETCH NEXT FROM c", want: true},
+		{name: "a fetch's rows are withheld with masking on", stmt: "FETCH NEXT FROM c", masking: true, want: false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := returnsRows(tc.stmt, tc.masking)

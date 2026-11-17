@@ -334,6 +334,8 @@ Every one is a decision the recording settles.
 | a `dbname` in Params is read as pgx parsed it, quotes included in the libpq value | the parameter is connection-string text, so `'analytics'` names `analytics` |
 | a transactional script refuses its own transaction control | a `BEGIN`, `COMMIT`, `END` or `ROLLBACK` in the script would decide the transaction the call promised to own |
 | a `user` or `password` in Params is the login the connection uses | Params are applied last, so their values override Config's, and require no Config user |
+| a `FETCH` is read as a query and a `MOVE` is not | a fetch answers a cursor's rows; a move only advances the cursor |
+| a cursor's rows are withheld from a caller that masks columns | the cursor's column lineage is not the statement's, so a masked caller is given the affected-row count |
 
 ## What would unblock it
 

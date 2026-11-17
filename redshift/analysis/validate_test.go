@@ -257,6 +257,21 @@ func TestValidateQuery(t *testing.T) {
 			wantReturnsData:    true,
 			wantErr:            false,
 		},
+		// FETCH reads a cursor's rows, and MOVE only advances it.
+		{
+			name:               "FETCH",
+			statement:          "FETCH NEXT FROM c",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
+		{
+			name:               "MOVE",
+			statement:          "MOVE NEXT FROM c",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    false,
+			wantErr:            false,
+		},
 		// A procedure call is not read-only, and its OUT and INOUT parameters
 		// come back as a row.
 		{
@@ -598,6 +613,8 @@ func TestUntracedRows(t *testing.T) {
 		"SELECT * FROM t":          false,
 		"INSERT INTO t VALUES (1)": false,
 		"CALL app.load_facts(1)":   true,
+		"FETCH NEXT FROM c":        true,
+		"MOVE NEXT FROM c":         false,
 		"SELEC * FORM t":           false,
 	} {
 		if got := UntracedRows(statement); got != want {

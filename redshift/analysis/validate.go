@@ -62,6 +62,9 @@ func validateEditorStatement(node ast.Node) (bool, bool) {
 		// A procedure's OUT and INOUT parameters come back as one row, and the
 		// call itself is not a read-only statement.
 		return false, true
+	case *ast.FetchStmt:
+		// FETCH reads a cursor's rows; MOVE advances it and answers nothing.
+		return true, !n.Ismove
 	case *ast.VariableSetStmt:
 		return true, false
 	default:
@@ -81,8 +84,12 @@ func UntracedRows(statement string) bool {
 		if stmt.Empty() {
 			continue
 		}
-		if _, ok := stmt.AST.(*ast.CallStmt); ok {
+		switch node := stmt.AST.(type) {
+		case *ast.CallStmt:
 			return true
+		case *ast.FetchStmt:
+			// A cursor's rows have no column lineage the statement states.
+			return !node.Ismove
 		}
 	}
 	return false
