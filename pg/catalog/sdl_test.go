@@ -115,6 +115,16 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trg_fn();`,
 			name: "ALTER TYPE ADD VALUE",
 			sql:  "CREATE TYPE mood AS ENUM ('sad'); ALTER TYPE mood ADD VALUE 'happy';",
 		},
+		{
+			// A partitioned index is one index per partition, and SDL declares
+			// each of them and attaches it to the parent's.
+			name: "ALTER INDEX ATTACH PARTITION",
+			sql: `CREATE TABLE m (d date NOT NULL) PARTITION BY RANGE (d);
+				CREATE TABLE m1 PARTITION OF m FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+				CREATE INDEX m_d ON ONLY m (d);
+				CREATE INDEX m1_d_idx ON m1 (d);
+				ALTER INDEX m_d ATTACH PARTITION m1_d_idx;`,
+		},
 
 		// ---- Rejected statements ----
 		{
@@ -146,6 +156,11 @@ CREATE TRIGGER trg BEFORE INSERT ON t FOR EACH ROW EXECUTE FUNCTION trg_fn();`,
 			name:    "ALTER TABLE DROP COLUMN rejected",
 			sql:     "ALTER TABLE t DROP COLUMN x;",
 			wantErr: "SDL does not allow ALTER TABLE ADD/DROP COLUMN",
+		},
+		{
+			name:    "ALTER TABLE ATTACH PARTITION rejected",
+			sql:     "CREATE TABLE m (d date NOT NULL) PARTITION BY RANGE (d); ALTER TABLE m ATTACH PARTITION m1 FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');",
+			wantErr: "SDL does not allow ALTER TABLE ATTACH PARTITION",
 		},
 		{
 			name:    "TRUNCATE rejected",
