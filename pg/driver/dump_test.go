@@ -140,7 +140,8 @@ func TestDumpRestoresForeignTableDefaults(t *testing.T) {
 		"    id bigint OPTIONS (column_name 'remote_id') DEFAULT nextval('public.remote_id'),\n" +
 		"    token text DEFAULT public.remote_token(),\n" +
 		"    CONSTRAINT remote_positive CHECK (id > 0)\n" +
-		") SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');"
+		") SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');\n" +
+		"CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;"
 	source, restored := restoreDump(t, testcontainer.Default, "omni_foreign_default", setup)
 	if diff := restoreDiff(source, restored); diff != "" {
 		t.Errorf("the restored database differs from the source (-source +restored):\n%s", diff)

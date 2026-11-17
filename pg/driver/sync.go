@@ -775,13 +775,16 @@ func getTables(
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign keys: %w", err)
 	}
-	foreignTablesMap, err := getForeignTables(txn, columnMap, checksMap, extensionDepend)
+	foreignTablesMap, foreignTableOidMap, err := getForeignTables(txn, columnMap, checksMap, extensionDepend)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("failed to get foreign tables: %w", err)
 	}
 
 	tableMap := make(map[string][]*metadatapb.TableMetadata)
 	tableOidMap := make(map[int]*tableKeyWithColumns)
+	for oid, table := range foreignTableOidMap {
+		tableOidMap[oid] = table
+	}
 	query := getListTableQuery(isAtLeastPG10)
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -830,11 +833,11 @@ func getTables(
 	return tableMap, foreignTablesMap, tableOidMap, nil
 }
 
-func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, checksMap map[tableKey][]*metadatapb.CheckConstraintMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.ExternalTableMetadata, error) {
+func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata, checksMap map[tableKey][]*metadatapb.CheckConstraintMetadata, extensionDepend map[int]bool) (map[string][]*metadatapb.ExternalTableMetadata, map[int]*tableKeyWithColumns, error) {
 	query := getListForeignTableQuery()
 	rows, err := txn.Query(query)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer rows.Close()
 
@@ -845,25 +848,26 @@ func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMe
 	for rows.Next() {
 		var schemaName, tableName, foreignServerCatalog, foreignServerName string
 		if err := rows.Scan(&schemaName, &tableName, &foreignServerCatalog, &foreignServerName); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		foreignTables = append(foreignTables, foreignTable{schema: schemaName, table: tableName, server: foreignServerName})
 	}
 	if err := rows.Err(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := rows.Close(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Read the options after closing the table rows: a transaction runs one
 	// statement at a time.
 	optionsMap, err := getForeignTableOptions(txn)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	foreignTablesMap := make(map[string][]*metadatapb.ExternalTableMetadata)
+	tableOidMap := make(map[int]*tableKeyWithColumns)
 	for _, table := range foreignTables {
 		key := tableKey{Schema: table.schema, Table: table.table}
 		facts := optionsMap[key]
@@ -875,9 +879,10 @@ func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMe
 			SkipDump:           extensionDepend[facts.oid],
 			CheckConstraints:   checksMap[key],
 		})
+		tableOidMap[facts.oid] = &tableKeyWithColumns{Schema: table.schema, Table: table.table, Columns: columnMap[key]}
 	}
 
-	return foreignTablesMap, nil
+	return foreignTablesMap, tableOidMap, nil
 }
 
 var listTablePartitionQuery = `

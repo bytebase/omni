@@ -11,6 +11,7 @@
 |     token text DEFAULT public.remote_token(),
 |     CONSTRAINT remote_positive CHECK (id > 0)
 | ) SERVER loopback OPTIONS (schema_name 'public', table_name 'defaults');
+| CREATE FUNCTION public.read_remote(r public.remote_defaults) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate, pg_catalog.pg_get_userbyid(datdba) as db_owner FROM pg_database ORDER BY datname;
@@ -658,6 +659,9 @@
 < result
 < column "function_oid" "OID"
 < column "table_oid" "OID"
+< row
+: int64 4294967304
+: int64 4294967303
 > query
 |
 | select p.oid, n.nspname as function_schema,
@@ -779,6 +783,21 @@
 : string
 | public
 : string
+| read_remote
+: string
+| r public.remote_defaults
+: string
+| CREATE OR REPLACE FUNCTION public.read_remote(r public.remote_defaults)
+|  RETURNS integer
+|  LANGUAGE sql
+| AS $function$ SELECT 1 $function$
+|
+: null
+< row
+: int64 4294967305
+: string
+| public
+: string
 | remote_token
 : string
 |
@@ -843,7 +862,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967305
+: int64 4294967306
 : string
 | public
 : string
@@ -1130,6 +1149,12 @@
 |     CONSTRAINT "remote_positive" CHECK (id > 0)
 | ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'defaults');
 |
+| CREATE OR REPLACE FUNCTION public.read_remote(r public.remote_defaults)
+|  RETURNS integer
+|  LANGUAGE sql
+| AS $function$ SELECT 1 $function$
+| ;
+|
 |
 < ok 0 -
 
@@ -1228,8 +1253,6 @@
 < row
 : int64 13671
 < row
-: int64 4294967306
-< row
 : int64 4294967307
 < row
 : int64 4294967308
@@ -1239,6 +1262,8 @@
 : int64 4294967310
 < row
 : int64 4294967311
+< row
+: int64 4294967312
 > query
 |
 | SELECT oid, nspname, pg_catalog.pg_get_userbyid(nspowner) as schema_owner,
@@ -1626,7 +1651,7 @@
 | remote_defaults
 : string
 | ["schema_name=public","table_name=defaults"]
-: int64 4294967312
+: int64 4294967313
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -1789,6 +1814,9 @@
 < result
 < column "function_oid" "OID"
 < column "table_oid" "OID"
+< row
+: int64 4294967314
+: int64 4294967313
 > query
 |
 | select p.oid, n.nspname as function_schema,
@@ -1826,7 +1854,7 @@
 < column "definition" "TEXT"
 < column "comment" "TEXT"
 < row
-: int64 4294967310
+: int64 4294967311
 : string
 | public
 : string
@@ -1842,7 +1870,7 @@
 |
 : null
 < row
-: int64 4294967311
+: int64 4294967312
 : string
 | public
 : string
@@ -1858,7 +1886,7 @@
 |
 : null
 < row
-: int64 4294967309
+: int64 4294967310
 : string
 | public
 : string
@@ -1874,7 +1902,7 @@
 |
 : null
 < row
-: int64 4294967306
+: int64 4294967307
 : string
 | public
 : string
@@ -1890,7 +1918,7 @@
 |
 : null
 < row
-: int64 4294967307
+: int64 4294967308
 : string
 | public
 : string
@@ -1906,7 +1934,22 @@
 |
 : null
 < row
-: int64 4294967313
+: int64 4294967314
+: string
+| public
+: string
+| read_remote
+: string
+| r public.remote_defaults
+: string
+| CREATE OR REPLACE FUNCTION public.read_remote(r public.remote_defaults)
+|  RETURNS integer
+|  LANGUAGE sql
+| AS $function$ SELECT 1 $function$
+|
+: null
+< row
+: int64 4294967315
 : string
 | public
 : string
@@ -1974,7 +2017,7 @@
 < column "last_value" "INT8"
 < column "sequence_comment" "TEXT"
 < row
-: int64 4294967314
+: int64 4294967316
 : string
 | public
 : string
