@@ -984,7 +984,26 @@ func writeView(buf *strings.Builder, view *metadatapb.ViewMetadata) error {
 
 	// An INSTEAD OF trigger carries the view's DML behavior, so it belongs with
 	// the view the way writeTable emits a table's triggers.
-	return writeTriggers(buf, view.Triggers)
+	if err := writeTriggers(buf, view.Triggers); err != nil {
+		return err
+	}
+	return writeDefinitionComment(buf, "TABLE", view.Name, view.Comment)
+}
+
+// writeDefinitionComment writes the COMMENT statement a synced object carries.
+// Oracle comments a view as a table and a materialized view by its own kind.
+func writeDefinitionComment(buf *strings.Builder, object, name, comment string) error {
+	if comment == "" {
+		return nil
+	}
+	if _, err := buf.WriteString("COMMENT ON " + object + ` "` + name + `" IS '`); err != nil {
+		return err
+	}
+	if _, err := buf.WriteString(strings.ReplaceAll(comment, "'", "''")); err != nil {
+		return err
+	}
+	_, err := buf.WriteString("';\n\n")
+	return err
 }
 
 // virtualColumnClause writes the clause that follows a virtual column's type
@@ -1028,6 +1047,9 @@ func writeMaterializedView(buf *strings.Builder, view *metadatapb.MaterializedVi
 		return err
 	}
 	if err := writeTriggers(buf, view.Triggers); err != nil {
+		return err
+	}
+	if err := writeDefinitionComment(buf, "MATERIALIZED VIEW", view.Name, view.Comment); err != nil {
 		return err
 	}
 	for _, index := range materializedViewIndexes(view.Indexes) {

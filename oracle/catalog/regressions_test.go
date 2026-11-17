@@ -2400,3 +2400,29 @@ func TestVirtualColumnDetachedBeforeSourceTypeChange(t *testing.T) {
 		t.Fatalf("virtual column not detached around source type change:\n%s", sql)
 	}
 }
+
+func TestDefinitionRendersViewComments(t *testing.T) {
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		Views: []*metadatapb.ViewMetadata{{
+			Name:       "V",
+			Definition: "SELECT C FROM T\n",
+			Comment:    "it's a view",
+		}},
+		MaterializedViews: []*metadatapb.MaterializedViewMetadata{{
+			Name:       "MV",
+			Definition: "SELECT C FROM T\n",
+			Comment:    "a materialized view",
+		}},
+	})
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(definition, `COMMENT ON TABLE "V" IS 'it''s a view';`) {
+		t.Fatalf("the view's comment is missing or unescaped:\n%s", definition)
+	}
+	if !strings.Contains(definition, `COMMENT ON MATERIALIZED VIEW "MV" IS 'a materialized view';`) {
+		t.Fatalf("the materialized view's comment is missing:\n%s", definition)
+	}
+}

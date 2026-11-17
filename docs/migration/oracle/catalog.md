@@ -270,8 +270,8 @@ It restores, from a synced snapshot:
   each other are created first and their foreign keys added afterwards.
 - Views, with `WITH READ ONLY` and `WITH CHECK OPTION`, their comments and
   triggers, ordered after the relations they read and the functions they call;
-  and materialized views, with the `BUILD`/`REFRESH` policy a snapshot carries
-  and their own indexes. Oracle's `SYS_C_SNAP$` container index is not written:
+  and materialized views, with the `BUILD`/`REFRESH` policy a snapshot carries,
+  their comments and their own indexes. Oracle's `SYS_C_SNAP$` container index is not written:
   the view makes Oracle create it again, and its object id differs between
   snapshots. `oracle/driver`'s sync reads `ALL_MVIEWS.QUERY` only, so a dump of
   its snapshot restores the view without the policy.
