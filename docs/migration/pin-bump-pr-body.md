@@ -25,8 +25,10 @@ own record is cited instead of being re-derived: [dispatch plan §3](../specs/20
   `Driver.PrivateDatabaseLinkOwner`, `driver.AllNodesQuerier`, `ExecuteOptions.Isolation` are in;
   `SQLDBProvider`/`db.SQLDB` is Bytebase-side and is **not** in omni (§1.6).
 - **The adapters are not in this bump.** omni holds the drivers; Bytebase still runs
-  `backend/plugin/db/*`. Landing the pin changes which code is available, not which code executes,
-  and the one place where it changes a byte of user output today is the fixtures in §2.1.
+  `backend/plugin/db/*`. Landing the pin changes which code is available, not which code executes.
+  The user output it does change today is pg's: `backend/plugin/db/pg/dump.go` renders omni's
+  definition, so a dump gains `OWNER TO` and a sequence's `CACHE`, and every stored `raw_dump`
+  changes on the next sync (§2.1, §3).
 
 ## 1. What the bump brings
 
@@ -117,6 +119,10 @@ code from this proto — it consumes the Go package — so the effect is in `bac
 (`@level2type = 'CONSTRAINT'`), or dumps and migration diffs silently drop it. The same class of work
 follows any field Bytebase renders itself.
 
+A fifth addition landed after this audit — foreign servers and external table locations (#1376,
+`9bda507ad..f1fda2abc`) — and it is the same work: `pg` and `oceanbase` sync the new fields, and a
+Bytebase renderer that ignores them drops them again.
+
 ### 1.5 Contract changes
 
 | Surface | Commit / PR | In omni? | What a Bytebase caller must do |
@@ -163,11 +169,26 @@ Three more fixture classes move, from the release note's action list ([cutover-c
 
 **The pg schema goldens move too, and only for one reason.** At the same measurement,
 `backend/plugin/schema/pg` fails as a block: 14 `TestGetDatabaseDefinition` subtests, whose diffs are
-exactly three line classes — `COMMENT ON SCHEMA "public" IS 'standard public schema'`,
-`CACHE 1` on every sequence, and one `ALTER TABLE "public"."<t>" OWNER TO "<role>"` per table. That is
-omni's pg catalog rendering a dump that restores to the metadata it was synced from (omni #1232):
-accept the goldens, it is a fidelity fix, and it also means a stored pg `raw_dump` changes on the next
-sync.
+exactly four line classes — `COMMENT ON SCHEMA "public" IS 'standard public schema'`,
+`CACHE 1` on every sequence, one `ALTER TABLE "<schema>"."<table>" OWNER TO "<role>"` per table, and
+one `ALTER SCHEMA "geo" OWNER TO "<role>"`. That is omni's pg catalog rendering a dump that restores
+to the metadata it was synced from (omni #1232, `25f21fba4`): accept the goldens.
+
+Re-record rather than hand-editing the golden: set `record = true` in
+`backend/plugin/schema/pg/get_database_definition_test.go`, run that test, set it back to `false`.
+The recorded diff is +84/−3 lines across the 14 cases (14 schema comments, 21 `CACHE 1`, 34 table
+owners, 1 schema owner); the three deletions are `yamltest.Record` reflowing single-line `expected:`
+values in place. The test also loads every recorded definition into an omni catalog and passes, so the
+new statements are valid PostgreSQL.
+
+Two consequences the reviewer should see rather than discover:
+
+- `backend/plugin/db/pg/dump.go` renders this definition, so a stored database dump now carries
+  `OWNER TO`. A restore into a server that lacks the role fails there. That is an ownership decision
+  (a `DefinitionOptions` toggle, defaulting to today's behaviour) and not a reason to hold the pin —
+  §3 carries it as a product decision.
+- Every stored pg `raw_dump` and schema snapshot changes on the next sync. Accept the new text; do not
+  pin the old renderer back.
 
 The same measurement found a second failure that was **not** a fixture:
 `TestGetMultiFileDatabaseDefinition_LegacyIndexExpressionsParse` failed because the SDL rendered
@@ -207,16 +228,34 @@ mssql 8 files (+50/−16), pg 8 for `GetDB` plus 7 for the advisor (+199/−45 a
 test files), oracle 12 files (+243/−36), mysql 17 files (+363/−104 plus 9 blank parser imports),
 cassandra/redis/spanner/elasticsearch/doris/trino 0 files.
 
-### 2.4 The advisor prober — two seams, not one
+### 2.4 The advisor probe — settled, and not the shape the first proofs grew
 
-- **`advisor.Prober` and `Context.Prober`** (+46, +11/−1): the generic session probe. pg's five live
-  rule files change by +22/−16, and oracle reuses it verbatim.
-- **`advisor.DriverHandle`** (+11/−1) for mysql and mariadb: their rules call the driver's AST-aware
-  `ExplainJSON`/`EstimateAffectedRows`, which no session probe reaches. Four mysql/mariadb rule files
-  grow +73/−20, and the MariaDB rules pay 29 of those lines twice because both engine values live in
-  `db/mysql`.
-- mssql needs neither (its advisors are static AST rules). TiDB's `STATEMENT_DML_DRY_RUN` needs the
-  prober **and** an autocommit probe before the seam is complete.
+The proofs grew three shapes for the same question (pg's generic `Prober`, mysql's `Prober` plus an
+untyped `DriverHandle`, oceanbase's three-method handle). The seam is now decided in
+[2026-11-17-advisor-probe-seam.md](../specs/2026-11-17-advisor-probe-seam.md) (omni #1401), and it is
+**one probe with two capabilities, in Bytebase**:
+
+- **`db.Prober`** with `PreExecutions` and `Autocommit` — and deliberately **no** argument binding,
+  because `driver.Session.Query` takes a script and `QueryOptions`, so a probe that bound values
+  would work on the `*sql.DB` path and fail on every adapter.
+- Two capabilities beside it: **`db.RowEstimator`** (`CountAffectedRows`, which eight drivers on each
+  side already implement and plancheck already asserts for by concrete type) and
+  **`db.ColumnExtraLookup`** (`ColumnExtra`, for the one rule whose answer must bind values).
+- Eleven of the sixteen rule files that probe ask a question a rule can phrase as SQL, four (mysql and
+  mariadb's row-limit rules) want the driver's own rewrite of the statement into a plan it can count,
+  and one (OceanBase's offline-DDL rule) needs the bound catalogue lookup. That is the whole split —
+  do not build the `DriverHandle`.
+- A rule whose capability is absent returns an error the review reports as an advice. It must never
+  produce no advice, which is what mariadb measured: 1 `EXPLAIN` and 1 advice with a `*sql.DB`, 0 and
+  0 with the adapter's nil handle.
+- mssql needs none of it (its advisors are static AST rules); oracle and tidb's dry run need the probe
+  and its plan/autocommit options.
+
+The seam itself is estimated at +290/−190 across about 24 files — `advisor.Context` +11/−1, a new
+`advisor/prober.go`, `db/probe.go` and `db/util/probe.go`, the sixteen rule files, and
+`advisor.Query`/`QueryContext` deleted — and it adds nothing to omni. The proofs measured the three
+shapes it replaces (pg's 46-line prober, mysql's four files +73/−20, OceanBase's six advisor files), so
+the estimate is a cheaper composition of the same work, not a new budget.
 
 ### 2.5 `*sql.Conn` handling
 
@@ -311,6 +350,7 @@ Three classes, and the last one is where the risk sits:
 | spanner | `CREATE DATABASE "name"` creates a PostgreSQL-dialect database | unreachable today (`SPANNER` is absent from `EngineSupportCreateDatabase`) |
 | hive | an SSH data source is refused with a port-forward instruction instead of silently ignoring the jump host | local forwarder in `backend/plugin/db/util` restores tunnels |
 | oracle | the catalogue renders a synced key's columns quoted: `PRIMARY KEY (""ID"")` | decide the normalisation, no test crosses the two catalogues |
+| pg | a database dump now carries `OWNER TO`, as `pg_dump` emits it, so a restore into a server without the role fails | decide it as a `DefinitionOptions` toggle that defaults to today's text; do not hold the pin for it |
 | doris, mariadb | a procedure created as `probe.p1` syncs qualified (mysql records the bare name) | re-recorded golden if the product wants bare names |
 | trino | DDL through the query path returns an empty result instead of `Affected Rows: 0`; `SHOW`/`DESCRIBE` are no longer row-capped | 5 adapter lines restore the row; the real cap belongs in `sql_service` |
 
@@ -393,6 +433,20 @@ at writing, and no API or end-to-end Bytebase test was run. `go build ./...` and
 `go vet ./backend/...` for that tree are green. The `backend/plugin/schema/pg` result is
 adjudicated in §2.1, not fixed here. The four draft drivers, the parked completion branches and the
 open omni PRs in §4 were not exercised at all.
+
+**Commits after the audited SHA.** `main` moved while this body was written, from `9bda507ad` to
+`f1fda2abc` — five commits, none of them a behaviour change for this PR's fixtures:
+
+| After `9bda507ad` | What it changes for this body |
+| --- | --- |
+| #1399 docs | amends the dispatch plan's §3 cost model; the totals quoted here are unchanged in direction, and nothing in §2.1 moves |
+| #1400 docs | this file |
+| #1401 docs | settles the advisor seam as §2.4 now describes it — a reviewer following the older dispatch wording would build the `DriverHandle` this replaces |
+| #1402 fix(mongo) | a live `insertMany` document count; no fixture in §2.1 touches it |
+| #1376 feat(metadata) | §1.4's fifth proto addition (foreign servers, external table locations) |
+
+The range to the audited SHA is 144 commits; to `f1fda2abc` it is 149. Re-run §2.1's two commands
+against whatever SHA the Bytebase PR actually pins, and record the number it prints.
 
 ## 6. Reviewer's checklist
 
