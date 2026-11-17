@@ -224,29 +224,66 @@ replay tests exercise.
 - Deferrable CHECKs are rejected, and table-wide trigger enable/disable is
   rejected.
 - View dependency lookups resolve an empty owner to the view's schema.
-- A named `NOT NULL` constraint is recorded as sync reports it, a check
-  constraint on the column. `ALTER TABLE ... MODIFY (... CONSTRAINT name NOT
-  NULL)` does not carry the name through the parser, so a migration replay keeps
-  the nullability but not that name.
 - The deparse is byte-for-byte the Bytebase renderer. The fixtures that pin it
   are the Bytebase fixtures.
 
-## What the deparse cannot restore
+## What this catalog restores, and what it does not
 
-- Routine and package bodies are written as the server stored them. They are
-  text, not re-rendered, so a body that depends on editioning or on a session
-  setting is restored only as text.
-- Storage clauses, tablespace placement, compression, parallelism and other
-  physical attributes are not in the metadata and are not emitted.
-- Editioning views are not a distinct metadata kind; they render as ordinary
-  views, without the editioning property.
-- Object tables and XMLType tables are skipped: their DDL is their type.
-- View column aliases are not emitted deliberately. `ALL_VIEWS.TEXT` does not
-  carry the alias list, and writing the synced column names can produce fewer
-  names than output columns for a view with an invisible column (ORA-01730).
-- Collation is not emitted. Oracle's `USING_NLS_COMP` is the column default and
-  writing it back fails on sessions with a different string-size setting.
-- Packages, synonyms, database links and public synonyms are not rendered.
+It restores, from a synced snapshot:
+
+- Sequences, with `START WITH`, `INCREMENT BY`, `MINVALUE`, `MAXVALUE`,
+  `CACHE` and `CYCLE`, and their comments, created before the tables whose
+  defaults call them.
+- Tables, with columns, declared lengths, defaults (including `DEFAULT ON
+  NULL`), nullability, identity generation with seed and increment, virtual
+  columns, table and column comments, primary keys, unique and check
+  constraints, foreign keys with their `ON DELETE` action, and standalone
+  indexes (unique, bitmap, invisible, function-based). Tables that reference
+  each other are created first and their foreign keys added afterwards.
+- Views, with `WITH READ ONLY` and `WITH CHECK OPTION`, their comments and
+  triggers, ordered after the relations they read and the functions they call;
+  and materialized views with their `BUILD`/`REFRESH` policy and indexes.
+- Functions, procedures and triggers, whose bodies are written as stored text.
+- Changes, as a migration: a key recreated under a new name becomes `RENAME
+  CONSTRAINT`, so incoming foreign keys stay attached; a renamed table moves
+  its triggers and incoming foreign keys; replaced keys detach and restore the
+  foreign keys they carry; and the statements are ordered around the
+  dependencies above.
+
+The gaps, each pinned by a `TestDefinitionGaps` subtest that fails when it
+closes:
+
+- **Routine and package bodies are stored text, not re-rendered.** A body that
+  depends on editioning or a session setting is restored only as that text.
+- **Storage clauses, tablespace placement, compression, parallelism and other
+  physical attributes** are not in the metadata and are not emitted.
+- **Partitioning** is neither synced nor emitted, so a partitioned table
+  restores as a single heap table.
+- **External tables** are not carried either: `ORGANIZATION EXTERNAL` and its
+  location are dropped, so an external table restores as an empty heap table.
+- **Editioning views** are not a distinct metadata kind. `ALL_VIEWS.TEXT`
+  carries only the query, so an editioning view renders as an ordinary view,
+  and the parser does not accept the `EDITIONING` keyword besides.
+- **Object tables and XMLType tables** are skipped: their DDL is their type,
+  which is not a synced object. Sync marks them `SkipDump`, and DDL that names
+  the type (`CREATE TABLE ... OF`) is refused rather than installed empty.
+- **View column aliases** are not emitted deliberately. `ALL_VIEWS.TEXT` does
+  not carry the alias list, and writing the synced column names can produce
+  fewer names than output columns for a view with an invisible column
+  (ORA-01730).
+- **Collation** is not emitted. Oracle's `USING_NLS_COMP` is the column default
+  and writing it back fails on sessions with a different string-size setting.
+- **Identity sequence options the metadata cannot represent.** A column carries
+  its generation, seed and increment; its backing sequence's `CACHE`, `CYCLE`
+  and bounds have no field, so a definition drops them.
+- **Packages, synonyms, public synonyms and database links** are kept in the
+  snapshot but not rendered, so a restored schema is missing them.
+- **A named `NOT NULL` constraint's name.** `ALTER TABLE ... MODIFY (...
+  CONSTRAINT name NOT NULL)` does not carry the name through the parser, so a
+  replay keeps the nullability and not the name. A named `NOT NULL` constraint
+  sync reports is recorded as a check constraint on the column.
+- **Privileges, roles and profiles** are not in the metadata, so a restored
+  schema grants nothing.
 
 ## Tests
 
@@ -256,6 +293,8 @@ replay tests exercise.
 - `regressions_test.go` pins sequence alterations, `DEFAULT ON NULL`,
   cross-schema foreign keys, national character lengths, view triggers, bitmap
   indexes, case-sensitive key columns and constraint renames.
+- `gaps_test.go` pins each gap below, one subtest per gap. A subtest fails when
+  its gap closes, so the case moves into the fidelity tests instead.
 - `oracle_test.go` executes every definition and a quoted, case-sensitive
   fixture on the pinned Oracle in `oracle/internal/testcontainer` and reads the
   objects back. It is a tape test; record it with `OMNI_RECORD=1`.
