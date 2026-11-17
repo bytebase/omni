@@ -108,7 +108,7 @@ CREATE TABLE `<catalog>`.`omni_record`.`facts` (
 COMMENT ON COLUMN `<catalog>`.`omni_record`.`lookup`.`label` IS 'a column comment';
 
 CREATE VIEW `<catalog>`.`omni_record`.`recent` AS
-  SELECT id, amount FROM `<catalog>`.`omni_record`.`facts` WHERE id > 0;
+  SELECT id, lookup_id FROM `<catalog>`.`omni_record`.`facts` WHERE id > 0;
 
 -- Optional: requires a workspace that supports materialized views.
 CREATE MATERIALIZED VIEW `<catalog>`.`omni_record`.`totals` AS
