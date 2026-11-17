@@ -1,70 +1,5 @@
 -- pin: default dyrnq/doris:3.1.4 sha256:88f99819c0877567b77d78cc8367f0e2dd4b6c1602fe17c6f4b1e332d8e315dd 3.1.4-rc02
 
-== TestDumpGaps/function-definition default#1
-> exec
-| CREATE ALIAS FUNCTION dump_gap_abs(INT) WITH PARAMETER(a) AS abs(a)
-< ok 0 0
-> query
-| SELECT SCHEMA_NAME FROM information_schema.schemata WHERE SCHEMA_NAME = ?
-: string
-| omni_dump_gap_function
-< result
-< column "SCHEMA_NAME" "CHAR"
-< row
-: bytes
-| omni_dump_gap_function
-> query
-| SELECT current_catalog()
-< result
-< column "current_catalog()" "CHAR"
-< row
-: bytes
-| internal
-> query
-| SELECT Name FROM mv_infos("database"="omni_dump_gap_function") ORDER BY Name
-< result
-< column "Name" "TEXT"
-> query
-| SELECT TABLE_NAME, TABLE_TYPE FROM information_schema.tables WHERE TABLE_SCHEMA = ? ORDER BY TABLE_NAME
-: string
-| omni_dump_gap_function
-< result
-< column "TABLE_NAME" "CHAR"
-< column "TABLE_TYPE" "CHAR"
-> query
-| SELECT SPECIFIC_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND ROUTINE_TYPE = 'PROCEDURE' ORDER BY SPECIFIC_NAME
-: string
-| omni_dump_gap_function
-< result
-< column "SPECIFIC_NAME" "CHAR"
-> query
-| SHOW CREATE FUNCTION dump_gap_abs(INT)
-< result
-< column "Function Signature" "CHAR"
-< column "Create Function" "CHAR"
-< row
-: bytes
-| dump_gap_abs(int)
-: bytes
-| CREATE ALIAS FUNCTION dump_gap_abs(int) WITH PARAMETER(a) AS abs(`a`);
-> query
-| SHOW FUNCTIONS LIKE 'dump_gap_abs'
-< result
-< column "Function Name" "CHAR"
-< row
-: bytes
-| dump_gap_abs
-> query
-| SELECT COUNT(*) FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND SPECIFIC_NAME = ?
-: string
-| omni_dump_gap_function
-: string
-| dump_gap_abs
-< result
-< column "COUNT(*)" "BIGINT"
-< row
-: int64 0
-
 == TestDumpGaps/rollup default#1
 > exec
 | CREATE TABLE r (
@@ -138,6 +73,14 @@
 | r
 : bytes
 | BASE TABLE
+> query
+| SHOW FULL FUNCTIONS FROM `omni_dump_gap_rollup`
+< result
+< column "Signature" "CHAR"
+< column "Return Type" "CHAR"
+< column "Function Type" "CHAR"
+< column "Intermediate Type" "CHAR"
+< column "Properties" "CHAR"
 > query
 | SELECT SPECIFIC_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND ROUTINE_TYPE = 'PROCEDURE' ORDER BY SPECIFIC_NAME
 : string
@@ -240,6 +183,14 @@
 | v
 : bytes
 | VIEW
+> query
+| SHOW FULL FUNCTIONS FROM `omni_dump_gap_relocate`
+< result
+< column "Signature" "CHAR"
+< column "Return Type" "CHAR"
+< column "Function Type" "CHAR"
+< column "Intermediate Type" "CHAR"
+< column "Properties" "CHAR"
 > query
 | SELECT SPECIFIC_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND ROUTINE_TYPE = 'PROCEDURE' ORDER BY SPECIFIC_NAME
 : string

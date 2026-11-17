@@ -18,6 +18,7 @@ import (
 // The object kinds a dump carries, in the order it writes them.
 const (
 	dumpTable            = "table"
+	dumpFunction         = "function"
 	dumpView             = "view"
 	dumpMaterializedView = "materialized view"
 	dumpProcedure        = "procedure"
@@ -49,6 +50,11 @@ const (
 	// catalogue writes it. The statement from SHOW CREATE PROCEDURE carries the
 	// spelling the procedure was created with.
 	dumpProceduresQuery = `SELECT SPECIFIC_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND ROUTINE_TYPE = 'PROCEDURE' ORDER BY SPECIFIC_NAME`
+
+	// A database-scoped function is in no information_schema table either, and
+	// SHOW CREATE FUNCTION needs the signature SHOW FULL FUNCTIONS states:
+	// SHOW FUNCTIONS lists a name only.
+	dumpFunctionsQuery = `SHOW FULL FUNCTIONS FROM %s`
 )
 
 var _ driver.Dumper = (*Driver)(nil)
@@ -63,14 +69,13 @@ type dumpObject struct {
 	reads []string
 }
 
-// Dump writes the database's DDL as the server states it: tables, views,
-// materialized views and procedures, in an order that replays. The metadata is
-// not rendered and does not narrow the dump, because a Doris table's definition
-// is more than its columns and information_schema states none of the rest, so
-// the server's own SHOW CREATE statements are the only complete definition. A
-// user-defined function is not in the dump: no catalogue states a function's
-// argument types, and SHOW CREATE FUNCTION requires them. The caller creates the
-// database; the dump carries the objects in it.
+// Dump writes the database's DDL as the server states it: tables, functions,
+// views, materialized views and procedures, in an order that replays. The
+// metadata is not rendered and does not narrow the dump, because a Doris table's
+// definition is more than its columns and information_schema states none of the
+// rest, so the server's own SHOW CREATE statements are the only complete
+// definition. The caller creates the database; the dump carries the objects in
+// it.
 func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.DatabaseSchemaMetadata) error {
 	if d.databaseName == "" {
 		return errors.New("dump needs a database")
@@ -157,6 +162,14 @@ func (d *Driver) dumpObjects(ctx context.Context, catalog string) ([]*dumpObject
 		objects = append(objects, &dumpObject{kind: dumpMaterializedView, name: name})
 	}
 
+	functions, err := d.dumpFunctionSignatures(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, signature := range functions {
+		objects = append(objects, &dumpObject{kind: dumpFunction, name: signature})
+	}
+
 	procedures, err := d.dumpProcedureNames(ctx)
 	if err != nil {
 		return nil, err
@@ -203,6 +216,37 @@ func (d *Driver) dumpMaterializedViewNames(ctx context.Context) (map[string]bool
 	return names, rows.Err()
 }
 
+// dumpFunctionSignatures returns the signatures of the database's functions,
+// in the order the server lists them. SHOW CREATE FUNCTION states a definition
+// only for the session's database, which the connection selects.
+func (d *Driver) dumpFunctionSignatures(ctx context.Context) ([]string, error) {
+	query := fmt.Sprintf(dumpFunctionsQuery, quoteBacktick(d.databaseName))
+	rows, err := d.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", query, err)
+	}
+	defer rows.Close()
+	var signatures []string
+	for rows.Next() {
+		columns, err := rows.Columns()
+		if err != nil {
+			return nil, err
+		}
+		values := make([]sql.NullString, len(columns))
+		dest := make([]any, len(columns))
+		for i := range values {
+			dest[i] = &values[i]
+		}
+		if err := rows.Scan(dest...); err != nil {
+			return nil, err
+		}
+		if values[0].Valid && values[0].String != "" {
+			signatures = append(signatures, values[0].String)
+		}
+	}
+	return signatures, rows.Err()
+}
+
 // dumpProcedureNames returns the database's procedure names, sorted.
 func (d *Driver) dumpProcedureNames(ctx context.Context) ([]string, error) {
 	rows, err := d.db.QueryContext(ctx, dumpProceduresQuery, d.databaseName)
@@ -230,6 +274,10 @@ func (d *Driver) dumpStatement(ctx context.Context, kind, name string) (string, 
 	switch kind {
 	case dumpTable:
 		query = "SHOW CREATE TABLE " + qualified
+	case dumpFunction:
+		// A signature is the server's own rendering, and SHOW CREATE FUNCTION
+		// states a definition only for the session's database.
+		query = "SHOW CREATE FUNCTION " + name
 	case dumpView:
 		query = "SHOW CREATE VIEW " + qualified
 	case dumpMaterializedView:
@@ -341,23 +389,27 @@ func dumpReferencedName(name *ast.ObjectName, catalog, database string) string {
 }
 
 // orderDumpObjects puts the objects in the order a restore replays: tables
-// first, then views and materialized views so that each definition reads only
-// objects already created, then procedures. A materialized view's definition
-// cannot contain a view, but a view's may contain a materialized view, and
-// either may read another of its kind, so definitions follow those references.
+// first, then functions, then views and materialized views so that each
+// definition reads only objects already created, then procedures. A materialized
+// view's definition cannot contain a view, but a view's may contain a
+// materialized view, and either may call a function or read another of its kind,
+// so definitions follow those references.
 func orderDumpObjects(objects []*dumpObject) []*dumpObject {
-	var tables, definitions, procedures []*dumpObject
+	var tables, functions, definitions, procedures []*dumpObject
 	for _, o := range objects {
 		switch o.kind {
 		case dumpTable:
 			tables = append(tables, o)
+		case dumpFunction:
+			functions = append(functions, o)
 		case dumpProcedure:
 			procedures = append(procedures, o)
 		default:
 			definitions = append(definitions, o)
 		}
 	}
-	ordered := append(sortDumpObjects(tables), orderDumpDefinitions(definitions)...)
+	ordered := append(sortDumpObjects(tables), sortDumpObjects(functions)...)
+	ordered = append(ordered, orderDumpDefinitions(definitions)...)
 	return append(ordered, sortDumpObjects(procedures)...)
 }
 
@@ -415,6 +467,10 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 func writeDumpObject(out io.Writer, o *dumpObject) error {
 	if o.kind == dumpProcedure {
 		_, err := fmt.Fprintf(out, "--\n-- Procedure structure for %s\n--\nDELIMITER ;;\n%s;;\nDELIMITER ;\n\n", quoteBacktick(o.name), o.stmt)
+		return err
+	}
+	if o.kind == dumpFunction {
+		_, err := fmt.Fprintf(out, "--\n-- Function structure for %s\n--\n%s;\n\n", o.name, o.stmt)
 		return err
 	}
 	var label string

@@ -67,6 +67,8 @@ AUTO PARTITION BY RANGE (date_trunc(d, 'day')) ()
 DISTRIBUTED BY HASH(d) BUCKETS AUTO
 PROPERTIES("replication_num" = "1");
 
+CREATE ALIAS FUNCTION alias_abs(INT) WITH PARAMETER(a) AS abs(a);
+
 CREATE TABLE materialized_view_base (
 	k INT NOT NULL,
 	v INT NULL
@@ -96,6 +98,9 @@ CREATE VIEW a_child_view (k) AS SELECT k FROM z_parent_view;
 
 -- A view reads a materialized view, which Doris allows in this direction only.
 CREATE VIEW b_mv_view (k, s) AS SELECT k, s FROM z_parent_mv;
+
+-- A view that calls the function, so the dump must create functions first.
+CREATE VIEW af_function_view (k) AS SELECT alias_abs(k) AS k FROM materialized_view_base;
 
 -- A view body is a query, not a bare SELECT: a set operation, a WITH clause and
 -- a scalar subquery each read z_parent_view, and each is alphabetically before

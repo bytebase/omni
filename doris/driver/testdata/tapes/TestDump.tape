@@ -78,6 +78,9 @@
 | PROPERTIES("replication_num" = "1");
 < ok 0 0
 > exec
+| CREATE ALIAS FUNCTION alias_abs(INT) WITH PARAMETER(a) AS abs(a);
+< ok 0 0
+> exec
 | CREATE TABLE materialized_view_base (
 | 	k INT NOT NULL,
 | 	v INT NULL
@@ -112,6 +115,10 @@
 > exec
 | -- A view reads a materialized view, which Doris allows in this direction only.
 | CREATE VIEW b_mv_view (k, s) AS SELECT k, s FROM z_parent_mv;
+< ok 0 0
+> exec
+| -- A view that calls the function, so the dump must create functions first.
+| CREATE VIEW af_function_view (k) AS SELECT alias_abs(k) AS k FROM materialized_view_base;
 < ok 0 0
 > exec
 | -- A view body is a query, not a bare SELECT: a set operation, a WITH clause and
@@ -202,6 +209,11 @@
 | VIEW
 < row
 : bytes
+| af_function_view
+: bytes
+| VIEW
+< row
+: bytes
 | aggregate_keys
 : bytes
 | BASE TABLE
@@ -260,6 +272,25 @@
 | z_parent_view
 : bytes
 | VIEW
+> query
+| SHOW FULL FUNCTIONS FROM `omni_dump_corpus`
+< result
+< column "Signature" "CHAR"
+< column "Return Type" "CHAR"
+< column "Function Type" "CHAR"
+< column "Intermediate Type" "CHAR"
+< column "Properties" "CHAR"
+< row
+: bytes
+| alias_abs(int)
+: bytes
+| VARCHAR
+: bytes
+| Alias
+: bytes
+| NULL
+: bytes
+| {"parameter":"a","origin_function":"abs(`a`)"}
 > query
 | SELECT SPECIFIC_NAME FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND ROUTINE_TYPE = 'PROCEDURE' ORDER BY SPECIFIC_NAME
 : string
@@ -384,6 +415,24 @@
 : bytes
 | utf8mb4_0900_bin
 > query
+| SHOW CREATE VIEW `omni_dump_corpus`.`af_function_view`
+< result
+< column "View" "CHAR"
+< column "Create View" "CHAR"
+< column "character_set_client" "CHAR"
+< column "collation_connection" "CHAR"
+< row
+: bytes
+| af_function_view
+: bytes
+| CREATE VIEW `af_function_view`
+| (k)
+|  AS SELECT `omni_dump_corpus`.`alias_abs`(`internal`.`omni_dump_corpus`.`materialized_view_base`.`k`) AS `k` FROM `internal`.`omni_dump_corpus`.`materialized_view_base`;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_bin
+> query
 | SHOW CREATE TABLE `omni_dump_corpus`.`aggregate_keys`
 < result
 < column "Table" "CHAR"
@@ -413,6 +462,16 @@
 | "group_commit_interval_ms" = "10000",
 | "group_commit_data_bytes" = "134217728"
 | );
+> query
+| SHOW CREATE FUNCTION alias_abs(int)
+< result
+< column "Function Signature" "CHAR"
+< column "Create Function" "CHAR"
+< row
+: bytes
+| alias_abs(int)
+: bytes
+| CREATE ALIAS FUNCTION alias_abs(int) WITH PARAMETER(a) AS abs(`a`);
 > query
 | SHOW CREATE TABLE `omni_dump_corpus`.`auto_partitions`
 < result

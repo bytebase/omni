@@ -193,6 +193,18 @@ PROPERTIES (
 );
 
 --
+-- Function structure for alias_abs(int)
+--
+CREATE ALIAS FUNCTION alias_abs(int) WITH PARAMETER(a) AS abs(`a`);
+
+--
+-- View structure for `af_function_view`
+--
+CREATE VIEW `af_function_view`
+(k)
+ AS SELECT `omni_dump_corpus`.`alias_abs`(`internal`.`omni_dump_corpus`.`materialized_view_base`.`k`) AS `k` FROM `internal`.`omni_dump_corpus`.`materialized_view_base`;
+
+--
 -- View structure for `cyc_parent`
 --
 CREATE VIEW `cyc_parent`

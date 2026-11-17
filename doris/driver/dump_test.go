@@ -104,59 +104,6 @@ var dumpGaps = []struct {
 	check  func(t *testing.T)
 }{
 	{
-		name: "function-definition",
-		reason: "Doris states a user-defined function's definition with SHOW CREATE FUNCTION name(types), " +
-			"but nothing states the argument types: SHOW FUNCTIONS lists a name only, and " +
-			"information_schema.routines and parameters have no row for a UDF. The dump cannot build " +
-			"the signature a definition is asked with, so it omits every function.",
-		check: func(t *testing.T) {
-			const (
-				db       = "omni_dump_gap_function"
-				function = "dump_gap_abs"
-			)
-			d := openTestDriver(t, db)
-			execDumpScript(t, d.db, "CREATE ALIAS FUNCTION "+function+"(INT) WITH PARAMETER(a) AS abs(a)")
-
-			if dumped := dumpScript(t, d); strings.Contains(dumped, function) {
-				t.Errorf("the dump carries a function definition now; remove this entry and test it")
-			}
-
-			ctx := context.Background()
-			// The definition is stateable once the signature is known: the gap is
-			// that nothing states the signature, not that the server keeps it.
-			var signature, statement string
-			if err := d.db.QueryRowContext(ctx, "SHOW CREATE FUNCTION "+function+"(INT)").Scan(&signature, &statement); err != nil {
-				t.Fatalf("SHOW CREATE FUNCTION %s(INT): %v", function, err)
-			}
-			if !strings.Contains(statement, "CREATE ALIAS FUNCTION") {
-				t.Errorf("SHOW CREATE FUNCTION stated %q; the entry's reason no longer holds", statement)
-			}
-
-			rows, err := d.db.QueryContext(ctx, "SHOW FUNCTIONS LIKE '"+function+"'")
-			if err != nil {
-				t.Fatal(err)
-			}
-			columns, err := rows.Columns()
-			rows.Close()
-			if err != nil {
-				t.Fatal(err)
-			}
-			if len(columns) != 1 {
-				t.Errorf("SHOW FUNCTIONS states %v now, so a signature may be discoverable; remove this entry and dump the function", columns)
-			}
-
-			var count int
-			if err := d.db.QueryRowContext(ctx,
-				"SELECT COUNT(*) FROM information_schema.routines WHERE ROUTINE_SCHEMA = ? AND SPECIFIC_NAME = ?",
-				db, function).Scan(&count); err != nil {
-				t.Fatal(err)
-			}
-			if count != 0 {
-				t.Errorf("information_schema.routines lists the function now; remove this entry and dump it")
-			}
-		},
-	},
-	{
 		name: "view-definition-database-qualifier",
 		reason: "SHOW CREATE VIEW and SHOW CREATE MATERIALIZED VIEW state every reference qualified " +
 			"with the source database (`internal`.`db`.`table`), and the dump writes the statement as " +
