@@ -139,9 +139,17 @@ INSERT INTO qtimes VALUES
 // mysql/driver answers it.
 func TestQueryTemporalKinds(t *testing.T) {
 	ctx := context.Background()
+	const dbName = "omni_qe_temporal"
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
-		_, err := db.ExecContext(ctx, "DROP TABLE IF EXISTS qtimes")
-		return err
+		for _, stmt := range []string{
+			"DROP DATABASE IF EXISTS " + quoteBacktick(dbName),
+			"CREATE DATABASE " + quoteBacktick(dbName),
+		} {
+			if _, err := db.ExecContext(ctx, stmt); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	for _, tc := range []struct {
 		name string
@@ -152,11 +160,12 @@ func TestQueryTemporalKinds(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			db := testcontainer.OpenWith(t, testcontainer.Options{
+				Database:  dbName,
 				ParseTime: true,
 				Loc:       tc.loc,
 			})
 			t.Cleanup(func() { _ = db.Close() })
-			d := &Driver{db: db, databaseName: "test"}
+			d := &Driver{db: db, databaseName: dbName}
 			sess, err := d.Session(ctx)
 			if err != nil {
 				t.Fatal(err)

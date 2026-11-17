@@ -44,6 +44,9 @@ func Open(t testing.TB) *sql.DB {
 
 // Options is how a test's connection differs from the plain one.
 type Options struct {
+	// Database is selected when the connection opens. Empty selects the
+	// database test, which the tests that share the server take.
+	Database string
 	// ParseTime returns DATE and DATETIME values as time.Time.
 	ParseTime bool
 	// Loc is the location go-sql-driver parses a temporal value in when
@@ -120,6 +123,9 @@ func (o Options) live(t testing.TB, pin enginetest.Pin) driver.Connector {
 	}
 	cfg := shared.config.Clone()
 	cfg.ParseTime = o.ParseTime
+	if o.Database != "" {
+		cfg.DBName = o.Database
+	}
 	if o.Loc != nil {
 		cfg.Loc = o.Loc
 	}
