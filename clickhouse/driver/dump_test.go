@@ -289,13 +289,24 @@ func TestDumpDictionaryTableReads(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "SELECT id FROM db.a_mv", query)
 
-	// Another source's query is written for another database, and is not sent to
-	// this one's parser.
-	byName["foreign_query"] = &dumpObject{name: "foreign_query", stmt: "CREATE DICTIONARY db.fq\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(MYSQL(QUERY 'SELECT id FROM db.a_mv'))\nLAYOUT(FLAT())"}
-	byName["fq_table"] = &dumpObject{name: "fq_table", stmt: "CREATE TABLE db.fq_table\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db.fq')"}
-	byName["fq"] = byName["foreign_query"]
-	_, ok = dumpDictionarySourceQuery(byName["fq_table"], "db", byName)
-	require.False(t, ok)
+	// Another source's query is written for another database, and a remote
+	// ClickHouse source's names its own tables: neither is sent to this one's
+	// parser, and neither is a read here.
+	for _, source := range []struct {
+		name string
+		stmt string
+	}{
+		{"fq", "CREATE DICTIONARY db.fq\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(MYSQL(QUERY 'SELECT id FROM db.a_mv'))\nLAYOUT(FLAT())"},
+		{"remote", "CREATE DICTIONARY db.remote\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(CLICKHOUSE(HOST 'other.example.com' PORT 9000 TABLE 'a_mv'))\nLAYOUT(FLAT())"},
+		{"elsewhere", "CREATE DICTIONARY db.elsewhere\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(CLICKHOUSE(QUERY 'SELECT id FROM db.a_mv' DB 'other'))\nLAYOUT(FLAT())"},
+	} {
+		byName[source.name] = &dumpObject{name: source.name, stmt: source.stmt}
+		table := source.name + "_table"
+		byName[table] = &dumpObject{name: table, stmt: "CREATE TABLE db." + table + "\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db." + source.name + "')"}
+		_, ok := dumpDictionarySourceQuery(byName[table], "db", byName)
+		require.False(t, ok, source.name)
+		require.Empty(t, dumpDictionaryTableReads(byName[table], "db", byName), source.name)
+	}
 }
 
 // TestDumpViewTargetReads holds the TO clause a materialized view writes, which

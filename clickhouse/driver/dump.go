@@ -379,6 +379,7 @@ var (
 	dumpDictionaryDBKey    = regexp.MustCompile(`(?i)DB '((?:[^'\\]|\\.)*)'`)
 	dumpDictionaryQuery    = regexp.MustCompile(`(?i)\bQUERY '((?:[^'\\]|\\.)*)'`)
 	dumpDictionarySource   = regexp.MustCompile(`(?i)SOURCE\(([a-z_]+)\(`)
+	dumpDictionaryHost     = regexp.MustCompile(`(?i)\bHOST '((?:[^'\\]|\\.)*)'`)
 )
 
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
@@ -393,6 +394,9 @@ func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]
 	}
 	dictionary, _ := dumpLiteralObject(dumpLiteralValue(engine[1]), database, byName)
 	if dictionary == nil {
+		return nil
+	}
+	if !dumpDictionarySourceIsThisServer(dictionary.stmt, database) {
 		return nil
 	}
 	table := dumpDictionaryTableKey.FindStringSubmatch(dictionary.stmt)
@@ -410,6 +414,27 @@ func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]
 	return nil
 }
 
+// dumpDictionarySourceIsThisServer reports whether a dictionary reads this server
+// through ClickHouse's own source: another source's query or table is written for
+// another database, and a remote one's names its own objects.
+func dumpDictionarySourceIsThisServer(stmt, database string) bool {
+	source := dumpDictionarySource.FindStringSubmatch(stmt)
+	if source == nil || !strings.EqualFold(source[1], "clickhouse") {
+		return false
+	}
+	if host := dumpDictionaryHost.FindStringSubmatch(stmt); host != nil {
+		switch name := dumpLiteralValue(host[1]); name {
+		case "localhost", "127.0.0.1", "::1":
+		default:
+			return false
+		}
+	}
+	if db := dumpDictionaryDBKey.FindStringSubmatch(stmt); db != nil && !strings.EqualFold(dumpLiteralValue(db[1]), database) {
+		return false
+	}
+	return true
+}
+
 // dumpDictionarySourceQuery returns the query a dictionary states as its source
 // instead of a table, which the server parses like any other statement.
 func dumpDictionarySourceQuery(o *dumpObject, database string, byName map[string]*dumpObject) (string, bool) {
@@ -421,10 +446,7 @@ func dumpDictionarySourceQuery(o *dumpObject, database string, byName map[string
 	if dictionary == nil {
 		return "", false
 	}
-	// Only ClickHouse's own source states a query this dump can resolve: another
-	// source's query is written for another database and may not parse here.
-	source := dumpDictionarySource.FindStringSubmatch(dictionary.stmt)
-	if source == nil || !strings.EqualFold(source[1], "clickhouse") {
+	if !dumpDictionarySourceIsThisServer(dictionary.stmt, database) {
 		return "", false
 	}
 	query := dumpDictionaryQuery.FindStringSubmatch(dictionary.stmt)
