@@ -262,12 +262,10 @@ END;
 		t.Fatalf("GO batches = %+v, %v", batches, err)
 	}
 
-	// A batch of more than one statement yields an empty result for a statement
-	// that reports only a count: SQL Server states those in the ReturnMessage
-	// message loop, which a tape cannot carry, having no message argument and no
-	// ordered counts beside its result sets.
+	// A batch of more than one statement gives each statement its own result,
+	// including the count SQL Server states in the ReturnMessage message loop.
 	inserted, err = sess.Query(ctx, "INSERT INTO q_items (id, note, flag) VALUES (5, N'e', 1);\nSELECT 1 AS after_insert;", driver.QueryOptions{})
-	if err != nil || len(inserted) != 2 || inserted[0].AffectedRows != nil || inserted[1].Rows[0][0].Int64 != 1 {
+	if err != nil || len(inserted) != 2 || inserted[0].AffectedRows == nil || *inserted[0].AffectedRows != 1 || inserted[1].Rows[0][0].Int64 != 1 {
 		t.Fatalf("batched insert = %+v, %v", inserted, err)
 	}
 

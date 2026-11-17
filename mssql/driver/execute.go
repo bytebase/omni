@@ -57,12 +57,12 @@ func (d *Driver) executeInTransactionMode(ctx context.Context, script string, lo
 	var totalAffected int64
 	if err := forEachBatch(script, func(command driver.Command) error {
 		logCommandExecute(log, command)
-		affected, err := executeStatement(ctx, tx.ExecContext, command)
+		affected, counts, err := executeCommand(ctx, tx.ExecContext, tx.QueryContext, command)
 		if err != nil {
-			logCommandResponse(log, 0, nil, err)
+			logCommandResponse(log, affected, counts, err)
 			return err
 		}
-		logCommandResponse(log, affected, []int64{affected}, nil)
+		logCommandResponse(log, affected, counts, nil)
 		totalAffected += affected
 		return nil
 	}); err != nil {
@@ -91,12 +91,13 @@ func (d *Driver) executeInAutoCommitMode(ctx context.Context, script string, log
 	var totalAffected int64
 	if err := forEachBatch(script, func(command driver.Command) error {
 		logCommandExecute(log, command)
-		affected, err := executeStatement(ctx, conn.ExecContext, command)
+		affected, counts, err := executeCommand(ctx, conn.ExecContext, conn.QueryContext, command)
 		if err != nil {
-			logCommandResponse(log, 0, nil, err)
+			logCommandResponse(log, affected, counts, err)
+			totalAffected += affected
 			return err
 		}
-		logCommandResponse(log, affected, []int64{affected}, nil)
+		logCommandResponse(log, affected, counts, nil)
 		totalAffected += affected
 		return nil
 	}); err != nil {
@@ -140,23 +141,46 @@ func forEachBatch(script string, run func(driver.Command) error) error {
 // execFunc runs one statement.
 type execFunc func(ctx context.Context, query string, args ...any) (sql.Result, error)
 
-// executeStatement runs one batch and returns the rows it affected. A DDL
+// executeCommand runs one batch and returns the rows it affected. A batch of
+// more than one statement reads each statement's count from the message stream;
+// one statement keeps the exec path, which reads its own count.
+func executeCommand(ctx context.Context, exec execFunc, query queryFunc, command driver.Command) (int64, []int64, error) {
+	if n, ok := statementCount(command.Text); ok && n > 1 {
+		counts, err := executeBatch(ctx, query, command)
+		var total int64
+		for _, count := range counts {
+			total += count
+		}
+		return total, counts, err
+	}
+	affected, err := executeStatement(ctx, exec, command)
+	if err != nil {
+		return 0, nil, err
+	}
+	return affected, []int64{affected}, nil
+}
+
+// executeStatement runs one statement and returns the rows it affected. A DDL
 // statement reports no count, which the client returns as an error; that is 0.
-// A failure names the statement the server reported it at, since a batch holds
-// several and the server names only a line.
 func executeStatement(ctx context.Context, exec execFunc, command driver.Command) (int64, error) {
 	result, err := exec(ctx, command.Text)
 	if err != nil {
-		if statement, ok := failingStatement(command.Text, err); ok {
-			return 0, fmt.Errorf("failed to execute statement %q: %w", statement, unpackMSSQLError(err))
-		}
-		return 0, unpackMSSQLError(fmt.Errorf("failed to execute statement: %w", err))
+		return 0, wrapStatementError(command, err)
 	}
 	affected, err := result.RowsAffected()
 	if err != nil {
 		return 0, nil
 	}
 	return affected, nil
+}
+
+// wrapStatementError names the statement the server reported an error at, since
+// a batch holds several and the server names only a line.
+func wrapStatementError(command driver.Command, err error) error {
+	if statement, ok := failingStatement(command.Text, err); ok {
+		return fmt.Errorf("failed to execute statement %q: %w", statement, unpackMSSQLError(err))
+	}
+	return unpackMSSQLError(fmt.Errorf("failed to execute statement: %w", err))
 }
 
 // failingStatement returns the text of the statement of batch the server

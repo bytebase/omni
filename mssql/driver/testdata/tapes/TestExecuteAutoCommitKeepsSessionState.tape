@@ -4,10 +4,15 @@
 > exec
 | CREATE TABLE s_items (id INT PRIMARY KEY);
 < ok 0 -
-> exec
+> query
 | CREATE TABLE #scratch (id INT);
 | INSERT INTO #scratch VALUES (1), (2);
-< ok 2 -
+: message
+< stream
+< message nextresultset more
+< message rowsaffected 2
+< message nextresultset more
+< message nextresultset end
 > exec
 | INSERT INTO s_items SELECT id FROM #scratch;
 < ok 2 -

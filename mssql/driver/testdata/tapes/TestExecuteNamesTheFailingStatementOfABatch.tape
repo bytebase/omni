@@ -13,10 +13,18 @@
 < ok
 > begin
 < ok
-> exec
+> query
 | INSERT INTO b_items VALUES (2, N'b');
 | INSERT INTO b_items VALUES (1, N'duplicate');
-< error
+: message
+< stream
+< message rowsaffected 1
+< message nextresultset more
+< message error
 | 2627 1 14 2 Violation of PRIMARY KEY constraint 'PK__b_items__standin1'. Cannot insert duplicate key in object 'dbo.b_items'. The duplicate key value is (1).
+< message notice
+| The statement has been terminated.
+< message nextresultset more
+< message nextresultset end
 > rollback
 < ok

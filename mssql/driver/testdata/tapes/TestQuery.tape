@@ -195,6 +195,12 @@
 |
 | SELECT @id AS id;
 |
+: message
+< stream
+< message nextresultset more
+< message next
+< message rowsaffected 1
+< message nextresultset end
 < result
 < column "id" "INT"
 < row
@@ -217,7 +223,12 @@
 |
 | INSERT INTO q_scratch VALUES (1);
 |
-< result
+: message
+< stream
+< message nextresultset more
+< message rowsaffected 1
+< message nextresultset more
+< message nextresultset end
 > exec
 | CREATE TABLE q_archive (id INT, note NVARCHAR(100));
 < ok 0 -
@@ -235,6 +246,14 @@
 |
 | SELECT 7 AS after_cap;
 |
+: message
+< stream
+< message next
+< message rowsaffected 4
+< message nextresultset more
+< message next
+< message rowsaffected 1
+< message nextresultset end
 < result
 < column "id" "INT"
 < column "payload" "NVARCHAR"
@@ -275,6 +294,13 @@
 |
 | SELECT 1 AS after_insert;
 |
+: message
+< stream
+< message rowsaffected 1
+< message nextresultset more
+< message next
+< message rowsaffected 1
+< message nextresultset end
 < result
 < column "after_insert" "INT"
 < row

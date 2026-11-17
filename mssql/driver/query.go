@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/golang-sql/sqlexp"
 	gomssqldb "github.com/microsoft/go-mssqldb"
 
 	"github.com/bytebase/omni/driver"
@@ -192,10 +193,10 @@ func showplanFormat(format string) string {
 //
 // A batch of more than one statement is sent as one request, so what SQL Server
 // scopes to a batch (a DECLARE'd variable, a table variable) holds across its
-// statements. It reports such a batch's affected rows only through the
+// statements. It reports such a batch's affected rows through the
 // *sqlexp.ReturnMessage message loop, whose MsgRowsAffected values are
-// interleaved with MsgNext and MsgNextResultSet; a tape cannot carry the message
-// object or that order, so only a lone statement's count is read.
+// interleaved with MsgNext and MsgNextResultSet, and runBatchTogether reads
+// both so each statement gets its own result and count.
 func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
 	if len(statements) == 1 {
 		results, err := s.runStatementAlone(ctx, statements[0], opts)
@@ -243,7 +244,7 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 }
 
 // runBatchTogether sends the whole batch in one request and gives each statement
-// the result set the server returned for it.
+// the result set and the affected count the server returned for it.
 func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
 	start := time.Now()
 	types := make([]stmtType, 0, len(statements))
@@ -264,33 +265,38 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 		batchText.WriteString("\n")
 	}
 
-	rows, err := s.conn.QueryContext(ctx, batchText.String())
+	retmsg := &sqlexp.ReturnMessage{}
+	rows, err := s.conn.QueryContext(ctx, batchText.String(), retmsg)
 	if err != nil {
 		return nil, true, unpackMSSQLError(err)
 	}
 	defer rows.Close()
 
+	counts, allSets, failures, err := readBatchMessages(ctx, rows, retmsg, func(rows *sql.Rows) (*driver.Result, error) {
+		return readRows(rows, opts.MaxResultBytes)
+	})
+	if err != nil {
+		return nil, true, unpackMSSQLError(err)
+	}
 	var resultSets []*driver.Result
-	for {
-		result, err := readRows(rows, opts.MaxResultBytes)
-		if err != nil {
-			return nil, true, err
-		}
+	for _, result := range allSets {
 		// A statement that reports no rows answers with a columnless result, which
 		// belongs to no result set: matching counts only the sets that have columns.
 		if len(result.Columns) > 0 {
 			resultSets = append(resultSets, result)
 		}
-		if !rows.NextResultSet() {
-			break
-		}
-	}
-	if err := rows.Err(); err != nil {
-		return nil, true, unpackMSSQLError(err)
 	}
 
-	results, err := matchResults(texts, types, resultSets)
-	if err != nil {
+	var results []batchResult
+	stopped := false
+	if failureErr := batchMessageError(failures); failureErr != nil {
+		failing, ok := failingStatementIndex(texts, failureErr)
+		if !ok {
+			return nil, true, unpackMSSQLError(failureErr)
+		}
+		results = matchFailedResults(texts, types, resultSets, counts, failing, unpackMSSQLError(failureErr))
+		stopped = true
+	} else if results, err = matchResults(texts, types, resultSets, counts); err != nil {
 		return nil, true, err
 	}
 	latency := time.Since(start)
@@ -306,7 +312,7 @@ func (s *session) runBatchTogether(ctx context.Context, statements []omnimssql.S
 		}
 		out = append(out, result)
 	}
-	return out, false, nil
+	return out, stopped, nil
 }
 
 // batchResult pairs a statement's result with whether masking withholds its
@@ -321,16 +327,23 @@ type batchResult struct {
 // a batch whose procedure call returns result sets must have no other statement
 // that returns any. The procedure call's result sets after its first are
 // returned after every statement's result.
-func matchResults(statements []string, types []stmtType, resultSets []*driver.Result) ([]batchResult, error) {
-	var withResultSet, procedures int
+func matchResults(statements []string, types []stmtType, resultSets []*driver.Result, rowCounts []int64) ([]batchResult, error) {
+	var withResultSet, withRowCount, procedures int
 	for _, t := range types {
 		switch {
 		case t&stmtTypeResultSetGenerating != 0:
 			withResultSet++
+		case t&stmtTypeRowCountGenerating != 0:
+			withRowCount++
 		case t&stmtTypeProcedure != 0:
 			procedures++
 		default:
 		}
+	}
+	// SET NOCOUNT and a procedure call change how many counts arrive, so a
+	// batch's counts are shown only when each belongs to one statement.
+	if len(rowCounts) != withRowCount {
+		rowCounts = nil
 	}
 	procedureReturnedSets := len(resultSets) != withResultSet
 	if procedureReturnedSets && (withResultSet > 0 || procedures != 1) {
@@ -345,6 +358,10 @@ func matchResults(statements []string, types []stmtType, resultSets []*driver.Re
 		case t&stmtTypeResultSetGenerating != 0 && len(resultSets) > 0:
 			matched.result, resultSets = resultSets[0], resultSets[1:]
 			matched.withheld = t&(stmtTypeOutput|stmtTypeUntraced) != 0
+		case t&stmtTypeRowCountGenerating != 0 && len(rowCounts) > 0:
+			count := rowCounts[0]
+			rowCounts = rowCounts[1:]
+			matched.result = &driver.Result{AffectedRows: &count}
 		case t&stmtTypeProcedure != 0 && procedureReturnedSets && len(resultSets) > 0:
 			matched.result, resultSets = resultSets[0], resultSets[1:]
 			matched.withheld = true
@@ -360,6 +377,83 @@ func matchResults(statements []string, types []stmtType, resultSets []*driver.Re
 		results[i] = matched
 	}
 	return append(results, extras...), nil
+}
+
+// failingStatementIndex names the statement of a sent batch the server reported
+// an error at, which is the statement that covers the error's line. texts are
+// the statements as sent, each followed by a newline in the batch, and a
+// statement's own text may begin with one. ok is false when the server named no
+// line, a routine named it, or more than one statement covers it.
+func failingStatementIndex(texts []string, err error) (int, bool) {
+	line := errorLine(err)
+	if line == 0 {
+		return 0, false
+	}
+	failing := -1
+	covering := 0
+	start := 1
+	for i, text := range texts {
+		end := start + strings.Count(text, "\n")
+		if start > line {
+			break
+		}
+		if end < line {
+			start = end + 1
+			continue
+		}
+		covering++
+		failing = i
+		start = end + 1
+	}
+	if covering != 1 {
+		return 0, false
+	}
+	return failing, true
+}
+
+// matchFailedResults gives each statement up to the failing one its result. A
+// count is shown only when the counts the server sent match the statements
+// before the failure that report one, so NOCOUNT keeps "no count" rather than
+// zero.
+func matchFailedResults(statements []string, types []stmtType, resultSets []*driver.Result, rowCounts []int64, failing int, failure error) []batchResult {
+	want := 0
+	for i := 0; i < failing; i++ {
+		t := types[i]
+		if t&stmtTypeResultSetGenerating == 0 && t&stmtTypeRowCountGenerating != 0 {
+			want++
+		}
+	}
+	if len(rowCounts) != want {
+		rowCounts = nil
+	}
+	results := make([]batchResult, 0, failing+1)
+	for i := 0; i <= failing; i++ {
+		t := types[i]
+		matched := batchResult{}
+		switch {
+		case t&stmtTypeResultSetGenerating != 0 && len(resultSets) > 0:
+			matched.result, resultSets = resultSets[0], resultSets[1:]
+			matched.withheld = t&(stmtTypeOutput|stmtTypeUntraced) != 0
+		case t&stmtTypeRowCountGenerating != 0 && len(rowCounts) > 0:
+			count := rowCounts[0]
+			rowCounts = rowCounts[1:]
+			matched.result = &driver.Result{AffectedRows: &count}
+		case t&stmtTypeProcedure != 0 && len(resultSets) > 0:
+			matched.result, resultSets = resultSets[0], resultSets[1:]
+			matched.withheld = true
+		}
+		if i == failing {
+			if matched.result == nil {
+				matched.result = &driver.Result{}
+			}
+			matched.result.Err = failure
+		}
+		if matched.result != nil {
+			matched.result.Statement = statements[i]
+		}
+		results = append(results, matched)
+	}
+	return results
 }
 
 // withResultLimit applies the row limit a query request asks for.
