@@ -1779,16 +1779,18 @@ func filterCreateOptions(createOptions string) string {
 // stands in for a view it reads: the view it would materialize has the placeholder's column
 // types, `1` for a `varchar` column among them.
 func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *metadata.SchemaMetadata) error {
-	type definition struct {
-		key   tableKey
+	// Definitions are identified by their exact name: a tenant with
+	// lower_case_table_names=0 holds views that differ only in case, and both are written.
+	type viewDefinition struct {
+		name  string
 		refs  map[tableKey]bool
 		write func(*strings.Builder) error
 	}
 	ownDB := toLower(dbName)
-	definitions := make([]*definition, 0, len(schema.Views)+len(schema.MaterializedViews))
+	definitions := make([]*viewDefinition, 0, len(schema.Views)+len(schema.MaterializedViews))
 	for _, view := range schema.Views {
-		definitions = append(definitions, &definition{
-			key:  tableKey{db: ownDB, name: toLower(view.Name)},
+		definitions = append(definitions, &viewDefinition{
+			name: view.Name,
 			refs: referencedRelations(view.Definition, ownDB),
 			write: func(out *strings.Builder) error {
 				return writeView(out, view)
@@ -1799,40 +1801,58 @@ func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *me
 		if view.SkipDump {
 			continue
 		}
-		definitions = append(definitions, &definition{
-			key:  tableKey{db: ownDB, name: toLower(view.Name)},
+		definitions = append(definitions, &viewDefinition{
+			name: view.Name,
 			refs: referencedRelations(view.Definition, ownDB),
 			write: func(out *strings.Builder) error {
 				return writeMaterializedView(out, view)
 			},
 		})
 	}
-	slices.SortFunc(definitions, func(a, b *definition) int { return cmp.Compare(a.key.name, b.key.name) })
-	byKey := make(map[tableKey]*definition, len(definitions))
+	slices.SortFunc(definitions, func(a, b *viewDefinition) int { return cmp.Compare(a.name, b.name) })
+	// A reference names a relation as the server spells it in a definition, which is
+	// lower case on a case-insensitive server only; the folded index answers a reference
+	// whose case differs from the name the definition was synced under.
+	byFoldedName := make(map[string][]*viewDefinition, len(definitions))
 	for _, definition := range definitions {
-		byKey[definition.key] = definition
+		folded := toLower(definition.name)
+		byFoldedName[folded] = append(byFoldedName[folded], definition)
 	}
 
-	written := make(map[tableKey]bool, len(definitions))
-	var write func(definition *definition) error
-	write = func(definition *definition) error {
-		if written[definition.key] {
+	written := make(map[string]bool, len(definitions))
+	var write func(view *viewDefinition) error
+	write = func(view *viewDefinition) error {
+		if written[view.name] {
 			return nil
 		}
 		// Marked before the walk so a cycle ends it; OceanBase refuses one, and the mark
 		// only keeps a malformed snapshot from recursing.
-		written[definition.key] = true
-		for ref := range definition.refs {
-			if dependency, ok := byKey[ref]; ok && dependency != definition {
-				if err := write(dependency); err != nil {
-					return err
+		written[view.name] = true
+		var dependencies []*viewDefinition
+		seen := make(map[*viewDefinition]bool, len(view.refs))
+		for ref := range view.refs {
+			if ref.db != ownDB {
+				continue
+			}
+			for _, dependency := range byFoldedName[ref.name] {
+				if dependency != view && !seen[dependency] {
+					seen[dependency] = true
+					dependencies = append(dependencies, dependency)
 				}
 			}
 		}
-		return definition.write(buf)
+		// In name order, so a definition reading several others emits them the same way
+		// every time: a map's iteration order is not stable between runs.
+		slices.SortFunc(dependencies, func(a, b *viewDefinition) int { return cmp.Compare(a.name, b.name) })
+		for _, dependency := range dependencies {
+			if err := write(dependency); err != nil {
+				return err
+			}
+		}
+		return view.write(buf)
 	}
-	for _, definition := range definitions {
-		if err := write(definition); err != nil {
+	for _, view := range definitions {
+		if err := write(view); err != nil {
 			return err
 		}
 	}

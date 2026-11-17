@@ -1084,3 +1084,33 @@ func TestWriteViewsInDependencyOrder(t *testing.T) {
 	require.Less(t, position("mv"), position("b_over_mv"), "a materialized view is written before the view that reads it")
 	require.Less(t, position("a_plain"), position("b_over_mv"))
 }
+
+// TestWriteViewsInDependencyOrderIsStable pins what the order does not depend on: the
+// iteration order of a map, and the case a tenant with lower_case_table_names=0 lets two
+// views differ in.
+func TestWriteViewsInDependencyOrderIsStable(t *testing.T) {
+	schema := &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			// Reads both y and z; every dependency is written before it.
+			{Name: "a", Definition: "select `y`.`id` AS `id` from `db`.`y` `y` join `db`.`z` `z`"},
+			{Name: "y", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "z", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			// Two views that differ only in case.
+			{Name: "Mixed", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "mixed", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+		},
+	}
+	var first string
+	for range 20 {
+		var buf strings.Builder
+		require.NoError(t, writeViewsInDependencyOrder(&buf, "db", schema))
+		if first == "" {
+			first = buf.String()
+		}
+		require.Equal(t, first, buf.String(), "the same snapshot renders the same dump")
+	}
+	require.Less(t, strings.Index(first, "`y`"), strings.Index(first, "`a`"))
+	require.Less(t, strings.Index(first, "`z`"), strings.Index(first, "`a`"))
+	require.Less(t, strings.Index(first, "`y`"), strings.Index(first, "`z`"), "dependencies are written in name order")
+	require.Equal(t, 2, strings.Count(first, "CREATE OR REPLACE VIEW `mixed`")+strings.Count(first, "CREATE OR REPLACE VIEW `Mixed`"), "views that differ only in case are both written")
+}
