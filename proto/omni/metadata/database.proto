@@ -445,6 +445,12 @@ message CheckConstraintMetadata {
 
   // The expression is the expression of a check constraint.
   string expression = 2;
+
+  // The comment is the comment of a check constraint as the engine states it, not
+  // as a first-class attribute of the constraint: SQL Server's MS_Description
+  // extended property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds
+  // no constraint comment (MySQL and its forks, Oracle) leaves it empty.
+  string comment = 3;
 }
 
 message ExcludeConstraintMetadata {
@@ -1003,4 +1009,10 @@ message ForeignKeyMetadata {
   // The match_type is the PostgreSQL specific field.
   // It's empty string for other databases.
   string match_type = 8;
+
+  // The comment is the comment of a foreign key as the engine states it, not as a
+  // first-class attribute of the constraint: SQL Server's MS_Description extended
+  // property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds no
+  // constraint comment (MySQL and its forks, Oracle) leaves it empty.
+  string comment = 9;
 }

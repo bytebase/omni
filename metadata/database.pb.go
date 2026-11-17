@@ -2011,7 +2011,12 @@ type CheckConstraintMetadata struct {
 	// The name of the check constraint.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// The expression is the expression of a check constraint.
-	Expression    string `protobuf:"bytes,2,opt,name=expression,proto3" json:"expression,omitempty"`
+	Expression string `protobuf:"bytes,2,opt,name=expression,proto3" json:"expression,omitempty"`
+	// The comment is the comment of a check constraint as the engine states it, not
+	// as a first-class attribute of the constraint: SQL Server's MS_Description
+	// extended property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds
+	// no constraint comment (MySQL and its forks, Oracle) leaves it empty.
+	Comment       string `protobuf:"bytes,3,opt,name=comment,proto3" json:"comment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2056,6 +2061,13 @@ func (x *CheckConstraintMetadata) GetName() string {
 func (x *CheckConstraintMetadata) GetExpression() string {
 	if x != nil {
 		return x.Expression
+	}
+	return ""
+}
+
+func (x *CheckConstraintMetadata) GetComment() string {
+	if x != nil {
+		return x.Comment
 	}
 	return ""
 }
@@ -4148,7 +4160,12 @@ type ForeignKeyMetadata struct {
 	// The match_type is the match type of a foreign key.
 	// The match_type is the PostgreSQL specific field.
 	// It's empty string for other databases.
-	MatchType     string `protobuf:"bytes,8,opt,name=match_type,json=matchType,proto3" json:"match_type,omitempty"`
+	MatchType string `protobuf:"bytes,8,opt,name=match_type,json=matchType,proto3" json:"match_type,omitempty"`
+	// The comment is the comment of a foreign key as the engine states it, not as a
+	// first-class attribute of the constraint: SQL Server's MS_Description extended
+	// property, PostgreSQL's COMMENT ON CONSTRAINT. An engine that holds no
+	// constraint comment (MySQL and its forks, Oracle) leaves it empty.
+	Comment       string `protobuf:"bytes,9,opt,name=comment,proto3" json:"comment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4235,6 +4252,13 @@ func (x *ForeignKeyMetadata) GetOnUpdate() string {
 func (x *ForeignKeyMetadata) GetMatchType() string {
 	if x != nil {
 		return x.MatchType
+	}
+	return ""
+}
+
+func (x *ForeignKeyMetadata) GetComment() string {
+	if x != nil {
+		return x.Comment
 	}
 	return ""
 }
@@ -4431,12 +4455,13 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x05rules\x18\x18 \x03(\v2\x1b.omni.metadata.RuleMetadataR\x05rules\x12#\n" +
 	"\rsharding_info\x18\x16 \x01(\tR\fshardingInfo\x12(\n" +
 	"\x10primary_key_type\x18\x17 \x01(\tR\x0eprimaryKeyType\x12Y\n" +
-	"\x13exclude_constraints\x18\x19 \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraintsJ\x04\b\r\x10\x0f\"M\n" +
+	"\x13exclude_constraints\x18\x19 \x03(\v2(.omni.metadata.ExcludeConstraintMetadataR\x12excludeConstraintsJ\x04\b\r\x10\x0f\"g\n" +
 	"\x17CheckConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
-	"expression\"O\n" +
+	"expression\x12\x18\n" +
+	"\acomment\x18\x03 \x01(\tR\acomment\"O\n" +
 	"\x19ExcludeConstraintMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
@@ -4661,7 +4686,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"definition\x18\a \x01(\tR\n" +
 	"definition\x12\x18\n" +
 	"\acomment\x18\b \x01(\tR\acomment\x12\x1b\n" +
-	"\tskip_dump\x18\t \x01(\bR\bskipDump\"\xa2\x02\n" +
+	"\tskip_dump\x18\t \x01(\bR\bskipDump\"\xbc\x02\n" +
 	"\x12ForeignKeyMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x18\n" +
 	"\acolumns\x18\x02 \x03(\tR\acolumns\x12+\n" +
@@ -4671,7 +4696,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\ton_delete\x18\x06 \x01(\tR\bonDelete\x12\x1b\n" +
 	"\ton_update\x18\a \x01(\tR\bonUpdate\x12\x1d\n" +
 	"\n" +
-	"match_type\x18\b \x01(\tR\tmatchTypeB#Z!github.com/bytebase/omni/metadatab\x06proto3"
+	"match_type\x18\b \x01(\tR\tmatchType\x12\x18\n" +
+	"\acomment\x18\t \x01(\tR\acommentB#Z!github.com/bytebase/omni/metadatab\x06proto3"
 
 var (
 	file_omni_metadata_database_proto_rawDescOnce sync.Once
