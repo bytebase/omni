@@ -253,6 +253,27 @@ CREATE VIEW `a_child_view`
  AS SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` AS `k` FROM `internal`.`omni_dump_corpus`.`z_parent_view`;
 
 --
+-- View structure for `aa_union_view`
+--
+CREATE VIEW `aa_union_view`
+(k)
+ AS SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` AS `k` FROM `internal`.`omni_dump_corpus`.`z_parent_view` UNION ALL SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` FROM `internal`.`omni_dump_corpus`.`z_parent_view`;
+
+--
+-- View structure for `ab_cte_view`
+--
+CREATE VIEW `ab_cte_view`
+(k)
+ AS WITH `c` AS (SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` FROM `internal`.`omni_dump_corpus`.`z_parent_view`) SELECT `c`.`k` AS `k` FROM c;
+
+--
+-- View structure for `ac_subquery_view`
+--
+CREATE VIEW `ac_subquery_view`
+(k)
+ AS SELECT (SELECT max(k) FROM `internal`.`omni_dump_corpus`.`z_parent_view`) AS `k`;
+
+--
 -- View structure for `b_mv_view`
 --
 CREATE VIEW `b_mv_view`

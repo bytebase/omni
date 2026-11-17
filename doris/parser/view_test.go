@@ -198,6 +198,32 @@ func TestCreateView_AllColumnComments(t *testing.T) {
 // ALTER VIEW
 // ---------------------------------------------------------------------------
 
+// A view body is a query, not a bare SELECT: DorisParser.g4:183's createView
+// states `query`, so a set operation, a WITH clause and a parenthesized operand
+// are the forms a SELECT statement takes anywhere else.
+func TestCreateView_QueryForms(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want ast.NodeTag
+	}{
+		{"set operation", "CREATE VIEW v AS SELECT 1 AS k UNION ALL SELECT 2 AS k", ast.T_SetOpStmt},
+		{"with clause", "CREATE VIEW v AS WITH c AS (SELECT 1 AS k) SELECT k FROM c", ast.T_SelectStmt},
+		{"parenthesized", "CREATE VIEW v AS (SELECT 1 AS k)", ast.T_SelectStmt},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stmt := parseCreateViewStmt(t, test.sql)
+			if stmt.Query == nil {
+				t.Fatal("Query is nil")
+			}
+			if stmt.Query.Tag() != test.want {
+				t.Errorf("Query.Tag() = %v, want %v", stmt.Query.Tag(), test.want)
+			}
+		})
+	}
+}
+
 func TestAlterView_Basic(t *testing.T) {
 	stmt := parseAlterViewStmt(t, "ALTER VIEW v AS SELECT id FROM t")
 	if stmt.Name.String() != "v" {
@@ -227,6 +253,29 @@ func TestAlterView_WithColumns(t *testing.T) {
 	}
 	if stmt.Columns[1].Name != "b" {
 		t.Errorf("Columns[1].Name = %q, want %q", stmt.Columns[1].Name, "b")
+	}
+}
+
+// DorisParser.g4:206's alterView states `query` too.
+func TestAlterView_QueryForms(t *testing.T) {
+	tests := []struct {
+		name string
+		sql  string
+		want ast.NodeTag
+	}{
+		{"set operation", "ALTER VIEW v AS SELECT 1 AS k UNION ALL SELECT 2 AS k", ast.T_SetOpStmt},
+		{"with clause", "ALTER VIEW v AS WITH c AS (SELECT 1 AS k) SELECT k FROM c", ast.T_SelectStmt},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			stmt := parseAlterViewStmt(t, test.sql)
+			if stmt.Query == nil {
+				t.Fatal("Query is nil")
+			}
+			if stmt.Query.Tag() != test.want {
+				t.Errorf("Query.Tag() = %v, want %v", stmt.Query.Tag(), test.want)
+			}
+		})
 	}
 }
 

@@ -114,6 +114,18 @@
 | CREATE VIEW b_mv_view (k, s) AS SELECT k, s FROM z_parent_mv;
 < ok 0 0
 > exec
+| -- A view body is a query, not a bare SELECT: a set operation, a WITH clause and
+| -- a scalar subquery each read z_parent_view, and each is alphabetically before
+| -- it, so the dump must see the reference inside the form to order them.
+| CREATE VIEW aa_union_view (k) AS SELECT k FROM z_parent_view UNION ALL SELECT k FROM z_parent_view;
+< ok 0 0
+> exec
+| CREATE VIEW ab_cte_view (k) AS WITH c AS (SELECT k FROM z_parent_view) SELECT k FROM c;
+< ok 0 0
+> exec
+| CREATE VIEW ac_subquery_view (k) AS SELECT (SELECT max(k) FROM z_parent_view) AS k;
+< ok 0 0
+> exec
 | CREATE PROCEDURE proc_with_body(IN a INT) COMMENT 'doris procedure'
 | BEGIN
 | 	SET @first = a + 1;
@@ -154,6 +166,21 @@
 < row
 : bytes
 | a_child_view
+: bytes
+| VIEW
+< row
+: bytes
+| aa_union_view
+: bytes
+| VIEW
+< row
+: bytes
+| ab_cte_view
+: bytes
+| VIEW
+< row
+: bytes
+| ac_subquery_view
 : bytes
 | VIEW
 < row
@@ -271,6 +298,60 @@
 | CREATE VIEW `a_child_view`
 | (k)
 |  AS SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` AS `k` FROM `internal`.`omni_dump_corpus`.`z_parent_view`;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_bin
+> query
+| SHOW CREATE VIEW `omni_dump_corpus`.`aa_union_view`
+< result
+< column "View" "CHAR"
+< column "Create View" "CHAR"
+< column "character_set_client" "CHAR"
+< column "collation_connection" "CHAR"
+< row
+: bytes
+| aa_union_view
+: bytes
+| CREATE VIEW `aa_union_view`
+| (k)
+|  AS SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` AS `k` FROM `internal`.`omni_dump_corpus`.`z_parent_view` UNION ALL SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` FROM `internal`.`omni_dump_corpus`.`z_parent_view`;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_bin
+> query
+| SHOW CREATE VIEW `omni_dump_corpus`.`ab_cte_view`
+< result
+< column "View" "CHAR"
+< column "Create View" "CHAR"
+< column "character_set_client" "CHAR"
+< column "collation_connection" "CHAR"
+< row
+: bytes
+| ab_cte_view
+: bytes
+| CREATE VIEW `ab_cte_view`
+| (k)
+|  AS WITH `c` AS (SELECT `internal`.`omni_dump_corpus`.`z_parent_view`.`k` FROM `internal`.`omni_dump_corpus`.`z_parent_view`) SELECT `c`.`k` AS `k` FROM c;
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_0900_bin
+> query
+| SHOW CREATE VIEW `omni_dump_corpus`.`ac_subquery_view`
+< result
+< column "View" "CHAR"
+< column "Create View" "CHAR"
+< column "character_set_client" "CHAR"
+< column "collation_connection" "CHAR"
+< row
+: bytes
+| ac_subquery_view
+: bytes
+| CREATE VIEW `ac_subquery_view`
+| (k)
+|  AS SELECT (SELECT max(k) FROM `internal`.`omni_dump_corpus`.`z_parent_view`) AS `k`;
 : bytes
 | utf8mb4
 : bytes

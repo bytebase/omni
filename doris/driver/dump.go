@@ -270,18 +270,29 @@ func dumpDefinitionReads(stmt, database string) ([]string, error) {
 		return nil, fmt.Errorf("%T is not a view or materialized view definition", file.Stmts[0])
 	}
 	var reads []string
-	ast.Inspect(query, func(n ast.Node) bool {
-		ref, ok := n.(*ast.TableRef)
-		if !ok || ref.Func != nil {
-			// A table-valued function such as mv_infos() is not an object the
-			// dump creates.
+	var collect func(node ast.Node)
+	collect = func(node ast.Node) {
+		ast.Inspect(node, func(n ast.Node) bool {
+			switch n := n.(type) {
+			case *ast.TableRef:
+				// A table-valued function such as mv_infos() is not an object
+				// the dump creates.
+				if n.Func == nil {
+					if name := dumpReferencedName(n.Name, database); name != "" {
+						reads = append(reads, name)
+					}
+				}
+			case *ast.SubqueryExpr:
+				// Walk keeps a subquery body as a leaf and holds the parsed body
+				// in Query, so a reference inside a scalar, EXISTS or IN
+				// subquery is a reference all the same.
+				collect(n.Query)
+				return false
+			}
 			return true
-		}
-		if name := dumpReferencedName(ref.Name, database); name != "" {
-			reads = append(reads, name)
-		}
-		return true
-	})
+		})
+	}
+	collect(query)
 	return reads, nil
 }
 

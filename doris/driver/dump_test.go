@@ -264,6 +264,18 @@ func TestDumpDefinitionReads(t *testing.T) {
 			want:     nil,
 		},
 		{
+			name:     "a set operation's operand reads a view",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w` UNION ALL SELECT `internal`.`db`.`w`.`k` AS `k` FROM `internal`.`db`.`w`",
+			database: "db",
+			want:     []string{"w", "w"},
+		},
+		{
+			name:     "a subquery reads a view",
+			stmt:     "CREATE VIEW `v` (k) AS SELECT (SELECT max(`internal`.`db`.`w`.`k`) FROM `internal`.`db`.`w`) AS `k`",
+			database: "db",
+			want:     []string{"w"},
+		},
+		{
 			name:     "materialized view reads a table",
 			stmt:     "CREATE MATERIALIZED VIEW mv (k) BUILD DEFERRED REFRESH COMPLETE ON MANUAL DISTRIBUTED BY HASH(k) BUCKETS 1 AS SELECT `internal`.`db`.`t`.`k` AS `k` FROM `internal`.`db`.`t`",
 			database: "db",

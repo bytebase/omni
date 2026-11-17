@@ -97,6 +97,15 @@ CREATE VIEW a_child_view (k) AS SELECT k FROM z_parent_view;
 -- A view reads a materialized view, which Doris allows in this direction only.
 CREATE VIEW b_mv_view (k, s) AS SELECT k, s FROM z_parent_mv;
 
+-- A view body is a query, not a bare SELECT: a set operation, a WITH clause and
+-- a scalar subquery each read z_parent_view, and each is alphabetically before
+-- it, so the dump must see the reference inside the form to order them.
+CREATE VIEW aa_union_view (k) AS SELECT k FROM z_parent_view UNION ALL SELECT k FROM z_parent_view;
+
+CREATE VIEW ab_cte_view (k) AS WITH c AS (SELECT k FROM z_parent_view) SELECT k FROM c;
+
+CREATE VIEW ac_subquery_view (k) AS SELECT (SELECT max(k) FROM z_parent_view) AS k;
+
 DELIMITER //
 CREATE PROCEDURE proc_with_body(IN a INT) COMMENT 'doris procedure'
 BEGIN

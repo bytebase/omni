@@ -68,8 +68,8 @@ func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, er
 		p.advance()
 	}
 
-	// Query — parse the SELECT statement
-	query, err := p.parseSelectStmt()
+	// Query
+	query, err := p.parseViewQuery()
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +144,7 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 	}
 
 	// Query
-	query, err := p.parseSelectStmt()
+	query, err := p.parseViewQuery()
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +152,29 @@ func (p *Parser) parseAlterView() (ast.Node, error) {
 
 	stmt.Loc = startLoc.Merge(ast.NodeLoc(query))
 	return stmt, nil
+}
+
+// parseViewQuery parses a view body. Both createView (DorisParser.g4:183) and
+// alterView (:206) state `query`, not a bare SELECT, so a set operation, a WITH
+// clause or a parenthesized operand parses here as it does in a statement of its
+// own.
+func (p *Parser) parseViewQuery() (ast.Node, error) {
+	switch p.cur.Kind {
+	case kwWITH:
+		with, err := p.parseWithSelect()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseQueryTail(with)
+	case int('('):
+		return p.parseParenQueryStmt()
+	default:
+		query, err := p.parseSelectStmt()
+		if err != nil {
+			return nil, err
+		}
+		return p.parseQueryTail(query)
+	}
 }
 
 // parseDropView parses a DROP VIEW statement.
