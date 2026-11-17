@@ -188,7 +188,11 @@ the reads, then the writes, then the dump.
 
 Recording commands, one test at a time so a failure is attributable. The live
 tests are named `TestLive*` today; rename them to the recorded names above and
-point them at `testcontainer.Open` when the harness lands.
+point them at `testcontainer.Open` when the harness lands. They name the tests
+that exist: a `-run` pattern that matches nothing exits 0 and records nothing,
+which reads as a pass. `TestPing` has no test yet — one that opens a driver and
+calls `Ping` records `Workspace.ListAll` — so write it before recording it, or
+leave the connectivity check to the other tapes, which fail on it anyway.
 
 ```bash
 export DATABRICKS_DSN='databricks://...'

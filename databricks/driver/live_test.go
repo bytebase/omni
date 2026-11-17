@@ -126,7 +126,7 @@ func TestLiveSyncInstance(t *testing.T) {
 func TestLiveSyncDatabase(t *testing.T) {
 	d := openLive(t)
 	if d.catalog == "" {
-		t.Skip("the DSN names no catalog, so there is no database to sync")
+		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because SyncDatabase reads it and a skip would record nothing", dsnVariable)
 	}
 	database, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -201,7 +201,7 @@ func TestLiveExecute(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 	if d.catalog == "" {
-		t.Skip("the DSN names no catalog, so there is no schema to create a table in")
+		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because the scratch schema is created in it and a skip would record nothing", dsnVariable)
 	}
 
 	schema := "omni_driver_" + strconv.FormatInt(time.Now().UnixNano(), 36)
@@ -243,7 +243,7 @@ func TestLiveExecute(t *testing.T) {
 func TestLiveDump(t *testing.T) {
 	d := openLive(t)
 	if d.catalog == "" {
-		t.Skip("the DSN names no catalog, so there is no catalog to dump")
+		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because Dump reads it and a skip would record nothing", dsnVariable)
 	}
 	var out bytes.Buffer
 	if err := d.Dump(context.Background(), &out, nil); err != nil {

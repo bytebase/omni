@@ -17,6 +17,12 @@
 // holds this package to Bytebase's driver. Treat every behavior below as
 // unconfirmed until that recording lands.
 //
+// Everything that reaches a workspace is behind one environment gate:
+// DATABRICKS_DSN names the workspace, the personal access token, the SQL
+// warehouse and the catalog a live test uses. Unset, a live test skips naming
+// the gate; set and naming no catalog, it fails, so a recording cannot write no
+// tape and read as a pass.
+//
 // The tree is driver-only. Bytebase dispatches Databricks through
 // parser/standard's lexical splitter and its EXPLAIN FORMATTED rewrite, and
 // omni has no databricks tree and no standard tree to call, so the driver
