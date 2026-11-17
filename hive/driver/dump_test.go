@@ -453,6 +453,20 @@ func TestDumpMaterializedViewQuery(t *testing.T) {
 			want:        "SELECT `events`.`id` AS `select`, `events`.`dt` FROM `omni_dump`.`events`",
 		},
 		{
+			name:        "a partitioned view whose expansion quotes a number",
+			original:    "SELECT id AS 123, dt FROM omni_dump.events",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id` AS `123`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`",
+			partitioned: true,
+			want:        "SELECT `events`.`id` AS `123`, `events`.`dt` FROM `omni_dump`.`events`",
+		},
+		{
+			name:        "a partitioned view whose expansion quotes a name beginning with a digit",
+			original:    "SELECT id AS 1bad, dt FROM omni_dump.events",
+			expanded:    "SELECT `id`, `dt` FROM (SELECT `events`.`id` AS `1bad`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`",
+			partitioned: true,
+			want:        "SELECT `events`.`id` AS `1bad`, `events`.`dt` FROM `omni_dump`.`events`",
+		},
+		{
 			name:        "a partitioned view whose expansion is no projection",
 			original:    partitionedOriginal,
 			expanded:    "SELECT `id`, `dt` FROM `omni_dump`.`events`",

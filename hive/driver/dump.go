@@ -410,19 +410,29 @@ func dumpStatesQuotedName(text string) bool {
 	return false
 }
 
-// dumpPlainName reports whether name is one Hive reads without backquotes.
+// dumpPlainName reports whether name is one Hive reads without backquotes: a
+// name begins with a letter, an underscore or a dollar sign, and Hive reads
+// digits alone as the number they spell rather than as a name.
 func dumpPlainName(name string) bool {
 	if name == "" || dumpReservedWords[strings.ToUpper(name)] {
 		return false
 	}
+	if !dumpNameStart(name[0]) {
+		return false
+	}
 	for i := 0; i < len(name); i++ {
 		c := name[i]
-		if c == '_' || c == '$' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || ('0' <= c && c <= '9') {
+		if dumpNameStart(c) || ('0' <= c && c <= '9') {
 			continue
 		}
 		return false
 	}
 	return true
+}
+
+// dumpNameStart reports whether c is one a name starts with, or holds.
+func dumpNameStart(c byte) bool {
+	return c == '_' || c == '$' || ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
 }
 
 // dumpReservedWords are the names Hive reads as keywords, so that a statement
