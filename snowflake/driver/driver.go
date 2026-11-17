@@ -21,10 +21,10 @@
 // Its tests therefore cover only what needs no account: the client
 // configuration built from a driver.Config, the private key decoder, the
 // statement classification wiring, the value conversions and the dump's text
-// transforms. Everything else is behind an environment gate and skips with the
-// variable's name: SNOWFLAKE_DSN reaches an account for this package's own live
-// tests, and SNOWFLAKE_COMPAT_DSN is the account omni's docs ask for when a
-// compat corpus needs the engine to judge it.
+// transforms. Everything else is behind an environment gate and skips naming
+// it: the live tests read SNOWFLAKE_DSN, falling back to the SNOWFLAKE_COMPAT_DSN
+// the compatibility work already names, and both must point at one dedicated
+// scratch account, because those tests create objects and write.
 //
 // # What it implements
 //

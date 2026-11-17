@@ -186,9 +186,10 @@ owned by this engine (omni keeps no helper shared across engines), modeled on
 
 - `container.go`:
   `var server = &tape.Server{Pins: Pins, Live: live, Codec: Codec{}}`;
-  `func Open(t testing.TB) *sql.DB { return tape.Open(t, server, RoleDriver) }`;
+  `func Open(t testing.TB) *sql.DB { return tape.Open(t, server, Driver) }`;
   `Pins` is `snowflake/testdata/pins.tsv` resolved from `runtime.Caller`, and
-  `RoleDriver = "driver"` is the row Step 3 adds.
+  `const Driver = "driver"` names the row Step 3 adds, as `cassandra`,
+  `elasticsearch` and `redis` each name theirs.
   `live` reads `SNOWFLAKE_DSN`, opens `sql.OpenDB(gosnowflake.NewConnector(...))`
   from the same `driver.Config` the package's `liveConfig` builds, and **fails**
   when the variable is unset — a recording without an account must not skip, or
@@ -224,14 +225,23 @@ reads, then the writes, then the dump.
 | 5 | `TestDump` | `GET_DDL('DATABASE', ...)` and the four transforms |
 | 6 | `TestSyncDatabaseShare` | the inbound-share branch, on a database shared in from a second account |
 
-Recording commands, one test at a time so a failure is attributable:
+Recording commands, one test at a time so a failure is attributable. The table
+names each test by what it records, which is the name it takes once it replays a
+tape; `live_test.go` holds `TestLiveSyncDatabase`, `TestLiveSyncInstance`,
+`TestLiveQuery`, `TestLiveExecute` and `TestLiveDump` today, so the commands
+below name those and step 4's conversion renames them. They name the tests that
+exist: a `-run` pattern that matches nothing exits 0 and records nothing, which
+reads as a pass. `TestSyncDatabaseShare` has no test yet: write it against a
+database shared in from a second account, then record it with
+`-run '^TestSyncDatabaseShare$'`, or say in the recording PR that no second
+account was available.
 
 ```bash
-OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestSyncDatabase$' -count=1 -v
-OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestSyncInstance$' -count=1 -v
-OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestQuery$' -count=1 -v
-OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestExecute$' -count=1 -v
-OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestDump$' -count=1 -v
+OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
+OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
+OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveQuery$' -count=1 -v
+OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveExecute$' -count=1 -v
+OMNI_RECORD=1 SNOWFLAKE_DSN="$SNOWFLAKE_DSN" go test ./snowflake/driver/ -run '^TestLiveDump$' -count=1 -v
 ```
 
 Then record everything twice and require byte-identical tapes. Two runs of one
