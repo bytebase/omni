@@ -79,6 +79,19 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 	}
 
+	// Construct user-defined collations, before the columns that sort with
+	// them.
+	for _, schema := range metadata.Schemas {
+		for _, collation := range schema.Collations {
+			if collation.SkipDump {
+				continue
+			}
+			if err := writeCollation(&buf, schema.Name, collation); err != nil {
+				return "", err
+			}
+		}
+	}
+
 	// Construct enums.
 	for _, schema := range metadata.Schemas {
 		for _, enum := range schema.EnumTypes {
@@ -103,6 +116,18 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	// Construct composite types.
 	if err := writeCompositeTypesSection(&buf, collectCompositeTypes(metadata.Schemas)); err != nil {
 		return "", err
+	}
+
+	// Construct range types, before the objects whose types are ranges.
+	for _, schema := range metadata.Schemas {
+		for _, rangeType := range schema.RangeTypes {
+			if rangeType.SkipDump {
+				continue
+			}
+			if err := writeRangeType(&buf, schema.Name, rangeType); err != nil {
+				return "", err
+			}
+		}
 	}
 
 	// Build the graph for topological sort.
@@ -318,6 +343,16 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 		return "", err
 	}
 
+	// Construct user-defined collations, before the columns that sort with them.
+	for _, collation := range schema.Collations {
+		if collation.SkipDump {
+			continue
+		}
+		if err := writeCollation(&buf, schema.Name, collation); err != nil {
+			return "", err
+		}
+	}
+
 	// Construct enums.
 	for _, enum := range schema.EnumTypes {
 		if enum.SkipDump {
@@ -348,6 +383,16 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	}
 	if err := writeCompositeTypesSection(&buf, compositeTypes); err != nil {
 		return "", err
+	}
+
+	// Construct range types, before the objects whose types are ranges.
+	for _, rangeType := range schema.RangeTypes {
+		if rangeType.SkipDump {
+			continue
+		}
+		if err := writeRangeType(&buf, schema.Name, rangeType); err != nil {
+			return "", err
+		}
 	}
 
 	// Build the graph for topological sort.
@@ -1168,6 +1213,78 @@ func signatureTypesOnly(signature string) string {
 	return funcName + "(" + strings.Join(typesOnly, ", ") + ")"
 }
 
+// writeCollation writes a user-defined collation and its comment. The provider
+// decides which locale fields PostgreSQL takes: ICU and builtin take a locale,
+// libc takes the pair it sorts and classifies with.
+func writeCollation(out io.Writer, schema string, collation *metadatapb.CollationMetadata) error {
+	var provider, locale string
+	switch collation.Provider {
+	case "i":
+		provider, locale = "icu", fmt.Sprintf("locale = '%s'", escapeSingleQuote(collation.Locale))
+	case "c":
+		provider = "libc"
+		locale = fmt.Sprintf("lc_collate = '%s', lc_ctype = '%s'", escapeSingleQuote(collation.LcCollate), escapeSingleQuote(collation.LcCtype))
+	case "b":
+		provider, locale = "builtin", fmt.Sprintf("locale = '%s'", escapeSingleQuote(collation.Locale))
+	default:
+		// A collation with no provider to state is one the server derives, which
+		// a restore cannot create.
+		return nil
+	}
+	if _, err := fmt.Fprintf(out, "CREATE COLLATION \"%s\".\"%s\" (provider = %s, %s",
+		escapeIdentifier(schema), escapeIdentifier(collation.Name), provider, locale); err != nil {
+		return err
+	}
+	if collation.Deterministic != nil {
+		if _, err := fmt.Fprintf(out, ", deterministic = %t", *collation.Deterministic); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, ");\n\n"); err != nil {
+		return err
+	}
+	if collation.Comment != "" {
+		if _, err := fmt.Fprintf(out, "COMMENT ON COLLATION \"%s\".\"%s\" IS '%s';\n\n",
+			escapeIdentifier(schema), escapeIdentifier(collation.Name), escapeSingleQuote(collation.Comment)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeRangeType writes CREATE TYPE ... AS RANGE and its comment. The subtype
+// is written as the server states it; the clauses it left out are the ones the
+// server derives, so writing only what pg_range filled keeps the restore to
+// what the source declared.
+func writeRangeType(out io.Writer, schema string, rangeType *metadatapb.RangeTypeMetadata) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "CREATE TYPE \"%s\".\"%s\" AS RANGE (\n    subtype = %s",
+		escapeIdentifier(schema), escapeIdentifier(rangeType.Name), rangeType.Subtype)
+	for _, clause := range []struct{ key, value string }{
+		{"subtype_opclass", rangeType.SubtypeOpclass},
+		{"collation", rangeType.Collation},
+		{"canonical", rangeType.Canonical},
+		{"subtype_diff", rangeType.SubtypeDiff},
+		{"multirange_type_name", rangeType.MultirangeName},
+	} {
+		if clause.value == "" {
+			continue
+		}
+		fmt.Fprintf(&b, ",\n    %s = %s", clause.key, clause.value)
+	}
+	b.WriteString("\n);\n\n")
+	if _, err := io.WriteString(out, b.String()); err != nil {
+		return err
+	}
+	if rangeType.Comment != "" {
+		if _, err := fmt.Fprintf(out, "COMMENT ON TYPE \"%s\".\"%s\" IS '%s';\n\n",
+			escapeIdentifier(schema), escapeIdentifier(rangeType.Name), escapeSingleQuote(rangeType.Comment)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeEnumComment(out io.Writer, schema string, enum *metadatapb.EnumTypeMetadata) error {
 	if _, err := io.WriteString(out, `COMMENT ON TYPE "`); err != nil {
 		return err
@@ -1717,11 +1834,15 @@ func writeCreateTable(out io.Writer, schema string, tableName string, columns []
 			return err
 		}
 
-		// The collation is a bare name; a user-defined collation would need
-		// its schema, which the metadata does not carry, so only a built-in
-		// collation (pg_catalog, such as "C") round-trips.
+		// A user-defined collation is written with its schema: the dump restores
+		// under an empty search_path, so its bare name reaches only the collations
+		// pg_catalog holds.
 		if column.Collation != "" {
-			if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, column.Collation); err != nil {
+			if column.CollationSchema != "" {
+				if _, err := fmt.Fprintf(out, ` COLLATE "%s"."%s"`, escapeIdentifier(column.CollationSchema), escapeIdentifier(column.Collation)); err != nil {
+					return err
+				}
+			} else if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, escapeIdentifier(column.Collation)); err != nil {
 				return err
 			}
 		}

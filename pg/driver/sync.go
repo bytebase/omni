@@ -72,6 +72,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	isAtLeastPG10 := isAtLeastMajorVersion(engineVersion, 10)
 	isAtLeastPG12 := isAtLeastMajorVersion(engineVersion, 12)
+	isAtLeastPG14 := isAtLeastMajorVersion(engineVersion, 14)
 	searchPath, err := d.SearchPath(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get search path for database %q: %w", d.databaseName, err)
@@ -152,7 +153,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get function dependency tables from database %q: %w", d.databaseName, err)
 	}
-	functionMap, err := getFunctions(txn, functionDependencyTables, tableOidMap, viewOidMap, materializedViewOidMap, extensionDepend)
+	functionMap, err := getFunctions(txn, isAtLeastPG14, functionDependencyTables, tableOidMap, viewOidMap, materializedViewOidMap, extensionDepend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get functions from database %q: %w", d.databaseName, err)
 	}
@@ -174,6 +175,16 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	compositeTypes, err := getCompositeTypes(txn, extensionDepend)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get composite types from database %q: %w", d.databaseName, err)
+	}
+
+	collations, err := getCollations(txn, engineVersion, extensionDepend)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get collations from database %q: %w", d.databaseName, err)
+	}
+
+	rangeTypes, err := getRangeTypes(txn, isAtLeastPG14, extensionDepend)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get range types from database %q: %w", d.databaseName, err)
 	}
 
 	eventTriggers, err := getEventTriggers(txn, extensionDepend)
@@ -213,6 +224,8 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 			Comment:           schemaComments[i],
 			EnumTypes:         enumTypes[schemaName],
 			CompositeTypes:    compositeTypes[schemaName],
+			Collations:        collations[schemaName],
+			RangeTypes:        rangeTypes[schemaName],
 			SkipDump:          skipDumps[i],
 		})
 	}
@@ -857,6 +870,7 @@ SELECT
 	%s AS generation_expression,
 	CASE WHEN a.attnotnull OR (t.typtype = 'd' AND t.typnotnull) THEN 'NO' ELSE 'YES' END AS is_nullable,
 	co.collname AS collation_name,
+	NULLIF(nco.nspname, 'pg_catalog') AS collation_schema,
 	COALESCE(nbt.nspname, nt.nspname) AS udt_schema,
 	COALESCE(bt.typname, t.typname) AS udt_name,
 	CASE a.attidentity WHEN 'a' THEN 'ALWAYS' WHEN 'd' THEN 'BY DEFAULT' END AS identity_generation,
@@ -891,8 +905,8 @@ func getTableColumns(txn *sql.Tx, isAtLeastPG12 bool) (map[tableKey][]*metadatap
 	for rows.Next() {
 		column := &metadatapb.ColumnMetadata{}
 		var schemaName, tableName, nullable, generationKind string
-		var characterMaxLength, numericPrecision, numericScale, datetimePrecision, defaultStr, generationExpression, collation, udtSchema, udtName, identityGeneration, comment sql.NullString
-		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &udtSchema, &udtName, &identityGeneration, &comment); err != nil {
+		var characterMaxLength, numericPrecision, numericScale, datetimePrecision, defaultStr, generationExpression, collation, collationSchema, udtSchema, udtName, identityGeneration, comment sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &column.Name, &column.Type, &characterMaxLength, &numericPrecision, &numericScale, &datetimePrecision, &column.Position, &defaultStr, &generationKind, &generationExpression, &nullable, &collation, &collationSchema, &udtSchema, &udtName, &identityGeneration, &comment); err != nil {
 			return nil, err
 		}
 		// A generated column carries its expression instead of a default, and
@@ -967,6 +981,7 @@ func getTableColumns(txn *sql.Tx, isAtLeastPG12 bool) (map[tableKey][]*metadatap
 			// Keep the type as is
 		}
 		column.Collation = collation.String
+		column.CollationSchema = collationSchema.String
 		column.Comment = comment.String
 		if identityGeneration.Valid {
 			switch strings.ToUpper(identityGeneration.String) {
@@ -1308,6 +1323,71 @@ func getExtensions(txn *sql.Tx) ([]*metadatapb.ExtensionMetadata, error) {
 	return extensions, nil
 }
 
+// listCollationQuery lists the collations a schema defines. PostgreSQL ships
+// its own in pg_catalog and information_schema, which an unqualified name
+// reaches; a column elsewhere names a collation this query lists.
+var listCollationQuery = `
+SELECT
+	c.oid,
+	n.nspname AS collation_schema,
+	c.collname AS collation_name,
+	c.collprovider AS provider,
+	c.collcollate AS lc_collate,
+	c.collctype AS lc_ctype,
+	%s AS locale,
+	c.collisdeterministic AS deterministic,
+	pg_catalog.obj_description(c.oid, 'pg_collation') AS comment
+FROM pg_catalog.pg_collation c
+	JOIN pg_catalog.pg_namespace n ON n.oid = c.collnamespace
+WHERE n.nspname NOT IN (%s)
+	AND n.nspname NOT LIKE 'pg_temp%%'
+	AND n.nspname NOT LIKE 'pg_toast%%'
+ORDER BY n.nspname, c.collname;`
+
+// getCollations reads the schema's user-defined collations. PostgreSQL states
+// an ICU provider's locale in colliculocale from 15, renamed colllocale in 17,
+// and in collcollate before 15.
+func getCollations(txn *sql.Tx, engineVersion string, extensionDepend map[int]bool) (map[string][]*metadatapb.CollationMetadata, error) {
+	locale := "CASE WHEN c.collprovider = 'i' THEN c.collcollate END"
+	if isAtLeastMajorVersion(engineVersion, 15) {
+		locale = "c.colliculocale"
+	}
+	if isAtLeastMajorVersion(engineVersion, 17) {
+		locale = "c.colllocale"
+	}
+	rows, err := txn.Query(fmt.Sprintf(listCollationQuery, locale, pganalysis.SystemSchemaWhereClause))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	collations := make(map[string][]*metadatapb.CollationMetadata)
+	for rows.Next() {
+		collation := &metadatapb.CollationMetadata{}
+		var oid int
+		var schemaName, lcCollate, lcCtype, locale sql.NullString
+		var deterministic sql.NullBool
+		var comment sql.NullString
+		if err := rows.Scan(&oid, &schemaName, &collation.Name, &collation.Provider, &lcCollate, &lcCtype, &locale, &deterministic, &comment); err != nil {
+			return nil, err
+		}
+		collation.LcCollate = lcCollate.String
+		collation.LcCtype = lcCtype.String
+		collation.Locale = locale.String
+		if deterministic.Valid && !deterministic.Bool {
+			collation.Deterministic = &deterministic.Bool
+		}
+		collation.Comment = comment.String
+		collation.SkipDump = extensionDepend[oid]
+		collations[schemaName.String] = append(collations[schemaName.String], collation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return collations, nil
+}
+
 func getEnumTypes(txn *sql.Tx, extensionDepend map[int]bool) (map[string][]*metadatapb.EnumTypeMetadata, error) {
 	query := `
 	SELECT
@@ -1419,6 +1499,75 @@ const listCompositeTypeQuery = `
 	WHERE pn.nspname NOT LIKE 'pg_temp%'
 	  AND pn.nspname NOT LIKE 'pg_toast%'
 	ORDER BY pn.nspname, pt.typname, a.attnum;`
+
+// getListRangeTypeQuery builds the query over pg_range. The subtype and the
+// multirange type are format_type names, and the canonical and difference
+// functions are regproc names, all schema-qualified outside pg_catalog, so a
+// dump writes them as the server states them. The operator class is empty when
+// the subtype's default one is the one in use, and the collation when the
+// subtype's own collation is.
+func getListRangeTypeQuery(isAtLeastPG14 bool) string {
+	multirange := "NULL"
+	if isAtLeastPG14 {
+		multirange = "CASE WHEN r.rngmultitypid <> 0 THEN pg_catalog.format_type(r.rngmultitypid, NULL) END"
+	}
+	return fmt.Sprintf(`
+SELECT
+	r.rngtypid AS oid,
+	n.nspname AS schema_name,
+	t.typname AS type_name,
+	pg_catalog.format_type(r.rngsubtype, NULL) AS subtype,
+	CASE WHEN o.opcdefault THEN NULL ELSE opc_n.nspname || '.' || o.opcname END AS subtype_opclass,
+	CASE WHEN r.rngcollation <> 0 AND r.rngcollation <> st.typcollation
+		THEN quote_ident(co_n.nspname) || '.' || quote_ident(co.collname) END AS collation,
+	NULLIF(r.rngcanonical, 0)::regproc::text AS canonical,
+	NULLIF(r.rngsubdiff, 0)::regproc::text AS subtype_diff,
+	%s AS multirange_name,
+	pg_catalog.obj_description(r.rngtypid, 'pg_type') AS comment
+FROM pg_catalog.pg_range r
+	JOIN pg_catalog.pg_type t ON t.oid = r.rngtypid
+	JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+	JOIN pg_catalog.pg_type st ON st.oid = r.rngsubtype
+	LEFT JOIN pg_catalog.pg_opclass o ON o.oid = r.rngsubopc
+	LEFT JOIN pg_catalog.pg_namespace opc_n ON opc_n.oid = o.opcnamespace
+	LEFT JOIN (pg_catalog.pg_collation co JOIN pg_catalog.pg_namespace co_n ON co_n.oid = co.collnamespace)
+		ON co.oid = r.rngcollation
+WHERE n.nspname NOT IN (%s)
+	AND n.nspname NOT LIKE 'pg_temp%%'
+	AND n.nspname NOT LIKE 'pg_toast%%'
+ORDER BY n.nspname, t.typname;`, multirange, pganalysis.SystemSchemaWhereClause)
+}
+
+func getRangeTypes(txn *sql.Tx, isAtLeastPG14 bool, extensionDepend map[int]bool) (map[string][]*metadatapb.RangeTypeMetadata, error) {
+	rows, err := txn.Query(getListRangeTypeQuery(isAtLeastPG14))
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	rangeTypes := make(map[string][]*metadatapb.RangeTypeMetadata)
+	for rows.Next() {
+		rangeType := &metadatapb.RangeTypeMetadata{}
+		var oid int
+		var schemaName, subtypeOpclass, collation, canonical, subtypeDiff, multirangeName, comment sql.NullString
+		if err := rows.Scan(&oid, &schemaName, &rangeType.Name, &rangeType.Subtype, &subtypeOpclass, &collation, &canonical, &subtypeDiff, &multirangeName, &comment); err != nil {
+			return nil, err
+		}
+		rangeType.SubtypeOpclass = subtypeOpclass.String
+		rangeType.Collation = collation.String
+		rangeType.Canonical = canonical.String
+		rangeType.SubtypeDiff = subtypeDiff.String
+		rangeType.MultirangeName = multirangeName.String
+		rangeType.Comment = comment.String
+		rangeType.SkipDump = extensionDepend[oid]
+		rangeTypes[schemaName.String] = append(rangeTypes[schemaName.String], rangeType)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return rangeTypes, nil
+}
 
 func getCompositeTypes(txn *sql.Tx, extensionDepend map[int]bool) (map[string][]*metadatapb.CompositeTypeMetadata, error) {
 	rows, err := txn.Query(listCompositeTypeQuery)
@@ -1942,7 +2091,17 @@ func getFunctionDependencyTables(txn *sql.Tx) (map[int][]int, error) {
 	return dependencyTableMap, nil
 }
 
-var listFunctionQuery = `
+// getListFunctionQuery builds the function query. A range type's CREATE makes
+// the functions that build and merge its values, and their prosrc names an
+// internal C function no CREATE FUNCTION replays, so the query leaves them out:
+// the range type's own CREATE makes them again. PostgreSQL 14 added the
+// multirange type beside the range type, whose functions depend on it.
+func getListFunctionQuery(isAtLeastPG14 bool) string {
+	multirange := ""
+	if isAtLeastPG14 {
+		multirange = "\n\t\t\tUNION SELECT rngmultitypid FROM pg_catalog.pg_range WHERE rngmultitypid <> 0"
+	}
+	return fmt.Sprintf(`
 select p.oid, n.nspname as function_schema,
 	p.proname as function_name,
 	pg_catalog.pg_get_function_identity_arguments(p.oid) as arguments,
@@ -1953,16 +2112,28 @@ select p.oid, n.nspname as function_schema,
 from pg_proc p
 left join pg_namespace n on p.pronamespace = n.oid
 left join pg_language l on p.prolang = l.oid
-left join pg_type t on t.oid = p.prorettype ` + fmt.Sprintf(`
+left join pg_type t on t.oid = p.prorettype
 where n.nspname not in (%s)
   AND n.nspname NOT LIKE 'pg_temp%%'
   AND n.nspname NOT LIKE 'pg_toast%%'
   AND p.prokind <> 'a'
-order by function_schema, function_name, arguments;`, pganalysis.SystemSchemaWhereClause)
+  AND p.oid NOT IN (
+	SELECT d.objid
+	FROM pg_catalog.pg_depend d
+	WHERE d.classid = 'pg_proc'::regclass
+		AND d.refclassid = 'pg_type'::regclass
+		AND d.deptype = 'i'
+		AND d.refobjid IN (
+			SELECT rngtypid FROM pg_catalog.pg_range%s
+		)
+  )
+order by function_schema, function_name, arguments;`, pganalysis.SystemSchemaWhereClause, multirange)
+}
 
 // getFunctions gets all functions of a database.
 func getFunctions(
 	txn *sql.Tx,
+	isAtLeastPG14 bool,
 	functionDependencyTables map[int][]int,
 	tableOidMap map[int]*tableKeyWithColumns,
 	viewOidMap, materializedViewOidMap map[int]*tableKey,
@@ -1970,7 +2141,7 @@ func getFunctions(
 ) (map[string][]*metadatapb.FunctionMetadata, error) {
 	functionMap := make(map[string][]*metadatapb.FunctionMetadata)
 
-	rows, err := txn.Query(listFunctionQuery)
+	rows, err := txn.Query(getListFunctionQuery(isAtLeastPG14))
 	if err != nil {
 		return nil, err
 	}

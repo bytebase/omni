@@ -274,17 +274,6 @@ func TestDumpGaps(t *testing.T) {
 		// answers, for a gap the synced snapshot holds nothing of.
 		lost, want string
 	}{
-		// Range types are not synced, but their constructor functions are,
-		// as functions of the internal language, which do not restore.
-		{"range type", "omni_gap_range", "CREATE TYPE float_range AS RANGE (subtype = float8);", "syntax error at or near", "", ""},
-		// A user-defined collation is not a synced object, so its CREATE
-		// COLLATION is never emitted and a column that uses it cannot restore.
-		{
-			"user-defined collation", "omni_gap_collation",
-			"CREATE COLLATION c (provider = icu, locale = 'und-u-ks-level2', deterministic = false);\n" +
-				"CREATE TABLE t (v text COLLATE c);",
-			"does not exist", "", "",
-		},
 		// A foreign table's server and its options are not synced, so the
 		// dump omits the server and the foreign table; the table's synced
 		// external_database_name is the local database besides, which a
