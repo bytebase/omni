@@ -9,8 +9,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"google.golang.org/protobuf/testing/protocmp"
-
-	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // TestDump writes the server's own DDL, holds it to testdata/dump/default.sql,
@@ -59,17 +57,7 @@ func TestDump(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// obj_description(oid) without a catalog OID can read a comment that
-	// belongs to another catalog object with the same OID; the restored
-	// objects have new OIDs, so the defect makes those comments differ. The
-	// dump's COMMENT ON lines are held in the golden above.
-	if diff := cmp.Diff(before, after, protocmp.Transform(),
-		protocmp.IgnoreFields(&metadatapb.TableMetadata{}, "comment"),
-		protocmp.IgnoreFields(&metadatapb.ColumnMetadata{}, "comment"),
-		protocmp.IgnoreFields(&metadatapb.IndexMetadata{}, "comment"),
-		protocmp.IgnoreFields(&metadatapb.ViewMetadata{}, "comment"),
-		protocmp.IgnoreFields(&metadatapb.MaterializedViewMetadata{}, "comment"),
-	); diff != "" {
+	if diff := cmp.Diff(before, after, protocmp.Transform()); diff != "" {
 		t.Errorf("the dump did not restore the schema (-before +after):\n%s", diff)
 	}
 }

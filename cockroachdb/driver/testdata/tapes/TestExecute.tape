@@ -195,3 +195,76 @@
 | UTF8
 : string
 | en_US.utf8
+> query ^
+< result
+< column "datname" "NAME"
+< column "pg_encoding_to_char" "TEXT"
+< column "datcollate" "TEXT"
+< row
+: string
+| defaultdb
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| omni_execute_created
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| omni_testexecute
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| postgres
+: string
+| UTF8
+: string
+| en_US.utf8
+< row
+: string
+| system
+: string
+| UTF8
+: string
+| en_US.utf8
+> exec
+| CREATE DATABASE
+| omni_execute_created_multiline;
+< ok 0 -
+> query
+| SELECT count(*) FROM pg_database WHERE datname = 'omni_execute_created_multiline';
+< result
+< column "count" "INT8"
+< row
+: int64 1
+> query
+|
+| 		SELECT
+| 			u.rolname
+| 		FROM
+| 			pg_roles AS u JOIN pg_database AS d ON (d.datdba = u.oid)
+| 		WHERE
+| 			d.datname = current_database();
+| 		
+< result
+< column "rolname" "NAME"
+< row
+: string
+| root
+> exec
+| SET SESSION ROLE 'root'
+< ok 0 -
+> exec
+| CREATE DATABASE omni_execute_order;
+< ok 0 -
+> exec
+| DROP DATABASE omni_execute_order;
+< ok 0 -

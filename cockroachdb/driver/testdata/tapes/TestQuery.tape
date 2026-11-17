@@ -131,6 +131,23 @@
 < column "v" "INT8"
 < row
 : int64 7
+> query
+| SHOW timezone
+< result
+< column "timezone" "TEXT"
+< row
+: string
+| UTC
+> query
+| SELECT 'abc'::BYTES AS b, ''::BYTES AS empty;
+< result
+< column "b" "BYTEA"
+< column "empty" "BYTEA"
+< row
+: bytes
+| abc
+: bytes
+|
 > exec
 | UPDATE app.people SET name = name WHERE id = 1;
 < ok 1 -

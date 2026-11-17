@@ -235,7 +235,7 @@ func makeValueByTypeName(typeName string, _ *sql.ColumnType) any {
 		return new(pgtype.Date)
 	case "TIMESTAMP", "TIMESTAMPTZ":
 		return new(pgtype.Timestamptz)
-	case "BIT", "VARBIT":
+	case "BIT", "VARBIT", "BYTEA":
 		return new([]byte)
 	default:
 		return new(sql.NullString)
@@ -259,7 +259,7 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any, locati
 			return driver.Value{Kind: driver.Int64, Int64: raw.Int64}
 		}
 	case *[]byte:
-		if len(*raw) > 0 {
+		if *raw != nil {
 			return driver.Value{Kind: driver.Bytes, Bytes: *raw}
 		}
 	case *sql.NullBool:
@@ -311,10 +311,10 @@ func padZeroes(rawStr string, acc int) string {
 	}
 	// End index is used to cut off the time zone information.
 	endIndex := len(rawStr)
-	if plusIndex := strings.Index(rawStr, "+"); plusIndex >= 0 {
-		endIndex = plusIndex
-	} else if minusIndex := strings.Index(rawStr, "-"); minusIndex >= 0 {
-		endIndex = minusIndex
+	if plusIndex := strings.Index(rawStr[dotIndex+1:], "+"); plusIndex >= 0 {
+		endIndex = dotIndex + 1 + plusIndex
+	} else if minusIndex := strings.Index(rawStr[dotIndex+1:], "-"); minusIndex >= 0 {
+		endIndex = dotIndex + 1 + minusIndex
 	}
 	decimalPart := rawStr[dotIndex+1 : endIndex]
 	if len(decimalPart) < acc {

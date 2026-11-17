@@ -348,7 +348,7 @@ func getListTableQuery(isAtLeastPG10 bool) string {
 	return `
 	SELECT tbl.schemaname, tbl.tablename,
 		GREATEST(pc.reltuples::bigint, 0::BIGINT) AS estimate,
-		obj_description(pc.oid) AS comment
+		obj_description(pc.oid, 'pg_class') AS comment
 	FROM pg_catalog.pg_tables tbl
 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')` + fmt.Sprintf(`
@@ -580,7 +580,7 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 }
 
 var listMaterializedViewQuery = `
-SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid)
+SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid, 'pg_class')
 FROM pg_catalog.pg_matviews m
 LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
 LEFT JOIN pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid AND c.relkind = 'm'` + fmt.Sprintf(`
@@ -636,7 +636,7 @@ func getMaterializedViews(txn *sql.Tx) (map[string][]*metadatapb.MaterializedVie
 }
 
 var listViewQuery = `
-SELECT v.schemaname, v.viewname, v.definition, obj_description(c.oid)
+SELECT v.schemaname, v.viewname, v.definition, obj_description(c.oid, 'pg_class')
 FROM pg_catalog.pg_views v
 LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
 LEFT JOIN pg_class c ON c.relname = v.viewname AND c.relnamespace = n.oid AND c.relkind = 'v'` + fmt.Sprintf(`
@@ -700,7 +700,7 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) 
 func getViewDependencies(txn *sql.Tx, schemaName, viewName string) ([]*metadatapb.DependencyColumn, error) {
 	var result []*metadatapb.DependencyColumn
 
-	query := fmt.Sprintf(`
+	query := `
 		SELECT source_ns.nspname as source_schema,
 	  		source_table.relname as source_table,
 	  		pg_attribute.attname as column_name
@@ -713,15 +713,15 @@ func getViewDependencies(txn *sql.Tx, schemaName, viewName string) ([]*metadatap
 	  		JOIN pg_namespace dependency_ns ON dependency_ns.oid = dependency_view.relnamespace
 	  		JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
 	  	WHERE 
-	  		dependency_ns.nspname = '%s'
-	  		AND dependency_view.relname = '%s'
+	  		dependency_ns.nspname = $1
+	  		AND dependency_view.relname = $2
 	  		AND pg_attribute.attnum > 0
 	  		-- Only consider SELECT rules (view definitions), not INSERT/UPDATE/DELETE rules
 	  		AND pg_rewrite.ev_type = '1'
 	  	ORDER BY 1,2,3;
-	`, schemaName, viewName)
+	`
 
-	rows, err := txn.Query(query)
+	rows, err := txn.Query(query, schemaName, viewName)
 	if err != nil {
 		return nil, err
 	}
@@ -806,7 +806,7 @@ SELECT idx.schemaname, idx.tablename, idx.indexname, idx.indexdef, (SELECT const
 	AND table_schema = idx.schemaname
 	AND table_name = idx.tablename
 	AND constraint_type = 'PRIMARY KEY') AS constraint_type,
-	obj_description(c.oid) AS comment
+	obj_description(c.oid, 'pg_class') AS comment
 FROM pg_indexes AS idx
 LEFT JOIN pg_namespace n ON n.nspname = idx.schemaname
 LEFT JOIN pg_class c ON c.relname = idx.indexname AND c.relnamespace = n.oid AND c.relkind = 'i'` + fmt.Sprintf(`
@@ -858,6 +858,7 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 		}
 
 		index.Definition = statement
+		index.Unique = node.Unique
 
 		// FIXME(zp): Get expression.
 		index.Type = getIndexMethodType(statement)

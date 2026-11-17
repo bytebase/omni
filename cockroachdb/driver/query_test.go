@@ -123,6 +123,23 @@ INSERT INTO other.thing VALUES (7);`)
 		}
 	})
 
+	t.Run("bytes", func(t *testing.T) {
+		results, err := session.Query(ctx, "SELECT 'abc'::BYTES AS b, ''::BYTES AS empty;", driver.QueryOptions{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		got := results[0].Rows[0]
+		if got[0].Kind != driver.Bytes || string(got[0].Bytes) != "abc" {
+			t.Errorf("b = %+v, want bytes abc", got[0])
+		}
+		if got[1].Kind != driver.Bytes || len(got[1].Bytes) != 0 {
+			t.Errorf("empty = %+v, want empty bytes", got[1])
+		}
+	})
+
 	t.Run("affected rows", func(t *testing.T) {
 		results, err := session.Query(ctx, "UPDATE app.people SET name = name WHERE id = 1;", driver.QueryOptions{})
 		if err != nil {
@@ -172,4 +189,21 @@ INSERT INTO other.thing VALUES (7);`)
 			t.Errorf("offset = %d, want -5h or -4h", offset)
 		}
 	})
+}
+
+func TestPadZeroes(t *testing.T) {
+	for _, tc := range []struct {
+		in   string
+		want string
+	}{
+		{"00:00:01.5", "00:00:01.500000"},
+		{"-00:00:01.5", "-00:00:01.500000"},
+		{"00:00:01.5+02", "00:00:01.500000+02"},
+		{"-00:00:01.5-02", "-00:00:01.500000-02"},
+		{"00:00:01", "00:00:01"},
+	} {
+		if got := padZeroes(tc.in, 6); got != tc.want {
+			t.Errorf("padZeroes(%q) = %q, want %q", tc.in, got, tc.want)
+		}
+	}
 }

@@ -54,32 +54,34 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		isPlsql = true
 	}
 
-	var tmpCommands []driver.Command
+	var orderedCommands []driver.Command
+	var txCommands []driver.Command
 	for _, command := range commands {
-		switch {
-		case isSetRoleStatement(command.Text):
-			nonTransactionAndSetRoleStmts = append(nonTransactionAndSetRoleStmts, command)
-		case isNonTransactionStatement(command.Text):
-			nonTransactionAndSetRoleStmts = append(nonTransactionAndSetRoleStmts, command)
-			continue
-		case isSuperuserStatement(command.Text):
+		nonTransactional := isNonTransactionStatement(command.Text)
+		sessionRole := isSetRoleStatement(command.Text)
+		if !nonTransactional && !sessionRole && isSuperuserStatement(command.Text) {
 			// Use superuser privilege to run privileged statements.
 			ct := command.Text
 			if !strings.HasSuffix(strings.TrimRightFunc(ct, unicode.IsSpace), ";") {
 				ct += ";"
 			}
 			command.Text = fmt.Sprintf("SET LOCAL ROLE NONE;%sSET LOCAL ROLE '%s';", ct, owner)
-		default:
-			// Regular statements, keep as is
 		}
-		tmpCommands = append(tmpCommands, command)
+		orderedCommands = append(orderedCommands, command)
+		if nonTransactional {
+			nonTransactionAndSetRoleStmts = append(nonTransactionAndSetRoleStmts, command)
+			continue
+		}
+		txCommands = append(txCommands, command)
+		if sessionRole {
+			nonTransactionAndSetRoleStmts = append(nonTransactionAndSetRoleStmts, command)
+		}
 	}
-	commands = tmpCommands
 
 	if opts.Transaction == driver.AutoCommit {
-		return d.executeInAutoCommitMode(ctx, owner, script, commands, nonTransactionAndSetRoleStmts, opts.Log, isPlsql)
+		return d.executeInAutoCommitMode(ctx, owner, script, orderedCommands, opts.Log, isPlsql)
 	}
-	return d.executeInTransactionMode(ctx, owner, script, commands, nonTransactionAndSetRoleStmts, opts.Log, isPlsql)
+	return d.executeInTransactionMode(ctx, owner, script, txCommands, nonTransactionAndSetRoleStmts, opts.Log, isPlsql)
 }
 
 func (d *Driver) executeInTransactionMode(
@@ -275,13 +277,9 @@ func (d *Driver) executeInAutoCommitMode(
 	owner string,
 	script string,
 	commands []driver.Command,
-	nonTransactionAndSetRoleStmts []driver.Command,
 	log driver.ExecuteLogger,
 	isPlsql bool,
 ) (int64, error) {
-	// For auto-commit mode, treat all statements as non-transactional
-	nonTransactionAndSetRoleStmts = append(nonTransactionAndSetRoleStmts, commands...)
-
 	conn, err := d.db.Conn(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get connection: %w", err)
@@ -316,8 +314,8 @@ func (d *Driver) executeInAutoCommitMode(
 	}
 
 	totalRowsAffected := int64(0)
-	// Execute all statements individually in auto-commit mode
-	for _, stmt := range nonTransactionAndSetRoleStmts {
+	// Execute all statements individually in auto-commit mode, in script order.
+	for _, stmt := range commands {
 		logCommandExecute(log, stmt)
 
 		if err := crdb.Execute(func() error {
@@ -360,9 +358,13 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, statement string) er
 		}
 	}
 
-	for _, s := range strings.Split(statement, "\n") {
+	statements, err := splitStatements(statement)
+	if err != nil {
+		return err
+	}
+	for _, s := range statements {
 		if err := crdb.Execute(func() error {
-			_, err := d.db.ExecContext(ctx, s)
+			_, err := d.db.ExecContext(ctx, s.Text)
 			return err
 		}); err != nil {
 			return err

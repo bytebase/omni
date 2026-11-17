@@ -88,6 +88,22 @@ INSERT INTO app.account VALUES (1, 99);`, driver.ExecuteOptions{Transaction: dri
 		if _, err := d.Execute(ctx, "CREATE DATABASE omni_execute_created;", driver.ExecuteOptions{CreateDatabase: true}); err != nil {
 			t.Fatal(err)
 		}
+		// A newline is not a statement boundary.
+		if _, err := d.Execute(ctx, "CREATE DATABASE\nomni_execute_created_multiline;", driver.ExecuteOptions{CreateDatabase: true}); err != nil {
+			t.Fatal(err)
+		}
+		if err := d.db.QueryRowContext(ctx, "SELECT count(*) FROM pg_database WHERE datname = 'omni_execute_created_multiline';").Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 1 {
+			t.Errorf("multiline database count = %d, want 1", count)
+		}
+	})
+
+	t.Run("auto commit keeps script order", func(t *testing.T) {
+		if _, err := d.Execute(ctx, "CREATE DATABASE omni_execute_order; DROP DATABASE omni_execute_order;", driver.ExecuteOptions{Transaction: driver.AutoCommit}); err != nil {
+			t.Fatal(err)
+		}
 	})
 }
 

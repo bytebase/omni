@@ -624,7 +624,7 @@
 | 	AND table_schema = idx.schemaname
 | 	AND table_name = idx.tablename
 | 	AND constraint_type = 'PRIMARY KEY') AS constraint_type,
-| 	obj_description(c.oid) AS comment
+| 	obj_description(c.oid, 'pg_class') AS comment
 | FROM pg_indexes AS idx
 | LEFT JOIN pg_namespace n ON n.nspname = idx.schemaname
 | LEFT JOIN pg_class c ON c.relname = idx.indexname AND c.relnamespace = n.oid AND c.relkind = 'i'
@@ -800,7 +800,7 @@
 |
 | 	SELECT tbl.schemaname, tbl.tablename,
 | 		GREATEST(pc.reltuples::bigint, 0::BIGINT) AS estimate,
-| 		obj_description(pc.oid) AS comment
+| 		obj_description(pc.oid, 'pg_class') AS comment
 | 	FROM pg_catalog.pg_tables tbl
 | 	LEFT JOIN pg_namespace n ON n.nspname = tbl.schemaname
 | 	LEFT JOIN pg_class pc ON pc.relname = tbl.tablename AND pc.relnamespace = n.oid AND pc.relkind IN ('r', 'p')
@@ -859,7 +859,7 @@
 < column "rel_part_bound" "TEXT"
 > query
 |
-| SELECT v.schemaname, v.viewname, v.definition, obj_description(c.oid)
+| SELECT v.schemaname, v.viewname, v.definition, obj_description(c.oid, 'pg_class')
 | FROM pg_catalog.pg_views v
 | LEFT JOIN pg_namespace n ON n.nspname = v.schemaname
 | LEFT JOIN pg_class c ON c.relname = v.viewname AND c.relnamespace = n.oid AND c.relkind = 'v'
@@ -877,8 +877,7 @@
 | customer_orders
 : string
 | SELECT c.id, c.name, o.id AS order_id, o.amount FROM omni_testsyncdatabase.app.customer AS c JOIN omni_testsyncdatabase.app.orders AS o ON o.customer_id = c.id
-: string
-| Calculates square of the correlation coefficient.
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -893,13 +892,17 @@
 | 	  		JOIN pg_namespace dependency_ns ON dependency_ns.oid = dependency_view.relnamespace
 | 	  		JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
 | 	  	WHERE 
-| 	  		dependency_ns.nspname = 'app'
-| 	  		AND dependency_view.relname = 'customer_orders'
+| 	  		dependency_ns.nspname = $1
+| 	  		AND dependency_view.relname = $2
 | 	  		AND pg_attribute.attnum > 0
 | 	  		-- Only consider SELECT rules (view definitions), not INSERT/UPDATE/DELETE rules
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| app
+: string
+| customer_orders
 < result
 < column "source_schema" "NAME"
 < column "source_table" "NAME"
@@ -941,7 +944,7 @@
 | id
 > query
 |
-| SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid)
+| SELECT m.schemaname, m.matviewname, m.definition, obj_description(c.oid, 'pg_class')
 | FROM pg_catalog.pg_matviews m
 | LEFT JOIN pg_namespace n ON n.nspname = m.schemaname
 | LEFT JOIN pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid AND c.relkind = 'm'
@@ -959,8 +962,7 @@
 | order_totals
 : string
 | SELECT customer_id, sum(amount) AS total FROM omni_testsyncdatabase.app.orders GROUP BY customer_id
-: string
-| Calculates square of the correlation coefficient.
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -975,13 +977,17 @@
 | 	  		JOIN pg_namespace dependency_ns ON dependency_ns.oid = dependency_view.relnamespace
 | 	  		JOIN pg_namespace source_ns ON source_ns.oid = source_table.relnamespace
 | 	  	WHERE 
-| 	  		dependency_ns.nspname = 'app'
-| 	  		AND dependency_view.relname = 'order_totals'
+| 	  		dependency_ns.nspname = $1
+| 	  		AND dependency_view.relname = $2
 | 	  		AND pg_attribute.attnum > 0
 | 	  		-- Only consider SELECT rules (view definitions), not INSERT/UPDATE/DELETE rules
 | 	  		AND pg_rewrite.ev_type = '1'
 | 	  	ORDER BY 1,2,3;
 | 	
+: string
+| app
+: string
+| order_totals
 < result
 < column "source_schema" "NAME"
 < column "source_table" "NAME"

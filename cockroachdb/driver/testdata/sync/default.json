@@ -89,6 +89,7 @@
                 "alt_id"
               ],
               "type": "btree",
+              "unique": true,
               "definition": "CREATE UNIQUE INDEX customer_alt_id_key ON omni_testsyncdatabase.app.customer USING btree (alt_id ASC)"
             },
             {
@@ -181,7 +182,6 @@
         {
           "name": "customer_orders",
           "definition": "SELECT c.id, c.name, o.id AS order_id, o.amount FROM omni_testsyncdatabase.app.customer AS c JOIN omni_testsyncdatabase.app.orders AS o ON o.customer_id = c.id",
-          "comment": "Calculates square of the correlation coefficient.",
           "dependencyColumns": [
             {
               "schema": "app",
@@ -248,7 +248,6 @@
         {
           "name": "order_totals",
           "definition": "SELECT customer_id, sum(amount) AS total FROM omni_testsyncdatabase.app.orders GROUP BY customer_id",
-          "comment": "Calculates square of the correlation coefficient.",
           "dependencyColumns": [
             {
               "schema": "app",

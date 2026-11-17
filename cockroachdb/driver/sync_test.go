@@ -173,3 +173,32 @@ func TestSyncQueriesOrderTheirRows(t *testing.T) {
 		t.Error("sync.go holds no ORDER BY")
 	}
 }
+
+// TestSyncViewDependencyQuoting syncs a schema and view whose names hold an
+// apostrophe. The dependency query binds both names, so a quote cannot break
+// it and one object cannot prevent the database from syncing.
+func TestSyncViewDependencyQuoting(t *testing.T) {
+	d := openTestDriver(t)
+	mustExec(t, d.db, `
+CREATE SCHEMA "app's";
+CREATE TABLE "app's".t (id INT8 PRIMARY KEY);
+CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;`)
+
+	got, err := d.SyncDatabase(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, schema := range got.Schemas {
+		if schema.Name != "app's" {
+			continue
+		}
+		if len(schema.Views) != 1 || schema.Views[0].Name != "owner's_view" {
+			t.Fatalf("views = %+v, want owner's_view", schema.Views)
+		}
+		if len(schema.Views[0].DependencyColumns) != 1 {
+			t.Fatalf("dependency columns = %+v, want one", schema.Views[0].DependencyColumns)
+		}
+		return
+	}
+	t.Fatal("schema app's is missing")
+}
