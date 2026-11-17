@@ -152,6 +152,11 @@ func (d *Driver) mssqlConfig(cfg driver.Config) (msdsn.Config, error) {
 		}
 		mssqlConfig.Port = value
 	}
+	// The client read the rest of the DSN from a placeholder host, so the name
+	// it verifies the server's certificate against is the one dialed.
+	if mssqlConfig.TLSConfig != nil && host != "" {
+		mssqlConfig.TLSConfig.ServerName = host
+	}
 	mssqlConfig.User = cfg.User
 	mssqlConfig.Password = cfg.Password
 	mssqlConfig.Database = cfg.Database
