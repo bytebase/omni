@@ -3,11 +3,14 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
 
-	"errors"
+	gomssqldb "github.com/microsoft/go-mssqldb"
+
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
@@ -17,9 +20,27 @@ type tableKey struct {
 	Table  string
 }
 
-// SyncDatabase reads the full schema metadata of the driver's database.
+// SyncDatabase reads the full schema metadata of the driver's database. A
+// database that is not there is driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
-	return SyncDatabase(ctx, d.db, d.databaseName)
+	metadata, err := SyncDatabase(ctx, d.db, d.databaseName)
+	if err != nil {
+		return nil, wrapSyncError(d.databaseName, err)
+	}
+	return metadata, nil
+}
+
+// wrapSyncError reports a database SQL Server says it does not have as
+// driver.ErrNotFound: a sync names the database it reads, so its absence is the
+// object the call asked for and not a failure of the sync. A login that may not
+// open the database gets 4060 too, and the database is as unreachable as a
+// missing one.
+func wrapSyncError(database string, err error) error {
+	var engineError gomssqldb.Error
+	if errors.As(err, &engineError) && (engineError.Number == 4060 || engineError.Number == 911) {
+		return fmt.Errorf("%w: database %q does not exist", driver.ErrNotFound, database)
+	}
+	return err
 }
 
 // SyncDatabase reads the full schema metadata of database through db, a
@@ -249,11 +270,16 @@ func getTables(txn *sql.Tx, schemas []string, columnMap map[tableKey][]*metadata
 
 	// Get table row counts separately
 	rowCountMap := make(map[int]int64)
-	rowCountQuery := `
-		SELECT object_id, SUM(row_count) AS total_rows
-		FROM sys.dm_db_partition_stats
-		WHERE index_id < 2
-		GROUP BY object_id`
+	// Only a synced schema's user tables contribute a row count. Internal
+	// tables such as the plan cache would make the answer depend on what the
+	// server has executed.
+	rowCountQuery := fmt.Sprintf(`
+		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+		FROM sys.dm_db_partition_stats ps
+		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+		WHERE ps.index_id < 2 AND s.name IN (%s)
+		GROUP BY ps.object_id`, quoteList(schemas))
 	rowCountRows, err := txn.Query(rowCountQuery)
 	if err == nil {
 		defer rowCountRows.Close()
@@ -848,9 +874,12 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		i.name,
 		i.type_desc,
 		i.is_unique,
+		i.filter_definition,
 		xi.secondary_type_desc,
 		pi.name AS using_index_name,
 		col.name AS column_name,
+		ic.key_ordinal,
+		ic.is_included_column,
 		ic.is_descending_key
 	FROM sys.indexes i
 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
@@ -861,9 +890,6 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 		AND s.name in (%s) AND o.type IN ('U', 'S', 'V')
-		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
-		-- key; a columnstore or XML index states every one of its columns that way.
-		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 	`, quoteList(schemas))
 	rows, err := txn.Query(query)
@@ -871,13 +897,14 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 		return nil, err
 	}
 	defer rows.Close()
+	includeMap := make(map[*metadatapb.IndexMetadata][]string)
 	for rows.Next() {
 		var schemaName, tableName, indexName, typeDesc, colName sql.NullString
-		var objectID, indexID sql.NullInt32
-		var isUnique, isDescending sql.NullBool
-		var secondaryTypeDesc, usingIndexName sql.NullString
+		var objectID, indexID, keyOrdinal sql.NullInt32
+		var isUnique, isIncluded, isDescending sql.NullBool
+		var filterDefinition, secondaryTypeDesc, usingIndexName sql.NullString
 		if err := rows.Scan(&schemaName, &tableName, &objectID, &indexID, &indexName, &typeDesc, &isUnique,
-			&secondaryTypeDesc, &usingIndexName, &colName, &isDescending); err != nil {
+			&filterDefinition, &secondaryTypeDesc, &usingIndexName, &colName, &keyOrdinal, &isIncluded, &isDescending); err != nil {
 			return nil, err
 		}
 
@@ -900,6 +927,10 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 			}
 			if typeDesc.Valid {
 				index.Type = typeDesc.String
+				if filterDefinition.Valid && strings.TrimSpace(filterDefinition.String) != "" &&
+					typeDesc.String != "XML" && typeDesc.String != "SPATIAL" {
+					index.Definition = "WHERE " + strings.TrimSpace(filterDefinition.String)
+				}
 				if typeDesc.String == "XML" {
 					if usingIndexName.Valid {
 						index.Definition = "USING XML INDEX " + usingIndexName.String
@@ -934,15 +965,38 @@ func getIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb.Index
 			indexMap[key][indexName.String] = index
 		}
 
-		indexMap[key][indexName.String].Expressions = append(indexMap[key][indexName.String].Expressions, colName.String)
-		if isDescending.Valid && isDescending.Bool {
-			indexMap[key][indexName.String].Descending = append(indexMap[key][indexName.String].Descending, true)
-		} else {
-			indexMap[key][indexName.String].Descending = append(indexMap[key][indexName.String].Descending, false)
+		index := indexMap[key][indexName.String]
+		// A columnstore or XML index reports every column at key_ordinal 0.
+		// A partitioned rowstore index reports a partitioning column left out
+		// of its key and INCLUDE list the same way, and that column belongs to
+		// neither list.
+		columnstoreOrXML := typeDesc.String == "CLUSTERED COLUMNSTORE" || typeDesc.String == "NONCLUSTERED COLUMNSTORE" || typeDesc.String == "XML"
+		switch {
+		case isIncluded.Valid && isIncluded.Bool && !columnstoreOrXML:
+			includeMap[index] = append(includeMap[index], colName.String)
+			continue
+		case keyOrdinal.Valid && keyOrdinal.Int32 > 0, columnstoreOrXML:
+		default:
+			continue
 		}
+		index.Expressions = append(index.Expressions, colName.String)
+		index.Descending = append(index.Descending, isDescending.Valid && isDescending.Bool)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	for _, indexes := range indexMap {
+		for _, index := range indexes {
+			if len(includeMap[index]) == 0 {
+				continue
+			}
+			include := "INCLUDE:" + strings.Join(includeMap[index], "\x00")
+			if index.Definition != "" {
+				index.Definition = include + " " + index.Definition
+			} else {
+				index.Definition = include
+			}
+		}
 	}
 
 	tableIndexes := make(map[tableKey][]*metadatapb.IndexMetadata)
@@ -1656,6 +1710,14 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 		s.name,
 		seq.name,
 		tp.name,
+		seq.precision,
+		seq.scale,
+		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+		seq.is_cycling,
+		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 	FROM
 		sys.sequences seq
@@ -1678,10 +1740,23 @@ func getSequences(txn *sql.Tx) (map[string][]*metadatapb.SequenceMetadata, error
 	for rows.Next() {
 		sequence := &metadatapb.SequenceMetadata{}
 		var schemaName string
-		var comment sql.NullString
-		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &comment); err != nil {
+		var precision, scale sql.NullInt32
+		var start, increment, minValue, maxValue, cacheSize, comment sql.NullString
+		var isCycling sql.NullBool
+		if err := rows.Scan(&schemaName, &sequence.Name, &sequence.DataType, &precision, &scale,
+			&start, &increment, &minValue, &maxValue, &isCycling, &cacheSize, &comment); err != nil {
 			return nil, err
 		}
+		if (strings.EqualFold(sequence.DataType, "decimal") || strings.EqualFold(sequence.DataType, "numeric")) &&
+			precision.Valid && scale.Valid {
+			sequence.DataType = fmt.Sprintf("%s(%d,%d)", sequence.DataType, precision.Int32, scale.Int32)
+		}
+		sequence.Start = start.String
+		sequence.Increment = increment.String
+		sequence.MinValue = minValue.String
+		sequence.MaxValue = maxValue.String
+		sequence.Cycle = isCycling.Valid && isCycling.Bool
+		sequence.CacheSize = cacheSize.String
 		if comment.Valid {
 			sequence.Comment = comment.String
 		}
@@ -1701,9 +1776,14 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 	SELECT
 		SCHEMA_NAME(ao.schema_id) AS schema_name,
 		ao.name AS procedure_name,
-		asm.definition
+		asm.definition,
+		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 	FROM sys.all_objects ao
         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+			AND ep.minor_id = 0
+			AND ep.class = 1
+			AND ep.name = 'MS_Description'
 	WHERE ao.type IN ('P', 'RF')
 		AND ao.is_ms_shipped = 0 AND
 		(
@@ -1723,8 +1803,8 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 	for rows.Next() {
 		procedure := &metadatapb.ProcedureMetadata{}
 		var schemaName string
-		var definition sql.NullString
-		if err := rows.Scan(&schemaName, &procedure.Name, &definition); err != nil {
+		var definition, comment sql.NullString
+		if err := rows.Scan(&schemaName, &procedure.Name, &definition, &comment); err != nil {
 			return nil, err
 		}
 		var procedureDefinition string
@@ -1738,6 +1818,9 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 			procedureDefinition = definition.String
 		}
 		procedure.Definition = procedureDefinition
+		if comment.Valid {
+			procedure.Comment = comment.String
+		}
 		procedureMap[schemaName] = append(procedureMap[schemaName], procedure)
 	}
 	if err := rows.Err(); err != nil {

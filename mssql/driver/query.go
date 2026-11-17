@@ -210,10 +210,13 @@ func (s *session) runStatementAlone(ctx context.Context, statement omnimssql.Sta
 	}
 	start := time.Now()
 	var results []*driver.Result
-	if t&stmtTypeResultSetGenerating != 0 || t&stmtTypeProcedure != 0 {
+	switch {
+	case t&(stmtTypeResultSetGenerating|stmtTypeProcedure) != 0:
 		results, err = s.queryStatement(ctx, text, opts)
-	} else {
+	case t&stmtTypeRowCountGenerating != 0:
 		results, err = s.execStatement(ctx, text)
+	default:
+		results, err = s.runStatementWithoutACount(ctx, text)
 	}
 	if err != nil {
 		return []*driver.Result{{Statement: text, Err: unpackMSSQLError(err), Latency: time.Since(start)}}, nil
@@ -383,6 +386,16 @@ func (s *session) queryStatement(ctx context.Context, statement string, opts dri
 		return results, err
 	}
 	return results, nil
+}
+
+// runStatementWithoutACount runs one statement that reports neither rows nor a
+// count, such as DDL, SET, DECLARE or SELECT @v = ...: its result is empty, so
+// AffectedRows stays nil rather than claiming that it changed no rows.
+func (s *session) runStatementWithoutACount(ctx context.Context, statement string) ([]*driver.Result, error) {
+	if _, err := s.conn.ExecContext(ctx, statement); err != nil {
+		return nil, err
+	}
+	return []*driver.Result{{}}, nil
 }
 
 // execStatement runs one statement that reports no rows, as its affected count.

@@ -3,9 +3,12 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
+
+	clickhouse "github.com/ClickHouse/clickhouse-go/v2"
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
@@ -17,6 +20,8 @@ var (
 		"information_schema": true,
 		"INFORMATION_SCHEMA": true,
 	}
+	// unknownDatabase is ClickHouse's UNKNOWN_DATABASE.
+	unknownDatabase int32 = 81
 	// systemDatabaseClause is built in sorted order so a recording's query
 	// text does not move with Go's map iteration.
 	systemDatabaseClause = func() string {
@@ -81,8 +86,29 @@ func (d *Driver) SyncInstance(ctx context.Context) (*driver.Instance, error) {
 }
 
 // SyncDatabase syncs the database's schema: one schema holding its tables and
-// views, each with its columns, data-skipping indexes and sorting keys.
+// views, each with its columns, data-skipping indexes and sorting keys. A
+// database that is not there is driver.ErrNotFound.
 func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
+	metadata, err := d.syncDatabase(ctx)
+	if err != nil {
+		return nil, wrapSyncError(err)
+	}
+	return metadata, nil
+}
+
+// wrapSyncError reports a database ClickHouse says it does not have as
+// driver.ErrNotFound: a sync names the database it reads, so its absence is the
+// object the call asked for and not a failure of the sync. The client answers
+// UNKNOWN_DATABASE for the database its connection opens on.
+func wrapSyncError(err error) error {
+	var engineError *clickhouse.Exception
+	if errors.As(err, &engineError) && engineError.Code == unknownDatabase {
+		return fmt.Errorf("%w: %s", driver.ErrNotFound, engineError.Message)
+	}
+	return err
+}
+
+func (d *Driver) syncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMetadata, error) {
 	databaseName, err := d.syncDatabaseName(ctx)
 	if err != nil {
 		return nil, err
