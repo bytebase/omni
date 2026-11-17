@@ -412,7 +412,7 @@ func dumpStatesQuotedName(text string) bool {
 
 // dumpPlainName reports whether name is one Hive reads without backquotes.
 func dumpPlainName(name string) bool {
-	if name == "" {
+	if name == "" || dumpReservedWords[strings.ToUpper(name)] {
 		return false
 	}
 	for i := 0; i < len(name); i++ {
@@ -423,6 +423,63 @@ func dumpPlainName(name string) bool {
 		return false
 	}
 	return true
+}
+
+// dumpReservedWords are the names Hive reads as keywords, so that a statement
+// naming a column or another object by one of them has to state it backquoted.
+// The list is Hive's documented reserved words; a name it holds more than Hive
+// does only puts the expansion of a partitioned view's query in the dump, which
+// is a query Hive stated and reads back.
+var dumpReservedWords = map[string]bool{
+	"ADD": true, "ADMIN": true, "AFTER": true, "ALL": true, "ALTER": true, "ANALYZE": true,
+	"ANALYZER": true, "AND": true, "ANY": true, "ARCHIVE": true, "ARRAY": true, "AS": true,
+	"ASC": true, "AUTHORIZATION": true, "BEFORE": true, "BETWEEN": true, "BIGINT": true,
+	"BINARY": true, "BOOLEAN": true, "BOTH": true, "BUCKET": true, "BUCKETS": true,
+	"BY": true, "CACHE": true, "CASCADE": true, "CASE": true, "CAST": true, "CHANGE": true,
+	"CHAR": true, "CLUSTER": true, "CLUSTERED": true, "CLUSTERSTATUS": true,
+	"COLLECTION": true, "COLUMN": true, "COLUMNS": true, "COMMENT": true, "COMMIT": true,
+	"COMPACT": true, "COMPACTIONS": true, "COMPUTE": true, "CONCATENATE": true,
+	"CONSTRAINT": true, "CONTINUE": true, "CREATE": true, "CROSS": true, "CUBE": true,
+	"CURRENT": true, "CURRENT_DATE": true, "CURRENT_TIMESTAMP": true, "CURSOR": true,
+	"DATA": true, "DATABASE": true, "DATABASES": true, "DATE": true, "DATETIME": true,
+	"DBPROPERTIES": true, "DECIMAL": true, "DECLARE": true, "DEFAULT": true,
+	"DEFERRED": true, "DELETE": true, "DELIMITED": true, "DESC": true, "DESCRIBE": true,
+	"DICTIONARY": true, "DIRECTORIES": true, "DIRECTORY": true, "DISABLE": true,
+	"DISTINCT": true, "DISTRIBUTE": true, "DIV": true, "DOUBLE": true, "DROP": true,
+	"ENABLE": true, "ESCAPED": true, "EXCEPTION": true, "EXCHANGE": true,
+	"EXCLUSIVE": true, "EXISTS": true, "EXPLAIN": true, "EXPORT": true, "EXTENDED": true,
+	"EXTERNAL": true, "EXTRACT": true, "FALSE": true, "FETCH": true, "FIELDS": true,
+	"FILEFORMAT": true, "FIRST": true, "FLOAT": true, "FOLLOWING": true, "FOR": true,
+	"FOREIGN": true, "FORMAT": true, "FORMATTED": true, "FROM": true, "FULL": true,
+	"FUNCTION": true, "FUNCTIONS": true, "GRANT": true, "GROUP": true, "GROUPING": true,
+	"HAVING": true, "IF": true, "IGNORE": true, "IMPORT": true, "IN": true, "INDEX": true,
+	"INDEXES": true, "INNER": true, "INPATH": true, "INPUTDRIVER": true,
+	"INPUTFORMAT": true, "INSERT": true, "INT": true, "INTERSECT": true, "INTERVAL": true,
+	"INTO": true, "IS": true, "ITEMS": true, "JOIN": true, "KEYS": true, "LATERAL": true,
+	"LEFT": true, "LIKE": true, "LIMIT": true, "LINES": true, "LOAD": true, "LOCAL": true,
+	"LOCATION": true, "LOCK": true, "LOCKS": true, "LOGICAL": true, "LONG": true,
+	"MACRO": true, "MAP": true, "MATCHED": true, "MERGE": true, "MINUS": true,
+	"MSCK": true, "NAMESPACE": true, "NAMESPACES": true, "NATURAL": true, "NOT": true,
+	"NO_DROP": true, "NULL": true, "OF": true, "OFFLINE": true, "OFFSET": true, "ON": true,
+	"ONLY": true, "OPTION": true, "OR": true, "ORDER": true, "OUT": true, "OUTER": true,
+	"OUTPUTDRIVER": true, "OUTPUTFORMAT": true, "OVER": true, "OVERWRITE": true,
+	"OWNER": true, "PARTIALSCAN": true, "PARTITION": true, "PARTITIONED": true,
+	"PARTITIONS": true, "PERCENT": true, "PRECEDING": true, "PRESERVE": true,
+	"PRIMARY": true, "PROCEDURE": true, "RANGE": true, "READONLY": true, "REDUCE": true,
+	"REFERENCES": true, "REGEXP": true, "RELOAD": true, "RENAME": true, "REPAIR": true,
+	"REPEATABLE": true, "REPLACE": true, "REPLICATION": true, "RESTRICT": true,
+	"REVOKE": true, "RIGHT": true, "RLIKE": true, "ROLE": true, "ROLES": true,
+	"ROLLBACK": true, "ROLLUP": true, "ROW": true, "ROWS": true, "SELECT": true,
+	"SEMI": true, "SERDE": true, "SERDEPROPERTIES": true, "SERIALIZABLE": true,
+	"SET": true, "SETS": true, "SHOW": true, "SMALLINT": true, "START": true,
+	"STATISTICS": true, "STATUS": true, "STORED": true, "STRING": true, "STRUCT": true,
+	"TABLE": true, "TABLES": true, "TABLESAMPLE": true, "TEMPORARY": true,
+	"TERMINATED": true, "THAN": true, "THEN": true, "TIMESTAMP": true, "TINYINT": true,
+	"TO": true, "TRANSACTION": true, "TRANSACTIONS": true, "TRANSFORM": true,
+	"TRIGGER": true, "TRUE": true, "TRUNCATE": true, "UNBOUNDED": true, "UNION": true,
+	"UNIQUEJOIN": true, "UPDATE": true, "USER": true, "USING": true,
+	"UTC_TMESTAMP": true, "VALUES": true, "VARCHAR": true, "VIEWS": true, "WINDOW": true,
+	"WITH": true, "WORK": true, "WRITE": true, "YEAR": true, "ZONE": true,
 }
 
 // dumpMaterializedViewClauses rewrites the clauses a stated CREATE TABLE holds
