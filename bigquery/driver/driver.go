@@ -14,7 +14,7 @@
 // reports the project's empty set of datasets, the reads — a query's rows, a pipe
 // query's rows, the result limit, MaxResultBytes, a query that returns no rows, a
 // dry run, a refused statement's error and the plan of a finished read — and the
-// not-found mapping, which that run corrected along with two other defects.
+// not-found mapping, which that run corrected along with three other defects.
 //
 // The rest is unconfirmed. SyncDatabase has never read a dataset, so its column
 // and table mapping is the port's own reading of INFORMATION_SCHEMA; Execute has
@@ -120,11 +120,13 @@
 // FLOAT and BOOLEAN cell arrives as that kind. A NUMERIC and a BIGNUMERIC arrive as
 // the exact decimal text BigQuery's literal states, because the client's own value
 // is a ratio. A TIMESTAMP is an instant and arrives as TimestampTZ; a DATETIME is a
-// wall clock and arrives as Timestamp; both hold microseconds. Every other type —
-// DATE, TIME, JSON, GEOGRAPHY, INTERVAL, RANGE, a RECORD and an ARRAY — falls back
-// to Go's own rendering of the value, which is what Bytebase's driver returned and
-// not BigQuery's literal; VERIFY.md records those with the statements that show
-// them.
+// wall clock and arrives as Timestamp; both hold microseconds. A RANGE is the
+// half-open literal the service states. An ARRAY and a RECORD are their elements in
+// order, each by the rule the cell of its own type states: a record's field names
+// stay out, because the client hands over its values without them. DATE, TIME, JSON,
+// GEOGRAPHY and INTERVAL fall back to Go's own rendering of the value, which is what
+// Bytebase's driver returned and not BigQuery's literal; VERIFY.md records those
+// with the statements that show them.
 //
 // A result that came from a job carries the plan of the run that returned its
 // rows in Result.Plan, as JSON, with Executed true: BigQuery reports the stages

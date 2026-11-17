@@ -303,9 +303,11 @@ func TestLiveSyncDatabaseMissing(t *testing.T) {
 	}
 }
 
-// TestLiveQuery runs statements through a session: a query that returns rows, the
-// limit wrap, a command, the dry run that stands in for EXPLAIN, the result-size
-// cap, and a statement the service refuses.
+// TestLiveQuery runs the statements of a session that need no table: a query that
+// returns rows, a statement omni's parser does not read, the limit wrap, the
+// result-size cap, the dry run that stands in for EXPLAIN, and a statement the
+// service refuses. Everything that needs a table is TestLiveQueryWrites, so a
+// project whose dataset is missing still reads its failures honestly here.
 func TestLiveQuery(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
@@ -383,6 +385,42 @@ func TestLiveQuery(t *testing.T) {
 		}
 	}
 
+	// One row is wider than the cap, so the read stops with a truncated result.
+	capped, err := session.Query(ctx, "SELECT REPEAT('x', 4096) AS s", driver.QueryOptions{MaxResultBytes: 64})
+	if err != nil {
+		t.Fatalf("Query with MaxResultBytes: %v", err)
+	}
+	if len(capped) != 1 || !capped[0].Truncated {
+		t.Errorf("capped results = %+v, want Truncated", capped)
+	}
+
+	requireValidated(t, ctx, session, "SELECT COUNT(*) AS n FROM UNNEST([1, 2, 3])")
+
+	// The service refuses the statement, and the refusal is its own error on the
+	// statement's result rather than the call's.
+	failed, err := session.Query(ctx, "SELEKT 1", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query of a refused statement: %v", err)
+	}
+	if len(failed) != 1 || failed[0].Err == nil || !strings.Contains(failed[0].Err.Error(), "Syntax error") {
+		t.Errorf("results = %+v, want the service's syntax error on the result", failed)
+	}
+}
+
+// TestLiveQueryWrites runs the statements of the query path that need a table: a
+// command's affected rows, a dry run of that command's table, and the error the
+// service states for a table it does not have. It needs the dataset the driver is
+// open on, so a project that has none fails here rather than hiding these.
+func TestLiveQueryWrites(t *testing.T) {
+	ctx := context.Background()
+	d := openLive(t)
+
+	session, err := d.Session(ctx)
+	if err != nil {
+		t.Fatalf("Session: %v", err)
+	}
+	defer func() { _ = session.Close() }()
+
 	created, err := session.Query(ctx, "CREATE TABLE omni_query_probe (a INT64)", driver.QueryOptions{})
 	if err != nil {
 		t.Fatalf("Query with a command: %v", err)
@@ -395,32 +433,17 @@ func TestLiveQuery(t *testing.T) {
 		defer func() { _ = cleanup.Close() }()
 		_, _ = cleanup.Query(context.Background(), "DROP TABLE IF EXISTS omni_query_probe", driver.QueryOptions{})
 	})
-	if len(created) != 1 || created[0].AffectedRows == nil || *created[0].AffectedRows != 0 {
+	if len(created) != 1 {
+		t.Fatalf("got %d results, want 1", len(created))
+	}
+	if created[0].Err != nil {
+		t.Fatalf("command error: %v", created[0].Err)
+	}
+	if created[0].AffectedRows == nil || *created[0].AffectedRows != 0 {
 		t.Errorf("command results = %+v, want one result reporting zero rows affected", created)
 	}
 
-	dryRun, err := session.Query(ctx, "SELECT COUNT(*) FROM omni_query_probe", driver.QueryOptions{Explain: true})
-	if err != nil {
-		t.Fatalf("Query with Explain: %v", err)
-	}
-	if len(dryRun) != 1 || dryRun[0].Err != nil {
-		t.Fatalf("dry run results = %+v", dryRun)
-	}
-	if len(dryRun[0].Columns) != 1 || dryRun[0].Columns[0].Name != "Validation Result" {
-		t.Errorf("Columns = %+v, want the dry run's validation column", dryRun[0].Columns)
-	}
-	if len(dryRun[0].Rows) != 1 || !strings.Contains(dryRun[0].Rows[0][0].String, "Query successfully validated") {
-		t.Errorf("Rows = %+v, want the dry run's answer", dryRun[0].Rows)
-	}
-
-	// One row is wider than the cap, so the read stops with a truncated result.
-	capped, err := session.Query(ctx, "SELECT REPEAT('x', 4096) AS s", driver.QueryOptions{MaxResultBytes: 64})
-	if err != nil {
-		t.Fatalf("Query with MaxResultBytes: %v", err)
-	}
-	if len(capped) != 1 || !capped[0].Truncated {
-		t.Errorf("capped results = %+v, want Truncated", capped)
-	}
+	requireValidated(t, ctx, session, "SELECT COUNT(*) FROM omni_query_probe")
 
 	failed, err := session.Query(ctx, "SELECT * FROM omni_query_probe_no_such_table", driver.QueryOptions{})
 	if err != nil {
@@ -428,6 +451,28 @@ func TestLiveQuery(t *testing.T) {
 	}
 	if len(failed) != 1 || failed[0].Err == nil {
 		t.Errorf("results = %+v, want the service's error on the result", failed)
+	}
+}
+
+// requireValidated requires the answer BigQuery states in place of EXPLAIN: one
+// STRING column named for the validation and one row saying the statement holds.
+func requireValidated(t *testing.T, ctx context.Context, session driver.Session, statement string) {
+	t.Helper()
+	dryRun, err := session.Query(ctx, statement, driver.QueryOptions{Explain: true})
+	if err != nil {
+		t.Fatalf("Query with Explain: %v", err)
+	}
+	if len(dryRun) != 1 {
+		t.Fatalf("got %d results, want 1", len(dryRun))
+	}
+	if dryRun[0].Err != nil {
+		t.Fatalf("dry run error: %v", dryRun[0].Err)
+	}
+	if len(dryRun[0].Columns) != 1 || dryRun[0].Columns[0].Name != "Validation Result" {
+		t.Errorf("Columns = %+v, want the dry run's validation column", dryRun[0].Columns)
+	}
+	if len(dryRun[0].Rows) != 1 || !strings.Contains(dryRun[0].Rows[0][0].String, "Query successfully validated") {
+		t.Errorf("Rows = %+v, want the dry run's answer", dryRun[0].Rows)
 	}
 }
 

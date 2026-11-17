@@ -312,11 +312,23 @@ func (s *session) dryRunStatement(ctx context.Context, statement string) (*drive
 // ("25/2" for 12.5), so they are written as the exact decimal text BigQuery's
 // literal states. A TIMESTAMP is an instant and a DATETIME a wall clock, which are
 // the contract's TimestampTZ and Timestamp; both hold microseconds, and BigQuery
-// states no other scale for either. DATE, TIME, JSON, GEOGRAPHY, INTERVAL, a
-// RECORD and an ARRAY keep Go's rendering of the value.
+// states no other scale for either. A RANGE is the half-open literal the service
+// states, because Go's rendering of a *bigquery.RangeValue is "&{2026-01-01
+// 2026-02-01}", which names neither the type nor the interval.
+//
+// DATE, TIME, JSON, GEOGRAPHY and INTERVAL keep Go's rendering. An ARRAY and a
+// RECORD are rendered element by element, because Go's rendering of the client's
+// []bigquery.Value prints a pointer element as an address: an ARRAY<RANGE> cell
+// arrived as "[0x27d0b631da40]", which is neither readable nor reproducible. A
+// RECORD stays lossy in a way this cannot fix: the client hands over its values in
+// the field's order with no names, and the names live in the field's nested schema,
+// which this function is not given, so a record reads as a list.
 func convertValue(value bigquery.Value, fieldType bigquery.FieldType) driver.Value {
 	if value == nil {
 		return driver.Value{Kind: driver.Null}
+	}
+	if elements, ok := value.([]bigquery.Value); ok {
+		return driver.Value{Kind: driver.String, String: elementsText(elements)}
 	}
 	switch fieldType {
 	case bigquery.StringFieldType:
@@ -351,11 +363,72 @@ func convertValue(value bigquery.Value, fieldType bigquery.FieldType) driver.Val
 		if wallClock, ok := value.(civil.DateTime); ok {
 			return driver.Value{Kind: driver.Timestamp, Time: wallClock.In(time.UTC), Precision: bigqueryFractionalDigits}
 		}
+	case bigquery.RangeFieldType:
+		if r, ok := value.(*bigquery.RangeValue); ok {
+			return driver.Value{Kind: driver.String, String: rangeText(r)}
+		}
 	default:
-		// A DATE, TIME, JSON, GEOGRAPHY, INTERVAL, a RECORD and an ARRAY fall
-		// back to Go's own rendering of the value.
+		// A DATE, TIME, JSON, GEOGRAPHY and INTERVAL fall back to Go's own
+		// rendering of the value.
 	}
 	return driver.Value{Kind: driver.String, String: fmt.Sprintf("%v", value)}
+}
+
+// rangeText renders a RANGE as the literal the service states: a half-open
+// interval, "[START, END)", with UNBOUNDED for a bound the range does not have.
+// BigQuery accepts no other form: a closed END is refused with "range must be
+// formatted exactly as [START, END)".
+//
+// A bound keeps the fractional seconds the value holds. The service's own
+// rendering of a RANGE<TIMESTAMP> drops them, and that loss is not copied here.
+func rangeText(r *bigquery.RangeValue) string {
+	return "[" + rangeBoundText(r.Start) + ", " + rangeBoundText(r.End) + ")"
+}
+
+// rangeBoundText renders one bound, and UNBOUNDED for the one a range does not
+// have.
+func rangeBoundText(bound bigquery.Value) string {
+	if bound == nil {
+		return "UNBOUNDED"
+	}
+	return elementText(bound)
+}
+
+// elementsText renders an ARRAY or a RECORD: its elements in order, each one by
+// the rule the cell of its own type states, inside one pair of brackets.
+func elementsText(elements []bigquery.Value) string {
+	texts := make([]string, 0, len(elements))
+	for _, element := range elements {
+		texts = append(texts, elementText(element))
+	}
+	return "[" + strings.Join(texts, ", ") + "]"
+}
+
+// elementText renders one element of an ARRAY or a RECORD, or one bound of a
+// RANGE. The Go type the client decoded says which it is, since an element has no
+// field of its own here: a *big.Rat is a decimal, a *bigquery.RangeValue its
+// literal, a civil or time value the text the service states for it, and a nested
+// []bigquery.Value another array or record.
+func elementText(element bigquery.Value) string {
+	switch e := element.(type) {
+	case nil:
+		return "NULL"
+	case *big.Rat:
+		return decimalText(e)
+	case *bigquery.RangeValue:
+		return rangeText(e)
+	case civil.Date:
+		return e.String()
+	case civil.Time:
+		return e.String()
+	case civil.DateTime:
+		return e.In(time.UTC).Format("2006-01-02T15:04:05.999999")
+	case time.Time:
+		return e.UTC().Format("2006-01-02 15:04:05.999999")
+	case []bigquery.Value:
+		return elementsText(e)
+	}
+	return fmt.Sprintf("%v", element)
 }
 
 // bigqueryFractionalDigits is the fractional-second digits a BigQuery TIMESTAMP

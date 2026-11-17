@@ -124,7 +124,8 @@ The grant that unblocks the rest, on a dataset named `omni_record` in `US`:
 | test | result |
 | --- | --- |
 | `TestLiveSyncInstance` | **ran**: the project lists zero datasets. The same call lists 382 from `bigquery-public-data`, in name order, and returns the service's `404 notFound` for a project that does not exist, so the empty answer is the service's and not a swallowed error. The test still fails, because it requires the project to hold the dataset the driver is open on |
-| `TestLiveQuery` | **ran to its first write**: `SELECT 1`, a pipe query's rows, a pipe query under `Limit`, the CTE wrap of two statements, `MaxResultBytes` truncation, a query that returns no rows and the dry run all pass. It fails at `CREATE TABLE omni_query_probe`, which needs a dataset, and the dry run after it fails with it |
+| `TestLiveQuery` | **passes**: `SELECT 1`, a pipe query's rows, a pipe query under `Limit`, the CTE wrap of two statements, `MaxResultBytes` truncation, a dry run of a statement that touches no table, and the service's refusal of `SELEKT 1`. Nothing it asks needs a dataset |
+| `TestLiveQueryWrites` | **blocked**: `CREATE TABLE omni_query_probe` needs a dataset, and the dry run and the missing-table error that follow it need that table. It was split out of `TestLiveQuery` for exactly this reason: before the split, its `Fatalf` hid the assertions that would have passed here |
 | `TestLiveSyncDatabaseMissing` | **ran**: a dataset the project does not have is `driver.ErrNotFound`. It failed before `fix(bigquery): report a missing dataset as not found` (see below) |
 | `TestLiveSyncDatabase` | **blocked**: `omni_record` does not exist, which the sync now reports as `404 notFound` wrapped in `driver.ErrNotFound` |
 | `TestLiveExecute` | **blocked**: `CREATE TABLE omni_execute_probe` needs a dataset |
@@ -187,12 +188,24 @@ maps:
 | `ts` | `TIMESTAMP_TZ` | `2026-01-02 03:04:05.120 UTC`, precision 6 |
 | `d`, `t` | `STRING` | `2026-01-02`, `03:04:05` — the literals |
 | `j`, `g` | `STRING` | `{"a":1}`, `POINT(1 2)` |
-| `arr`, `st` | `STRING` | `[1 2]`, `[1 x]` — Go's rendering |
-| `iv`, `r` | `STRING` | `0-0 1 0:0:0`, `&{2026-01-01 2026-02-01}` — Go's rendering |
+| `arr`, `st` | `STRING` | `[1, 2]`, `[1, x]` — the elements in order |
+| `iv` | `STRING` | `0-0 1 0:0:0` — Go's rendering |
+| `r` | `STRING` | `[2026-01-01, 2026-02-01)` — the service's literal, `UNBOUNDED` for a missing bound |
+
+A RANGE has exactly one form: `[START, END)`, and a closed END is refused with
+`400 Invalid RANGE literal value: Failed to parse range: range must be formatted
+exactly as [START, END)`. In its own rendering a DATE bound is its date, a DATETIME
+bound has a `T` between the two, a TIMESTAMP bound is a UTC wall clock, and a
+bound the range does not have is `UNBOUNDED`. The service drops the fractional
+seconds of a TIMESTAMP bound there (`[2026-01-02 03:04:05, UNBOUNDED)` for a value
+holding `.123456`); this driver keeps them.
 
 A plan arrives only for a query that ran as more than a constant: `SELECT 1`
-states none at all, and every query here stated one stage, so a plan's
-`inputStages` is still unexercised against the service.
+states none at all. Every query asked here stated one stage, a `JOIN` of
+`bigquery-public-data.usa_names.usa_1910_2013` to itself included, so a plan's
+`inputStages` list and the stage-to-stage ratio fields the port leaves out are
+still unexercised against the service; `TestToQueryStages` covers the mapping and
+recording a plan that states two stages needs tables with a shuffle in them.
 
 ### The defects that run found
 
@@ -213,10 +226,19 @@ Each is fixed, tested and committed on the branch that recorded this.
    the columns query, but the service answers that query with `403 accessDenied` for
    a dataset that is not there. Fixed in `fix(bigquery): report a missing dataset as
    not found`.
+4. **A RANGE was a Go struct, and an ARRAY of one was an address.** Go's rendering
+   of a `*bigquery.RangeValue` is `&{2026-01-01 2026-02-01}`, and of the client's
+   `[]bigquery.Value` holding one is `[0x27d0b631da40]` — unreadable, and not
+   reproducible, so no tape could ever replay it. A RANGE is now the half-open
+   literal the service states, and an ARRAY or a RECORD is its elements in order,
+   each by the rule its own cell states. Fixed in `fix(bigquery): render a range and
+   an array as the service states them`.
 
-A fourth commit, `test(bigquery): let the live gate name the default credential
+A further commit, `test(bigquery): let the live gate name the default credential
 chain`, is what lets a machine with no key run any of this: `BIGQUERY_CREDENTIALS`
-now accepts `default`.
+now accepts `default`. The read half of the query path also splits from the write
+half (`TestLiveQueryWrites`), so a project with no dataset reads its failures
+honestly instead of stopping at the first `CREATE TABLE`.
 
 ### What is still unverified
 
@@ -228,7 +250,13 @@ now accepts `default`.
   `403`, not `driver.ErrNotFound`. Unverified, because no dataset exists to try it
   on.
 - A plan with more than one stage, so an `inputStages` list and the ratio fields
-  the port leaves out: unverified.
+  the port leaves out: unverified, and public tables did not state one.
+- A RECORD's field names, which the client does not hand over with its values: a
+  record reads as a list now, and a document would need the field's nested schema
+  beside the value, which is a contract question.
+- A NUMERIC or a TIMESTAMP inside an ARRAY is its decimal or its UTC wall clock,
+  through the same rule the cell follows; a TIME, a GEOGRAPHY and an INTERVAL
+  inside one still keep Go's rendering.
 - `Dump`, which writes nothing: unit-tested, and nothing about it needs a project.
 
 ## Step 2 — the corpus
@@ -321,21 +349,25 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 | 1 | `TestSyncDatabase` | the dataset's own metadata read, the `INFORMATION_SCHEMA.COLUMNS` query (the pseudo-columns of `partitioned` left out), the dataset's table listing, each table's metadata read, and the metadata it builds |
 | 2 | `TestSyncInstance` | `datasets.list` and the order the sync reports |
 | 3 | `TestQuery` | statement classification, every cell kind, the CTE limit wrap, a pipe query's rows and its own `Limit` cap, the dry run, `MaxResultBytes` truncation, the plan of a finished read, a statement the service refuses |
-| 4 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
-| 5 | `TestLiveSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
+| 4 | `TestQueryWrites` | the command path against a table: a `CREATE TABLE`'s zero affected rows, the dry run of that table, and the error the service states for a table it does not have |
+| 5 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
+| 6 | `TestLiveSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
 
 Commands, one test at a time so a failure is attributable. The table names each
 test by what it records, which is the name it takes once it replays a tape;
 `live_test.go` holds `TestLiveSyncDatabase`, `TestLiveSyncInstance`,
-`TestLiveQuery`, `TestLiveExecute` and `TestLiveSyncDatabaseMissing` today, so
-the commands below name those and step 4's seam conversion renames them. They
-name the tests that exist: a `-run` pattern that matches nothing exits 0 and
-records nothing, which reads as a pass.
+`TestLiveQuery`, `TestLiveQueryWrites`, `TestLiveExecute` and
+`TestLiveSyncDatabaseMissing` today, so the commands below name those and step 4's
+seam conversion renames them. The query path is two tests on purpose: the reads
+need no table and the writes need one, so a project with no dataset still records
+the half it can. They name the tests that exist: a `-run` pattern that matches
+nothing exits 0 and records nothing, which reads as a pass.
 
 ```bash
 OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
 OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
 OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveQuery$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveQueryWrites$' -count=1 -v
 OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveExecute$' -count=1 -v
 OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncDatabaseMissing$' -count=1 -v
 ```
@@ -473,9 +505,11 @@ test), and require a failure; then `git checkout -- bigquery/`:
   sentence naming `tape.OpenRaw`'s engines gains `bigquery/driver`.
 - The conversion gap that is left is pinned against the statements in [what the
   service answers](#what-the-service-answers-kept-here-until-a-tape-holds-it): a
-  DATE, TIME, JSON, GEOGRAPHY, INTERVAL, RANGE, RECORD and ARRAY are still Go's
-  rendering of the client's value, and a RANGE reads as `&{2026-01-01 2026-02-01}`
-  today. TIMESTAMP, DATETIME, NUMERIC and BIGNUMERIC no longer do.
+  DATE, TIME, JSON, GEOGRAPHY and INTERVAL are still Go's rendering of the client's
+  value, and a record reads as a list of its values because the client hands over no
+  field names with them. TIMESTAMP, DATETIME, NUMERIC, BIGNUMERIC and RANGE no
+  longer do, and an ARRAY or a RECORD is rendered element by element rather than as
+  Go's rendering of a `[]bigquery.Value`.
 
 ## Differences from Bytebase's driver, each to confirm on a project
 
@@ -499,6 +533,8 @@ settled by the run on 2026-11-17.
 | a statement `googlesql/analysis` cannot read keeps the rows the service answered *(recorded)* | omni's parser does not read a pipe query yet, and Bytebase's classification of the same statement by its first word is not available here. A plain query's job statistics state no result schema at all — only a script's last result does — so the job's `statementType` is what says whether the service returned rows |
 | a missing dataset is `driver.ErrNotFound`, from a `datasets.get` the sync asks for first *(recorded)* | the service answers a read of a missing dataset's `INFORMATION_SCHEMA` with `403 accessDenied`, so the mapping could never fire from the columns query alone; a caller that drops a database on `ErrNotFound` never dropped one |
 | a NUMERIC and a BIGNUMERIC cell is its exact decimal text, and a TIMESTAMP and a DATETIME are the contract's `TimestampTZ` and `Timestamp` *(recorded)* | the client renders a `*big.Rat` as a ratio (`25/2` for `NUMERIC '12.50'`) and a timestamp as Go's text (`2026-01-02 03:04:05 +0000 UTC`), which a viewer cannot read as either |
+| a RANGE is the half-open literal the service states, and an ARRAY or a RECORD is its elements in order *(recorded)* | Go's rendering of the client's values is `&{2026-01-01 2026-02-01}` for a range and `[0x27d0b631da40]` for an array of one — an address, which is neither readable nor reproducible in a tape |
+| the read half of the query path is `TestLiveQuery` and the write half `TestLiveQueryWrites` | the reads need no table, so a project with no dataset records the half it can; one test's `Fatalf` on the first `CREATE TABLE` used to hide the rest |
 
 ## What would unblock it
 
