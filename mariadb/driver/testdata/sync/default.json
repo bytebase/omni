@@ -519,6 +519,30 @@
       ],
       "views": [
         {
+          "name": "v_named_cols",
+          "definition": "select `accounts`.`id` AS `renamed_id` from `accounts`",
+          "columns": [
+            {
+              "name": "renamed_id",
+              "position": 1,
+              "default": "'0'",
+              "type": "bigint"
+            }
+          ]
+        },
+        {
+          "name": "v_named_cols_ref",
+          "definition": "select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`",
+          "columns": [
+            {
+              "name": "renamed_id",
+              "position": 1,
+              "default": "'0'",
+              "type": "bigint"
+            }
+          ]
+        },
+        {
           "name": "v_open_accounts",
           "definition": "select `accounts`.`id` AS `acct_id`,`accounts`.`email` AS `acct_email` from `accounts` where `accounts`.`status` = 'open'",
           "columns": [

@@ -4,10 +4,12 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/bytebase/omni/metadata"
+	nodes "github.com/bytebase/omni/tidb/ast"
 )
 
 const (
@@ -629,7 +631,7 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	if _, err := io.WriteString(out, view.Name); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, "` AS "); err != nil {
+	if _, err := io.WriteString(out, "`"+viewColumnListClause(view)+" AS "); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, view.Definition); err != nil {
@@ -637,6 +639,63 @@ func writeView(out io.Writer, view *metadata.ViewMetadata) error {
 	}
 	_, err := io.WriteString(out, ";\n\n")
 	return err
+}
+
+// viewColumnListClause returns the column list a CREATE VIEW must state for its
+// body to yield the view's recorded columns, as " (`a`,`b`)", or "" when the
+// body names them itself. MySQL and TiDB store a body under the select's own
+// names and keep a declared list beside it (see nameViewColumns); MariaDB and
+// OceanBase fold the list into the body's aliases when they create the view, so
+// a snapshot they synced never needs one.
+func viewColumnListClause(view *metadata.ViewMetadata) string {
+	names := make([]string, 0, len(view.Columns))
+	for _, column := range view.Columns {
+		names = append(names, column.GetName())
+	}
+	if len(names) == 0 {
+		return ""
+	}
+	if bodyNames, ok := viewBodyColumnNames(view.GetDefinition()); ok && slices.Equal(bodyNames, names) {
+		return ""
+	}
+	quoted := make([]string, len(names))
+	for i, name := range names {
+		quoted[i] = quoteIdent(name)
+	}
+	return " (" + strings.Join(quoted, ",") + ")"
+}
+
+// viewBodyColumnNames lists the names a view's body gives its columns, in order:
+// each select item's alias, else the column it selects. ok is false when the
+// body does not say — it does not parse, an item is a star or an unaliased
+// expression, or it is no select — and its caller must state the names instead.
+func viewBodyColumnNames(body string) ([]string, bool) {
+	// A stored body may end in WITH CHECK OPTION, so it parses only as a whole view.
+	stmt, err := parseFirstStatement[*nodes.CreateViewStmt]("CREATE VIEW v AS " + body)
+	if err != nil || stmt.Select == nil {
+		return nil, false
+	}
+	// A set operation takes its columns from its left branch.
+	sel := stmt.Select
+	for sel.SetOp != 0 && sel.Left != nil {
+		sel = sel.Left
+	}
+	names := make([]string, 0, len(sel.TargetList))
+	for _, item := range sel.TargetList {
+		// Only an aliased item is a ResTarget; a bare one is its expression.
+		switch target := item.(type) {
+		case *nodes.ResTarget:
+			names = append(names, target.Name)
+		case *nodes.ColumnRef:
+			if target.Star {
+				return nil, false
+			}
+			names = append(names, target.Column)
+		default:
+			return nil, false
+		}
+	}
+	return names, true
 }
 
 func writeTable(out *strings.Builder, table *metadata.TableMetadata) error {

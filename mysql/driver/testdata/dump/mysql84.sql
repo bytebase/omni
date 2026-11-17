@@ -7,6 +7,12 @@ CREATE VIEW `v_named_cols` AS SELECT
   1 AS `renamed_id`;
 
 --
+-- Temporary view structure for `v_named_cols_ref`
+--
+CREATE VIEW `v_named_cols_ref` AS SELECT
+  1 AS `renamed_id`;
+
+--
 -- Temporary view structure for `v_open_accounts`
 --
 CREATE VIEW `v_open_accounts` AS SELECT
@@ -114,7 +120,12 @@ DELIMITER ;
 --
 -- View structure for `v_named_cols`
 --
-CREATE OR REPLACE VIEW `v_named_cols` AS select `accounts`.`id` AS `id` from `accounts`;
+CREATE OR REPLACE VIEW `v_named_cols` (`renamed_id`) AS select `accounts`.`id` AS `id` from `accounts`;
+
+--
+-- View structure for `v_named_cols_ref`
+--
+CREATE OR REPLACE VIEW `v_named_cols_ref` AS select `v_named_cols`.`renamed_id` AS `renamed_id` from `v_named_cols`;
 
 --
 -- View structure for `v_open_accounts`

@@ -280,6 +280,32 @@
       ],
       "views":  [
         {
+          "name":  "v_named_cols",
+          "definition":  "SELECT `id` AS `id` FROM `omni_sync_corpus`.`accounts`",
+          "columns":  [
+            {
+              "name":  "renamed_id",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "bigint"
+            }
+          ]
+        },
+        {
+          "name":  "v_named_cols_ref",
+          "definition":  "SELECT `renamed_id` AS `renamed_id` FROM `omni_sync_corpus`.`v_named_cols`",
+          "columns":  [
+            {
+              "name":  "renamed_id",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "bigint"
+            }
+          ]
+        },
+        {
           "name":  "v_open_accounts",
           "definition":  "SELECT `id` AS `acct_id`,`email` AS `acct_email` FROM `omni_sync_corpus`.`accounts` WHERE `status`=_UTF8MB4'open'",
           "columns":  [
