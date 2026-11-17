@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -321,41 +322,52 @@ func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database, self, 
 // without its database is the session's, which is the database dumped.
 func dumpASTReads(ast, database, self string, definitions map[string]*dumpObject) []string {
 	var reads []string
-	for name := range definitions {
-		if name != self && (dumpASTNames(ast, "TableIdentifier "+database+"."+name) || dumpASTNames(ast, "TableIdentifier "+name)) {
-			reads = append(reads, name)
+	for _, relation := range dumpASTRelations(ast) {
+		for _, name := range []string{relation, strings.TrimPrefix(relation, database+".")} {
+			if name == self || definitions[name] == nil {
+				continue
+			}
+			if !slices.Contains(reads, name) {
+				reads = append(reads, name)
+			}
 		}
 	}
 	sort.Strings(reads)
 	return reads
 }
 
-// dumpASTNames reports whether the AST names reference as a node of its own: the
-// marker starts a line once its indentation is skipped — so a string literal that
-// spells it out, which is escaped and mid-line, is not one — and the name ends
-// the node, at a line break or before the alias the rendering appends.
-func dumpASTNames(ast, reference string) bool {
-	indentation := func(start int) bool {
-		for i := start - 1; i >= 0 && ast[i] != '\n'; i-- {
-			if ast[i] != ' ' && ast[i] != '\t' {
-				return false
+// dumpASTRelations returns the relations the AST names. The server renders one as
+// a node of its own — an indented line that starts with its kind — and a name it
+// writes with a line break continues on the lines after it, which are not
+// indented.
+func dumpASTRelations(ast string) []string {
+	var relations []string
+	inRelation := false
+	for _, line := range strings.Split(ast, "\n") {
+		if line == "" {
+			continue
+		}
+		if !strings.HasPrefix(line, " ") && !strings.HasPrefix(line, "\t") {
+			if inRelation {
+				relations[len(relations)-1] += "\n" + line
 			}
+			continue
 		}
-		return true
+		inRelation = false
+		node := strings.TrimLeft(line, " \t")
+		if !strings.HasPrefix(node, "TableIdentifier ") {
+			continue
+		}
+		relations = append(relations, strings.TrimPrefix(node, "TableIdentifier "))
+		inRelation = true
 	}
-	for offset := 0; offset < len(ast); {
-		start := strings.Index(ast[offset:], reference)
-		if start < 0 {
-			return false
+	// The rendering appends the alias a statement gives a relation, if any.
+	for i, relation := range relations {
+		if alias := strings.LastIndex(relation, " (alias "); alias > 0 {
+			relations[i] = relation[:alias]
 		}
-		start += offset
-		end := start + len(reference)
-		if indentation(start) && (end == len(ast) || ast[end] == '\n' || strings.HasPrefix(ast[end:], " (alias ")) {
-			return true
-		}
-		offset = end
 	}
-	return false
+	return relations
 }
 
 // The clauses that state what a table on the Dictionary engine reads: the ENGINE
@@ -366,6 +378,7 @@ var (
 	dumpDictionaryTableKey = regexp.MustCompile(`(?i)TABLE '((?:[^'\\]|\\.)*)'`)
 	dumpDictionaryDBKey    = regexp.MustCompile(`(?i)DB '((?:[^'\\]|\\.)*)'`)
 	dumpDictionaryQuery    = regexp.MustCompile(`(?i)\bQUERY '((?:[^'\\]|\\.)*)'`)
+	dumpDictionarySource   = regexp.MustCompile(`(?i)SOURCE\(([a-z_]+)\(`)
 )
 
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
@@ -409,8 +422,9 @@ func dumpDictionarySourceQuery(o *dumpObject, database string, byName map[string
 		return "", false
 	}
 	// Only ClickHouse's own source states a query this dump can resolve: another
-	// source's query is written for another database.
-	if !strings.Contains(dictionary.stmt, "SOURCE(CLICKHOUSE(") {
+	// source's query is written for another database and may not parse here.
+	source := dumpDictionarySource.FindStringSubmatch(dictionary.stmt)
+	if source == nil || !strings.EqualFold(source[1], "clickhouse") {
 		return "", false
 	}
 	query := dumpDictionaryQuery.FindStringSubmatch(dictionary.stmt)

@@ -231,35 +231,30 @@ func TestDumpStorageTablePattern(t *testing.T) {
 	}
 }
 
-// TestDumpASTNames holds the AST node shapes the order reads: a relation node
-// ends with a line break or before the alias the rendering appends, and a name
-// that only looks like a relation — a literal's text, a longer name with a space
-// in it — is not one.
-func TestDumpASTNames(t *testing.T) {
-	const ast = "\n CreateQuery db a_top (children 2)\n" +
-		"  Literal \\'TableIdentifier db.mv_base \\'\n" +
+// TestDumpASTRelations holds the AST node shapes the order reads: a relation is
+// a node of its own, a name the server writes with a line break continues on the
+// lines after it, and a string literal that spells the marker is not a node.
+func TestDumpASTRelations(t *testing.T) {
+	const ast = "CreateQuery db a_top (children 2)\n" +
+		" ExpressionList (children 1)\n" +
+		"  Literal " + "\u0060" + "TableIdentifier db.mv_base" + "\u0060" + "\n" +
 		"  Literal TableIdentifier db.mv_base\n" +
 		"  TableIdentifier db.mv_base\n" +
 		"  TableIdentifier db.a_top extra\n" +
-		"  TableIdentifier db.z (alias zz)\n"
-	for _, node := range []struct {
-		name string
-		read bool
-	}{
-		{"mv_base", true},
-		{"a_top", false},
-		{"a_top extra", true},
-		{"z", true},
-		{"zz", false},
-		{"a_top (children 2)", false},
-		{"unqualified", false},
-	} {
-		require.Equal(t, node.read, dumpASTNames(ast, "TableIdentifier db."+node.name), node.name)
-	}
+		"  TableIdentifier db.z (alias zz)\n" +
+		"  TableIdentifier db.nl\nmv\n" +
+		" ViewTargets\n"
+	require.Equal(t, []string{"db.mv_base", "db.a_top extra", "db.z", "db.nl\nmv"}, dumpASTRelations(ast))
+
 	// A relation the statement writes without its database is the session's.
-	const unqualified = "\n  TableIdentifier unqualified\n"
-	require.True(t, dumpASTNames(unqualified, "TableIdentifier unqualified"))
-	require.False(t, dumpASTNames(unqualified, "TableIdentifier db.unqualified"))
+	definitions := map[string]*dumpObject{
+		"mv_base": {name: "mv_base"},
+		"a_top":   {name: "a_top"},
+		"odd":     {name: "odd"},
+		"nl\nmv":  {name: "nl\nmv"},
+	}
+	require.Equal(t, []string{"mv_base"}, dumpASTReads("\n  TableIdentifier db.mv_base\n", "db", "a_top", definitions))
+	require.Equal(t, []string{"mv_base"}, dumpASTReads("\n  TableIdentifier mv_base\n", "db", "a_top", definitions))
 }
 
 // TestDumpDictionaryTableReads holds what a table on the Dictionary engine reads:
