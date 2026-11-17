@@ -480,8 +480,6 @@ func showView(txn *sql.Tx, schemaName, viewName string) (string, error) {
 // generate_series stands in for PostgreSQL's generate_subscripts to read one
 // column's definition at a time.
 func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
-	indexMap := make(map[tableKey][]*metadatapb.IndexMetadata)
-
 	query := fmt.Sprintf(`
 	WITH index_positions AS (
 		SELECT generate_series(0, 31) as pos
@@ -514,11 +512,6 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 	}
 	defer rows.Close()
 
-	type indexKey struct {
-		schema string
-		table  string
-		index  string
-	}
 	indexData := make(map[indexKey]*metadatapb.IndexMetadata)
 	indexColumns := make(map[indexKey][]string)
 
@@ -554,8 +547,26 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 		return nil, err
 	}
 
-	// The map's iteration order changes from run to run, and a table's indexes
-	// are a list: sort them so a tape holds one order.
+	for key, columns := range indexColumns {
+		if index, ok := indexData[key]; ok {
+			index.Expressions = columns
+		}
+	}
+	return groupIndexes(indexData), nil
+}
+
+// indexKey names one index inside one schema's table, which is how a table's
+// indexes are gathered from a row per key position.
+type indexKey struct {
+	schema string
+	table  string
+	index  string
+}
+
+// groupIndexes files each index under the table that holds it, in name order.
+// A Go map's iteration order changes from run to run, and a table's indexes are
+// a list the catalog consumes in order, so the grouping must not depend on it.
+func groupIndexes(indexData map[indexKey]*metadatapb.IndexMetadata) map[tableKey][]*metadatapb.IndexMetadata {
 	keys := make([]indexKey, 0, len(indexData))
 	for key := range indexData {
 		keys = append(keys, key)
@@ -567,15 +578,12 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 			cmp.Compare(a.index, b.index),
 		)
 	})
+	indexMap := make(map[tableKey][]*metadatapb.IndexMetadata)
 	for _, key := range keys {
-		index := indexData[key]
-		if columns, ok := indexColumns[key]; ok {
-			index.Expressions = columns
-		}
 		tableKey := tableKey{Schema: key.schema, Table: key.table}
-		indexMap[tableKey] = append(indexMap[tableKey], index)
+		indexMap[tableKey] = append(indexMap[tableKey], indexData[key])
 	}
-	return indexMap, nil
+	return indexMap
 }
 
 // getIndexMethodType reads the access method an index definition names.

@@ -2,7 +2,10 @@ package driver
 
 import (
 	"database/sql"
+	"slices"
 	"testing"
+
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // TestGetPgVersionAndRedshiftVersion reads what SELECT version() reports, which
@@ -267,5 +270,31 @@ func TestGetDatabaseInCreateDatabaseStatement(t *testing.T) {
 		if _, err := getDatabaseInCreateDatabaseStatement(statement); err == nil {
 			t.Errorf("getDatabaseInCreateDatabaseStatement(%q) found a name", statement)
 		}
+	}
+}
+
+// TestGroupIndexesFilesATablesIndexesInNameOrder holds the list a sync reports
+// for a table that has more than one index. The indexes arrive in a map, whose
+// iteration order changes from run to run, and the catalog consumes the list in
+// order, so only a sorted grouping writes the same metadata every time.
+func TestGroupIndexesFilesATablesIndexesInNameOrder(t *testing.T) {
+	indexData := map[indexKey]*metadatapb.IndexMetadata{}
+	for _, name := range []string{"pkey", "app_t_a_key", "app_t_b_key"} {
+		indexData[indexKey{schema: "app", table: "t", index: name}] = &metadatapb.IndexMetadata{Name: name}
+	}
+	indexData[indexKey{schema: "app", table: "u", index: "u_pkey"}] = &metadatapb.IndexMetadata{Name: "u_pkey"}
+
+	grouped := groupIndexes(indexData)
+
+	var got []string
+	for _, index := range grouped[tableKey{Schema: "app", Table: "t"}] {
+		got = append(got, index.Name)
+	}
+	want := []string{"app_t_a_key", "app_t_b_key", "pkey"}
+	if !slices.Equal(got, want) {
+		t.Errorf("app.t's indexes = %v, want %v", got, want)
+	}
+	if got := grouped[tableKey{Schema: "app", Table: "u"}]; len(got) != 1 || got[0].Name != "u_pkey" {
+		t.Errorf("app.u's indexes = %v, want [u_pkey]", got)
 	}
 }
