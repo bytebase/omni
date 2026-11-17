@@ -45,6 +45,36 @@ Existing shared helpers use the same package path and filenames:
 
 Inline setup in other engines has not yet been extracted by this initial change. The nested Spanner harness also remains an independent Go module, which tests exec only in a recording.
 
+## Test isolation and recording
+
+A recording runs every test of a package against one server, so the harness must empty what a test can make before the next test's first connection. Otherwise the object reaches a later test's tape and the package can only be recorded one test at a time. A whole-package recording is the gate: `OMNI_RECORD=1 go test ./<engine>/driver/` must write the same bytes on a second run.
+
+| Engine | Emptied before a test | Left alone; a test that makes one drops it, or records with `-run '^TestName$'` |
+| --- | --- | --- |
+| `cassandra` | `Reset` drops every non-system keyspace, then applies the test's statements | Roles and users; `SyncInstance` reads keyspaces only |
+| `clickhouse` | `Open` drops every non-image database, user and role, and creates the test's database | Row policies, quotas and settings profiles; `SyncInstance` reads users and databases only |
+| `cockroachdb` | One server per top-level test, with the test's database dropped and created | Nothing crosses tests: the server is removed with the test |
+| `cosmosdb` | Nothing between tests; the emulator and its two fixture databases are seeded once per run | Databases and containers a test creates. The emulator binds one fixed port per machine, so a second run cannot share it |
+| `doris` | `ResetToInitial` drops every database the image did not start with | Users and global functions; `SyncInstance` reads databases only |
+| `dynamodb` | Nothing between tests; the endpoint and its fixture tables are seeded once per run | Tables a test creates. The `writes` table exists for writes, and a test deletes the rows it puts there |
+| `elasticsearch` | `Reset` deletes every non-system index | Users, roles, index and component templates, ILM policies and snapshots. `SyncInstance` reads users, so a test that creates one must drop it or record alone |
+| `googlesql` | Each harness process creates a database of its own and drops it when it closes | Nothing instance-wide |
+| `hive` | `ResetToInitial` drops every database the image did not start with | Roles and functions; `SyncInstance` reads databases only |
+| `mariadb` | `empty` drops every non-image database, account, role and foreign server, then creates `test` | General tablespaces; `SyncInstance` reads databases and accounts only |
+| `mongo` | `emptyOnce` drops every non-system database and every account but the image's root, after the database drops take their own accounts | Roles; `getInstanceRoles` reads users, and a database's collections and views go with the database |
+| `mssql` | `emptyOnce` drops every database but the system's, then creates the test's database | Logins, server roles, linked servers, credentials and certificates; `SyncInstance` reads databases only |
+| `mysql` | `empty` drops every non-system database, loadable function, account, role and foreign server, resets the three global settings the corpora change, then creates `test` | General tablespaces and other global server variables; `SyncInstance` reads databases and accounts only |
+| `oceanbase` | `OpenEmpty` drops every non-system database and every account (roles are accounts), then creates `test`; `OpenDatabase` drops and creates its own database | Objects a test makes through `OpenWith` itself; `SyncInstance` reads databases and accounts only |
+| `oracle` | `Open` drops every non-image user, public synonym and SYSTEM object | The `TestDumpGaps` database-link case drops its public link in its own cleanup; still check any new instance-level object there |
+| `pg` | `emptying` drops every non-image database, tablespace and role; extensions, foreign servers, publications and subscriptions live in a database and go with it | Replication slots and other cluster-wide settings |
+| `redis` | `emptyOnce` runs `FLUSHALL` and drops every ACL account but `default` | Modules and server configuration; `SyncInstance` reads the version and database numbers |
+| `spanner` | Each test names its own instance and database, created once per run | Instances and databases are unique to their test, and roles are stored in the test's own database |
+| `starrocks` | `ResetToInitial` drops every database the image did not start with | Users and global functions; `SyncInstance` reads databases only, and the dump-gap test drops the function it makes |
+| `tidb` | The driver resets the user databases and sync accounts its tests name; the catalog reset drops every user database and account | Objects a test makes through `OpenWith` itself; `SyncInstance` reads databases and accounts only |
+| `trino` | `emptyOnce` drops every memory-catalog table, view and schema but `default` | Users and roles, which Trino does not create through SQL |
+
+A shared object that cannot be emptied belongs to the test that made it. Record that test alone with `OMNI_RECORD=1 go test ./<engine>/driver/ -run '^TestName$'`, and keep its name out of a whole-package recording until the harness can remove the object.
+
 ## Selected upgrade targets
 
 The follow-up targets are MySQL `8.4.13` only, PostgreSQL `18.6-alpine`, Doris `4.0.8`, and StarRocks `4.1.7`. These are selected targets, not claims about the baselines currently exercised above. Pin a complete patch release or a dated vendor build when switching, then rerun the corresponding native oracle suites and investigate drift.

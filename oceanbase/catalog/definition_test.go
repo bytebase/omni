@@ -1015,8 +1015,193 @@ func TestSDLViewStatesColumnList(t *testing.T) {
 	}
 }
 
+// TestWriteEventSessionSettings pins what an event's own section carries before its
+// CREATE. OceanBase states no character set or collation for an event, so those lines
+// would be syntax errors; an empty sql_mode is a stored value and is written as one; and
+// SYSTEM is the zone the session starts in, which OceanBase refuses to name literally.
+func TestWriteEventSessionSettings(t *testing.T) {
+	var buf strings.Builder
+	require.NoError(t, writeEvent(&buf, &metadata.EventMetadata{
+		Name:       "ev",
+		Definition: "CREATE EVENT `ev` ON SCHEDULE EVERY 1 DAY DO DELETE FROM t",
+		TimeZone:   "SYSTEM",
+	}))
+	got := buf.String()
+	require.NotContains(t, got, "SET character_set_client")
+	require.NotContains(t, got, "SET collation_connection")
+	require.Contains(t, got, "SET sql_mode = '';\n")
+	require.Contains(t, got, "SET time_zone = DEFAULT;\n")
+
+	buf.Reset()
+	require.NoError(t, writeEvent(&buf, &metadata.EventMetadata{
+		Name:                "ev",
+		Definition:          "CREATE EVENT `ev` ON SCHEDULE EVERY 1 DAY DO DELETE FROM t",
+		TimeZone:            "+08:00",
+		SqlMode:             "STRICT_ALL_TABLES",
+		CharacterSetClient:  "utf8mb4",
+		CollationConnection: "utf8mb4_general_ci",
+	}))
+	got = buf.String()
+	require.Contains(t, got, "SET character_set_client = utf8mb4;\n")
+	require.Contains(t, got, "SET collation_connection = utf8mb4_general_ci;\n")
+	require.Contains(t, got, "SET sql_mode = 'STRICT_ALL_TABLES';\n")
+	require.Contains(t, got, "SET time_zone = '+08:00';\n")
+}
+
+// TestWriteViewsInDependencyOrder pins the order a snapshot's views and materialized views
+// are written in. A view and a materialized view may read each other, and a materialized view
+// written before a view it reads is created against the temporary placeholder that stands in
+// for the view, which carries the placeholder's literal column types.
+func TestWriteViewsInDependencyOrder(t *testing.T) {
+	schema := &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			// Alphabetically first, and read by nothing.
+			{Name: "a_plain", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			// Reads the materialized view below.
+			{Name: "b_over_mv", Definition: "select `db`.`mv`.`id` AS `id` from `db`.`mv` `mv`"},
+			// Reads the view above it in the list.
+			{Name: "z_base", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			// Reads a view: must follow it.
+			{Name: "amv_over_view", Definition: "select `db`.`z_base`.`id` AS `id` from `db`.`z_base`"},
+			// Read by b_over_mv: must precede it.
+			{Name: "mv", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+		},
+	}
+	var buf strings.Builder
+	require.NoError(t, writeViewsInDependencyOrder(&buf, "db", schema))
+
+	var order []string
+	for _, name := range []string{"mv", "amv_over_view", "b_over_mv", "a_plain", "z_base"} {
+		order = append(order, fmt.Sprintf("%d:%s", strings.Index(buf.String(), "`"+name+"`"), name))
+	}
+	slices.Sort(order)
+	t.Logf("emitted in order %v", order)
+
+	position := func(name string) int { return strings.Index(buf.String(), "`"+name+"`") }
+	require.Less(t, position("z_base"), position("amv_over_view"), "a view is written before the materialized view that reads it")
+	require.Less(t, position("mv"), position("b_over_mv"), "a materialized view is written before the view that reads it")
+	require.Less(t, position("a_plain"), position("b_over_mv"))
+}
+
+// TestWriteViewsInDependencyOrderIsStable pins what the order does not depend on: the
+// iteration order of a map, and the case a tenant with lower_case_table_names=0 lets two
+// views differ in.
+func TestWriteViewsInDependencyOrderIsStable(t *testing.T) {
+	schema := &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			// Reads both y and z; every dependency is written before it.
+			{Name: "a", Definition: "select `y`.`id` AS `id` from `db`.`y` `y` join `db`.`z` `z`"},
+			{Name: "y", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "z", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			// Two views that differ only in case.
+			{Name: "Mixed", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "mixed", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+		},
+	}
+	var first string
+	for range 20 {
+		var buf strings.Builder
+		require.NoError(t, writeViewsInDependencyOrder(&buf, "db", schema))
+		if first == "" {
+			first = buf.String()
+		}
+		require.Equal(t, first, buf.String(), "the same snapshot renders the same dump")
+	}
+	require.Less(t, strings.Index(first, "`y`"), strings.Index(first, "`a`"))
+	require.Less(t, strings.Index(first, "`z`"), strings.Index(first, "`a`"))
+	require.Less(t, strings.Index(first, "`y`"), strings.Index(first, "`z`"), "dependencies are written in name order")
+	require.Equal(t, 2, strings.Count(first, "CREATE OR REPLACE VIEW `mixed`")+strings.Count(first, "CREATE OR REPLACE VIEW `Mixed`"), "views that differ only in case are both written")
+
+	// A reference spelled exactly as one of two case-distinct views orders against that one
+	// only: resolving it to both would make the chain V -> a_mv -> v circular.
+	schema = &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			{Name: "V", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "v", Definition: "select `db`.`a_mv`.`id` AS `id` from `db`.`a_mv`"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			{Name: "a_mv", Definition: "select `db`.`V`.`id` AS `id` from `db`.`V`"},
+		},
+	}
+	buf := &strings.Builder{}
+	require.NoError(t, writeViewsInDependencyOrder(buf, "db", schema))
+	got := buf.String()
+	require.Less(t, strings.Index(got, "`V`"), strings.Index(got, "`a_mv`"), "the view a materialized view spells is written first")
+	require.Less(t, strings.Index(got, "`a_mv`"), strings.Index(got, "`v`"), "the materialized view a view reads is written first")
+
+	// A stored body ending in WITH CHECK OPTION parses only as a whole view, and its relation
+	// still orders it: a checked view created over the temporary placeholder of another view
+	// is not updatable.
+	schema = &metadata.SchemaMetadata{
+		Views: []*metadata.ViewMetadata{
+			{Name: "b_base", Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`"},
+			{Name: "z_checked", Definition: "select `db`.`b_base`.`id` AS `id` from `db`.`b_base` where (`db`.`b_base`.`id` > 0) WITH CASCADED CHECK OPTION"},
+		},
+		MaterializedViews: []*metadata.MaterializedViewMetadata{
+			{Name: "a_mv2", Definition: "select `db`.`z_checked`.`id` AS `id` from `db`.`z_checked`"},
+		},
+	}
+	buf = &strings.Builder{}
+	require.NoError(t, writeViewsInDependencyOrder(buf, "db", schema))
+	got = buf.String()
+	require.Less(t, strings.Index(got, "`b_base`"), strings.Index(got, "`z_checked`"), "the view a checked view reads is written first")
+	require.Less(t, strings.Index(got, "`z_checked`"), strings.Index(got, "`a_mv2`"), "the checked view a materialized view reads is written first")
+}
+
+// TestWriteMaterializedViewStatesSQLMode pins the mode a materialized view's section needs:
+// its comment arrives QUOTE()-escaped from the container table, so a backslash in it is an
+// escape character, and a stored routine's section written before it may have left a mode
+// where it is not.
+func TestWriteMaterializedViewStatesSQLMode(t *testing.T) {
+	var buf strings.Builder
+	require.NoError(t, writeMaterializedView(&buf, &metadata.MaterializedViewMetadata{
+		Name:       "mv",
+		Definition: "select `db`.`t`.`id` AS `id` from `db`.`t`",
+		Comment:    `owners\' materialized accounts`,
+	}))
+	got := buf.String()
+	require.Contains(t, got, "SET sql_mode = DEFAULT;\n")
+	require.Less(t, strings.Index(got, "SET sql_mode = DEFAULT;"), strings.Index(got, "CREATE MATERIALIZED VIEW"))
+}
+
+// TestSDLOfMaterializedViewLoads pins that a snapshot with a materialized view renders SDL
+// the catalog can load: the catalog models no materialized view, so the only form it holds
+// is the view, and without it a view that reads the materialized view has no relation.
+func TestSDLOfMaterializedViewLoads(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name: "d",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Engine:  "InnoDB",
+				Charset: "utf8mb4",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "bigint", Default: "NULL", Nullable: true},
+				},
+			}},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{
+				Name:       "mv",
+				Definition: "select `d`.`t`.`id` AS `id` from `d`.`t`",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_over_mv",
+				Definition: "select `d`.`mv`.`id` AS `id` from `d`.`mv`",
+			}},
+		}},
+	}
+	sdl, err := DatabaseDefinition(schema, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.Contains(t, sdl, "CREATE OR REPLACE VIEW `mv` AS")
+	require.NotContains(t, sdl, "CREATE MATERIALIZED VIEW")
+	_, err = LoadSDL("CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n" + sdl)
+	require.NoError(t, err)
+}
+
 // TestExternalTableLocationEscapesBackslash checks that a decoded location's
-// backslash is written escaped, so OceanBase reads the same path back.
+// backslash is written escaped, so OceanBase reads the same path back, and that
+// the PATTERN filter is kept.
 func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 	meta := &metadata.DatabaseSchemaMetadata{
 		Name: "test",

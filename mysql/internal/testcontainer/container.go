@@ -191,7 +191,8 @@ var systemDatabases = map[string]bool{"information_schema": true, "mysql": true,
 var systemAccounts = map[string]bool{"root": true, "mysql.infoschema": true, "mysql.session": true, "mysql.sys": true, account: true}
 
 // empty drops what tests created on the server and creates the database test,
-// and puts back the global settings a test may change.
+// and puts back the global settings a test may change. A foreign server is the
+// server's, as it is on MariaDB, not a database's.
 func empty(ctx context.Context, db *sql.DB) error {
 	// A table of one database may reference another's.
 	stmts := []string{"SET foreign_key_checks = 0"}
@@ -222,6 +223,13 @@ func empty(ctx context.Context, db *sql.DB) error {
 		if !systemAccounts[a[0]] {
 			stmts = append(stmts, "DROP USER "+quote(a[0])+"@"+quote(a[1]))
 		}
+	}
+	servers, err := queryPairs(ctx, db, "SELECT Server_name, '' FROM mysql.servers")
+	if err != nil {
+		return err
+	}
+	for _, s := range servers {
+		stmts = append(stmts, "DROP SERVER IF EXISTS `"+strings.ReplaceAll(s[0], "`", "``")+"`")
 	}
 	stmts = append(stmts,
 		"SET GLOBAL foreign_key_checks = 1",

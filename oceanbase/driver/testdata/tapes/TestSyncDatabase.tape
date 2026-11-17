@@ -9,10 +9,11 @@
 | 	status ENUM('open', 'closed') NOT NULL DEFAULT 'open',
 | 	literal_ts VARCHAR(40) NOT NULL DEFAULT 'CURRENT_TIMESTAMP',
 | 	balance DECIMAL(12, 4) NOT NULL DEFAULT 0.0000,
-| 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL, -- not restorable: TestDumpGaps
-| 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED, -- not restorable: TestDumpGaps
+| 	email_lower VARCHAR(190) GENERATED ALWAYS AS (LOWER(email)) VIRTUAL,
+| 	display_tag VARCHAR(220) GENERATED ALWAYS AS (CONCAT(email, ':', 'v1')) STORED,
 | 	created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-| 	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6), -- not restorable: TestDumpGaps
+| 	updated_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+| 	reviewed_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
 | 	note VARCHAR(100) COMMENT 'owner''s note',
 | 	UNIQUE KEY uk_email (email),
 | 	KEY idx_bio_prefix (bio(32))
@@ -31,10 +32,10 @@
 | CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' PATTERN = '.*[.]csv' FORMAT = (TYPE = 'CSV');
 < ok 0 0
 > exec
-| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts; -- not restorable: TestDumpGaps
+| CREATE MATERIALIZED VIEW mv_accounts COMMENT 'owners'' materialized accounts' AS SELECT id, email FROM accounts;
 < ok 0 0
 > exec
-| CREATE INDEX idx_mv_email ON mv_accounts (email); -- not restorable: TestDumpGaps
+| CREATE INDEX idx_mv_email ON mv_accounts (email);
 < ok 0 0
 > exec
 | CREATE VIEW v_open_accounts AS
@@ -65,10 +66,22 @@
 | END;
 < ok 0 0
 > exec
-| CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END; -- not restorable: TestDumpGaps
+| SET SESSION sql_mode = 'NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER'; CREATE FUNCTION fn_escaped(p VARCHAR(16)) RETURNS VARCHAR(32) CHARSET utf8mb4 DETERMINISTIC NO SQL RETURN CONCAT(p, '-escaped'); SET SESSION sql_mode = DEFAULT;
 < ok 0 0
 > exec
-| CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0; -- not restorable: TestDumpGaps
+| CREATE TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END;
+< ok 0 0
+> exec
+| CREATE EVENT ev_daily_check ON SCHEDULE EVERY 1 DAY STARTS '2030-01-01 00:00:00' DISABLE DO DELETE FROM orders WHERE total < 0;
+< ok 0 0
+> exec
+| CREATE EVENT ev_once ON SCHEDULE AT '2030-06-01 12:00:00' ON COMPLETION PRESERVE ENABLE COMMENT 'owner''s \\new once' DO DELETE FROM orders;
+< ok 0 0
+> exec
+| CREATE VIEW v_mv_emails AS SELECT email FROM mv_accounts;
+< ok 0 0
+> exec
+| CREATE MATERIALIZED VIEW mv_open_accounts AS SELECT acct_id FROM v_open_accounts;
 < ok 0 0
 > query
 | SELECT VERSION()
@@ -486,8 +499,31 @@
 : bytes
 | accounts
 : bytes
-| note
+| reviewed_at
 : uint64 11
+: bytes
+| 'CURRENT_TIMESTAMP'
+: bytes
+| NO
+: bytes
+| datetime(3)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| accounts
+: bytes
+| note
+: uint64 12
 : null
 : bytes
 | YES
@@ -596,6 +632,28 @@
 : null
 < row
 : bytes
+| mv_open_accounts
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
 | orders
 : bytes
 | id
@@ -653,6 +711,28 @@
 |
 : bytes
 |
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
+< row
+: bytes
+| v_mv_emails
+: bytes
+| email
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| varchar(190)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 : bytes
 | ''
 : bytes
@@ -792,6 +872,28 @@
 : bytes
 |
 : null
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| acct_id
+: uint64 1
+: null
+: bytes
+| YES
+: bytes
+| bigint(20)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+|
+: bytes
+|
+: null
 > query
 |
 | 		SELECT
@@ -807,6 +909,11 @@
 < column "VIEW_DEFINITION" "TEXT" "string"
 < row
 : bytes
+| v_mv_emails
+: bytes
+| select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`
+< row
+: bytes
 | v_named_cols
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`
@@ -820,6 +927,22 @@
 | v_open_accounts
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')
+> query
+| SHOW CREATE VIEW `omni_sync_corpus`.`v_mv_emails`
+< result
+< column "View" "VARCHAR" "string"
+< column "Create View" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< row
+: bytes
+| v_mv_emails
+: bytes
+| CREATE VIEW `v_mv_emails` AS select `mv_accounts`.`email` AS `email` from `omni_sync_corpus`.`mv_accounts` `mv_accounts`
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE VIEW `omni_sync_corpus`.`v_named_cols`
 < result
@@ -913,7 +1036,20 @@
 | utf8mb4_general_ci
 > query
 |
-| 		SELECT DISTINCT EVENT_NAME
+| 		SELECT
+| 			EVENT_NAME,
+| 			EVENT_TYPE,
+| 			IFNULL(CAST(EXECUTE_AT AS CHAR), ''),
+| 			IFNULL(INTERVAL_VALUE, ''),
+| 			IFNULL(INTERVAL_FIELD, ''),
+| 			IFNULL(CAST(STARTS AS CHAR), ''),
+| 			IFNULL(CAST(ENDS AS CHAR), ''),
+| 			IFNULL(STATUS, ''),
+| 			IFNULL(ON_COMPLETION, ''),
+| 			IFNULL(EVENT_COMMENT, ''),
+| 			IFNULL(TIME_ZONE, ''),
+| 			IFNULL(SQL_MODE, ''),
+| 			IFNULL(EVENT_DEFINITION, '')
 | 		FROM information_schema.EVENTS
 | 		WHERE EVENT_SCHEMA = ?
 | 		ORDER BY EVENT_NAME
@@ -921,9 +1057,72 @@
 | omni_sync_corpus
 < result
 < column "EVENT_NAME" "VARCHAR"
+< column "EVENT_TYPE" "VARCHAR" "string"
+< column "IFNULL(CAST(EXECUTE_AT AS CHAR), '')" "VARCHAR"
+< column "IFNULL(INTERVAL_VALUE, '')" "VARCHAR"
+< column "IFNULL(INTERVAL_FIELD, '')" "VARCHAR"
+< column "IFNULL(CAST(STARTS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(CAST(ENDS AS CHAR), '')" "VARCHAR"
+< column "IFNULL(STATUS, '')" "VARCHAR"
+< column "IFNULL(ON_COMPLETION, '')" "VARCHAR"
+< column "IFNULL(EVENT_COMMENT, '')" "TEXT"
+< column "IFNULL(TIME_ZONE, '')" "VARCHAR"
+< column "IFNULL(SQL_MODE, '')" "TEXT"
+< column "IFNULL(EVENT_DEFINITION, '')" "TEXT"
 < row
 : bytes
 | ev_daily_check
+: bytes
+| RECURRING
+: bytes
+|
+: bytes
+| 1
+: bytes
+| DAY
+: bytes
+| 2030-01-01 00:00:00
+: bytes
+|
+: bytes
+| DISABLED
+: bytes
+| NOT PRESERVE
+: bytes
+|
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders WHERE total < 0;
+< row
+: bytes
+| ev_once
+: bytes
+| ONE TIME
+: bytes
+| 2030-06-01 12:00:00
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+|
+: bytes
+| ENABLED
+: bytes
+| PRESERVE
+: bytes
+| owner's \new once
+: bytes
+| SYSTEM
+: bytes
+| ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_AUTO_CREATE_USER,NO_ENGINE_SUBSTITUTION
+: bytes
+| DELETE FROM orders;
 > query
 |
 | 		SELECT
@@ -1020,6 +1219,21 @@
 < column "IFNULL(ROUTINE_COMMENT, '')" "TEXT"
 < row
 : bytes
+| fn_escaped
+: bytes
+| FUNCTION
+: bytes
+| NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_general_ci
+: bytes
+|
+< row
+: bytes
 | fn_format_tag
 : bytes
 | FUNCTION
@@ -1048,6 +1262,31 @@
 | utf8mb4_general_ci
 : bytes
 | reads order total
+> query
+| SHOW CREATE FUNCTION `omni_sync_corpus`.`fn_escaped`
+< result
+< column "Function" "VARCHAR" "string"
+< column "sql_mode" "VARCHAR" "string"
+< column "Create Function" "TEXT" "string"
+< column "character_set_client" "VARCHAR" "string"
+< column "collation_connection" "VARCHAR" "string"
+< column "Database Collation" "VARCHAR" "string"
+< row
+: bytes
+| fn_escaped
+: bytes
+| NO_BACKSLASH_ESCAPES,STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER
+: bytes
+| CREATE DEFINER = `root`@`%` FUNCTION `fn_escaped`(p VARCHAR(16)) RETURNS varchar(32)
+|     NO SQL
+|     DETERMINISTIC
+| RETURN CONCAT(p, '-escaped')
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| utf8mb4_general_ci
 > query
 | SHOW CREATE FUNCTION `omni_sync_corpus`.`fn_format_tag`
 < result
@@ -1207,6 +1446,29 @@
 | utf8mb4
 < row
 : bytes
+| v_mv_emails
+: bytes
+| VIEW
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| 'VIEW'
+: bytes
+| utf8mb4
+< row
+: bytes
 | v_named_cols
 : bytes
 | VIEW
@@ -1294,7 +1556,30 @@
 : bytes
 |
 : bytes
-| 'materialized accounts'
+| 'owners\' materialized accounts'
+: bytes
+| utf8mb4
+< row
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| BASE TABLE
+: bytes
+| InnoDB
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
 : bytes
 | utf8mb4
 > query
@@ -1336,6 +1621,13 @@
 | __mv_container_0000000000000001
 : bytes
 | select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`
+< row
+: bytes
+| mv_open_accounts
+: bytes
+| __mv_container_0000000000000002
+: bytes
+| select `omni_sync_corpus`.`v_open_accounts`.`acct_id` AS `acct_id` from `omni_sync_corpus`.`v_open_accounts`
 > query
 |
 | 		SELECT

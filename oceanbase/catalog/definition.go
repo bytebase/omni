@@ -19,21 +19,22 @@ const (
 	disableUniqueAndForeignKeyCheckStmt = "SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;\nSET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;\n"
 	restoreUniqueAndForeignKeyCheckStmt = "SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;\nSET UNIQUE_CHECKS=@OLD_UNIQUE_CHECKS;\n"
 
-	emptyCommentLine      = "--\n"
-	tempViewHeader        = "-- Temporary view structure for "
-	tableHeader           = "-- Table structure for "
-	viewHeader            = "-- View structure for "
-	functionHeader        = "-- Function structure for "
-	procedureHeader       = "-- Procedure structure for "
-	triggerHeader         = "-- Trigger structure for "
-	eventHeader           = "-- Event structure for "
-	setCharacterSetClient = "SET character_set_client = "
-	setCharacterSetResult = "SET character_set_results = "
-	setCollation          = "SET collation_connection = "
-	setSQLMode            = "SET sql_mode = "
-	setTimezone           = "SET time_zone = "
-	delimiterDoubleSemi   = "DELIMITER ;;\n"
-	delimiterSemi         = "DELIMITER ;\n"
+	emptyCommentLine       = "--\n"
+	tempViewHeader         = "-- Temporary view structure for "
+	tableHeader            = "-- Table structure for "
+	viewHeader             = "-- View structure for "
+	materializedViewHeader = "-- Materialized view structure for "
+	functionHeader         = "-- Function structure for "
+	procedureHeader        = "-- Procedure structure for "
+	triggerHeader          = "-- Trigger structure for "
+	eventHeader            = "-- Event structure for "
+	setCharacterSetClient  = "SET character_set_client = "
+	setCharacterSetResult  = "SET character_set_results = "
+	setCollation           = "SET collation_connection = "
+	setSQLMode             = "SET sql_mode = "
+	setTimezone            = "SET time_zone = "
+	delimiterDoubleSemi    = "DELIMITER ;;\n"
+	delimiterSemi          = "DELIMITER ;\n"
 
 	mysqlTypeBlob       = "blob"
 	mysqlTypeTinyBob    = "tinyblob"
@@ -128,11 +129,9 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
-	// Construct views.
-	for _, view := range schema.Views {
-		if err := writeView(&buf, view); err != nil {
-			return "", err
-		}
+	// Construct views and materialized views, each after the ones it reads.
+	if err := writeViewsInDependencyOrder(&buf, meta.Name, schema); err != nil {
+		return "", err
 	}
 
 	// Construct procedures.
@@ -185,6 +184,71 @@ func ViewDefinition(view *metadata.ViewMetadata) (string, error) {
 	return buf.String(), nil
 }
 
+// writeMaterializedView writes a materialized view and the indexes its container table
+// carries. OceanBase answers no SHOW CREATE MATERIALIZED VIEW, so the synced query and the
+// container table's indexes are the only statements of the view; a refresh policy has no
+// field in the metadata, and a plain CREATE gives the server's own default.
+func writeMaterializedView(out *strings.Builder, view *metadata.MaterializedViewMetadata) error {
+	if view.SkipDump || strings.TrimSpace(view.Definition) == "" {
+		return nil
+	}
+	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, materializedViewHeader); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, quoteIdent(view.Name)+"\n"); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
+		return err
+	}
+
+	// The comment arrives QUOTE()-escaped, so a backslash in it is an escape character: say
+	// so, because a stored routine's section before this one may have left a mode where it is
+	// not.
+	if _, err := io.WriteString(out, "SET sql_mode = DEFAULT;\n"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(out, "CREATE MATERIALIZED VIEW %s", quoteIdent(view.Name)); err != nil {
+		return err
+	}
+	if view.Comment != "" {
+		if _, err := fmt.Fprintf(out, " COMMENT '%s'", view.Comment); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(out, " AS %s;\n", strings.TrimSpace(view.Definition)); err != nil {
+		return err
+	}
+
+	for _, index := range view.Indexes {
+		if err := writeIndex(out, view.Name, index); err != nil {
+			return err
+		}
+	}
+
+	_, err := io.WriteString(out, "\n")
+	return err
+}
+
+// writeIndex writes one standalone CREATE INDEX statement, which a materialized view needs
+// for an index its container table carries: a view has no CREATE TABLE to hold it.
+func writeIndex(out *strings.Builder, tableName string, index *metadata.IndexMetadata) error {
+	if index.Primary {
+		return nil
+	}
+	if _, err := fmt.Fprintf(out, "\nCREATE %sINDEX %s ON %s (", indexQualifier(index), quoteIdent(index.Name), quoteIdent(tableName)); err != nil {
+		return err
+	}
+	if err := printIndexKeyParts(out, index, ""); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n")
+	return err
+}
+
 // FunctionDefinition renders one stored function as its mysqldump-style section.
 func FunctionDefinition(function *metadata.FunctionMetadata) (string, error) {
 	var buf strings.Builder
@@ -204,7 +268,7 @@ func ProcedureDefinition(procedure *metadata.ProcedureMetadata) (string, error) 
 }
 
 func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
-	// An event synced without its CREATE EVENT, as on OceanBase, has nothing faithful to write.
+	// An event synced without its CREATE EVENT has nothing faithful to write.
 	if event.Definition == "" {
 		return nil
 	}
@@ -222,57 +286,26 @@ func writeEvent(out io.Writer, event *metadata.EventMetadata) error {
 		return err
 	}
 
-	// Set charset, collation, sql mode and timezone.
-	if _, err := io.WriteString(out, setCharacterSetClient); err != nil {
+	// Set charset, collation, sql mode and timezone. OceanBase states no character set or
+	// collation for an event, so those lines are written only when the metadata carries
+	// them; an empty sql_mode is a value the server states and is written as one.
+	if err := writeAdditionalEventsIfSet(out, event.CharacterSetClient, event.CharacterSetClient, event.CollationConnection, ""); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
+	if _, err := io.WriteString(out, setSQLMode+"'"+event.SqlMode+"';\n"); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCharacterSetResult); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CharacterSetClient); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setCollation); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.CollationConnection); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, ";\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setSQLMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.SqlMode); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, setTimezone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "'"); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, event.TimeZone); err != nil {
-		return err
-	}
-	if _, err := io.WriteString(out, "';\n"); err != nil {
-		return err
+	// OceanBase refuses the literal SYSTEM as a session zone, and SYSTEM is the zone the
+	// session starts in: give it back what an earlier event's explicit zone may have changed.
+	switch {
+	case strings.EqualFold(event.TimeZone, "SYSTEM"):
+		if _, err := io.WriteString(out, setTimezone+"DEFAULT;\n"); err != nil {
+			return err
+		}
+	case event.TimeZone != "":
+		if _, err := io.WriteString(out, setTimezone+"'"+event.TimeZone+"';\n"); err != nil {
+			return err
+		}
 	}
 	if _, err := io.WriteString(out, delimiterDoubleSemi); err != nil {
 		return err
@@ -1058,25 +1091,31 @@ func printIndexClause(buf *strings.Builder, index *metadata.IndexMetadata, engin
 		return err
 	}
 
-	isFullText := strings.EqualFold(index.Type, mysqlIndexFullText)
-	isSpatial := strings.EqualFold(index.Type, mysqlIndexSpatial)
-	if index.Unique {
-		if _, err := fmt.Fprint(buf, "UNIQUE "); err != nil {
-			return err
-		}
-	} else if isFullText {
-		if _, err := fmt.Fprint(buf, "FULLTEXT "); err != nil {
-			return err
-		}
-	} else if isSpatial {
-		if _, err := fmt.Fprint(buf, "SPATIAL "); err != nil {
-			return err
-		}
-	}
-
-	if _, err := fmt.Fprintf(buf, "KEY %s (", quoteIdent(index.Name)); err != nil {
+	if _, err := fmt.Fprintf(buf, "%sKEY %s (", indexQualifier(index), quoteIdent(index.Name)); err != nil {
 		return err
 	}
+	return printIndexKeyParts(buf, index, engine)
+}
+
+// indexQualifier is the keyword that opens an index, in a CREATE TABLE clause and in a
+// standalone CREATE INDEX alike.
+func indexQualifier(index *metadata.IndexMetadata) string {
+	switch {
+	case index.Unique:
+		return "UNIQUE "
+	case strings.EqualFold(index.Type, mysqlIndexFullText):
+		return "FULLTEXT "
+	case strings.EqualFold(index.Type, mysqlIndexSpatial):
+		return "SPATIAL "
+	}
+	return ""
+}
+
+// printIndexKeyParts writes the key parts, type and options of an index, from its name and
+// opening parenthesis to the end of its clause.
+func printIndexKeyParts(buf *strings.Builder, index *metadata.IndexMetadata, engine string) error {
+	isFullText := strings.EqualFold(index.Type, mysqlIndexFullText)
+	isSpatial := strings.EqualFold(index.Type, mysqlIndexSpatial)
 
 	for i, expr := range index.Expressions {
 		if i != 0 {
@@ -1772,6 +1811,20 @@ func getSDLFormat(meta *metadata.DatabaseSchemaMetadata) (string, error) {
 		}
 	}
 
+	materializedViews := make([]*metadata.MaterializedViewMetadata, 0, len(schema.MaterializedViews))
+	for _, view := range schema.MaterializedViews {
+		if view.SkipDump {
+			continue
+		}
+		materializedViews = append(materializedViews, view)
+	}
+	slices.SortFunc(materializedViews, func(a, b *metadata.MaterializedViewMetadata) int { return cmp.Compare(a.Name, b.Name) })
+	for _, view := range materializedViews {
+		if err := writeMaterializedViewSDL(&buf, meta.Name, view); err != nil {
+			return "", err
+		}
+	}
+
 	// Triggers hang off tables (TableMetadata.Triggers); emit them after every table
 	// in deterministic (table, trigger) order.
 	for _, table := range tables {
@@ -1830,6 +1883,146 @@ func filterCreateOptions(createOptions string) string {
 		kept = append(kept, tok)
 	}
 	return strings.Join(kept, " ")
+}
+
+// writeViewsInDependencyOrder writes the regular views and the materialized views, each
+// after the ones it reads. A view may read a materialized view and a materialized view may
+// read a view, and a materialized view must not be created while the temporary placeholder
+// stands in for a view it reads: the view it would materialize has the placeholder's column
+// types, `1` for a `varchar` column among them.
+func writeViewsInDependencyOrder(buf *strings.Builder, dbName string, schema *metadata.SchemaMetadata) error {
+	// Definitions are identified by their exact name: a tenant with
+	// lower_case_table_names=0 holds views that differ only in case, and both are written.
+	type viewDefinition struct {
+		name  string
+		refs  []relationRef
+		write func(*strings.Builder) error
+	}
+	ownDB := toLower(dbName)
+	definitions := make([]*viewDefinition, 0, len(schema.Views)+len(schema.MaterializedViews))
+	for _, view := range schema.Views {
+		definitions = append(definitions, &viewDefinition{
+			name: view.Name,
+			refs: viewReferences(view.Definition, ownDB),
+			write: func(out *strings.Builder) error {
+				return writeView(out, view)
+			},
+		})
+	}
+	for _, view := range schema.MaterializedViews {
+		if view.SkipDump {
+			continue
+		}
+		definitions = append(definitions, &viewDefinition{
+			name: view.Name,
+			refs: viewReferences(view.Definition, ownDB),
+			write: func(out *strings.Builder) error {
+				return writeMaterializedView(out, view)
+			},
+		})
+	}
+	slices.SortFunc(definitions, func(a, b *viewDefinition) int { return cmp.Compare(a.name, b.name) })
+	// An exact name wins, so two views that differ only in case keep their own edges. A
+	// reference whose case differs from the name the definition was synced under falls back
+	// to the folded name, and only where that names one view: choosing between two
+	// case-distinct views could order one against what it reads.
+	byName := make(map[string][]*viewDefinition, len(definitions))
+	byFoldedName := make(map[string][]*viewDefinition, len(definitions))
+	for _, definition := range definitions {
+		byName[definition.name] = append(byName[definition.name], definition)
+		folded := toLower(definition.name)
+		byFoldedName[folded] = append(byFoldedName[folded], definition)
+	}
+
+	written := make(map[string]bool, len(definitions))
+	var write func(view *viewDefinition) error
+	write = func(view *viewDefinition) error {
+		if written[view.name] {
+			return nil
+		}
+		// Marked before the walk so a cycle ends it; OceanBase refuses one, and the mark
+		// only keeps a malformed snapshot from recursing.
+		written[view.name] = true
+		var dependencies []*viewDefinition
+		seen := make(map[*viewDefinition]bool, len(view.refs))
+		for _, ref := range view.refs {
+			if ref.db != ownDB {
+				continue
+			}
+			candidates := byName[ref.name]
+			if len(candidates) == 0 {
+				if folded := byFoldedName[toLower(ref.name)]; len(folded) == 1 {
+					candidates = folded
+				}
+			}
+			for _, dependency := range candidates {
+				if dependency != view && !seen[dependency] {
+					seen[dependency] = true
+					dependencies = append(dependencies, dependency)
+				}
+			}
+		}
+		// In name order, so a definition reading several others emits them the same way
+		// every time: a map's iteration order is not stable between runs.
+		slices.SortFunc(dependencies, func(a, b *viewDefinition) int { return cmp.Compare(a.name, b.name) })
+		for _, dependency := range dependencies {
+			if err := write(dependency); err != nil {
+				return err
+			}
+		}
+		return view.write(buf)
+	}
+	for _, view := range definitions {
+		if err := write(view); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// relationRef is a relation a definition reads, with the case the definition spells.
+type relationRef struct {
+	db   string
+	name string
+}
+
+// viewReferences returns the relations a definition reads in ownDB, spelled as the
+// definition spells them. referencedRelations answers the same question for a diff, keyed by
+// folded name, which a dump cannot use: a tenant with lower_case_table_names=0 holds views
+// that differ only in case, and folding them together would order one against another.
+func viewReferences(definition, ownDB string) []relationRef {
+	// A stored body may end in WITH CHECK OPTION, so it parses only as a whole view. A body
+	// the parser cannot read yields no edge and the object is written in name order: the
+	// definition came from the server, which accepted it, so the dump still writes it.
+	stmt, err := parseFirstStatement[*nodes.CreateViewStmt]("CREATE VIEW `v` AS " + definition)
+	if err != nil || stmt.Select == nil {
+		return nil
+	}
+	var refs []relationRef
+	for _, ref := range selectTableRefs(stmt.Select) {
+		if ref == nil || ref.Name == "" {
+			continue
+		}
+		db := ref.Schema
+		if db == "" {
+			db = ownDB
+		}
+		refs = append(refs, relationRef{db: toLower(db), name: ref.Name})
+	}
+	return refs
+}
+
+// writeMaterializedViewSDL emits a materialized view in the one form the loader holds: a
+// view. The catalog models no materialized view, so a `CREATE MATERIALIZED VIEW` here would
+// not load and a dependent view would read a relation SDL never wrote; the container's
+// indexes and the refresh policy have no place in this form either.
+func writeMaterializedViewSDL(buf *strings.Builder, dbName string, view *metadata.MaterializedViewMetadata) error {
+	body := formatViewBodySDL(stripViewBodyDatabaseQualifier(view.Definition, dbName))
+	if body == "" {
+		return nil
+	}
+	_, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS\n%s;\n\n", quoteIdent(view.Name), body)
+	return err
 }
 
 // writeViewSDL emits a single CREATE OR REPLACE VIEW statement. LoadSDL accepts
