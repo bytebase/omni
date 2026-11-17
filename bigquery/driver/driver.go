@@ -22,8 +22,10 @@
 // configuration and the credential types it accepts, statement classification,
 // the result-limit rewrite, the value conversions, the query-plan rendering, the
 // column mapping and the not-found mapping. Everything that reaches the service
-// is behind an environment gate and skips with the variable's name:
-// BIGQUERY_CREDENTIALS names the service-account key a live test uses.
+// is behind one environment gate: BIGQUERY_CREDENTIALS names the
+// service-account key a live test uses, with BIGQUERY_PROJECT and
+// BIGQUERY_DATASET beside it. Unset, a live test skips naming the gate; set and
+// incomplete, it fails, so a recording cannot read as a pass.
 //
 // # Where it lives
 //

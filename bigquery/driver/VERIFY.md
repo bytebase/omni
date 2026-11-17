@@ -155,14 +155,25 @@ Sync first: it is the read-only half. Then the reads, then the writes.
 | 4 | `TestExecute` | one job for a whole script, its DML row count, and a script whose second statement fails |
 | 5 | `TestLiveSyncDatabaseMissing` | the not-found mapping, on a dataset name the project does not have |
 
-Commands, one test at a time so a failure is attributable:
+Commands, one test at a time so a failure is attributable. The table names each
+test by what it records, which is the name it takes once it replays a tape;
+`live_test.go` holds `TestLiveSyncDatabase`, `TestLiveSyncInstance`,
+`TestLiveQuery`, `TestLiveExecute` and `TestLiveSyncDatabaseMissing` today, so
+the commands below name those and step 4's seam conversion renames them. They
+name the tests that exist: a `-run` pattern that matches nothing exits 0 and
+records nothing, which reads as a pass.
 
 ```bash
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" go test ./bigquery/driver/ -run '^TestSyncDatabase$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" go test ./bigquery/driver/ -run '^TestSyncInstance$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" go test ./bigquery/driver/ -run '^TestQuery$' -count=1 -v
-OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" go test ./bigquery/driver/ -run '^TestExecute$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveQuery$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveExecute$' -count=1 -v
+OMNI_RECORD=1 BIGQUERY_CREDENTIALS="$BIGQUERY_CREDENTIALS" BIGQUERY_DATASET="$BIGQUERY_DATASET" go test ./bigquery/driver/ -run '^TestLiveSyncDatabaseMissing$' -count=1 -v
 ```
+
+`liveConfig` derives `BIGQUERY_PROJECT` from the key's `project_id`; export it
+too when the recording's project is not the one the key was made in, and export
+`BIGQUERY_DATASET`, which has no default and fails the test rather than skip it.
 
 Then record everything twice from one compiled test binary and require
 byte-identical tapes. Two runs of one binary are deterministic; two `go test` runs
