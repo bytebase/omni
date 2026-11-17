@@ -1007,7 +1007,7 @@ func writePartitionElementsSDL(out io.Writer, parent sdltable, partition *metada
 	// a snapshot records among its indexes with no parent's index to attach it
 	// to; the parent's copies are attached and come with PARTITION OF.
 	for _, index := range partition.Indexes {
-		if index.ParentIndexName != "" || (!index.Primary && !index.IsConstraint) {
+		if index.ParentIndexName != "" || (!index.Primary && !index.Unique) {
 			continue
 		}
 		if err := writeItemSep(); err != nil {

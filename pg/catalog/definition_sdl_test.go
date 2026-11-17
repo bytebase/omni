@@ -138,6 +138,53 @@ ALTER INDEX "app"."orders_2025_day_idx" ATTACH PARTITION "app"."orders_2025_eu_d
 `,
 		},
 		{
+			// A partition's EXCLUDE constraint is written with its definition,
+			// not through the index that backs it, which a snapshot records
+			// beside it as a constraint index that is not unique.
+			name: "Partition with an EXCLUDE constraint of its own",
+			metadata: &metadatapb.DatabaseSchemaMetadata{
+				Schemas: []*metadatapb.SchemaMetadata{
+					{
+						Name: "app",
+						Tables: []*metadatapb.TableMetadata{
+							{
+								Name: "booking",
+								Columns: []*metadatapb.ColumnMetadata{
+									{Name: "room", Type: "integer", Nullable: true},
+									{Name: "span", Type: "tstzrange", Nullable: true},
+								},
+								Partitions: []*metadatapb.TablePartitionMetadata{
+									{
+										Name:       "booking_1",
+										Expression: "RANGE (room)",
+										Value:      "FOR VALUES FROM (1) TO (2)",
+										ExcludeConstraints: []*metadatapb.ExcludeConstraintMetadata{
+											{Name: "booking_1_no_overlap", Expression: "EXCLUDE USING gist (room WITH =, span WITH &&)"},
+										},
+										Indexes: []*metadatapb.IndexMetadata{
+											{Name: "booking_1_no_overlap", Type: "gist", IsConstraint: true, Expressions: []string{"room"}},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			expected: `CREATE SCHEMA IF NOT EXISTS "app";
+
+CREATE TABLE "app"."booking" (
+    "room" integer,
+    "span" tstzrange
+) PARTITION BY RANGE (room);
+
+CREATE TABLE "app"."booking_1" PARTITION OF "app"."booking" (
+    CONSTRAINT "booking_1_no_overlap" EXCLUDE USING gist (room WITH =, span WITH &&)
+) FOR VALUES FROM (1) TO (2);
+
+`,
+		},
+		{
 			name: "Table with default values",
 			metadata: &metadatapb.DatabaseSchemaMetadata{
 				Schemas: []*metadatapb.SchemaMetadata{
