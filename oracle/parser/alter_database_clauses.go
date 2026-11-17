@@ -1114,7 +1114,6 @@ func (p *Parser) parseAlterDatabaseSet(opt *nodes.DDLOption) error {
 			default:
 				return p.syntaxErrorAtCur()
 			}
-			return nil
 		}
 		opt.Key = "SET_STANDBY_DATABASE"
 		if p.cur.Type == kwDATABASE {

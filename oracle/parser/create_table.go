@@ -996,7 +996,6 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 			}
 		}
 	}
-	return nil
 }
 
 // parseInlineRefConstraint parses the SCOPE IS or WITH ROWID constraint of
@@ -2228,7 +2227,6 @@ func (p *Parser) parseTableOptions(stmt *nodes.CreateTableStmt, hasColumns bool)
 			}
 		}
 	}
-	return nil
 }
 
 func appendCreateTableOption(stmt *nodes.CreateTableStmt, key, value string, loc nodes.Loc) {

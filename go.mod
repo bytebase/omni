@@ -14,7 +14,9 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
 	github.com/aws/aws-sdk-go-v2/service/dynamodb v1.72.3
 	github.com/beltran/gohive/v2 v2.1.0
+	github.com/blang/semver/v4 v4.0.0
 	github.com/bytebase/gomongo v0.0.0-20260730033313-67ba6e249735
+	github.com/cockroachdb/cockroach-go/v2 v2.4.3
 	github.com/cockroachdb/cockroachdb-parser v0.25.2
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0

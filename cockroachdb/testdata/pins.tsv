@@ -1,0 +1,6 @@
+# The server this engine's committed answers come from. default records the
+# tapes: a single-node CockroachDB, started insecure with an in-memory store.
+# Its SQL wire protocol is PostgreSQL's, but the catalogs, statistics and
+# EXPLAIN output the driver reads are CockroachDB's own.
+# columns: role, image, digest, source tag
+default	cockroachdb/cockroach:v25.2.3	sha256:4a412731d1cfc5d6dea7431b7ce383b502966c9d589163d63db9e1ff7b51495a	v25.2.3
