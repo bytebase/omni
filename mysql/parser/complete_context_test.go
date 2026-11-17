@@ -24,6 +24,9 @@ type wantSignals struct {
 	ctes      map[string][]string
 	aliases   []string
 	dml       string
+	// cols are the statically readable columns of a local reference, keyed
+	// by the name it is referred to by.
+	cols map[string][]string
 }
 
 func kindNames(kinds []ObjectKind) string {
@@ -355,6 +358,76 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase}},
 		},
 		{
+			name: "unaliased nested groups keep their members",
+			sql:  "SELECT * FROM ((t1 JOIN t2 ON t1.a = t2.a)) WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t1"}, {table: "t2"}}},
+		},
+		{
+			name: "inner subquery does not see a sibling's FROM",
+			sql:  "SELECT (SELECT |), (SELECT a FROM u) FROM t",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, outer: [][]ref{{{table: "t"}}}},
+		},
+		{
+			name: "correlated references survive an empty local scope",
+			sql:  "SELECT * FROM t WHERE EXISTS (SELECT |)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, outer: [][]ref{{{table: "t"}}}},
+		},
+		{
+			name: "insert select has no local source",
+			sql:  "INSERT INTO dst (x) SELECT |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, dml: "->dst"},
+		},
+		{
+			name: "json table columns",
+			sql:  "SELECT jt.| FROM JSON_TABLE('[1,2]', '$[*]' COLUMNS (x INT PATH '$')) AS jt",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"jt"}, local: []ref{{kind: RangeReferenceFunction, table: "jt", alias: "jt"}}, cols: map[string][]string{"jt": {"x"}}},
+		},
+		{
+			name: "json table nested columns",
+			sql:  "SELECT jt.| FROM JSON_TABLE('[1]', '$' COLUMNS (a INT PATH '$.a', NESTED PATH '$.n[*]' COLUMNS (b INT PATH '$'))) AS jt",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"jt"}, local: []ref{{kind: RangeReferenceFunction, table: "jt", alias: "jt"}}, cols: map[string][]string{"jt": {"a", "b"}}},
+		},
+		{
+			name: "delete target list keeps the join scope",
+			sql:  "DELETE a FROM t1 a JOIN t2 b USING (id) WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "a"}, {table: "t1", alias: "a"}, {table: "t2", alias: "b"}}, dml: "->a"},
+		},
+		{
+			name: "delete using form",
+			sql:  "DELETE FROM t1 USING t1 JOIN t2 ON t1.a = t2.a WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t1"}, {table: "t1"}, {table: "t2"}}, dml: "->t1"},
+		},
+		{
+			name: "closed subquery does not make an outer where an alias position",
+			sql:  "SELECT x AS total FROM t WHERE id IN (SELECT id FROM u ORDER BY id) AND |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t"}}, aliases: []string{"total"}},
+		},
+		{
+			name: "arithmetic item keeps its alias",
+			sql:  "WITH c AS (SELECT price * qty AS total FROM items) SELECT * FROM c WHERE c.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"total"}}, cols: map[string][]string{"c": {"total"}}},
+		},
+		{
+			name: "function item keeps its alias",
+			sql:  "SELECT SUM(a) total FROM t ORDER BY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"total"}},
+		},
+		{
+			name: "nested with shadows the statement's cte",
+			sql:  "WITH c(x) AS (SELECT a FROM t) SELECT * FROM (WITH c(y) AS (SELECT b FROM u) SELECT * FROM c WHERE c.|) d",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"y"}}},
+		},
+		{
+			name: "quoted prefix with a space",
+			sql:  "SELECT * FROM `my ta|",
+			want: wantSignals{prefix: "my ta", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView}, local: []ref{{table: "my ta"}}},
+		},
+		{
+			name: "unicode prefix",
+			sql:  "SELECT 名|",
+			want: wantSignals{prefix: "名", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},
@@ -380,6 +453,19 @@ func TestCollectCompletionSignals(t *testing.T) {
 			}
 			if got := refNames(ctx.Scope.LocalReferences); got != refNames(wantRefs(tc.want.local)) {
 				t.Errorf("local references = %q, want %q", got, refNames(wantRefs(tc.want.local)))
+			}
+			for _, ref := range ctx.Scope.LocalReferences {
+				name := ref.Table
+				if name == "" {
+					name = ref.Alias
+				}
+				want, checked := tc.want.cols[name]
+				if !checked {
+					continue
+				}
+				if got := strings.Join(ref.Columns, ","); got != strings.Join(want, ",") {
+					t.Errorf("local reference %q columns = %q, want %q", name, got, want)
+				}
 			}
 			if len(ctx.Scope.OuterReferences) != len(tc.want.outer) {
 				t.Errorf("outer levels = %d, want %d", len(ctx.Scope.OuterReferences), len(tc.want.outer))
@@ -467,6 +553,21 @@ func TestCollectCompletionCandidates(t *testing.T) {
 		if TokenName(tok) == "" {
 			t.Fatalf("token %d has no keyword name", tok)
 		}
+	}
+}
+
+// TestCollectCompletionNestingLimit pins that a group nested past the
+// parser's own limit is skipped instead of descended into: completion runs on
+// editor input, so it must not walk a group the grammar already rejects.
+func TestCollectCompletionNestingLimit(t *testing.T) {
+	within := "SELECT * FROM " + strings.Repeat("(", 8) + "t" + strings.Repeat(")", 8) + " WHERE |"
+	if ctx := CollectCompletion(strings.Replace(within, "|", "", 1), strings.Index(within, "|")); len(ctx.Scope.LocalReferences) != 1 || ctx.Scope.LocalReferences[0].Table != "t" {
+		t.Fatalf("local references = %q, want t", refNames(ctx.Scope.LocalReferences))
+	}
+	beyond := "SELECT * FROM " + strings.Repeat("(", maxNestingDepth+8) + "t" + strings.Repeat(")", maxNestingDepth+8) + " WHERE |"
+	ctx := CollectCompletion(strings.Replace(beyond, "|", "", 1), strings.Index(beyond, "|"))
+	if len(ctx.Scope.LocalReferences) != 0 {
+		t.Fatalf("local references = %q, want none past the nesting limit", refNames(ctx.Scope.LocalReferences))
 	}
 }
 

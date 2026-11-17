@@ -119,7 +119,9 @@ it needs offsets rather than names.
 The reader is a token walk, not an AST walk, because the text is being typed: MySQL's `Parse`
 is strict and returns no partial tree, and completion must survive `SELECT * FROM t1 JOIN |`.
 It reuses `Tokenize` and `Split` (through `Collect`), reads only the statement holding the
-cursor, and never parses a fragment twice.
+cursor, and never parses a fragment twice. It is linear in the statement's tokens: depths and
+parenthesis matches are computed once per token slice, and a group nested past the parser's own
+`maxNestingDepth` is skipped rather than descended into.
 
 The fields, and why each is on the boundary:
 
@@ -170,17 +172,22 @@ truncation workarounds (`collectLeadingTableReferences`'s paren-level stack,
 
 ## The corpus
 
-`mysql/parser/complete_context_test.go` holds 51 cases over
+`mysql/parser/complete_context_test.go` holds 65 cases over
 `sql` × cursor positions: select list, `WHERE`, `ON`, joins with and without aliases,
 cross and `STRAIGHT_JOIN`, derived tables (with and without an alias column list, and
 unterminated), CTEs (with a column list, from the body's select list, `RECURSIVE`, two in a
-row, and a cursor inside a body), correlated and `LATERAL` subqueries, `UPDATE` (single and
-join), `DELETE`, `INSERT` (target, `INSERT ... SELECT`), `ORDER BY`/`GROUP BY` aliases versus
-`WHERE`, prefixes with and without backticks, index hints and `PARTITION` (which must not read
+row, a cursor inside a body, and a `WITH` nested in a derived table shadowing the
+statement's), correlated and `LATERAL` subqueries, sibling subqueries at the same depth,
+`UPDATE` (single and join), `DELETE` (single, target list with a join `USING`, and the
+`FROM ... USING` form), `INSERT` (target, `INSERT ... SELECT`), `JSON_TABLE` (with a plain
+and a nested `COLUMNS` clause), `ORDER BY`/`GROUP BY` aliases versus `WHERE` (including
+`WHERE` after a closed subquery), prefixes with and without backticks (including a quoted
+name with a space and a non-ASCII name), index hints and `PARTITION` (which must not read
 as aliases), statement boundaries, `UNION` arms, a parenthesized join, DDL positions
 (`type_name`, `index_ref`, `engine`, `charset`, `view_ref`, `database_ref`), and a cursor
 inside a text literal. A second test walks every cursor offset of eight scripts — including
-200 nested parentheses and unterminated strings — to hold the reader to the no-panic rule.
+200 nested parentheses and unterminated strings — to hold the reader to the no-panic rule,
+and a third pins a group nested past `maxNestingDepth` as skipped, not descended into.
 
 Three positions the corpus pins as gaps in the *grammar*, not in the reader:
 

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/mysql/ast"
 )
 
@@ -187,6 +189,10 @@ func CollectCompletion(sql string, cursorOffset int) *CompletionContext {
 type completionScopeToken struct {
 	Token
 	depth int
+	// close is the index of the ')' matching this '(' token, or -1. It is
+	// filled once per token slice so a nested reader does not rescan the
+	// parentheses at every level.
+	close int
 }
 
 // collectCompletionScope returns the relation scope of the query block holding
@@ -199,36 +205,44 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 		return &ScopeSnapshot{}
 	}
 	stmtTokens := tokens[start:end]
-	ctes, mainStart := collectCTEs(stmtTokens)
-	cteMap := rangeReferenceMap(ctes)
+	_, mainStart := collectCTEs(stmtTokens)
 	// The whole statement, not just its main clause: the WITH clause holds
 	// query blocks the cursor may be in.
+	cteMap := rangeReferenceMap(collectVisibleCTEs(stmtTokens, cursorOffset))
 	scope := collectSelectScope(stmtTokens, cursorOffset, cteMap)
 	target, dmlRefs := collectDMLScope(stmtTokens[mainStart:], cteMap)
-	if target != nil {
-		scope.DMLTarget = target
-	}
-	if len(scope.LocalReferences) == 0 {
+	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
 		// are what its clauses name.
 		refs := append(dmlRefs, collectDDLScope(stmtTokens)...)
-		scope.LocalReferences = refs
-		scope.References = append([]RangeReference{}, refs...)
+		scope = &ScopeSnapshot{
+			LocalReferences: refs,
+			References:      append([]RangeReference{}, refs...),
+		}
+	}
+	if target != nil {
+		scope.DMLTarget = target
 	}
 	return scope
 }
 
 func completionScopeTokens(tokens []Token) []completionScopeToken {
 	depth := 0
+	var open []int
 	result := make([]completionScopeToken, 0, len(tokens))
 	for _, tok := range tokens {
-		result = append(result, completionScopeToken{Token: tok, depth: depth})
+		result = append(result, completionScopeToken{Token: tok, depth: depth, close: -1})
 		switch tok.Type {
 		case '(':
+			open = append(open, len(result)-1)
 			depth++
 		case ')':
 			if depth > 0 {
 				depth--
+				if n := len(open); n > 0 {
+					result[open[n-1]].close = len(result) - 1
+					open = open[:n-1]
+				}
 			}
 		}
 	}
@@ -285,16 +299,55 @@ func completionStatementLoc(sql string, cursorOffset int) nodes.Loc {
 	return loc
 }
 
-// collectCompletionCTEs reads the WITH clause of the statement holding the
-// cursor, defining each CTE's columns from its column list or its select list.
+// collectCompletionCTEs reads the CTE definitions the cursor can name: the
+// statement's WITH clause and every enclosing query block's, whether or not
+// the cursor is in one of their bodies.
 func collectCompletionCTEs(sql string, cursorOffset int) []RangeReference {
 	tokens := completionScopeTokens(Tokenize(sql))
 	start, end := completionStatementBounds(tokens, cursorOffset)
 	if start >= end {
 		return nil
 	}
-	ctes, _ := collectCTEs(tokens[start:end])
+	return collectVisibleCTEs(tokens[start:end], cursorOffset)
+}
+
+// collectVisibleCTEs reads every WITH clause whose query block holds the
+// cursor, outer blocks first, and replaces a definition an inner clause
+// shadows.
+func collectVisibleCTEs(tokens []completionScopeToken, cursorOffset int) []RangeReference {
+	var ctes []RangeReference
+	index := make(map[string]int)
+	for i, tok := range tokens {
+		if tok.Type != kwWITH || tok.Loc > cursorOffset {
+			continue
+		}
+		if end := completionBlockEnd(tokens, i, tok.depth); end < len(tokens) && tokens[end].Loc < cursorOffset {
+			continue
+		}
+		defs, _ := collectCTEsAt(tokens, i)
+		for _, def := range defs {
+			name := foldName(def.Table)
+			if at, ok := index[name]; ok {
+				ctes[at] = def
+				continue
+			}
+			index[name] = len(ctes)
+			ctes = append(ctes, def)
+		}
+	}
 	return ctes
+}
+
+// completionBlockEnd returns where the query block starting at idx ends: the
+// first token shallower than the block, which is the one past the ')' closing
+// the group holding it, or the end of the statement.
+func completionBlockEnd(tokens []completionScopeToken, idx, depth int) int {
+	for i := idx + 1; i < len(tokens); i++ {
+		if tokens[i].depth < depth {
+			return i
+		}
+	}
+	return len(tokens)
 }
 
 // collectCTEs parses a WITH clause at the start of tokens. It returns the
@@ -304,9 +357,15 @@ func collectCTEs(tokens []completionScopeToken) ([]RangeReference, int) {
 	if first < 0 || tokens[first].Type != kwWITH {
 		return nil, 0
 	}
+	return collectCTEsAt(tokens, first)
+}
+
+// collectCTEsAt parses the WITH clause at withIdx and returns its definitions
+// and the index after the clause, where the statement's main clause starts.
+func collectCTEsAt(tokens []completionScopeToken, withIdx int) ([]RangeReference, int) {
 	var ctes []RangeReference
-	idx := first + 1
-	depth := tokens[first].depth
+	idx := withIdx + 1
+	depth := tokens[withIdx].depth
 	if idx < len(tokens) && tokens[idx].depth == depth && tokens[idx].Type == kwRECURSIVE {
 		idx++
 	}
@@ -343,7 +402,7 @@ func collectCTEs(tokens []completionScopeToken) ([]RangeReference, int) {
 			Kind:    RangeReferenceCTE,
 			Table:   name,
 			Columns: columns,
-			Loc:     tokenLoc(tokens[first], tokens[closeIdx]),
+			Loc:     tokenLoc(tokens[withIdx], tokens[closeIdx]),
 			BodyLoc: tokenLoc(tokens[idx], tokens[closeIdx]),
 		})
 		idx = closeIdx + 1
@@ -481,6 +540,8 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 		return nil, nil, false
 	}
 	// Before FROM: DELETE t1, t2 FROM — the target list, else DELETE FROM.
+	// Multi-table syntax 1 has no USING clause; its FROM is the whole
+	// table_references list, and a USING there is a join condition.
 	if fromIdx > idx {
 		names := parseFromReferences(tokens, idx, fromIdx, depth, ctes)
 		if len(names) > 0 {
@@ -490,12 +551,7 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 				targets = append(targets, names[i])
 			}
 			refs := append([]RangeReference{}, targets...)
-			// The FROM clause after a target list is the real scope.
-			if usingIdx := findKeywordAtDepth(tokens, kwUSING, fromIdx+1, len(tokens), depth); usingIdx >= 0 {
-				refs = append(refs, parseFromReferences(tokens, usingIdx+1, len(tokens), depth, ctes)...)
-			} else {
-				refs = append(refs, parseFromReferences(tokens, fromIdx+1, len(tokens), depth, ctes)...)
-			}
+			refs = append(refs, parseFromReferences(tokens, fromIdx+1, len(tokens), depth, ctes)...)
 			return &targets[0], refs, true
 		}
 	}
@@ -505,17 +561,23 @@ func collectDeleteScope(tokens []completionScopeToken, deleteIdx int, ctes map[s
 	}
 	refs[0].Kind = RangeReferenceDMLTarget
 	refs[0].Loc = tokenLoc(tokens[fromIdx+1], tokens[next-1])
-	// DELETE FROM t1 USING t1 JOIN t2: USING carries the rest of the scope.
-	if usingIdx := findKeywordAtDepth(tokens, kwUSING, next, len(tokens), depth); usingIdx >= 0 {
-		refs = append(refs, parseFromReferences(tokens, usingIdx+1, len(tokens), depth, ctes)...)
+	// DELETE FROM t1 USING t1 JOIN t2 carries the rest of the scope in its
+	// USING clause. The USING must follow the target directly: a USING after
+	// a join keyword is that join's condition.
+	if next < len(tokens) && tokens[next].depth == depth && tokens[next].Type == kwUSING {
+		refs = append(refs, parseFromReferences(tokens, next+1, len(tokens), depth, ctes)...)
 	}
 	return &refs[0], refs, true
 }
 
+// collectSelectScope returns the scope of the query block holding the cursor,
+// or nil when the cursor is in no query block. An empty block keeps its outer
+// references: only a statement with no query block at all falls back to its
+// DML or DDL tables.
 func collectSelectScope(tokens []completionScopeToken, cursorOffset int, ctes map[string]RangeReference) *ScopeSnapshot {
 	frames := selectFramesForCursor(tokens, cursorOffset, ctes)
 	if len(frames) == 0 {
-		return &ScopeSnapshot{}
+		return nil
 	}
 	innermost := frames[len(frames)-1]
 	var outerRefs [][]RangeReference
@@ -622,13 +684,17 @@ func closedBeforeCursor(tokens []completionScopeToken, selectIdx, depth, cursorO
 	return false
 }
 
+// selectArmEnd returns where the SELECT starting at start is no longer its own
+// query block: the set operator that ends its arm, or the ')' that closes the
+// group holding it. Crossing the ')' would read a sibling block's FROM clause
+// at the same depth.
 func selectArmEnd(tokens []completionScopeToken, start, depth int) int {
 	for i := start; i < len(tokens); i++ {
 		if tokens[i].depth != depth {
 			continue
 		}
 		switch tokens[i].Type {
-		case kwUNION, kwINTERSECT, kwEXCEPT:
+		case kwUNION, kwINTERSECT, kwEXCEPT, ')':
 			return i
 		}
 	}
@@ -673,6 +739,12 @@ func parseFromReferences(tokens []completionScopeToken, start, end, depth int, c
 			// does not parse, such as a statement still being typed after
 			// the cursor's, must not turn a later name into a reference.
 			expectSource = false
+			if next > i {
+				// A group the reader refuses whole, such as one past the
+				// nesting limit: skip it rather than rescan its tokens.
+				i = next
+				continue
+			}
 		}
 		switch tok.Type {
 		case ',', kwJOIN, kwSTRAIGHT_JOIN:
@@ -701,6 +773,9 @@ func parseTableSource(tokens []completionScopeToken, idx int, ctes map[string]Ra
 	if tokens[idx].Type == '(' {
 		return parseParenthesizedTableSource(tokens, idx, lateral, ctes)
 	}
+	if tokens[idx].Type == kwJSON_TABLE {
+		return parseJSONTableSource(tokens, idx, lateral)
+	}
 	ref, next, ok := parseRangeReference(tokens, idx)
 	if !ok {
 		return nil, idx, false
@@ -727,7 +802,18 @@ func parseTableSource(tokens []completionScopeToken, idx int, ctes map[string]Ra
 // reference whether or not it has an alias; a parenthesized join contributes its
 // members' references, or one reference when it has an alias of its own.
 func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, lateral bool, ctes map[string]RangeReference) ([]RangeReference, int, bool) {
+	// Each nested group re-enters this function through parseFromReferences,
+	// so the group's parenthesis depth is the recursion depth. Stop at the
+	// depth Parse itself rejects: the statement is not valid input, and a
+	// reader that kept descending would not return a scope either. The caller
+	// skips the group.
 	closeIdx := matchingParen(tokens, idx)
+	if tokens[idx].depth >= maxNestingDepth {
+		if closeIdx < 0 {
+			return nil, idx + 1, false
+		}
+		return nil, closeIdx + 1, false
+	}
 	if closeIdx < 0 {
 		// Unterminated group: its body is what is being typed, and the
 		// cursor's own scope reader will read it.
@@ -777,6 +863,93 @@ func parseParenthesizedTableSource(tokens []completionScopeToken, idx int, later
 		ref.Loc.End = tokens[next-1].End
 	}
 	return []RangeReference{ref}, next, true
+}
+
+// parseJSONTableSource reads MySQL's only built-in table function,
+// JSON_TABLE(expr, path COLUMNS (...)) [AS] alias. Its COLUMNS clause names
+// the columns in the text, so the reference carries them like a CTE's.
+func parseJSONTableSource(tokens []completionScopeToken, idx int, lateral bool) ([]RangeReference, int, bool) {
+	if idx+1 >= len(tokens) || tokens[idx+1].Type != '(' {
+		return nil, idx, false
+	}
+	closeIdx := matchingParen(tokens, idx+1)
+	if closeIdx < 0 {
+		// Unterminated arguments: the cursor is inside them.
+		return nil, idx + 1, false
+	}
+	ref := RangeReference{
+		Kind:    RangeReferenceFunction,
+		Table:   "JSON_TABLE",
+		Columns: jsonTableColumns(tokens, idx+1, closeIdx),
+		Loc:     tokenLoc(tokens[idx], tokens[closeIdx]),
+		BodyLoc: tokenLoc(tokens[idx+1], tokens[closeIdx]),
+		Lateral: lateral,
+	}
+	alias, columns, next := parseAliasAndColumns(tokens, closeIdx+1, tokens[idx].depth)
+	if alias != "" {
+		ref.Alias = alias
+		ref.Table = alias
+		ref.AliasColumns = columns
+		if len(columns) > 0 {
+			ref.Columns = append([]string{}, columns...)
+		}
+		if next > closeIdx+1 {
+			ref.Loc.End = tokens[next-1].End
+		}
+	}
+	return []RangeReference{ref}, next, true
+}
+
+// jsonTableColumns reads the column names a JSON_TABLE COLUMNS clause declares,
+// including the columns of a nested COLUMNS clause. open is the '(' holding the
+// function's arguments.
+func jsonTableColumns(tokens []completionScopeToken, open, close int) []string {
+	depth := tokens[open].depth + 1
+	for i := open + 1; i < close; i++ {
+		if tokens[i].depth != depth || tokens[i].Type != kwCOLUMNS {
+			continue
+		}
+		if i+1 >= close || tokens[i+1].Type != '(' {
+			return nil
+		}
+		columnsClose := matchingParen(tokens, i+1)
+		if columnsClose < 0 || columnsClose > close {
+			return nil
+		}
+		return jsonTableColumnItems(tokens, i+2, columnsClose, tokens[i+1].depth+1)
+	}
+	return nil
+}
+
+// jsonTableColumnItems reads the name each column definition in tokens[lo:hi]
+// starts with, at itemDepth, and recurses into a NESTED COLUMNS clause.
+func jsonTableColumnItems(tokens []completionScopeToken, lo, hi, itemDepth int) []string {
+	var names []string
+	for i := lo; i < hi; i++ {
+		if tokens[i].depth != itemDepth {
+			continue
+		}
+		if i > lo && tokens[i-1].depth == itemDepth && tokens[i-1].Type != ',' {
+			continue
+		}
+		switch {
+		case tokens[i].Type == kwNESTED:
+			for j := i + 1; j < hi; j++ {
+				if tokens[j].depth != itemDepth || tokens[j].Type != kwCOLUMNS {
+					continue
+				}
+				if j+1 < hi && tokens[j+1].Type == '(' {
+					if nested := matchingParen(tokens, j+1); nested > 0 && nested <= hi {
+						names = append(names, jsonTableColumnItems(tokens, j+2, nested, tokens[j+1].depth+1)...)
+					}
+				}
+				break
+			}
+		case isCompletionIdent(tokens[i]):
+			names = append(names, tokens[i].Str)
+		}
+	}
+	return names
 }
 
 func joinAliasColumns(refs []RangeReference) []string {
@@ -1024,19 +1197,7 @@ func matchingParen(tokens []completionScopeToken, openIdx int) int {
 	if openIdx < 0 || openIdx >= len(tokens) || tokens[openIdx].Type != '(' {
 		return -1
 	}
-	balance := 0
-	for i := openIdx; i < len(tokens); i++ {
-		switch tokens[i].Type {
-		case '(':
-			balance++
-		case ')':
-			balance--
-			if balance == 0 {
-				return i
-			}
-		}
-	}
-	return -1
+	return tokens[openIdx].close
 }
 
 func tokenLoc(first, last completionScopeToken) nodes.Loc {
@@ -1073,34 +1234,47 @@ func isAliasBoundary(typ int) bool {
 	}
 }
 
-// completionPrefix returns the identifier ending at the cursor and the offset
-// the caller should complete from, which is the identifier's start or the
-// backtick that opens a quoted one: the grammar then sees the position before
-// the partial name. Inside backticks the prefix is the quoted text, so it
-// matches the names the parser reports.
+// completionPrefix returns the identifier the cursor is inside or at the end
+// of, and the offset the caller should complete from: the identifier's first
+// byte, so the grammar sees the position before the partial name. The lexer
+// decides the token, so a backtick-quoted name keeps its spaces and a
+// non-ASCII name is not cut short.
 func completionPrefix(sql string, cursorOffset int) (string, int) {
 	if cursorOffset > len(sql) {
 		cursorOffset = len(sql)
 	}
-	i := cursorOffset
-	for i > 0 && sql[i-1] != '`' {
-		c := sql[i-1]
-		if (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '$' {
-			i--
+	for _, tok := range Tokenize(sql) {
+		if tok.Loc > cursorOffset || tok.End < cursorOffset {
 			continue
 		}
-		return sql[i:cursorOffset], i
+		if tok.Type != tokIDENT && tok.Type < 700 {
+			break
+		}
+		if tok.Loc == cursorOffset {
+			break
+		}
+		if sql[tok.Loc] == '`' {
+			if tok.End <= cursorOffset {
+				return tok.Str, tok.Loc
+			}
+			return unquoteIdent(sql[tok.Loc+1 : cursorOffset]), tok.Loc
+		}
+		return sql[tok.Loc:cursorOffset], tok.Loc
 	}
-	if i > 0 {
-		// i-1 opens the quoted identifier.
-		return sql[i:cursorOffset], i - 1
-	}
-	return sql[i:cursorOffset], i
+	return "", cursorOffset
 }
 
-// collectCompletionCTEs reads the WITH clause of the statement holding the
-// cursor, defining each CTE's columns from its column list or its select list.
-// class; the dotted name before it decides the qualifier.
+// unquoteIdent drops the doubled backtick escaping from a partially typed
+// quoted identifier, so the prefix matches the names the parser reports.
+func unquoteIdent(name string) string {
+	if !strings.Contains(name, "``") {
+		return name
+	}
+	return strings.ReplaceAll(name, "``", "`")
+}
+
+// collectCompletionIntent reads the object class the cursor position accepts
+// from the grammar's candidates and the qualifier typed before it.
 func collectCompletionIntent(sql string, candidates *CandidateSet, collectOffset int) *CompletionIntent {
 	if candidates == nil {
 		return nil
@@ -1122,19 +1296,16 @@ func collectCompletionIntent(sql string, candidates *CandidateSet, collectOffset
 
 // qualifierAllowedSelectAlias reports whether the cursor is in an ORDER BY,
 // GROUP BY, or HAVING clause of the query block it is in, where a select list
-// alias may be named.
+// alias may be named. Only the cursor block's tokens decide: a completed
+// subquery before the cursor ends its own clause, so its ORDER BY does not
+// make an outer WHERE an alias position.
 func qualifierAllowedSelectAlias(tokens []completionScopeToken) bool {
 	cursorDepth := 0
 	if len(tokens) > 0 {
 		cursorDepth = tokens[len(tokens)-1].depth
 	}
 	for i := len(tokens) - 1; i >= 0; i-- {
-		if tokens[i].depth > cursorDepth {
-			cursorDepth = tokens[i].depth
-			continue
-		}
-		if tokens[i].depth < cursorDepth {
-			cursorDepth = tokens[i].depth
+		if tokens[i].depth != cursorDepth {
 			continue
 		}
 		switch tokens[i].Type {
