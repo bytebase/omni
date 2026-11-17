@@ -2931,3 +2931,74 @@ func TestReusedIndexConstraintRendersUsingIndex(t *testing.T) {
 		t.Fatalf("the migration does not create the index before its constraint (index=%d constraint=%d):\n%s", index, constraint, sql)
 	}
 }
+
+func TestDefinitionDefersSelfReferenceToReusedKey(t *testing.T) {
+	to := catalogFromSchema(&metadatapb.SchemaMetadata{
+		Name: "APP",
+		Tables: []*metadatapb.TableMetadata{{
+			Name: "T",
+			Columns: []*metadatapb.ColumnMetadata{
+				{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false},
+				{Name: "PARENT_ID", Type: "NUMBER", Position: 2, Nullable: true},
+			},
+			Indexes: []*metadatapb.IndexMetadata{{
+				Name:         "T_ID_IDX",
+				Type:         "NORMAL",
+				Primary:      true,
+				Expressions:  []string{`"ID"`},
+				Descending:   []bool{false},
+				Visible:      true,
+				IsConstraint: true,
+				Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "T_PK", Columns: []string{`"ID"`}, Primary: true}},
+			}},
+			ForeignKeys: []*metadatapb.ForeignKeyMetadata{{
+				Name:              "T_FK",
+				Columns:           []string{`"PARENT_ID"`},
+				ReferencedTable:   "T",
+				ReferencedColumns: []string{`"ID"`},
+			}},
+		}},
+	})
+	definition, err := DatabaseDefinition(to.Metadata())
+	if err != nil {
+		t.Fatal(err)
+	}
+	table := definition[:strings.Index(definition, "\n);")]
+	if strings.Contains(table, "FOREIGN KEY") {
+		t.Fatalf("a self reference to a reused key stayed inside CREATE TABLE:\n%s", definition)
+	}
+	key := strings.Index(definition, `ADD CONSTRAINT "T_PK"`)
+	fk := strings.Index(definition, `ADD CONSTRAINT "T_FK"`)
+	if key < 0 || fk < 0 || key > fk {
+		t.Fatalf("the foreign key precedes the key it references (key=%d fk=%d):\n%s", key, fk, definition)
+	}
+}
+
+func TestReplacingReusedConstraintDropsItsIndex(t *testing.T) {
+	table := func(primary bool) *metadatapb.SchemaMetadata {
+		return &metadatapb.SchemaMetadata{
+			Name: "APP",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "T",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "ID", Type: "NUMBER", Position: 1, Nullable: false}},
+				Indexes: []*metadatapb.IndexMetadata{{
+					Name:         "K",
+					Type:         "NORMAL",
+					Primary:      primary,
+					Expressions:  []string{`"ID"`},
+					Descending:   []bool{false},
+					Visible:      true,
+					IsConstraint: true,
+					Constraints:  []*metadatapb.IndexConstraintMetadata{{Name: "K", Columns: []string{`"ID"`}, Primary: primary}},
+				}},
+			}},
+		}
+	}
+	sql := migrationFor(t, catalogFromSchema(table(false)), catalogFromSchema(table(true)))
+	constraint := strings.Index(sql, `DROP CONSTRAINT "K"`)
+	index := strings.Index(sql, `DROP INDEX "APP"."K"`)
+	create := strings.Index(sql, `CREATE INDEX "APP"."K"`)
+	if constraint < 0 || index < 0 || create < 0 || !(constraint < create && index < create) {
+		t.Fatalf("the retained index is not dropped before it is created again (constraint=%d index=%d create=%d):\n%s", constraint, index, create, sql)
+	}
+}

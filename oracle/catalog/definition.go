@@ -483,8 +483,15 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 		}
 	}
 
+	var deferredForeignKeys []*metadatapb.ForeignKeyMetadata
 	if includeForeignKeys {
 		for _, fk := range table.ForeignKeys {
+			// A self reference to a key a reused index backs waits for the
+			// constraint, which is added after the table.
+			if selfReferenceTargetsReusedConstraint(table, fk) {
+				deferredForeignKeys = append(deferredForeignKeys, fk)
+				continue
+			}
 			if err := writeSeparator(); err != nil {
 				return err
 			}
@@ -508,7 +515,7 @@ func writeTableWithOptions(buf *strings.Builder, table *metadatapb.TableMetadata
 			return err
 		}
 	}
-	if err := writeReusedIndexConstraints(buf, table); err != nil {
+	if err := writeReusedIndexConstraints(buf, table, deferredForeignKeys); err != nil {
 		return err
 	}
 
@@ -787,7 +794,43 @@ func needsReusedIndexClause(index *metadatapb.IndexMetadata) bool {
 
 // writeReusedIndexConstraints writes a table's indexes whose constraint needs
 // the index clause: the index first, then the constraint naming it.
-func writeReusedIndexConstraints(buf *strings.Builder, table *metadatapb.TableMetadata) error {
+func selfReferenceTargetsReusedConstraint(table *metadatapb.TableMetadata, fk *metadatapb.ForeignKeyMetadata) bool {
+	if fk.GetReferencedTable() != table.GetName() {
+		return false
+	}
+	for _, index := range table.GetIndexes() {
+		if !index.GetIsConstraint() || !needsReusedIndexClause(index) {
+			continue
+		}
+		for _, constraint := range index.GetConstraints() {
+			columns := constraint.GetColumns()
+			if len(columns) == 0 {
+				columns = index.GetExpressions()
+			}
+			if len(fk.GetReferencedColumns()) == 0 {
+				if constraint.GetPrimary() {
+					return true
+				}
+				continue
+			}
+			if len(fk.GetReferencedColumns()) != len(columns) {
+				continue
+			}
+			matches := true
+			for i, column := range fk.GetReferencedColumns() {
+				if unquoteIdentifier(column) != unquoteIdentifier(columns[i]) {
+					matches = false
+				}
+			}
+			if matches {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func writeReusedIndexConstraints(buf *strings.Builder, table *metadatapb.TableMetadata, deferredForeignKeys []*metadatapb.ForeignKeyMetadata) error {
 	for _, index := range table.Indexes {
 		if !index.GetIsConstraint() || !needsReusedIndexClause(index) {
 			continue
@@ -831,6 +874,11 @@ func writeReusedIndexConstraints(buf *strings.Builder, table *metadatapb.TableMe
 `); err != nil {
 				return err
 			}
+		}
+	}
+	for _, fk := range deferredForeignKeys {
+		if err := writeAddForeignKey(buf, table.Name, fk); err != nil {
+			return err
 		}
 	}
 	return nil

@@ -269,7 +269,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
 								continue
 							}
-							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
+							writeDropConstraintIndex(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
 						}
@@ -344,7 +344,7 @@ func dropObjectsInOrder(diff *MetadataDiff, buf *strings.Builder, renames constr
 							if renames.oldName(tableDiff, indexDiff.OldIndex.Name) != "" {
 								continue
 							}
-							writeDropConstraint(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex.Name)
+							writeDropConstraintIndex(buf, tableDiff.SchemaName, tableDiff.TableName, indexDiff.OldIndex)
 						} else {
 							writeDropIndex(buf, tableDiff.SchemaName, indexDiff.OldIndex.Name)
 						}
@@ -1701,7 +1701,7 @@ func (d columnDependents) writeDrops(out *strings.Builder, schemaName, tableName
 	}
 	for _, index := range d.indexes {
 		if index.IsConstraint {
-			writeDropConstraint(out, schemaName, tableName, index.Name)
+			writeDropConstraintIndex(out, schemaName, tableName, index)
 		} else {
 			writeDropIndex(out, schemaName, index.Name)
 		}
@@ -1908,6 +1908,24 @@ func writeDropCheckConstraint(out *strings.Builder, schema, table, constraint st
 	_, _ = out.WriteString(constraint)
 	_, _ = out.WriteString(`";`)
 	_, _ = out.WriteString("\n")
+}
+
+// writeDropConstraintIndex drops a constraint an index backs. When the index is
+// the constraint's own, Oracle drops both; when the constraint reuses a
+// standalone index, that index stays and is dropped here, so a replacement can
+// create it again.
+func writeDropConstraintIndex(out *strings.Builder, schema, table string, index *metadatapb.IndexMetadata) {
+	if needsReusedIndexClause(index) {
+		if len(index.GetConstraints()) == 0 {
+			writeDropConstraint(out, schema, table, index.GetName())
+		}
+		for _, constraint := range index.GetConstraints() {
+			writeDropConstraint(out, schema, table, constraint.GetName())
+		}
+		writeDropIndex(out, schema, index.GetName())
+		return
+	}
+	writeDropConstraint(out, schema, table, index.GetName())
 }
 
 func writeDropConstraint(out *strings.Builder, schema, table, constraint string) {
