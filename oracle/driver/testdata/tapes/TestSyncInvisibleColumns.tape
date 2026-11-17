@@ -571,20 +571,56 @@
 | *
 > query
 |
-| 		SELECT
-| 			SEQUENCE_NAME,
-| 			TO_CHAR(MIN_VALUE),
-| 			TO_CHAR(MAX_VALUE),
-| 			TO_CHAR(INCREMENT_BY),
-| 			CYCLE_FLAG,
-| 			ORDER_FLAG,
-| 			TO_CHAR(CACHE_SIZE),
-| 			TO_CHAR(LAST_NUMBER),
-| 			KEEP_VALUE,
-| 			SCALE_FLAG,
-| 			EXTEND_FLAG,
-| 			SESSION_FLAG,
-| 			SHARDED_FLAG
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
+< result
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
+> query
+|
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
 | 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_APP'
 | 		ORDER BY SEQUENCE_NAME

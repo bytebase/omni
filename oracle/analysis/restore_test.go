@@ -10,7 +10,9 @@ import (
 )
 
 func restoreTable() (*metadata.TableMetadata, *metadata.IndexMetadata) {
-	pk := &metadata.IndexMetadata{Name: "PK", Primary: true, Unique: true, Expressions: []string{"ID"}}
+	// The sync writes a key column quoted, which is what the merge statement and
+	// the nullability check must read as the column.
+	pk := &metadata.IndexMetadata{Name: "PK", Primary: true, Unique: true, Expressions: []string{`"ID"`}}
 	return &metadata.TableMetadata{
 		Name: "T",
 		Columns: []*metadata.ColumnMetadata{
@@ -20,8 +22,8 @@ func restoreTable() (*metadata.TableMetadata, *metadata.IndexMetadata) {
 		},
 		Indexes: []*metadata.IndexMetadata{
 			pk,
-			{Name: "UK", Unique: true, Expressions: []string{"B"}},
-			{Name: "FUK", Unique: true, Type: "FUNCTION-BASED NORMAL", Expressions: []string{"A"}},
+			{Name: "UK", Unique: true, Expressions: []string{`"B"`}},
+			{Name: "FUK", Unique: true, Type: "FUNCTION-BASED NORMAL", Expressions: []string{`"A"`}},
 		},
 	}, pk
 }

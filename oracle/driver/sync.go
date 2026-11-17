@@ -1081,15 +1081,16 @@ func getOuterSchemaRColumns(txn *sql.Tx, outerRTableMap map[constraintRef]string
 	return outerRTableMap[constraintKey], outerRColumnMap[constraintKey], nil
 }
 
-// constraintIndex is the pair a primary key or unique constraint and the index
-// that enforces it form. Oracle keeps them as two objects with two names: a
-// constraint may reuse an index the schema already had, and the index's own
-// name is what the dictionary, and so the DDL, calls it.
+// constraintIndex is what a schema's index enforces: the constraints that draw
+// on it, and whether one of them is the primary key. Oracle keeps a constraint
+// and its index as two objects with two names — a constraint may reuse an index
+// the schema already had, and the index's own name is what the dictionary, and
+// so the DDL, calls it — and one index may enforce several constraints.
 type constraintIndex struct {
-	// Constraint is the constraint's name, which is the index's only when
-	// Oracle made the index for it.
-	Constraint string
-	// Primary is whether the constraint is the primary key.
+	// Constraints are the names of the constraints the index enforces, the
+	// primary key's first.
+	Constraints []string
+	// Primary is whether one of them is the primary key.
 	Primary bool
 }
 
@@ -1179,14 +1180,23 @@ func getConstraints(txn *sql.Tx, schemaName string) (
 			// null), and one whose index another schema owns has no index in the
 			// schema being synced.
 			if indexName.Valid && indexOwner.Valid && indexOwner.String == schemaName {
-				isConstraint[indexKey{Schema: indexOwner.String, Table: tableName, Index: indexName.String}] = constraintIndex{Constraint: constraintName, Primary: constraintType == "P"}
+				index := indexKey{Schema: indexOwner.String, Table: tableName, Index: indexName.String}
+				enforced := isConstraint[index]
+				if constraintType == "P" {
+					enforced.Constraints = append([]string{constraintName}, enforced.Constraints...)
+					enforced.Primary = true
+				} else {
+					enforced.Constraints = append(enforced.Constraints, constraintName)
+				}
+				isConstraint[index] = enforced
 				break
 			}
 			metadata := &metadatapb.IndexMetadata{
-				Name:         constraintName,
-				Primary:      constraintType == "P",
-				Unique:       true,
-				IsConstraint: true,
+				Name:            constraintName,
+				Primary:         constraintType == "P",
+				Unique:          true,
+				IsConstraint:    true,
+				ConstraintNames: []string{constraintName},
 			}
 			// Quoted, as the index path writes a key column, so both shapes of a
 			// constraint's metadata read alike.
@@ -1355,9 +1365,7 @@ func getIndexesAndConstraints(txn *sql.Tx, schemaName string) (map[tableKey][]*m
 		if isConstraintIndex {
 			index.Primary = constraint.Primary
 			index.IsConstraint = true
-			if constraint.Constraint != index.Name {
-				index.ConstraintName = constraint.Constraint
-			}
+			index.ConstraintNames = constraint.Constraints
 		}
 		columns := indexColumnMap[key]
 		expressions := indexExpressionMap[key]
@@ -1652,6 +1660,28 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 	return materializedViews, nil
 }
 
+// sequenceFacts are the facts ALL_SEQUENCES states about a sequence, in the
+// order getSequences reads them. number marks a NUMBER column, which is read as
+// text: MAX_VALUE reaches 28 digits, which no Go integer holds.
+var sequenceFacts = []struct {
+	column string
+	number bool
+}{
+	{"SEQUENCE_NAME", false},
+	{"MIN_VALUE", true},
+	{"MAX_VALUE", true},
+	{"INCREMENT_BY", true},
+	{"CYCLE_FLAG", false},
+	{"ORDER_FLAG", false},
+	{"CACHE_SIZE", true},
+	{"LAST_NUMBER", true},
+	{"KEEP_VALUE", false},
+	{"SCALE_FLAG", false},
+	{"EXTEND_FLAG", false},
+	{"SESSION_FLAG", false},
+	{"SHARDED_FLAG", false},
+}
+
 // getSequences gets all sequences of a database. Every fact ALL_SEQUENCES
 // states is carried, except the declared START WITH: Oracle does not retain it,
 // ALL_SEQUENCES has no column for it, and DBMS_METADATA reports LAST_NUMBER in
@@ -1660,26 +1690,15 @@ func getMaterializedViews(txn *sql.Tx, schemaName string, indexMap map[tableKey]
 func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadata, error) {
 	var sequences []*metadatapb.SequenceMetadata
 
-	// The numbers are read as text: MAX_VALUE reaches 28 digits, which no Go
-	// integer holds.
+	columns, err := sequenceColumns(txn)
+	if err != nil {
+		return nil, err
+	}
 	query := fmt.Sprintf(`
-		SELECT
-			SEQUENCE_NAME,
-			TO_CHAR(MIN_VALUE),
-			TO_CHAR(MAX_VALUE),
-			TO_CHAR(INCREMENT_BY),
-			CYCLE_FLAG,
-			ORDER_FLAG,
-			TO_CHAR(CACHE_SIZE),
-			TO_CHAR(LAST_NUMBER),
-			KEEP_VALUE,
-			SCALE_FLAG,
-			EXTEND_FLAG,
-			SESSION_FLAG,
-			SHARDED_FLAG
+		SELECT %s
 		FROM ALL_SEQUENCES
 		WHERE SEQUENCE_OWNER = '%s'
-		ORDER BY SEQUENCE_NAME`, sqlLiteral(schemaName))
+		ORDER BY SEQUENCE_NAME`, sequenceProjection(columns), sqlLiteral(schemaName))
 
 	slog.Debug("running get sequences query")
 	rows, err := txn.Query(query)
@@ -1690,7 +1709,8 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 
 	for rows.Next() {
 		seq := &metadatapb.SequenceMetadata{}
-		var cycle, order, keep, scale, extend, session, sharded string
+		var cycle, order, keep, scale, extend, session, sharded sql.NullString
+		// The scan follows sequenceFacts.
 		if err := rows.Scan(
 			&seq.Name,
 			&seq.MinValue,
@@ -1714,7 +1734,7 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 		}
 		for _, flag := range []struct {
 			column string
-			value  string
+			value  sql.NullString
 			target *bool
 		}{
 			{"CYCLE_FLAG", cycle, &seq.Cycle},
@@ -1725,7 +1745,11 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 			{"SESSION_FLAG", session, &seq.Session},
 			{"SHARDED_FLAG", sharded, &seq.Sharded},
 		} {
-			on, err := convertYesNo(flag.value)
+			// A release with no column for the flag says nothing about it.
+			if !flag.value.Valid {
+				continue
+			}
+			on, err := convertYesNo(flag.value.String)
 			if err != nil {
 				return nil, fmt.Errorf("sequence %s: %s: %w", seq.Name, flag.column, err)
 			}
@@ -1741,6 +1765,57 @@ func getSequences(txn *sql.Tx, schemaName string) ([]*metadatapb.SequenceMetadat
 	}
 
 	return sequences, nil
+}
+
+// sequenceColumns returns the columns ALL_SEQUENCES has. The view gained them
+// release by release — SCALE_FLAG, EXTEND_FLAG and SHARDED_FLAG with sharded
+// sequences, SESSION_FLAG with session sequences, KEEP_VALUE with KEEP — and a
+// release without one answers ORA-00904 for it, so the facts this server can
+// state are the view's own column list rather than a release this code guesses
+// at.
+func sequenceColumns(txn *sql.Tx) (map[string]bool, error) {
+	query := `
+		SELECT COLUMN_NAME
+		FROM ALL_TAB_COLS
+		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'`
+
+	slog.Debug("running get sequence columns query")
+	rows, err := txn.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	columns := make(map[string]bool)
+	for rows.Next() {
+		var column string
+		if err := rows.Scan(&column); err != nil {
+			return nil, err
+		}
+		columns[column] = true
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	return columns, nil
+}
+
+// sequenceProjection returns the select list that reads every fact of a
+// sequence out of a view with columns: a fact the view has no column for is
+// read as NULL, so the query holds for every release.
+func sequenceProjection(columns map[string]bool) string {
+	selected := make([]string, 0, len(sequenceFacts))
+	for _, fact := range sequenceFacts {
+		switch {
+		case !columns[fact.column]:
+			selected = append(selected, "NULL")
+		case fact.number:
+			selected = append(selected, "TO_CHAR("+fact.column+")")
+		default:
+			selected = append(selected, fact.column)
+		}
+	}
+	return strings.Join(selected, ", ")
 }
 
 func getRoutines(txn *sql.Tx, schemaName string) ([]*metadatapb.FunctionMetadata, []*metadatapb.ProcedureMetadata, []*metadatapb.PackageMetadata, error) {

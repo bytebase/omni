@@ -48,7 +48,10 @@
               "unique":  true,
               "primary":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "CHILD_PK"
+              ]
             }
           ],
           "foreignKeys":  [
@@ -104,7 +107,10 @@
               "type":  "NORMAL",
               "unique":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "COMPOSITE_C_UK"
+              ]
             },
             {
               "name":  "COMPOSITE_PK",
@@ -120,7 +126,10 @@
               "unique":  true,
               "primary":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "COMPOSITE_PK"
+              ]
             }
           ]
         },
@@ -142,7 +151,10 @@
               ],
               "unique":  true,
               "primary":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "DISABLED_PK"
+              ]
             }
           ]
         },
@@ -167,7 +179,9 @@
               "type":  "NORMAL",
               "primary":  true,
               "isConstraint":  true,
-              "constraintName":  "HIDDEN_IDX_PK"
+              "constraintNames":  [
+                "HIDDEN_IDX_PK"
+              ]
             }
           ]
         },
@@ -226,7 +240,10 @@
               "unique":  true,
               "primary":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "IDENT_PK"
+              ]
             }
           ]
         },
@@ -298,7 +315,10 @@
               "type":  "NORMAL",
               "unique":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "PARENT_NAME_UK"
+              ]
             },
             {
               "name":  "PARENT_PK",
@@ -312,7 +332,10 @@
               "unique":  true,
               "primary":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "PARENT_PK"
+              ]
             },
             {
               "name":  "PARENT_UPPER_NAME_IDX",
@@ -363,7 +386,9 @@
               "type":  "NORMAL",
               "visible":  true,
               "isConstraint":  true,
-              "constraintName":  "REUSED_CODE_UK"
+              "constraintNames":  [
+                "REUSED_CODE_UK"
+              ]
             },
             {
               "name":  "REUSED_ID_IDX",
@@ -377,7 +402,9 @@
               "primary":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintName":  "REUSED_PK"
+              "constraintNames":  [
+                "REUSED_PK"
+              ]
             }
           ]
         },
@@ -517,7 +544,10 @@
               "unique":  true,
               "primary":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "TYPES_PK"
+              ]
             }
           ],
           "comment":  "types the sync reads"
@@ -544,7 +574,10 @@
               "type":  "NORMAL",
               "unique":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "SYS_C9000019"
+              ]
             }
           ]
         },
@@ -582,7 +615,9 @@
               "unique":  true,
               "visible":  true,
               "isConstraint":  true,
-              "constraintName":  "VIRTUAL_UK_UK"
+              "constraintNames":  [
+                "VIRTUAL_UK_UK"
+              ]
             }
           ]
         }
@@ -650,7 +685,10 @@
               "unique":  true,
               "primary":  true,
               "visible":  true,
-              "isConstraint":  true
+              "isConstraint":  true,
+              "constraintNames":  [
+                "SYS_C_SNAP$_9000014PARENT_PK"
+              ]
             }
           ]
         }

@@ -3329,12 +3329,17 @@ type IndexMetadata struct {
 	// objects, and a unique index that backs no constraint is not a unique
 	// constraint.
 	IsConstraint bool `protobuf:"varint,14,opt,name=is_constraint,json=isConstraint,proto3" json:"is_constraint,omitempty"`
-	// The name of the constraint the index backs, when it is not the index's
-	// name. PostgreSQL and Oracle each reuse an existing index for a
-	// constraint, so the constraint and its index are two differently named
-	// objects and DDL must name both; empty when the index is no constraint's,
-	// or when the constraint was named after it.
-	ConstraintName string `protobuf:"bytes,18,opt,name=constraint_name,json=constraintName,proto3" json:"constraint_name,omitempty"`
+	// The names of the constraints the index backs. PostgreSQL and Oracle each
+	// reuse an existing index for a constraint, so the constraint and its index
+	// are two differently named objects and DDL must name both, and Oracle
+	// shares one index between several constraints, so a primary key and a
+	// unique constraint may draw on one. Empty for an index that backs no
+	// constraint, and for an engine that records no constraint name.
+	//
+	// When primary is set, the primary key's name is first: a name alone does
+	// not say which of them is the primary key's. The keys the index carries are
+	// its own, not each constraint's list, which Oracle may take a subset of.
+	ConstraintNames []string `protobuf:"bytes,18,rep,name=constraint_names,json=constraintNames,proto3" json:"constraint_names,omitempty"`
 	// Spatial index specific configuration
 	SpatialConfig *SpatialIndexConfig `protobuf:"bytes,15,opt,name=spatial_config,json=spatialConfig,proto3" json:"spatial_config,omitempty"`
 	// https://www.postgresql.org/docs/current/catalog-pg-opclass.html
@@ -3474,11 +3479,11 @@ func (x *IndexMetadata) GetIsConstraint() bool {
 	return false
 }
 
-func (x *IndexMetadata) GetConstraintName() string {
+func (x *IndexMetadata) GetConstraintNames() []string {
 	if x != nil {
-		return x.ConstraintName
+		return x.ConstraintNames
 	}
-	return ""
+	return nil
 }
 
 func (x *IndexMetadata) GetSpatialConfig() *SpatialIndexConfig {
@@ -4672,7 +4677,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"definition\x18\x02 \x01(\tR\n" +
-	"definition\"\x84\x05\n" +
+	"definition\"\x86\x05\n" +
 	"\rIndexMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vexpressions\x18\x02 \x03(\tR\vexpressions\x12\x1d\n" +
@@ -4693,8 +4698,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x13parent_index_schema\x18\v \x01(\tR\x11parentIndexSchema\x12*\n" +
 	"\x11parent_index_name\x18\f \x01(\tR\x0fparentIndexName\x12 \n" +
 	"\vgranularity\x18\r \x01(\x03R\vgranularity\x12#\n" +
-	"\ris_constraint\x18\x0e \x01(\bR\fisConstraint\x12'\n" +
-	"\x0fconstraint_name\x18\x12 \x01(\tR\x0econstraintName\x12H\n" +
+	"\ris_constraint\x18\x0e \x01(\bR\fisConstraint\x12)\n" +
+	"\x10constraint_names\x18\x12 \x03(\tR\x0fconstraintNames\x12H\n" +
 	"\x0espatial_config\x18\x0f \x01(\v2!.omni.metadata.SpatialIndexConfigR\rspatialConfig\x12#\n" +
 	"\ropclass_names\x18\x10 \x03(\tR\fopclassNames\x12)\n" +
 	"\x10opclass_defaults\x18\x11 \x03(\bR\x0fopclassDefaults\"\x92\x03\n" +

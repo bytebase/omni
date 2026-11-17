@@ -218,9 +218,10 @@ func (s *oracleSnapshot) indexesOf(table string, st *syncedTable, indexes []*met
 			continue
 		}
 		s.constraintIndexes[idx.GetName()] = true
-		name := constraintName(idx)
-		st.constraints[name] = true
-		s.constraints[name] = table
+		for _, name := range constraintNames(idx) {
+			st.constraints[name] = true
+			s.constraints[name] = table
+		}
 		if idx.GetPrimary() {
 			st.primary = true
 		}

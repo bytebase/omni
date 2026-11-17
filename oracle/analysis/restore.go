@@ -167,6 +167,22 @@ func quoteOracleColumns(columns []string) string {
 	return strings.Join(quotedColumns, ", ")
 }
 
+// keyColumns returns the column names an index's expressions are, as the MERGE
+// statement and the nullability check name them: the sync writes a key column
+// quoted ("ID"), and an expression that is no column stays as it is, though no
+// function-based index can key a MERGE.
+func keyColumns(expressions []string) []string {
+	columns := make([]string, 0, len(expressions))
+	for _, expression := range expressions {
+		if len(expression) >= 2 && strings.HasPrefix(expression, `"`) && strings.HasSuffix(expression, `"`) {
+			columns = append(columns, strings.ReplaceAll(expression[1:len(expression)-1], `""`, `"`))
+			continue
+		}
+		columns = append(columns, expression)
+	}
+	return columns
+}
+
 func disjoint(a []string, b map[string]bool) bool {
 	for _, item := range a {
 		if _, ok := b[item]; ok {
@@ -182,8 +198,8 @@ func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 		columnMap[column] = true
 	}
 	if g.pk != nil {
-		if disjoint(g.pk.Expressions, columnMap) {
-			return g.pk.Expressions, nil
+		if columns := keyColumns(g.pk.Expressions); disjoint(columns, columnMap) {
+			return columns, nil
 		}
 	}
 	for _, index := range g.table.Indexes {
@@ -196,13 +212,14 @@ func (g *generator) findDisjointUniqueKey(columns []string) ([]string, error) {
 		if strings.Contains(index.Type, "FUNCTION-BASED") {
 			continue
 		}
+		key := keyColumns(index.Expressions)
 		// MERGE's ON never matches a NULL, so a row whose key holds one would
 		// be inserted again instead of updated.
-		if !g.notNull(index.Expressions) {
+		if !g.notNull(key) {
 			continue
 		}
-		if disjoint(index.Expressions, columnMap) {
-			return index.Expressions, nil
+		if disjoint(key, columnMap) {
+			return key, nil
 		}
 	}
 	return nil, fmt.Errorf("no disjoint unique key found for %s.%s", g.originalDatabase, g.originalTable)

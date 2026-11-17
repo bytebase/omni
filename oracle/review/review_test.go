@@ -97,7 +97,10 @@ func shop() *metadata.DatabaseSchemaMetadata {
 						// A unique constraint the schema reuses its own index for:
 						// the constraint's name is not the index's, and the index
 						// stays non-unique.
-						{Name: "IX_REUSED", IsConstraint: true, ConstraintName: "UK_REUSED"},
+						{Name: "IX_REUSED", IsConstraint: true, ConstraintNames: []string{"UK_REUSED"}},
+						// An index that enforces two constraints, the primary key's
+						// name first.
+						{Name: "IX_SHARED", IsConstraint: true, Primary: true, ConstraintNames: []string{"PK_SHARED", "UK_SHARED"}},
 					},
 					ForeignKeys:      []*metadata.ForeignKeyMetadata{{Name: "FK_P", ReferencedTable: "P"}},
 					CheckConstraints: []*metadata.CheckConstraintMetadata{{Name: "CK_N"}, {Name: "NN_CODE", Expression: `"CODE" IS NOT NULL`}},
@@ -415,6 +418,14 @@ func TestDisallowDropConstraint(t *testing.T) {
 			sql:  "ALTER TABLE t DROP CONSTRAINT uk_reused;\nALTER TABLE t DROP CONSTRAINT ix_reused;",
 			want: []finding{
 				{0, "DROP CONSTRAINT uk_reused", "Drops unique constraint `UK_REUSED` of `T`.", []int{0}},
+			},
+		},
+		{
+			name: "the primary key and the unique constraint an index enforces",
+			sql:  "ALTER TABLE t DROP CONSTRAINT pk_shared;\nALTER TABLE t DROP CONSTRAINT uk_shared;\nALTER TABLE t DROP CONSTRAINT ix_shared;",
+			want: []finding{
+				{0, "DROP CONSTRAINT pk_shared", "Drops primary key `PK_SHARED` of `T`.", []int{0}},
+				{1, "DROP CONSTRAINT uk_shared", "Drops unique constraint `UK_SHARED` of `T`.", []int{0}},
 			},
 		},
 		{

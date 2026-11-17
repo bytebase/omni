@@ -79,6 +79,22 @@
 < ok 0 0
 > exec
 |
+| CREATE TABLE OMNI_APP.SHARED (A NUMBER NOT NULL, B NUMBER NOT NULL)
+< ok 0 0
+> exec
+|
+| CREATE INDEX OMNI_APP.SHARED_IDX ON OMNI_APP.SHARED (A, B)
+< ok 0 0
+> exec
+|
+| ALTER TABLE OMNI_APP.SHARED ADD CONSTRAINT SHARED_PK PRIMARY KEY (A, B) USING INDEX OMNI_APP.SHARED_IDX
+< ok 0 0
+> exec
+|
+| ALTER TABLE OMNI_APP.SHARED ADD CONSTRAINT SHARED_UK UNIQUE (A) USING INDEX OMNI_APP.SHARED_IDX
+< ok 0 0
+> exec
+|
 | CREATE TABLE OMNI_APP.PK_DESC (ID NUMBER NOT NULL)
 < ok 0 0
 > exec
@@ -291,6 +307,62 @@
 | 0
 : string
 | 1
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| SHARED
+: string
+| A
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 1
+: null
+: string
+| N
+: null
+: string
+| NO
+: string
+| NO
+: string
+| NO
+< row
+: string
+| OMNI_APP
+: string
+| SHARED
+: string
+| B
+: string
+| NUMBER
+: string
+| 22
+: null
+: null
+: null
+: string
+| 0
+: string
+| 2
 : null
 : string
 | N
@@ -563,9 +635,44 @@
 | ID
 < row
 : string
-| UK_AUTO
+| SHARED
+: string
+| SHARED_PK
+: string
+| A
+< row
+: string
+| SHARED
+: string
+| SHARED_PK
+: string
+| B
+< row
+: string
+| SHARED
+: string
+| SHARED_UK
+: string
+| A
+< row
+: string
+| SHARED
 : string
 | SYS_C9000005
+: string
+| A
+< row
+: string
+| SHARED
+: string
+| SYS_C9000006
+: string
+| B
+< row
+: string
+| UK_AUTO
+: string
+| SYS_C9000007
 : string
 | ID
 < row
@@ -579,7 +686,7 @@
 : string
 | UK_REUSED
 : string
-| SYS_C9000006
+| SYS_C9000008
 : string
 | NAME
 < row
@@ -593,14 +700,14 @@
 : string
 | UK_UNNAMED
 : string
-| SYS_C9000007
+| SYS_C9000009
 : string
 | A
 < row
 : string
 | UK_VIRTUAL
 : string
-| SYS_C9000008
+| SYS_C9000010
 : string
 | EMAIL
 < row
@@ -751,9 +858,67 @@
 : null
 < row
 : string
-| UK_AUTO
+| SHARED
+: string
+| SHARED_PK
+: string
+| P
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| SHARED_IDX
+< row
+: string
+| SHARED
+: string
+| SHARED_UK
+: string
+| U
+: null
+: null
+: null
+: null
+: string
+| OMNI_APP
+: string
+| SHARED_IDX
+< row
+: string
+| SHARED
 : string
 | SYS_C9000005
+: string
+| C
+: string
+| "A" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| SHARED
+: string
+| SYS_C9000006
+: string
+| C
+: string
+| "B" IS NOT NULL
+: null
+: null
+: null
+: null
+: null
+< row
+: string
+| UK_AUTO
+: string
+| SYS_C9000007
 : string
 | C
 : string
@@ -782,7 +947,7 @@
 : string
 | UK_REUSED
 : string
-| SYS_C9000006
+| SYS_C9000008
 : string
 | C
 : string
@@ -811,7 +976,7 @@
 : string
 | UK_UNNAMED
 : string
-| SYS_C9000007
+| SYS_C9000009
 : string
 | U
 : null
@@ -821,12 +986,12 @@
 : string
 | OMNI_APP
 : string
-| SYS_C9000007
+| SYS_C9000009
 < row
 : string
 | UK_VIRTUAL
 : string
-| SYS_C9000008
+| SYS_C9000010
 : string
 | C
 : string
@@ -911,6 +1076,28 @@
 : string
 | OMNI_APP
 : string
+| SHARED
+: string
+| SHARED_IDX
+: string
+| A
+: string
+| ASC
+< row
+: string
+| OMNI_APP
+: string
+| SHARED
+: string
+| SHARED_IDX
+: string
+| B
+: string
+| ASC
+< row
+: string
+| OMNI_APP
+: string
 | UK_AUTO
 : string
 | UK_AUTO_UK
@@ -946,7 +1133,7 @@
 : string
 | UK_UNNAMED
 : string
-| SYS_C9000007
+| SYS_C9000009
 : string
 | A
 : string
@@ -1069,6 +1256,19 @@
 : string
 | OMNI_APP
 : string
+| SHARED
+: string
+| SHARED_IDX
+: string
+| NONUNIQUE
+: string
+| NORMAL
+: string
+| VISIBLE
+< row
+: string
+| OMNI_APP
+: string
 | UK_AUTO
 : string
 | UK_AUTO_UK
@@ -1110,7 +1310,7 @@
 : string
 | UK_UNNAMED
 : string
-| SYS_C9000007
+| SYS_C9000009
 : string
 | UNIQUE
 : string
@@ -1198,6 +1398,12 @@
 : string
 | OMNI_APP
 : string
+| SHARED
+: null
+< row
+: string
+| OMNI_APP
+: string
 | UK_AUTO
 : null
 < row
@@ -1279,20 +1485,56 @@
 < column "COLUMN_NAME" "CHAR" "string"
 > query
 |
-| 		SELECT
-| 			SEQUENCE_NAME,
-| 			TO_CHAR(MIN_VALUE),
-| 			TO_CHAR(MAX_VALUE),
-| 			TO_CHAR(INCREMENT_BY),
-| 			CYCLE_FLAG,
-| 			ORDER_FLAG,
-| 			TO_CHAR(CACHE_SIZE),
-| 			TO_CHAR(LAST_NUMBER),
-| 			KEEP_VALUE,
-| 			SCALE_FLAG,
-| 			EXTEND_FLAG,
-| 			SESSION_FLAG,
-| 			SHARDED_FLAG
+| 		SELECT COLUMN_NAME
+| 		FROM ALL_TAB_COLS
+| 		WHERE OWNER = 'SYS' AND TABLE_NAME = 'ALL_SEQUENCES'
+< result
+< column "COLUMN_NAME" "NCHAR" "string"
+< row
+: string
+| SEQUENCE_OWNER
+< row
+: string
+| SEQUENCE_NAME
+< row
+: string
+| MIN_VALUE
+< row
+: string
+| MAX_VALUE
+< row
+: string
+| INCREMENT_BY
+< row
+: string
+| CYCLE_FLAG
+< row
+: string
+| ORDER_FLAG
+< row
+: string
+| CACHE_SIZE
+< row
+: string
+| LAST_NUMBER
+< row
+: string
+| SCALE_FLAG
+< row
+: string
+| EXTEND_FLAG
+< row
+: string
+| SHARDED_FLAG
+< row
+: string
+| SESSION_FLAG
+< row
+: string
+| KEEP_VALUE
+> query
+|
+| 		SELECT SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG
 | 		FROM ALL_SEQUENCES
 | 		WHERE SEQUENCE_OWNER = 'OMNI_APP'
 | 		ORDER BY SEQUENCE_NAME

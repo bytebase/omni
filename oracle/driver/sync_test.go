@@ -563,6 +563,10 @@ ALTER TABLE OMNI_APP.UK_VIRTUAL ADD CONSTRAINT UK_VIRTUAL_UK UNIQUE (UPPER_EMAIL
 CREATE TABLE OMNI_APP.UK_UNNAMED (A NUMBER UNIQUE);
 CREATE TABLE OMNI_APP.PK_DISABLED (A NUMBER);
 ALTER TABLE OMNI_APP.PK_DISABLED ADD CONSTRAINT PK_DISABLED_PK PRIMARY KEY (A) DISABLE;
+CREATE TABLE OMNI_APP.SHARED (A NUMBER NOT NULL, B NUMBER NOT NULL);
+CREATE INDEX OMNI_APP.SHARED_IDX ON OMNI_APP.SHARED (A, B);
+ALTER TABLE OMNI_APP.SHARED ADD CONSTRAINT SHARED_PK PRIMARY KEY (A, B) USING INDEX OMNI_APP.SHARED_IDX;
+ALTER TABLE OMNI_APP.SHARED ADD CONSTRAINT SHARED_UK UNIQUE (A) USING INDEX OMNI_APP.SHARED_IDX;
 CREATE TABLE OMNI_APP.PK_DESC (ID NUMBER NOT NULL);
 CREATE INDEX OMNI_APP.PK_DESC_IDX ON OMNI_APP.PK_DESC (ID DESC);
 CREATE TABLE OMNI_APP.UK_EXPRESSION (EMAIL VARCHAR2(40));
@@ -583,16 +587,19 @@ CREATE UNIQUE INDEX OMNI_APP.UK_EXPRESSION_IDX ON OMNI_APP.UK_EXPRESSION (UPPER(
 	schema := onlySchema(t, metadata)
 	want := map[string][]*metadatapb.IndexMetadata{
 		// Oracle made the index for the constraint, so the two names are one.
-		"PK_AUTO": {{Name: "PK_AUTO_PK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Primary: true, Visible: true, IsConstraint: true}},
-		"UK_AUTO": {{Name: "UK_AUTO_UK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Visible: true, IsConstraint: true}},
+		"PK_AUTO": {{Name: "PK_AUTO_PK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Primary: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"PK_AUTO_PK"}}},
+		"UK_AUTO": {{Name: "UK_AUTO_UK", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Unique: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"UK_AUTO_UK"}}},
 		// A reused index keeps its own name, its own non-uniqueness, and is what
 		// the table's indexes list; the constraint is named on it.
-		"PK_REUSED":    {{Name: "PK_REUSED_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, ConstraintName: "PK_REUSED_PK"}},
-		"UK_REUSED":    {{Name: "UK_REUSED_IDX", Expressions: []string{`"NAME"`}, Descending: []bool{false}, Type: "NORMAL", Visible: true, IsConstraint: true, ConstraintName: "UK_REUSED_UK"}},
-		"PK_INVISIBLE": {{Name: "PK_INVISIBLE_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, IsConstraint: true, ConstraintName: "PK_INVISIBLE_PK"}},
-		"UK_VIRTUAL":   {{Name: "UK_VIRTUAL_IDX", Expressions: []string{`"UPPER_EMAIL"`}, Descending: []bool{false}, Type: "FUNCTION-BASED NORMAL", Unique: true, Visible: true, IsConstraint: true, ConstraintName: "UK_VIRTUAL_UK"}},
+		"PK_REUSED":    {{Name: "PK_REUSED_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"PK_REUSED_PK"}}},
+		"UK_REUSED":    {{Name: "UK_REUSED_IDX", Expressions: []string{`"NAME"`}, Descending: []bool{false}, Type: "NORMAL", Visible: true, IsConstraint: true, ConstraintNames: []string{"UK_REUSED_UK"}}},
+		"PK_INVISIBLE": {{Name: "PK_INVISIBLE_IDX", Expressions: []string{`"ID"`}, Descending: []bool{false}, Type: "NORMAL", Primary: true, IsConstraint: true, ConstraintNames: []string{"PK_INVISIBLE_PK"}}},
+		"UK_VIRTUAL":   {{Name: "UK_VIRTUAL_IDX", Expressions: []string{`"UPPER_EMAIL"`}, Descending: []bool{false}, Type: "FUNCTION-BASED NORMAL", Unique: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"UK_VIRTUAL_UK"}}},
 		// A disabled constraint has no index: the constraint is what is left.
-		"PK_DISABLED": {{Name: "PK_DISABLED_PK", Expressions: []string{`"A"`}, Unique: true, Primary: true, IsConstraint: true}},
+		"PK_DISABLED": {{Name: "PK_DISABLED_PK", Expressions: []string{`"A"`}, Unique: true, Primary: true, IsConstraint: true, ConstraintNames: []string{"PK_DISABLED_PK"}}},
+		// One index enforces two constraints of two shapes, which Oracle shares
+		// between them: the primary key's name comes first.
+		"SHARED": {{Name: "SHARED_IDX", Expressions: []string{`"A"`, `"B"`}, Descending: []bool{false, false}, Type: "NORMAL", Primary: true, Visible: true, IsConstraint: true, ConstraintNames: []string{"SHARED_PK", "SHARED_UK"}}},
 		// Neither index is a constraint's, so both stay the schema's own. A DESC
 		// index is FUNCTION-BASED NORMAL because Oracle stores the DESC key in a
 		// hidden column, which is why no constraint can use one.
@@ -610,7 +617,7 @@ CREATE UNIQUE INDEX OMNI_APP.UK_EXPRESSION_IDX ON OMNI_APP.UK_EXPRESSION (UPPER(
 	if len(unnamed) != 1 {
 		t.Fatalf("UK_UNNAMED indexes = %v, want the constraint's one", unnamed)
 	}
-	if index := unnamed[0]; !strings.HasPrefix(index.GetName(), "SYS_C") || !index.GetIsConstraint() || index.GetPrimary() || index.GetConstraintName() != "" || !cmp.Equal(index.GetExpressions(), []string{`"A"`}) {
+	if index := unnamed[0]; !strings.HasPrefix(index.GetName(), "SYS_C") || !index.GetIsConstraint() || index.GetPrimary() || !cmp.Equal(index.GetConstraintNames(), []string{index.GetName()}) || !cmp.Equal(index.GetExpressions(), []string{`"A"`}) {
 		t.Errorf("UK_UNNAMED index = %v, want the unnamed constraint's index", index)
 	}
 	// The phantom the sync used to report: no index anywhere is named after
@@ -689,6 +696,43 @@ END;
 	// last_value and the DDL say.
 	if ddl := selectOne(t, d.db, `SELECT TO_CHAR(DBMS_METADATA.GET_DDL('SEQUENCE', 'UP_SEQ', 'OMNI_APP')) FROM DUAL`); !strings.Contains(ddl, "START WITH 200") {
 		t.Errorf("the sequence's DDL = %q, want it to say START WITH 200", ddl)
+	}
+}
+
+// TestSequenceProjection pins what the sync reads out of ALL_SEQUENCES: a fact
+// the view has a column for, as text when it is a number, and a fact it has no
+// column for as NULL, so a release older than the fact neither fails the sync
+// nor loses the facts it does have. The pinned server has every column; the
+// case for a release that does not is what keeps this from being a guess at
+// which release added which flag.
+func TestSequenceProjection(t *testing.T) {
+	base := []string{"SEQUENCE_OWNER", "SEQUENCE_NAME", "MIN_VALUE", "MAX_VALUE", "INCREMENT_BY", "CYCLE_FLAG", "ORDER_FLAG", "CACHE_SIZE", "LAST_NUMBER"}
+	tests := []struct {
+		name    string
+		columns []string
+		want    string
+	}{
+		{
+			name:    "the facts a release before sharded sequences had",
+			columns: base,
+			want:    "SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), NULL, NULL, NULL, NULL, NULL",
+		},
+		{
+			name:    "the pinned server, with every column",
+			columns: append(base, "SHARDED_FLAG", "SESSION_FLAG", "KEEP_VALUE", "SCALE_FLAG", "EXTEND_FLAG"),
+			want:    "SEQUENCE_NAME, TO_CHAR(MIN_VALUE), TO_CHAR(MAX_VALUE), TO_CHAR(INCREMENT_BY), CYCLE_FLAG, ORDER_FLAG, TO_CHAR(CACHE_SIZE), TO_CHAR(LAST_NUMBER), KEEP_VALUE, SCALE_FLAG, EXTEND_FLAG, SESSION_FLAG, SHARDED_FLAG",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			columns := make(map[string]bool, len(tt.columns))
+			for _, column := range tt.columns {
+				columns[column] = true
+			}
+			if got := sequenceProjection(columns); got != tt.want {
+				t.Errorf("projection = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
