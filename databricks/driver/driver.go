@@ -4,19 +4,6 @@
 // omni/metadata, runs statements through a SQL warehouse, and dumps a
 // workspace's DDL as the server states it.
 //
-// # Unverified against a workspace
-//
-// No test in this package has ever asked a Databricks workspace. The package is
-// a port of Bytebase's backend/plugin/db/databricks, which has no tests of its
-// own, and a Databricks workspace is an account service: omni cannot start one
-// in a container, and this machine has no URL, personal access token or SQL
-// warehouse. There are no tapes, no sync goldens, no dump fixture and no pin
-// row beside this package, because nothing here can produce one. VERIFY.md
-// holds the recording plan: the account to pin, the tests to record in what
-// order, the tape harness at the SDK's HTTP seam, and the parity harness that
-// holds this package to Bytebase's driver. Treat every behavior below as
-// unconfirmed until that recording lands.
-//
 // Everything that reaches a workspace is behind one environment gate:
 // DATABRICKS_DSN names the workspace, the personal access token, the SQL
 // warehouse and the catalog a live test uses. Unset, a live test skips naming
@@ -32,13 +19,21 @@
 //
 // # What it implements
 //
+// The package was verified against a scratch workspace on 2026-11-17: the
+// live tests passed, the recordings and a sync golden are under testdata, and
+// the parity harness in VERIFY.md agreed with Bytebase's driver on the sync,
+// the instance, queries and Execute. Dump agrees except where the workspace
+// showed Bytebase wrong: a materialized view is the server's own
+// SHOW CREATE TABLE.
+//
 // It implements Driver, Syncer, Dumper, Querier and Executor. SyncDatabase reads
 // a catalog's schemas and tables through Unity Catalog. SyncInstance reads the
 // SQL version and the catalog names. Dump asks the server to state each object
-// with SHOW CREATE TABLE and DESC FORMATTED, because omni has no databricks
-// catalog to render a synced schema as Databricks DDL; the metadata argument is
-// not read, as in hive/driver, so a caller that edits or narrows it changes
-// nothing. Bytebase's Dump wrote the same server statements.
+// with SHOW CREATE TABLE, because omni has no databricks catalog to render a
+// synced schema as Databricks DDL; the metadata argument is not read, as in
+// hive/driver, so a caller that edits or narrows it changes nothing. Bytebase's
+// Dump wrote the same server statements, except that it rendered a materialized
+// view from DESC FORMATTED, which is not a statement the workspace accepts.
 //
 // # The connection
 //

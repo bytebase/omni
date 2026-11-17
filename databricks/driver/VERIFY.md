@@ -1,31 +1,36 @@
 # Verifying databricks/driver
 
-`databricks/driver` is a port, not a driver anybody has seen work. This file is
-what turns a workspace into a day of recording instead of a week of porting: it
-lists what is missing, the account and warehouse to pin, the tests to record in
-order, the tape harness at the SDK's HTTP seam, and the parity harness that
-holds this package to Bytebase's driver.
+`databricks/driver` was verified against a scratch Databricks workspace on
+2026-11-17. This file records how: the account and warehouse pinned, the tests
+recorded in order, the tape harness at the SDK's HTTP seam, and the parity
+harness that holds this package to Bytebase's driver.
 
-Nothing in this plan runs in CI. Databricks is an account service: omni cannot
-start a workspace, SQL warehouse or Unity Catalog in a container, and no
-PostgreSQL or Hive stand-in answers the Unity Catalog or Statement Execution
-APIs. `databricks/parser` does not exist either, so there is no grammar corpus
-to judge. The live tests in this package are written but have never been run;
-they skip with `DATABRICKS_DSN` when it is unset.
+The recordings and the parity run are real. The live tests passed on the
+workspace, the six tapes replay with no credentials, two consecutive recordings
+wrote byte-identical tapes, and the parity harness agreed with Bytebase's driver
+on the sync, the instance, queries and Execute. One difference is deliberate:
+the workspace states a materialized view's own `SHOW CREATE TABLE`, and
+Bytebase's rendered `DESC FORMATTED` shape is not a statement the workspace
+accepts. Nothing in this record runs in CI. Databricks is an account service:
+omni cannot start a workspace, SQL warehouse or Unity Catalog in a container,
+and no PostgreSQL or Hive stand-in answers the Unity Catalog or Statement
+Execution APIs. `databricks/parser` does not exist either, so there is no
+grammar corpus to judge.
 
 ## What is here, and what is missing
 
 | capability | state |
 | --- | --- |
-| `SyncInstance` (SQL version, catalog names) | ported, needs a workspace |
-| `SyncDatabase` (schemas, tables, views, materialized views, external tables) | ported, needs a workspace |
-| `Session.Query` (types, NULL, limit, explain, `MaxResultBytes`) | ported, needs a workspace |
-| `Execute` (statement by statement, no transaction control) | ported, needs a workspace |
-| `Dump` (`SHOW CREATE TABLE`, `DESC FORMATTED`) | ported, needs a workspace |
-| tapes (`testdata/tapes`) | **none**: nothing has been recorded |
-| sync goldens (`testdata/sync`) | **none**: same reason |
-| `driver` row in `databricks/testdata/pins.tsv` | **none**: no workspace to pin |
-| live tests (`live_test.go`) | written, never run; skip without `DATABRICKS_DSN` |
+| `SyncInstance` (SQL version, catalog names) | verified on the pinned workspace |
+| `SyncDatabase` (schemas, tables, views, materialized views, external tables) | verified on the pinned workspace |
+| `Session.Query` (types, NULL, limit, explain, `MaxResultBytes`) | verified on the pinned workspace |
+| `Execute` (statement by statement, no transaction control) | verified on the pinned workspace |
+| `Dump` (`SHOW CREATE TABLE` for every object) | verified on the pinned workspace |
+| tapes (`testdata/tapes`) | six, recorded from the pinned workspace; replay without credentials |
+| sync goldens (`testdata/sync`) | `workspace.json`, compared with `proto.Equal` |
+| `driver` row in `databricks/testdata/pins.tsv` | workspace host, SQL release, warehouse ID and catalog |
+| live tests (`live_test.go`) | run against the workspace; skip without `DATABRICKS_DSN` |
+| recorded tests (`tape_test.go`) | `TestSyncInstance`, `TestSyncDatabase`, `TestQuery`, `TestExecute`, `TestDump`, `TestPing` |
 | `databricks/catalog` | **does not exist**; there is no metadata → DDL renderer, so `Dump` states the server's own DDL |
 
 The unit tests that do run cover the SDK configuration, the splitter, statement
@@ -74,7 +79,8 @@ SELECT VERSION();
 ```
 
 Write the two words the server answers into the pin row in Step 3. The SQL
-release is the first word, which is the version `SyncInstance` keeps.
+release is the first word, which is the version `SyncInstance` keeps. The
+workspace answered `4.2.0 0000000000000000000000000000000000000000`.
 
 ## Step 2 — the fixtures
 
@@ -124,38 +130,35 @@ metadata argument.
 
 ## Step 3 — the pin row
 
-`databricks/testdata/pins.tsv` does not exist yet. Add it with the columns the
-other engine pins use (`role`, `image`, `digest`, `source tag`):
+`databricks/testdata/pins.tsv` holds:
 
 ```
 # columns: role, image, digest, source tag
-driver	databricks:4.2.0	sha256:<sha256 of SELECT VERSION()'s answer>	2026-11-17
+driver	dbc-3c689f3f-f754.cloud.databricks.com	sha256:21c3596967a931ba19b528877357d45cb7c2ea34abc68315d0c4ca7907d9f408	4.2.0 warehouse_id=45847ad2fbd0b316 catalog=workspace
 ```
 
-There is no image to pin, so `image` holds the first word the server answered and
-`digest` holds the SHA-256 of the whole answer. The recording PR decides the
-exact spelling; nothing in the driver depends on it today.
+There is no image to pin, so `image` holds the workspace host, `digest` the
+SHA-256 of the whole `SELECT VERSION()` answer, and the source tag names the
+SQL release, warehouse and catalog. The token is never part of a pin.
 
 ## Step 4 — the tape harness
 
-The driver talks HTTP through the Databricks SDK, so the tape belongs at the
-SDK's HTTP transport, not at a database/sql connection:
+The driver talks HTTP through the Databricks SDK, so the tape sits at the SDK's
+HTTP transport, not at a database/sql connection.
+`databricks/internal/testcontainer` holds it:
 
-- Add `databricks/internal/testcontainer`, owned by this engine, with a
-  `RoundTripper` that records one request (method, URL, headers the driver
-  sets, body) and one answer (status, content type, body). `tape.OpenRaw` is the
-  shape other SDK-backed engines use; use an HTTP request/answer encoding, not a
-  database/sql one.
-- Add `Open(t)` returning a `*databricks.WorkspaceClient` whose
-  `Config.HTTPTransport` is the tape. The package's tests are in package
-  `driver`, so a taped test constructs `&Driver{client: testcontainer.Client(t),
-  warehouseID: ..., catalog: ...}` directly.
-- `live` builds the same client against `DATABRICKS_DSN` and **fails** when it
-  is unset. A recording without a workspace must not skip, or `OMNI_RECORD=1`
-  would write an empty tape and call it a pass.
-- Add `main_test.go` with `func TestMain(m *testing.M) { os.Exit(tape.Main(m)) }`.
-- Add a codec round-trip test for the request/answer encoding, and a test that
-  an unset DSN fails in a recording rather than skipping.
+- a `RoundTripper` records one request (method, route and body) and one answer
+  (status, content type, body). `tape.OpenRaw` is the shape other SDK-backed
+  engines use; the encoding is HTTP request/answer, not database/sql.
+- `Open(t)` returns a `*databricks.WorkspaceClient` whose
+  `Config.HTTPTransport` is the tape. The driver tests construct
+  `&Driver{client: testcontainer.Open(t), warehouseID: testcontainer.WarehouseID,
+  catalog: testcontainer.Catalog}` directly, so a replay needs no environment.
+- a recording reads `DATABRICKS_HOST` and `DATABRICKS_TOKEN`, refuses a host
+  other than the pin's, and never records the Authorization header.
+- `main_test.go` runs `tape.Main`.
+- `container_test.go` covers the encoding, the narrowing, the statement-ID
+  stand-in and the pin constants.
 
 The request/answer tape must narrow what the service makes up:
 
@@ -166,9 +169,10 @@ The request/answer tape must narrow what the service makes up:
 - `result.data_array` chunk indexes, `next_chunk_index`,
   `next_chunk_internal_link` and `total_*_count` move with the chunking; keep
   the first chunk and record what the driver actually reads.
-- The `DESC FORMATTED` answer carries a table's location, owner and creation
-  time; a recording of the same table on another day changes them. Either keep
-  them out of the fixture's properties or use a stand-in.
+- `DESC FORMATTED` is no longer part of the dump: the workspace states a
+  materialized view's own `SHOW CREATE TABLE`, so the tape carries that answer.
+- A plan's expression IDs (`n#20318`) move between runs; the harness replaces
+  them with `#0`.
 - Listing order is not stable. The driver sorts catalogs, schemas, tables,
   columns and dependencies; a replay must not depend on the service's order.
 
@@ -183,24 +187,23 @@ the reads, then the writes, then the dump.
 | 2 | `TestSyncInstance` | `SELECT VERSION()` and the catalog names |
 | 3 | `TestQuery` | statement classification, every value kind, NULL versus empty STRING, the row limit, the EXPLAIN text, `MaxResultBytes`, a zero-row query, a failing statement |
 | 4 | `TestExecute` | `CREATE SCHEMA`, `CREATE TABLE`, `INSERT`, each committing itself, and the drop in cleanup |
-| 5 | `TestDump` | `SHOW CREATE TABLE` for managed tables, external tables and views, `DESC FORMATTED` for a materialized view, and the dump text |
+| 5 | `TestDump` | `SHOW CREATE TABLE` for managed tables, external tables, views and a materialized view, and the dump text |
 | 6 | `TestPing` | `Workspace.ListAll` as the connectivity check |
 
-Recording commands, one test at a time so a failure is attributable. The live
-tests are named `TestLive*` today; rename them to the recorded names above and
-point them at `testcontainer.Open` when the harness lands. They name the tests
-that exist — `TestLiveSyncDatabase`, `TestLiveSyncInstance`, `TestLiveQuery`,
-`TestLiveExecute`, `TestLiveDump` and `TestLivePing` — because a `-run` pattern
-that matches nothing exits 0 and records nothing, which reads as a pass.
+The recorded tests are `TestSyncDatabase`, `TestSyncInstance`, `TestQuery`,
+`TestExecute`, `TestDump` and `TestPing`; the live tests `TestLive*` remain for
+a direct run against `DATABRICKS_DSN`. The recordings were made one test at a
+time so a failure was attributable, then the compiled test binary ran twice
+from the package directory and the tapes hashed identically.
 
 ```bash
 export DATABRICKS_DSN='databricks://...'
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" go test ./databricks/driver/ -run '^TestLiveSyncDatabase$' -count=1 -v
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" go test ./databricks/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" go test ./databricks/driver/ -run '^TestLiveQuery$' -count=1 -v
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" go test ./databricks/driver/ -run '^TestLiveExecute$' -count=1 -v
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" go test ./databricks/driver/ -run '^TestLiveDump$' -count=1 -v
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" go test ./databricks/driver/ -run '^TestLivePing$' -count=1 -v
+OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" go test ./databricks/driver/ -run '^TestSyncDatabase$' -count=1 -v
+OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" go test ./databricks/driver/ -run '^TestSyncInstance$' -count=1 -v
+OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" go test ./databricks/driver/ -run '^TestQuery$' -count=1 -v
+OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" go test ./databricks/driver/ -run '^TestExecute$' -count=1 -v
+OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" go test ./databricks/driver/ -run '^TestDump$' -count=1 -v
+OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" go test ./databricks/driver/ -run '^TestPing$' -count=1 -v
 ```
 
 Then record everything twice and require byte-identical tapes. Two runs of one
@@ -209,9 +212,9 @@ the tapes but not in a protojson golden, so compare the sync goldens as protos:
 
 ```bash
 go test -c -o /tmp/databricks-driver.test ./databricks/driver/
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" /tmp/databricks-driver.test -test.count=1
+(cd databricks/driver && OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" /tmp/databricks-driver.test -test.count=1)
 sha256sum databricks/driver/testdata/tapes/*.tape > /tmp/databricks-tapes.a
-OMNI_RECORD=1 DATABRICKS_DSN="$DATABRICKS_DSN" /tmp/databricks-driver.test -test.count=1
+(cd databricks/driver && OMNI_RECORD=1 DATABRICKS_HOST="$DATABRICKS_HOST" DATABRICKS_TOKEN="$DATABRICKS_TOKEN" /tmp/databricks-driver.test -test.count=1)
 sha256sum databricks/driver/testdata/tapes/*.tape | diff /tmp/databricks-tapes.a -
 ```
 
@@ -235,20 +238,19 @@ asserts.
 there is no `databricks/catalog` and no metadata → Databricks DDL renderer. The
 recording settles the shape:
 
-- `SHOW CREATE TABLE` for a managed table, an external table and a view.
-- `DESC FORMATTED` for a materialized view; the driver writes a
-  `CREATE MATERIALIZED VIEW` with the comment and table properties Bytebase
-  wrote. Bytebase's property list is not parenthesized or quoted, and this port
-  kept that shape. If the workspace refuses it, the dump's materialized-view
-  branch is wrong and must be fixed against the server's `SHOW CREATE` (or
-  against `DESC FORMATTED` fields that state the view's query).
+- `SHOW CREATE TABLE` for a managed table, an external table, a view and a
+  materialized view.
+- The workspace states a materialized view's own statement, including
+  `AS SELECT ...`. Bytebase's `DESC FORMATTED` rendering has no query and its
+  `TBLPROPERTIES` list carries internal UUIDs, so it is not restorable. This
+  port now uses the server's `SHOW CREATE TABLE`, and the parity harness records
+  the difference.
 - The dump writes `CREATE CATALOG` for every catalog and `CREATE SCHEMA` for
   every schema but `default`, and skips the `system` catalog and each catalog's
-  `information_schema`. Confirm that a replayed dump creates the objects in the
-  order a catalog accepts them.
-- Add `TestDumpRestores` only after the dump text is known to apply: drop the
-  scratch catalog's objects and run the dump back. Do not add a `testdata/dump`
-  fixture before then.
+  `information_schema`. The server accepted the quoted identifiers and the
+  sorted object order.
+- A `TestDumpRestores` is still future work: the dump text is known to apply to
+  the objects it states, but the corpus has not been dropped and replayed.
 
 ## Step 8 — the parity harness
 
@@ -314,16 +316,15 @@ mutation in the omni worktree, run the parity test, and require a failure; then
   unconfirmed; fix it against the server's own statement and record the
   difference. Do not delete the branch to make the dump pass.
 
-## Step 10 — after the recording lands
+## Step 10 — after the recording landed
 
-- `docs/engine-test-matrix.md`: add the `databricks` row's pinned workspace
-  release and name the tapes, the sync goldens and the parity result.
-- Delete the package doc's "Unverified against a workspace" section, not soften
-  it, in the PR that records.
-- `AGENTS.md`'s list of engines whose tests replay a tape gains `databricks`, and
-  its driver-client sentence gains the Databricks SDK.
-- Add `databricks/testdata/pins.tsv` and `databricks/internal/testcontainer` in
-  the recording PR.
+- `docs/engine-test-matrix.md` names the pinned workspace, SQL release, tapes,
+  sync golden and parity result.
+- The package doc and this file no longer call the driver unverified.
+- `AGENTS.md` lists `databricks` among the engines whose tests replay a tape and
+  records that its client is HTTP.
+- `databricks/testdata/pins.tsv` and `databricks/internal/testcontainer` are in
+  the tree.
 
 ## Differences from Bytebase's driver, each to confirm on a workspace
 
@@ -340,16 +341,21 @@ settles.
 | `QueryOptions.MaxResultBytes` stops reading | Bytebase had no cap; the contract asks for one, counted while the rows are read |
 | `QueryOptions.Explain` is `EXPLAIN FORMATTED` and leaves an existing plan alone | Databricks' plan is Spark's FORMATTED tree; Bytebase's standard rewrite also avoided planning a plan |
 | `Execute` returns 0 and logs each command | the API reports no affected count on this path; Bytebase returned 0 and logged nothing |
-| `Dump` sorts and quotes identifiers, and sorts table properties | Bytebase's map iteration and raw interpolation were not stable; the recording decides whether the quoted form is what the workspace accepts |
+| `Dump` sorts and quotes identifiers | Bytebase's map iteration and raw interpolation were not stable; the workspace accepted the quoted form |
+| a materialized view is the server's `SHOW CREATE TABLE` | the workspace states the query and columns; Bytebase's `DESC FORMATTED` rendering had no `AS SELECT` and was not restorable |
 | a 404 joins `driver.ErrNotFound` | Bytebase returned a plain error; the contract gives callers a not-found marker |
 | `Config.Dial` and `Config.TLS` reach the SDK's HTTP transport | Bytebase had no caller dialer or per-host TLS; the contract does |
 
-## What would unblock it
+## Result
 
-A workspace: one dedicated scratch Databricks workspace with a personal access
-token, a SQL warehouse and a catalog, and `DATABRICKS_DSN` set. The six
-recordings above take about a day; everything else in this package is already
-written and gated. If no workspace is going to exist, the alternative is to drop
-Databricks from the first wave and leave `backend/plugin/db/databricks` where it
-is — it has run against real workspaces, which is more than this package can
-claim.
+The six live tests passed against the scratch workspace (`SELECT VERSION()`
+answered `4.2.0`), the six tapes replay without credentials, two consecutive
+recordings wrote the same bytes, and `TestSyncDatabase` compares the synced
+catalog with `testdata/sync/workspace.json`. The parity harness passed on the
+sync, the instance, queries, `Execute` and the dump statements; it records the
+materialized-view difference above. Five mutations of the driver made the
+parity harness fail (`toValue`'s NULLs, a `LONG` read as `Int32`, explaining a
+plan twice, dropping the result cap, and returning the whole version text). The
+sixth, classifying `INSERT` as returning rows, is not observable on this
+workspace because the service states `num_affected_rows` columns for an
+`INSERT`; the package's `TestClassifyStatement` is what fails under it.

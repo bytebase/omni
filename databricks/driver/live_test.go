@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bytebase/omni/driver"
+	metadatapb "github.com/bytebase/omni/metadata"
 )
 
 // The live tests reach a real Databricks workspace and are the only tests in
@@ -95,10 +96,10 @@ func openLive(t *testing.T) *Driver {
 	return d
 }
 
-// TestLiveSyncInstance reads the SQL version and the catalog names, and pins
-// the catalog every other live test stands on.
-func TestLiveSyncInstance(t *testing.T) {
-	d := openLive(t)
+// checkSyncInstance reads the SQL version and the catalog names, and pins the
+// catalog every other check stands on.
+func checkSyncInstance(t *testing.T, d *Driver) {
+	t.Helper()
 	instance, err := d.SyncInstance(context.Background())
 	if err != nil {
 		t.Fatalf("SyncInstance: %v", err)
@@ -122,11 +123,11 @@ func TestLiveSyncInstance(t *testing.T) {
 	}
 }
 
-// TestLiveSyncDatabase reads the schema of the configured catalog.
-func TestLiveSyncDatabase(t *testing.T) {
-	d := openLive(t)
+// checkSyncDatabase reads the schema of the configured catalog.
+func checkSyncDatabase(t *testing.T, d *Driver) *metadatapb.DatabaseSchemaMetadata {
+	t.Helper()
 	if d.catalog == "" {
-		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because SyncDatabase reads it and a skip would record nothing", dsnVariable)
+		t.Fatalf("a driver's catalog must be set, because SyncDatabase reads it")
 	}
 	database, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -135,12 +136,14 @@ func TestLiveSyncDatabase(t *testing.T) {
 	if database == nil || database.Name != d.catalog {
 		t.Errorf("database = %+v, want catalog %q", database, d.catalog)
 	}
+	return database
 }
 
-// TestLiveQuery runs a query, the row limit, the plan and a failing statement.
-func TestLiveQuery(t *testing.T) {
+// checkQuery runs a query, the row limit, the plan, a zero-row query, the
+// result cap and a failing statement.
+func checkQuery(t *testing.T, d *Driver) {
+	t.Helper()
 	ctx := context.Background()
-	d := openLive(t)
 
 	session, err := d.Session(ctx)
 	if err != nil {
@@ -174,6 +177,33 @@ func TestLiveQuery(t *testing.T) {
 		t.Errorf("limited results = %+v, want one result holding at most one row", limited)
 	}
 
+	nulls, err := session.Query(ctx, "SELECT CAST(NULL AS DECIMAL(12,2)) AS d, CAST(NULL AS INT) AS n, '' AS s", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query with NULLs: %v", err)
+	}
+	if len(nulls) != 1 || len(nulls[0].Rows) != 1 || len(nulls[0].Rows[0]) != 3 {
+		t.Fatalf("null results = %+v, want one row holding three cells", nulls)
+	}
+	if nulls[0].Rows[0][0].Kind != driver.Null || nulls[0].Rows[0][1].Kind != driver.Null || nulls[0].Rows[0][2].Kind != driver.String || nulls[0].Rows[0][2].String != "" {
+		t.Errorf("null row = %+v, want NULL, NULL and the empty string", nulls[0].Rows[0])
+	}
+
+	capped, err := session.Query(ctx, "SELECT 1 AS n UNION ALL SELECT 2 UNION ALL SELECT 3", driver.QueryOptions{MaxResultBytes: 1})
+	if err != nil {
+		t.Fatalf("Query with MaxResultBytes: %v", err)
+	}
+	if len(capped) != 1 || !capped[0].Truncated {
+		t.Errorf("capped results = %+v, want one truncated result", capped)
+	}
+
+	empty, err := session.Query(ctx, "SELECT 1 AS n WHERE false", driver.QueryOptions{})
+	if err != nil {
+		t.Fatalf("Query with no rows: %v", err)
+	}
+	if len(empty) != 1 || len(empty[0].Columns) != 1 || len(empty[0].Rows) != 0 {
+		t.Errorf("empty results = %+v, want one result with a column and no rows", empty)
+	}
+
 	planned, err := session.Query(ctx, "SELECT 1 AS n", driver.QueryOptions{Explain: true})
 	if err != nil {
 		t.Fatalf("Query with Explain: %v", err)
@@ -194,17 +224,16 @@ func TestLiveQuery(t *testing.T) {
 	}
 }
 
-// TestLiveExecute creates a scratch schema and table, inserts, reads them back,
+// checkExecute creates a scratch schema and table, inserts, reads them back,
 // and drops them. Databricks commits each statement itself, so the script is
 // sent statement by statement.
-func TestLiveExecute(t *testing.T) {
+func checkExecute(t *testing.T, d *Driver, schema string) {
+	t.Helper()
 	ctx := context.Background()
-	d := openLive(t)
 	if d.catalog == "" {
-		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because the scratch schema is created in it and a skip would record nothing", dsnVariable)
+		t.Fatalf("a driver's catalog must be set, because the scratch schema is created in it")
 	}
 
-	schema := "omni_driver_" + strconv.FormatInt(time.Now().UnixNano(), 36)
 	qualified := quoteBacktick(d.catalog) + "." + quoteBacktick(schema)
 	cleanup := func() {
 		_, _ = d.Execute(ctx, "DROP TABLE IF EXISTS "+qualified+".`probe`", driver.ExecuteOptions{})
@@ -239,8 +268,55 @@ func TestLiveExecute(t *testing.T) {
 	}
 }
 
-// TestLivePing asks the workspace for its root folder, which is the connectivity
+// checkDump asks the workspace to state the configured catalog's objects.
+func checkDump(t *testing.T, d *Driver) {
+	t.Helper()
+	if d.catalog == "" {
+		t.Fatalf("a driver's catalog must be set, because Dump reads it")
+	}
+	var out bytes.Buffer
+	if err := d.Dump(context.Background(), &out, nil); err != nil {
+		t.Fatalf("Dump: %v", err)
+	}
+	if !strings.Contains(out.String(), "CREATE CATALOG") {
+		t.Errorf("dump does not name a catalog: %q", out.String())
+	}
+	if !strings.Contains(out.String(), "CREATE MATERIALIZED VIEW") {
+		t.Errorf("dump does not state the materialized view: %q", out.String())
+	}
+}
+
+// checkPing asks the workspace for its root folder, which is the connectivity
 // check this driver offers: Databricks has no SQL-level ping.
+func checkPing(t *testing.T, d *Driver) {
+	t.Helper()
+	if err := d.Ping(context.Background()); err != nil {
+		t.Fatalf("Ping: %v (VERIFY.md step 1: the host, the token and the warehouse are what Ping reaches)", err)
+	}
+}
+
+// TestLiveSyncInstance reads the SQL version and the catalog names, and pins
+// the catalog every other live test stands on.
+func TestLiveSyncInstance(t *testing.T) {
+	checkSyncInstance(t, openLive(t))
+}
+
+// TestLiveSyncDatabase reads the schema of the configured catalog.
+func TestLiveSyncDatabase(t *testing.T) {
+	checkSyncDatabase(t, openLive(t))
+}
+
+// TestLiveQuery runs the query checks against the workspace.
+func TestLiveQuery(t *testing.T) {
+	checkQuery(t, openLive(t))
+}
+
+// TestLiveExecute creates a scratch schema and table against the workspace.
+func TestLiveExecute(t *testing.T) {
+	checkExecute(t, openLive(t), "omni_driver_"+strconv.FormatInt(time.Now().UnixNano(), 36))
+}
+
+// TestLivePing asks the workspace for its root folder.
 //
 // It opens the driver itself rather than through openLive, so the request its
 // tape holds is the ping and nothing else.
@@ -255,23 +331,10 @@ func TestLivePing(t *testing.T) {
 		t.Fatalf("Open: %v", err)
 	}
 	defer func() { _ = d.Close() }()
-
-	if err := d.Ping(ctx); err != nil {
-		t.Fatalf("Ping: %v (VERIFY.md step 1: the host, the token and the warehouse are what Ping reaches)", err)
-	}
+	checkPing(t, d)
 }
 
 // TestLiveDump asks the workspace to state the configured catalog's objects.
 func TestLiveDump(t *testing.T) {
-	d := openLive(t)
-	if d.catalog == "" {
-		t.Fatalf("%s names no catalog: a recording's DSN must name one (?catalog=...), because Dump reads it and a skip would record nothing", dsnVariable)
-	}
-	var out bytes.Buffer
-	if err := d.Dump(context.Background(), &out, nil); err != nil {
-		t.Fatalf("Dump: %v", err)
-	}
-	if !strings.Contains(out.String(), "CREATE CATALOG") {
-		t.Errorf("dump does not name a catalog: %q", out.String())
-	}
+	checkDump(t, openLive(t))
 }

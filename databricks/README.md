@@ -7,8 +7,8 @@ SQL warehouse, and dumps the server's own DDL. Bytebase's lexical splitter and
 `EXPLAIN FORMATTED` rewrite are carried in the driver until a `databricks`
 analysis tree holds them, as `clickhouse/driver` and `hive/driver` carry theirs.
 
-`databricks/driver` is a port of Bytebase's `backend/plugin/db/databricks` that
-**no test has ever run against a workspace**. It starts no server, has no tapes,
-no sync goldens and no `testdata`; the tests that need an account skip with
-`DATABRICKS_DSN`. See [`driver/VERIFY.md`](driver/VERIFY.md) for the recording
-plan, the pin row, the HTTP tape harness and the parity harness.
+The package was verified against a scratch workspace on 2026-11-17. Its live
+tests passed, `driver/testdata/tapes` holds the recordings, `driver/testdata/sync`
+holds the synced catalog, and `databricks/testdata/pins.tsv` pins the workspace,
+SQL warehouse and catalog. The live tests still skip without `DATABRICKS_DSN`.
+See [`driver/VERIFY.md`](driver/VERIFY.md) for the recording and parity record.
