@@ -56,7 +56,10 @@ CREATE TABLE metrics_hash (
 CREATE VIEW v_open_accounts AS
 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 
-CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts; -- not restorable: TestDumpGaps
+CREATE VIEW v_named_cols (`renamed_id`) AS SELECT id FROM accounts;
+
+CREATE VIEW v_named_cols_ref AS
+	SELECT renamed_id FROM v_named_cols;
 
 CREATE VIEW v_order_totals AS
 	SELECT a.acct_id, COUNT(o.id) AS order_count

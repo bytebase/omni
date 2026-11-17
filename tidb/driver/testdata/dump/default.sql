@@ -1,6 +1,18 @@
 SET @OLD_UNIQUE_CHECKS=@@UNIQUE_CHECKS, UNIQUE_CHECKS=0;
 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0;
 --
+-- Temporary view structure for `v_named_cols`
+--
+CREATE VIEW `v_named_cols` AS SELECT
+  1 AS `renamed_id`;
+
+--
+-- Temporary view structure for `v_named_cols_ref`
+--
+CREATE VIEW `v_named_cols_ref` AS SELECT
+  1 AS `renamed_id`;
+
+--
 -- Temporary view structure for `v_open_accounts`
 --
 CREATE VIEW `v_open_accounts` AS SELECT
@@ -56,6 +68,18 @@ CREATE TABLE `sharded_events` (
   KEY `idx_account` (`account_id`),
   CONSTRAINT `fk_events_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin;
+
+--
+-- View structure for `v_named_cols`
+--
+DROP VIEW IF EXISTS `v_named_cols`;
+CREATE VIEW `v_named_cols` (`renamed_id`) AS SELECT `id` AS `id` FROM `omni_sync_corpus`.`accounts`;
+
+--
+-- View structure for `v_named_cols_ref`
+--
+DROP VIEW IF EXISTS `v_named_cols_ref`;
+CREATE VIEW `v_named_cols_ref` AS SELECT `renamed_id` AS `renamed_id` FROM `omni_sync_corpus`.`v_named_cols`;
 
 --
 -- View structure for `v_open_accounts`
