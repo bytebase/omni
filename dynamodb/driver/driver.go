@@ -3,12 +3,13 @@
 // AWS SDK, syncs the region's tables into omni/metadata, and runs PartiQL for
 // interactive queries and change scripts.
 //
-// It implements Driver, Syncer, Querier and Executor. There is no Dump: omni's
-// partiql tree has no catalog that renders a schema as DDL, DynamoDB has no DDL
-// for a table's key schema and no schema to render, and Bytebase's driver
-// answered Dump by writing nothing at all. A caller that dumps a DynamoDB
-// database therefore writes an empty dump, which is what the product does
-// today.
+// It implements Driver, Syncer, Dumper, Querier and Executor. Dump writes
+// nothing: a synced table carries its key attributes and its secondary
+// indexes' key attributes, but not the attribute types, billing mode or
+// throughput a create takes, so a dump of the metadata could not create the
+// table it describes, and Bytebase's driver answered Dump by writing nothing at
+// all. A caller that dumps a DynamoDB database therefore writes an empty dump,
+// which is what the product does today.
 //
 // Config.Host and Config.Port name the endpoint: a host with no scheme is
 // reached over http, or over https when Config.TLS is set, and the port is
@@ -89,6 +90,7 @@ import (
 var (
 	_ driver.Driver   = (*Driver)(nil)
 	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
 )

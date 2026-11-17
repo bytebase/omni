@@ -3,10 +3,10 @@
 // schema's metadata into omni/metadata, and runs interactive queries and change
 // scripts.
 //
-// It implements Driver, Syncer, Querier, Executor, planner row estimates, and
-// the live probes the reviews run. It does not implement Dumper: Oracle DDL
-// rendering still lives in Bytebase's schema package until omni has an
-// oracle/catalog.
+// It implements Driver, Syncer, Dumper, Querier, Executor, planner row
+// estimates, and the live probes the reviews run. Dump renders the snapshot
+// through oracle/catalog; docs/migration/oracle/catalog.md lists what that
+// catalog restores and what it cannot.
 //
 // A Config.Database names the schema every session switches to
 // (ALTER SESSION SET CURRENT_SCHEMA), which is how an Oracle connection selects
@@ -36,6 +36,7 @@ import (
 var (
 	_ omnidriver.Driver   = (*Driver)(nil)
 	_ omnidriver.Syncer   = (*Driver)(nil)
+	_ omnidriver.Dumper   = (*Driver)(nil)
 	_ omnidriver.Querier  = (*Driver)(nil)
 	_ omnidriver.Executor = (*Driver)(nil)
 
