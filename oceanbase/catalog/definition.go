@@ -1719,6 +1719,20 @@ func getSDLFormat(meta *metadata.DatabaseSchemaMetadata) (string, error) {
 		}
 	}
 
+	materializedViews := make([]*metadata.MaterializedViewMetadata, 0, len(schema.MaterializedViews))
+	for _, view := range schema.MaterializedViews {
+		if view.SkipDump {
+			continue
+		}
+		materializedViews = append(materializedViews, view)
+	}
+	slices.SortFunc(materializedViews, func(a, b *metadata.MaterializedViewMetadata) int { return cmp.Compare(a.Name, b.Name) })
+	for _, view := range materializedViews {
+		if err := writeMaterializedViewSDL(&buf, meta.Name, view); err != nil {
+			return "", err
+		}
+	}
+
 	// Triggers hang off tables (TableMetadata.Triggers); emit them after every table
 	// in deterministic (table, trigger) order.
 	for _, table := range tables {
@@ -1904,6 +1918,19 @@ func viewReferences(definition, ownDB string) []relationRef {
 		refs = append(refs, relationRef{db: toLower(db), name: ref.Name})
 	}
 	return refs
+}
+
+// writeMaterializedViewSDL emits a materialized view in the one form the loader holds: a
+// view. The catalog models no materialized view, so a `CREATE MATERIALIZED VIEW` here would
+// not load and a dependent view would read a relation SDL never wrote; the container's
+// indexes and the refresh policy have no place in this form either.
+func writeMaterializedViewSDL(buf *strings.Builder, dbName string, view *metadata.MaterializedViewMetadata) error {
+	body := formatViewBodySDL(stripViewBodyDatabaseQualifier(view.Definition, dbName))
+	if body == "" {
+		return nil
+	}
+	_, err := fmt.Fprintf(buf, "CREATE OR REPLACE VIEW %s AS\n%s;\n\n", quoteIdent(view.Name), body)
+	return err
 }
 
 // writeViewSDL emits a single CREATE OR REPLACE VIEW statement. LoadSDL accepts

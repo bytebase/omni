@@ -1165,3 +1165,36 @@ func TestWriteMaterializedViewStatesSQLMode(t *testing.T) {
 	require.Contains(t, got, "SET sql_mode = DEFAULT;\n")
 	require.Less(t, strings.Index(got, "SET sql_mode = DEFAULT;"), strings.Index(got, "CREATE MATERIALIZED VIEW"))
 }
+
+// TestSDLOfMaterializedViewLoads pins that a snapshot with a materialized view renders SDL
+// the catalog can load: the catalog models no materialized view, so the only form it holds
+// is the view, and without it a view that reads the materialized view has no relation.
+func TestSDLOfMaterializedViewLoads(t *testing.T) {
+	schema := &metadata.DatabaseSchemaMetadata{
+		Name: "d",
+		Schemas: []*metadata.SchemaMetadata{{
+			Tables: []*metadata.TableMetadata{{
+				Name:    "t",
+				Engine:  "InnoDB",
+				Charset: "utf8mb4",
+				Columns: []*metadata.ColumnMetadata{
+					{Name: "id", Type: "bigint", Default: "NULL", Nullable: true},
+				},
+			}},
+			MaterializedViews: []*metadata.MaterializedViewMetadata{{
+				Name:       "mv",
+				Definition: "select `d`.`t`.`id` AS `id` from `d`.`t`",
+			}},
+			Views: []*metadata.ViewMetadata{{
+				Name:       "v_over_mv",
+				Definition: "select `d`.`mv`.`id` AS `id` from `d`.`mv`",
+			}},
+		}},
+	}
+	sdl, err := DatabaseDefinition(schema, DefinitionOptions{SDLFormat: true})
+	require.NoError(t, err)
+	require.Contains(t, sdl, "CREATE OR REPLACE VIEW `mv` AS")
+	require.NotContains(t, sdl, "CREATE MATERIALIZED VIEW")
+	_, err = LoadSDL("CREATE DATABASE `bbcatalog`;\nUSE `bbcatalog`;\n" + sdl)
+	require.NoError(t, err)
+}
