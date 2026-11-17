@@ -125,7 +125,10 @@
 | -- A dictionary whose source is a materialized view, and a table that loads it
 | -- under a name that sorts first: creating the table queries the view, so it
 | -- follows the view.
-| CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT id, 'm' AS name FROM src;
+| -- Its table alias is a reference with the spaces around it, in backquotes: a name
+| -- inside backquotes is part of that name, not a reference to a_mv_dict_table,
+| -- which loads the dictionary this view sources.
+| CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT ` omni_testdump.a_mv_dict_table `.id, 'm' AS name FROM src AS ` omni_testdump.a_mv_dict_table `;
 < ok 0 -
 > exec
 |
@@ -164,6 +167,7 @@
 | CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id, 'omni_testdump.a_top' AS name FROM src;
 < ok 0 -
 > exec
+|
 |
 |
 | -- An ordinary view reads mv_base, and a materialized view reads that view: a
@@ -602,6 +606,6 @@
 |     `name` String
 | )
 | AS SELECT
-|     id,
+|     ` omni_testdump.a_mv_dict_table `.id,
 |     'm' AS name
-| FROM omni_testdump.src
+| FROM omni_testdump.src AS ` omni_testdump.a_mv_dict_table `

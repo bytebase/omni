@@ -125,7 +125,10 @@
 | -- A dictionary whose source is a materialized view, and a table that loads it
 | -- under a name that sorts first: creating the table queries the view, so it
 | -- follows the view.
-| CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT id, 'm' AS name FROM src;
+| -- Its table alias is a reference with the spaces around it, in backquotes: a name
+| -- inside backquotes is part of that name, not a reference to a_mv_dict_table,
+| -- which loads the dictionary this view sources.
+| CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT ` omni_testdumprestores.a_mv_dict_table `.id, 'm' AS name FROM src AS ` omni_testdumprestores.a_mv_dict_table `;
 < ok 0 -
 > exec
 |
@@ -164,6 +167,7 @@
 | CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id, 'omni_testdumprestores.a_top' AS name FROM src;
 < ok 0 -
 > exec
+|
 |
 |
 | -- An ordinary view reads mv_base, and a materialized view reads that view: a
@@ -1174,7 +1178,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE MATERIALIZED VIEW omni_testdumprestores.z_src_mv TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, 'm' AS name FROM omni_testdumprestores.src
+| CREATE MATERIALIZED VIEW omni_testdumprestores.z_src_mv TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT ` omni_testdumprestores.a_mv_dict_table `.id, 'm' AS name FROM omni_testdumprestores.src AS ` omni_testdumprestores.a_mv_dict_table `
 : string
 |
 : string
@@ -1759,9 +1763,9 @@
 |     `name` String
 | )
 | AS SELECT
-|     id,
+|     ` omni_testdumprestores.a_mv_dict_table `.id,
 |     'm' AS name
-| FROM omni_testdumprestores.src
+| FROM omni_testdumprestores.src AS ` omni_testdumprestores.a_mv_dict_table `
 > exec
 | DROP DATABASE IF EXISTS `omni_testdumprestores`
 < ok 0 -
@@ -2029,9 +2033,9 @@
 |     `name` String
 | )
 | AS SELECT
-|     id,
+|     ` omni_testdumprestores.a_mv_dict_table `.id,
 |     'm' AS name
-| FROM omni_testdumprestores.src;
+| FROM omni_testdumprestores.src AS ` omni_testdumprestores.a_mv_dict_table `;
 < ok 0 -
 > exec
 |
@@ -3069,7 +3073,7 @@
 : uint64 0
 : uint64 0
 : string
-| CREATE MATERIALIZED VIEW omni_testdumprestores.z_src_mv TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, 'm' AS name FROM omni_testdumprestores.src
+| CREATE MATERIALIZED VIEW omni_testdumprestores.z_src_mv TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT ` omni_testdumprestores.a_mv_dict_table `.id, 'm' AS name FROM omni_testdumprestores.src AS ` omni_testdumprestores.a_mv_dict_table `
 : string
 |
 : string

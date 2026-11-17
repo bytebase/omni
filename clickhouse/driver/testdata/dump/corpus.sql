@@ -88,7 +88,10 @@ ENGINE = Dictionary('$database.dict');
 -- A dictionary whose source is a materialized view, and a table that loads it
 -- under a name that sorts first: creating the table queries the view, so it
 -- follows the view.
-CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT id, 'm' AS name FROM src;
+-- Its table alias is a reference with the spaces around it, in backquotes: a name
+-- inside backquotes is part of that name, not a reference to a_mv_dict_table,
+-- which loads the dictionary this view sources.
+CREATE MATERIALIZED VIEW z_src_mv TO target AS SELECT ` $database.a_mv_dict_table `.id, 'm' AS name FROM src AS ` $database.a_mv_dict_table `;
 
 CREATE DICTIONARY mv_dict (
   id UInt64
@@ -110,6 +113,7 @@ CREATE VIEW v_names AS SELECT id, name FROM src;
 CREATE VIEW a_first AS SELECT id FROM v_names;
 
 CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id, '$database.a_top' AS name FROM src;
+
 
 -- An ordinary view reads mv_base, and a materialized view reads that view: a
 -- materialized view resolves its source when it is created, through the view, so

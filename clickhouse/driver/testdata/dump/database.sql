@@ -218,9 +218,9 @@ CREATE MATERIALIZED VIEW omni_testdump.z_src_mv TO omni_testdump.target
     `name` String
 )
 AS SELECT
-    id,
+    ` omni_testdump.a_mv_dict_table `.id,
     'm' AS name
-FROM omni_testdump.src;
+FROM omni_testdump.src AS ` omni_testdump.a_mv_dict_table `;
 
 --
 -- Materialized view structure for `a_after`

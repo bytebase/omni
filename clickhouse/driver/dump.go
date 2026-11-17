@@ -388,7 +388,7 @@ func dumpNamesOutsideString(stmt, reference string) bool {
 		}
 		start += offset
 		end := start + len(reference)
-		if !dumpReferenceRune(stmt, start-1) && !dumpReferenceRune(stmt, end) && !dumpInString(stmt, start) {
+		if !dumpReferenceRune(stmt, start-1) && !dumpReferenceRune(stmt, end) && dumpQuoted(stmt, start) == 0 {
 			return true
 		}
 		offset = end
@@ -407,10 +407,12 @@ func dumpReferenceRune(s string, i int) bool {
 		(c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }
 
-// dumpInString reports whether the byte at want is inside a string literal.
-// ClickHouse's rendering escapes a quote inside a string with a backslash, and
-// writes a name in backquotes or double quotes, where a quote needs none.
-func dumpInString(stmt string, want int) bool {
+// dumpQuoted returns the quote the byte at want is inside, and 0 when it is not
+// quoted: ClickHouse's rendering escapes a quote inside a string or a name with a
+// backslash, writes a string in single quotes, and writes a name in backquotes or
+// double quotes. A reference inside either is not one: inside a string it is
+// text, and inside a name it is part of that name.
+func dumpQuoted(stmt string, want int) byte {
 	quote := byte(0)
 	for i := 0; i < want && i < len(stmt); i++ {
 		switch c := stmt[i]; {
@@ -422,7 +424,7 @@ func dumpInString(stmt string, want int) bool {
 			quote = 0
 		}
 	}
-	return quote == '\''
+	return quote
 }
 
 // dumpIdentifier writes name in backquotes, with the escapes ClickHouse writes
