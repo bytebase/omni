@@ -191,6 +191,12 @@ CREATE TABLE app.attached_x (id int NOT NULL, v text NOT NULL, CONSTRAINT attach
 ALTER TABLE app.attached ATTACH PARTITION app.attached_x FOR VALUES IN ('x');
 CREATE INDEX attached_x_id ON app.attached_x (id);
 
+-- A partition can live beside its parent in another schema, and its comment
+-- is its own.
+CREATE TABLE app.cross_schema (id int NOT NULL, v text NOT NULL) PARTITION BY LIST (v);
+CREATE TABLE audit.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+COMMENT ON TABLE audit.cross_schema_a IS 'remote';
+
 -- Views, dependencies, rules, triggers on views.
 CREATE VIEW app.happy_customer AS
     SELECT c.id, c.name, o.total FROM app.customer c JOIN app.orders o ON o.customer_id = c.id

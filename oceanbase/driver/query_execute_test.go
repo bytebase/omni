@@ -99,6 +99,14 @@ func TestQueryExecuteAndStats(t *testing.T) {
 	if err != nil || est < 1 {
 		t.Fatalf("CountAffectedRows = (%d, %v)", est, err)
 	}
+	for _, statement := range []string{"SELECT 1;", "SELECT * FROM items;"} {
+		if _, err := d.CountAffectedRows(ctx, statement); err == nil || !strings.Contains(err.Error(), "expected an INSERT, UPDATE or DELETE") {
+			t.Errorf("CountAffectedRows(%q) err = %v", statement, err)
+		}
+	}
+	if _, err := d.CountAffectedRows(ctx, "DELETE FROM items WHERE id <= 2; SELECT 1;"); err == nil || !strings.Contains(err.Error(), "exactly one statement") {
+		t.Errorf("CountAffectedRows of a script err = %v", err)
+	}
 	if err := d.Explain(ctx, "UPDATE items SET note = 'x' WHERE id = 1"); err != nil {
 		t.Fatalf("Explain dry run failed: %v", err)
 	}

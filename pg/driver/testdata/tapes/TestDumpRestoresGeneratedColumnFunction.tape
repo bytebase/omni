@@ -475,7 +475,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -500,6 +501,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)
@@ -1396,7 +1398,8 @@
 | 	i2.relname AS inh_table_name,
 | 	i2.partstrat AS partition_type,
 | 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-| 	pg_get_partkeydef(i2.inhparent) AS part_key_def
+| 	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 | FROM
 | 	pg_catalog.pg_class c
 | 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -1421,6 +1424,7 @@
 < column "partition_type" "CHAR"
 < column "rel_part_bound" "TEXT"
 < column "part_key_def" "TEXT"
+< column "partition_comment" "TEXT"
 > query
 |
 | SELECT pc.oid, v.schemaname, v.viewname, v.definition, obj_description(pc.oid)

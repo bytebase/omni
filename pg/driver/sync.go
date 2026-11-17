@@ -706,7 +706,8 @@ SELECT
 	i2.relname AS inh_table_name,
 	i2.partstrat AS partition_type,
 	pg_get_expr(c.relpartbound, c.oid) AS rel_part_bound,
-	pg_get_partkeydef(i2.inhparent) AS part_key_def
+	pg_get_partkeydef(i2.inhparent) AS part_key_def,
+	pg_catalog.obj_description(c.oid, 'pg_class') AS partition_comment
 FROM
 	pg_catalog.pg_class c
 	LEFT JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -734,7 +735,8 @@ func getTablePartitions(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMe
 
 	for rows.Next() {
 		var schemaName, tableName, inhSchemaName, inhTableName, partitionType, relPartBound, partKeyDef string
-		if err := rows.Scan(&schemaName, &tableName, &inhSchemaName, &inhTableName, &partitionType, &relPartBound, &partKeyDef); err != nil {
+		var comment sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &inhSchemaName, &inhTableName, &partitionType, &relPartBound, &partKeyDef, &comment); err != nil {
 			return nil, err
 		}
 		if pganalysis.IsSystemTable(tableName) || pganalysis.IsSystemTable(inhTableName) {
@@ -744,6 +746,8 @@ func getTablePartitions(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMe
 		inhKey := tableKey{Schema: inhSchemaName, Table: inhTableName}
 		metadata := &metadatapb.TablePartitionMetadata{
 			Name:               tableName,
+			Schema:             schemaName,
+			Comment:            comment.String,
 			Expression:         partKeyDef,
 			Value:              relPartBound,
 			Indexes:            indexMap[key],

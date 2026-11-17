@@ -942,7 +942,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					if _, err := fmt.Fprintf(buf, "SUBPARTITION %s", subPartition.Name); err != nil {
 						return err
 					}
-					if err := writePartitionOptions(buf); err != nil {
+					if err := writePartitionOptions(buf, subPartition.Comment); err != nil {
 						return err
 					}
 					if j == len(partition.Subpartitions)-1 {
@@ -956,7 +956,7 @@ func printPartitionClause(buf *strings.Builder, partitions []*metadata.TablePart
 					}
 				}
 			} else {
-				if err := writePartitionOptions(buf); err != nil {
+				if err := writePartitionOptions(buf, partition.Comment); err != nil {
 					return err
 				}
 			}
@@ -993,7 +993,7 @@ func getPrepositionByType(tp metadata.TablePartitionMetadata_Type) (string, erro
 	}
 }
 
-func writePartitionOptions(buf io.StringWriter) error {
+func writePartitionOptions(buf io.StringWriter, comment string) error {
 	/*
 		int err = 0;
 		err += add_space(fptr);
@@ -1021,6 +1021,11 @@ func writePartitionOptions(buf io.StringWriter) error {
 	// TODO(zp): Get all the partition options from the metadata is too complex, just write ENGINE=InnoDB for now.
 	if _, err := buf.WriteString(" ENGINE=InnoDB"); err != nil {
 		return err
+	}
+	if comment != "" {
+		if _, err := buf.WriteString(" COMMENT '" + escapeComment(comment) + "'"); err != nil {
+			return err
+		}
 	}
 
 	return nil

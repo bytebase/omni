@@ -15,6 +15,7 @@ import (
 //	CREATE [OR REPLACE] VIEW [IF NOT EXISTS] view_name
 //	    [(col1 [COMMENT 'text'], ...)]
 //	    [COMMENT 'view comment']
+//	    [SECURITY (NONE | INVOKER)]
 //	    AS query
 func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, error) {
 	// Consume VIEW keyword (cur is VIEW on entry)
@@ -62,6 +63,18 @@ func (p *Parser) parseCreateView(startLoc ast.Loc, orReplace bool) (ast.Node, er
 		}
 		stmt.Comment = p.cur.Str
 		p.advance()
+	}
+
+	// Optional SECURITY (NONE | INVOKER), which SHOW CREATE VIEW states for
+	// every view (StarRocks.g4:607 createViewStatement).
+	if p.cur.Kind == kwSECURITY {
+		p.advance() // consume SECURITY
+		switch p.cur.Kind {
+		case kwNONE, kwINVOKER:
+			stmt.Security = strings.ToUpper(p.advance().Str)
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
 	}
 
 	// AS keyword

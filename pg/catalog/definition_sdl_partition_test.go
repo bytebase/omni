@@ -262,10 +262,14 @@ func assertPartitionIndexesAttached(t *testing.T, c *Catalog, meta *metadatapb.D
 	attached := 0
 	for _, schema := range meta.Schemas {
 		for _, table := range schema.Tables {
-			var walk func(partitions []*metadatapb.TablePartitionMetadata)
-			walk = func(partitions []*metadatapb.TablePartitionMetadata) {
+			var walk func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata)
+			walk = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) {
 				for _, partition := range partitions {
-					rel := c.GetRelation(schema.Name, partition.Name)
+					partitionSchema := partition.GetSchema()
+					if partitionSchema == "" {
+						partitionSchema = parentSchema
+					}
+					rel := c.GetRelation(partitionSchema, partition.Name)
 					if rel == nil {
 						t.Errorf("the SDL leaves out partition %q", partition.Name)
 						continue
@@ -288,10 +292,10 @@ func assertPartitionIndexesAttached(t *testing.T, c *Catalog, meta *metadatapb.D
 							t.Errorf("the SDL leaves index %q of partition %q unattached to %q", index.Name, partition.Name, index.ParentIndexName)
 						}
 					}
-					walk(partition.Subpartitions)
+					walk(partitionSchema, partition.Subpartitions)
 				}
 			}
-			walk(table.Partitions)
+			walk(schema.Name, table.Partitions)
 		}
 	}
 	if attached == 0 {
@@ -314,6 +318,7 @@ func TestDatabaseDefinitionSDLPartitionQuotedName(t *testing.T) {
 						Partitions: []*metadatapb.TablePartitionMetadata{
 							{
 								Name:       `part"1`,
+								Comment:    "note",
 								Expression: "RANGE (id)",
 								Value:      "FOR VALUES FROM (1) TO (2)",
 							},
@@ -330,5 +335,9 @@ func TestDatabaseDefinitionSDLPartitionQuotedName(t *testing.T) {
 	want := `CREATE TABLE "app"."part""1" PARTITION OF "app"."p" FOR VALUES FROM (1) TO (2);`
 	if !strings.Contains(sdl, want) {
 		t.Errorf("the SDL does not hold %s, which names the partition it stands for:\n%s", want, sdl)
+	}
+	wantComment := `COMMENT ON TABLE "app"."part""1" IS 'note';`
+	if !strings.Contains(sdl, wantComment) {
+		t.Errorf("the SDL does not hold %s, which names the partition its comment is on:\n%s", wantComment, sdl)
 	}
 }

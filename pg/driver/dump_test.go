@@ -267,6 +267,10 @@ CREATE TABLE app.late_x (id integer NOT NULL, v text NOT NULL, CONSTRAINT late_x
 ALTER TABLE app.late ATTACH PARTITION app.late_x FOR VALUES IN ('x');
 CREATE INDEX late_x_id ON app.late_x (id);
 ALTER TABLE app.late_x ADD CONSTRAINT late_x_pkey PRIMARY KEY (id);
+CREATE TABLE app.cross_schema (id integer NOT NULL, v text) PARTITION BY LIST (v);
+CREATE SCHEMA other;
+CREATE TABLE other.cross_schema_a PARTITION OF app.cross_schema FOR VALUES IN ('a');
+COMMENT ON TABLE other.cross_schema_a IS 'remote';
 `
 
 // gapMarker ends a corpus line whose objects a dump cannot faithfully
@@ -311,22 +315,6 @@ func TestDumpGaps(t *testing.T) {
 				"CREATE SERVER srv FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
 				"CREATE FOREIGN TABLE ft (id int) SERVER srv OPTIONS (schema_name 'public', table_name 'x');",
 			"", "", "",
-		},
-		// TablePartitionMetadata carries a partition's name, type, bound,
-		// indexes and constraints, but neither the schema it lives in nor its
-		// comment, so the dump recreates a partition beside its parent without
-		// what the source said about it. The sync reads neither, so the round
-		// trip agrees and only the server shows the loss.
-		{
-			"partition beside its parent", "omni_gap_partition",
-			"CREATE SCHEMA app;\n" +
-				"CREATE SCHEMA other;\n" +
-				"CREATE TABLE app.p (id int, v text) PARTITION BY LIST (v);\n" +
-				"CREATE TABLE other.p_a PARTITION OF app.p FOR VALUES IN ('a');\n" +
-				"COMMENT ON TABLE other.p_a IS 'remote';",
-			"",
-			"SELECT n.nspname || ':' || coalesce(obj_description(c.oid, 'pg_class'), '') FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE c.relname = 'p_a'",
-			"app:",
 		},
 	} {
 		t.Run(gap.name, func(t *testing.T) {

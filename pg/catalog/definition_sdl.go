@@ -904,6 +904,7 @@ func writeIndexSDL(out io.Writer, schemaName string, tableName string, index *me
 // is a partition of, the columns a snapshot without the partition's bound falls
 // back to, and the constraints its partitions inherit instead of listing.
 type sdltable struct {
+	schema   string
 	name     string
 	columns  []*metadatapb.ColumnMetadata
 	checks   []*metadatapb.CheckConstraintMetadata
@@ -920,6 +921,7 @@ func writePartitionTablesSDL(out io.Writer, schemaName string, table *metadatapb
 		return nil
 	}
 	return writePartitionsSDL(out, schemaName, sdltable{
+		schema:   schemaName,
 		name:     table.Name,
 		columns:  table.Columns,
 		checks:   table.CheckConstraints,
@@ -927,12 +929,19 @@ func writePartitionTablesSDL(out io.Writer, schemaName string, table *metadatapb
 	}, table.Partitions)
 }
 
-func writePartitionsSDL(out io.Writer, schemaName string, parent sdltable, partitions []*metadatapb.TablePartitionMetadata) error {
+func writePartitionsSDL(out io.Writer, parentSchema string, parent sdltable, partitions []*metadatapb.TablePartitionMetadata) error {
 	for _, partition := range partitions {
-		if err := writePartitionSDL(out, schemaName, parent, partition); err != nil {
+		schema := partitionSchemaName(parentSchema, partition)
+		if err := writePartitionSDL(out, schema, parent, partition); err != nil {
 			return err
 		}
-		if err := writePartitionsSDL(out, schemaName, sdltable{
+		if len(partition.Comment) > 0 {
+			if err := writePartitionCommentSDL(out, schema, partition); err != nil {
+				return err
+			}
+		}
+		if err := writePartitionsSDL(out, schema, sdltable{
+			schema:   schema,
 			name:     partition.Name,
 			columns:  parent.columns,
 			checks:   partition.CheckConstraints,
@@ -961,7 +970,7 @@ func writePartitionSDL(out io.Writer, schemaName string, parent sdltable, partit
 		return err
 	}
 
-	if _, err := fmt.Fprintf(out, `CREATE TABLE "%s"."%s" PARTITION OF "%s"."%s"`, escapeIdentifier(schemaName), escapeIdentifier(partition.Name), escapeIdentifier(schemaName), escapeIdentifier(parent.name)); err != nil {
+	if _, err := fmt.Fprintf(out, `CREATE TABLE "%s"."%s" PARTITION OF "%s"."%s"`, escapeIdentifier(schemaName), escapeIdentifier(partition.Name), escapeIdentifier(parent.schema), escapeIdentifier(parent.name)); err != nil {
 		return err
 	}
 	if err := writePartitionElementsSDL(out, parent, partition); err != nil {
@@ -1067,28 +1076,29 @@ func writePartitionIndexesSDL(out io.Writer, schemaName string, table *metadatap
 	return writeSubPartitionIndexesSDL(out, schemaName, table.Partitions)
 }
 
-func writeSubPartitionIndexesSDL(out io.Writer, schemaName string, partitions []*metadatapb.TablePartitionMetadata) error {
+func writeSubPartitionIndexesSDL(out io.Writer, parentSchema string, partitions []*metadatapb.TablePartitionMetadata) error {
 	for _, partition := range partitions {
+		schema := partitionSchemaName(parentSchema, partition)
 		for _, index := range partition.Indexes {
 			if index.Primary || index.IsConstraint {
 				continue
 			}
-			if err := writeIndexSDL(out, schemaName, partition.Name, index, len(partition.Subpartitions) > 0); err != nil {
+			if err := writeIndexSDL(out, schema, partition.Name, index, len(partition.Subpartitions) > 0); err != nil {
 				return err
 			}
 			if _, err := io.WriteString(out, ";\n\n"); err != nil {
 				return err
 			}
 			if len(index.Comment) > 0 {
-				if err := writeIndexCommentSDL(out, schemaName, index); err != nil {
+				if err := writeIndexCommentSDL(out, schema, index); err != nil {
 					return err
 				}
 			}
-			if err := writeAttachIndex(out, schemaName, index); err != nil {
+			if err := writeAttachIndex(out, schema, index); err != nil {
 				return err
 			}
 		}
-		if err := writeSubPartitionIndexesSDL(out, schemaName, partition.Subpartitions); err != nil {
+		if err := writeSubPartitionIndexesSDL(out, schema, partition.Subpartitions); err != nil {
 			return err
 		}
 	}
@@ -1403,22 +1413,30 @@ func writeSchemaCommentSDL(out io.Writer, schema *metadatapb.SchemaMetadata) err
 }
 
 func writeTableCommentSDL(out io.Writer, schemaName string, table *metadatapb.TableMetadata) error {
+	return writeRelationCommentSDL(out, schemaName, table.Name, table.Comment)
+}
+
+func writePartitionCommentSDL(out io.Writer, schemaName string, partition *metadatapb.TablePartitionMetadata) error {
+	return writeRelationCommentSDL(out, schemaName, partition.Name, partition.Comment)
+}
+
+func writeRelationCommentSDL(out io.Writer, schemaName string, table string, text string) error {
 	if _, err := io.WriteString(out, `COMMENT ON TABLE "`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, schemaName); err != nil {
+	if _, err := io.WriteString(out, escapeIdentifier(schemaName)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `"."`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, table.Name); err != nil {
+	if _, err := io.WriteString(out, escapeIdentifier(table)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `" IS '`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, escapeSingleQuote(table.Comment)); err != nil {
+	if _, err := io.WriteString(out, escapeSingleQuote(text)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `';`); err != nil {

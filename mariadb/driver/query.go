@@ -182,9 +182,11 @@ func makeValueByTypeName(typeName string) any {
 		return new(sql.NullBool)
 	case "INT", "INTEGER", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "INT2", "INT4", "INT8":
 		return new(sql.NullInt64)
+	case "UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED INT", "UNSIGNED BIGINT":
+		return new(sql.Null[uint64])
 	case "FLOAT", "DOUBLE", "FLOAT4", "FLOAT8":
 		return new(sql.NullFloat64)
-	case "BIT", "VARBIT", "BINARY", "VARBINARY",
+	case "BIT", "VARBIT", "BINARY", "VARBINARY", "BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB",
 		"GEOMETRY", "POINT", "LINESTRING", "POLYGON", "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION":
 		return new([]byte)
 	default:
@@ -205,6 +207,10 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any) driver
 	case *sql.NullInt64:
 		if raw.Valid {
 			return driver.Value{Kind: driver.Int64, Int64: raw.Int64}
+		}
+	case *sql.Null[uint64]:
+		if raw.Valid {
+			return driver.Value{Kind: driver.Uint64, Uint64: raw.V}
 		}
 	case *[]byte:
 		if *raw != nil {

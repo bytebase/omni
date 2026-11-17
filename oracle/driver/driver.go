@@ -265,9 +265,9 @@ func (d *Driver) Close() error {
 	return d.db.Close()
 }
 
-// version returns the server's release, such as 23.26, and the configured
+// Version returns the server's release, such as 23.26, and the configured
 // engine version when the server does not answer.
-func (d *Driver) version(ctx context.Context) (*oracleanalysis.Version, error) {
+func (d *Driver) Version(ctx context.Context) (*oracleanalysis.Version, error) {
 	const query = "SELECT version_full FROM product_component_version WHERE product LIKE 'Oracle%'"
 	var fullVersion string
 	if err := d.db.QueryRowContext(ctx, query).Scan(&fullVersion); err == nil {

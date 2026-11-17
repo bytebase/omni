@@ -2460,7 +2460,8 @@ func writeForeignKey(out io.Writer, schema string, table string, fk *metadatapb.
 	return err
 }
 
-func writeAttachPartitionIndex(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+func writeAttachPartitionIndex(out io.Writer, parentSchema string, partition *metadatapb.TablePartitionMetadata) error {
+	schema := partitionSchemaName(parentSchema, partition)
 	for _, index := range partition.Indexes {
 		if err := writeAttachIndex(out, schema, index); err != nil {
 			return err
@@ -2508,7 +2509,8 @@ func writeAttachIndex(out io.Writer, schema string, index *metadatapb.IndexMetad
 	return err
 }
 
-func writePartitionIndex(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+func writePartitionIndex(out io.Writer, parentSchema string, partition *metadatapb.TablePartitionMetadata) error {
+	schema := partitionSchemaName(parentSchema, partition)
 	for _, index := range partition.Indexes {
 		if !index.IsConstraint && !index.Primary {
 			if err := writeIndex(out, schema, partition.Name, index, len(partition.Subpartitions) > 0); err != nil {
@@ -2642,7 +2644,8 @@ func writeIndexComment(out io.Writer, schema string, index *metadatapb.IndexMeta
 	return err
 }
 
-func writePartitionUniqueKey(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+func writePartitionUniqueKey(out io.Writer, parentSchema string, partition *metadatapb.TablePartitionMetadata) error {
+	schema := partitionSchemaName(parentSchema, partition)
 	for _, index := range partition.Indexes {
 		if index.Unique && !index.Primary && index.IsConstraint {
 			if err := writeUniqueKey(out, schema, partition.Name, index); err != nil {
@@ -2704,7 +2707,8 @@ func writeUniqueKey(out io.Writer, schema string, table string, index *metadatap
 	return nil
 }
 
-func writePartitionPrimaryKey(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+func writePartitionPrimaryKey(out io.Writer, parentSchema string, partition *metadatapb.TablePartitionMetadata) error {
+	schema := partitionSchemaName(parentSchema, partition)
 	for _, index := range partition.Indexes {
 		if index.Primary {
 			if err := writePrimaryKey(out, schema, partition.Name, index); err != nil {
@@ -2840,6 +2844,14 @@ func writeColumnComment(out io.Writer, schema string, table string, column *meta
 }
 
 func writeTableComment(out io.Writer, schema string, table *metadatapb.TableMetadata) error {
+	return writeRelationComment(out, schema, table.Name, table.Comment)
+}
+
+func writePartitionComment(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+	return writeRelationComment(out, schema, partition.Name, partition.Comment)
+}
+
+func writeRelationComment(out io.Writer, schema string, table string, text string) error {
 	if _, err := io.WriteString(out, `COMMENT ON TABLE "`); err != nil {
 		return err
 	}
@@ -2849,13 +2861,13 @@ func writeTableComment(out io.Writer, schema string, table *metadatapb.TableMeta
 	if _, err := io.WriteString(out, `"."`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, table.Name); err != nil {
+	if _, err := io.WriteString(out, table); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `" IS '`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, escapeSingleQuote(table.Comment)); err != nil {
+	if _, err := io.WriteString(out, escapeSingleQuote(text)); err != nil {
 		return err
 	}
 	_, err := io.WriteString(out, "';\n\n")
@@ -2870,11 +2882,11 @@ func writePartitionClause(out io.Writer, partition *metadatapb.TablePartitionMet
 	return err
 }
 
-func writeAttachPartition(out io.Writer, schema string, tableName string, partition *metadatapb.TablePartitionMetadata) error {
+func writeAttachPartition(out io.Writer, parentSchema string, tableName string, partition *metadatapb.TablePartitionMetadata) error {
 	if _, err := io.WriteString(out, `ALTER TABLE ONLY "`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, schema); err != nil {
+	if _, err := io.WriteString(out, parentSchema); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `"."`); err != nil {
@@ -2886,7 +2898,7 @@ func writeAttachPartition(out io.Writer, schema string, tableName string, partit
 	if _, err := io.WriteString(out, `" ATTACH PARTITION "`); err != nil {
 		return err
 	}
-	if _, err := io.WriteString(out, schema); err != nil {
+	if _, err := io.WriteString(out, partitionSchemaName(parentSchema, partition)); err != nil {
 		return err
 	}
 	if _, err := io.WriteString(out, `"."`); err != nil {
@@ -2905,7 +2917,8 @@ func writeAttachPartition(out io.Writer, schema string, tableName string, partit
 	return err
 }
 
-func writePartitionTable(out io.Writer, schema string, columns []*metadatapb.ColumnMetadata, partition *metadatapb.TablePartitionMetadata) error {
+func writePartitionTable(out io.Writer, parentSchema string, columns []*metadatapb.ColumnMetadata, partition *metadatapb.TablePartitionMetadata) error {
+	schema := partitionSchemaName(parentSchema, partition)
 	if err := writeCreateTable(out, schema, partition.Name, columns, partition.CheckConstraints, partition.ExcludeConstraints); err != nil {
 		return err
 	}
@@ -2928,6 +2941,12 @@ func writePartitionTable(out io.Writer, schema string, columns []*metadatapb.Col
 			if err := writeConstraintComment(out, schema, partition.Name, check.Name, check.Comment); err != nil {
 				return err
 			}
+		}
+	}
+
+	if len(partition.Comment) > 0 {
+		if err := writePartitionComment(out, schema, partition); err != nil {
+			return err
 		}
 	}
 

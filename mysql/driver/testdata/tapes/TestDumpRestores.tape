@@ -52,8 +52,8 @@
 | 	val BIGINT NOT NULL,
 | 	PRIMARY KEY (ts, region)
 | ) PARTITION BY RANGE (ts) SUBPARTITION BY HASH (region) SUBPARTITIONS 2 (
-| 	PARTITION p0 VALUES LESS THAN (100),
-| 	PARTITION p1 VALUES LESS THAN (MAXVALUE)
+| 	PARTITION p0 VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p1 VALUES LESS THAN (MAXVALUE) COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -1511,7 +1511,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -1527,6 +1528,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
 | metrics_hash
@@ -1540,6 +1542,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -1553,6 +1557,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -1566,6 +1572,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -1579,6 +1587,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -1596,6 +1606,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -1613,6 +1625,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -1630,6 +1644,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 < row
 : bytes
 | metrics_range
@@ -1647,6 +1663,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
@@ -1681,8 +1699,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+| (PARTITION p0 VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB) */
 > query
 |
 | 		SELECT
@@ -2109,8 +2127,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION `p0` VALUES LESS THAN (100) ENGINE=InnoDB,
-|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */
+| (PARTITION `p0` VALUES LESS THAN (100) ENGINE=InnoDB COMMENT = 'first',
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB COMMENT = 'last') */
 < ok 0 0
 > exec
 | CREATE TABLE `orders` (
@@ -3619,7 +3637,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -3635,6 +3654,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
 | metrics_hash
@@ -3648,6 +3668,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -3661,6 +3683,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -3674,6 +3698,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -3687,6 +3713,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -3704,6 +3732,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -3721,6 +3751,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -3738,6 +3770,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 < row
 : bytes
 | metrics_range
@@ -3755,6 +3789,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
@@ -3789,8 +3825,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+| (PARTITION p0 VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB) */
 > query
 |
 | 		SELECT
@@ -4185,8 +4221,8 @@
 | 	val BIGINT NOT NULL,
 | 	PRIMARY KEY (ts, region)
 | ) PARTITION BY RANGE (ts) SUBPARTITION BY HASH (region) SUBPARTITIONS 2 (
-| 	PARTITION p0 VALUES LESS THAN (100),
-| 	PARTITION p1 VALUES LESS THAN (MAXVALUE)
+| 	PARTITION p0 VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p1 VALUES LESS THAN (MAXVALUE) COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -5644,7 +5680,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -5660,6 +5697,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
 | metrics_hash
@@ -5673,6 +5711,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -5686,6 +5726,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -5699,6 +5741,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -5712,6 +5756,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -5729,6 +5775,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -5746,6 +5794,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -5763,6 +5813,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 < row
 : bytes
 | metrics_range
@@ -5780,6 +5832,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
@@ -5814,8 +5868,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+| (PARTITION p0 VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB) */
 > query
 |
 | 		SELECT
@@ -6242,8 +6296,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION `p0` VALUES LESS THAN (100) ENGINE=InnoDB,
-|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */
+| (PARTITION `p0` VALUES LESS THAN (100) ENGINE=InnoDB COMMENT = 'first',
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB COMMENT = 'last') */
 < ok 0 0
 > exec
 | CREATE TABLE `orders` (
@@ -7752,7 +7806,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -7768,6 +7823,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
 | metrics_hash
@@ -7781,6 +7837,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -7794,6 +7852,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -7807,6 +7867,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -7820,6 +7882,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -7837,6 +7901,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -7854,6 +7920,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -7871,6 +7939,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 < row
 : bytes
 | metrics_range
@@ -7888,6 +7958,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
@@ -7922,8 +7994,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+| (PARTITION p0 VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB) */
 > query
 |
 | 		SELECT
@@ -8318,8 +8390,8 @@
 | 	val BIGINT NOT NULL,
 | 	PRIMARY KEY (ts, region)
 | ) PARTITION BY RANGE (ts) SUBPARTITION BY HASH (region) SUBPARTITIONS 2 (
-| 	PARTITION p0 VALUES LESS THAN (100),
-| 	PARTITION p1 VALUES LESS THAN (MAXVALUE)
+| 	PARTITION p0 VALUES LESS THAN (100) COMMENT 'first',
+| 	PARTITION p1 VALUES LESS THAN (MAXVALUE) COMMENT 'last'
 | );
 < ok 0 0
 > exec
@@ -9777,7 +9849,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -9793,6 +9866,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
 | metrics_hash
@@ -9806,6 +9880,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -9819,6 +9895,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -9832,6 +9910,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -9845,6 +9925,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -9862,6 +9944,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -9879,6 +9963,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -9896,6 +9982,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 < row
 : bytes
 | metrics_range
@@ -9913,6 +10001,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
@@ -9947,8 +10037,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+| (PARTITION p0 VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB) */
 > query
 |
 | 		SELECT
@@ -10375,8 +10465,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION `p0` VALUES LESS THAN (100) ENGINE=InnoDB,
-|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB) */
+| (PARTITION `p0` VALUES LESS THAN (100) ENGINE=InnoDB COMMENT = 'first',
+|  PARTITION `p1` VALUES LESS THAN MAXVALUE ENGINE=InnoDB COMMENT = 'last') */
 < ok 0 0
 > exec
 | CREATE TABLE `orders` (
@@ -11885,7 +11975,8 @@
 | 			SUBPARTITION_METHOD,
 | 			PARTITION_EXPRESSION,
 | 			SUBPARTITION_EXPRESSION,
-| 			PARTITION_DESCRIPTION
+| 			PARTITION_DESCRIPTION,
+| 			PARTITION_COMMENT
 | 		FROM INFORMATION_SCHEMA.PARTITIONS
 | 		WHERE TABLE_SCHEMA = ? AND PARTITION_NAME IS NOT NULL
 | 		ORDER BY TABLE_NAME ASC, PARTITION_ORDINAL_POSITION ASC, SUBPARTITION_ORDINAL_POSITION ASC;
@@ -11901,6 +11992,7 @@
 < column "PARTITION_EXPRESSION" "VARCHAR"
 < column "SUBPARTITION_EXPRESSION" "VARCHAR"
 < column "PARTITION_DESCRIPTION" "TEXT"
+< column "PARTITION_COMMENT" "TEXT" "string"
 < row
 : bytes
 | metrics_hash
@@ -11914,6 +12006,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -11927,6 +12021,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -11940,6 +12036,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_hash
@@ -11953,6 +12051,8 @@
 | `id`
 : null
 : null
+: bytes
+|
 < row
 : bytes
 | metrics_range
@@ -11970,6 +12070,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -11987,6 +12089,8 @@
 | `region`
 : bytes
 | 100
+: bytes
+| first
 < row
 : bytes
 | metrics_range
@@ -12004,6 +12108,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 < row
 : bytes
 | metrics_range
@@ -12021,6 +12127,8 @@
 | `region`
 : bytes
 | MAXVALUE
+: bytes
+| last
 > query
 | SHOW CREATE TABLE `omni_dump_roundtrip`.`metrics_hash`
 < result
@@ -12055,8 +12163,8 @@
 | /*!50100 PARTITION BY RANGE (`ts`)
 | SUBPARTITION BY HASH (`region`)
 | SUBPARTITIONS 2
-| (PARTITION p0 VALUES LESS THAN (100) ENGINE = InnoDB,
-|  PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = InnoDB) */
+| (PARTITION p0 VALUES LESS THAN (100) COMMENT = 'first' ENGINE = InnoDB,
+|  PARTITION p1 VALUES LESS THAN MAXVALUE COMMENT = 'last' ENGINE = InnoDB) */
 > query
 |
 | 		SELECT

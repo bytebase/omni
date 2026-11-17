@@ -657,6 +657,16 @@ message TablePartitionMetadata {
   repeated CheckConstraintMetadata check_constraints = 8;
 
   repeated ExcludeConstraintMetadata exclude_constraints = 9;
+
+  // The schema is the schema the partition lives in. A partition can live in
+  // a schema other than its parent's; an engine that keeps every partition in
+  // its table's schema leaves it empty.
+  string schema = 10;
+
+  // The comment is the comment the engine states on the partition itself:
+  // PostgreSQL's COMMENT ON TABLE for a partition, MySQL's PARTITION ...
+  // COMMENT. An engine that states no partition comment leaves it empty.
+  string comment = 11;
 }
 
 // ColumnMetadata is the metadata for columns.
