@@ -287,3 +287,37 @@ func assertPartitionIndexesAttached(t *testing.T, c *Catalog, meta *metadatapb.D
 		t.Fatal("the snapshot holds no attached partition index, so nothing checks the attachment")
 	}
 }
+
+// TestDatabaseDefinitionSDLPartitionQuotedName pins the escaping of the names a
+// partition's statement writes: a partition named with a double quote comes out
+// with the quote doubled, so the statement names the identifier it stands for.
+func TestDatabaseDefinitionSDLPartitionQuotedName(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "app",
+				Tables: []*metadatapb.TableMetadata{
+					{
+						Name:    "p",
+						Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Nullable: true}},
+						Partitions: []*metadatapb.TablePartitionMetadata{
+							{
+								Name:       `part"1`,
+								Expression: "RANGE (id)",
+								Value:      "FOR VALUES FROM (1) TO (2)",
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	sdl, err := DatabaseDefinition(meta, DefinitionOptions{SDLFormat: true})
+	if err != nil {
+		t.Fatalf("DatabaseDefinition: %v", err)
+	}
+	want := `CREATE TABLE "app"."part""1" PARTITION OF "app"."p" FOR VALUES FROM (1) TO (2);`
+	if !strings.Contains(sdl, want) {
+		t.Errorf("the SDL does not hold %s, which names the partition it stands for:\n%s", want, sdl)
+	}
+}
