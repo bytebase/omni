@@ -33,10 +33,11 @@ restated here.
 | 10 | Oracle's `GetVersion` | settled: the metadata is the fallback | nobody |
 | 11 | `MaximumSQLResultSize` of 0 | open, one mapping to pick | the doris pin bump |
 | 12 | A procedure created qualified syncs qualified | open, needs a re-recorded golden to change | the doris pin bump, if the product wants bare names |
+| 13 | DynamoDB's `verify_tls_certificate` mapping | open, must land before the dynamodb pin | the dynamodb cutover |
 
 A pin bump that changes nothing but the `go.mod` line and an adapter body takes 1, 3, 4 and 7 as
-written, adopts 2 only where it removes `GetDB`, owns 6 for cassandra, 9 for oracle and 11 and 12
-for doris, and leaves 5 to the PR that first lets a concrete driver type go.
+written, adopts 2 only where it removes `GetDB`, owns 6 for cassandra, 9 for oracle, 11 and 12 for
+doris and 13 for dynamodb, and leaves 5 to the PR that first lets a concrete driver type go.
 
 ## 1. `QueryConn(ctx, conn *sql.Conn, …)`'s parameter is dead for pg
 
@@ -399,7 +400,6 @@ The one caller, the prior-backup DML transform, parses `instance.Metadata.GetVer
 Recorded so nobody re-adds a driver version accessor for that caller. If the stored version is ever
 empty, the contract's fallback already covers sync; the transform's `(\d+)\.(\d+)` parse matches the
 metadata string and the old banner identically.
-
 ## 11. `MaximumSQLResultSize` of 0 means the opposite on each side
 
 ### What the proof measured
@@ -463,6 +463,49 @@ records the bare name. Changing it is a `doris/driver` edit plus a re-recorded s
 normalizes the name or records that a synced procedure keeps its qualification. Normalize it when a
 consumer needs the bare name — a diff against another engine's schema, or a lookup by procedure
 name; until then the server's text is the truer record.
+
+## 13. DynamoDB keeps verifying TLS whatever the data source's flag says
+
+### What the proof measured
+
+Bytebase's DynamoDB driver passed no `http.Client` to the AWS SDK, so the SDK's own transport
+verified every `https` endpoint and a certificate no root signed failed the connection. It never
+read `verify_tls_certificate`: the field exists on every data source, but this driver ignored it, so
+an instance whose *Verify server certificate* was off still verified.
+
+Mapping the data source's TLS fields onto `driver.Config.TLS` for every engine weakens this engine
+by default, because unset is the default and `util.GetTLSConfig` answers
+`&tls.Config{InsecureSkipVerify: true}` for it (`backend/plugin/db/util/ssl.go:120-125`). omni is not
+where that is settled: `Config.TLS` non-nil means the caller's settings are used as written, and
+`dynamodb/driver` reaches the endpoint over the SDK's own transport when it is nil, which verifies
+(`TestHTTPSWithoutTLSMaterialVerifiesTheCertificate`). The other cloud drivers answer the same way:
+when `Config.TLS` is nil, `cosmosdb/driver`, `spanner/driver` and `elasticsearch/driver` (after
+#1365) each leave the client library's own transport in place and install no skip of their own. So
+this is the contract's default, not a DynamoDB one. The rest of the DynamoDB proof had not reported
+when this was written; its TLS item is recorded here because it gates the pin, not the driver.
+
+### Options
+
+- **Verify in the adapter, whatever the flag says.** The adapter supplies a `*tls.Config` that
+  verifies — the data source's `ssl_ca` when it has one, the system roots otherwise — and does not
+  translate `verify_tls_certificate`. The checkbox stays inert for this engine, as it is today.
+- **Honor the flag.** The adapter passes `util.GetTLSConfig`'s answer, and an instance whose owner
+  never touched the checkbox starts accepting any certificate on the next sync and every query.
+  This is the option the cutover must not take silently.
+- **Let the product say "unset".** A tri-state, or an acknowledgement next to an explicit "skip
+  verification", so the adapter can honor an opt-out the user made rather than one they never saw.
+
+### Recommendation
+
+Verify. The adapter builds its TLS config with verification on and reads `verify_tls_certificate`
+only once the product can distinguish an explicit opt-out from an unset default. Cost: the adapter's
+TLS mapping, and the checkbox continuing to do nothing for DynamoDB as it does nothing today.
+
+### If nobody decides
+
+The first DynamoDB pin bump ships a TLS weakening no test names: every instance whose *Verify
+server certificate* was left off, which is the default, silently accepts any certificate on the next
+sync and every query, and the change reads as a config mapping rather than as a security decision.
 
 ## Settled, not yours to choose
 

@@ -43,9 +43,14 @@
 //
 // Config.TLS supplies the TLS settings for the endpoint's host and makes TLS
 // required, so an endpoint URL that names http is refused rather than reached
-// in plaintext; nil leaves the SDK's own transport, which is how a server's
-// certificate is verified. Config.Dial opens the connections the client makes,
-// so an SSH tunnel or a cloud connector reaches the endpoint unchanged.
+// in plaintext. Nil leaves the SDK's own transport, which verifies the
+// endpoint's certificate against the system roots and the endpoint's host name.
+// Verification is therefore off only where the caller's *tls.Config says
+// InsecureSkipVerify: the driver reads no product's verify toggle and infers no
+// skip, so a caller whose previous client always verified, as Bytebase's did,
+// keeps verifying unless its user asked to skip, rather than skipping because a
+// flag is unset. Config.Dial opens the connections the client makes, so an SSH
+// tunnel or a cloud connector reaches the endpoint unchanged.
 // Config.Database is the pseudo database name the caller recorded, reported by
 // SyncDatabase and read by nothing else: DynamoDB has no databases, so a sync
 // reads every table of the region whatever that name says.
