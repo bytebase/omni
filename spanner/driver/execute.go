@@ -3,8 +3,10 @@ package driver
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/bytebase/omni/driver"
+	pgparser "github.com/bytebase/omni/pg/parser"
 )
 
 // Execute runs every statement of script and returns the rows they affected in
@@ -20,24 +22,27 @@ import (
 // is where Bytebase left it.
 func (d *Driver) Execute(ctx context.Context, script string, opts driver.ExecuteOptions) (int64, error) {
 	if opts.CreateDatabase {
-		stmts := statements(script)
+		// A creation script states its database's dialect by the way it quotes the
+		// name, and the rest of the script is that dialect too.
+		created := createDatabaseDialect(script)
+		stmts := statements(script, dialectOf(created))
 		if len(stmts) == 0 {
 			return 0, fmt.Errorf("expect sanitized SQLs to have at least one entry, original statement: %v", script)
 		}
-		if !startsWithCreateDatabase(stmts[0].Text) {
+		if !startsWithCreateDatabase(stmts[0].Text, dialectOf(created)) {
 			return 0, fmt.Errorf("expect the first entry of the sanitized SQLs to start with 'CREATE DATABASE', sql %v", stmts[0].Text)
 		}
 		extra := make([]string, 0, len(stmts)-1)
 		for _, stmt := range stmts[1:] {
 			extra = append(extra, stmt.Text)
 		}
-		if err := d.client.CreateDatabase(ctx, d.instancePath, stmts[0].Text, extra); err != nil {
+		if err := d.client.CreateDatabase(ctx, d.instancePath, stmts[0].Text, extra, created); err != nil {
 			return 0, fmt.Errorf("failed to create database: %w", err)
 		}
 		return 0, nil
 	}
 
-	stmts := statements(script)
+	stmts := statements(script, d.dialect)
 
 	// Spanner DDL is not transactional with DML, so a script that holds any DDL
 	// statement goes to the admin API whole.
@@ -101,8 +106,31 @@ func (d *Driver) executeInAutoCommitMode(ctx context.Context, stmts []string) (i
 // startsWithCreateDatabase reports whether statement begins with CREATE
 // DATABASE, after any comment before it: a creation script may carry a header
 // comment, which Bytebase's comment-stripping splitter removed before this check.
-func startsWithCreateDatabase(statement string) bool {
-	return firstTwoKeywords(statement) == [2]string{"CREATE", "DATABASE"}
+func startsWithCreateDatabase(statement string, d dialect) bool {
+	return firstTwoKeywords(statement, d) == [2]string{"CREATE", "DATABASE"}
+}
+
+// createDatabaseDialect reports the dialect a creation script creates, as the
+// admin API spells it, or "" for its default. The API refuses a creation
+// statement written in the other dialect, so the name's quoting is the signal the
+// script carries: double quotes are PostgreSQL's, and a backtick-quoted or
+// unquoted name is GoogleSQL's.
+func createDatabaseDialect(script string) string {
+	lexer := pgparser.NewLexer(script)
+	var name string
+	for i := 0; i < 3; i++ {
+		tok := lexer.NextToken()
+		if tok.End <= tok.Loc {
+			return ""
+		}
+		if i == 2 {
+			name = script[tok.Loc:tok.End]
+		}
+	}
+	if strings.HasPrefix(name, `"`) {
+		return DialectPostgresSQL
+	}
+	return ""
 }
 
 func logTransactionControl(log driver.ExecuteLogger, op driver.TransactionOp, err error) {

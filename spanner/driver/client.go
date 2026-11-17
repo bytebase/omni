@@ -34,15 +34,17 @@ type client interface {
 	Close() error
 	// ListDatabases returns every database of the instance with its dialect.
 	ListDatabases(ctx context.Context) ([]Database, error)
-	// GetDatabase reports that database exists, and driver.ErrNotFound when the
-	// admin API says it does not.
-	GetDatabase(ctx context.Context, database string) error
+	// GetDatabase returns database with its dialect, and driver.ErrNotFound when
+	// the admin API says the database is not there.
+	GetDatabase(ctx context.Context, database string) (Database, error)
 	// UpdateDatabaseDdl applies statements to database and waits for the
 	// operation.
 	UpdateDatabaseDdl(ctx context.Context, database string, statements []string) error
 	// CreateDatabase creates a database in instancePath from createStatement,
 	// applies extra as its extra DDL statements, and waits for the operation.
-	CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string) error
+	// dialect is the dialect the statement is written in: POSTGRESQL, or empty
+	// for the admin API's own, GoogleSQL.
+	CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string, dialect string) error
 	// GetDatabaseDdl returns database's DDL statements, in the order the server
 	// holds them.
 	GetDatabaseDdl(ctx context.Context, database string) ([]string, error)
@@ -80,7 +82,7 @@ func isEmulator(cfg driver.Config) bool {
 	return false
 }
 
-// Database is one database ListDatabases reported.
+// Database is one database ListDatabases or GetDatabase reported.
 type Database struct {
 	// Name is the resource name,
 	// projects/<project>/instances/<instance>/databases/<database>.
@@ -89,6 +91,14 @@ type Database struct {
 	// GOOGLE_STANDARD_SQL or POSTGRESQL.
 	Dialect string
 }
+
+// The dialects the admin API spells, which Database.Dialect holds.
+const (
+	// DialectGoogleSQL is Spanner's own dialect, and the admin API's default.
+	DialectGoogleSQL = "GOOGLE_STANDARD_SQL"
+	// DialectPostgresSQL is the database's PostgreSQL dialect.
+	DialectPostgresSQL = "POSTGRESQL"
+)
 
 // Reader reads one snapshot of a database.
 type Reader interface {
@@ -311,10 +321,13 @@ func (c *liveClient) ListDatabases(ctx context.Context) ([]Database, error) {
 	}
 }
 
-// GetDatabase asks the admin API for database.
-func (c *liveClient) GetDatabase(ctx context.Context, database string) error {
-	_, err := c.admin.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: database})
-	return err
+// GetDatabase reads database with its dialect.
+func (c *liveClient) GetDatabase(ctx context.Context, database string) (Database, error) {
+	got, err := c.admin.GetDatabase(ctx, &databasepb.GetDatabaseRequest{Name: database})
+	if err != nil {
+		return Database{}, err
+	}
+	return Database{Name: got.Name, Dialect: got.DatabaseDialect.String()}, nil
 }
 
 // UpdateDatabaseDdl submits statements and waits for the schema change to
@@ -331,12 +344,18 @@ func (c *liveClient) UpdateDatabaseDdl(ctx context.Context, database string, sta
 }
 
 // CreateDatabase creates a database and waits for it to exist.
-func (c *liveClient) CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string) error {
-	op, err := c.admin.CreateDatabase(ctx, &databasepb.CreateDatabaseRequest{
+func (c *liveClient) CreateDatabase(ctx context.Context, instancePath, createStatement string, extra []string, dialect string) error {
+	request := &databasepb.CreateDatabaseRequest{
 		Parent:          instancePath,
 		CreateStatement: createStatement,
 		ExtraStatements: extra,
-	})
+	}
+	// An empty dialect leaves the API's own, GoogleSQL, so a GoogleSQL creation
+	// asks what the driver asked before PostgreSQL was supported.
+	if dialect == DialectPostgresSQL {
+		request.DatabaseDialect = databasepb.DatabaseDialect_POSTGRESQL
+	}
+	op, err := c.admin.CreateDatabase(ctx, request)
 	if err != nil {
 		return err
 	}

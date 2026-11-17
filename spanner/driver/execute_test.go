@@ -183,3 +183,66 @@ func TestExecuteCreateDatabaseRefusesOtherStatements(t *testing.T) {
 	_, err = d.Execute(context.Background(), ``, driver.ExecuteOptions{CreateDatabase: true})
 	a.EqualError(err, "expect sanitized SQLs to have at least one entry, original statement: ")
 }
+
+// TestExecutePostgres runs a PostgreSQL script's DML in one read-write
+// transaction and its DDL through the admin API, in PostgreSQL's SQL.
+func TestExecutePostgres(t *testing.T) {
+	a := require.New(t)
+	d := openPostgresFixture(t, "pgexecute")
+	defer d.Close()
+
+	log := &executeLogger{}
+	count, err := d.Execute(context.Background(),
+		`UPDATE Singers SET rating = 5.0 WHERE id = 1; UPDATE Singers SET rating = 4.0 WHERE id = 2`,
+		driver.ExecuteOptions{Log: log})
+	a.NoError(err)
+	a.Equal(int64(2), count)
+	a.Equal([]string{string(driver.Begin), string(driver.Commit)}, log.events)
+
+	count, err = d.Execute(context.Background(),
+		`CREATE TABLE written (id bigint NOT NULL, name text, PRIMARY KEY (id)); DROP TABLE written`,
+		driver.ExecuteOptions{})
+	a.NoError(err)
+	a.Equal(int64(0), count)
+}
+
+// TestExecutePostgresAutoCommit runs each PostgreSQL statement as a partitioned
+// update, whose row count is Spanner's lower bound.
+func TestExecutePostgresAutoCommit(t *testing.T) {
+	a := require.New(t)
+	d := openPostgresFixture(t, "pgexecute")
+	defer d.Close()
+
+	count, err := d.Execute(context.Background(),
+		`UPDATE Singers SET active = TRUE WHERE id = 1`,
+		driver.ExecuteOptions{Transaction: driver.AutoCommit})
+	a.NoError(err)
+	a.Equal(int64(1), count)
+}
+
+// TestExecuteCreateDatabasePostgres creates a database from a PostgreSQL
+// creation script: the double-quoted name is the dialect signal the admin API
+// requires, and the rest of the script is applied in that dialect too.
+func TestExecuteCreateDatabasePostgres(t *testing.T) {
+	a := require.New(t)
+	testcontainer.CreatePostgres(t, "pgcreatedb", "pgcreatedb", nil, nil)
+	d := openDriverWithDialect(t, "pgcreatedb", "pgcreatedb", postgresSQL)
+	defer d.Close()
+
+	count, err := d.Execute(context.Background(),
+		`CREATE DATABASE "pgcreated"; CREATE TABLE written (id bigint NOT NULL, PRIMARY KEY (id))`,
+		driver.ExecuteOptions{CreateDatabase: true})
+	a.NoError(err)
+	a.Equal(int64(0), count)
+
+	created := openDriverWithDialect(t, "pgcreatedb", "pgcreated", postgresSQL)
+	defer created.Close()
+	// The created database answers the PostgreSQL catalog, which is how the test
+	// reads the dialect the server created it with.
+	metadata, err := created.SyncDatabase(context.Background())
+	a.NoError(err)
+	a.Len(metadata.Schemas, 1)
+	a.Equal("public", metadata.Schemas[0].Name)
+	a.Len(metadata.Schemas[0].Tables, 1)
+	a.Equal("written", metadata.Schemas[0].Tables[0].Name)
+}

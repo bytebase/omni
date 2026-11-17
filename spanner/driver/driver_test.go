@@ -70,7 +70,34 @@ func TestClassifyStatement(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.text, func(t *testing.T) {
-			kind, ok := classifyStatement(tc.text)
+			kind, ok := classifyStatement(tc.text, googleSQL)
+			require.Equal(t, tc.ok, ok)
+			if ok {
+				require.Equal(t, tc.kind, kind)
+			}
+		})
+	}
+}
+
+// TestClassifyStatementPostgres holds the routing a PostgreSQL statement gets,
+// where the GoogleSQL lexer would misread the text: a dollar-quoted string and a
+// nested block comment are one token's worth of trivia, and `#` is an operator
+// rather than the start of a comment.
+func TestClassifyStatementPostgres(t *testing.T) {
+	tests := []struct {
+		text string
+		kind statementKind
+		ok   bool
+	}{
+		{text: "SELECT $$a;b$$", kind: query, ok: true},
+		{text: "/* a /* nested; */ note */ CREATE TABLE t (id bigint)", kind: ddl, ok: true},
+		{text: "-- a note; still a note\nUPDATE t SET a = 1", kind: dml, ok: true},
+		{text: "grant select on table t to r", kind: ddl, ok: true},
+		{text: "/* only a /* nested */ note */", ok: false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.text, func(t *testing.T) {
+			kind, ok := classifyStatement(tc.text, postgresSQL)
 			require.Equal(t, tc.ok, ok)
 			if ok {
 				require.Equal(t, tc.kind, kind)
@@ -92,8 +119,49 @@ func TestFirstTwoKeywords(t *testing.T) {
 		"-- only a note": {"", ""},
 	}
 	for text, want := range tests {
-		require.Equal(t, want, firstTwoKeywords(text), text)
+		require.Equal(t, want, firstTwoKeywords(text, googleSQL), text)
 	}
+}
+
+// TestFirstTwoKeywordsPostgres reads the keywords after a nested block comment,
+// where GoogleSQL's lexer would end the comment at the first `*/`.
+func TestFirstTwoKeywordsPostgres(t *testing.T) {
+	tests := map[string][2]string{
+		`CREATE DATABASE "d"`:                              {"CREATE", "DATABASE"},
+		"/* a /* nested */ note */\nCREATE DATABASE \"d\"": {"CREATE", "DATABASE"},
+		`-- only a note`:                                   {"", ""},
+	}
+	for text, want := range tests {
+		require.Equal(t, want, firstTwoKeywords(text, postgresSQL), text)
+	}
+}
+
+// TestCreateDatabaseDialect reads the dialect a creation script asks for: the
+// quoting of its name is the only signal it carries.
+func TestCreateDatabaseDialect(t *testing.T) {
+	tests := map[string]string{
+		`CREATE DATABASE "d"`:                        DialectPostgresSQL,
+		`create database "d"`:                        DialectPostgresSQL,
+		"-- a note\nCREATE DATABASE /* x */ \"d\"":   DialectPostgresSQL,
+		"CREATE DATABASE `d`":                        "",
+		`CREATE DATABASE d`:                          "",
+		`CREATE DATABASE "d" WITH VERSION READ_ONLY`: DialectPostgresSQL,
+		`CREATE TABLE t (id bigint)`:                 "",
+		`-- only a note`:                             "",
+	}
+	for text, want := range tests {
+		require.Equal(t, want, createDatabaseDialect(text), text)
+	}
+}
+
+// TestDialectOf reads the admin API's spelling.
+func TestDialectOf(t *testing.T) {
+	require.Equal(t, postgresSQL, dialectOf(DialectPostgresSQL))
+	require.Equal(t, postgresSQL, dialectOf("POSTGRESQL"))
+	require.Equal(t, googleSQL, dialectOf(DialectGoogleSQL))
+	// A database that stated no dialect is GoogleSQL, the API's default and the
+	// only dialect the driver synced before PostgreSQL was supported.
+	require.Equal(t, googleSQL, dialectOf(""))
 }
 
 func TestStatements(t *testing.T) {
@@ -102,7 +170,7 @@ func TestStatements(t *testing.T) {
 		-- a note
 		UPDATE t SET a = 1;
 		;
-		/* done */`)
+		/* done */`, googleSQL)
 	a.Len(stmts, 2)
 	a.Equal("SELECT 1", stmts[0].Text)
 	a.Equal(query, stmts[0].Kind)
@@ -111,6 +179,53 @@ func TestStatements(t *testing.T) {
 	// routing.
 	a.Equal("-- a note\n\t\tUPDATE t SET a = 1", stmts[1].Text)
 	a.Equal(dml, stmts[1].Kind)
+}
+
+// TestStatementsPostgres splits a PostgreSQL script with PostgreSQL's scanner: a
+// dollar-quoted string keeps the semicolon it holds, and a segment keeps the
+// semicolon it ends with, which the server takes.
+func TestStatementsPostgres(t *testing.T) {
+	a := require.New(t)
+	stmts := statements(`SELECT $$a;b$$ AS x;
+		-- a note; still a note
+		UPDATE t SET a = 1;
+		;
+		/* only /* a nested; */ note */`, postgresSQL)
+	a.Len(stmts, 2)
+	a.Equal("SELECT $$a;b$$ AS x;", stmts[0].Text)
+	a.Equal(query, stmts[0].Kind)
+	a.Equal("-- a note; still a note\n\t\tUPDATE t SET a = 1;", stmts[1].Text)
+	a.Equal(dml, stmts[1].Kind)
+}
+
+// TestRewriteResultLimit checks each dialect's LIMIT rewriter where they differ:
+// `#>` is PostgreSQL's operator and GoogleSQL's comment, so GoogleSQL's rewriter
+// inserts its LIMIT in the middle of a PostgreSQL statement and PostgreSQL's
+// leaves the statement whole.
+func TestRewriteResultLimit(t *testing.T) {
+	tests := []struct {
+		name      string
+		statement string
+		dialect   dialect
+		limit     int
+		want      string
+	}{
+		{name: "googleSQL adds a limit", statement: "SELECT * FROM t", dialect: googleSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},
+		{name: "googleSQL lowers a literal", statement: "SELECT * FROM t LIMIT 5000", dialect: googleSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},
+		{name: "googleSQL reads # as a comment", statement: "SELECT a #> '{b}' FROM t", dialect: googleSQL, limit: 100, want: "SELECT a LIMIT 100 #> '{b}' FROM t"},
+		{name: "postgresQL keeps the # operator", statement: "SELECT a #> '{b}' FROM t", dialect: postgresSQL, limit: 100, want: "SELECT a #> '{b}' FROM t LIMIT 100"},
+		{name: "postgresQL adds a limit", statement: "SELECT * FROM t", dialect: postgresSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},
+		{name: "postgresQL lowers a literal", statement: "SELECT * FROM t LIMIT 5000", dialect: postgresSQL, limit: 100, want: "SELECT * FROM t LIMIT 100"},
+		// PostgreSQL's rewriter refuses a LIMIT it cannot replace in place, and the
+		// statement stays as written.
+		{name: "postgresQL keeps LIMIT ALL", statement: "SELECT * FROM t LIMIT ALL", dialect: postgresSQL, limit: 100, want: "SELECT * FROM t LIMIT ALL"},
+		{name: "postgresQL keeps a cast", statement: "SELECT * FROM t LIMIT CAST(3 AS bigint)", dialect: postgresSQL, limit: 100, want: "SELECT * FROM t LIMIT CAST(3 AS bigint)"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, rewriteResultLimit(tc.statement, tc.limit, tc.dialect))
+		})
+	}
 }
 
 func TestGetDatabaseFromDSN(t *testing.T) {
