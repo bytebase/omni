@@ -643,7 +643,7 @@ func startContainer() (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := testcontainers.Run(ctx, pin.Image,
+	container, err := testcontainers.Run(ctx, pin.ImageRef(),
 		testcontainers.WithEnv(map[string]string{
 			// A recording needs one node's answers, not a cluster's, and the
 			// heap the machine can spare.
@@ -695,6 +695,10 @@ func connect(keyspace string) (*gocql.Session, error) {
 	return session, nil
 }
 
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, container testcontainers.Container, digest string) error {
 	info, err := container.Inspect(ctx)
 	if err != nil {

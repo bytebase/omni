@@ -33,6 +33,11 @@
 // carries no type name, because Elasticsearch's answer states none. A number in
 // an answer keeps its digits, so a long past 2^53 is not rounded.
 //
+// A statement's error is the driver's own text: a request the server refused
+// keeps its HTTP status and the answer's body, because Elasticsearch states a
+// failure as a JSON body rather than as an error the client raises. Only a
+// failure of the transport underneath is wrapped.
+//
 // Open builds the HTTP client and reaches nothing; Ping does. Every method is
 // safe for concurrent use.
 package driver

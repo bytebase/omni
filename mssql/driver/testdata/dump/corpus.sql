@@ -33,8 +33,17 @@ GO
 CREATE NONCLUSTERED INDEX [IX_children_status] ON [dump].[children] ([status] DESC, [id] ASC);
 GO
 
+CREATE UNIQUE INDEX [UX_children_note] ON [dump].[children] ([note]) WHERE [note] IS NOT NULL;
+GO
+
+CREATE INDEX [IX_children_status_note] ON [dump].[children] ([status]) INCLUDE ([note]);
+GO
+
 CREATE VIEW [dump].[v_parents] AS
 	SELECT [id], [name] FROM [dump].[parents];
+GO
+
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'view note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'VIEW', @level1name = N'v_parents';
 GO
 
 CREATE FUNCTION [dump].[fn_name] (@id INT) RETURNS NVARCHAR(100) AS
@@ -43,10 +52,16 @@ BEGIN
 END;
 GO
 
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'function note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'FUNCTION', @level1name = N'fn_name';
+GO
+
 CREATE PROCEDURE [dump].[sp_parents] AS
 BEGIN
 	SELECT [id], [name] FROM [dump].[parents];
 END;
+GO
+
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'procedure note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'PROCEDURE', @level1name = N'sp_parents';
 GO
 
 CREATE TRIGGER [dump].[trg_parents] ON [dump].[parents] AFTER INSERT AS
@@ -55,5 +70,11 @@ BEGIN
 END
 GO
 
-CREATE SEQUENCE [dump].[s] AS INT;
+CREATE SEQUENCE [dump].[s] AS INT START WITH 10 INCREMENT BY 5 MINVALUE 1 MAXVALUE 1000 CACHE 20;
+GO
+
+CREATE SEQUENCE [dump].[decimal_s] AS DECIMAL(38, 0) START WITH 1 INCREMENT BY 1;
+GO
+
+EXEC sys.sp_addextendedproperty @name = N'MS_Description', @value = N'sequence note', @level0type = N'SCHEMA', @level0name = N'dump', @level1type = N'SEQUENCE', @level1name = N's';
 GO

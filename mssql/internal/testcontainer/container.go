@@ -179,7 +179,7 @@ func (in *instance) start(ctx context.Context) (err error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	c, err := tcmssql.Run(ctx, in.pin.Image, tcmssql.WithAcceptEULA(), tcmssql.WithPassword(password))
+	c, err := tcmssql.Run(ctx, in.pin.ImageRef(), tcmssql.WithAcceptEULA(), tcmssql.WithPassword(password))
 	if c != nil {
 		in.container = c
 	}
@@ -220,8 +220,10 @@ func Terminate() {
 	}
 }
 
-// checkDigest fails unless c runs the image with the pinned repository
-// digest. A tag can be pushed again; a digest cannot.
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

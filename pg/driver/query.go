@@ -75,7 +75,8 @@ func (s *session) takeMessages() []driver.Message {
 
 // Query runs each non-empty statement of script in order on the session's
 // connection. Errors wrapping PostgreSQL server errors unwrap to
-// *pgconn.PgError.
+// *pgconn.PgError. A script the parser cannot read is the call's error and no
+// statement of it runs: every statement is parsed before the first is sent.
 func (s *session) Query(ctx context.Context, script string, opts driver.QueryOptions) ([]*driver.Result, error) {
 	segments := omnipg.Split(script)
 	var statements []string

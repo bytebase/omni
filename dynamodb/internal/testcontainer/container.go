@@ -213,7 +213,7 @@ func startContainer(pin enginetest.Pin, what string) (endpoint string, container
 	containerPort := nat.Port(Port + "/tcp")
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        pin.Image,
+			Image:        pin.ImageRef(),
 			ExposedPorts: []string{string(containerPort)},
 			Cmd:          []string{"-jar", "DynamoDBLocal.jar", "-inMemory", "-sharedDb"},
 			WaitingFor:   wait.ForListeningPort(containerPort).WithStartupTimeout(5 * time.Minute),
@@ -241,8 +241,10 @@ func startContainer(pin enginetest.Pin, what string) (endpoint string, container
 	return fmt.Sprintf("http://%s:%s", host, port.Port()), c, nil
 }
 
-// checkDigest holds the container to the pin. An image reference is a tag,
-// which a registry may move; the digest is what the answers were recorded from.
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

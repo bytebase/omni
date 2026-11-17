@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -15,6 +16,9 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/testing/protocmp"
 
+	gomssqldb "github.com/microsoft/go-mssqldb"
+
+	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 	"github.com/bytebase/omni/mssql/internal/testcontainer"
 )
@@ -84,6 +88,48 @@ func TestSyncDatabase(t *testing.T) {
 	want := readGolden(t, golden)
 	if diff := cmp.Diff(want, got, protocmp.Transform()); diff != "" {
 		t.Errorf("SyncDatabase differs from %s (-want +got):\n%s", golden, diff)
+	}
+
+	var sequences, indexes int
+	for _, schema := range got.Schemas {
+		if schema.Name != "app" {
+			continue
+		}
+		for _, sequence := range schema.Sequences {
+			switch sequence.Name {
+			case "seq_orders":
+				sequences++
+				if sequence.Start != "10" || sequence.Increment != "2" || sequence.MinValue != "1" ||
+					sequence.MaxValue != "10000" || !sequence.Cycle || sequence.CacheSize != "50" {
+					t.Errorf("seq_orders synced without its options: %+v", sequence)
+				}
+			case "seq_decimal":
+				sequences++
+				if sequence.DataType != "decimal(38,0)" {
+					t.Errorf("seq_decimal synced without its precision: %q", sequence.DataType)
+				}
+			}
+		}
+		for _, table := range schema.Tables {
+			if table.Name != "accounts" {
+				continue
+			}
+			for _, index := range table.Indexes {
+				if index.Name != "idx_accounts_status" {
+					continue
+				}
+				indexes++
+				if len(index.Expressions) != 1 || index.Expressions[0] != "status" {
+					t.Errorf("idx_accounts_status synced its INCLUDE column as a key: %v", index.Expressions)
+				}
+				if !strings.Contains(index.Definition, "INCLUDE:email") || !strings.Contains(index.Definition, "WHERE (") {
+					t.Errorf("idx_accounts_status synced without its INCLUDE or predicate: %q", index.Definition)
+				}
+			}
+		}
+	}
+	if sequences != 2 || indexes != 1 {
+		t.Fatalf("the corpus objects are missing from the sync: %d sequences, %d indexes", sequences, indexes)
 	}
 }
 
@@ -167,5 +213,22 @@ CREATE TABLE [owner's].items (id INT NOT NULL PRIMARY KEY, note NVARCHAR(20));
 	}
 	if !found {
 		t.Fatalf("the schema is missing from %+v", metadata.Schemas)
+	}
+}
+
+// TestSyncDatabaseMissing holds that a database SQL Server says the login may
+// not open is driver.ErrNotFound. A tape cannot hold a failed connection, so the
+// mapping is held on its own rather than through a sync the server refuses.
+func TestSyncDatabaseMissing(t *testing.T) {
+	for _, number := range []int32{4060, 911} {
+		err := wrapSyncError("omni_no_such_database", gomssqldb.Error{Number: number, Message: "Cannot open database"})
+		if !errors.Is(err, driver.ErrNotFound) {
+			t.Errorf("wrapSyncError(%d) = %v, want driver.ErrNotFound", number, err)
+		}
+	}
+	// A failure of another kind keeps its own error.
+	other := gomssqldb.Error{Number: 229, Message: "The SELECT permission was denied"}
+	if err := wrapSyncError("omni_no_such_database", other); errors.Is(err, driver.ErrNotFound) {
+		t.Errorf("wrapSyncError(229) = %v, want the engine's own error", err)
 	}
 }

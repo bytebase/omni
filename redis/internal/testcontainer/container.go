@@ -893,7 +893,7 @@ func start(ctx context.Context) (testcontainers.Container, string, string, error
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := testcontainers.Run(ctx, pin.Image,
+	container, err := testcontainers.Run(ctx, pin.ImageRef(),
 		testcontainers.WithCmd("redis-server",
 			"--cluster-enabled", "yes",
 			"--cluster-config-file", "/tmp/nodes.conf",
@@ -1009,6 +1009,10 @@ func checkVersion(ctx context.Context, address, version string) error {
 	return nil
 }
 
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, container testcontainers.Container, digest string) error {
 	info, err := container.Inspect(ctx)
 	if err != nil {
