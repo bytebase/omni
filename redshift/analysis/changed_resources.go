@@ -43,18 +43,12 @@ func ExtractChangedResources(statement, database, schema string) (*StatementChan
 	if schema == "" {
 		schema = "public"
 	}
-	rawSummary, err := redshift.ExtractChangedResources(statement, database, schema)
-	if err != nil {
-		return nil, err
-	}
 	stmts, err := redshift.Parse(statement)
 	if err != nil {
 		return nil, err
 	}
-	ddlAffected, err := ddlAffectedTables(stmts, database, schema)
-	if err != nil {
-		return nil, err
-	}
+	rawSummary := redshift.ExtractChangedResourcesFromStatements(stmts, database, schema)
+	ddlAffected := ddlAffectedTables(stmts, database, schema)
 
 	changes := &StatementChanges{}
 	for _, table := range rawSummary.Tables {
@@ -139,29 +133,25 @@ type tableKey struct {
 }
 
 // ddlAffectedTables returns the tables whose existing rows the script's DDL affects.
-// redshift.ExtractChangedResources also flags DML targets and merges flags across statements,
-// so the script it reads here leaves out the DML.
-func ddlAffectedTables(stmts []redshift.Statement, database, schema string) (map[tableKey]bool, error) {
-	var texts []string
+// redshift's walk also flags DML targets and merges flags across statements, so it
+// reads the script's DDL statements only.
+func ddlAffectedTables(stmts []redshift.Statement, database, schema string) map[tableKey]bool {
+	var ddlStatements []redshift.Statement
 	for _, stmt := range stmts {
 		switch stmt.AST.(type) {
 		case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt, *ast.MergeStmt:
 		default:
-			texts = append(texts, stmt.Text)
+			ddlStatements = append(ddlStatements, stmt)
 		}
 	}
-	// A statement's text lacks its semicolon when a comment precedes the semicolon.
-	summary, err := redshift.ExtractChangedResources(strings.Join(texts, ";\n"), database, schema)
-	if err != nil {
-		return nil, err
-	}
+	summary := redshift.ExtractChangedResourcesFromStatements(ddlStatements, database, schema)
 	affected := make(map[tableKey]bool)
 	for _, table := range summary.Tables {
 		if table.Affected {
 			affected[tableKey{database: table.Database, schema: table.Schema, name: table.Name}] = true
 		}
 	}
-	return affected, nil
+	return affected
 }
 
 // insertValuesRowCount returns how many rows INSERT ... VALUES or INSERT ... DEFAULT
