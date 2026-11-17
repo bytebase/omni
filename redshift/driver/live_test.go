@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 
@@ -128,6 +129,82 @@ func TestLiveSyncDatabase(t *testing.T) {
 	}
 }
 
+// TestLiveSyncDatabaseDatashare reads a database an inbound datashare created.
+// The branch reads SVV_ALL_SCHEMAS, SVV_ALL_TABLES and SVV_ALL_COLUMNS, because a
+// datashare publishes no pg_catalog entries.
+//
+// The test finds the share in the cluster's own database list rather than naming
+// one in the environment: a cluster with none skips, naming what a recording
+// must provision, instead of sending SVV_ALL_* against an ordinary database.
+func TestLiveSyncDatabaseDatashare(t *testing.T) {
+	ctx := context.Background()
+	d := openLive(t)
+
+	instance, err := d.SyncInstance(ctx)
+	if err != nil {
+		t.Fatalf("SyncInstance: %v", err)
+	}
+	var shared string
+	for _, database := range instance.Databases {
+		if database.Datashare {
+			shared = database.Name
+			break
+		}
+	}
+	if shared == "" {
+		t.Skipf("no inbound datashare on %s: this test needs a second account or namespace that shares a database into the cluster, so SVV_DATASHARES names a consumer database (VERIFY.md step 2)", d.databaseName)
+	}
+
+	// The share is reached with the same login, marked as a share.
+	cfg := liveConfig(t)
+	cfg.Database = shared
+	if cfg.Params == nil {
+		cfg.Params = map[string]string{}
+	}
+	cfg.Params[ParamDatashare] = "true"
+	share, err := Open(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Open %q: %v", shared, err)
+	}
+	t.Cleanup(func() { _ = share.Close() })
+	if err := share.Ping(ctx); err != nil {
+		t.Fatalf("Ping %q: %v", shared, err)
+	}
+
+	database, err := share.SyncDatabase(ctx)
+	if err != nil {
+		t.Fatalf("SyncDatabase %q: %v", shared, err)
+	}
+	if database.Name != shared {
+		t.Errorf("Name = %q, want %q", database.Name, shared)
+	}
+	if len(database.Schemas) == 0 {
+		t.Fatal("Schemas is empty, want the ones SVV_ALL_SCHEMAS reports")
+	}
+	var tables int
+	for _, schema := range database.Schemas {
+		for _, table := range schema.Tables {
+			tables++
+			if len(table.Columns) == 0 {
+				t.Errorf("table %s.%s has no columns, want the ones SVV_ALL_COLUMNS reports", schema.Name, table.Name)
+			}
+			for _, column := range table.Columns {
+				if column.Type == "" {
+					t.Errorf("column %s.%s.%s has no type", schema.Name, table.Name, column.Name)
+				}
+			}
+		}
+	}
+	if tables == 0 {
+		t.Error("no tables in the shared database, want the ones the producer published")
+	}
+
+	// A share is read-only, so the write path refuses before it sends anything.
+	if _, err := share.Execute(ctx, "CREATE TABLE omni_datashare_probe (a int)", driver.ExecuteOptions{}); err == nil {
+		t.Error("Execute accepted a script against a datashare database")
+	}
+}
+
 // TestLiveQuery runs statements through a session: a query that returns rows, a
 // command that reports affected rows, the limit rewrite, and the plan.
 func TestLiveQuery(t *testing.T) {
@@ -222,6 +299,65 @@ func TestLiveExecute(t *testing.T) {
 	}
 	if len(results) != 1 || len(results[0].Rows) != 1 || results[0].Rows[0][0].Int64 != 2 {
 		t.Errorf("count = %+v, want 2 after the rollback", results)
+	}
+}
+
+// TestLiveExecuteCreateDatabase runs CREATE DATABASE through the creation step,
+// twice. The second run must find the database the first created and create
+// nothing, so a task that retries is not refused by the server.
+func TestLiveExecuteCreateDatabase(t *testing.T) {
+	ctx := context.Background()
+	d := openLive(t)
+
+	created := "omni_create_" + strconv.FormatInt(time.Now().UnixNano(), 36)
+	t.Cleanup(func() {
+		databases, err := d.getDatabases(context.Background())
+		if err != nil {
+			t.Errorf("getDatabases: %v", err)
+			return
+		}
+		for _, database := range databases {
+			if database.Name != created {
+				continue
+			}
+			// Redshift refuses DROP DATABASE inside a transaction block.
+			if _, err := d.Execute(context.Background(), "DROP DATABASE "+created, driver.ExecuteOptions{Transaction: driver.AutoCommit}); err != nil {
+				t.Errorf("DROP DATABASE %s: %v", created, err)
+			}
+			return
+		}
+	})
+
+	// listed counts how many times the server names the database, which is what
+	// separates the second run's no-op from a second creation.
+	listed := func() int {
+		t.Helper()
+		databases, err := d.getDatabases(ctx)
+		if err != nil {
+			t.Fatalf("getDatabases: %v", err)
+		}
+		var found int
+		for _, database := range databases {
+			if database.Name == created {
+				found++
+			}
+		}
+		return found
+	}
+
+	if _, err := d.Execute(ctx, "CREATE DATABASE "+created, driver.ExecuteOptions{CreateDatabase: true}); err != nil {
+		t.Fatalf("Execute CREATE DATABASE: %v", err)
+	}
+	if found := listed(); found != 1 {
+		t.Fatalf("the server lists %q %d times after the first run, want the one database the step created", created, found)
+	}
+	if affected, err := d.Execute(ctx, "CREATE DATABASE "+created, driver.ExecuteOptions{CreateDatabase: true}); err != nil {
+		t.Fatalf("Execute CREATE DATABASE a second time: %v (the step must not create a database the server already lists)", err)
+	} else if affected != 0 {
+		t.Errorf("affected rows = %d, want the creation step's 0", affected)
+	}
+	if found := listed(); found != 1 {
+		t.Errorf("the server lists %q %d times after the second run, want once", created, found)
 	}
 }
 

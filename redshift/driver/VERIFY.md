@@ -52,7 +52,8 @@ Redshift's own version is the tail of that string, `Redshift 1.0.xxxxx`;
 and the region into the pin row's image column in Step 3.
 
 The login needs to read `pg_catalog`, `INFORMATION_SCHEMA` and the `SVV_*` views
-and to create, write and drop in a schema of its own. If the sync's
+and to create, write and drop in a schema of its own, and to create and drop a
+database of its own for the creation step. If the sync's
 `obj_description` and `pg_get_constraintdef` calls come back NULL, the account
 lacks ownership of the objects and the sync is right to complain (`pg_views`
 with a NULL definition fails on purpose).
@@ -95,7 +96,9 @@ The datashare branch (`Params["datashare"]`) is the one path this corpus cannot
 reach: it needs a second account or namespace that shares a database in, which
 `SVV_DATASHARES` then reports. Record it last, on its own, and skip it if
 provisioning one is unattractive — say so in the PR that records, rather than
-leaving a tape that pretends.
+leaving a tape that pretends. `TestLiveSyncDatabaseDatashare` reads the share
+out of the cluster instead of being told its name: it skips, naming this
+provisioning step, when `SVV_DATASHARES` reports no consumer database.
 
 ## Step 3 — the pin row
 
@@ -154,11 +157,10 @@ the reads, then the writes, then the estimate.
 
 The table names each test by what it records, which is the name it takes once it
 replays a tape. `live_test.go` holds `TestLiveSyncDatabase`,
-`TestLiveSyncInstance`, `TestLiveQuery`, `TestLiveExecute` and
-`TestLiveCountAffectedRows` today, so the commands below name those, and step 4's
-conversion renames them. Two rows have no test at all and must be written:
-`TestExecuteCreateDatabase` (one `ExecuteOptions{CreateDatabase: true}` run and
-its second no-op) and `TestSyncDatabaseDatashare`.
+`TestLiveSyncInstance`, `TestLiveQuery`, `TestLiveExecute`,
+`TestLiveExecuteCreateDatabase`, `TestLiveCountAffectedRows` and
+`TestLiveSyncDatabaseDatashare` today, so the commands below name those, and
+step 4's conversion renames them. Every row has a test.
 
 Recording commands, one test at a time so a failure is attributable. They name
 the tests that exist today: a `-run` pattern that matches nothing exits 0 and
@@ -169,7 +171,9 @@ OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^Tes
 OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncInstance$' -count=1 -v
 OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveQuery$' -count=1 -v
 OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveExecute$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveExecuteCreateDatabase$' -count=1 -v
 OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveCountAffectedRows$' -count=1 -v
+OMNI_RECORD=1 REDSHIFT_DSN="$REDSHIFT_DSN" go test ./redshift/driver/ -run '^TestLiveSyncDatabaseDatashare$' -count=1 -v
 ```
 
 Then record everything twice and require byte-identical tapes. Two runs of one
