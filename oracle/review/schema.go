@@ -116,6 +116,17 @@ func (x schemaIndex) lacksRelation(k tableKey) bool {
 	return true
 }
 
+// indexConstraints returns the constraints the index enforces: the ones the
+// sync listed, or the index itself when the engine records none, as PostgreSQL
+// does, and as Oracle's is when it made the index for the constraint.
+func indexConstraints(idx *metadata.IndexMetadata) []*metadata.IndexConstraintMetadata {
+	constraints := idx.GetConstraints()
+	if len(constraints) == 0 {
+		return []*metadata.IndexConstraintMetadata{{Name: idx.GetName(), Primary: idx.GetPrimary()}}
+	}
+	return constraints
+}
+
 // constraintKind returns the kind of the synced table's constraint of the
 // name: the primary key or a unique constraint, by its index, a foreign
 // key, or a check, which in Oracle a named NOT NULL constraint is too; ok
@@ -123,13 +134,16 @@ func (x schemaIndex) lacksRelation(k tableKey) bool {
 // backs no constraint is none: DROP CONSTRAINT refuses it.
 func constraintKind(t *metadata.TableMetadata, name string) (ast.ConstraintType, bool) {
 	for _, idx := range t.GetIndexes() {
-		if idx.GetName() != name {
+		if !idx.GetIsConstraint() {
 			continue
 		}
-		switch {
-		case idx.GetPrimary():
-			return ast.CONSTRAINT_PRIMARY, true
-		case idx.GetUnique() && idx.GetIsConstraint():
+		for _, constraint := range indexConstraints(idx) {
+			if constraint.GetName() != name {
+				continue
+			}
+			if constraint.GetPrimary() {
+				return ast.CONSTRAINT_PRIMARY, true
+			}
 			return ast.CONSTRAINT_UNIQUE, true
 		}
 	}
@@ -162,7 +176,9 @@ func (x schemaIndex) constraintNames() map[string]syncedConstraint {
 		k := tableKey{schema: db, name: t.GetName()}
 		names := make([]string, 0, len(t.GetIndexes())+len(t.GetForeignKeys())+len(t.GetCheckConstraints()))
 		for _, idx := range t.GetIndexes() {
-			names = append(names, idx.GetName())
+			for _, constraint := range indexConstraints(idx) {
+				names = append(names, constraint.GetName())
+			}
 		}
 		for _, fk := range t.GetForeignKeys() {
 			names = append(names, fk.GetName())
