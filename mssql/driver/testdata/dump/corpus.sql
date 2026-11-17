@@ -39,6 +39,27 @@ GO
 CREATE INDEX [IX_children_status_note] ON [dump].[children] ([status]) INCLUDE ([note]);
 GO
 
+-- A partitioned rowstore index reports the partitioning column it does not
+-- key at key_ordinal 0 with is_included_column 0. The dump carries no
+-- partition scheme to restore it with, so the index must be dumped with its
+-- own key alone: taking the implicit column as the leading key would make the
+-- source and the restored index disagree.
+CREATE PARTITION FUNCTION [dump_pf] (INT) AS RANGE RIGHT FOR VALUES (100, 200);
+GO
+
+CREATE PARTITION SCHEME [dump_ps] AS PARTITION [dump_pf] TO ([PRIMARY], [PRIMARY], [PRIMARY]);
+GO
+
+CREATE TABLE [dump].[events] (
+	[id] INT NOT NULL,
+	[tenant] INT NOT NULL,
+	[payload] NVARCHAR(50) NULL
+) ON [dump_ps] ([tenant]);
+GO
+
+CREATE CLUSTERED INDEX [IX_events_id] ON [dump].[events] ([id] ASC) ON [dump_ps] ([tenant]);
+GO
+
 CREATE VIEW [dump].[v_parents] AS
 	SELECT [id], [name] FROM [dump].[parents];
 GO
