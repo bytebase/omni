@@ -225,7 +225,7 @@ reads, then the writes, then the dump.
 | 1 | `TestSyncDatabase` | `SHOW SHARES`, `INFORMATION_SCHEMA.DATABASES`, `SCHEMATA`, `COLUMNS`, `TABLES`, `VIEWS`, `SHOW STREAMS`, `SHOW TASKS` and the two `GET_DDL` reads |
 | 2 | `TestSyncInstance` | `CURRENT_VERSION()`, `ACCOUNT_USAGE.USERS`, `GRANTS_TO_USERS`, the database list, and the excluded system schemas |
 | 3 | `TestQuery` | statement classification (SELECT/SHOW/DESCRIBE/EXPLAIN vs commands), every value kind, the LIMIT rewrite and its wrapper, the EXPLAIN rows and `Plan`, `MaxResultBytes` truncation, `QueryOptions.Schema`'s `USE SCHEMA`, error halting |
-| 4 | `TestExecute` | one transaction with its BEGIN/COMMIT, the rollback of a failing script, autocommit leaving earlier statements committed |
+| 4 | `TestExecute` | one transaction with its BEGIN/COMMIT, the rollback of a failing script, autocommit leaving earlier statements committed; the fixture is a table the database keeps, because a temporary table lives in the session Execute ends |
 | 5 | `TestDump` | `GET_DDL('DATABASE', ...)` and the four transforms |
 | 6 | `TestSyncDatabaseShare` | the inbound-share branch, on a database shared in from a second account |
 

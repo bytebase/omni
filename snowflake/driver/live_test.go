@@ -306,9 +306,19 @@ func TestLiveExecute(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
-	if _, err := d.Execute(ctx, "CREATE TEMPORARY TABLE omni_execute_probe (A INT)", driver.ExecuteOptions{}); err != nil {
+	// A table the database keeps, not a temporary one: a temporary table lives
+	// in the session that made it, and Execute's connection ends with the call.
+	if _, err := d.Execute(ctx, "CREATE TABLE omni_execute_probe (A INT)", driver.ExecuteOptions{}); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
+	t.Cleanup(func() {
+		cleanup, err := d.Session(context.Background())
+		if err != nil {
+			return
+		}
+		defer func() { _ = cleanup.Close() }()
+		_, _ = cleanup.Query(context.Background(), "DROP TABLE IF EXISTS omni_execute_probe", driver.QueryOptions{})
+	})
 	affected, err := d.Execute(ctx, "INSERT INTO omni_execute_probe VALUES (1), (2)", driver.ExecuteOptions{})
 	if err != nil {
 		t.Fatalf("Execute insert: %v", err)
