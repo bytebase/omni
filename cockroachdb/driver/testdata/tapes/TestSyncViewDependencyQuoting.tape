@@ -7,6 +7,7 @@
 | CREATE TABLE "app's".t (id INT8 PRIMARY KEY);
 | CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;
 | CREATE VIEW "app's".pg_indexes AS SELECT id FROM "app's".t;
+| CREATE TABLE "app's".pg_class (id INT8 PRIMARY KEY);
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate FROM pg_database ORDER BY datname;
@@ -123,6 +124,26 @@
 : string
 | app's
 : string
+| pg_class
+: string
+| id
+: string
+| bigint
+: null
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app's
+: string
 | pg_indexes
 : string
 | id
@@ -181,6 +202,18 @@
 < column "indexdef" "TEXT"
 < column "constraint_type" "TEXT"
 < column "comment" "TEXT"
+< row
+: string
+| app's
+: string
+| pg_class
+: string
+| pg_class_pkey
+: string
+| CREATE UNIQUE INDEX pg_class_pkey ON omni_testsyncviewdependencyquoting."app's".pg_class USING btree (id ASC)
+: string
+| PRIMARY KEY
+: null
 < row
 : string
 | app's
@@ -254,6 +287,13 @@
 < column "tablename" "NAME"
 < column "estimate" "INT8"
 < column "comment" "TEXT"
+< row
+: string
+| app's
+: string
+| pg_class
+: int64 0
+: null
 < row
 : string
 | app's

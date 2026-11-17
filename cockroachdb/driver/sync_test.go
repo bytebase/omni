@@ -183,7 +183,8 @@ func TestSyncViewDependencyQuoting(t *testing.T) {
 CREATE SCHEMA "app's";
 CREATE TABLE "app's".t (id INT8 PRIMARY KEY);
 CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;
-CREATE VIEW "app's".pg_indexes AS SELECT id FROM "app's".t;`)
+CREATE VIEW "app's".pg_indexes AS SELECT id FROM "app's".t;
+CREATE TABLE "app's".pg_class (id INT8 PRIMARY KEY);`)
 
 	got, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -201,7 +202,12 @@ CREATE VIEW "app's".pg_indexes AS SELECT id FROM "app's".t;`)
 				t.Errorf("%s dependency columns = %+v, want one", view.Name, view.DependencyColumns)
 			}
 		}
-		return
+		for _, table := range schema.Tables {
+			if table.Name == "pg_class" {
+				return
+			}
+		}
+		t.Fatal("table pg_class is missing")
 	}
 	t.Fatal("schema app's is missing")
 }

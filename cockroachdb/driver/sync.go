@@ -10,7 +10,6 @@ import (
 
 	"github.com/blang/semver/v4"
 	metadatapb "github.com/bytebase/omni/metadata"
-	pganalysis "github.com/bytebase/omni/pg/analysis"
 
 	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 
@@ -492,9 +491,6 @@ func getTables(txn *sql.Tx, isAtLeastPG10 bool, columnMap map[tableKey][]*metada
 		var comment sql.NullString
 		if err := rows.Scan(&schemaName, &table.Name, &table.RowCount, &comment); err != nil {
 			return nil, nil, err
-		}
-		if pganalysis.IsSystemTable(table.Name) {
-			continue
 		}
 		if comment.Valid {
 			table.Comment = comment.String
