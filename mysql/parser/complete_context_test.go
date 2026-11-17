@@ -67,6 +67,8 @@ func objectKindName(k ObjectKind) string {
 		return "variable"
 	case ObjectKindSelectAlias:
 		return "selectalias"
+	case ObjectKindConstraint:
+		return "constraint"
 	default:
 		return "unknown"
 	}
@@ -131,6 +133,41 @@ func TestCollectCompletionSignals(t *testing.T) {
 			name: "database table column",
 			sql:  "SELECT db.t.| FROM db.t",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindColumn}, qualifier: []string{"db", "t"}, local: []ref{{database: "db", table: "t"}}},
+		},
+		{
+			name: "later cte is not in scope inside an earlier body",
+			sql:  "WITH c AS (SELECT * FROM real_table WHERE |), real_table(y) AS (SELECT 1) SELECT * FROM c",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "real_table"}}, ctes: map[string][]string{"c": nil, "real_table": {"y"}}},
+		},
+		{
+			name: "recursive cte names itself",
+			sql:  "WITH RECURSIVE r AS (SELECT 1 AS n UNION ALL SELECT n FROM r WHERE |) SELECT * FROM r",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceCTE, table: "r"}}, ctes: map[string][]string{"r": {"n"}}},
+		},
+		{
+			name: "explain update",
+			sql:  "EXPLAIN UPDATE t SET x = |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "explain options before delete",
+			sql:  "EXPLAIN ANALYZE FORMAT = JSON DELETE FROM t WHERE |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "join condition sees only its operands",
+			sql:  "SELECT * FROM t1 JOIN t2 ON | JOIN t3 ON t2.a = t3.a",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "t1"}, {table: "t2"}}},
+		},
+		{
+			name: "select list sees every joined source",
+			sql:  "SELECT | FROM t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t2.a = t3.a",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t1"}, {table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "custom delimiter separates statements",
+			sql:  "DELIMITER $$\nSELECT * FROM old_table $$\nUPDATE current_table SET x = | $$",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "current_table"}}, dml: "->current_table"},
 		},
 		{
 			name: "joined aliases",
@@ -379,6 +416,16 @@ func TestCollectCompletionSignals(t *testing.T) {
 			name: "ddl type name",
 			sql:  "CREATE TABLE t (a |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindType}},
+		},
+		{
+			name: "constraint name position",
+			sql:  "ALTER TABLE t DROP FOREIGN KEY |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindConstraint}, local: []ref{{table: "t", alias: "t"}}},
+		},
+		{
+			name: "dropped constraint name position",
+			sql:  "ALTER TABLE t DROP CONSTRAINT |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindConstraint}, local: []ref{{table: "t", alias: "t"}}},
 		},
 		{
 			name: "index name position",

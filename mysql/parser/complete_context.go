@@ -79,6 +79,9 @@ const (
 	// ObjectKindSelectAlias is a select list alias the enclosing ORDER BY,
 	// GROUP BY, or HAVING can name.
 	ObjectKindSelectAlias
+	// ObjectKindConstraint is a constraint name, as DROP FOREIGN KEY and
+	// DROP CONSTRAINT take.
+	ObjectKindConstraint
 )
 
 // MultipartName is the dot-separated name typed before the cursor.
@@ -174,16 +177,94 @@ func CollectCompletion(sql string, cursorOffset int) *CompletionContext {
 		cursorOffset = len(sql)
 	}
 	prefix, collectOffset := completionPrefix(sql, cursorOffset)
+	// The reader works on the Split segment holding the cursor: a script with
+	// its own DELIMITER separates its statements the way the parser does, and
+	// the candidate collection already reads the same segment.
+	text, base, local := completionSegment(sql, cursorOffset)
 	ctx := &CompletionContext{
 		Candidates:   Collect(sql, collectOffset),
 		Prefix:       prefix,
-		Scope:        collectCompletionScope(sql, cursorOffset),
-		StatementLoc: completionStatementLoc(sql, cursorOffset),
+		Scope:        shiftScope(collectCompletionScope(text, local), base),
+		StatementLoc: shiftLoc(completionStatementLoc(text, local), base),
 	}
-	ctx.CTEs = collectCompletionCTEs(sql, cursorOffset)
-	ctx.SelectAliases = collectSelectAliases(sql, cursorOffset)
-	ctx.Intent = collectCompletionIntent(sql, ctx.Candidates, collectOffset)
+	ctx.CTEs = shiftReferences(collectCompletionCTEs(text, local), base)
+	ctx.SelectAliases = shiftSelectAliases(collectSelectAliases(text, local), base)
+	ctx.Intent = collectCompletionIntent(text, ctx.Candidates, collectOffset-base)
 	return ctx
+}
+
+// completionSegment returns the text of the statement holding the cursor, the
+// byte offset that text starts at in sql, and the cursor's offset within the
+// text.
+func completionSegment(sql string, cursorOffset int) (string, int, int) {
+	segments := Split(sql)
+	for _, seg := range segments {
+		if seg.Empty() {
+			continue
+		}
+		if cursorOffset >= seg.ByteStart && cursorOffset <= seg.ByteEnd {
+			return seg.Text, seg.ByteStart, cursorOffset - seg.ByteStart
+		}
+	}
+	if len(segments) > 0 {
+		// Past the last segment: the text after it is what is being typed.
+		if last := segments[len(segments)-1]; cursorOffset >= last.ByteEnd {
+			return sql[last.ByteEnd:], last.ByteEnd, cursorOffset - last.ByteEnd
+		}
+	}
+	return sql, 0, cursorOffset
+}
+
+func shiftLoc(loc nodes.Loc, base int) nodes.Loc {
+	if base == 0 || loc.Start < 0 {
+		return loc
+	}
+	return nodes.Loc{Start: loc.Start + base, End: loc.End + base}
+}
+
+func shiftReferences(refs []RangeReference, base int) []RangeReference {
+	if base == 0 || len(refs) == 0 {
+		return refs
+	}
+	out := make([]RangeReference, len(refs))
+	copy(out, refs)
+	for i := range out {
+		out[i].Loc = shiftLoc(out[i].Loc, base)
+		out[i].BodyLoc = shiftLoc(out[i].BodyLoc, base)
+	}
+	return out
+}
+
+func shiftScope(scope *ScopeSnapshot, base int) *ScopeSnapshot {
+	if base == 0 || scope == nil {
+		return scope
+	}
+	out := &ScopeSnapshot{
+		References:      shiftReferences(scope.References, base),
+		LocalReferences: shiftReferences(scope.LocalReferences, base),
+	}
+	for _, level := range scope.OuterReferences {
+		out.OuterReferences = append(out.OuterReferences, shiftReferences(level, base))
+	}
+	if scope.DMLTarget != nil {
+		target := *scope.DMLTarget
+		target.Loc = shiftLoc(target.Loc, base)
+		target.BodyLoc = shiftLoc(target.BodyLoc, base)
+		out.DMLTarget = &target
+	}
+	return out
+}
+
+func shiftSelectAliases(aliases []SelectAlias, base int) []SelectAlias {
+	if base == 0 || len(aliases) == 0 {
+		return aliases
+	}
+	out := make([]SelectAlias, len(aliases))
+	copy(out, aliases)
+	for i := range out {
+		out[i].Loc = shiftLoc(out[i].Loc, base)
+	}
+	return out
 }
 
 type completionScopeToken struct {
@@ -212,7 +293,7 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	mainTokens := sliceScopeTokens(stmtTokens, mainStart, len(stmtTokens))
 	target, dmlRefs := collectDMLScope(mainTokens, cteMap)
 	var enclosing []RangeReference
-	if first := firstNonTerminator(mainTokens); first >= 0 {
+	if first := statementVerb(mainTokens); first >= 0 {
 		switch mainTokens[first].Type {
 		case kwUPDATE, kwDELETE:
 			// A subquery in an UPDATE or DELETE can name the statement's
@@ -347,13 +428,24 @@ func collectCompletionCTEs(sql string, cursorOffset int) []RangeReference {
 	if start >= end {
 		return nil
 	}
-	return collectVisibleCTEs(sliceScopeTokens(tokens, start, end), cursorOffset)
+	// Every definition the cursor statement carries, whether or not it binds
+	// a name at the cursor: a caller shows them as the statement's CTEs.
+	return collectWithDefinitions(sliceScopeTokens(tokens, start, end), cursorOffset, false)
 }
 
 // collectVisibleCTEs reads every WITH clause whose query block holds the
 // cursor, outer blocks first, and replaces a definition an inner clause
 // shadows.
 func collectVisibleCTEs(tokens []completionScopeToken, cursorOffset int) []RangeReference {
+	return collectWithDefinitions(tokens, cursorOffset, true)
+}
+
+// collectWithDefinitions reads the definitions of every WITH clause whose query
+// block holds the cursor, outer blocks first, an inner clause shadowing an outer
+// one. onlyVisible also drops a definition that does not bind a name at the
+// cursor yet, which is what resolving a table source needs: a later CTE of the
+// same clause is not in scope inside an earlier definition.
+func collectWithDefinitions(tokens []completionScopeToken, cursorOffset int, onlyVisible bool) []RangeReference {
 	var ctes []RangeReference
 	index := make(map[string]int)
 	for i, tok := range tokens {
@@ -363,8 +455,12 @@ func collectVisibleCTEs(tokens []completionScopeToken, cursorOffset int) []Range
 		if end := completionBlockEnd(tokens, i, tok.depth); end < len(tokens) && tokens[end].Loc < cursorOffset {
 			continue
 		}
+		recursive := withIsRecursive(tokens, i)
 		defs, _ := collectCTEsAt(tokens, i, 0)
 		for _, def := range defs {
+			if onlyVisible && !cteDefinitionVisible(def, cursorOffset, recursive) {
+				continue
+			}
 			name := foldName(def.Table)
 			if at, ok := index[name]; ok {
 				ctes[at] = def
@@ -375,6 +471,21 @@ func collectVisibleCTEs(tokens []completionScopeToken, cursorOffset int) []Range
 		}
 	}
 	return ctes
+}
+
+// withIsRecursive reports whether the WITH clause at withIdx is RECURSIVE.
+func withIsRecursive(tokens []completionScopeToken, withIdx int) bool {
+	return withIdx+1 < len(tokens) && tokens[withIdx+1].depth == tokens[withIdx].depth && tokens[withIdx+1].Type == kwRECURSIVE
+}
+
+// cteDefinitionVisible reports whether a CTE definition binds names at offset
+// at: a definition is visible once it is complete, and a RECURSIVE clause may
+// name the definition being read.
+func cteDefinitionVisible(def RangeReference, at int, recursive bool) bool {
+	if def.BodyLoc.End >= 0 && def.BodyLoc.End <= at {
+		return true
+	}
+	return recursive && def.BodyLoc.Start >= 0 && def.BodyLoc.Start <= at && at <= def.BodyLoc.End
 }
 
 // completionBlockEnd returns where the query block starting at idx ends: the
@@ -474,7 +585,7 @@ func rangeReferenceMap(refs []RangeReference) map[string]RangeReference {
 // statement writes and every reference the statement brings into scope. The
 // target is also the first of those references.
 func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReference) (*RangeReference, []RangeReference) {
-	first := firstNonTerminator(tokens)
+	first := statementVerb(tokens)
 	if first < 0 {
 		return nil, nil
 	}
@@ -532,7 +643,7 @@ func collectDMLScope(tokens []completionScopeToken, ctes map[string]RangeReferen
 // collectDDLScope returns the table an ALTER TABLE, TRUNCATE, or CREATE INDEX
 // statement names. Its clauses take that table's columns.
 func collectDDLScope(tokens []completionScopeToken, cursorOffset int) []RangeReference {
-	first := firstNonTerminator(tokens)
+	first := statementVerb(tokens)
 	if first < 0 {
 		return nil
 	}
@@ -891,10 +1002,51 @@ func selectFramesForCursor(tokens []completionScopeToken, cursorOffset int) []co
 		} else if fromIdx := findKeywordAtDepth(tokens, kwFROM, i+1, armEnd, depth); fromIdx >= 0 {
 			frameCTEs := rangeReferenceMap(collectVisibleCTEs(tokens, tok.Loc))
 			local = parseFromReferences(tokens, fromIdx+1, armEnd, depth, frameCTEs)
+			if onIdx := onPredicateToken(tokens, cursorOffset, depth); onIdx >= 0 {
+				// A join condition names only the operands before it: the
+				// sources after it are not in scope there.
+				local = referencesBefore(local, tokens[onIdx].Loc)
+			}
 		}
 		frames = append(frames, completionSelectFrame{selectIdx: i, depth: depth, localRefs: local})
 	}
 	return frames
+}
+
+// onPredicateToken returns the index of the ON or USING token whose condition
+// holds the cursor, or -1 when the cursor is anywhere else in the query block.
+func onPredicateToken(tokens []completionScopeToken, cursorOffset, depth int) int {
+	for i := len(tokens) - 1; i >= 0; i-- {
+		if tokens[i].Loc >= cursorOffset {
+			continue
+		}
+		if tokens[i].depth > depth {
+			continue
+		}
+		if tokens[i].depth < depth {
+			return -1
+		}
+		switch tokens[i].Type {
+		case kwON, kwUSING:
+			return i
+		case ',', ';', kwFROM, kwWHERE, kwGROUP, kwHAVING, kwORDER, kwLIMIT,
+			kwINTO, kwUNION, kwINTERSECT, kwEXCEPT, kwJOIN, kwSTRAIGHT_JOIN,
+			kwLEFT, kwRIGHT, kwINNER, kwCROSS, kwNATURAL:
+			return -1
+		}
+	}
+	return -1
+}
+
+// referencesBefore keeps the references that start before offset at.
+func referencesBefore(refs []RangeReference, at int) []RangeReference {
+	kept := make([]RangeReference, 0, len(refs))
+	for _, ref := range refs {
+		if ref.Loc.Start >= 0 && ref.Loc.Start < at {
+			kept = append(kept, ref)
+		}
+	}
+	return kept
 }
 
 // startsQueryPrimary reports whether the TABLE at idx begins a query
@@ -1640,6 +1792,42 @@ func findKeywordAtDepth(tokens []completionScopeToken, typ, start, end, depth in
 	return -1
 }
 
+// statementVerb returns the index of the statement's own verb, reading through
+// an EXPLAIN wrapper and its options: EXPLAIN [ANALYZE] [FORMAT = x] UPDATE ...
+// is an UPDATE whose columns the SET clause names.
+func statementVerb(tokens []completionScopeToken) int {
+	first := firstNonTerminator(tokens)
+	if first < 0 {
+		return -1
+	}
+	depth := tokens[first].depth
+	i := first
+	for i < len(tokens) && tokens[i].depth == depth && tokens[i].Type == kwEXPLAIN {
+		i++
+		for i < len(tokens) && tokens[i].depth == depth {
+			switch tokens[i].Type {
+			case kwANALYZE, kwEXTENDED, kwPARTITIONS:
+				i++
+				continue
+			case kwFORMAT:
+				i++
+				if i < len(tokens) && tokens[i].depth == depth && tokens[i].Type == '=' {
+					i++
+				}
+				if i < len(tokens) && tokens[i].depth == depth {
+					i++
+				}
+				continue
+			}
+			break
+		}
+	}
+	if i >= len(tokens) {
+		return -1
+	}
+	return i
+}
+
 func firstNonTerminator(tokens []completionScopeToken) int {
 	for i, tok := range tokens {
 		if tok.Type != ';' {
@@ -1819,6 +2007,8 @@ func objectKindsForCandidates(candidates *CandidateSet, typedParts int) []Object
 			kinds = appendObjectKind(kinds, ObjectKindEvent)
 		case "type_name":
 			kinds = appendObjectKind(kinds, ObjectKindType)
+		case "constraint_ref":
+			kinds = appendObjectKind(kinds, ObjectKindConstraint)
 		case "charset":
 			kinds = appendObjectKind(kinds, ObjectKindCharset)
 		case "engine":

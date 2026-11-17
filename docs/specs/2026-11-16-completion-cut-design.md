@@ -140,7 +140,7 @@ The fields, and why each is on the boundary:
 
 `ObjectKind` covers MySQL's object classes, not the product's suggestion categories:
 `database`, `table`, `view`, `column`, `index`, `function`, `procedure`, `trigger`, `event`,
-`type`, `charset`, `engine`, `variable`, `selectalias`. `selectalias` exists because MySQL
+`type`, `charset`, `engine`, `variable`, `selectalias`, `constraint`. `selectalias` exists because MySQL
 lets `ORDER BY`, `GROUP BY`, and `HAVING` name a select-list alias; Bytebase offers those as
 column candidates.
 
@@ -172,7 +172,7 @@ truncation workarounds (`collectLeadingTableReferences`'s paren-level stack,
 
 ## The corpus
 
-`mysql/parser/complete_context_test.go` holds 84 cases over
+`mysql/parser/complete_context_test.go` holds 93 cases over
 `sql` × cursor positions: select list, `WHERE`, `ON`, joins with and without aliases,
 cross and `STRAIGHT_JOIN`, derived tables (with and without an alias column list, and
 unterminated), CTEs (with a column list, from the body's select list, `RECURSIVE`, two in a
@@ -186,7 +186,9 @@ arm, `TABLE t` as a query primary, prefixes with and without backticks (includin
 name with a space and a non-ASCII name), index hints and `PARTITION` (which must not read
 as aliases), statement boundaries, `UNION` arms, a parenthesized join (with and without an
 alias), DDL positions (`type_name`, `index_ref`, `engine`, `charset`, `view_ref`,
-`database_ref`), `DROP INDEX ... ON`, and a cursor inside a text literal. A second test pins
+`database_ref`, `constraint_ref`), `DROP INDEX ... ON`, an `EXPLAIN` wrapper around a
+DML statement, a join condition's visible operands, a script with its own `DELIMITER`, and a
+cursor inside a text literal. A second test pins
 the columns the reader reports for a reference — nested `WITH` bodies, a shadowing clause,
 expression items that name no column, qualified names, and `JSON_TABLE`. A third walks every
 cursor offset of eight scripts, including 200 nested parentheses and unterminated strings, and
