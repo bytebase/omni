@@ -64,7 +64,7 @@
 > query
 | SELECT CAST('9007199254740993' AS DECIMAL(16,0)) AS v
 < result
-< column "v" "DECIMAL"
+< column "v" "DECIMAL" precision 16 scale 0
 < row
 : string
 | 9007199254740993
@@ -620,16 +620,16 @@
 < column "c_boolean" "BOOLEAN"
 < column "c_varchar" "VARCHAR"
 < column "c_char" "CHAR"
-< column "c_decimal" "DECIMAL"
+< column "c_decimal" "DECIMAL" precision 5 scale 2
 < column "c_real" "REAL"
 < column "c_double" "DOUBLE"
 < column "c_date" "DATE"
-< column "c_time" "TIME"
-< column "c_time_tz" "TIME WITH TIME ZONE"
-< column "c_timestamp" "TIMESTAMP"
-< column "c_timestamp_tz" "TIMESTAMP WITH TIME ZONE"
-< column "c_varbinary" "VARBINARY"
-< column "c_varbinary_empty" "VARBINARY"
+< column "c_time" "TIME" precision 3 scale 0
+< column "c_time_tz" "TIME WITH TIME ZONE" precision 0 scale 0
+< column "c_timestamp" "TIMESTAMP" precision 0 scale 0
+< column "c_timestamp_tz" "TIMESTAMP WITH TIME ZONE" precision 3 scale 0
+< column "c_varbinary" "VARBINARY" "[]uint8"
+< column "c_varbinary_empty" "VARBINARY" "[]uint8"
 < column "c_uuid" "UUID"
 < column "c_ipaddress" "IPADDRESS"
 < column "c_interval" "INTERVAL DAY TO SECOND"

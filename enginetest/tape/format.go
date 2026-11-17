@@ -34,6 +34,11 @@ import (
 //	|   `a` int DEFAULT NULL
 //	| )
 //
+// A column may name the Go type its rows scan into (a quoted string after the
+// database type), its precision ("precision <digits>" after that) and its
+// scale ("scale <digits>" after the precision); all are optional, so a tape
+// written before they existed still replays.
+//
 // Every line starts with a sigil, so SQL and values never need escaping:
 // "| " carries one line of text, and "|q " a whole text as a Go quoted
 // string where the raw form would not survive an editor (a carriage return,
@@ -86,10 +91,11 @@ type resultSet struct {
 }
 
 // A column carries the database type name and, when the live driver states
-// one, the Go type its rows scan into. The scan type is optional so tapes
-// recorded before it existed still replay with the default any.
+// them, the Go type its rows scan into, its precision and its scale. All three
+// are optional so tapes recorded before they existed still replay with the
+// default any and without a precision.
 type column struct {
-	name, typ, scan string
+	name, typ, scan, precision, scale string
 }
 
 // A value is a driver.Value as text: null, int, int8, int16, int32, int64,
@@ -317,6 +323,12 @@ func writeAnswer(b *strings.Builder, a answer) {
 				b.WriteString("< column " + strconv.Quote(c.name) + " " + strconv.Quote(c.typ))
 				if c.scan != "" {
 					b.WriteString(" " + strconv.Quote(c.scan))
+				}
+				if c.precision != "" {
+					b.WriteString(" precision " + c.precision)
+				}
+				if c.scale != "" {
+					b.WriteString(" scale " + c.scale)
 				}
 				b.WriteString("\n")
 			}
@@ -603,12 +615,34 @@ func (p *parser) column() (column, error) {
 	n, _ := strconv.Unquote(name)
 	t, _ := strconv.Unquote(typ)
 	c := column{name: n, typ: t}
-	if rest != "" {
+	if rest != "" && !strings.HasPrefix(rest, "precision ") {
 		scan, err := strconv.QuotedPrefix(rest)
 		if err != nil {
 			return column{}, p.errorf("a column's scan type: %v", err)
 		}
 		c.scan, _ = strconv.Unquote(scan)
+		rest = strings.TrimPrefix(rest[len(scan):], " ")
+	}
+	if rest != "" {
+		precision, ok := strings.CutPrefix(rest, "precision ")
+		if !ok {
+			return column{}, p.errorf("a column's precision: %q", rest)
+		}
+		precision, rest, _ = strings.Cut(precision, " ")
+		if _, err := strconv.ParseInt(precision, 10, 32); err != nil {
+			return column{}, p.errorf("a column's precision: %v", err)
+		}
+		c.precision = precision
+	}
+	if rest != "" {
+		scale, ok := strings.CutPrefix(rest, "scale ")
+		if !ok {
+			return column{}, p.errorf("a column's scale: %q", rest)
+		}
+		if _, err := strconv.ParseInt(scale, 10, 32); err != nil {
+			return column{}, p.errorf("a column's scale: %v", err)
+		}
+		c.scale = scale
 	}
 	p.i++
 	return c, nil
