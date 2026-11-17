@@ -99,10 +99,11 @@ func (d *Driver) queryStatement(ctx context.Context, statement string, opts driv
 		rows = response.Result.DataArray
 	}
 	for {
-		if err := appendResultRows(result, rows, opts.MaxResultBytes, &totalBytes); err != nil {
+		capReached, err := appendResultRows(result, rows, opts.MaxResultBytes, &totalBytes)
+		if err != nil {
 			return nil, err
 		}
-		if response.Result == nil || response.Result.NextChunkIndex == 0 || result.Truncated {
+		if response.Result == nil || response.Result.NextChunkIndex == 0 || capReached {
 			return result, nil
 		}
 		next := response.Result.NextChunkIndex
@@ -138,18 +139,18 @@ func resultMetadata(response *dbsql.StatementResponse, statement string, returns
 	return result, nil
 }
 
-// appendResultRows decodes one chunk's rows onto result and stops once the
-// result passes maxResultBytes.
-func appendResultRows(result *driver.Result, rows [][]string, maxResultBytes int64, totalBytes *int64) error {
+// appendResultRows decodes one chunk's rows onto result. It reports whether
+// the local byte cap stopped it; the server's own truncation is separate.
+func appendResultRows(result *driver.Result, rows [][]string, maxResultBytes int64, totalBytes *int64) (bool, error) {
 	for _, rowData := range rows {
 		if len(rowData) != len(result.Columns) {
-			return fmt.Errorf("row has %d cells but the statement states %d columns", len(rowData), len(result.Columns))
+			return false, fmt.Errorf("row has %d cells but the statement states %d columns", len(rowData), len(result.Columns))
 		}
 		row := make([]driver.Value, len(result.Columns))
 		for i, value := range rowData {
 			converted, err := toValue(result.Columns[i].TypeName, value)
 			if err != nil {
-				return fmt.Errorf("column %q: %w", result.Columns[i].Name, err)
+				return false, fmt.Errorf("column %q: %w", result.Columns[i].Name, err)
 			}
 			row[i] = converted
 		}
@@ -158,11 +159,11 @@ func appendResultRows(result *driver.Result, rows [][]string, maxResultBytes int
 			*totalBytes += driver.RowByteSize(row)
 			if *totalBytes > maxResultBytes {
 				result.Truncated = true
-				return nil
+				return true, nil
 			}
 		}
 	}
-	return nil
+	return false, nil
 }
 
 // resultFromResponse turns the statement execution API's answer into the
@@ -178,7 +179,7 @@ func resultFromResponse(response *dbsql.StatementResponse, statement string, ret
 	if response.Result != nil {
 		rows = response.Result.DataArray
 	}
-	if err := appendResultRows(result, rows, maxResultBytes, &totalBytes); err != nil {
+	if _, err := appendResultRows(result, rows, maxResultBytes, &totalBytes); err != nil {
 		return nil, err
 	}
 	return result, nil

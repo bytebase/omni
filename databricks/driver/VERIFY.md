@@ -252,8 +252,8 @@ recording settles the shape:
   every schema but `default`, each terminated so `Execute` can split the dump,
   and skips the `system` catalog and each catalog's `information_schema`. It
   writes every schema and base table before any view, then orders views and
-  materialized views by the service's `view_dependencies`, with name order as
-  the tie-break and a cycle fallback.
+  materialized views by each object's own `view_dependencies`, which the listing
+  does not return, with name order as the tie-break and a cycle fallback.
 - A `TestDumpRestores` is still future work: the dump text is known to apply to
   the objects it states, but the corpus has not been dropped and replayed.
 

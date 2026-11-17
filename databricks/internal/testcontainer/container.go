@@ -263,6 +263,11 @@ func narrow(route, contentType string, body []byte, status int) ([]byte, string)
 		if ok {
 			return narrowed, "application/json"
 		}
+	case strings.HasPrefix(path, "/api/2.1/unity-catalog/tables/"):
+		narrowed, ok := narrowTable(body)
+		if ok {
+			return narrowed, "application/json"
+		}
 	case path == "/api/2.0/workspace/list":
 		narrowed, ok := narrowWorkspaceList(body)
 		if ok {
@@ -376,6 +381,25 @@ func narrowSchemas(body []byte) ([]byte, bool) {
 	return narrowed, err == nil
 }
 
+func narrowTable(body []byte) ([]byte, bool) {
+	var response table
+	if err := json.Unmarshal(body, &response); err != nil {
+		return nil, false
+	}
+	sortColumns(response.Columns)
+	narrowed, err := json.Marshal(response)
+	return narrowed, err == nil
+}
+
+func sortColumns(columns []column) {
+	sort.SliceStable(columns, func(i, j int) bool {
+		if columns[i].Position != columns[j].Position {
+			return columns[i].Position < columns[j].Position
+		}
+		return columns[i].Name < columns[j].Name
+	})
+}
+
 func narrowTables(body []byte) ([]byte, bool) {
 	var response struct {
 		Tables        []table `json:"tables"`
@@ -385,13 +409,7 @@ func narrowTables(body []byte) ([]byte, bool) {
 		return nil, false
 	}
 	for i := range response.Tables {
-		table := &response.Tables[i]
-		sort.SliceStable(table.Columns, func(i, j int) bool {
-			if table.Columns[i].Position != table.Columns[j].Position {
-				return table.Columns[i].Position < table.Columns[j].Position
-			}
-			return table.Columns[i].Name < table.Columns[j].Name
-		})
+		sortColumns(response.Tables[i].Columns)
 	}
 	sort.Slice(response.Tables, func(i, j int) bool { return response.Tables[i].Name < response.Tables[j].Name })
 	narrowed, err := json.Marshal(response)

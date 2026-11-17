@@ -118,7 +118,19 @@ func (d *Driver) Dump(ctx context.Context, writer io.Writer, _ *metadatapb.Datab
 				}
 				object := dumpObject{catalog: catalogName, schema: schemaName, name: tblUnion.name, kind: tblUnion.typeName}
 				objectViews = append(objectViews, object)
-				dependencies[object.key()] = tblUnion.viewDependencies
+				// ListTables does not state a view's dependencies, so read
+				// the object itself before ordering it.
+				info, err := d.client.Tables.GetByFullName(ctx, object.key())
+				if err != nil {
+					return fmt.Errorf("failed to read dependencies of %q: %w", object.key(), err)
+				}
+				if info.ViewDependencies != nil {
+					for _, dependency := range info.ViewDependencies.Dependencies {
+						if dependency.Table != nil {
+							dependencies[object.key()] = append(dependencies[object.key()], dependency.Table.TableFullName)
+						}
+					}
+				}
 			}
 		}
 	}
