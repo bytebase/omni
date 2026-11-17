@@ -2240,18 +2240,18 @@ func checkExpressionForDependencies(expression string) string {
 // table's row type, and the table that defines it must exist first.
 func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, tableMap map[string]*metadatapb.TableMetadata, partitionParents map[string]string) {
 	for id, table := range foreignTableMap {
-		addRelationTypeEdgesFor(graph, id, table.Columns, tableMap, foreignTableMap, partitionParents)
+		addRelationTypeEdgesFor(graph, id, table.Columns, table.CheckConstraints, tableMap, foreignTableMap, partitionParents)
 	}
 	for id, table := range tableMap {
-		addRelationTypeEdgesFor(graph, id, table.Columns, tableMap, foreignTableMap, partitionParents)
+		addRelationTypeEdgesFor(graph, id, table.Columns, table.CheckConstraints, tableMap, foreignTableMap, partitionParents)
 	}
 }
 
-func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metadatapb.ColumnMetadata, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
-	for _, column := range columns {
-		schema, name, ok := strings.Cut(column.Type, ".")
+func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
+	addTypeRef := func(typeName string) {
+		schema, name, ok := strings.Cut(typeName, ".")
 		if !ok {
-			continue
+			return
 		}
 		// An array of a row type is named _<relation>, as in public._z.
 		names := []string{name}
@@ -2264,16 +2264,29 @@ func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metad
 				dependencyID = parentID
 			}
 			if dependencyID == id {
-				break
+				return
 			}
 			if _, ok := tableMap[dependencyID]; ok {
 				graph.AddEdge(dependencyID, id)
-				break
+				return
 			}
 			if _, ok := foreignTableMap[dependencyID]; ok {
 				graph.AddEdge(dependencyID, id)
-				break
+				return
 			}
+		}
+	}
+	for _, column := range columns {
+		addTypeRef(column.Type)
+	}
+	for _, check := range checks {
+		node, err := parseScalar("SELECT " + checkExpressionForDependencies(check.Expression))
+		if err != nil {
+			continue
+		}
+		_, _, typeRefs := collectExprDeps(node)
+		for _, typeRef := range typeRefs {
+			addTypeRef(typeRef)
 		}
 	}
 }
@@ -2410,13 +2423,78 @@ func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []
 		return false
 	}
 	for i := range actual {
-		// pg_get_function_identity_arguments may keep an argument's name, so the
-		// argument need only end with the type the handler or validator requires.
-		if !strings.HasSuffix(normalizeSignatureType(actual[i]), normalizeSignatureType(expected[i])) {
+		if signatureArgumentType(actual[i]) != normalizeSignatureType(expected[i]) {
 			return false
 		}
 	}
 	return true
+}
+
+// signatureArgumentType drops an argument's mode and name, leaving its type.
+// pg_get_function_identity_arguments may keep both.
+func signatureArgumentType(arg string) string {
+	tokens := splitSignatureTokens(arg)
+	for len(tokens) > 0 && isSignatureMode(tokens[0]) {
+		tokens = tokens[1:]
+	}
+	if len(tokens) > 1 && !isMultiWordTypeStart(tokens[0]) {
+		tokens = tokens[1:]
+	}
+	return normalizeSignatureType(strings.Join(tokens, " "))
+}
+
+func isSignatureMode(token string) bool {
+	switch strings.ToUpper(token) {
+	case "IN", "OUT", "INOUT", "VARIADIC":
+		return true
+	}
+	return false
+}
+
+func isMultiWordTypeStart(token string) bool {
+	switch strings.ToLower(token) {
+	case "double", "character", "bit", "national", "timestamp", "time", "interval":
+		return true
+	}
+	return false
+}
+
+func splitSignatureTokens(arg string) []string {
+	var tokens []string
+	var b strings.Builder
+	inQuote := false
+	for i := 0; i < len(arg); i++ {
+		c := arg[i]
+		if inQuote {
+			b.WriteByte(c)
+			if c != '"' {
+				continue
+			}
+			if i+1 < len(arg) && arg[i+1] == '"' {
+				b.WriteByte(arg[i+1])
+				i++
+				continue
+			}
+			inQuote = false
+			continue
+		}
+		switch c {
+		case '"':
+			inQuote = true
+			b.WriteByte(c)
+		case ' ', '\t':
+			if b.Len() > 0 {
+				tokens = append(tokens, b.String())
+				b.Reset()
+			}
+		default:
+			b.WriteByte(c)
+		}
+	}
+	if b.Len() > 0 {
+		tokens = append(tokens, b.String())
+	}
+	return tokens
 }
 
 // signatureArguments returns the text between a signature's argument-list

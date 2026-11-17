@@ -1157,3 +1157,94 @@ func TestSchemaDefinitionSkipsExternalTableTriggers(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, result, "CREATE TRIGGER remote_trg")
 }
+
+// TestDatabaseDefinitionOrdersForeignDataWrapperAfterOverloadType checks that a
+// validator only matches the complete type, not a schema-qualified type that
+// ends with it, so an unrelated overload cannot close a false cycle.
+func TestDatabaseDefinitionOrdersForeignDataWrapperAfterOverloadType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
+			Name:      "custom_fdw",
+			Validator: "app.validate",
+		}},
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{Name: "s", Fdw: "custom_fdw"}},
+		Schemas: []*metadatapb.SchemaMetadata{
+			{
+				Name: "app",
+				Functions: []*metadatapb.FunctionMetadata{
+					{
+						Name:       "validate",
+						Signature:  "validate(text[], oid)",
+						Definition: "CREATE FUNCTION app.validate(a text[], b oid) RETURNS void LANGUAGE internal AS 'v1'",
+					},
+					{
+						Name:             "validate",
+						Signature:        "validate(text[], public.myoid)",
+						Definition:       "CREATE FUNCTION app.validate(a text[], b public.myoid) RETURNS void LANGUAGE internal AS 'v2'",
+						DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "myoid"}},
+					},
+				},
+			},
+			{
+				Name: "public",
+				Tables: []*metadatapb.TableMetadata{{
+					Name:       "myoid",
+					Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					Partitions: []*metadatapb.TablePartitionMetadata{{Name: "myoid_remote", Schema: "public", Value: "FOR VALUES FROM (0) TO (10)"}},
+				}},
+				ExternalTables: []*metadatapb.ExternalTableMetadata{{
+					Name:               "myoid_remote",
+					ExternalServerName: "s",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				}},
+			},
+		},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	validator := "CREATE FUNCTION app.validate(a text[], b oid)"
+	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" VALIDATOR app.validate;`
+	assert.Contains(t, result, validator)
+	assert.Contains(t, result, wrapper)
+	assert.Less(t, strings.Index(result, validator), strings.Index(result, wrapper), "the actual validator must be written before its wrapper")
+}
+
+// TestDatabaseDefinitionOrdersForeignKeyTableAfterCheckRowType checks that a
+// CHECK that casts a row to another foreign table's type orders that table
+// first.
+func TestDatabaseDefinitionOrdersForeignKeyTableAfterCheckRowType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{
+					Name:               "a",
+					ExternalServerName: "s",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
+						Name:       "c",
+						Expression: "((ROW(id)::public.z).id > 0)",
+					}},
+				},
+				{Name: "z", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+			},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	z := `CREATE FOREIGN TABLE "public"."z"`
+	a := `CREATE FOREIGN TABLE "public"."a"`
+	assert.Contains(t, result, z)
+	assert.Contains(t, result, a)
+	assert.Less(t, strings.Index(result, z), strings.Index(result, a), "the CHECK's row type must be written first")
+}
