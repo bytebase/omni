@@ -641,8 +641,8 @@ func (r *rows) ColumnTypePrecisionScale(i int) (precision, scale int64, ok bool)
 	if c.precision == "" {
 		return 0, 0, false
 	}
-	precision, _ = strconv.ParseInt(c.precision, 10, 32)
-	scale, _ = strconv.ParseInt(c.scale, 10, 32)
+	precision, _ = strconv.ParseInt(c.precision, 10, 64)
+	scale, _ = strconv.ParseInt(c.scale, 10, 64)
 	return precision, scale, true
 }
 

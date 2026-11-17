@@ -11,15 +11,16 @@
 |   flag TINYINT(1),
 |   payload JSON,
 |   raw VARBINARY(8),
-|   bigu BIGINT UNSIGNED
+|   bigu BIGINT UNSIGNED,
+|   body BLOB
 | );
 < ok 0 0
 > exec
 |
 | INSERT INTO qitems VALUES
-|   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615),
-|   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10),
-|   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);
+|   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615, 0x00ff00),
+|   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10, 0x10),
+|   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 < ok 3 0
 > exec
 |
@@ -39,6 +40,7 @@
 < column "payload" "JSON"
 < column "raw" "VARBINARY" "[]uint8"
 < column "bigu" "UNSIGNED BIGINT"
+< column "body" "BLOB" "[]uint8"
 < row
 : int64 1
 : bytes
@@ -53,6 +55,8 @@
 : bytes
 |q "\x00\xff"
 : uint64 18446744073709551615
+: bytes
+|q "\x00\xff\x00"
 < row
 : int64 2
 : bytes
@@ -67,10 +71,13 @@
 : bytes
 |q "\x10"
 : uint64 10
+: bytes
+|q "\x10"
 < row
 : int64 3
 : bytes
 | c
+: null
 : null
 : null
 : null
@@ -129,7 +136,7 @@
 |         "read_cost": "0.71",
 |         "eval_cost": "0.20",
 |         "prefix_cost": "0.91",
-|         "data_read_per_join": "624"
+|         "data_read_per_join": "656"
 |       },
 |       "used_columns": [
 |         "id",
@@ -287,15 +294,16 @@
 |   flag TINYINT(1),
 |   payload JSON,
 |   raw VARBINARY(8),
-|   bigu BIGINT UNSIGNED
+|   bigu BIGINT UNSIGNED,
+|   body BLOB
 | );
 < ok 0 0
 > exec
 |
 | INSERT INTO qitems VALUES
-|   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615),
-|   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10),
-|   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);
+|   (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615, 0x00ff00),
+|   (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10, 0x10),
+|   (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 < ok 3 0
 > exec
 |
@@ -315,6 +323,7 @@
 < column "payload" "JSON"
 < column "raw" "VARBINARY" "[]uint8"
 < column "bigu" "UNSIGNED BIGINT"
+< column "body" "BLOB" "[]uint8"
 < row
 : int64 1
 : bytes
@@ -329,6 +338,8 @@
 : bytes
 |q "\x00\xff"
 : uint64 18446744073709551615
+: bytes
+|q "\x00\xff\x00"
 < row
 : int64 2
 : bytes
@@ -343,10 +354,13 @@
 : bytes
 |q "\x10"
 : uint64 10
+: bytes
+|q "\x10"
 < row
 : int64 3
 : bytes
 | c
+: null
 : null
 : null
 : null
@@ -405,7 +419,7 @@
 |         "read_cost": "0.71",
 |         "eval_cost": "0.20",
 |         "prefix_cost": "0.91",
-|         "data_read_per_join": "624"
+|         "data_read_per_join": "656"
 |       },
 |       "used_columns": [
 |         "id",

@@ -989,8 +989,8 @@ func TestColumnPrecisionReplays(t *testing.T) {
 }
 
 // A precision a driver reports past int32, as go-sql-driver does for a DOUBLE
-// whose decimals the server leaves unspecified, is written down and replayed:
-// database/sql clamps it for the test, both times.
+// whose decimals the server leaves unspecified, is written down and replayed
+// unchanged: database/sql passes it through.
 func TestColumnPrecisionPastInt32Replays(t *testing.T) {
 	srv, _ := harness(t)
 	read := func(t testing.TB) []string {
@@ -1006,7 +1006,7 @@ func TestColumnPrecisionPastInt32Replays(t *testing.T) {
 		precision, scale, ok := types[0].DecimalSize()
 		return []string{fmt.Sprintf("%d %d %v", precision, scale, ok)}
 	}
-	const want = "2147483647 2147483647 true"
+	const want = "9223372036854775807 9223372036854775807 true"
 
 	record(t)
 	recorded, errs := run(t, "TestFake", read)

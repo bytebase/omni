@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	sqldriver "database/sql/driver"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -80,9 +81,15 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			return nil, err
 		}
 		// An executable comment holding no statement, as in /*! */, parses to
-		// nothing: there is no statement to run.
+		// nothing: there is no statement to run. A command that parses to
+		// several statements, as one statement terminator inside a DELIMITER
+		// block does, is refused: the connection would send them together and
+		// only the first one's result would come back.
 		if len(parsed.Items) == 0 {
 			continue
+		}
+		if len(parsed.Items) > 1 {
+			return nil, fmt.Errorf("a command must hold one statement, but %q holds %d", strings.TrimSpace(cmd.Text), len(parsed.Items))
 		}
 		node := parsed.Items[0]
 		_, returnsData := mysqlanalysis.ValidateQuery(parsed.Items)
@@ -279,11 +286,13 @@ func makeValueByTypeName(typeName string) any {
 		return new(sql.NullString)
 	case "BOOL":
 		return new(sql.NullBool)
-	case "INT", "INTEGER", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "INT2", "INT4", "INT8":
-		return new(sql.NullInt64)
 	case "FLOAT", "DOUBLE", "FLOAT4", "FLOAT8":
 		return new(sql.NullFloat64)
-	case "BIT", "VARBIT", "BINARY", "VARBINARY",
+	case "INT", "INTEGER", "TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT", "INT2", "INT4", "INT8":
+		return new(sql.NullInt64)
+	case "UNSIGNED TINYINT", "UNSIGNED SMALLINT", "UNSIGNED MEDIUMINT", "UNSIGNED INT", "UNSIGNED BIGINT":
+		return new(sql.Null[uint64])
+	case "BIT", "VARBIT", "BINARY", "VARBINARY", "BLOB", "TINYBLOB", "MEDIUMBLOB", "LONGBLOB",
 		"GEOMETRY", "POINT", "LINESTRING", "POLYGON", "MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION":
 		return new([]byte)
 	default:
@@ -304,6 +313,10 @@ func convertValue(typeName string, columnType *sql.ColumnType, value any) driver
 	case *sql.NullInt64:
 		if raw.Valid {
 			return driver.Value{Kind: driver.Int64, Int64: raw.Int64}
+		}
+	case *sql.Null[uint64]:
+		if raw.Valid {
+			return driver.Value{Kind: driver.Uint64, Uint64: raw.V}
 		}
 	case *[]byte:
 		if *raw != nil {

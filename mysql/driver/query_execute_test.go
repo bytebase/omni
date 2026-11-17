@@ -92,12 +92,13 @@ const querySetup = `CREATE TABLE qitems (
   flag TINYINT(1),
   payload JSON,
   raw VARBINARY(8),
-  bigu BIGINT UNSIGNED
+  bigu BIGINT UNSIGNED,
+  body BLOB
 );
 INSERT INTO qitems VALUES
-  (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615),
-  (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10),
-  (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL);
+  (1, 'a', 1.25, '2026-03-04 05:06:07.123456', 1, '{"a": 1}', 0x00ff, 18446744073709551615, 0x00ff00),
+  (2, 'b', 2.50, '2026-03-04 05:06:08', 0, '{"b": 2}', 0x10, 10, 0x10),
+  (3, 'c', NULL, NULL, NULL, NULL, NULL, NULL, NULL);
 CREATE PROCEDURE qcount()
 BEGIN
   SELECT COUNT(*) AS n FROM qitems;
@@ -137,9 +138,7 @@ func TestQueryCorpus(t *testing.T) {
 			}
 
 			// 2. Column names, engine type names, and every value kind a MySQL
-			// column decodes to. An unsigned BIGINT has no scan case in the
-			// shared value maker, so it arrives as a string: Bytebase reads it
-			// the same way.
+			// column decodes to, an unsigned integer and a BLOB included.
 			all, err := sess.Query(ctx, "SELECT * FROM qitems ORDER BY id;", driver.QueryOptions{})
 			if err != nil || len(all) != 1 || all[0].Err != nil {
 				t.Fatalf("SELECT * = %+v, %v", all, err)
@@ -150,8 +149,8 @@ func TestQueryCorpus(t *testing.T) {
 				names = append(names, c.Name)
 				types = append(types, c.TypeName)
 			}
-			wantNames := []string{"id", "note", "amount", "created", "flag", "payload", "raw", "bigu"}
-			wantTypes := []string{"BIGINT", "VARCHAR", "DECIMAL", "DATETIME", "TINYINT", "JSON", "VARBINARY", "UNSIGNED BIGINT"}
+			wantNames := []string{"id", "note", "amount", "created", "flag", "payload", "raw", "bigu", "body"}
+			wantTypes := []string{"BIGINT", "VARCHAR", "DECIMAL", "DATETIME", "TINYINT", "JSON", "VARBINARY", "UNSIGNED BIGINT", "BLOB"}
 			if !slices.Equal(names, wantNames) || !slices.Equal(types, wantTypes) {
 				t.Fatalf("columns = %v %v, want %v %v", names, types, wantNames, wantTypes)
 			}
@@ -166,7 +165,8 @@ func TestQueryCorpus(t *testing.T) {
 				first[4].Kind != driver.Int64 || first[4].Int64 != 1 ||
 				first[5].Kind != driver.String || first[5].String != `{"a": 1}` ||
 				first[6].Kind != driver.Bytes || !bytes.Equal(first[6].Bytes, []byte{0x00, 0xff}) ||
-				first[7].Kind != driver.String || first[7].String != "18446744073709551615" {
+				first[7].Kind != driver.Uint64 || first[7].Uint64 != 18446744073709551615 ||
+				first[8].Kind != driver.Bytes || !bytes.Equal(first[8].Bytes, []byte{0x00, 0xff, 0x00}) {
 				t.Errorf("row 0 = %+v", first)
 			}
 			last := got.Rows[2]
@@ -315,6 +315,13 @@ func TestQueryCorpus(t *testing.T) {
 			checked, err := sess.Query(ctx, "CHECK TABLE qitems;", driver.QueryOptions{})
 			if err != nil || len(checked) != 1 || len(checked[0].Rows) == 0 {
 				t.Fatalf("CHECK TABLE = %+v, %v", checked, err)
+			}
+
+			// A command that parses to two statements is refused instead of sent:
+			// the connection would run both and only the first result would come
+			// back. A terminator inside a DELIMITER block is how that happens.
+			if _, err := sess.Query(ctx, "DELIMITER //\nSELECT 1; SELECT 2//\nDELIMITER ;\n", driver.QueryOptions{}); err == nil || !strings.Contains(err.Error(), "must hold one statement") {
+				t.Errorf("two statements in one command err = %v", err)
 			}
 
 			// An executable comment that holds no statement is nothing to run,
