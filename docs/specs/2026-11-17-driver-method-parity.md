@@ -54,9 +54,7 @@ reason in the next section. Empty means neither side has the method.
 | --- | --- | --- |
 | cockroachdb | `CountAffectedRows`, `GetCurrentDatabaseOwner` | The driver is in flight in another session. |
 | redshift | `CountAffectedRows`, `GetCurrentDatabaseOwner` | There is no `redshift/driver` and no Redshift endpoint on this machine; the driver is blocked on a real cluster. |
-| starrocks, hive | (no extra method) | Their `Dumper` has landed since this audit; their extra-method surface is already covered. |
-| clickhouse | `Dump` | The server-DDL `Dumper` is in flight in another session (#1350). Bytebase's `Dump` asks the server for `CREATE` statements, so it needs no `clickhouse/catalog`. |
-| doris | (no extra method) | `Dumper` is in flight; `StopConnectionByID` is internal and omni kills on cancel. |
+| starrocks, clickhouse, hive, doris | (no extra method) | Their `Dumper` has landed since this audit, clickhouse's in #1350, so no cell is left there; their extra-method surface was already covered. |
 
 ## Dialer and probe support
 

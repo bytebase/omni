@@ -8,8 +8,9 @@ thin adapter over `<engine>/driver`, then compiled and vetted. Nineteen engines:
 tidb, oceanbase, mssql, oracle, trino, mongo, spanner, doris, starrocks, cassandra, elasticsearch,
 cosmosdb, dynamodb, redis, clickhouse, hive.
 
-The question was whether the cutover is mechanical. The answer is yes for eighteen of them, with the
-seams below; clickhouse is the one engine whose `Dumper` has no omni counterpart.
+The question was whether the cutover is mechanical. The answer is yes for all nineteen, with the
+seams below; clickhouse, the one engine whose `Dumper` had no omni counterpart, landed a server-DDL
+dump since (#1350).
 
 ## What an adapter is
 
@@ -104,23 +105,29 @@ why it belongs in a shared package rather than in each adapter.
 6. **Cosmos DB's container is `QueryOptions.Schema`.** Bytebase's `QueryContext` has a separate
    `Container` field; the adapter remaps it. Any other caller needs to know the overload.
 7. **Redis's all-nodes query is outside the interface.** Bytebase's editor offers "run on every
-   node", which only `*redis/driver.Session.QueryAllNodes` answers; `driver.Session` does not declare
-   it, so the adapter type-asserts the concrete session.
+   node", which `driver.Session` does not declare, so the prototype type-asserted the concrete
+   session. **Closed:** `driver.AllNodesQuerier` is that probe interface and `redis/driver`'s
+   session implements it, so the assertion is on a contract type. It stayed a method rather than
+   becoming `Session.Query`, because a cluster's nodes each answer the command and the caller shows
+   their answers as one result, which a routed command cannot produce.
 8. **`MaxResultBytes` moved the cut-off.** Bytebase measured `proto.Size` of the whole `QueryResult`
    at power-of-two row counts and answered an error message; omni measures the rows as it reads them
    and sets `Result.Truncated`, and the caller formats the message. The cap lands at a different row
    for the same setting. Every engine's package doc says so, but it is a visible product change.
-9. **`clickhouse` has no `Dumper`.** Bytebase's `Dump` asks the server for `CREATE` statements and
+9. **`clickhouse` had no `Dumper`.** Bytebase's `Dump` asks the server for `CREATE` statements and
    ignores the metadata it is given, so it does not need a `clickhouse/catalog`. omni's
-   `clickhouse/driver` has no `Dump` at all, so this is the one method of the five interfaces a
-   caller cannot delegate today. Hive, Doris and StarRocks dumps are the same shape (server-stated
-   DDL, metadata ignored) and are implemented, so clickhouse is an omission rather than a
-   consequence of the missing catalog. Note that the contract's wording — "a dump renders the
-   metadata it is given and nothing else" — is not what those four drivers do.
-10. **Two engines cannot take a caller's dialer.** `hive/driver` says `Config.Dial` does nothing
-    (gohive dials the host itself) and `elasticsearch/driver` says so too (the caller's `Options.
-    Transport` is the seam instead). A Hive data source behind an SSH tunnel cannot be cut over, and
-    Elasticsearch's AWS SigV4 transport is 40 lines of caller code rather than a `Config` value.
+   `clickhouse/driver` had no `Dump` at all, the one method of the five interfaces a caller could not
+   delegate. **Closed since:** the server-DDL dump landed (#1350), the same shape as Hive, Doris and
+   StarRocks (server-stated DDL, metadata ignored). Note that the contract's wording — "a dump
+   renders the metadata it is given and nothing else" — is not what those four drivers do.
+10. **Two engines could not take a caller's dialer.** **Closed for elasticsearch:** `Config.Dial` is
+    the transport's `DialContext`, so a tunnel or cloud connector reaches the endpoint, and a caller
+    that supplies `Options.Transport` is refused rather than silently winning, since its transport
+    dials for itself (the AWS SigV4 signer wraps one the caller builds). **Left for hive, with what a
+    caller does instead:** gohive v2 fills its dialer from a fixed list of exported `Config` fields
+    and has none for one, so `hive/driver` cannot accept `Config.Dial`; a caller forwards a local
+    port and names it as `Config.Host` and `Config.Port`. Both `hive/driver`'s doc and
+    `driver.Config.Dial`'s contract say so.
 11. **`oracle/driver` exports `Version` with a different shape.** Bytebase's `GetVersion()`
     (`*plsql.Version`, no error, from the recorded version) becomes `Version(ctx)`, which asks the
     server and falls back. The one call site in Bytebase's DML-backup transform becomes an interface
@@ -143,7 +150,7 @@ Fits, and the adapter must also expose the extra methods its callers use: pg, my
 oceanbase, mssql, oracle, spanner. Spanner's `Open` reaches the server for the dialect, which its own
 doc records.
 
-Does not fit yet: clickhouse, whose `Dumper` is missing.
+Does not fit yet: nothing. clickhouse's `Dumper`, the one method left, landed since (#1350).
 
 Pending rather than prototyped: cockroachdb (its driver is in flight), and redshift, snowflake,
 bigquery and databricks (blocked).
