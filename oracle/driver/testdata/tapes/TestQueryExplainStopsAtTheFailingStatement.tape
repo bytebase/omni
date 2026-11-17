@@ -43,15 +43,15 @@
 > query
 | SELECT LPAD(' ', LEVEL-1) || OPERATION || ' (' || OPTIONS || ')' "Operation", OBJECT_NAME "Object", OPTIMIZER "Optimizer", COST "Cost", CARDINALITY "Cardinality", BYTES "Bytes", PARTITION_START "Partition Start", PARTITION_ID "Partition ID", ACCESS_PREDICATES "Access Predicates" FROM PLAN_TABLE START WITH ID = 0 AND statement_id = 'omni_1' CONNECT BY PRIOR ID=PARENT_ID AND statement_id = 'omni_1' ORDER BY id
 < result
-< column "Operation" "NCHAR"
-< column "Object" "NCHAR"
-< column "Optimizer" "NCHAR"
-< column "Cost" "NUMBER"
-< column "Cardinality" "NUMBER"
-< column "Bytes" "NUMBER"
-< column "Partition Start" "NCHAR"
-< column "Partition ID" "NUMBER"
-< column "Access Predicates" "NCHAR"
+< column "Operation" "NCHAR" "string"
+< column "Object" "NCHAR" "string"
+< column "Optimizer" "NCHAR" "string"
+< column "Cost" "NUMBER" "float64" precision 38 scale 0
+< column "Cardinality" "NUMBER" "float64" precision 38 scale 0
+< column "Bytes" "NUMBER" "float64" precision 38 scale 0
+< column "Partition Start" "NCHAR" "string"
+< column "Partition ID" "NUMBER" "float64" precision 38 scale 0
+< column "Access Predicates" "NCHAR" "string"
 < row
 : string
 | SELECT STATEMENT ()

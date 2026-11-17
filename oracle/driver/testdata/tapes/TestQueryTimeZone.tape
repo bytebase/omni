@@ -40,7 +40,7 @@
 > query
 | SELECT AT_ZONE, BIN FROM OMNI_APP.Q WHERE ID = 1
 < result
-< column "AT_ZONE" "TimeStampTZ_DTY"
+< column "AT_ZONE" "TimeStampTZ_DTY" "time.Time"
 < column "BIN" "LongRaw"
 < row
 : time 2026-03-04T05:06:07.891+02:00

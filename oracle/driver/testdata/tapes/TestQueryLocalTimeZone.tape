@@ -27,13 +27,13 @@
 > query
 |  SELECT AT FROM OMNI_APP.LTZ
 < result
-< column "AT" "TimeStampLTZ_DTY"
+< column "AT" "TimeStampLTZ_DTY" "time.Time"
 < row
 : time 2026-03-04T03:06:07Z
 > query
 | SELECT SESSIONTIMEZONE FROM DUAL
 < result
-< column "SESSIONTIMEZONE" "NCHAR"
+< column "SESSIONTIMEZONE" "NCHAR" "string"
 < row
 : string
 | +02:00
@@ -43,13 +43,13 @@
 > query
 |  SELECT AT FROM OMNI_APP.LTZ
 < result
-< column "AT" "TimeStampLTZ_DTY"
+< column "AT" "TimeStampLTZ_DTY" "time.Time"
 < row
 : time 2026-03-04T03:06:07Z
 > query
 | SELECT SESSIONTIMEZONE FROM DUAL
 < result
-< column "SESSIONTIMEZONE" "NCHAR"
+< column "SESSIONTIMEZONE" "NCHAR" "string"
 < row
 : string
 | +00:00
@@ -59,13 +59,13 @@
 > query
 |  SELECT AT FROM OMNI_APP.LTZ
 < result
-< column "AT" "TimeStampLTZ_DTY"
+< column "AT" "TimeStampLTZ_DTY" "time.Time"
 < row
 : time 2026-03-04T03:06:07Z
 > query
 | SELECT SESSIONTIMEZONE FROM DUAL
 < result
-< column "SESSIONTIMEZONE" "NCHAR"
+< column "SESSIONTIMEZONE" "NCHAR" "string"
 < row
 : string
 | Europe/Berlin

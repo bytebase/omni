@@ -28,7 +28,7 @@
 > query
 | SELECT ID FROM S
 < result
-< column "ID" "NUMBER"
+< column "ID" "NUMBER" "float64" precision 38 scale 255
 < row
 : string
 | 1
