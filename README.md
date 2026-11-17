@@ -19,7 +19,7 @@ Every engine lives in its own top-level directory and follows the same shape: `a
 | Amazon Redshift | `redshift/` | `catalog`, `completion`, `analysis`, `plpgsql`, `compat`, `pgregress` |
 | MySQL | `mysql/` | `catalog`, `completion`, `deparse`, `validate`, `scope`, `quality` |
 | MariaDB | `mariadb/` | `catalog`, `completion`, `deparse`, `validate`, `scope`, `quality` |
-| TiDB | `tidb/` | `catalog`, `completion`, `deparse`, `scope`, `quality` |
+| TiDB | `tidb/` | `catalog`, `deparse`, `scope`, `quality` |
 | SQL Server (T-SQL) | `mssql/` | `completion` |
 | Oracle | `oracle/` | `quality` |
 | Snowflake | `snowflake/` | `analysis`, `deparse`, `diagnostics`, `advisor` |
