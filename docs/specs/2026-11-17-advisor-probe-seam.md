@@ -1,4 +1,4 @@
-# The advisor probe seam: one interface, one capability
+# The advisor probe seam: one probe, two capabilities
 
 2026-11-17 · Proposed
 
@@ -6,26 +6,29 @@ Bytebase `345007290e`, omni `9bda507ad`.
 
 V1's live review rules reach the target database through `advisor.Context.Driver *sql.DB`. After a
 cutover there is no `*sql.DB`, so the rules need a seam. Six cutover proofs met it: oracle reused
-pg's probe verbatim, mariadb re-ran mysql's shape, tidb measured what its absence costs, and pg,
-mysql and oceanbase each built their own — three shapes for one question. The [dispatch
-plan](2026-11-17-cutover-dispatch.md#5-what-the-measurements-say-the-plan-got-wrong)
+pg's probe with one option added, mariadb re-ran mysql's shape, tidb measured what its absence
+costs, and pg, mysql and oceanbase each built their own — three shapes for one question. The
+[dispatch plan](2026-11-17-cutover-dispatch.md#5-what-the-measurements-say-the-plan-got-wrong)
 concluded "budget two" without saying which two. This note says which two, from the rules' own
-requirements: a **generic statement probe** and **the engine's row estimate**, both in
-`backend/plugin/db`, with one `Context.Prober` field replacing `Context.Driver`. The
-engine-specific handle every mysql-family proof invented (`DriverHandle any` plus a per-engine
-interface asserted in the rule) is not needed and is the shape that makes a missing capability
-silent.
+requirements: a **generic statement probe** and **the two answers a driver must give itself** — the
+row estimate and one catalogue lookup — all in `backend/plugin/db`, with one `Context.Prober` field
+replacing `Context.Driver`. The engine-specific handle every mysql-family proof invented
+(`DriverHandle any` plus a per-engine interface asserted in the rule) is not needed and is the shape
+that makes a missing capability silent.
 
-The load-bearing finding is narrow, and it is what makes one seam enough:
+The load-bearing finding is narrow, and it is what keeps the seam from growing a handle per engine:
 
-> If the answer is a statement a rule can write, it is a probe. If the answer is the driver's own
-> judgment about the statement, it is a capability.
+> If the answer is a statement a rule can write without parameters, it is a probe. If the driver
+> must answer it itself — a rewrite, a plan format, a bound lookup — it is a capability.
 
-Twelve of the sixteen rule files that probe ask a question a rule can phrase as SQL. The other
-four — the MySQL family's two row-limit rules on each of mysql and mariadb — ask for the driver's
-rewrite of the statement into the query its planner can count (`AffectedRowsQuery`), in the plan
-format its session variable selects, with a fallback when the plan carries no count. That is engine
-judgment, and it is the only thing the seam must ask the driver for.
+Eleven of the sixteen rule files that probe ask a question a rule can phrase as SQL with no
+arguments. Four — the MySQL family's two row-limit rules on each of mysql and mariadb — ask for the
+driver's rewrite of the statement into the query its planner can count (`AffectedRowsQuery`), in
+the plan format its session variable selects, with a fallback when the plan carries no count. One —
+OceanBase's offline-DDL rule — asks for a lookup that has to bind three values, and the session
+contract has no arguments (`driver.Session.Query` takes a script and `QueryOptions` only). The
+driver answers those five itself, in the two capabilities below, and they are the only things the
+seam asks of it.
 
 ## 1. What the rules ask, rule by rule
 
@@ -44,8 +47,8 @@ note proposes.
 | `OCEANBASE` | `STATEMENT_AFFECTED_ROW_LIMIT` | `advisor/oceanbase/advisor_statement_affected_row_limit.go` | what this JSON plan says | `advisor.Query("EXPLAIN format=json …")` + `getEstimatedRowsFromJSON` | probe, read in the rule |
 | `OCEANBASE` | `STATEMENT_INSERT_ROW_LIMIT` | `advisor/oceanbase/advisor_insert_row_limit.go` | what this JSON plan says | same | probe, read in the rule |
 | `OCEANBASE` | `STATEMENT_DML_DRY_RUN` | `advisor/oceanbase/rule_statement_dml_dry_run.go` | does the server accept this plan | `advisor.Query("EXPLAIN …")` | probe |
-| `OCEANBASE` | `STATEMENT_DISALLOW_OFFLINE_DDL` | `advisor/oceanbase/advisor_disallow_offline_ddl.go` | one column's `INFORMATION_SCHEMA.COLUMNS.EXTRA` | `Driver.QueryRowContext(… = ? AND … = ? AND … = ?)` | probe, with `Arguments` |
-| `ORACLE` | `STATEMENT_DML_DRY_RUN` | `advisor/oracle/rule_statement_dml_dry_run.go` | does `EXPLAIN PLAN FOR` succeed | `advisor.Query` | probe |
+| `OCEANBASE` | `STATEMENT_DISALLOW_OFFLINE_DDL` | `advisor/oceanbase/advisor_disallow_offline_ddl.go` | one column's `INFORMATION_SCHEMA.COLUMNS.EXTRA`, bound to three values | `Driver.QueryRowContext(… = ? AND … = ? AND … = ?)` | capability (`ColumnExtraLookup`) |
+| `ORACLE` | `STATEMENT_DML_DRY_RUN` | `advisor/oracle/rule_statement_dml_dry_run.go` | does `EXPLAIN PLAN FOR` succeed | `advisor.Query` | probe, with `Autocommit` |
 | `POSTGRES` | `STATEMENT_AFFECTED_ROW_LIMIT` | `advisor/pg/advisor_statement_affected_row_limit.go` | what this JSON plan says, under the session's settings | `advisor.Query(EXPLAIN (FORMAT JSON) …, PreExecutions: session settings)` | probe, with `PreExecutions` |
 | `POSTGRES` | `STATEMENT_INSERT_ROW_LIMIT` | `advisor/pg/advisor_insert_row_limit.go` | same, counting inserted rows | same | probe, with `PreExecutions` |
 | `POSTGRES` | `STATEMENT_DML_DRY_RUN` | `advisor/pg/advisor_statement_dml_dry_run.go` | does the server accept this plan | `advisor.Query` | probe |
@@ -60,15 +63,17 @@ Read as questions rather than calls, the sixteen files ask five things:
 3. **How many rows will this statement change?** four rules (mysql, mariadb, ×2 each). The query to
    plan is not the statement: MySQL plans `AffectedRowsQuery(stmt, text)`, under a session
    variable, with a tabular re-plan when the JSON plan carries no count.
-4. **What is one column's catalogue extra?** one rule, one parameterized `SELECT`.
-5. **Who is the current user?** one rule, one `SELECT`.
+4. **What is one column's catalogue extra?** one rule, one `SELECT` that must bind three values.
+5. **Who is the current user?** one rule, one `SELECT` with no arguments.
 
-Plus one property rather than a question: TiDB's `BATCH … DRY RUN` **cannot run inside a
-transaction**, so one probe must run outside one.
+Two properties rather than questions: TiDB's `BATCH … DRY RUN` **cannot run inside a transaction**,
+and Oracle's `EXPLAIN PLAN FOR` **must not be wrapped in `BEGIN`**, which is a PL/SQL block opener
+there.
 
-Four of the five questions and the transaction property are SQL a rule can write. Only question 3
-is engine judgement. That ratio is the whole argument, and it is why the three proofs' handles
-disagree: each modeled an engine *method* instead of asking what the rule needs.
+Four of the five questions and both properties are things a rule can ask for. Question 3 is engine
+judgement, and question 4 needs argument binding. That ratio is the whole argument, and it is why
+the three proofs' handles disagree: each modeled an engine *method* instead of asking what the rule
+needs.
 
 ## 2. The three shapes the proofs grew
 
@@ -163,11 +168,8 @@ package db
 type ProbeContext struct {
 	// PreExecutions run before the statement in the same session, in order.
 	PreExecutions []string
-	// Arguments bind to the statement's placeholders, in the engine's
-	// placeholder syntax.
-	Arguments []any
 	// Autocommit runs the statement outside a transaction, for an engine whose
-	// probe refuses one. PreExecutions is invalid with it.
+	// probe cannot be wrapped in one. PreExecutions is invalid with it.
 	Autocommit bool
 }
 
@@ -196,6 +198,13 @@ type RowEstimator interface {
 	// CountAffectedRows returns the planner's estimate of the rows statement
 	// modifies: exactly one INSERT, UPDATE or DELETE.
 	CountAffectedRows(ctx context.Context, statement string) (int64, error)
+}
+
+// ColumnExtraLookup is the capability a rule needs when the answer must bind
+// values, which the session contract cannot carry.
+type ColumnExtraLookup interface {
+	// ColumnExtra returns one column's catalogue extra, or the server's error.
+	ColumnExtra(ctx context.Context, database, table, column string) (string, error)
 }
 
 // ProberOf returns the driver's probe, or nil when the driver has none.
@@ -237,6 +246,10 @@ func ProbeFor(checkCtx Context) (db.Prober, error)
 // Estimate is a row-limit rule's one call: the engine's estimate, shaped as the
 // rule reports it ({Rows} or {CountError}).
 func Estimate(ctx context.Context, engine storepb.Engine, p db.Prober, statement string) (v1review.Probe, error)
+
+// ColumnExtraOf returns the connection's catalogue lookup, or an
+// UnsupportedError.
+func ColumnExtraOf(p db.Prober) (db.ColumnExtraLookup, error)
 ```
 
 Both implementations of `Probe` are shared, not per engine:
@@ -249,7 +262,8 @@ func ProbeSQL(ctx context.Context, connection *sql.DB, pCtx db.ProbeContext, sta
 
 // ProbeSession is the pg proof's adapter method with the pg parts lifted out: it
 // opens one omni session, runs BEGIN, the pre-executions and the statement, then
-// ROLLBACK.
+// ROLLBACK. With pCtx.Autocommit it runs the statement alone: an engine whose
+// transaction opener is not a statement (Oracle's BEGIN is PL/SQL) passes it.
 func ProbeSession(ctx context.Context, querier driver.Querier, pCtx db.ProbeContext, statement string) (db.ProbeResult, error)
 ```
 
@@ -298,17 +312,26 @@ The same name retires plancheck's eight concrete assertions
 `interface{ CountAffectedRows(context.Context, string) (int64, error) }`, which is `db.RowEstimator`.
 That change still carries the nine blank parser imports of
 [dispatch §5](2026-11-17-cutover-dispatch.md#planchecks-assertions-were-hiding-parser-registration),
-because the assertions were also the parser registration — but it no longer needs a second seam,
-and it removes the pin that keeps `*mysqldriver.Driver` and its six siblings alive.
+because the assertions were also the parser registration — but it needs no advisor-side seam of its
+own, and it removes the pin that keeps `*mysqldriver.Driver` and its six siblings alive.
+
+### Why the catalogue lookup is the second capability
+
+`Session.Query` takes a script and `QueryOptions`, and nothing in the omni contract binds
+arguments: `oceanbase/driver`'s own `runStatement` calls `QueryContext` without them, and its
+`ColumnExtra` exists precisely because the lookup needs three values. A probe that accepted
+`Arguments` would work on the `*sql.DB` side and fail on every adapter, so the parameterized lookup
+is the driver's. `oceanbase/driver.ColumnExtra` already has exactly the signature, and the legacy
+`db/oceanbase` gets the same 10-line method (the rule's current `QueryRowContext` moved into it) so
+the rule has one code path before and after the cutover.
 
 ### Why the other engine-specific needs are probe options
 
-- **`Arguments`** covers OceanBase's `ColumnExtra`. The rule writes the `SELECT` it already runs
-  (`WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ? AND COLUMN_NAME = ?`) and passes the values; no string
-  formatting, no engine SQL in `db`.
-- **`Autocommit`** covers TiDB's `BATCH … DRY RUN`. The property is "this statement must not run
-  inside a transaction", which any connection can honour; if one does not (a driver that always
-  wraps), the server refuses the statement and the rule reports a failed probe for that statement.
+- **`Autocommit`** covers TiDB's `BATCH … DRY RUN` and Oracle's `EXPLAIN PLAN FOR`. TiDB's property
+  is "this statement must not run inside a transaction"; Oracle's is the reverse of the same thing —
+  `BEGIN` opens a PL/SQL block there, so the pg-style `BEGIN; … ROLLBACK;` script cannot carry the
+  dry run, and the statement runs alone. If a connection ignores the flag (always wraps), the
+  server refuses the statement and the rule reports a failed probe for that statement.
 - **`PreExecutions`** covers pg's session settings (`SET ROLE`, `SET search_path` collected from the
   script's earlier statements by `liveStatements.probeEach`). Already in `advisor.QueryContext`.
 - **`TenantMode` is not in the context.** The pg legacy driver stores `connectionCtx.TenantMode` and
@@ -322,8 +345,8 @@ and it removes the pin that keeps `*mysqldriver.Driver` and its six siblings ali
 | Alternative | Why not |
 | --- | --- |
 | `Context.DriverHandle any` + an interface per rule (mysql, mariadb, oceanbase) | the assertion is the check, and a failed assertion is `nil, nil`; sixteen rules each re-derive it; the legacy bridge keeps it passing until the cutover, then it goes silent (§2) |
-| Four capabilities (`Probe`, `RowEstimator`, `ColumnExtraLookup`, `DryRunAutoCommitter`) | three of them are statements; an interface per statement is the shape that produced three variants. Options are mechanical, and their failure is a per-statement probe error, not a skip |
-| One interface with all four methods | every engine without a probing rule would implement methods it cannot answer, returning an error to satisfy a compile — a capability advertised as present |
+| A `ProbeContext.Arguments` field for OceanBase's lookup | it would bind on the `*sql.DB` side and not through `Session.Query`, so the rule would pass its tests and fail after the cutover; the driver already owns this lookup |
+| A fourth interface for TiDB's auto-commit dry run (`DryRunAutoCommitter`) | `Autocommit` is a property of how a statement runs, not a new question, and an engine that ignores it fails the statement loudly instead of skipping it |
 | Keep `Context.Driver` and add `Prober` (the pg proof's tree) | two shapes for the length of the migration; that is exactly how three variants got written, and the rules that keep `Driver` are the ones that then skip |
 | `EstimateAffectedRows` taking the omni AST node (the mysql proof's signature) | not contract-neutral: `omni/mysql/ast.Node` and `omni/mariadb/ast.Node` are different types, so the interface cannot be shared, and the rule re-derives what the driver already does |
 | Put the seam in omni | nothing in omni changes: `Session.Query`, `CountAffectedRows`, `Explain`, `ColumnExtra` and `DryRunAutoCommit` already exist. The only names the proofs needed are product names |
@@ -377,17 +400,17 @@ Three things keep the state from happening at all:
 `Probe` is new on both sides and is the same ~10 lines after `util.ProbeSession`; a capability is
 already there or is not needed.
 
-| Engine | `Probe` (legacy driver → adapter) | `RowEstimator` | Engine-specific part of the probe | Rules |
-| --- | --- | --- | --- | --- |
-| `POSTGRES` | `util.ProbeSQL` → `util.ProbeSession` | yes (unused by rules) | tenant-mode prelude inside the transaction | 4 |
-| `COCKROACHDB` | same as pg | yes | none | 0 (plancheck) |
-| `MYSQL` | `util.ProbeSQL` → `util.ProbeSession` | yes, both sides | none | 3 |
-| `MARIADB` | the `db/mysql` package, branch on `dbType` | yes (MariaDB parser) | none | 3 |
-| `TIDB` | `util.ProbeSQL` with `Autocommit` → `util.ProbeSession` | yes | `BATCH … DRY RUN` runs outside a transaction | 1 |
-| `OCEANBASE` | `util.ProbeSQL` → `util.ProbeSession` | yes (unused by rules) | none | 4 |
-| `ORACLE` | `util.ProbeSQL` → `util.ProbeSession` | yes (plancheck) | none | 1 |
-| `MSSQL` | not required (its advisors are static AST rules) | yes (plancheck) | — | 0 |
-| cassandra, redis, spanner, elasticsearch, trino, clickhouse, hive, doris, starrocks, mongo, cosmosdb, dynamodb, snowflake, bigquery, databricks | — | no | — | 0 |
+| Engine | `Probe` (legacy driver → adapter) | `RowEstimator` | `ColumnExtraLookup` | Engine-specific part of the probe | Rules |
+| --- | --- | --- | --- | --- | --- |
+| `POSTGRES` | `util.ProbeSQL` → `util.ProbeSession` | yes (unused by rules) | — | tenant-mode prelude inside the transaction | 4 |
+| `COCKROACHDB` | same as pg | yes | — | none | 0 (plancheck) |
+| `MYSQL` | `util.ProbeSQL` → `util.ProbeSession` | yes, both sides | — | none | 3 |
+| `MARIADB` | the `db/mysql` package, branch on `dbType` | yes (MariaDB parser) | — | none | 3 |
+| `TIDB` | `util.ProbeSQL` with `Autocommit` → `util.ProbeSession` | yes | — | `BATCH … DRY RUN` runs outside a transaction | 1 |
+| `OCEANBASE` | `util.ProbeSQL` → `util.ProbeSession` | yes (unused by rules) | **yes, new on the legacy driver** | none | 4 |
+| `ORACLE` | `util.ProbeSQL` → `util.ProbeSession` with `Autocommit` | yes (plancheck) | — | `BEGIN` is PL/SQL, so the dry run runs alone | 1 |
+| `MSSQL` | not required (its advisors are static AST rules) | yes (plancheck) | — | — | 0 |
+| cassandra, redis, spanner, elasticsearch, trino, clickhouse, hive, doris, starrocks, mongo, cosmosdb, dynamodb, snowflake, bigquery, databricks | — | no | — | — | 0 |
 
 `ProberOf(driver)` returns nil for the last row, and that is not a defect: no rule of those engines
 probes. It becomes one only if an engine gains a probing rule without gaining a prober — which is
@@ -412,9 +435,12 @@ reads `Context.Driver` must move at once or the tree carries two shapes and the 
    the tenant-mode branch, which moves to the pg driver's `Probe`) and `ProbeSession` (the pg
    proof's adapter method, with the tenant-mode prelude as the caller's callback).
 3. `Probe` on the six engine values in five legacy packages: pg (+tenant prelude, ~15 lines),
-   mysql/mariadb (~5), tidb (+`Autocommit`, ~10), oceanbase (~5), oracle (~5).
+   mysql/mariadb (~5), tidb (+`Autocommit`, ~10), oceanbase (~5), oracle (~5). `ColumnExtra` moves
+   from OceanBase's offline-DDL rule into `db/oceanbase` (~10 lines) so the rule and the adapter
+   share one method.
 4. `advisor.Context`: `Driver *sql.DB` → `Prober db.Prober` (+11/−1); `advisor/prober.go`
-   (`UnsupportedError`, `ProbeFor`, `Estimate`); `advisor.Query` and `QueryContext` deleted.
+   (`UnsupportedError`, `ProbeFor`, `Estimate`, `ColumnExtraOf`); `advisor.Query` and
+   `QueryContext` deleted.
 5. The sixteen rule files and their tests; the static yaml fixtures for the four live rule types
    become absence-path cases (§4).
 6. `RowEstimator` is defined here and first consumed in **wave 2** by plancheck
@@ -429,10 +455,11 @@ still skip when it is absent.
 
 **Wave 3 — pg is the first cutover that lands the seam's omni side.** `util.ProbeSession` replaces
 the 75-line inline method; the four pg rules do not change again, because wave 0 already moved
-them. `oracle` follows and adds only its `Probe`. `tidb` and `oceanbase` then add `Probe` to their
-adapters (TiDB keeps `Autocommit`, OceanBase's offline-DDL rule keeps `Arguments`). `mysql` and
-`mariadb` last: their adapters already implement `CountAffectedRows`, so the estimator needs no new
-code, and the cutover deletes the legacy `Probe` methods with the packages.
+them. `oracle` follows and adds a `Probe` that passes `Autocommit`, because `BEGIN` is PL/SQL there.
+`tidb` adds the same method and keeps `Autocommit` for `BATCH … DRY RUN`; `oceanbase` adds `Probe`
+and already has `ColumnExtra` on its adapter. `mysql` and `mariadb` last: their adapters already
+implement `CountAffectedRows`, so the estimator needs no new code, and the cutover deletes the
+legacy `Probe` methods and `db/oceanbase.ColumnExtra` with the packages.
 
 The order inside wave 3 does not change: pg (measured, 658 adapter lines), oracle (390, reuse),
 tidb/oceanbase, mysql/mariadb (706, worst). What changes is that the seam is no longer a wave-3
@@ -445,13 +472,14 @@ item, so no engine's cutover carries a product interface.
 | `db/probe.go` | ~85 lines | types, two constructors, `Plan` |
 | `db/util/probe.go` | ~110 lines | `ProbeSQL` is `advisor.Query` moved (−45 there); `ProbeSession` is the pg proof's method, shared |
 | legacy `Probe` × 6 | ~40 lines | deleted with each package at cutover |
+| `db/oceanbase.ColumnExtra` | ~10 lines | the rule's current `QueryRowContext`, moved so the legacy driver and the adapter answer the same method |
 | `advisor.Context` + `prober.go` | +11/−1, +55 | `RowEstimator` needs no driver change |
 | 16 rule files | ~+60/−80 | mysql/mariadb's four shrink by ~20 each: the estimate is one call, and `db/mysql` leaves the advisor package |
 | `advisor.Query`/`QueryContext` | −45 | no caller left |
 | static fixtures | 4 yaml files → absence-path cases | they asserted silence; the live tests are the coverage |
 | plancheck (wave 2) | +24/−62 plus the nine imports | unchanged from the dispatch's estimate; now one interface named in `db` |
 
-Four behaviour deltas, each small and each named:
+Five behaviour deltas, each small and each named:
 
 - **A row-limit estimate that fails is now `CountError`.** Today an `EXPLAIN` refusal is
   `Probe{Error}` ("dry runs failed: …") and an unreadable plan is `Probe{CountError}`
@@ -466,6 +494,12 @@ Four behaviour deltas, each small and each named:
   `context.Background()` (`advisor_disallow_offline_ddl.go:55`), so a cancelled review still queries.
 - **MariaDB's dry run stops naming MySQL.** It passes `storepb.Engine_MYSQL` to
   `advisor.Query` today; the probe has no engine parameter.
+- **Oracle's dry run no longer rolls its plan back.** Today `advisor.Query` wraps `EXPLAIN PLAN FOR`
+  in a transaction and rolls it back, so the `PLAN_TABLE` row goes away. `BEGIN` is PL/SQL there, so
+  the probe runs alone and the row stays — which is what omni's own oracle explain path does
+  (`oracle/driver/query.go`'s `explain` leaves it, while `CountAffectedRows` deletes by statement id).
+  If the leftover matters, the fix belongs in `oracle/driver` as a plan-and-delete method, not in the
+  seam.
 
 ## 8. What would falsify this
 
