@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/bytebase/omni/driver"
 	"github.com/bytebase/omni/spanner/internal/testcontainer"
@@ -129,9 +131,37 @@ func TestQueryTruncated(t *testing.T) {
 		`SELECT Id, FirstName FROM Singers ORDER BY Id`, driver.QueryOptions{MaxResultBytes: 40})
 	a.NoError(err)
 	a.True(results[0].Truncated)
-	// The cap is measured at every doubling of the row count, so the first row
-	// is measured and the read stops there.
+	// The header and the first row already encode to more than the cap, so the
+	// read stops on the row that crossed it.
 	a.Len(results[0].Rows, 1)
+}
+
+// TestQueryMaxResultBytesAtTheCut cuts a read at the row that crosses the cap,
+// wherever in the result it falls: the header and Singers' three rows encode to
+// 138 + 106 + 41 + 48 = 333 bytes, so the third row is the one that crosses a cap
+// of 332, and a cap of 333 is met exactly and truncates nothing.
+func TestQueryMaxResultBytesAtTheCut(t *testing.T) {
+	a := require.New(t)
+	d := openFixture(t, "query")
+	defer d.Close()
+	const statement = `SELECT Id, FirstName, Active, Rating, Photo, Born, UpdatedAt, Meta, Scores FROM Singers ORDER BY Id`
+
+	cut, err := sessionOf(t, d).Query(context.Background(), statement, driver.QueryOptions{MaxResultBytes: 332})
+	a.NoError(err)
+	a.True(cut[0].Truncated)
+	a.Len(cut[0].Rows, 3)
+	a.Equal(int64(3), cut[0].Rows[2][0].Int64)
+
+	// Two rows encode to 285 bytes and leave no room for the third.
+	two, err := sessionOf(t, d).Query(context.Background(), statement, driver.QueryOptions{MaxResultBytes: 284})
+	a.NoError(err)
+	a.True(two[0].Truncated)
+	a.Len(two[0].Rows, 2)
+
+	exact, err := sessionOf(t, d).Query(context.Background(), statement, driver.QueryOptions{MaxResultBytes: 333})
+	a.NoError(err)
+	a.False(exact[0].Truncated)
+	a.Len(exact[0].Rows, 3)
 }
 
 // TestQueryStopsAtError ends a script at the statement that failed, and reports
@@ -149,6 +179,11 @@ func TestQueryStopsAtError(t *testing.T) {
 	a.Contains(results[1].Err.Error(), "Table not found")
 	a.Equal(`SELECT * FROM Missing`, results[1].Statement)
 	a.Empty(results[1].Rows)
+	// The failure states the server's gRPC code, which the package doc names:
+	// Spanner answers an unknown table as an invalid argument.
+	st, ok := status.FromError(results[1].Err)
+	a.True(ok)
+	a.Equal(codes.InvalidArgument, st.Code())
 }
 
 // TestQueryExplain records what the emulator answers for a plan: it has no
