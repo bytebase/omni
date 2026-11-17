@@ -50,6 +50,7 @@ The root package also exposes the helpers Bytebase wires into its product featur
 | `redshift/catalog` | In-memory catalog simulation, DDL semantic analysis |
 | `redshift/completion` | Parser-native C3-style SQL completion |
 | `redshift/analysis` | Statement classification, query span, changed resources |
+| `redshift/driver` | The driver contract: connect, sync, query, execute, row estimates. **Unverified against a cluster**; see `redshift/driver/VERIFY.md` |
 | `redshift/plpgsql` | PL/pgSQL parser for function bodies |
 | `redshift/compat` | Compatibility report against the AWS command manifest |
 | `redshift/parsertest` | Parser test cases organized by SQL feature |

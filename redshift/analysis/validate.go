@@ -23,21 +23,22 @@ func ValidateQuery(statement string) (readOnly bool, returnsData bool, err error
 	}
 
 	seen := false
+	canRunReadOnly := true
 	returnsData = true
 	for _, stmt := range parsed {
 		if stmt.Empty() {
 			continue
 		}
 		seen = true
-		readOnly, stmtReturnsData := validateEditorStatement(stmt.AST)
-		if !readOnly {
-			return false, false, nil
+		stmtReadOnly, stmtReturnsData := validateEditorStatement(stmt.AST)
+		if !stmtReadOnly {
+			canRunReadOnly = false
 		}
 		if !stmtReturnsData {
 			returnsData = false
 		}
 	}
-	return seen, returnsData, nil
+	return seen && canRunReadOnly, returnsData, nil
 }
 
 func validateEditorStatement(node ast.Node) (bool, bool) {
@@ -55,13 +56,43 @@ func validateEditorStatement(node ast.Node) (bool, bool) {
 			return false, false
 		}
 		return true, true
-	case *ast.RedshiftShowStmt, *ast.VariableShowStmt:
+	case *ast.RedshiftShowStmt, *ast.RedshiftDescStmt, *ast.VariableShowStmt:
 		return true, true
+	case *ast.CallStmt:
+		// A procedure's OUT and INOUT parameters come back as one row, and the
+		// call itself is not a read-only statement.
+		return false, true
+	case *ast.FetchStmt:
+		// FETCH reads a cursor's rows; MOVE advances it and answers nothing.
+		return true, !n.Ismove
 	case *ast.VariableSetStmt:
 		return true, false
 	default:
 		return false, false
 	}
+}
+
+// UntracedRows reports whether statement answers rows the analysis cannot trace
+// to columns: a procedure call's OUT and INOUT parameters. A caller that masks
+// columns by tracing them has no lineage for those rows, so it withholds them.
+func UntracedRows(statement string) bool {
+	parsed, err := redshift.Parse(statement)
+	if err != nil {
+		return false
+	}
+	for _, stmt := range parsed {
+		if stmt.Empty() {
+			continue
+		}
+		switch node := stmt.AST.(type) {
+		case *ast.CallStmt:
+			return true
+		case *ast.FetchStmt:
+			// A cursor's rows have no column lineage the statement states.
+			return !node.Ismove
+		}
+	}
+	return false
 }
 
 func hasDMLInWithClause(withClause *ast.WithClause) bool {

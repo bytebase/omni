@@ -230,3 +230,20 @@ func withSearchPath(statement string, schemas []string) string {
 	}
 	return searchPathPrefix + strings.Join(quoted, ", ") + ";\n" + statement
 }
+
+// SplitSearchPath returns the SET LOCAL search_path statement that withSearchPath
+// put before statement, or "" when there is none, and the statement after it.
+func SplitSearchPath(statement string) (string, string) {
+	if !strings.HasPrefix(statement, searchPathPrefix) {
+		return "", statement
+	}
+	// The splitter finds the boundary outside a quoted identifier, which may
+	// itself hold a semicolon.
+	segments := redshift.Split(statement)
+	if len(segments) < 2 {
+		return "", statement
+	}
+	setup := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(segments[0].Text), ";"))
+	// The newline the prefix wrote after the semicolon separates the two.
+	return setup, strings.TrimLeft(statement[segments[0].ByteEnd:], " \t\r\n")
+}

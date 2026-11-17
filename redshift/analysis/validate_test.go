@@ -257,6 +257,45 @@ func TestValidateQuery(t *testing.T) {
 			wantReturnsData:    true,
 			wantErr:            false,
 		},
+		// FETCH reads a cursor's rows, and MOVE only advances it.
+		{
+			name:               "FETCH",
+			statement:          "FETCH NEXT FROM c",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
+		{
+			name:               "MOVE",
+			statement:          "MOVE NEXT FROM c",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    false,
+			wantErr:            false,
+		},
+		// A procedure call is not read-only, and its OUT and INOUT parameters
+		// come back as a row.
+		{
+			name:               "CALL",
+			statement:          "CALL app.load_facts(1)",
+			wantCanRunReadOnly: false,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
+		// DESC and DESCRIBE answer rows of the object's shape.
+		{
+			name:               "DESC DATASHARE",
+			statement:          "DESC DATASHARE salesshare",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
+		{
+			name:               "DESCRIBE TABLE",
+			statement:          "DESCRIBE TABLE app.facts",
+			wantCanRunReadOnly: true,
+			wantReturnsData:    true,
+			wantErr:            false,
+		},
 		{
 			name:               "SHOW GRANTS",
 			statement:          "SHOW GRANTS FOR user1",
@@ -565,4 +604,21 @@ func TestValidateQueryReturnsSyntaxError(t *testing.T) {
 
 	var parseErr *parser.ParseError
 	require.True(t, errors.As(err, &parseErr))
+}
+
+// TestUntracedRows pins which statements answer rows the analysis cannot trace
+// to columns.
+func TestUntracedRows(t *testing.T) {
+	for statement, want := range map[string]bool{
+		"SELECT * FROM t":          false,
+		"INSERT INTO t VALUES (1)": false,
+		"CALL app.load_facts(1)":   true,
+		"FETCH NEXT FROM c":        true,
+		"MOVE NEXT FROM c":         false,
+		"SELEC * FORM t":           false,
+	} {
+		if got := UntracedRows(statement); got != want {
+			t.Errorf("UntracedRows(%q) = %v, want %v", statement, got, want)
+		}
+	}
 }
