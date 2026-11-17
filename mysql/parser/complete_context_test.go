@@ -605,6 +605,26 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
 		},
 		{
+			name: "function arguments keep the order by clause",
+			sql:  "SELECT a AS total FROM t ORDER BY COALESCE(a, |)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction, ObjectKindSelectAlias}, local: []ref{{table: "t"}}, aliases: []string{"total"}},
+		},
+		{
+			name: "case expression then is not a statement boundary",
+			sql:  "UPDATE t SET x = CASE WHEN y = 1 THEN | ELSE 0 END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "insert select duplicate key update sees the destination",
+			sql:  "INSERT INTO t (a) SELECT a FROM s ON DUPLICATE KEY UPDATE a = |",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "s"}}, outer: [][]ref{{{table: "t"}}}, dml: "->t"},
+		},
+		{
+			name: "distinctrow is a select option",
+			sql:  "SELECT * FROM (SELECT DISTINCTROW a FROM t) d WHERE d.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"d"}, local: []ref{{kind: RangeReferenceSubquery, table: "d", alias: "d"}}, cols: map[string][]string{"d": {"a"}}},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},

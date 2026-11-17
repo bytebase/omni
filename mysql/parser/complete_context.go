@@ -301,16 +301,24 @@ func collectCompletionScope(sql string, cursorOffset int) *ScopeSnapshot {
 	mainTokens := sliceScopeTokens(stmtTokens, mainStart, len(stmtTokens))
 	target, dmlRefs := collectDMLScope(mainTokens, cteMap)
 	var enclosing []RangeReference
+	enclosingFromNested := true
 	if first := statementVerb(mainTokens); first >= 0 {
 		switch mainTokens[first].Type {
 		case kwUPDATE, kwDELETE:
 			// A subquery in an UPDATE or DELETE can name the statement's
 			// own tables, so they are its outermost scope level. An INSERT
-			// or REPLACE target is not readable from its SELECT.
+			// or REPLACE target is not readable from its SELECT, but it is
+			// from the ON DUPLICATE KEY UPDATE assignment, which also ends
+			// the source query.
 			enclosing = dmlRefs
+		case kwINSERT, kwREPLACE:
+			if cursorInDuplicateKeyUpdate(mainTokens, cursorOffset) {
+				enclosing = dmlRefs
+				enclosingFromNested = false
+			}
 		}
 	}
-	scope := collectSelectScope(stmtTokens, cursorOffset, enclosing)
+	scope := collectSelectScope(stmtTokens, cursorOffset, enclosing, enclosingFromNested)
 	if scope == nil {
 		// No query block at the cursor: a DML or DDL statement's own tables
 		// are what its clauses name.
@@ -351,15 +359,27 @@ func completionScopeTokens(tokens []Token) []completionScopeToken {
 
 // cursorStatementStart returns the index of the token that starts the statement
 // holding the cursor. Inside a stored routine's body that is the statement after
-// the last ';', BEGIN, THEN, ELSE, DO, LOOP, or REPEAT, not the CREATE.
+// the last ';', BEGIN, THEN, ELSE, DO, LOOP, or REPEAT, not the CREATE. Those
+// keywords only start a statement there: a CASE expression's THEN and ELSE, and
+// a transaction's BEGIN, are part of the statement around them.
 func cursorStatementStart(tokens []completionScopeToken, cursorOffset int) int {
 	start := 0
+	procedural := false
+	if verb := firstNonTerminator(tokens); verb >= 0 {
+		switch tokens[verb].Type {
+		case kwCREATE, kwBEGIN:
+			procedural = true
+		}
+	}
 	for i, tok := range tokens {
 		if tok.Loc >= cursorOffset {
 			break
 		}
 		if tok.Type == ';' {
 			start = i + 1
+			continue
+		}
+		if !procedural {
 			continue
 		}
 		switch tok.Type {
@@ -944,7 +964,7 @@ func parseDeleteTargets(tokens []completionScopeToken, idx, depth int) ([]RangeR
 // references: only a statement with no query block at all falls back to its
 // DML or DDL tables. enclosing holds the references of an UPDATE or DELETE the
 // cursor's block is nested in; they are visible only from a nested block.
-func collectSelectScope(tokens []completionScopeToken, cursorOffset int, enclosing []RangeReference) *ScopeSnapshot {
+func collectSelectScope(tokens []completionScopeToken, cursorOffset int, enclosing []RangeReference, enclosingFromNested bool) *ScopeSnapshot {
 	frames := selectFramesForCursor(tokens, cursorOffset)
 	if len(frames) == 0 {
 		return nil
@@ -956,7 +976,7 @@ func collectSelectScope(tokens []completionScopeToken, cursorOffset int, enclosi
 			outerRefs = append(outerRefs, refs)
 		}
 	}
-	if len(enclosing) > 0 && innermost.depth > 0 {
+	if len(enclosing) > 0 && (innermost.depth > 0 || !enclosingFromNested) {
 		if refs := enclosingScopeRefs(enclosing); len(refs) > 0 {
 			outerRefs = append(outerRefs, refs)
 		}
@@ -1738,7 +1758,7 @@ func isQualifiedNameChain(tokens []completionScopeToken, start, end, depth int) 
 func trimSelectModifiers(tokens []completionScopeToken, start, end, depth int) (int, int) {
 	for start < end && tokens[start].depth == depth {
 		switch tokens[start].Type {
-		case kwDISTINCT, kwALL, kwHIGH_PRIORITY, kwSTRAIGHT_JOIN, kwSQL_SMALL_RESULT,
+		case kwDISTINCT, kwDISTINCTROW, kwALL, kwHIGH_PRIORITY, kwSTRAIGHT_JOIN, kwSQL_SMALL_RESULT,
 			kwSQL_BIG_RESULT, kwSQL_BUFFER_RESULT, kwSQL_NO_CACHE, kwSQL_CALC_FOUND_ROWS:
 			start++
 			continue
@@ -1913,6 +1933,30 @@ func findKeywordAtDepth(tokens []completionScopeToken, typ, start, end, depth in
 // statementVerb returns the index of the statement's own verb, reading through
 // an EXPLAIN wrapper and its options: EXPLAIN [ANALYZE] [FORMAT = x] UPDATE ...
 // is an UPDATE whose columns the SET clause names.
+// cursorInDuplicateKeyUpdate reports whether the cursor is inside an INSERT's or
+// REPLACE's ON DUPLICATE KEY UPDATE assignment. That clause ends the source
+// query block and makes the destination table readable.
+func cursorInDuplicateKeyUpdate(tokens []completionScopeToken, cursorOffset int) bool {
+	depth := -1
+	for i := 0; i+2 < len(tokens); i++ {
+		if tokens[i].Loc >= cursorOffset {
+			break
+		}
+		if tokens[i].Type == kwON && tokens[i+1].Type == kwDUPLICATE && tokens[i+2].Type == kwKEY {
+			depth = tokens[i].depth
+		}
+	}
+	if depth < 0 {
+		return false
+	}
+	for _, tok := range tokens {
+		if tok.Loc >= cursorOffset && tok.depth == depth && tok.Type == ';' {
+			return false
+		}
+	}
+	return true
+}
+
 func statementVerb(tokens []completionScopeToken) int {
 	first := firstNonTerminator(tokens)
 	if first < 0 {
@@ -2047,7 +2091,7 @@ func collectCompletionIntent(sql string, candidates *CandidateSet, collectOffset
 	if len(kinds) == 0 && len(qualifier.Parts) == 0 {
 		return nil
 	}
-	if qualifierAllowedSelectAlias(tokens) {
+	if qualifierAllowedSelectAlias(tokens, collectOffset) {
 		kinds = appendObjectKind(kinds, ObjectKindSelectAlias)
 	}
 	return &CompletionIntent{
@@ -2060,11 +2104,15 @@ func collectCompletionIntent(sql string, candidates *CandidateSet, collectOffset
 // GROUP BY, or HAVING clause of the query block it is in, where a select list
 // alias may be named. Only the cursor block's tokens decide: a completed
 // subquery before the cursor ends its own clause, so its ORDER BY does not
-// make an outer WHERE an alias position.
-func qualifierAllowedSelectAlias(tokens []completionScopeToken) bool {
+// make an outer WHERE an alias position, and an argument list's parentheses do
+// not hide the clause the block is in.
+func qualifierAllowedSelectAlias(tokens []completionScopeToken, cursorOffset int) bool {
 	cursorDepth := 0
 	if len(tokens) > 0 {
 		cursorDepth = tokens[len(tokens)-1].depth
+	}
+	if frames := selectFramesForCursor(tokens, cursorOffset); len(frames) > 0 {
+		cursorDepth = frames[len(frames)-1].depth
 	}
 	for i := len(tokens) - 1; i >= 0; i-- {
 		if tokens[i].depth != cursorDepth {
