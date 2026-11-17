@@ -567,6 +567,19 @@ func (d *Driver) SyncDatabase(ctx context.Context) (meta *metadatapb.DatabaseSch
 	}
 	_ = tableRows.Close()
 
+	// An external table's location, pattern and format are in its own DDL,
+	// which information_schema does not carry.
+	for _, externalTable := range schemaMetadata.ExternalTables {
+		location, pattern, autoRefresh, format, err := d.getExternalTableFacts(ctx, d.databaseName, externalTable.Name)
+		if err != nil {
+			return nil, err
+		}
+		externalTable.Location = location
+		externalTable.Pattern = pattern
+		externalTable.AutoRefresh = autoRefresh
+		externalTable.Format = format
+	}
+
 	materializedViews, containerTables, err := d.listMaterializedViews(ctx, d.databaseName, schemaMetadata.Tables)
 	if err != nil {
 		return nil, err
@@ -1455,4 +1468,238 @@ func unquoteMySQLString(s string) string {
 		}
 	}
 	return string(result)
+}
+
+// getExternalTableFacts reads the location and FORMAT clause SHOW CREATE TABLE
+// states for an external table.
+func (d *Driver) getExternalTableFacts(ctx context.Context, database, table string) (location, pattern, autoRefresh, format string, err error) {
+	var tableName, ddl string
+	query := "SHOW CREATE TABLE " + quoteBacktick(database) + "." + quoteBacktick(table)
+	if err := d.db.QueryRowContext(ctx, query).Scan(&tableName, &ddl); err != nil {
+		return "", "", "", "", fmt.Errorf("failed to execute query %q: %w", query, err)
+	}
+	location, pattern, autoRefresh, format = externalTableFacts(ddl)
+	return location, pattern, autoRefresh, format, nil
+}
+
+// externalTableFacts reads LOCATION and FORMAT from the CREATE EXTERNAL TABLE
+// statement SHOW CREATE TABLE states. Both are top-level clauses, after the
+// column list, so the scan skips quoted text and parenthesized expressions.
+func externalTableFacts(ddl string) (location, pattern, autoRefresh, format string) {
+	depth := 0
+	for i := 0; i < len(ddl); {
+		switch ddl[i] {
+		case '\'', '"', '`':
+			i = skipQuotedText(ddl, i, ddl[i])
+			continue
+		case '(':
+			depth++
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+		}
+		if depth == 0 {
+			if keywordAt(ddl, i, "LOCATION") {
+				j := i + len("LOCATION")
+				j = skipSpace(ddl, j)
+				if j < len(ddl) && ddl[j] == '=' {
+					j = skipSpace(ddl, j+1)
+				}
+				if j < len(ddl) && ddl[j] == '\'' {
+					value, next := readQuotedText(ddl, j, '\'')
+					location = value
+					i = next
+					continue
+				}
+			}
+			if keywordAt(ddl, i, "PATTERN") {
+				j := i + len("PATTERN")
+				j = skipSpace(ddl, j)
+				if j < len(ddl) && ddl[j] == '=' {
+					j = skipSpace(ddl, j+1)
+				}
+				if j < len(ddl) && ddl[j] == '\'' {
+					value, next := readQuotedText(ddl, j, '\'')
+					pattern = value
+					i = next
+					continue
+				}
+			}
+			if keywordAt(ddl, i, "AUTO_REFRESH") {
+				j := i + len("AUTO_REFRESH")
+				j = skipSpace(ddl, j)
+				if j < len(ddl) && ddl[j] == '=' {
+					j = skipSpace(ddl, j+1)
+				}
+				start := j
+				for j < len(ddl) && ddl[j] != '\n' && ddl[j] != '\r' {
+					j++
+				}
+				autoRefresh = strings.TrimSpace(ddl[start:j])
+				i = j
+				continue
+			}
+			if keywordAt(ddl, i, "FORMAT") {
+				j := i + len("FORMAT")
+				j = skipSpace(ddl, j)
+				if j < len(ddl) && ddl[j] == '=' {
+					j = skipSpace(ddl, j+1)
+				}
+				if j < len(ddl) && ddl[j] == '(' {
+					value, next, ok := readParenthesized(ddl, j)
+					if ok {
+						format = normalizeExternalFormat(value)
+						i = next
+						continue
+					}
+				}
+			}
+		}
+		i++
+	}
+	return location, pattern, autoRefresh, format
+}
+
+func keywordAt(text string, i int, keyword string) bool {
+	if !strings.HasPrefix(text[i:], keyword) {
+		return false
+	}
+	if i > 0 && isWordByte(text[i-1]) {
+		return false
+	}
+	end := i + len(keyword)
+	return end >= len(text) || !isWordByte(text[end])
+}
+
+func isWordByte(c byte) bool {
+	return c == '_' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
+}
+
+func skipSpace(text string, i int) int {
+	for i < len(text) && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n' || text[i] == '\r') {
+		i++
+	}
+	return i
+}
+
+// skipQuotedText returns the index after the quoted text that starts at i.
+func skipQuotedText(text string, i int, quote byte) int {
+	_, next := readQuotedText(text, i, quote)
+	return next
+}
+
+// readQuotedText reads text[i] as its opening quote and returns the unescaped
+// content and the index after the closing quote. A doubled quote is literal, as
+// is a MySQL backslash escape in a string.
+func readQuotedText(text string, i int, quote byte) (string, int) {
+	var b strings.Builder
+	for j := i + 1; j < len(text); j++ {
+		if text[j] == '\\' && quote != '`' && j+1 < len(text) {
+			b.WriteString(unescapeMySQLByte(text[j+1]))
+			j++
+			continue
+		}
+		if text[j] != quote {
+			b.WriteByte(text[j])
+			continue
+		}
+		if j+1 < len(text) && text[j+1] == quote {
+			b.WriteByte(quote)
+			j++
+			continue
+		}
+		return b.String(), j + 1
+	}
+	return b.String(), len(text)
+}
+
+// unescapeMySQLByte is the value MySQL writes for a backslash escape.
+func unescapeMySQLByte(c byte) string {
+	switch c {
+	case '0':
+		return "\x00"
+	case 'b':
+		return "\b"
+	case 'n':
+		return "\n"
+	case 'r':
+		return "\r"
+	case 't':
+		return "\t"
+	case 'Z':
+		return "\x1a"
+	default:
+		return string(c)
+	}
+}
+
+// readParenthesized reads the parenthesized text that starts at i and returns
+// its content without the parentheses.
+func readParenthesized(text string, i int) (string, int, bool) {
+	depth := 0
+	for j := i; j < len(text); j++ {
+		switch text[j] {
+		case '\'', '"', '`':
+			j = skipQuotedText(text, j, text[j]) - 1
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return text[i+1 : j], j + 1, true
+			}
+		}
+	}
+	return "", len(text), false
+}
+
+// normalizeExternalFormat collapses the whitespace SHOW CREATE TABLE writes
+// between FORMAT's entries, keeping the spacing inside quoted values.
+func normalizeExternalFormat(format string) string {
+	var b strings.Builder
+	inQuote := false
+	pendingSpace := false
+	for i := 0; i < len(format); i++ {
+		c := format[i]
+		if inQuote && c == '\\' && i+1 < len(format) {
+			if pendingSpace {
+				if b.Len() > 0 {
+					b.WriteByte(' ')
+				}
+				pendingSpace = false
+			}
+			b.WriteByte(c)
+			b.WriteByte(format[i+1])
+			i++
+			continue
+		}
+		if c == '\'' {
+			if inQuote && i+1 < len(format) && format[i+1] == '\'' {
+				if pendingSpace {
+					if b.Len() > 0 {
+						b.WriteByte(' ')
+					}
+					pendingSpace = false
+				}
+				b.WriteByte(c)
+				b.WriteByte(format[i+1])
+				i++
+				continue
+			}
+			inQuote = !inQuote
+		}
+		if !inQuote && (c == ' ' || c == '\t' || c == '\n' || c == '\r') {
+			pendingSpace = true
+			continue
+		}
+		if pendingSpace {
+			if b.Len() > 0 {
+				b.WriteByte(' ')
+			}
+			pendingSpace = false
+		}
+		b.WriteByte(c)
+	}
+	return strings.TrimSpace(b.String())
 }

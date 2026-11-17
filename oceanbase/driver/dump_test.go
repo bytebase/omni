@@ -71,36 +71,6 @@ func TestDumpRestores(t *testing.T) {
 	}
 }
 
-// TestDumpGaps pins OceanBase objects that a dump cannot faithfully restore
-// yet: external tables.
-func TestDumpGaps(t *testing.T) {
-	for _, gap := range []struct {
-		name, db, setup, wantErr string
-	}{
-		{
-			name:  "external table",
-			db:    "omni_gap_ext",
-			setup: "CREATE EXTERNAL TABLE ext_t (c1 INT) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');",
-		},
-	} {
-		t.Run(gap.name, func(t *testing.T) {
-			source, restored, err := dumpAndRestore(t, gap.db, gap.setup)
-			if gap.wantErr != "" {
-				if err == nil || !strings.Contains(strings.ToLower(err.Error()), gap.wantErr) {
-					t.Fatalf("restore err = %v, want %q; if the gap closed, remove it", err, gap.wantErr)
-				}
-				return
-			}
-			if err != nil {
-				t.Fatalf("restore failed: %v", err)
-			}
-			if restoreDiff(source, restored) == "" {
-				t.Fatalf("gap %s closed; move back into TestDumpRestores", gap.name)
-			}
-		})
-	}
-}
-
 func restoreDiff(source, restored *metadatapb.DatabaseSchemaMetadata) string {
 	return cmp.Diff(source, restored, protocmp.Transform(),
 		protocmp.IgnoreFields(&metadatapb.DatabaseSchemaMetadata{}, "name"),

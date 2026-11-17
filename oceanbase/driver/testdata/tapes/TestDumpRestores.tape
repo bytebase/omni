@@ -29,6 +29,9 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 < ok 0 0
 > exec
+| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10) COMMENT 'owner''s note') LOCATION = '/tmp' PATTERN = '.*[.]csv' AUTO_REFRESH = IMMEDIATE FORMAT = (TYPE = 'CSV');
+< ok 0 0
+> exec
 | CREATE MATERIALIZED VIEW mv_accounts COMMENT 'owners'' materialized accounts' AS SELECT id, email FROM accounts;
 < ok 0 0
 > exec
@@ -536,6 +539,52 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c1
+: uint64 1
+: bytes
+| 'metadata$filecol1'
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| metadata$filecol1
+: bytes
+| STORED GENERATED
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c2
+: uint64 2
+: bytes
+| 'metadata$filecol2'
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 'owner\'s note'
+: bytes
+| metadata$filecol2
+: bytes
+| STORED GENERATED
 : null
 < row
 : bytes
@@ -1351,6 +1400,29 @@
 | utf8mb4
 < row
 : bytes
+| ext_feed
+: bytes
+| EXTERNAL TABLE
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -1511,6 +1583,26 @@
 : bytes
 | utf8mb4
 > query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`ext_feed`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| ext_feed
+: bytes
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2) COMMENT 'owner\'s note'
+| ) 
+| LOCATION='file:///tmp'
+| PATTERN='.*[.]csv'
+| AUTO_REFRESH = IMMEDIATE
+| FORMAT (
+|   TYPE = 'CSV',
+|   ENCODING = 'utf8mb4'
+| ) DEFAULT CHARSET = utf8mb4
+> query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
 | 		FROM oceanbase.DBA_MVIEWS
@@ -1642,6 +1734,16 @@
 |   KEY `idx_account` (`account_id`),
 |   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2) COMMENT 'owner\'s note'
+| )
+| LOCATION = 'file:///tmp'
+| PATTERN = '.*[.]csv'
+| AUTO_REFRESH = IMMEDIATE
+| FORMAT (TYPE = 'CSV', ENCODING = 'utf8mb4')
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -2226,6 +2328,52 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c1
+: uint64 1
+: bytes
+| 'metadata$filecol1'
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| metadata$filecol1
+: bytes
+| STORED GENERATED
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c2
+: uint64 2
+: bytes
+| 'metadata$filecol2'
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 'owner\'s note'
+: bytes
+| metadata$filecol2
+: bytes
+| STORED GENERATED
 : null
 < row
 : bytes
@@ -3043,6 +3191,29 @@
 | utf8mb4
 < row
 : bytes
+| ext_feed
+: bytes
+| EXTERNAL TABLE
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -3202,6 +3373,26 @@
 | ''
 : bytes
 | utf8mb4
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`ext_feed`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| ext_feed
+: bytes
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2) COMMENT 'owner\'s note'
+| ) 
+| LOCATION='file:///tmp'
+| PATTERN='.*[.]csv'
+| AUTO_REFRESH = IMMEDIATE
+| FORMAT (
+|   TYPE = 'CSV',
+|   ENCODING = 'utf8mb4'
+| ) DEFAULT CHARSET = utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
