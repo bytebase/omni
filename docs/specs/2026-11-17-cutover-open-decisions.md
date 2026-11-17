@@ -5,8 +5,8 @@
 Bytebase `345007290e`, omni `b515e82e2`. The cutover plan
 ([2026-11-17-cutover-dispatch.md](2026-11-17-cutover-dispatch.md)) says how each engine reaches its
 driver; the contract ([2026-11-15-driver-contract-design.md](2026-11-15-driver-contract-design.md))
-fixes what a driver must do. The cutover proofs then cut engines over for real: trino, pg, mysql and
-cassandra have reported, and mssql and oracle were still running when this was written. Each report
+fixes what a driver must do. The cutover proofs then cut engines over for real: trino, pg, mysql,
+cassandra and oracle have reported, and mssql was still running when this was written. Each report
 ends with items that are not measurements but choices.
 
 This note is for the person opening the Bytebase pin-bump PR. It says which choices are already
@@ -25,10 +25,13 @@ restated here.
 | 5 | plancheck's concrete assertions | open, timing only | the first wave-3 cutover (mssql or cockroachdb) |
 | 6 | Cassandra sync on a missing keyspace | open, one behavior to own | the cassandra pin bump |
 | 7 | Cassandra's new task-run log entries | settled: keep | nobody |
+| 8 | Cassandra's SSH, no-op `Dump`, dead read-only branch | settled: recorded in §8 | nobody |
+| 9 | Oracle's private-link guard | open, must land before the oracle pin | the oracle cutover |
+| 10 | Oracle's `GetVersion` | settled: the metadata is the fallback | nobody |
 
 A pin bump that changes nothing but the `go.mod` line and an adapter body takes 1, 3, 4 and 7 as
-written, adopts 2 only where it removes `GetDB`, owns 6 if it cuts cassandra over, and leaves 5 to
-the PR that first lets a concrete driver type go.
+written, adopts 2 only where it removes `GetDB`, owns 6 for cassandra and 9 for oracle, and leaves 5
+to the PR that first lets a concrete driver type go.
 
 ## 1. `QueryConn(ctx, conn *sql.Conn, …)`'s parameter is dead for pg
 
@@ -229,9 +232,10 @@ nine blank parser imports that the concrete driver imports had been providing tr
 them, the summary report fails with `engine POSTGRES is not supported for ParseStatements`.
 
 The pg proof found the *forced* interface landed elsewhere: `advisor.Context.Driver` (a `*sql.DB`
-that pg's live rules EXPLAIN through), not plancheck. Because an adapter keeps the engine package's
-`Driver` type and its `CountAffectedRows` method, the old assertions still compile; plancheck is
-optional for every cutover so far.
+that pg's live rules EXPLAIN through), not plancheck. The oracle proof then kept plancheck's
+`*oracle.Driver` assertion with zero product diff, so the collapse is optional for every cutover so
+far. Because an adapter keeps the engine package's `Driver` type and its `CountAffectedRows`
+method, the old assertions still compile.
 
 ### Options
 
@@ -335,6 +339,62 @@ record.
 | Verification | Bytebase's cassandra package had no server-backed test; the proof's live exercise was temporary and is not in the measured test lines. A cassandra pin bump should add one server-backed test at Bytebase's seam, or say that omni's tape suite is the only coverage. |
 | The shared conversion helper | Not established by the first cutover: cassandra kept the `driver.Result` conversion in the adapter, as pg did. The plan's shared caller package is still an aspiration; a second adapter that copies it is the measurement that would justify extracting it. |
 
+## 9. Oracle's private-link guard fails closed without a connection
+
+### What the proof measured
+
+`refuseLinkedReadsShadowedByPrivateLinks` (`backend/api/v1/sql_service.go:697`) type-asserts a
+driver to `OwnsPrivateDatabaseLink(ctx, conn *sql.Conn)` (`:684-685`) and refuses when the assertion
+fails or `conn == nil` (`:705-709`). After the cutover `db.SQLDB(adapter)` is nil for Oracle, so
+keeping the signature refuses **every linked read** — a fail-closed regression that compiles and has
+no error naming the cause.
+
+omni already models the probe without a connection: `driver.PrivateDatabaseLinkOwner` is
+`OwnsPrivateDatabaseLink(ctx) (bool, error)` (`driver/probe.go:7-15`). The oracle proof dropped
+`conn` from the guard, delegated the probe in three adapter lines, and tested it live: the probe
+reported false, then true after a private link was created, then false after it was dropped, while
+the driver's session stayed in the database's schema — so it reads `SYS.USER_DB_LINKS` for the
+session's account, not for `CURRENT_SCHEMA`. When the driver cannot answer, the refusal becomes
+"the driver exposes no private database link probe" (code 13) rather than silence.
+
+The probe runs on a session from the driver's pool, not the executing connection. That is safe
+because Oracle commits DDL, so a link an earlier statement of the same request created is visible.
+
+### Options
+
+- **Take the handle off the guard now.** The interface becomes `OwnsPrivateDatabaseLink(ctx)`; the
+  oracle driver opens its own session for `SELECT COUNT(*) FROM SYS.USER_DB_LINKS` until its
+  adapter lands. No omni dependency, so it can land before the pin.
+- **Pass nil and keep the signature.** Every Oracle linked read is refused after cutover.
+- **Keep a `*sql.DB` on the oracle adapter just for this probe.** Reopens the `GetDB` retirement
+  for one caller and keeps the shim alive for Oracle alone.
+
+### Recommendation
+
+Take the handle off the guard, as the proof did. Cost: one interface signature, one caller (the
+`sql_service` edit the oracle proof measured), a self-session method on today's `backend/plugin/db/oracle`
+driver, and two guard tests — one table-driven refusal test and a package-level assertion that the
+driver implements the interface. It is the only product change unique to Oracle, and it removes the
+last way the guard can fail closed silently when a driver has no SQL handle.
+
+### If nobody decides
+
+After the oracle pin, reads on any database with a private link are refused with no message that
+points at the guard, which reads as an outage of linked queries. Or someone keeps `GetDB` alive on
+the oracle adapter only, and the optional-handle decision in §2 is undone one engine at a time.
+
+## 10. Oracle's `GetVersion` is not needed (settled)
+
+Bytebase's `GetVersion` returned `connectionCtx.EngineVersion`, which `dbfactory.go:56` set from
+`instance.Metadata.GetVersion()` — the same string. omni's `SyncDatabase` asks the server
+(`version_full`) and falls back to `Config.EngineVersion`, so the adapter needs no version method.
+The one caller, the prior-backup DML transform, parses `instance.Metadata.GetVersion()` with
+`plsqlparser.ParseVersion` instead of asserting `*oracle.Driver`; no interface and no new method.
+
+Recorded so nobody re-adds a driver version accessor for that caller. If the stored version is ever
+empty, the contract's fallback already covers sync; the transform's `(\d+)\.(\d+)` parse matches the
+metadata string and the old banner identically.
+
 ## Settled, not yours to choose
 
 These were decided by the contract or the dispatch plan and the proofs confirmed them; a pin bump
@@ -347,15 +407,15 @@ that reopens them is a different change:
 - The pin bump changes product output, not just plumbing: trino's dump gains a `CREATE SCHEMA IF NOT
   EXISTS` prefix and views (omni `#1280`), and its `DECIMAL` arrives as text because `driver.Value`
   has no exact-decimal kind. Neither is a cutover choice.
-- No omni driver behavior gap surfaced in the four landed proofs. The one omni defect is the
+- No omni driver behavior gap surfaced in the five landed proofs. The one omni defect is the
   `cassandra/driver` comment that promises the opposite of its code (§6); the gh-ost binlog probe
   and the plancheck interface are Bytebase product work, and the truncation difference is a
   contract decision already made.
 
 ## Still in flight
 
-The mssql and oracle proofs had not reported when this was written. Their sessions name two
-questions of this kind — which consumers set `MaskingEnabled` (mssql) and where Oracle's
-private-link refusal attaches now that the probe is a contract interface. No measurement had
-landed, so this note records neither; do not read the dispatch plan's prediction as a decision. If
-they land before the pin bump, they belong here, one section each, in the same shape.
+The mssql proof had not reported when this was written. Its session names one question of this kind:
+which consumers set `MaskingEnabled`, and what a procedure call whose rows cannot be traced to
+columns returns to each of them. No measurement had landed, so this note records nothing about it;
+do not read the dispatch plan's prediction as a decision. If it lands before the pin bump, it
+belongs here, one section, in the same shape.
