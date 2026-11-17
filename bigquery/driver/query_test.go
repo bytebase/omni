@@ -222,6 +222,29 @@ func TestConvertValue(t *testing.T) {
 	}
 }
 
+// TestJobReturnsRows covers the answer the command path reads a statement's rows
+// from: a plain query states its statement type and no result schema, a script the
+// schema of the last statement it ran, and neither for a statement that answered
+// no rows.
+func TestJobReturnsRows(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		stats *bigquery.QueryStatistics
+		want  bool
+	}{
+		{name: "no statistics at all"},
+		{name: "a plain SELECT, which states no schema", stats: &bigquery.QueryStatistics{StatementType: selectStatementType}, want: true},
+		{name: "a script whose last statement returned rows", stats: &bigquery.QueryStatistics{StatementType: "SCRIPT", Schema: bigquery.Schema{{Name: "n", Type: bigquery.IntegerFieldType}}}, want: true},
+		{name: "a script whose last statement returned none", stats: &bigquery.QueryStatistics{StatementType: "SCRIPT"}},
+		{name: "a DDL statement", stats: &bigquery.QueryStatistics{StatementType: "CREATE_TABLE"}},
+		{name: "a DML statement, whose rows are the count it affected", stats: &bigquery.QueryStatistics{StatementType: "INSERT", NumDMLAffectedRows: 2}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, jobReturnsRows(tc.stats))
+		})
+	}
+}
+
 // TestColumnsOf covers the column list a result reports, including a nil field the
 // client may hold.
 func TestColumnsOf(t *testing.T) {
