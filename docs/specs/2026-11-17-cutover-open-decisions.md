@@ -2,7 +2,7 @@
 
 2026-11-17 · Decisions
 
-Bytebase `345007290e`, omni `b515e82e2`. The cutover plan
+Bytebase `345007290e`, omni `af2e1a130`. The cutover plan
 ([2026-11-17-cutover-dispatch.md](2026-11-17-cutover-dispatch.md)) says how each engine reaches its
 driver; the contract ([2026-11-15-driver-contract-design.md](2026-11-15-driver-contract-design.md))
 fixes what a driver must do. The cutover proofs then cut engines over for real: trino, pg, mysql,
@@ -11,7 +11,7 @@ ends with items that are not measurements but choices.
 
 This note is for the person opening the Bytebase pin-bump PR. It says which choices are already
 settled, which are theirs, and what a deferral costs. The measured costs themselves — adapter lines,
-deleted lines, product-side files — live in the dispatch plan's measured section and are not
+deleted lines, product-side files — live in the dispatch plan's §3 ("Measured cost") and are not
 restated here.
 
 ## Which of these are yours
@@ -22,7 +22,7 @@ restated here.
 | 2 | `db.SQLDB` optional handle | open, one shape to pick | the first pin bump that removes `GetDB` |
 | 3 | Truncation cut point | settled by the contract | nobody; note the row change |
 | 4 | NUL byte in the username | settled: accept | nobody; do not "fix" |
-| 5 | plancheck's concrete assertions | open, timing only | the first wave-3 cutover (mssql or cockroachdb) |
+| 5 | plancheck's concrete assertions | open, timing only | the first wave-2 cutover (mssql or cockroachdb) |
 | 6 | Cassandra sync on a missing keyspace | open, one behavior to own | the cassandra pin bump |
 | 7 | Cassandra's new task-run log entries | settled: keep | nobody |
 | 8 | Cassandra's SSH, no-op `Dump`, dead read-only branch | settled: recorded in §8 | nobody |
@@ -239,7 +239,7 @@ method, the old assertions still compile.
 
 ### Options
 
-- **One interface (`db.RowsEstimator`) before the first wave-3 adapter lands.** A single change,
+- **One interface (`db.RowsEstimator`) before the first wave-2 adapter lands.** A single change,
   reused by every remaining engine.
 - **Later, engine by engine.** Each engine's proof repeats the exercise, and each rediscovers the
   parser-import coupling.
@@ -248,8 +248,8 @@ method, the old assertions still compile.
 
 ### Recommendation
 
-Do it once, in the opening change of wave 3 — before the first engine whose plancheck case exists
-(mssql or cockroachdb) cuts over, not in the clean wave-1/wave-2 cutovers. Cost: the measured
+Do it once, in the opening change of wave 2 — before the first engine whose plancheck case exists
+(mssql or cockroachdb) cuts over, not in the clean wave-1 cutovers. Cost: the measured
 +24/−62 in `statement_report_executor.go`, about −38 net lines, plus the nine blank parser imports,
 plus one interface declaration. Reuse a single name (`db.RowsEstimator`) rather than adding a second
 near-interface beside the advisor's probe. The parser imports must be checked by running
@@ -257,7 +257,7 @@ near-interface beside the advisor's probe. The parser imports must be checked by
 
 ### If nobody decides
 
-Every remaining wave-3 cutover keeps its concrete type alive only because plancheck names it, so the
+Every remaining wave-2 cutover keeps its concrete type alive only because plancheck names it, so the
 "thin adapter" has a product-side tail no measurement counts. The parser-registration coupling will
 surface once per engine as a runtime error in the SQL summary report, and the eight assertions keep
 eight packages linked into plancheck for as long as the type pin exists.
@@ -335,9 +335,9 @@ record.
 | SSH through `Config.Dial` | A gain, not parity: the old driver had no SSH path. A tunnel-backed Cassandra source is intended; do not read it as a regression. |
 | The no-op `Dump` | Delegated, not synthesized: both sides write nothing (`cassandra/driver/dump.go`, `TestDumpWritesNothing`). The contract's `Dumper` wording does not promise text, so an engine whose schema cannot be restored keeps returning nil. |
 | The ignored read-only boolean | Knowingly preserved. The old `QueryConn` called `ValidateSQLForEditor` and ignored its read-only result, so the `"support Cassandra SELECT statement only"` branch is dead; the adapter keeps it. The real gate is `requiresAdminDataSource` (`backend/api/v1/sql_service.go:2464`, `:2502`), which routes a non-read-only statement to the admin data source. A fix belongs to that product gate, not to the adapter. |
-| Wave order | Cassandra is the cleanest engine, not the smallest diff: 312 adapter lines, −490 non-test, zero product files, and zero engine-specific `Open` options (no `Params`, no `Options`, nil `GetDB`, ignored conn, no-op `Dump` on both sides) — while deleting the most code of any wave-1 engine, because it carried its own sync. It needed none of the `SQLDB`/`Prober` seams, so wave 1 does not wait on the pg product work. Wave 1 orders by fewest engine-specific decisions, not by adapter line count, so it stays first. |
+| Wave order | Cassandra is the cleanest engine, not the smallest diff: 312 adapter lines, −490 non-test, zero product files, and zero engine-specific `Open` options (no `Params`, no `Options`, nil `GetDB`, ignored conn, no-op `Dump` on both sides) — while deleting the most code of any wave-1 engine, because it carried its own sync. It needed none of the wave-0 seams, which is why wave 0 does not gate wave 1 (dispatch §6). Wave 1 orders by fewest engine-specific decisions, not by adapter line count, so it stays first. |
 | Verification | Bytebase's cassandra package had no server-backed test; the proof's live exercise was temporary and is not in the measured test lines. A cassandra pin bump should add one server-backed test at Bytebase's seam, or say that omni's tape suite is the only coverage. |
-| The shared conversion helper | Not established by the first cutover: cassandra kept the `driver.Result` conversion in the adapter, as pg did. The plan's shared caller package is still an aspiration; a second adapter that copies it is the measurement that would justify extracting it. |
+| The shared conversion helper | The first cutover inlined it, as pg did. Three proofs then wrote the same 120 lines, which is why the revised plan makes `db/util/omnidriver.go` wave 0; cassandra's inline copy is the fallback if wave 0 has not landed (dispatch §6, §7). A second adapter copying it is what measured the extraction. |
 
 ## 9. Oracle's private-link guard fails closed without a connection
 
@@ -414,8 +414,11 @@ that reopens them is a different change:
 
 ## Still in flight
 
-The mssql proof had not reported when this was written. Its session names one question of this kind:
-which consumers set `MaskingEnabled`, and what a procedure call whose rows cannot be traced to
-columns returns to each of them. No measurement had landed, so this note records nothing about it;
-do not read the dispatch plan's prediction as a decision. If it lands before the pin bump, it
-belongs here, one section, in the same shape.
+The mssql proof had not reported when this was written, so none of its choices are recorded here.
+The dispatch plan's measured section already carries two of its facts: masking and batch delegation
+need no caller change, and `mssql/driver` cannot take Azure AD's token-fetching connector, so the
+adapter refuses that mode loudly. The second is a contract decision, not an adapter shortcut; the
+report owes its options and cost. Its session names one more question of this kind: which consumers
+set `MaskingEnabled`, and what a procedure call whose rows cannot be traced to columns returns to
+each of them. Do not read the dispatch plan's summary as a decision. If the report lands before the
+pin bump, it belongs here, one section, in the same shape.
