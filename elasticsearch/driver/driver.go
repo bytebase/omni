@@ -315,11 +315,13 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	return results, nil
 }
 
-// ResponseError is a request the server refused: the status it answered with and
-// the body it wrote, which states the error's type and reason.
+// ResponseError is a request the server refused.
 type ResponseError struct {
+	// Status is the HTTP status the server answered with.
 	Status int
-	Body   string
+	// Body is the answer as the server wrote it, which states the error's own
+	// type, reason and subject.
+	Body string
 }
 
 func (e *ResponseError) Error() string {
