@@ -141,7 +141,7 @@ func reportsCount(statement string) bool {
 	}
 	switch file.Stmts[0].(type) {
 	case *parser.InsertStmt, *parser.UpdateStmt, *parser.DeleteStmt, *parser.MergeStmt,
-		*parser.CreateTableAsStmt:
+		*parser.CreateTableAsStmt, *parser.AnalyzeStmt, *parser.RefreshMaterializedViewStmt:
 		return true
 	case *parser.ExecuteStmt, *parser.ExecuteImmediateStmt, *parser.CallStmt:
 		// The count depends on what these run, which the text does not state.

@@ -668,3 +668,35 @@ func (l *stepLogger) TransactionControl(op driver.TransactionOp, err error) {
 func (l *stepLogger) Retry(err error, attempt, max int) {
 	l.steps = append(l.steps, fmt.Sprintf("retry:%d/%d", attempt, max))
 }
+
+// TestReportsCount holds the statements Trino states an update count for. The
+// count is a single BIGINT rows field in the statement's result, so a connector
+// that performs the work answers one; plain DDL and SET have none.
+func TestReportsCount(t *testing.T) {
+	for _, tc := range []struct {
+		name, statement string
+		want            bool
+	}{
+		{"insert", "INSERT INTO t VALUES (1)", true},
+		{"update", "UPDATE t SET a = 1 WHERE id = 1", true},
+		{"delete", "DELETE FROM t WHERE id = 1", true},
+		{"merge", "MERGE INTO t USING s ON t.id = s.id WHEN MATCHED THEN DELETE", true},
+		{"create table as", "CREATE TABLE t AS SELECT 1 AS a", true},
+		{"analyze", "ANALYZE t", true},
+		{"refresh materialized view", "REFRESH MATERIALIZED VIEW mv", true},
+		{"execute", "EXECUTE p", true},
+		{"create table", "CREATE TABLE t (a integer)", false},
+		{"create view", "CREATE VIEW v AS SELECT 1 AS a", false},
+		{"drop table", "DROP TABLE t", false},
+		{"truncate", "TRUNCATE TABLE t", false},
+		{"set session", "SET SESSION query_max_run_time = '1m'", false},
+		{"grant", "GRANT SELECT ON t TO USER u", false},
+		{"unreadable keeps the client's count", "SELECT FROM WHERE", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := reportsCount(tc.statement); got != tc.want {
+				t.Errorf("reportsCount(%q) = %v, want %v", tc.statement, got, tc.want)
+			}
+		})
+	}
+}
