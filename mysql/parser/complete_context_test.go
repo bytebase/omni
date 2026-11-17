@@ -710,6 +710,21 @@ func TestCollectCompletionSignals(t *testing.T) {
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"NEW"}, local: []ref{{database: "db", table: "t", alias: "NEW"}}},
 		},
 		{
+			name: "correlated on condition keeps the outer frame",
+			sql:  "SELECT * FROM outer_table o WHERE EXISTS (SELECT * FROM t1 a JOIN t2 b ON a.x = o.|)",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"o"}, local: []ref{{table: "t1", alias: "a"}, {table: "t2", alias: "b"}}, outer: [][]ref{{{table: "outer_table", alias: "o"}}}},
+		},
+		{
+			name: "procedural case branch starts its own statement",
+			sql:  "CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN UPDATE t SET x = |; END CASE; END",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{kind: RangeReferenceDMLTarget, table: "t"}}, dml: "->t"},
+		},
+		{
+			name: "values body names generated columns",
+			sql:  "WITH c AS (VALUES ROW((SELECT 1 AS wrong), 2)) SELECT c.| FROM c",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"column_0", "column_1"}}, cols: map[string][]string{"c": {"column_0", "column_1"}}},
+		},
+		{
 			name: "inside a text literal",
 			sql:  "SELECT '|' FROM t",
 			want: wantSignals{local: []ref{{table: "t"}}},
