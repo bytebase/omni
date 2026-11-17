@@ -656,6 +656,11 @@ func writeExternalTable(out *strings.Builder, table *metadata.ExternalTableMetad
 			return err
 		}
 	}
+	if table.AutoRefresh != "" {
+		if _, err := fmt.Fprintf(out, "\nAUTO_REFRESH = %s", table.AutoRefresh); err != nil {
+			return err
+		}
+	}
 	if table.Format != "" {
 		if _, err := fmt.Fprintf(out, "\nFORMAT (%s)", table.Format); err != nil {
 			return err

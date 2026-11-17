@@ -270,7 +270,8 @@
           ],
           "location":  "file:///tmp",
           "format":  "TYPE = 'CSV', ENCODING = 'utf8mb4'",
-          "pattern":  ".*[.]csv"
+          "pattern":  ".*[.]csv",
+          "autoRefresh":  "IMMEDIATE"
         }
       ],
       "views":  [

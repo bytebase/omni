@@ -444,7 +444,7 @@ func TestExternalTableFacts(t *testing.T) {
 		"  TYPE = 'CSV',\n" +
 		"  ENCODING = 'utf8mb4'\n" +
 		") DEFAULT CHARSET = utf8mb4"
-	location, pattern, format := externalTableFacts(ddl)
+	location, pattern, autoRefresh, format := externalTableFacts(ddl)
 	if location != "file:///tmp" {
 		t.Errorf("location = %q, want %q", location, "file:///tmp")
 	}
@@ -454,22 +454,28 @@ func TestExternalTableFacts(t *testing.T) {
 	if pattern != "" {
 		t.Errorf("pattern = %q, want empty", pattern)
 	}
+	if autoRefresh != "OFF" {
+		t.Errorf("auto refresh = %q, want %q", autoRefresh, "OFF")
+	}
 
-	location, pattern, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp' PATTERN='.*[.]csv'")
-	if location != "file:///tmp" || pattern != ".*[.]csv" || format != "" {
-		t.Errorf("without FORMAT = %q, %q, %q; want %q, %q, empty", location, pattern, format, "file:///tmp", ".*[.]csv")
+	location, pattern, autoRefresh, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp' PATTERN='.*[.]csv' AUTO_REFRESH = IMMEDIATE")
+	if location != "file:///tmp" || pattern != ".*[.]csv" || autoRefresh != "IMMEDIATE" || format != "" {
+		t.Errorf("without FORMAT = %q, %q, %q, %q; want %q, %q, %q, empty", location, pattern, autoRefresh, format, "file:///tmp", ".*[.]csv", "IMMEDIATE")
 	}
 
 	// A MySQL backslash escape in a column comment must not end the quote
 	// before LOCATION and FORMAT.
 	ddl = "CREATE EXTERNAL TABLE `ext_t` (`c1` int COMMENT 'owner\\'s note') " +
 		"LOCATION='file:///tmp/it\\'s' FORMAT (TYPE = 'CSV')"
-	location, pattern, format = externalTableFacts(ddl)
+	location, pattern, autoRefresh, format = externalTableFacts(ddl)
 	if location != "file:///tmp/it's" {
 		t.Errorf("escaped location = %q, want %q", location, "file:///tmp/it's")
 	}
 	if pattern != "" {
 		t.Errorf("escaped pattern = %q, want empty", pattern)
+	}
+	if autoRefresh != "" {
+		t.Errorf("escaped auto refresh = %q, want empty", autoRefresh)
 	}
 	if format != "TYPE = 'CSV'" {
 		t.Errorf("escaped format = %q, want %q", format, "TYPE = 'CSV'")

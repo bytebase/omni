@@ -67,6 +67,7 @@ CREATE EXTERNAL TABLE `ext_feed` (
 )
 LOCATION = 'file:///tmp'
 PATTERN = '.*[.]csv'
+AUTO_REFRESH = IMMEDIATE
 FORMAT (TYPE = 'CSV', ENCODING = 'utf8mb4');
 
 --

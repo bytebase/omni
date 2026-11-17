@@ -2697,7 +2697,11 @@ type ExternalTableMetadata struct {
 	Pattern string `protobuf:"bytes,10,opt,name=pattern,proto3" json:"pattern,omitempty"`
 	// The triggers the engine states on a foreign table. Empty for an engine that
 	// states none.
-	Triggers      []*TriggerMetadata `protobuf:"bytes,11,rep,name=triggers,proto3" json:"triggers,omitempty"`
+	Triggers []*TriggerMetadata `protobuf:"bytes,11,rep,name=triggers,proto3" json:"triggers,omitempty"`
+	// The automatic refresh policy an external table states (OceanBase's
+	// AUTO_REFRESH), such as "OFF", "IMMEDIATE" or an interval. Empty when the
+	// engine states none.
+	AutoRefresh   string `protobuf:"bytes,12,opt,name=auto_refresh,json=autoRefresh,proto3" json:"auto_refresh,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2807,6 +2811,13 @@ func (x *ExternalTableMetadata) GetTriggers() []*TriggerMetadata {
 		return x.Triggers
 	}
 	return nil
+}
+
+func (x *ExternalTableMetadata) GetAutoRefresh() string {
+	if x != nil {
+		return x.AutoRefresh
+	}
+	return ""
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
@@ -5258,7 +5269,7 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
-	"expression\"\xe2\x03\n" +
+	"expression\"\x85\x04\n" +
 	"\x15ExternalTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14external_server_name\x18\x02 \x01(\tR\x12externalServerName\x124\n" +
@@ -5271,7 +5282,8 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x11check_constraints\x18\t \x03(\v2&.omni.metadata.CheckConstraintMetadataR\x10checkConstraints\x12\x18\n" +
 	"\apattern\x18\n" +
 	" \x01(\tR\apattern\x12:\n" +
-	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\"\xb7\x05\n" +
+	"\btriggers\x18\v \x03(\v2\x1e.omni.metadata.TriggerMetadataR\btriggers\x12!\n" +
+	"\fauto_refresh\x18\f \x01(\tR\vautoRefresh\"\xb7\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +

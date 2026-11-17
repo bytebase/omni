@@ -882,8 +882,8 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 			Name: "app",
 			Functions: []*metadatapb.FunctionMetadata{{
 				Name:       "validate",
-				Signature:  "validate(double text[], catalog oid)",
-				Definition: "CREATE FUNCTION app.validate(double text[], catalog oid) RETURNS void LANGUAGE internal AS 'fdw_validate'",
+				Signature:  "validate(double text[], catalog oid, OUT result void)",
+				Definition: "CREATE FUNCTION app.validate(double text[], catalog oid, OUT result void) RETURNS void LANGUAGE internal AS 'fdw_validate'",
 			}},
 		}},
 		ForeignDataWrappers: []*metadatapb.ForeignDataWrapperMetadata{{
@@ -895,7 +895,7 @@ func TestDatabaseDefinitionOrdersForeignDataWrapperAfterNamedValidator(t *testin
 	result, err := DatabaseDefinition(meta, DefinitionOptions{})
 	require.NoError(t, err)
 
-	function := "CREATE FUNCTION app.validate(double text[], catalog oid)"
+	function := "CREATE FUNCTION app.validate(double text[], catalog oid, OUT result void)"
 	wrapper := `CREATE FOREIGN DATA WRAPPER "custom_fdw" VALIDATOR app.validate;`
 	assert.Contains(t, result, function)
 	assert.Contains(t, result, wrapper)
@@ -1400,4 +1400,72 @@ func TestDatabaseDefinitionOrdersForeignKeyColumnAfterOrdinaryPartitionRowType(t
 	assert.Contains(t, result, a)
 	assert.Less(t, strings.Index(result, z), strings.Index(result, parent), "the parent's row type must be written first")
 	assert.Less(t, strings.Index(result, parent), strings.Index(result, a), "the ordinary partition's row type must be written first")
+}
+
+// TestDatabaseDefinitionOrdersSiblingForeignPartitions checks that a foreign
+// partition whose default names a sibling partition's row type follows it.
+func TestDatabaseDefinitionOrdersSiblingForeignPartitions(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:    "pt",
+				Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{
+					{Name: "a", Schema: "public", Value: "FOR VALUES FROM (0) TO (10)"},
+					{Name: "z", Schema: "public", Value: "FOR VALUES FROM (10) TO (20)"},
+				},
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{
+					Name:               "a",
+					ExternalServerName: "s",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "((ROW(1)::public.z).id)"}},
+				},
+				{Name: "z", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+			},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	z := `CREATE FOREIGN TABLE "public"."z"`
+	a := `CREATE FOREIGN TABLE "public"."a"`
+	assert.Contains(t, result, z)
+	assert.Contains(t, result, a)
+	assert.Less(t, strings.Index(result, z), strings.Index(result, a), "the sibling's row type must be written first")
+}
+
+// TestDatabaseDefinitionRelationEdgesDeterministic checks that two relations
+// depending on the same row type are written in a stable order.
+func TestDatabaseDefinitionRelationEdgesDeterministic(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{Name: "a", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "r", Type: "public.z"}}},
+				{Name: "b", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "r", Type: "public.z"}}},
+				{Name: "z", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+			},
+		}},
+	}
+
+	first, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+	for i := 0; i < 100; i++ {
+		got, err := DatabaseDefinition(meta, DefinitionOptions{})
+		require.NoError(t, err)
+		require.Equal(t, first, got)
+	}
 }

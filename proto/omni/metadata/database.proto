@@ -684,6 +684,11 @@ message ExternalTableMetadata {
   // The triggers the engine states on a foreign table. Empty for an engine that
   // states none.
   repeated TriggerMetadata triggers = 11;
+
+  // The automatic refresh policy an external table states (OceanBase's
+  // AUTO_REFRESH), such as "OFF", "IMMEDIATE" or an interval. Empty when the
+  // engine states none.
+  string auto_refresh = 12;
 }
 
 // TablePartitionMetadata is the metadata for table partitions.

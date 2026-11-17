@@ -2252,17 +2252,131 @@ func checkExpressionForDependencies(expression string) string {
 	}
 }
 
+// orderPartitionsForCreation orders a parent's partitions so a foreign
+// partition whose column or CHECK names a sibling's row type follows it.
+func orderPartitionsForCreation(parentSchema string, partitions []*metadatapb.TablePartitionMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) []*metadatapb.TablePartitionMetadata {
+	if len(partitions) < 2 {
+		return partitions
+	}
+	byID := make(map[string]*metadatapb.TablePartitionMetadata, len(partitions))
+	ids := make([]string, 0, len(partitions))
+	for _, partition := range partitions {
+		id := getObjectID(partitionSchemaName(parentSchema, partition), partition.Name)
+		byID[id] = partition
+		ids = append(ids, id)
+	}
+	inDegree := make(map[string]int, len(ids))
+	for _, id := range ids {
+		inDegree[id] = 0
+	}
+	edges := make(map[string][]string)
+	seen := make(map[string]bool)
+	for _, id := range ids {
+		externalTable := externalTables[id]
+		if externalTable == nil {
+			continue
+		}
+		for _, ref := range externalTableRelationTypeRefs(externalTable) {
+			schema, name, ok := strings.Cut(ref, ".")
+			if !ok {
+				continue
+			}
+			names := []string{name}
+			if strings.HasPrefix(name, "_") {
+				names = append(names, name[1:])
+			}
+			for _, relationName := range names {
+				targetID := getObjectID(schema, relationName)
+				if _, ok := byID[targetID]; !ok || targetID == id {
+					continue
+				}
+				key := targetID + "\x00" + id
+				if !seen[key] {
+					seen[key] = true
+					edges[targetID] = append(edges[targetID], id)
+					inDegree[id]++
+				}
+				break
+			}
+		}
+	}
+	if len(edges) == 0 {
+		return partitions
+	}
+	var queue []string
+	for _, id := range ids {
+		if inDegree[id] == 0 {
+			queue = append(queue, id)
+		}
+	}
+	slices.Sort(queue)
+	ordered := make([]*metadatapb.TablePartitionMetadata, 0, len(partitions))
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		ordered = append(ordered, byID[id])
+		for _, next := range edges[id] {
+			inDegree[next]--
+			if inDegree[next] == 0 {
+				queue = append(queue, next)
+			}
+		}
+		slices.Sort(queue)
+	}
+	if len(ordered) != len(partitions) {
+		return partitions
+	}
+	return ordered
+}
+
+func externalTableRelationTypeRefs(table *metadatapb.ExternalTableMetadata) []string {
+	var refs []string
+	addExpr := func(expression string) {
+		if expression == "" {
+			return
+		}
+		node, err := parseScalar("SELECT " + expression)
+		if err != nil {
+			return
+		}
+		_, _, typeRefs := collectExprDeps(node)
+		refs = append(refs, typeRefs...)
+	}
+	for _, column := range table.Columns {
+		refs = append(refs, column.Type)
+		addExpr(column.Default)
+		if column.Generation != nil {
+			addExpr(column.Generation.Expression)
+		}
+	}
+	for _, check := range table.CheckConstraints {
+		addExpr(checkExpressionForDependencies(check.Expression))
+	}
+	return refs
+}
+
 // addRelationTypeEdges makes a relation follow the relation whose row type one
 // of its columns uses. PostgreSQL row types are not composite types, so the
 // type section does not create them; a foreign table can name another foreign
 // table's row type, and the table that defines it must exist first.
 func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, tableMap map[string]*metadatapb.TableMetadata, relationIDs map[string]bool, partitionParents map[string]string) {
-	for id, table := range foreignTableMap {
+	for _, id := range sortedMapIDs(foreignTableMap) {
+		table := foreignTableMap[id]
 		addRelationTypeEdgesFor(graph, id, table.Columns, table.CheckConstraints, relationIDs, partitionParents)
 	}
-	for id, table := range tableMap {
+	for _, id := range sortedMapIDs(tableMap) {
+		table := tableMap[id]
 		addRelationTypeEdgesFor(graph, id, table.Columns, table.CheckConstraints, relationIDs, partitionParents)
 	}
+}
+
+func sortedMapIDs[V any](m map[string]V) []string {
+	ids := make([]string, 0, len(m))
+	for id := range m {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
 }
 
 func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata, relationIDs map[string]bool, partitionParents map[string]string) {
@@ -2327,7 +2441,8 @@ func addTypeRefEdge(graph *definitionGraph, id, typeName string, relationIDs map
 // addPartitionRelationTypeEdges adds the relation-type edges of a foreign
 // partition's columns and checks to the parent that creates the partition.
 func addPartitionRelationTypeEdges(graph *definitionGraph, externalTables map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string, relationIDs map[string]bool) {
-	for id, table := range externalTables {
+	for _, id := range sortedMapIDs(externalTables) {
+		table := externalTables[id]
 		parentID, ok := partitionParents[id]
 		if !ok {
 			continue
@@ -2465,7 +2580,7 @@ func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []
 	if !ok {
 		return false
 	}
-	actual := splitSignatureArguments(args)
+	actual := inputSignatureArguments(splitSignatureArguments(args))
 	if len(actual) != len(expected) {
 		return false
 	}
@@ -2546,6 +2661,31 @@ func signatureArguments(signature, name string) (string, bool) {
 		}
 	}
 	return "", false
+}
+
+// inputSignatureArguments drops OUT-only parameters, which do not take part in
+// resolving the function a wrapper names.
+func inputSignatureArguments(args []string) []string {
+	out := args[:0]
+	for _, arg := range args {
+		if signatureArgumentMode(arg) == "OUT" {
+			continue
+		}
+		out = append(out, arg)
+	}
+	return out
+}
+
+func signatureArgumentMode(arg string) string {
+	i := 0
+	for i < len(arg) && (arg[i] == ' ' || arg[i] == '\t') {
+		i++
+	}
+	j := i
+	for j < len(arg) && arg[j] != ' ' && arg[j] != '\t' && arg[j] != '(' && arg[j] != '"' {
+		j++
+	}
+	return strings.ToUpper(arg[i:j])
 }
 
 func splitSignatureArguments(args string) []string {
@@ -3096,7 +3236,7 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 
 	// Construct partition tables. A foreign partition is created as a foreign
 	// table, and the attach below attaches it to its parent.
-	for _, partition := range table.Partitions {
+	for _, partition := range orderPartitionsForCreation(schema, table.Partitions, externalTables) {
 		partitionSchema := partitionSchemaName(schema, partition)
 		if externalTable, ok := externalTables[getObjectID(partitionSchema, partition.Name)]; ok {
 			if err := writeForeignTable(out, partitionSchema, externalTable, partition.CheckConstraints); err != nil {
@@ -3842,7 +3982,7 @@ func writePartitionTable(out io.Writer, parentSchema string, columns []*metadata
 
 	// Construct subpartition tables. A foreign subpartition is created as a
 	// foreign table, and the attach below attaches it.
-	for _, subpartition := range partition.Subpartitions {
+	for _, subpartition := range orderPartitionsForCreation(schema, partition.Subpartitions, externalTables) {
 		subpartitionSchema := partitionSchemaName(schema, subpartition)
 		if externalTable, ok := externalTables[getObjectID(subpartitionSchema, subpartition.Name)]; ok {
 			if err := writeForeignTable(out, subpartitionSchema, externalTable, subpartition.CheckConstraints); err != nil {

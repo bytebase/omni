@@ -1208,10 +1208,11 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 		Schemas: []*metadata.SchemaMetadata{{
 			Name: "test",
 			ExternalTables: []*metadata.ExternalTableMetadata{{
-				Name:     "ext",
-				Location: `a\b`,
-				Pattern:  ".*[.]csv",
-				Format:   "TYPE = 'CSV'",
+				Name:        "ext",
+				Location:    `a\b`,
+				Pattern:     ".*[.]csv",
+				AutoRefresh: "IMMEDIATE",
+				Format:      "TYPE = 'CSV'",
 				Columns: []*metadata.ColumnMetadata{
 					{Name: "c1", Type: "int", Comment: `O\'Brien`},
 					{Name: "c2", Type: "varchar(8)", Comment: `C:\\x`},
@@ -1223,6 +1224,7 @@ func TestExternalTableLocationEscapesBackslash(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, def, `LOCATION = 'a\\b'`)
 	require.Contains(t, def, `PATTERN = '.*[.]csv'`)
+	require.Contains(t, def, `AUTO_REFRESH = IMMEDIATE`)
 	require.Contains(t, def, `COMMENT 'O\'Brien'`)
 	require.Contains(t, def, `COMMENT 'C:\\x'`)
 }
