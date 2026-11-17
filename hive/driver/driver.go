@@ -1,11 +1,18 @@
 // Package driver is Hive's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it connects to a HiveServer2 through gohive
-// v2, syncs a server's metadata into omni/metadata, and runs interactive
-// queries and change scripts.
+// v2, syncs a server's metadata into omni/metadata, dumps a database's DDL as
+// the server states it, and runs interactive queries and change scripts.
 //
-// There is no Dump: Bytebase's Hive dump asks the server for SHOW CREATE TABLE
-// rather than rendering metadata, and a tree with no hive/catalog has nothing
-// to render. Dump's contract renders the schema it is given and nothing else.
+// It implements Driver, Syncer, Dumper, Querier and Executor. Dump asks the
+// server to state each object with SHOW CREATE TABLE, because omni's hive tree
+// has no catalog, so nothing renders a synced schema as HiveQL. The metadata it
+// is given is not read: a caller that edits a synced schema changes nothing in
+// the dump, and a caller that leaves part of the schema out narrows nothing
+// either. The statements are the server's own, so each names its object in the
+// database it was read from and a dump restores into a database of that name;
+// the database itself is the caller's to create, since only SHOW CREATE
+// DATABASE states its comment, owner and location. SHOW CREATE TABLE states a
+// materialized view as a plain CREATE TABLE, which is what the dump writes.
 //
 // Hive has no transaction the client controls. Only ACID tables are
 // transactional, and HiveServer2 4.0 refuses BEGIN, COMMIT and ROLLBACK, so

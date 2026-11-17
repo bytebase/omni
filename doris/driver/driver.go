@@ -1,11 +1,12 @@
 // Package driver is Doris's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it connects through go-sql-driver/mysql,
-// syncs a server's metadata into omni/metadata, and runs interactive queries
-// and change scripts.
+// syncs a server's metadata into omni/metadata, runs interactive queries and
+// change scripts, and dumps a database's DDL.
 //
-// There is no Dump: omni has no doris/catalog to render a synced schema as
-// DDL. Doris has no read-only session parameter, so driver.Config.ReadOnly is
-// ignored.
+// There is no doris/catalog: a table's key model, distribution, properties and
+// partitions are not in information_schema, so Dump writes the statements the
+// server states (SHOW CREATE) instead of rendering a synced schema. Doris has no
+// read-only session parameter, so driver.Config.ReadOnly is ignored.
 package driver
 
 import (

@@ -18,12 +18,11 @@ import (
 	metadatapb "github.com/bytebase/omni/metadata"
 )
 
-var update = flag.Bool("update", false, "rewrite the golden files under testdata/sync from this run")
+var update = flag.Bool("update", false, "rewrite the golden files under testdata from this run")
 
-// openTestCorpus returns a driver on dbName, dropped and created empty first so
-// the tape holds one run's requests whatever the test binary ran before, with
-// corpus.sql applied.
-func openTestCorpus(t *testing.T, dbName string) *Driver {
+// openTestDatabase returns a driver on dbName, dropped and created empty first so
+// the tape holds one run's requests whatever the test binary ran before.
+func openTestDatabase(t *testing.T, dbName string) *Driver {
 	t.Helper()
 	testcontainer.Reset(t, func(ctx context.Context, db *sql.DB) error {
 		for _, stmt := range []string{
@@ -36,28 +35,47 @@ func openTestCorpus(t *testing.T, dbName string) *Driver {
 		}
 		return nil
 	})
-	db := testcontainer.Open(t, dbName)
+	return &Driver{db: testcontainer.Open(t, dbName), databaseName: dbName}
+}
+
+// openTestCorpus returns a driver on dbName with corpus.sql applied.
+func openTestCorpus(t *testing.T, dbName string) *Driver {
+	t.Helper()
+	d := openTestDatabase(t, dbName)
 	corpus, err := os.ReadFile(filepath.Join("testdata", "corpus.sql"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	execCorpus(t, db, string(corpus))
-	return &Driver{db: db, databaseName: dbName}
+	execCorpus(t, d.db, string(corpus))
+	return d
 }
 
 // execCorpus runs a fixture script, one blank-line-separated statement at a
-// time, as a client would.
+// time, as a client would. A chunk of comments and blank lines is no statement,
+// which a script whose statements were taken out of it leaves behind.
 func execCorpus(t *testing.T, db *sql.DB, script string) {
 	t.Helper()
 	for _, chunk := range strings.Split(script, "\n\n") {
 		stmt := strings.TrimSpace(chunk)
-		if stmt == "" {
+		if stmt == "" || onlyComments(stmt) {
 			continue
 		}
 		if _, err := db.ExecContext(context.Background(), stmt); err != nil {
 			t.Fatalf("%s:\n%v", stmt, err)
 		}
 	}
+}
+
+// onlyComments reports whether text holds nothing but blank and -- lines, which
+// Hive refuses to parse as a statement.
+func onlyComments(text string) bool {
+	for _, line := range strings.Split(text, "\n") {
+		if line = strings.TrimSpace(line); line == "" || strings.HasPrefix(line, "--") {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 // TestSyncInstance reads the server's version and database list. The pinned
