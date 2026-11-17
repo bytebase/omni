@@ -430,3 +430,54 @@ func TestGetEventListDeduplicatesRecreatedDatabaseEvents(t *testing.T) {
 		t.Fatalf("getEventList returned %d events, want 1: %+v", len(events), events)
 	}
 }
+
+// TestExternalTableFacts reads the LOCATION, PATTERN and FORMAT clauses SHOW
+// CREATE TABLE states, and leaves them empty when the statement has none.
+func TestExternalTableFacts(t *testing.T) {
+	ddl := "CREATE EXTERNAL TABLE `ext_t` (\n" +
+		"  `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),\n" +
+		"  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)\n" +
+		") \n" +
+		"LOCATION='file:///tmp'\n" +
+		"AUTO_REFRESH = OFF\n" +
+		"FORMAT (\n" +
+		"  TYPE = 'CSV',\n" +
+		"  ENCODING = 'utf8mb4'\n" +
+		") DEFAULT CHARSET = utf8mb4"
+	location, pattern, autoRefresh, format := externalTableFacts(ddl)
+	if location != "file:///tmp" {
+		t.Errorf("location = %q, want %q", location, "file:///tmp")
+	}
+	if format != "TYPE = 'CSV', ENCODING = 'utf8mb4'" {
+		t.Errorf("format = %q, want %q", format, "TYPE = 'CSV', ENCODING = 'utf8mb4'")
+	}
+	if pattern != "" {
+		t.Errorf("pattern = %q, want empty", pattern)
+	}
+	if autoRefresh != "OFF" {
+		t.Errorf("auto refresh = %q, want %q", autoRefresh, "OFF")
+	}
+
+	location, pattern, autoRefresh, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp' PATTERN='.*[.]csv' AUTO_REFRESH = IMMEDIATE")
+	if location != "file:///tmp" || pattern != ".*[.]csv" || autoRefresh != "IMMEDIATE" || format != "" {
+		t.Errorf("without FORMAT = %q, %q, %q, %q; want %q, %q, %q, empty", location, pattern, autoRefresh, format, "file:///tmp", ".*[.]csv", "IMMEDIATE")
+	}
+
+	// A MySQL backslash escape in a column comment must not end the quote
+	// before LOCATION and FORMAT.
+	ddl = "CREATE EXTERNAL TABLE `ext_t` (`c1` int COMMENT 'owner\\'s note') " +
+		"LOCATION='file:///tmp/it\\'s' FORMAT (TYPE = 'CSV')"
+	location, pattern, autoRefresh, format = externalTableFacts(ddl)
+	if location != "file:///tmp/it's" {
+		t.Errorf("escaped location = %q, want %q", location, "file:///tmp/it's")
+	}
+	if pattern != "" {
+		t.Errorf("escaped pattern = %q, want empty", pattern)
+	}
+	if autoRefresh != "" {
+		t.Errorf("escaped auto refresh = %q, want empty", autoRefresh)
+	}
+	if format != "TYPE = 'CSV'" {
+		t.Errorf("escaped format = %q, want %q", format, "TYPE = 'CSV'")
+	}
+}

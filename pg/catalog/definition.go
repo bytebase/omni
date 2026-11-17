@@ -44,7 +44,7 @@ type DefinitionOptions struct {
 // DatabaseDefinition renders a synced database snapshot as a pg_dump-style
 // restore script, or with opts.SDLFormat as SDL.
 func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts DefinitionOptions) (string, error) {
-	if len(metadata.Schemas) == 0 {
+	if len(metadata.Schemas) == 0 && len(metadata.ForeignDataWrappers) == 0 && len(metadata.ForeignServers) == 0 {
 		return "", nil
 	}
 
@@ -105,6 +105,12 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	tableMap := make(map[string]*metadatapb.TableMetadata)
 	viewMap := make(map[string]*metadatapb.ViewMetadata)
 	materializedViewMap := make(map[string]*metadatapb.MaterializedViewMetadata)
+	foreignTableMap := make(map[string]*metadatapb.ExternalTableMetadata)
+	foreignDataWrapperMap := make(map[string]*metadatapb.ForeignDataWrapperMetadata)
+	foreignServerMap := make(map[string]*metadatapb.ForeignServerMetadata)
+	externalTables := collectExternalTables(metadata.Schemas)
+	foreignPartitions := collectForeignPartitionIDs(metadata.Schemas, externalTables)
+	partitionParents := collectPartitionParents(metadata.Schemas)
 
 	// Construct functions.
 	functionIDsByName := make(map[string][]string)
@@ -117,11 +123,37 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			functionMap[funcID] = function
 			qualified := schema.Name + "." + function.Name
 			functionIDsByName[qualified] = append(functionIDsByName[qualified], funcID)
+			functionIDsByName[function.Name] = append(functionIDsByName[function.Name], funcID)
 			graph.AddNode(funcID)
 			for _, dependency := range function.DependencyTables {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
+				if parentID, ok := partitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
 				graph.AddEdge(dependencyID, funcID)
 			}
+		}
+	}
+
+	// A wrapper the database declares itself follows the functions its handler
+	// and validator name; an extension-provided wrapper is already written.
+	wrapperIDsByName := make(map[string]string)
+	for _, wrapper := range metadata.ForeignDataWrappers {
+		wrapperID := getObjectID("\x00fdw", wrapper.Name)
+		foreignDataWrapperMap[wrapperID] = wrapper
+		wrapperIDsByName[wrapper.Name] = wrapperID
+		graph.AddNode(wrapperID)
+		addFunctionNameEdges(graph, functionMap, functionIDsByName, wrapper.Handler, nil, wrapperID)
+		addFunctionNameEdges(graph, functionMap, functionIDsByName, wrapper.Validator, []string{"text[]", "oid"}, wrapperID)
+	}
+	serverIDsByName := make(map[string]string)
+	for _, server := range metadata.ForeignServers {
+		serverID := getObjectID("\x00server", server.Name)
+		foreignServerMap[serverID] = server
+		serverIDsByName[server.Name] = serverID
+		graph.AddNode(serverID)
+		if wrapperID := wrapperIDsByName[server.Fdw]; wrapperID != "" {
+			graph.AddEdge(wrapperID, serverID)
 		}
 	}
 
@@ -174,6 +206,29 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			tableMap[tableID] = table
 			graph.AddNode(tableID)
 			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, table)
+			addForeignPartitionEdges(graph, functionMap, functionIDsByName, schema.Name, table, externalTables, serverIDsByName)
+		}
+
+		for _, externalTable := range schema.ExternalTables {
+			if externalTable.SkipDump {
+				continue
+			}
+			externalTableID := getObjectID(schema.Name, externalTable.Name)
+			if foreignPartitions[externalTableID] {
+				// A foreign partition is created with its parent, so it is not a
+				// node of its own.
+				continue
+			}
+			foreignTableMap[externalTableID] = externalTable
+			graph.AddNode(externalTableID)
+			addColumnFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, &metadatapb.TableMetadata{
+				Name:    externalTable.Name,
+				Columns: externalTable.Columns,
+			})
+			addCheckFunctionEdges(graph, functionMap, functionIDsByName, schema.Name, externalTable.Name, externalTable.CheckConstraints)
+			if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
+				graph.AddEdge(serverID, externalTableID)
+			}
 		}
 
 		for _, view := range schema.Views {
@@ -185,6 +240,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(viewID)
 			for _, dependency := range view.DependencyColumns {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
+				if parentID, ok := partitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
 				graph.AddEdge(dependencyID, viewID)
 			}
 		}
@@ -198,16 +256,49 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(viewID)
 			for _, dependency := range view.DependencyColumns {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
+				if parentID, ok := partitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
 				graph.AddEdge(dependencyID, viewID)
 			}
 		}
 	}
 
+	relationIDs := make(map[string]bool)
+	for id := range tableMap {
+		relationIDs[id] = true
+	}
+	for id := range foreignTableMap {
+		relationIDs[id] = true
+	}
+	for id := range viewMap {
+		relationIDs[id] = true
+	}
+	for id := range materializedViewMap {
+		relationIDs[id] = true
+	}
+	addRelationTypeEdges(graph, foreignTableMap, tableMap, relationIDs, partitionParents)
+	addPartitionRelationTypeEdges(graph, externalTables, partitionParents, relationIDs)
+
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
 		// If topological sort fails (e.g., due to circular dependencies),
 		// fall back to a safe dependency order: tables -> views -> materialized views -> functions
-		orderedList = make([]string, 0, len(functionMap)+len(tableMap)+len(viewMap)+len(materializedViewMap))
+		orderedList = make([]string, 0, len(functionMap)+len(tableMap)+len(viewMap)+len(materializedViewMap)+len(foreignTableMap)+len(foreignDataWrapperMap)+len(foreignServerMap))
+
+		// Add wrappers and servers first, then tables.
+		var wrapperIDs []string
+		for id := range foreignDataWrapperMap {
+			wrapperIDs = append(wrapperIDs, id)
+		}
+		slices.Sort(wrapperIDs)
+		orderedList = append(orderedList, wrapperIDs...)
+		var serverIDs []string
+		for id := range foreignServerMap {
+			serverIDs = append(serverIDs, id)
+		}
+		slices.Sort(serverIDs)
+		orderedList = append(orderedList, serverIDs...)
 
 		// Add tables first (sorted alphabetically within each category)
 		var tableIDs []string
@@ -216,6 +307,14 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		}
 		slices.Sort(tableIDs)
 		orderedList = append(orderedList, tableIDs...)
+
+		// Add foreign tables, whose defaults may call functions, before views.
+		var foreignTableIDs []string
+		for id := range foreignTableMap {
+			foreignTableIDs = append(foreignTableIDs, id)
+		}
+		slices.Sort(foreignTableIDs)
+		orderedList = append(orderedList, foreignTableIDs...)
 
 		// Add views second
 		var viewIDs []string
@@ -242,8 +341,21 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		orderedList = append(orderedList, functionIDs...)
 	}
 
-	// Construct functions, tables, views and materialized views in order.
+	// Construct functions, wrappers, servers, tables, views and materialized
+	// views in order.
 	for _, objectID := range orderedList {
+		if wrapper, ok := foreignDataWrapperMap[objectID]; ok {
+			if err := writeForeignDataWrapper(&buf, wrapper); err != nil {
+				return "", err
+			}
+			continue
+		}
+		if server, ok := foreignServerMap[objectID]; ok {
+			if err := writeForeignServer(&buf, server); err != nil {
+				return "", err
+			}
+			continue
+		}
 		if function, ok := functionMap[objectID]; ok {
 			if err := writeFunction(&buf, getSchemaNameFromID(objectID), function); err != nil {
 				return "", err
@@ -251,8 +363,37 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			continue
 		}
 		if table, ok := tableMap[objectID]; ok {
-			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID]); err != nil {
+			schemaName := getSchemaNameFromID(objectID)
+			if err := writeTable(&buf, schemaName, table, sequenceOwnershipMap[objectID], externalTables); err != nil {
 				return "", err
+			}
+			if err := writeForeignPartitionSequences(&buf, schemaName, table, externalTables, sequenceOwnershipMap); err != nil {
+				return "", err
+			}
+		}
+		if externalTable, ok := foreignTableMap[objectID]; ok {
+			if err := writeForeignTable(&buf, getSchemaNameFromID(objectID), externalTable, externalTable.CheckConstraints); err != nil {
+				return "", err
+			}
+			for _, sequence := range sequenceOwnershipMap[objectID] {
+				if err := writeAlterSequenceOwnedBy(&buf, getSchemaNameFromID(objectID), sequence); err != nil {
+					return "", err
+				}
+			}
+			foreignSchema := getSchemaNameFromID(objectID)
+			for _, column := range externalTable.Columns {
+				if len(column.Comment) > 0 {
+					if err := writeColumnComment(&buf, foreignSchema, externalTable.Name, column); err != nil {
+						return "", err
+					}
+				}
+			}
+			for _, check := range externalTable.CheckConstraints {
+				if len(check.Comment) > 0 {
+					if err := writeConstraintComment(&buf, foreignSchema, externalTable.Name, check.Name, check.Comment); err != nil {
+						return "", err
+					}
+				}
 			}
 		}
 		if view, ok := viewMap[objectID]; ok {
@@ -270,7 +411,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 
 	// Construct triggers.
 	for _, schema := range metadata.Schemas {
-		if err := writeSchemaTriggers(&buf, schema); err != nil {
+		if err := writeSchemaTriggers(&buf, schema, true); err != nil {
 			return "", err
 		}
 	}
@@ -465,7 +606,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 			continue
 		}
 		if table, ok := tableMap[objectID]; ok {
-			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID]); err != nil {
+			if err := writeTable(&buf, getSchemaNameFromID(objectID), table, sequenceOwnershipMap[objectID], collectExternalTables([]*metadatapb.SchemaMetadata{schema})); err != nil {
 				return "", err
 			}
 		}
@@ -483,7 +624,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 	}
 
 	// Construct triggers.
-	if err := writeSchemaTriggers(&buf, schema); err != nil {
+	if err := writeSchemaTriggers(&buf, schema, false); err != nil {
 		return "", err
 	}
 
@@ -502,7 +643,7 @@ func SchemaDefinition(schema *metadatapb.SchemaMetadata) (string, error) {
 
 func TableDefinition(schema string, table *metadatapb.TableMetadata, sequences []*metadatapb.SequenceMetadata) (string, error) {
 	var buf strings.Builder
-	if err := writeTable(&buf, schema, table, sequences); err != nil {
+	if err := writeTable(&buf, schema, table, sequences, nil); err != nil {
 		return "", err
 	}
 	// Skip triggers, rules, and foreign keys for a table without column
@@ -1391,6 +1532,154 @@ func signatureTypesOnly(signature string) string {
 // writeCollation writes a user-defined collation and its comment. The provider
 // decides which locale fields PostgreSQL takes: ICU and builtin take a locale,
 // libc takes the pair it sorts and classifies with.
+// writeForeignDataWrapper writes CREATE FOREIGN DATA WRAPPER and the handler,
+// validator and options it states. It is written before the servers that use it.
+func writeForeignDataWrapper(out io.Writer, wrapper *metadatapb.ForeignDataWrapperMetadata) error {
+	if _, err := fmt.Fprintf(out, "CREATE FOREIGN DATA WRAPPER \"%s\"", escapeIdentifier(wrapper.Name)); err != nil {
+		return err
+	}
+	if wrapper.Handler != "" {
+		if _, err := fmt.Fprintf(out, " HANDLER %s", wrapper.Handler); err != nil {
+			return err
+		}
+	}
+	if wrapper.Validator != "" {
+		if _, err := fmt.Fprintf(out, " VALIDATOR %s", wrapper.Validator); err != nil {
+			return err
+		}
+	}
+	if err := writeForeignOptions(out, wrapper.Options); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
+// It is written after extensions, which provide the wrapper, and before every
+// foreign table that names it.
+func writeForeignServer(out io.Writer, server *metadatapb.ForeignServerMetadata) error {
+	if _, err := fmt.Fprintf(out, "CREATE SERVER \"%s\"", escapeIdentifier(server.Name)); err != nil {
+		return err
+	}
+	if server.Type != nil {
+		if _, err := fmt.Fprintf(out, " TYPE '%s'", escapeSingleQuote(*server.Type)); err != nil {
+			return err
+		}
+	}
+	if server.Version != nil {
+		if _, err := fmt.Fprintf(out, " VERSION '%s'", escapeSingleQuote(*server.Version)); err != nil {
+			return err
+		}
+	}
+	if _, err := fmt.Fprintf(out, " FOREIGN DATA WRAPPER \"%s\"", escapeIdentifier(server.Fdw)); err != nil {
+		return err
+	}
+	if err := writeForeignOptions(out, server.Options); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
+// writeForeignTable writes CREATE FOREIGN TABLE with the columns the sync read,
+// any check constraints a partition carries, and the options the table states
+// itself. The server must already exist.
+func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalTableMetadata, checks []*metadatapb.CheckConstraintMetadata) error {
+	if _, err := fmt.Fprintf(out, "CREATE FOREIGN TABLE \"%s\".\"%s\" (",
+		escapeIdentifier(schema), escapeIdentifier(table.Name)); err != nil {
+		return err
+	}
+	first := true
+	writeSeparator := func() error {
+		separator := ",\n    "
+		if first {
+			separator = "\n    "
+			first = false
+		}
+		_, err := io.WriteString(out, separator)
+		return err
+	}
+	for _, column := range table.Columns {
+		if err := writeSeparator(); err != nil {
+			return err
+		}
+		if err := writeColumnDefinition(out, column); err != nil {
+			return err
+		}
+	}
+	for _, check := range checks {
+		if err := writeSeparator(); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, "CONSTRAINT \"%s\" CHECK %s", escapeIdentifier(check.Name), check.Expression); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, "\n)"); err != nil {
+		return err
+	}
+	if table.ExternalServerName != "" {
+		if _, err := fmt.Fprintf(out, " SERVER \"%s\"", escapeIdentifier(table.ExternalServerName)); err != nil {
+			return err
+		}
+	}
+	if err := writeForeignOptions(out, table.Options); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
+// writeForeignOptions writes an OPTIONS list from the entries pg_catalog stores
+// as "key=value". A value is a string; a key that is not a simple identifier is
+// quoted.
+func writeForeignOptions(out io.Writer, options []string) error {
+	if len(options) == 0 {
+		return nil
+	}
+	if _, err := io.WriteString(out, " OPTIONS ("); err != nil {
+		return err
+	}
+	for i, option := range options {
+		if i != 0 {
+			if _, err := io.WriteString(out, ", "); err != nil {
+				return err
+			}
+		}
+		key, value, ok := strings.Cut(option, "=")
+		if !ok {
+			key, value = option, ""
+		}
+		if err := writeForeignOptionName(out, key); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, " '%s'", escapeSingleQuote(value)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, ")")
+	return err
+}
+
+func writeForeignOptionName(out io.Writer, name string) error {
+	// An unquoted PostgreSQL identifier folds to lower case, so an upper-case
+	// character in an option name has to be quoted to keep its spelling.
+	simple := name != ""
+	for i, r := range name {
+		if r == '_' || r >= 'a' && r <= 'z' || i > 0 && r >= '0' && r <= '9' {
+			continue
+		}
+		simple = false
+		break
+	}
+	if simple {
+		_, err := io.WriteString(out, name)
+		return err
+	}
+	_, err := fmt.Fprintf(out, "\"%s\"", escapeIdentifier(name))
+	return err
+}
+
 func writeCollation(out io.Writer, schema string, collation *metadatapb.CollationMetadata) error {
 	var provider, locale string
 	switch collation.Provider {
@@ -1912,8 +2201,15 @@ func metadataFuncIdentity(f *metadatapb.FunctionMetadata) string {
 // the referenced overload never is and which would make a cycle that drops
 // the sort to its all-tables-then-all-functions fallback.
 func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata) {
-	tableID := getObjectID(schema, table.Name)
-	for _, column := range table.Columns {
+	addColumnFunctionEdgesTo(graph, functionMap, functionIDsByName, schema, table.Name, getObjectID(schema, table.Name), table.Columns)
+}
+
+// addColumnFunctionEdgesTo adds the edges for columns of a relation named
+// relation that is written as targetID. A foreign partition is written by its
+// parent, so its overload dependencies are checked against the partition while
+// the edge points at the parent.
+func addColumnFunctionEdgesTo(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, relation, targetID string, columns []*metadatapb.ColumnMetadata) {
+	for _, column := range columns {
 		var exprs []string
 		if column.Default != "" {
 			exprs = append(exprs, column.Default)
@@ -1929,11 +2225,256 @@ func addColumnFunctionEdges(graph *definitionGraph, functionMap map[string]*meta
 			funcRefs, _, _ := collectExprDeps(node)
 			for _, ref := range funcRefs {
 				for _, funcID := range functionIDsByName[ref] {
-					if functionDependsOnTable(functionMap[funcID], schema, table.Name) {
+					if functionDependsOnTable(functionMap[funcID], schema, relation) {
 						continue
 					}
-					graph.AddEdge(funcID, tableID)
+					graph.AddEdge(funcID, targetID)
 				}
+			}
+		}
+	}
+}
+
+// checkExpressionForDependencies drops the constraint suffixes that are not
+// part of the expression, so the rest parses as a SELECT.
+func checkExpressionForDependencies(expression string) string {
+	for {
+		trimmed := strings.TrimSpace(expression)
+		upper := strings.ToUpper(trimmed)
+		switch {
+		case strings.HasSuffix(upper, " NO INHERIT"):
+			expression = trimmed[:len(trimmed)-len(" NO INHERIT")]
+		case strings.HasSuffix(upper, " NOT VALID"):
+			expression = trimmed[:len(trimmed)-len(" NOT VALID")]
+		default:
+			return trimmed
+		}
+	}
+}
+
+// orderPartitionsForCreation orders a parent's partitions so a foreign
+// partition whose column or CHECK names a sibling's row type follows it.
+func orderPartitionsForCreation(parentSchema string, partitions []*metadatapb.TablePartitionMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) []*metadatapb.TablePartitionMetadata {
+	if len(partitions) < 2 {
+		return partitions
+	}
+	byID := make(map[string]*metadatapb.TablePartitionMetadata, len(partitions))
+	ids := make([]string, 0, len(partitions))
+	for _, partition := range partitions {
+		id := getObjectID(partitionSchemaName(parentSchema, partition), partition.Name)
+		byID[id] = partition
+		ids = append(ids, id)
+	}
+	inDegree := make(map[string]int, len(ids))
+	for _, id := range ids {
+		inDegree[id] = 0
+	}
+	edges := make(map[string][]string)
+	seen := make(map[string]bool)
+	for _, id := range ids {
+		externalTable := externalTables[id]
+		if externalTable == nil {
+			continue
+		}
+		for _, ref := range externalTableRelationTypeRefs(externalTable) {
+			schema, name, ok := strings.Cut(ref, ".")
+			if !ok {
+				continue
+			}
+			names := []string{name}
+			if strings.HasPrefix(name, "_") {
+				names = append(names, name[1:])
+			}
+			for _, relationName := range names {
+				targetID := getObjectID(schema, relationName)
+				if _, ok := byID[targetID]; !ok || targetID == id {
+					continue
+				}
+				key := targetID + "\x00" + id
+				if !seen[key] {
+					seen[key] = true
+					edges[targetID] = append(edges[targetID], id)
+					inDegree[id]++
+				}
+				break
+			}
+		}
+	}
+	if len(edges) == 0 {
+		return partitions
+	}
+	var queue []string
+	for _, id := range ids {
+		if inDegree[id] == 0 {
+			queue = append(queue, id)
+		}
+	}
+	slices.Sort(queue)
+	ordered := make([]*metadatapb.TablePartitionMetadata, 0, len(partitions))
+	for len(queue) > 0 {
+		id := queue[0]
+		queue = queue[1:]
+		ordered = append(ordered, byID[id])
+		for _, next := range edges[id] {
+			inDegree[next]--
+			if inDegree[next] == 0 {
+				queue = append(queue, next)
+			}
+		}
+		slices.Sort(queue)
+	}
+	if len(ordered) != len(partitions) {
+		return partitions
+	}
+	return ordered
+}
+
+func externalTableRelationTypeRefs(table *metadatapb.ExternalTableMetadata) []string {
+	var refs []string
+	addExpr := func(expression string) {
+		if expression == "" {
+			return
+		}
+		node, err := parseScalar("SELECT " + expression)
+		if err != nil {
+			return
+		}
+		_, _, typeRefs := collectExprDeps(node)
+		refs = append(refs, typeRefs...)
+	}
+	for _, column := range table.Columns {
+		refs = append(refs, column.Type)
+		addExpr(column.Default)
+		if column.Generation != nil {
+			addExpr(column.Generation.Expression)
+		}
+	}
+	for _, check := range table.CheckConstraints {
+		addExpr(checkExpressionForDependencies(check.Expression))
+	}
+	return refs
+}
+
+// addRelationTypeEdges makes a relation follow the relation whose row type one
+// of its columns uses. PostgreSQL row types are not composite types, so the
+// type section does not create them; a foreign table can name another foreign
+// table's row type, and the table that defines it must exist first.
+func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, tableMap map[string]*metadatapb.TableMetadata, relationIDs map[string]bool, partitionParents map[string]string) {
+	for _, id := range sortedMapIDs(foreignTableMap) {
+		table := foreignTableMap[id]
+		addRelationTypeEdgesFor(graph, id, table.Columns, table.CheckConstraints, relationIDs, partitionParents)
+	}
+	for _, id := range sortedMapIDs(tableMap) {
+		table := tableMap[id]
+		addRelationTypeEdgesFor(graph, id, table.Columns, table.CheckConstraints, relationIDs, partitionParents)
+	}
+}
+
+func sortedMapIDs[V any](m map[string]V) []string {
+	ids := make([]string, 0, len(m))
+	for id := range m {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	return ids
+}
+
+func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata, relationIDs map[string]bool, partitionParents map[string]string) {
+	for _, column := range columns {
+		addColumnRelationTypeEdges(graph, id, column, relationIDs, partitionParents)
+	}
+	for _, check := range checks {
+		addCheckRelationTypeEdges(graph, id, check, relationIDs, partitionParents)
+	}
+}
+
+func addColumnRelationTypeEdges(graph *definitionGraph, id string, column *metadatapb.ColumnMetadata, relationIDs map[string]bool, partitionParents map[string]string) {
+	addTypeRefEdge(graph, id, column.Type, relationIDs, partitionParents)
+	if column.Default != "" {
+		addExprRelationTypeEdges(graph, id, column.Default, relationIDs, partitionParents)
+	}
+	if column.Generation != nil && column.Generation.Expression != "" {
+		addExprRelationTypeEdges(graph, id, column.Generation.Expression, relationIDs, partitionParents)
+	}
+}
+
+func addCheckRelationTypeEdges(graph *definitionGraph, id string, check *metadatapb.CheckConstraintMetadata, relationIDs map[string]bool, partitionParents map[string]string) {
+	addExprRelationTypeEdges(graph, id, checkExpressionForDependencies(check.Expression), relationIDs, partitionParents)
+}
+
+func addExprRelationTypeEdges(graph *definitionGraph, id, expression string, relationIDs map[string]bool, partitionParents map[string]string) {
+	node, err := parseScalar("SELECT " + expression)
+	if err != nil {
+		return
+	}
+	_, _, typeRefs := collectExprDeps(node)
+	for _, typeRef := range typeRefs {
+		addTypeRefEdge(graph, id, typeRef, relationIDs, partitionParents)
+	}
+}
+
+func addTypeRefEdge(graph *definitionGraph, id, typeName string, relationIDs map[string]bool, partitionParents map[string]string) {
+	schema, name, ok := strings.Cut(typeName, ".")
+	if !ok {
+		return
+	}
+	// An array of a row type is named _<relation>, as in public._z.
+	names := []string{name}
+	if strings.HasPrefix(name, "_") {
+		names = append(names, name[1:])
+	}
+	for _, relationName := range names {
+		dependencyID := getObjectID(schema, relationName)
+		if parentID, ok := partitionParents[dependencyID]; ok {
+			dependencyID = parentID
+		}
+		if dependencyID == id {
+			return
+		}
+		if relationIDs[dependencyID] {
+			graph.AddEdge(dependencyID, id)
+			return
+		}
+	}
+}
+
+// addPartitionRelationTypeEdges adds the relation-type edges of a foreign
+// partition's columns and checks to the parent that creates the partition.
+func addPartitionRelationTypeEdges(graph *definitionGraph, externalTables map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string, relationIDs map[string]bool) {
+	for _, id := range sortedMapIDs(externalTables) {
+		table := externalTables[id]
+		parentID, ok := partitionParents[id]
+		if !ok {
+			continue
+		}
+		for _, column := range table.Columns {
+			addColumnRelationTypeEdges(graph, parentID, column, relationIDs, partitionParents)
+		}
+		for _, check := range table.CheckConstraints {
+			addCheckRelationTypeEdges(graph, parentID, check, relationIDs, partitionParents)
+		}
+	}
+}
+
+// addCheckFunctionEdges adds an edge from each user function a check expression
+// calls to the relation that states the check, so the function exists first.
+func addCheckFunctionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, table string, checks []*metadatapb.CheckConstraintMetadata) {
+	addCheckFunctionEdgesTo(graph, functionMap, functionIDsByName, schema, table, getObjectID(schema, table), checks)
+}
+
+func addCheckFunctionEdgesTo(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema, relation, targetID string, checks []*metadatapb.CheckConstraintMetadata) {
+	for _, check := range checks {
+		node, err := parseScalar("SELECT " + checkExpressionForDependencies(check.Expression))
+		if err != nil {
+			continue
+		}
+		funcRefs, _, _ := collectExprDeps(node)
+		for _, ref := range funcRefs {
+			for _, funcID := range functionIDsByName[ref] {
+				if functionDependsOnTable(functionMap[funcID], schema, relation) {
+					continue
+				}
+				graph.AddEdge(funcID, targetID)
 			}
 		}
 	}
@@ -1953,12 +2494,381 @@ func functionDependsOnTable(function *metadatapb.FunctionMetadata, schema, table
 	return false
 }
 
+// collectExternalTables indexes every foreign table by object ID.
+func collectExternalTables(schemas []*metadatapb.SchemaMetadata) map[string]*metadatapb.ExternalTableMetadata {
+	externalTables := make(map[string]*metadatapb.ExternalTableMetadata)
+	for _, schema := range schemas {
+		for _, externalTable := range schema.ExternalTables {
+			externalTables[getObjectID(schema.Name, externalTable.Name)] = externalTable
+		}
+	}
+	return externalTables
+}
+
+// collectForeignPartitionIDs names the foreign tables that a table's partition
+// list also holds, so they are rendered with their parent rather than twice.
+func collectForeignPartitionIDs(schemas []*metadatapb.SchemaMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) map[string]bool {
+	ids := make(map[string]bool)
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			walkPartitions(schema.Name, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
+				id := getObjectID(partitionSchema, partition.Name)
+				if externalTables[id] != nil {
+					ids[id] = true
+				}
+			})
+		}
+	}
+	return ids
+}
+
+// collectPartitionParents maps a partition's ID to the table that creates and
+// attaches it, so a consumer of the partition waits for the parent rather than
+// for a node of its own.
+func collectPartitionParents(schemas []*metadatapb.SchemaMetadata) map[string]string {
+	parents := make(map[string]string)
+	for _, schema := range schemas {
+		for _, table := range schema.Tables {
+			parentID := getObjectID(schema.Name, table.Name)
+			walkPartitions(schema.Name, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
+				parents[getObjectID(partitionSchema, partition.Name)] = parentID
+			})
+		}
+	}
+	return parents
+}
+
+func walkPartitions(schema string, partitions []*metadatapb.TablePartitionMetadata, visit func(string, *metadatapb.TablePartitionMetadata)) {
+	for _, partition := range partitions {
+		partitionSchema := partitionSchemaName(schema, partition)
+		visit(partitionSchema, partition)
+		walkPartitions(partitionSchema, partition.Subpartitions, visit)
+	}
+}
+
+// addFunctionNameEdges makes every function a name resolves to precede node.
+// regproc writes a name that needs quoting quoted, so the map's unquoted keys
+// are tried too.
+func addFunctionNameEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, name string, expectedArgs []string, node string) {
+	if name == "" {
+		return
+	}
+	seen := make(map[string]bool)
+	for _, key := range functionNameKeys(name) {
+		for _, functionID := range functionIDsByName[key] {
+			if seen[functionID] {
+				continue
+			}
+			if !functionSignatureMatches(functionMap[functionID], expectedArgs) {
+				continue
+			}
+			seen[functionID] = true
+			graph.AddEdge(functionID, node)
+		}
+	}
+}
+
+// functionSignatureMatches reports whether a function's identity arguments are
+// the ones a handler or validator has. A function map from a snapshot without
+// a signature matches nothing, so only the function the catalog can name is
+// ordered.
+func functionSignatureMatches(function *metadatapb.FunctionMetadata, expected []string) bool {
+	if function == nil || function.Signature == "" {
+		return false
+	}
+	args, ok := signatureArguments(function.Signature, function.Name)
+	if !ok {
+		return false
+	}
+	actual := inputSignatureArguments(splitSignatureArguments(args))
+	if len(actual) != len(expected) {
+		return false
+	}
+	for i := range actual {
+		if !signatureArgumentMatches(actual[i], expected[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// signatureArgumentMatches reports whether an argument states the expected
+// type. pg_get_function_identity_arguments may keep an argument's name and
+// mode, so the whole argument and each suffix after a top-level space are
+// candidates; a quoted name's spaces are not boundaries.
+func signatureArgumentMatches(arg, expected string) bool {
+	expected = normalizeSignatureType(expected)
+	for i := 0; ; {
+		if normalizeSignatureType(arg[i:]) == expected {
+			return true
+		}
+		next := nextSignatureSpace(arg, i)
+		if next < 0 {
+			return false
+		}
+		i = next + 1
+	}
+}
+
+func nextSignatureSpace(arg string, start int) int {
+	inQuote := false
+	for i := start; i < len(arg); i++ {
+		switch arg[i] {
+		case '"':
+			if inQuote && i+1 < len(arg) && arg[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = !inQuote
+		case ' ', '\t':
+			if !inQuote {
+				return i
+			}
+		}
+	}
+	return -1
+}
+
+// signatureArguments returns the text between a signature's argument-list
+// parentheses. The function name may itself contain a quoted parenthesis.
+func signatureArguments(signature, name string) (string, bool) {
+	// getFunctions builds the signature as name(arguments), so a name that
+	// itself ends in a parenthesis still has its argument list right after it.
+	if name != "" && strings.HasPrefix(signature, name) {
+		rest := signature[len(name):]
+		if strings.HasPrefix(rest, "(") && strings.HasSuffix(rest, ")") {
+			return rest[1 : len(rest)-1], true
+		}
+	}
+	inQuote := false
+	for i := 0; i < len(signature); i++ {
+		switch signature[i] {
+		case '"':
+			if inQuote && i+1 < len(signature) && signature[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = !inQuote
+		case '(':
+			if inQuote {
+				continue
+			}
+			close := strings.LastIndex(signature, ")")
+			if close < i {
+				return "", false
+			}
+			return signature[i+1 : close], true
+		}
+	}
+	return "", false
+}
+
+// inputSignatureArguments drops OUT-only parameters, which do not take part in
+// resolving the function a wrapper names.
+func inputSignatureArguments(args []string) []string {
+	out := args[:0]
+	for _, arg := range args {
+		if signatureArgumentMode(arg) == "OUT" {
+			continue
+		}
+		out = append(out, arg)
+	}
+	return out
+}
+
+func signatureArgumentMode(arg string) string {
+	i := 0
+	for i < len(arg) && (arg[i] == ' ' || arg[i] == '\t') {
+		i++
+	}
+	j := i
+	for j < len(arg) && arg[j] != ' ' && arg[j] != '\t' && arg[j] != '(' && arg[j] != '"' {
+		j++
+	}
+	return strings.ToUpper(arg[i:j])
+}
+
+func splitSignatureArguments(args string) []string {
+	args = strings.TrimSpace(args)
+	if args == "" {
+		return nil
+	}
+	var parts []string
+	depth := 0
+	start := 0
+	inQuote := false
+	for i := 0; i < len(args); i++ {
+		if inQuote {
+			if args[i] != '"' {
+				continue
+			}
+			if i+1 < len(args) && args[i+1] == '"' {
+				i++
+				continue
+			}
+			inQuote = false
+			continue
+		}
+		switch args[i] {
+		case '"':
+			inQuote = true
+		case '(':
+			depth++
+		case ')':
+			depth--
+		case ',':
+			if depth == 0 {
+				parts = append(parts, args[start:i])
+				start = i + 1
+			}
+		}
+	}
+	return append(parts, args[start:])
+}
+
+func normalizeSignatureType(t string) string {
+	t = strings.TrimSpace(t)
+	t = strings.ReplaceAll(t, "pg_catalog.", "")
+	return strings.ReplaceAll(t, " ", "")
+}
+
+// functionNameKeys is a SQL-qualified name's unquoted forms: its qualified name
+// and its bare name. regproc writes app."MyHandler" where the function map holds
+// app.MyHandler.
+func functionNameKeys(name string) []string {
+	parts, ok := splitQualifiedIdentifier(name)
+	if !ok {
+		return []string{name}
+	}
+	if len(parts) == 1 {
+		return parts
+	}
+	return []string{strings.Join(parts, ".")}
+}
+
+func splitQualifiedIdentifier(name string) ([]string, bool) {
+	var parts []string
+	var b strings.Builder
+	inQuote := false
+	for i := 0; i < len(name); i++ {
+		c := name[i]
+		if inQuote {
+			if c != '"' {
+				b.WriteByte(c)
+				continue
+			}
+			if i+1 < len(name) && name[i+1] == '"' {
+				b.WriteByte('"')
+				i++
+				continue
+			}
+			inQuote = false
+			continue
+		}
+		switch c {
+		case '"':
+			inQuote = true
+		case '.':
+			parts = append(parts, b.String())
+			b.Reset()
+		case ' ', '\t':
+		default:
+			b.WriteByte(c)
+		}
+	}
+	if inQuote {
+		return nil, false
+	}
+	return append(parts, b.String()), true
+}
+
+// addForeignPartitionEdges makes the functions a foreign partition's columns
+// call, and its server, precede the parent table that creates the partition.
+func addForeignPartitionEdges(graph *definitionGraph, functionMap map[string]*metadatapb.FunctionMetadata, functionIDsByName map[string][]string, schema string, table *metadatapb.TableMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata, serverIDsByName map[string]string) {
+	parentID := getObjectID(schema, table.Name)
+	walkPartitions(schema, table.Partitions, func(partitionSchema string, partition *metadatapb.TablePartitionMetadata) {
+		externalTable := externalTables[getObjectID(partitionSchema, partition.Name)]
+		if externalTable == nil {
+			return
+		}
+		addColumnFunctionEdgesTo(graph, functionMap, functionIDsByName, partitionSchema, partition.Name, parentID, externalTable.Columns)
+		addCheckFunctionEdgesTo(graph, functionMap, functionIDsByName, partitionSchema, partition.Name, parentID, externalTable.CheckConstraints)
+		if serverID := serverIDsByName[externalTable.ExternalServerName]; serverID != "" {
+			graph.AddEdge(serverID, parentID)
+		}
+	})
+}
+
 func getObjectID(schema string, object string) string {
 	var buf strings.Builder
 	_, _ = buf.WriteString(schema)
 	_, _ = buf.WriteString(objectIDSeparator)
 	_, _ = buf.WriteString(object)
 	return buf.String()
+}
+
+// writeColumnDefinition writes one column of a relation, after the separator
+// that begins its line: its name, type, collation, generation or default, and
+// nullability.
+func writeColumnDefinition(out io.Writer, column *metadatapb.ColumnMetadata) error {
+	if _, err := io.WriteString(out, `"`); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, escapeIdentifier(column.Name)); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, `" `); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, column.Type); err != nil {
+		return err
+	}
+
+	// A foreign table's column options map its name for the wrapper.
+	if err := writeForeignOptions(out, column.Options); err != nil {
+		return err
+	}
+
+	// A user-defined collation is written with its schema: the dump restores
+	// under an empty search_path, so its bare name reaches only the collations
+	// pg_catalog holds.
+	if column.Collation != "" {
+		if column.CollationSchema != "" {
+			if _, err := fmt.Fprintf(out, ` COLLATE "%s"."%s"`, escapeIdentifier(column.CollationSchema), escapeIdentifier(column.Collation)); err != nil {
+				return err
+			}
+		} else if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, escapeIdentifier(column.Collation)); err != nil {
+			return err
+		}
+	}
+
+	// A generated column carries its expression in place of a default.
+	if column.Generation != nil {
+		storage := "STORED"
+		if column.Generation.Type == metadatapb.GenerationMetadata_TYPE_VIRTUAL {
+			storage = "VIRTUAL"
+		}
+		if _, err := fmt.Fprintf(out, " GENERATED ALWAYS AS (%s) %s", column.Generation.Expression, storage); err != nil {
+			return err
+		}
+	} else if column.Default != "" {
+		if _, err := io.WriteString(out, ` DEFAULT `); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, column.Default); err != nil {
+			return err
+		}
+	}
+
+	if !column.Nullable {
+		if _, err := io.WriteString(out, ` NOT NULL`); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func writeCreateTable(out io.Writer, schema string, tableName string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata, excludes []*metadatapb.ExcludeConstraintMetadata) error {
@@ -2000,58 +2910,8 @@ func writeCreateTable(out io.Writer, schema string, tableName string, columns []
 		if err := writeItemSep(); err != nil {
 			return err
 		}
-
-		if _, err := io.WriteString(out, `"`); err != nil {
+		if err := writeColumnDefinition(out, column); err != nil {
 			return err
-		}
-
-		if _, err := io.WriteString(out, column.Name); err != nil {
-			return err
-		}
-
-		if _, err := io.WriteString(out, `" `); err != nil {
-			return err
-		}
-
-		if _, err := io.WriteString(out, column.Type); err != nil {
-			return err
-		}
-
-		// A user-defined collation is written with its schema: the dump restores
-		// under an empty search_path, so its bare name reaches only the collations
-		// pg_catalog holds.
-		if column.Collation != "" {
-			if column.CollationSchema != "" {
-				if _, err := fmt.Fprintf(out, ` COLLATE "%s"."%s"`, escapeIdentifier(column.CollationSchema), escapeIdentifier(column.Collation)); err != nil {
-					return err
-				}
-			} else if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, escapeIdentifier(column.Collation)); err != nil {
-				return err
-			}
-		}
-
-		// A generated column carries its expression in place of a default.
-		if column.Generation != nil {
-			storage := "STORED"
-			if column.Generation.Type == metadatapb.GenerationMetadata_TYPE_VIRTUAL {
-				storage = "VIRTUAL"
-			}
-			if _, err := fmt.Fprintf(out, " GENERATED ALWAYS AS (%s) %s", column.Generation.Expression, storage); err != nil {
-				return err
-			}
-		} else if column.Default != "" {
-			if _, err := io.WriteString(out, ` DEFAULT `); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(out, column.Default); err != nil {
-				return err
-			}
-		}
-
-		if !column.Nullable {
-			if _, err := io.WriteString(out, ` NOT NULL`); err != nil {
-				return err
-			}
 		}
 	}
 
@@ -2184,7 +3044,7 @@ func collectTables(schemas []*metadatapb.SchemaMetadata, include func(*metadatap
 // materialized view in the schema. Triggers on tables without column
 // metadata are skipped; their definitions (UPDATE OF, WHEN clauses) can
 // reference the missing columns.
-func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata) error {
+func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata, includeForeignTables bool) error {
 	for _, table := range schema.Tables {
 		if tableMissingColumnMetadata(table) {
 			continue
@@ -2217,6 +3077,22 @@ func writeSchemaTriggers(out io.Writer, schema *metadatapb.SchemaMetadata) error
 			}
 			if err := writeTrigger(out, schema.Name, materializedView.Name, trigger); err != nil {
 				return err
+			}
+		}
+	}
+
+	if includeForeignTables {
+		for _, externalTable := range schema.ExternalTables {
+			if externalTable.SkipDump {
+				continue
+			}
+			for _, trigger := range externalTable.Triggers {
+				if trigger.SkipDump {
+					continue
+				}
+				if err := writeTrigger(out, schema.Name, externalTable.Name, trigger); err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -2277,7 +3153,7 @@ func writeSchemaForeignKeys(out io.Writer, schema *metadatapb.SchemaMetadata, ta
 	return nil
 }
 
-func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, sequences []*metadatapb.SequenceMetadata) error {
+func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, sequences []*metadatapb.SequenceMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) error {
 	if tableMissingColumnMetadata(table) {
 		// Emit a bare CREATE TABLE so the table still exists on replay, and
 		// skip constraints, indexes, partitions, and sequence ownership —
@@ -2358,9 +3234,20 @@ func writeTable(out io.Writer, schema string, table *metadatapb.TableMetadata, s
 		}
 	}
 
-	// Construct partition tables.
-	for _, partition := range table.Partitions {
-		if err := writePartitionTable(out, schema, table.Columns, partition); err != nil {
+	// Construct partition tables. A foreign partition is created as a foreign
+	// table, and the attach below attaches it to its parent.
+	for _, partition := range orderPartitionsForCreation(schema, table.Partitions, externalTables) {
+		partitionSchema := partitionSchemaName(schema, partition)
+		if externalTable, ok := externalTables[getObjectID(partitionSchema, partition.Name)]; ok {
+			if err := writeForeignTable(out, partitionSchema, externalTable, partition.CheckConstraints); err != nil {
+				return err
+			}
+			if err := writeForeignPartitionComments(out, partitionSchema, partition); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := writePartitionTable(out, schema, table.Columns, partition, externalTables); err != nil {
 			return err
 		}
 	}
@@ -2926,6 +3813,70 @@ func writeTableComment(out io.Writer, schema string, table *metadatapb.TableMeta
 	return writeRelationComment(out, schema, table.Name, table.Comment)
 }
 
+// writeForeignPartitionSequences writes the ALTER SEQUENCE ... OWNED BY for a
+// sequence owned by a foreign partition's column, including subpartitions.
+func writeForeignPartitionSequences(out io.Writer, schema string, table *metadatapb.TableMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata, sequenceOwnershipMap map[string][]*metadatapb.SequenceMetadata) error {
+	var walk func(string, []*metadatapb.TablePartitionMetadata) error
+	walk = func(parentSchema string, partitions []*metadatapb.TablePartitionMetadata) error {
+		for _, partition := range partitions {
+			partitionSchema := partitionSchemaName(parentSchema, partition)
+			id := getObjectID(partitionSchema, partition.Name)
+			if externalTables[id] != nil {
+				for _, sequence := range sequenceOwnershipMap[id] {
+					if err := writeAlterSequenceOwnedBy(out, partitionSchema, sequence); err != nil {
+						return err
+					}
+				}
+			}
+			if err := walk(partitionSchema, partition.Subpartitions); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return walk(schema, table.Partitions)
+}
+
+// writeForeignPartitionComments writes the comments a foreign partition and its
+// check constraints carry, which the ordinary partition path writes after its
+// CREATE TABLE.
+func writeForeignPartitionComments(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+	for _, check := range partition.CheckConstraints {
+		if len(check.Comment) > 0 {
+			if err := writeConstraintComment(out, schema, partition.Name, check.Name, check.Comment); err != nil {
+				return err
+			}
+		}
+	}
+	if len(partition.Comment) > 0 {
+		return writeForeignPartitionComment(out, schema, partition)
+	}
+	return nil
+}
+
+func writeForeignPartitionComment(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
+	if _, err := io.WriteString(out, `COMMENT ON FOREIGN TABLE "`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, schema); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, `"."`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, partition.Name); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, `" IS '`); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, escapeSingleQuote(partition.Comment)); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, "';\n\n")
+	return err
+}
+
 func writePartitionComment(out io.Writer, schema string, partition *metadatapb.TablePartitionMetadata) error {
 	return writeRelationComment(out, schema, partition.Name, partition.Comment)
 }
@@ -2996,7 +3947,7 @@ func writeAttachPartition(out io.Writer, parentSchema string, tableName string, 
 	return err
 }
 
-func writePartitionTable(out io.Writer, parentSchema string, columns []*metadatapb.ColumnMetadata, partition *metadatapb.TablePartitionMetadata) error {
+func writePartitionTable(out io.Writer, parentSchema string, columns []*metadatapb.ColumnMetadata, partition *metadatapb.TablePartitionMetadata, externalTables map[string]*metadatapb.ExternalTableMetadata) error {
 	schema := partitionSchemaName(parentSchema, partition)
 	if err := writeCreateTable(out, schema, partition.Name, columns, partition.CheckConstraints, partition.ExcludeConstraints); err != nil {
 		return err
@@ -3029,9 +3980,20 @@ func writePartitionTable(out io.Writer, parentSchema string, columns []*metadata
 		}
 	}
 
-	// Construct subpartition tables.
-	for _, subpartition := range partition.Subpartitions {
-		if err := writePartitionTable(out, schema, columns, subpartition); err != nil {
+	// Construct subpartition tables. A foreign subpartition is created as a
+	// foreign table, and the attach below attaches it.
+	for _, subpartition := range orderPartitionsForCreation(schema, partition.Subpartitions, externalTables) {
+		subpartitionSchema := partitionSchemaName(schema, subpartition)
+		if externalTable, ok := externalTables[getObjectID(subpartitionSchema, subpartition.Name)]; ok {
+			if err := writeForeignTable(out, subpartitionSchema, externalTable, subpartition.CheckConstraints); err != nil {
+				return err
+			}
+			if err := writeForeignPartitionComments(out, subpartitionSchema, subpartition); err != nil {
+				return err
+			}
+			continue
+		}
+		if err := writePartitionTable(out, schema, columns, subpartition, externalTables); err != nil {
 			return err
 		}
 	}
