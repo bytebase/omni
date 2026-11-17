@@ -128,3 +128,21 @@ TBLPROPERTIES (
   'transient_lastDdlTime'='1000000000')
 AS SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`;
 
+--
+-- Materialized view structure for `p_events_mv`
+--
+CREATE MATERIALIZED VIEW `omni_dump`.`p_events_mv` DISABLE REWRITE
+PARTITIONED ON (`dt`)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+LOCATION
+  'file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv'
+TBLPROPERTIES (
+  'bucketing_version'='2', 
+  'transient_lastDdlTime'='1000000000')
+AS SELECT id, dt FROM omni_dump.events;
+

@@ -343,3 +343,56 @@ func TestDumpClauseStart(t *testing.T) {
 		require.Equal(t, stmt.clause, stmt.stmt[clause:], stmt.name)
 	}
 }
+
+// TestDumpStatesPartitions holds where a stated CREATE TABLE declares its
+// partitions, and that a name or a comment spelling the clause is not one.
+func TestDumpStatesPartitions(t *testing.T) {
+	for _, stmt := range []struct {
+		name  string
+		stmt  string
+		state bool
+	}{
+		{name: "a plain table", stmt: "CREATE TABLE `db`.`t`(\n  `id` int)\nLOCATION\n  'x'"},
+		{name: "a partitioned table", stmt: "CREATE TABLE `db`.`t`(\n  `id` int)\nPARTITIONED BY ( \n  `dt` string)", state: true},
+		{name: "a comment spelling it", stmt: "CREATE TABLE `db`.`t`(\n  `id` int COMMENT 'PARTITIONED BY (x)')"},
+		{name: "a name spelling it", stmt: "CREATE TABLE `db`.`PARTITIONED BY`(\n  `id` int)"},
+	} {
+		require.Equal(t, stmt.state, dumpStatesPartitions(stmt.stmt), stmt.name)
+	}
+}
+
+// TestDumpMaterializedViewClauses holds the clauses CREATE MATERIALIZED VIEW
+// takes from a stated CREATE TABLE: a partition clause names its columns
+// without the types the statement states them with.
+func TestDumpMaterializedViewClauses(t *testing.T) {
+	for _, clauses := range []struct {
+		name string
+		in   string
+		out  string
+	}{
+		{
+			name: "no partition clause",
+			in:   "\nCOMMENT 'c'\nROW FORMAT SERDE \n  'x'",
+			out:  "\nCOMMENT 'c'\nROW FORMAT SERDE \n  'x'",
+		},
+		{
+			name: "one partition column",
+			in:   "\nPARTITIONED BY ( \n  `dt` string)\nROW FORMAT SERDE \n  'x'",
+			out:  "\nPARTITIONED ON (`dt`)\nROW FORMAT SERDE \n  'x'",
+		},
+		{
+			name: "a comment before it and a type holding a comma",
+			in:   "\nCOMMENT 'a comment'\nPARTITIONED BY ( \n  `region` string, \n  `amount` decimal(10,2))\nLOCATION\n  'x'",
+			out:  "\nCOMMENT 'a comment'\nPARTITIONED ON (`region`, `amount`)\nLOCATION\n  'x'",
+		},
+		{
+			name: "an unquoted column",
+			in:   "\nPARTITIONED BY (dt string)",
+			out:  "\nPARTITIONED ON (dt)",
+		},
+	} {
+		out, err := dumpMaterializedViewClauses(clauses.in)
+		require.NoError(t, err, clauses.name)
+		require.Equal(t, clauses.out, out, clauses.name)
+	}
+}

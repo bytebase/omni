@@ -176,13 +176,26 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		if err != nil {
 			return nil, fmt.Errorf("materialized view %s: %w", name, err)
 		}
-		if info.expandedViewDef == "" {
+		// A partitioned materialized view's expanded query holds the partition
+		// projection Hive forms around the query it was given, so replaying that
+		// text nests the projection; the query the view was created with is the
+		// text Hive expands. Every other view replays the expanded query, which
+		// quotes the identifiers the original one may not.
+		query := info.expandedViewDef
+		if dumpStatesPartitions(stmt) {
+			query = info.viewDef
+		}
+		if query == "" {
 			return nil, fmt.Errorf("materialized view %s: DESCRIBE FORMATTED states no query", name)
+		}
+		materialized, err := dumpMaterializedViewClauses(stmt[clauses:])
+		if err != nil {
+			return nil, fmt.Errorf("materialized view %s: %w", name, err)
 		}
 		object.kind = dumpMaterializedView
 		object.stmts = []string{
 			"CREATE MATERIALIZED VIEW " + quoteBacktick(database) + "." + quoteBacktick(name) +
-				" DISABLE REWRITE" + stmt[clauses:] + "\nAS " + info.expandedViewDef,
+				" DISABLE REWRITE" + materialized + "\nAS " + query,
 		}
 	case "MANAGED_TABLE":
 		object.kind = dumpTable
@@ -197,7 +210,9 @@ func (d *Driver) dumpObject(ctx context.Context, database, name string) (*dumpOb
 		// the table external, and only the ALTER stores it managed.
 		object.stmts = append(object.stmts,
 			"ALTER TABLE "+quoteBacktick(database)+"."+quoteBacktick(name)+" SET TBLPROPERTIES('EXTERNAL'='FALSE')")
-		if info.partitioned {
+		// The statement declares the partitions, which DESCRIBE FORMATTED
+		// states only under a setting a session can turn off.
+		if dumpStatesPartitions(stmt) {
 			partitions, err := d.dumpPartitions(ctx, database, name)
 			if err != nil {
 				return nil, err
@@ -223,35 +238,12 @@ func dumpClauseStart(stmt string) (int, error) {
 	depth := 0
 	for i := 0; i < len(stmt); i++ {
 		switch stmt[i] {
-		case '`':
-			// Hive spells an identifier's own backquote as two.
-			for i++; i < len(stmt); i++ {
-				if stmt[i] != '`' {
-					continue
-				}
-				if i+1 < len(stmt) && stmt[i+1] == '`' {
-					i++
-					continue
-				}
-				break
+		case '`', '\'':
+			end, err := dumpQuotedEnd(stmt, i)
+			if err != nil {
+				return 0, fmt.Errorf("the stated CREATE TABLE has an %w", err)
 			}
-			if i >= len(stmt) {
-				return 0, fmt.Errorf("the stated CREATE TABLE has an unterminated identifier")
-			}
-		case '\'':
-			// A backslash escapes the character after it, a quote included.
-			for i++; i < len(stmt); i++ {
-				if stmt[i] == '\\' {
-					i++
-					continue
-				}
-				if stmt[i] == '\'' {
-					break
-				}
-			}
-			if i >= len(stmt) {
-				return 0, fmt.Errorf("the stated CREATE TABLE has an unterminated literal")
-			}
+			i = end
 		case '(':
 			depth++
 		case ')':
@@ -265,6 +257,153 @@ func dumpClauseStart(stmt string) (int, error) {
 		}
 	}
 	return 0, fmt.Errorf("the stated CREATE TABLE has no end to its column list")
+}
+
+// dumpQuotedEnd returns the index of the character that ends the quoted
+// identifier or literal opening at start.
+func dumpQuotedEnd(stmt string, start int) (int, error) {
+	switch stmt[start] {
+	case '`':
+		// Hive spells an identifier's own backquote as two.
+		for i := start + 1; i < len(stmt); i++ {
+			if stmt[i] != '`' {
+				continue
+			}
+			if i+1 < len(stmt) && stmt[i+1] == '`' {
+				i++
+				continue
+			}
+			return i, nil
+		}
+		return 0, fmt.Errorf("unterminated identifier")
+	case '\'':
+		// A backslash escapes the character after it, a quote included.
+		for i := start + 1; i < len(stmt); i++ {
+			if stmt[i] == '\\' {
+				i++
+				continue
+			}
+			if stmt[i] == '\'' {
+				return i, nil
+			}
+		}
+		return 0, fmt.Errorf("unterminated literal")
+	}
+	return start, nil
+}
+
+// dumpStatesPartitions reports whether a stated CREATE TABLE declares
+// partitions. The clause is in the statement, where a session cannot hide it:
+// DESCRIBE FORMATTED states a table's partition columns only while
+// hive.display.partition.cols.separately is on.
+func dumpStatesPartitions(stmt string) bool {
+	for i := 0; i < len(stmt); i++ {
+		switch stmt[i] {
+		case '`', '\'':
+			end, err := dumpQuotedEnd(stmt, i)
+			if err != nil {
+				return false
+			}
+			i = end
+		default:
+			if strings.HasPrefix(stmt[i:], "PARTITIONED BY") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// dumpMaterializedViewClauses rewrites the clauses a stated CREATE TABLE holds
+// after its column list into the ones CREATE MATERIALIZED VIEW takes: the
+// partition clause names its columns without their types, as PARTITIONED ON.
+func dumpMaterializedViewClauses(clauses string) (string, error) {
+	const keyword = "PARTITIONED BY"
+	at := strings.Index(clauses, keyword)
+	if at < 0 {
+		return clauses, nil
+	}
+	open := strings.IndexByte(clauses[at:], '(')
+	if open < 0 {
+		return "", fmt.Errorf("the stated PARTITIONED BY has no column list")
+	}
+	open += at
+	end, err := dumpClauseStart(clauses[open:])
+	if err != nil {
+		return "", err
+	}
+	names, err := dumpPartitionColumnNames(clauses[open+1 : open+end-1])
+	if err != nil {
+		return "", err
+	}
+	return clauses[:at] + "PARTITIONED ON (" + strings.Join(names, ", ") + ")" + clauses[open+end:], nil
+}
+
+// dumpPartitionColumnNames reads the names a stated PARTITIONED BY clause lists,
+// which CREATE MATERIALIZED VIEW takes without their types.
+func dumpPartitionColumnNames(columns string) ([]string, error) {
+	var names []string
+	var element strings.Builder
+	depth := 0
+	add := func() error {
+		text := strings.TrimSpace(element.String())
+		element.Reset()
+		if text == "" {
+			return nil
+		}
+		name, err := dumpColumnName(text)
+		if err != nil {
+			return err
+		}
+		names = append(names, name)
+		return nil
+	}
+	for i := 0; i < len(columns); i++ {
+		switch columns[i] {
+		case '`', '\'':
+			end, err := dumpQuotedEnd(columns, i)
+			if err != nil {
+				return nil, err
+			}
+			element.WriteString(columns[i : end+1])
+			i = end
+		case '(':
+			depth++
+			element.WriteByte(columns[i])
+		case ')':
+			depth--
+			element.WriteByte(columns[i])
+		case ',':
+			if depth != 0 {
+				element.WriteByte(columns[i])
+				continue
+			}
+			if err := add(); err != nil {
+				return nil, err
+			}
+		default:
+			element.WriteByte(columns[i])
+		}
+	}
+	if err := add(); err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+// dumpColumnName reads the name a stated partition column begins with.
+func dumpColumnName(column string) (string, error) {
+	if strings.HasPrefix(column, "`") {
+		end, err := dumpQuotedEnd(column, 0)
+		if err != nil {
+			return "", err
+		}
+		return column[:end+1], nil
+	}
+	if end := strings.IndexAny(column, " \t\n"); end >= 0 {
+		return column[:end], nil
+	}
+	return column, nil
 }
 
 // dumpString renders s as a Hive string literal. Hive concatenates adjacent

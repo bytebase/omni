@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
@@ -165,15 +166,9 @@ func (d *Driver) getTables(ctx context.Context, databaseName string) (
 				Columns: tableInfo.colMetadatas,
 			})
 		case "MANAGED_TABLE":
-			// Only a partitioned table has partitions to read, and Hive answers
-			// SHOW PARTITIONS on any other table with an error.
-			var partitions []*metadatapb.TablePartitionMetadata
-			if tableInfo.partitioned {
-				partitions, err = d.getPartitions(ctx, databaseName, tableName)
-				if err != nil {
-					return nil, nil, nil, nil, fmt.Errorf("failed to get partitions of table %s: %w", tableName, err)
-				}
-			}
+			// A table without partitions answers SHOW PARTITIONS with an error,
+			// which is why a table carries no partitions rather than no rows.
+			partitions := d.getPartitions(ctx, databaseName, tableName)
 			tableMetadatas = append(tableMetadatas, &metadatapb.TableMetadata{
 				Engine:     "HDFS",
 				Comment:    tableInfo.comment,
@@ -191,12 +186,13 @@ func (d *Driver) getTables(ctx context.Context, databaseName string) (
 	return tableMetadatas, extTableMetadatas, viewMetadatas, mtViewMetadatas, nil
 }
 
-// getPartitions reads a partitioned managed table's partitions.
-func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName string) ([]*metadatapb.TablePartitionMetadata, error) {
-	query := fmt.Sprintf("SHOW PARTITIONS `%s`.`%s`", databaseName, tableName)
-	result, err := d.queryStatement(ctx, query, 0)
+// getPartitions reads a managed table's partitions. Hive answers a table that
+// is not partitioned with an error, which is the same as having none.
+func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName string) []*metadatapb.TablePartitionMetadata {
+	result, err := d.queryStatement(ctx, fmt.Sprintf("SHOW PARTITIONS `%s`.`%s`", databaseName, tableName), 0)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", query, err)
+		slog.Debug("failed to get partitions", "error", err)
+		return nil
 	}
 	partitions := make([]*metadatapb.TablePartitionMetadata, 0, len(result.Rows))
 	for _, row := range result.Rows {
@@ -207,7 +203,7 @@ func (d *Driver) getPartitions(ctx context.Context, databaseName, tableName stri
 			Name: row[0].String,
 		})
 	}
-	return partitions, nil
+	return partitions
 }
 
 // This function gets certain database info by name.
@@ -241,9 +237,6 @@ type TableInfo struct {
 	expandedViewDef string
 	totalSize       int
 	comment         string
-	// partitioned is whether the table states partition columns, which only a
-	// partitioned table does.
-	partitioned bool
 }
 
 const (
@@ -267,6 +260,8 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 	defer rows.Close()
 
 	section := columnSection
+	// reading is the field the view section states over several rows.
+	var reading *string
 	for rows.Next() {
 		// DESCRIBE FORMATTED answers NULL for the cells a section's headings and
 		// blank separator rows do not fill, so each cell is read as a value that
@@ -293,10 +288,7 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			// A materialized view states its query under its own heading, which
 			// is where the definition of the view comes from.
 			section = viewSection
-		case strings.HasPrefix(colNameValue, "# Partition Information"):
-			// Only a partitioned table states its partition columns, which the
-			// rows under the heading carry like the table's own.
-			tableInfo.partitioned = true
+
 		default:
 			// No action needed for other cases
 		}
@@ -341,10 +333,20 @@ func (d *Driver) getTableInfo(ctx context.Context, tableName string, databaseNam
 			switch {
 			case strings.HasPrefix(colNameValue, "View Original Text:"):
 				tableInfo.viewDef = trimField(dataTypeValue)
+				reading = &tableInfo.viewDef
 			case strings.HasPrefix(colNameValue, "Original Query:"):
 				tableInfo.viewDef = trimField(dataTypeValue)
+				reading = &tableInfo.viewDef
 			case strings.HasPrefix(colNameValue, "Expanded Query:"):
 				tableInfo.expandedViewDef = trimField(dataTypeValue)
+				reading = &tableInfo.expandedViewDef
+			case trimField(colNameValue) == "" && reading != nil:
+				// A query the server states over more than one line continues
+				// in rows of its own, whose line falls in whichever cell the
+				// layout reaches past the padding.
+				if line := trimField(trimField(dataTypeValue) + trimField(commentValue)); line != "" {
+					*reading += "\n" + line
+				}
 			default:
 				// No action needed for other view fields
 			}

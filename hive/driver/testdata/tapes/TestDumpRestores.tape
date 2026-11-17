@@ -87,6 +87,11 @@
 | -- it before the view it resolves.
 | CREATE MATERIALIZED VIEW omni_dump.a_users_mv DISABLE REWRITE COMMENT 'the users materialized' AS SELECT `1bad` FROM omni_dump.z_users
 < ok - -
+> exec
+| -- A partitioned materialized view: the statement states a partition as a table
+| -- does, with the column's type, and a materialized view takes it without.
+| CREATE MATERIALIZED VIEW omni_dump.p_events_mv DISABLE REWRITE PARTITIONED ON (dt) AS SELECT id, dt FROM omni_dump.events
+< ok - -
 > query
 | SHOW TABLES FROM `OMNI_DUMP`
 < result
@@ -109,6 +114,9 @@
 < row
 : string
 | orders
+< row
+: string
+| p_events_mv
 < row
 : string
 | z_base
@@ -1227,6 +1235,275 @@
 : string
 | 1                   
 > query
+| SHOW PARTITIONS `OMNI_DUMP`.`orders`
+< error
+| 10241
+| Error while compiling statement: FAILED: Execution Error, return code 10241 from org.apache.hadoop.hive.ql.ddl.DDLTask. Table OMNI_DUMP.orders is not a partitioned table
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`p_events_mv`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv
+: null
+< row
+: string
+| Table Type:         
+: string
+| MATERIALIZED_VIEW   
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\"}
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 1                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 1                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 2                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 8                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 197                 
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcSerde
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id, dt FROM omni_dump.events
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id`, `dt` FROM (SELECT `events`.`id`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`
+: null
+< row
+: string
+| Rewrite Enabled:    
+: string
+| No                  
+: null
+< row
+: string
+| Outdated for Rewriting:
+: string
+| Unknown             
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Source table information
+: null
+: null
+< row
+: string
+| Table name
+: string
+| Snapshot
+: null
+< row
+: string
+| omni_dump.events
+: string
+| N/A
+: null
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -1585,6 +1862,9 @@
 < row
 : string
 | orders
+< row
+: string
+| p_events_mv
 < row
 : string
 | z_base
@@ -3562,6 +3842,319 @@
 : string
 |   'transient_lastDdlTime'='1000000000')
 > query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`p_events_mv`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv
+: null
+< row
+: string
+| Table Type:         
+: string
+| MATERIALIZED_VIEW   
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\"}
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 1                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 1                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 2                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 8                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 197                 
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcSerde
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id, dt FROM omni_dump.events
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id`, `dt` FROM (SELECT `events`.`id`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`
+: null
+< row
+: string
+| Rewrite Enabled:    
+: string
+| No                  
+: null
+< row
+: string
+| Outdated for Rewriting:
+: string
+| Unknown             
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Source table information
+: null
+: null
+< row
+: string
+| Table name
+: string
+| Snapshot
+: null
+< row
+: string
+| omni_dump.events
+: string
+| N/A
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`p_events_mv`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE TABLE `omni_dump`.`p_events_mv`(
+< row
+: string
+|   `id` int)
+< row
+: string
+| PARTITIONED BY ( 
+< row
+: string
+|   `dt` string)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -4109,6 +4702,27 @@
 |   'transient_lastDdlTime'='1000000000')
 | AS SELECT `z_users`.`1bad` FROM `omni_dump`.`z_users`
 < ok - -
+> exec
+|
+|
+| --
+| -- Materialized view structure for `p_events_mv`
+| --
+| CREATE MATERIALIZED VIEW `omni_dump`.`p_events_mv` DISABLE REWRITE
+| PARTITIONED ON (`dt`)
+| ROW FORMAT SERDE 
+|   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+| STORED AS INPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+| OUTPUTFORMAT 
+|   'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+| LOCATION
+|   'file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv'
+| TBLPROPERTIES (
+|   'bucketing_version'='2', 
+|   'transient_lastDdlTime'='1000000000')
+| AS SELECT id, dt FROM omni_dump.events
+< ok - -
 > query
 | SHOW TABLES FROM `OMNI_DUMP`
 < result
@@ -4131,6 +4745,9 @@
 < row
 : string
 | orders
+< row
+: string
+| p_events_mv
 < row
 : string
 | z_base
@@ -5249,6 +5866,275 @@
 : string
 | 1                   
 > query
+| SHOW PARTITIONS `OMNI_DUMP`.`orders`
+< error
+| 10241
+| Error while compiling statement: FAILED: Execution Error, return code 10241 from org.apache.hadoop.hive.ql.ddl.DDLTask. Table OMNI_DUMP.orders is not a partitioned table
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`p_events_mv`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv
+: null
+< row
+: string
+| Table Type:         
+: string
+| MATERIALIZED_VIEW   
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\"}
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcSerde
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id, dt FROM omni_dump.events
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id`, `dt` FROM (SELECT `events`.`id`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`
+: null
+< row
+: string
+| Rewrite Enabled:    
+: string
+| No                  
+: null
+< row
+: string
+| Outdated for Rewriting:
+: string
+| Unknown             
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Source table information
+: null
+: null
+< row
+: string
+| Table name
+: string
+| Snapshot
+: null
+< row
+: string
+| omni_dump.events
+: string
+| N/A
+: null
+> query
 | DESCRIBE FORMATTED `OMNI_DUMP`.`z_base`
 < result
 < column "col_name" "STRING"
@@ -5621,6 +6507,9 @@
 < row
 : string
 | orders
+< row
+: string
+| p_events_mv
 < row
 : string
 | z_base
@@ -7559,6 +8448,319 @@
 < row
 : string
 |   'last_modified_time'='1000000000', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+> query
+| DESCRIBE FORMATTED `OMNI_DUMP`.`p_events_mv`
+< result
+< column "col_name" "STRING"
+< column "data_type" "STRING"
+< column "comment" "STRING"
+< row
+: string
+| id
+: string
+| int
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Partition Information
+: null
+: null
+< row
+: string
+| # col_name
+: string
+| data_type
+: string
+| comment
+< row
+: string
+| dt
+: string
+| string
+: string
+|
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Detailed Table Information
+: null
+: null
+< row
+: string
+| Database:           
+: string
+| omni_dump           
+: null
+< row
+: string
+| OwnerType:          
+: string
+| USER                
+: null
+< row
+: string
+| Owner:              
+: string
+| hive                
+: null
+< row
+: string
+| CreateTime:         
+: string
+| Thu Jan  1 00:00:00 UTC 2026
+: null
+< row
+: string
+| LastAccessTime:     
+: string
+| UNKNOWN             
+: null
+< row
+: string
+| Retention:          
+: string
+| 0                   
+: null
+< row
+: string
+| Location:           
+: string
+| file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv
+: null
+< row
+: string
+| Table Type:         
+: string
+| MATERIALIZED_VIEW   
+: null
+< row
+: string
+| Table Parameters:
+: null
+: null
+< row
+: string
+|
+: string
+| COLUMN_STATS_ACCURATE
+: string
+| {\"BASIC_STATS\":\"true\"}
+< row
+: string
+|
+: string
+| bucketing_version   
+: string
+| 2                   
+< row
+: string
+|
+: string
+| numFiles            
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numPartitions       
+: string
+| 0                   
+< row
+: string
+|
+: string
+| numRows             
+: string
+| 0                   
+< row
+: string
+|
+: string
+| rawDataSize         
+: string
+| 0                   
+< row
+: string
+|
+: string
+| totalSize           
+: string
+| 0                   
+< row
+: string
+|
+: string
+| transient_lastDdlTime
+: string
+| 1000000000          
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Storage Information
+: null
+: null
+< row
+: string
+| SerDe Library:      
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcSerde
+: null
+< row
+: string
+| InputFormat:        
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcInputFormat
+: null
+< row
+: string
+| OutputFormat:       
+: string
+| org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat
+: null
+< row
+: string
+| Compressed:         
+: string
+| No                  
+: null
+< row
+: string
+| Num Buckets:        
+: string
+| -1                  
+: null
+< row
+: string
+| Bucket Columns:     
+: string
+| []                  
+: null
+< row
+: string
+| Sort Columns:       
+: string
+| []                  
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Information
+: null
+: null
+< row
+: string
+| Original Query:     
+: string
+| SELECT id, dt FROM omni_dump.events
+: null
+< row
+: string
+| Expanded Query:     
+: string
+| SELECT `id`, `dt` FROM (SELECT `events`.`id`, `events`.`dt` FROM `omni_dump`.`events`) `p_events_mv`
+: null
+< row
+: string
+| Rewrite Enabled:    
+: string
+| No                  
+: null
+< row
+: string
+| Outdated for Rewriting:
+: string
+| Unknown             
+: null
+< row
+: string
+|
+: null
+: null
+< row
+: string
+| # Materialized View Source table information
+: null
+: null
+< row
+: string
+| Table name
+: string
+| Snapshot
+: null
+< row
+: string
+| omni_dump.events
+: string
+| N/A
+: null
+> query
+| SHOW CREATE TABLE `omni_dump`.`p_events_mv`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE TABLE `omni_dump`.`p_events_mv`(
+< row
+: string
+|   `id` int)
+< row
+: string
+| PARTITIONED BY ( 
+< row
+: string
+|   `dt` string)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.orc.OrcOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/p_events_mv'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'bucketing_version'='2', 
 < row
 : string
 |   'transient_lastDdlTime'='1000000000')

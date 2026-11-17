@@ -762,6 +762,11 @@
 : string
 | 1                   
 > query
+| SHOW PARTITIONS `omni_sync`.`orders`
+< error
+| 10241
+| Error while compiling statement: FAILED: Execution Error, return code 10241 from org.apache.hadoop.hive.ql.ddl.DDLTask. Table omni_sync.orders is not a partitioned table
+> query
 | DESCRIBE FORMATTED `omni_sync`.`v_users`
 < result
 < column "col_name" "STRING"
