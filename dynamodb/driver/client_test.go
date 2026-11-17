@@ -10,8 +10,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/stretchr/testify/require"
 
 	"github.com/bytebase/omni/driver"
@@ -98,4 +102,78 @@ func TestHTTPSWithoutTLSMaterialIsSkippedOnlyWhenTheCallerSaysSo(t *testing.T) {
 	defer func() { require.NoError(t, d.Close()) }()
 
 	require.NoError(t, d.Ping(context.Background()))
+}
+
+// newIdentityClient answers STS with handler, so a test reaches the identity
+// call without an account and without the network.
+func newIdentityClient(t *testing.T, handler http.HandlerFunc) *liveClient {
+	t.Helper()
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	return &liveClient{sts: sts.NewFromConfig(aws.Config{
+		Region:      "us-east-1",
+		Credentials: credentials.NewStaticCredentialsProvider("key", "secret", ""),
+		HTTPClient:  server.Client(),
+	}, func(o *sts.Options) { o.BaseEndpoint = aws.String(server.URL) })}
+}
+
+// TestCallerAccount holds the two answers SyncInstance reads from STS: the
+// account the credential belongs to, and the service's refusal.
+func TestCallerAccount(t *testing.T) {
+	t.Run("reads the account", func(t *testing.T) {
+		d := newIdentityClient(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/xml")
+			_, _ = w.Write([]byte(`<GetCallerIdentityResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <GetCallerIdentityResult>
+    <Arn>arn:aws:iam::123456789012:user/test</Arn>
+    <UserId>AIDAEXAMPLE</UserId>
+    <Account>123456789012</Account>
+  </GetCallerIdentityResult>
+  <ResponseMetadata><RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId></ResponseMetadata>
+</GetCallerIdentityResponse>`))
+		})
+		account, err := d.CallerAccount(context.Background())
+		require.NoError(t, err)
+		require.Equal(t, "123456789012", account)
+	})
+
+	t.Run("reports the identity failure", func(t *testing.T) {
+		d := newIdentityClient(t, func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/xml")
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = w.Write([]byte(`<ErrorResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <Error><Type>Sender</Type><Code>InvalidClientTokenId</Code><Message>The security token included in the request is invalid.</Message></Error>
+  <RequestId>01234567-89ab-cdef-0123-456789abcdef</RequestId>
+</ErrorResponse>`))
+		})
+		_, err := d.CallerAccount(context.Background())
+		require.Error(t, err)
+		require.ErrorContains(t, err, "InvalidClientTokenId")
+	})
+}
+
+// TestCallerAccountHonorsTheDialer holds that the identity call reaches STS
+// through the network path Config.Dial names: a tunnel or connector that
+// carries DynamoDB carries the account lookup too.
+func TestCallerAccountHonorsTheDialer(t *testing.T) {
+	setHermeticAWSEnv(t)
+	// The SDK retries a dial error with backoff; one attempt is enough to see
+	// that the dialer was used.
+	t.Setenv("AWS_MAX_ATTEMPTS", "1")
+	var dialed atomic.Int32
+	d, err := Open(context.Background(), driver.Config{
+		User:     "AKIDEXAMPLE",
+		Password: "secret",
+		Params:   map[string]string{ParamRegion: "us-east-1"},
+		Dial: func(_ context.Context, _, address string) (net.Conn, error) {
+			dialed.Add(1)
+			return nil, errors.New("dialer reached " + address)
+		},
+	})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, d.Close()) }()
+
+	_, err = d.client.CallerAccount(context.Background())
+	require.ErrorContains(t, err, "dialer reached sts.")
+	require.GreaterOrEqual(t, dialed.Load(), int32(1), "STS did not use Config.Dial")
 }

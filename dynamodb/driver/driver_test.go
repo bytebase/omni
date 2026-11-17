@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"path/filepath"
 	"testing"
 
@@ -121,9 +122,46 @@ func TestSyncInstance(t *testing.T) {
 }
 
 func TestSyncInstanceWithoutAnAccountID(t *testing.T) {
-	d := &Driver{region: testRegion}
+	d := &Driver{client: callerIdentityClient{}, region: testRegion}
 	_, err := d.SyncInstance(context.Background())
-	require.EqualError(t, err, "account id is empty in the driver config")
+	require.EqualError(t, err, "account id is empty in the caller identity")
+}
+
+// callerIdentityClient answers the identity call SyncInstance makes and embeds
+// the client interface for the calls it does not.
+type callerIdentityClient struct {
+	client
+	account string
+	err     error
+}
+
+func (c callerIdentityClient) CallerAccount(context.Context) (string, error) {
+	return c.account, c.err
+}
+
+func TestSyncInstanceUsesTheCallerIdentity(t *testing.T) {
+	d := &Driver{client: callerIdentityClient{account: testAccountID}, region: testRegion}
+	instance, err := d.SyncInstance(context.Background())
+	require.NoError(t, err)
+	require.Len(t, instance.Databases, 1)
+	require.Equal(t, testDatabaseName, instance.Databases[0].Name)
+}
+
+// TestSyncInstanceFromCallerIdentity records the identity call SyncInstance
+// makes when the caller passes no account ID: the tape holds the exchange, and
+// the name is built from what the identity answered.
+func TestSyncInstanceFromCallerIdentity(t *testing.T) {
+	d := &Driver{client: OpenTape(t), region: testRegion}
+	instance, err := d.SyncInstance(context.Background())
+	require.NoError(t, err)
+	require.Len(t, instance.Databases, 1)
+	require.Equal(t, testcontainer.AccountID+"-"+testRegion, instance.Databases[0].Name)
+}
+
+func TestSyncInstanceReportsACallerIdentityFailure(t *testing.T) {
+	d := &Driver{client: callerIdentityClient{err: errors.New("InvalidClientTokenId")}, region: testRegion}
+	_, err := d.SyncInstance(context.Background())
+	require.EqualError(t, err, "failed to get caller identity: InvalidClientTokenId")
 }
 
 func TestSyncInstanceWithoutARegion(t *testing.T) {

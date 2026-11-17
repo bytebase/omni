@@ -101,6 +101,11 @@ const Port = "8000"
 // signature but not the region, which the AWS SDK requires all the same.
 const Region = "us-east-1"
 
+// AccountID is the account the fixture's identity call answers. DynamoDB Local
+// has no STS and the fixture's key pair belongs to no account, so a recording
+// answers as this one; a deployment asks STS and gets its own.
+const AccountID = "000000000000"
+
 // The placeholder key pair every request is signed with. DynamoDB Local reads
 // any credential and rejects a request that carries none, so these are values a
 // test can hold and no account has. The key ID is letters and digits only
