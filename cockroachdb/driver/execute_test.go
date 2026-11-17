@@ -105,6 +105,23 @@ INSERT INTO app.account VALUES (1, 99);`, driver.ExecuteOptions{Transaction: dri
 			t.Fatal(err)
 		}
 	})
+
+	t.Run("a literal does not change classification", func(t *testing.T) {
+		mustExec(t, d.db, "CREATE TABLE app.note (id INT8 PRIMARY KEY, v STRING);")
+		_, err := d.Execute(ctx, `
+INSERT INTO app.note VALUES (1, 'ok');
+INSERT INTO app.note VALUES (1, 'DROP DATABASE');`, driver.ExecuteOptions{Transaction: driver.Transactional})
+		if err == nil {
+			t.Fatal("Execute succeeded, want the duplicate key error")
+		}
+		var count int64
+		if err := d.db.QueryRowContext(ctx, "SELECT count(*) FROM app.note;").Scan(&count); err != nil {
+			t.Fatal(err)
+		}
+		if count != 0 {
+			t.Errorf("count = %d, want 0 after the rollback", count)
+		}
+	})
 }
 
 func TestGetDatabaseInCreateDatabaseStatement(t *testing.T) {

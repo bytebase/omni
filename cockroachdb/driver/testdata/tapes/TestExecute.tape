@@ -268,3 +268,42 @@
 > exec
 | DROP DATABASE omni_execute_order;
 < ok 0 -
+> exec
+| CREATE TABLE app.note (id INT8 PRIMARY KEY, v STRING);
+< ok 0 -
+> query
+|
+| 		SELECT
+| 			u.rolname
+| 		FROM
+| 			pg_roles AS u JOIN pg_database AS d ON (d.datdba = u.oid)
+| 		WHERE
+| 			d.datname = current_database();
+| 		
+< result
+< column "rolname" "NAME"
+< row
+: string
+| root
+> begin
+< ok
+> exec
+| SET LOCAL ROLE 'root'
+< ok 0 -
+> exec
+| INSERT INTO app.note VALUES (1, 'ok');
+< ok 1 -
+> exec
+| INSERT INTO app.note VALUES (1, 'DROP DATABASE');
+< error
+| 23505 duplicate key value violates unique constraint "note_pkey"
+| detail: Key (id)=(1) already exists.
+| constraint: note_pkey
+> rollback
+< ok
+> query
+| SELECT count(*) FROM app.note;
+< result
+< column "count" "INT8"
+< row
+: int64 0

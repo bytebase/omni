@@ -10,6 +10,8 @@ import (
 	"unicode"
 
 	"github.com/cockroachdb/cockroach-go/v2/crdb"
+	crrawparser "github.com/cockroachdb/cockroachdb-parser/pkg/sql/parser"
+	crrawparsertree "github.com/cockroachdb/cockroachdb-parser/pkg/sql/sem/tree"
 	"github.com/jackc/pgx/v5/stdlib"
 
 	"github.com/bytebase/omni/driver"
@@ -57,9 +59,8 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 	var orderedCommands []driver.Command
 	var txCommands []driver.Command
 	for _, command := range commands {
-		nonTransactional := isNonTransactionStatement(command.Text)
-		sessionRole := isSetRoleStatement(command.Text)
-		if !nonTransactional && !sessionRole && isSuperuserStatement(command.Text) {
+		nonTransactional, sessionRole, superuser := classifyStatement(command.Text)
+		if !nonTransactional && !sessionRole && superuser {
 			// Use superuser privilege to run privileged statements.
 			ct := command.Text
 			if !strings.HasSuffix(strings.TrimRightFunc(ct, unicode.IsSpace), ";") {
@@ -373,47 +374,32 @@ func (d *Driver) createDatabaseExecute(ctx context.Context, statement string) er
 	return nil
 }
 
-var (
-	// DROP DATABASE cannot run inside a transaction block.
-	// DROP DATABASE [ IF EXISTS ] name [ [ WITH ] ( option [, ...] ) ]。
-	dropDatabaseReg = regexp.MustCompile(`(?i)DROP DATABASE`)
-	// CREATE INDEX CONCURRENTLY cannot run inside a transaction block.
-	// CREATE [ UNIQUE ] INDEX [ CONCURRENTLY ] [ [ IF NOT EXISTS ] name ] ON [ ONLY ] table_name [ USING method ] ...
-	createIndexReg = regexp.MustCompile(`(?i)CREATE(\s+(UNIQUE\s+)?)INDEX(\s+)CONCURRENTLY`)
-	// DROP INDEX CONCURRENTLY cannot run inside a transaction block.
-	// DROP INDEX [ CONCURRENTLY ] [ IF EXISTS ] name [, ...] [ CASCADE | RESTRICT ].
-	dropIndexReg = regexp.MustCompile(`(?i)DROP(\s+)INDEX(\s+)CONCURRENTLY`)
-	// VACUUM cannot run inside a transaction block.
-	// VACUUM [ ( option [, ...] ) ] [ table_and_columns [, ...] ]
-	// VACUUM [ FULL ] [ FREEZE ] [ VERBOSE ] [ ANALYZE ] [ table_and_columns [, ...] ].
-	vacuumReg = regexp.MustCompile(`(?i)^\s*VACUUM`)
-	// SET ROLE is a special statement that should be run before any other statements containing inside a transaction block or not.
-	setRoleReg = regexp.MustCompile(`(?i)SET\s+((SESSION|LOCAL)\s+)?ROLE`)
-)
+// vacuumReg is the one statement classification CockroachDB's parser cannot
+// answer: VACUUM has no tree node, so the anchored keyword is enough.
+var vacuumReg = regexp.MustCompile(`(?i)^\s*VACUUM`)
 
-func isSetRoleStatement(stmt string) bool {
-	return len(setRoleReg.FindString(stmt)) > 0
-}
-
-func isNonTransactionStatement(stmt string) bool {
-	if len(dropDatabaseReg.FindString(stmt)) > 0 {
-		return true
+// classifyStatement reports what Execute must do with one statement: run it
+// outside a transaction, run it once as a session role change, or run it with
+// superuser privileges. CockroachDB's own AST decides, so a keyword inside a
+// string literal or comment cannot change the classification.
+func classifyStatement(stmt string) (nonTransactional, sessionRole, superuser bool) {
+	parsed, err := crrawparser.Parse(stmt)
+	if err != nil || len(parsed) != 1 {
+		return false, false, false
 	}
-	if len(createIndexReg.FindString(stmt)) > 0 {
-		return true
+	switch node := parsed[0].AST.(type) {
+	case *crrawparsertree.DropDatabase:
+		return true, false, false
+	case *crrawparsertree.CreateIndex:
+		return node.Concurrently, false, false
+	case *crrawparsertree.DropIndex:
+		return node.Concurrently, false, false
+	case *crrawparsertree.SetVar:
+		return false, strings.EqualFold(node.Name, "role") && !node.Local, false
+	case *crrawparsertree.Grant, *crrawparsertree.GrantRole, *crrawparsertree.CreateExtension:
+		return false, false, true
 	}
-	if len(dropIndexReg.FindString(stmt)) > 0 {
-		return true
-	}
-	return len(vacuumReg.FindString(stmt)) > 0
-}
-
-func isSuperuserStatement(stmt string) bool {
-	upperCaseStmt := strings.ToUpper(strings.TrimLeftFunc(stmt, unicode.IsSpace))
-	if strings.HasPrefix(upperCaseStmt, "GRANT") || strings.HasPrefix(upperCaseStmt, "CREATE EXTENSION") || strings.HasPrefix(upperCaseStmt, "CREATE EVENT TRIGGER") || strings.HasPrefix(upperCaseStmt, "COMMENT ON EVENT TRIGGER") {
-		return true
-	}
-	return false
+	return vacuumReg.MatchString(stmt), false, false
 }
 
 func getDatabaseInCreateDatabaseStatement(createDatabaseStatement string) (string, error) {
