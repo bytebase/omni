@@ -61,6 +61,16 @@ CREATE TABLE `__mv_container_0000000000000001` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='materialized accounts';
 
 --
+-- Table structure for `ext_feed`
+--
+CREATE EXTERNAL TABLE `ext_feed` (
+  `c1` int GENERATED ALWAYS AS (metadata$filecol1),
+  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+)
+LOCATION = 'file:///tmp'
+FORMAT (TYPE = 'CSV', ENCODING = 'utf8mb4');
+
+--
 -- Function structure for `fn_format_tag`
 --
 SET character_set_client = utf8mb4;

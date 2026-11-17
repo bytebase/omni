@@ -185,17 +185,6 @@ func restoreDefinition(t *testing.T, role, sourceName, setup string, render rend
 	return m, restoredMeta
 }
 
-// dumpAndRestore syncs setup into sourceName on the server of role, dumps
-// it, and restores the dump into sourceName+"_restored", returning the
-// source metadata, the restored database's name, and the server's restore
-// error. Each caller names its own source so that a package's databases hold
-// nothing another test made.
-func dumpAndRestore(t *testing.T, role, sourceName, setup string) (*metadatapb.DatabaseSchemaMetadata, string, error) {
-	t.Helper()
-	m, restoredName, err := renderAndRestore(t, role, sourceName, setup, dumpDefinition)
-	return m, restoredName, err
-}
-
 // renderAndRestore syncs setup into sourceName, restores render(snapshot) into
 // sourceName+"_restored", and returns the source metadata, the restored
 // database's name, and the server's restore error.
@@ -291,64 +280,4 @@ func restorable(corpus string) string {
 		}
 	}
 	return strings.Join(kept, "\n")
-}
-
-// TestDumpGaps holds what a dump cannot faithfully restore yet. A gap whose
-// wantErr is set is one the server refuses outright; a gap with an empty
-// wantErr restores but loses what the metadata cannot carry, so the
-// round-trip differs. A gap that names what the restored server answers lost
-// is one the metadata cannot carry at all: the round trip agrees, and only the
-// server shows what the source had. A gap that closes fails here: move its
-// corpus line back into TestDumpRestores by dropping its gapMarker.
-func TestDumpGaps(t *testing.T) {
-	for _, gap := range []struct {
-		// db names the gap's own source database, so one gap's objects never
-		// reach another's sync.
-		name, db, setup, wantErr string
-		// lost is a query the restored database answers, and want what it
-		// answers, for a gap the synced snapshot holds nothing of.
-		lost, want string
-	}{
-		// A foreign table's server and its options are not synced, so the
-		// dump omits the server and the foreign table; the table's synced
-		// external_database_name is the local database besides, which a
-		// restore into another database could not reproduce.
-		{
-			"foreign table", "omni_gap_foreign",
-			"CREATE EXTENSION postgres_fdw;\n" +
-				"CREATE SERVER srv FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');\n" +
-				"CREATE FOREIGN TABLE ft (id int) SERVER srv OPTIONS (schema_name 'public', table_name 'x');",
-			"", "", "",
-		},
-	} {
-		t.Run(gap.name, func(t *testing.T) {
-			if gap.wantErr != "" {
-				_, _, err := dumpAndRestore(t, testcontainer.Default, gap.db, gap.setup)
-				if err == nil || !strings.Contains(err.Error(), gap.wantErr) {
-					t.Fatalf("restoring the dump: %v, want an error containing %q; if the gap closed, remove it", err, gap.wantErr)
-				}
-				return
-			}
-			source, restored := restoreDump(t, testcontainer.Default, gap.db, gap.setup)
-			diff := restoreDiff(source, restored)
-			if gap.lost == "" {
-				if diff == "" {
-					t.Fatalf("the restore reproduced the source; if the gap closed, remove it")
-				}
-				return
-			}
-			if diff != "" {
-				t.Fatalf("the restore differs from the source, so the snapshot does carry what the gap names; if the gap closed, remove it:\n%s", diff)
-			}
-			db := testcontainer.OpenDatabase(t, testcontainer.Default, gap.db+"_restored")
-			defer db.Close()
-			var got string
-			if err := db.QueryRow(gap.lost).Scan(&got); err != nil {
-				t.Fatalf("reading the restored database: %v", err)
-			}
-			if got != gap.want {
-				t.Fatalf("the restore answered %q, want %q; if the gap closed, remove it", got, gap.want)
-			}
-		})
-	}
 }

@@ -406,6 +406,18 @@
 < column "foreign_server_name" "NAME"
 > query
 |
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+> query
+|
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
 | 		pg_table_size(pc.oid),
 | 		pg_indexes_size(pc.oid),
@@ -854,6 +866,16 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
 > commit
 < ok
 
@@ -1296,6 +1318,18 @@
 < column "foreign_server_name" "NAME"
 > query
 |
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+> query
+|
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
 | 		pg_table_size(pc.oid),
 | 		pg_indexes_size(pc.oid),
@@ -1744,6 +1778,16 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
 > commit
 < ok
 
@@ -2150,6 +2194,18 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -2600,6 +2656,16 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
 > commit
 < ok
 
@@ -3040,6 +3106,18 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -3490,5 +3568,15 @@
 < column "function_name" "NAME"
 < column "enabled" "CHAR"
 < column "comment" "TEXT"
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
 > commit
 < ok

@@ -736,17 +736,17 @@ func TestSyncForeignTablesWithoutTablePrivilege(t *testing.T) {
 	var got []string
 	for _, s := range m.Schemas {
 		for _, e := range s.ExternalTables {
-			got = append(got, fmt.Sprintf("%s.%s server=%s database=%s", s.Name, e.Name, e.ExternalServerName, e.ExternalDatabaseName))
+			got = append(got, fmt.Sprintf("%s.%s server=%s options=%v", s.Name, e.Name, e.ExternalServerName, e.Options))
 			for _, c := range e.Columns {
 				got = append(got, fmt.Sprintf("  %s %s nullable=%v", c.Name, c.Type, c.Nullable))
 			}
 		}
 	}
 	want := []string{
-		"fdw_schema.remote_orders server=loopback_server database=" + d.databaseName,
+		"fdw_schema.remote_orders server=loopback_server options=[schema_name=public table_name=orders]",
 		"  id integer nullable=false",
 		"  note character varying(30) nullable=true",
-		"public.remote_items server=loopback_server database=" + d.databaseName,
+		"public.remote_items server=loopback_server options=[schema_name=public table_name=items]",
 		"  item_id bigint nullable=true",
 	}
 	if diff := cmp.Diff(want, got); diff != "" {

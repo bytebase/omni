@@ -280,3 +280,30 @@ func TestSyncForeignKeyReferencedDatabase(t *testing.T) {
 		t.Errorf("foreign keys diff (-want +got):\n%s", diff)
 	}
 }
+
+// TestExternalTableFacts reads the LOCATION and FORMAT clauses SHOW CREATE
+// TABLE states, and leaves them empty when the statement has neither.
+func TestExternalTableFacts(t *testing.T) {
+	ddl := "CREATE EXTERNAL TABLE `ext_t` (\n" +
+		"  `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),\n" +
+		"  `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)\n" +
+		") \n" +
+		"LOCATION='file:///tmp'\n" +
+		"AUTO_REFRESH = OFF\n" +
+		"FORMAT (\n" +
+		"  TYPE = 'CSV',\n" +
+		"  ENCODING = 'utf8mb4'\n" +
+		") DEFAULT CHARSET = utf8mb4"
+	location, format := externalTableFacts(ddl)
+	if location != "file:///tmp" {
+		t.Errorf("location = %q, want %q", location, "file:///tmp")
+	}
+	if format != "TYPE = 'CSV', ENCODING = 'utf8mb4'" {
+		t.Errorf("format = %q, want %q", format, "TYPE = 'CSV', ENCODING = 'utf8mb4'")
+	}
+
+	location, format = externalTableFacts("CREATE EXTERNAL TABLE `ext_t` (`c1` int) LOCATION='file:///tmp'")
+	if location != "file:///tmp" || format != "" {
+		t.Errorf("without FORMAT = %q, %q; want %q, empty", location, format, "file:///tmp")
+	}
+}

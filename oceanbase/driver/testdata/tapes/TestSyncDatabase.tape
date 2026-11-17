@@ -28,7 +28,7 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 < ok 0 0
 > exec
-| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV'); -- not restorable: TestDumpGaps
+| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');
 < ok 0 0
 > exec
 | CREATE MATERIALIZED VIEW mv_accounts COMMENT 'materialized accounts' AS SELECT id, email FROM accounts; -- not restorable: TestDumpGaps
@@ -1297,6 +1297,25 @@
 | 'materialized accounts'
 : bytes
 | utf8mb4
+> query
+| SHOW CREATE TABLE `omni_sync_corpus`.`ext_feed`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| ext_feed
+: bytes
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+| ) 
+| LOCATION='file:///tmp'
+| AUTO_REFRESH = OFF
+| FORMAT (
+|   TYPE = 'CSV',
+|   ENCODING = 'utf8mb4'
+| ) DEFAULT CHARSET = utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY

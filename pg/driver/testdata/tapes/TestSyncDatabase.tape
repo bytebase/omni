@@ -235,9 +235,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -5584,6 +5584,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -12409,6 +12428,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -12641,9 +12677,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -17942,6 +17978,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -24723,6 +24778,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -24955,9 +25027,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -30258,6 +30330,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -37055,6 +37146,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -37287,9 +37395,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -42594,6 +42702,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -49265,6 +49392,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -49497,9 +49641,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -54828,6 +54972,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -61653,6 +61816,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -61885,9 +62065,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -67216,6 +67396,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -74041,6 +74240,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -74273,9 +74489,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
-| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -79670,6 +79886,25 @@
 | omni_testsyncdatabase
 : string
 | loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -86893,5 +87128,22 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok

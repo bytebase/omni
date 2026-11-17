@@ -25,6 +25,9 @@
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 < ok 0 0
 > exec
+| CREATE EXTERNAL TABLE ext_feed (c1 INT, c2 VARCHAR(10)) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');
+< ok 0 0
+> exec
 | CREATE VIEW v_open_accounts AS
 | 	SELECT id AS acct_id, email AS acct_email FROM accounts WHERE status = 'open';
 < ok 0 0
@@ -397,6 +400,52 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c1
+: uint64 1
+: bytes
+| 'metadata$filecol1'
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| metadata$filecol1
+: bytes
+| STORED GENERATED
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c2
+: uint64 2
+: bytes
+| 'metadata$filecol2'
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+| metadata$filecol2
+: bytes
+| STORED GENERATED
 : null
 < row
 : bytes
@@ -901,6 +950,29 @@
 | utf8mb4
 < row
 : bytes
+| ext_feed
+: bytes
+| EXTERNAL TABLE
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -992,6 +1064,25 @@
 : bytes
 | utf8mb4
 > query
+| SHOW CREATE TABLE `omni_dump_roundtrip`.`ext_feed`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| ext_feed
+: bytes
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+| ) 
+| LOCATION='file:///tmp'
+| AUTO_REFRESH = OFF
+| FORMAT (
+|   TYPE = 'CSV',
+|   ENCODING = 'utf8mb4'
+| ) DEFAULT CHARSET = utf8mb4
+> query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY
 | 		FROM oceanbase.DBA_MVIEWS
@@ -1066,6 +1157,14 @@
 |   KEY `idx_account` (`account_id`),
 |   CONSTRAINT `fk_orders_account` FOREIGN KEY (`account_id`) REFERENCES `accounts` (`id`) ON DELETE CASCADE ON UPDATE RESTRICT
 | ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+< ok 0 0
+> exec
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+| )
+| LOCATION = 'file:///tmp'
+| FORMAT (TYPE = 'CSV', ENCODING = 'utf8mb4')
 < ok 0 0
 > exec
 | SET character_set_client = utf8mb4
@@ -1468,6 +1567,52 @@
 |
 : bytes
 |
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c1
+: uint64 1
+: bytes
+| 'metadata$filecol1'
+: bytes
+| YES
+: bytes
+| int(11)
+: bytes
+|
+: bytes
+|
+: bytes
+| ''
+: bytes
+| metadata$filecol1
+: bytes
+| STORED GENERATED
+: null
+< row
+: bytes
+| ext_feed
+: bytes
+| c2
+: uint64 2
+: bytes
+| 'metadata$filecol2'
+: bytes
+| YES
+: bytes
+| varchar(10)
+: bytes
+| utf8mb4
+: bytes
+| utf8mb4_general_ci
+: bytes
+| ''
+: bytes
+| metadata$filecol2
+: bytes
+| STORED GENERATED
 : null
 < row
 : bytes
@@ -1972,6 +2117,29 @@
 | utf8mb4
 < row
 : bytes
+| ext_feed
+: bytes
+| EXTERNAL TABLE
+: bytes
+| MEMORY
+: bytes
+| utf8mb4_general_ci
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+| 0
+: bytes
+|
+: bytes
+| ''
+: bytes
+| utf8mb4
+< row
+: bytes
 | orders
 : bytes
 | BASE TABLE
@@ -2062,6 +2230,25 @@
 | 'VIEW'
 : bytes
 | utf8mb4
+> query
+| SHOW CREATE TABLE `omni_dump_roundtrip_restored`.`ext_feed`
+< result
+< column "Table" "VARCHAR" "string"
+< column "Create Table" "TEXT" "string"
+< row
+: bytes
+| ext_feed
+: bytes
+| CREATE EXTERNAL TABLE `ext_feed` (
+|   `c1` int(11) GENERATED ALWAYS AS (metadata$filecol1),
+|   `c2` varchar(10) GENERATED ALWAYS AS (metadata$filecol2)
+| ) 
+| LOCATION='file:///tmp'
+| AUTO_REFRESH = OFF
+| FORMAT (
+|   TYPE = 'CSV',
+|   ENCODING = 'utf8mb4'
+| ) DEFAULT CHARSET = utf8mb4
 > query
 |
 | 		SELECT MVIEW_NAME, CONTAINER_NAME, QUERY

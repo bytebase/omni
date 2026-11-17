@@ -113,6 +113,13 @@ func DatabaseDefinition(meta *metadata.DatabaseSchemaMetadata, opts DefinitionOp
 		}
 	}
 
+	// Construct external tables after the tables they may read.
+	for _, externalTable := range schema.ExternalTables {
+		if err := writeExternalTable(&buf, externalTable); err != nil {
+			return "", err
+		}
+	}
+
 	// Construct functions before views: CREATE VIEW checks that the functions it calls
 	// exist, while a function body is checked only when it runs.
 	for _, function := range schema.Functions {
@@ -538,6 +545,79 @@ func viewBodyColumnNames(body string) ([]string, bool) {
 		}
 	}
 	return names, true
+}
+
+// printExternalColumnClause writes one external table column as SHOW CREATE
+// TABLE states it: the type, the file column it reads through a generation
+// expression, nullability and comment. The engine stores a generated external
+// column's DEFAULT and character set too, but its own DDL states neither.
+func printExternalColumnClause(buf *strings.Builder, column *metadata.ColumnMetadata) error {
+	if _, err := fmt.Fprintf(buf, "  %s %s", quoteIdent(column.Name), normalizeColumnType(column.Type)); err != nil {
+		return err
+	}
+	if column.Generation != nil && column.Generation.Expression != "" {
+		if _, err := fmt.Fprintf(buf, " GENERATED ALWAYS AS (%s)", column.Generation.Expression); err != nil {
+			return err
+		}
+	}
+	if !column.Nullable {
+		if _, err := fmt.Fprint(buf, " NOT NULL"); err != nil {
+			return err
+		}
+	}
+	if column.Comment != "" {
+		if _, err := fmt.Fprintf(buf, " COMMENT '%s'", column.Comment); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// writeExternalTable writes an external table: its columns and the LOCATION
+// and FORMAT clauses SHOW CREATE TABLE states for it. A table the sync read
+// without either still renders, so the columns are not lost.
+func writeExternalTable(out *strings.Builder, table *metadata.ExternalTableMetadata) error {
+	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, tableHeader); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, quoteIdent(table.Name)+"\n"); err != nil {
+		return err
+	}
+	if _, err := io.WriteString(out, emptyCommentLine); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(out, "CREATE EXTERNAL TABLE %s (\n", quoteIdent(table.Name)); err != nil {
+		return err
+	}
+	for i, column := range table.Columns {
+		if i != 0 {
+			if _, err := io.WriteString(out, ",\n"); err != nil {
+				return err
+			}
+		}
+		if err := printExternalColumnClause(out, column); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, "\n)"); err != nil {
+		return err
+	}
+	if table.Location != "" {
+		if _, err := fmt.Fprintf(out, "\nLOCATION = '%s'", strings.ReplaceAll(table.Location, "'", "''")); err != nil {
+			return err
+		}
+	}
+	if table.Format != "" {
+		if _, err := fmt.Fprintf(out, "\nFORMAT (%s)", table.Format); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
 }
 
 func writeTable(out *strings.Builder, table *metadata.TableMetadata, dbName string) error {

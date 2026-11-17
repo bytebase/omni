@@ -3,6 +3,7 @@ package driver
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"regexp"
@@ -192,6 +193,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 		return nil, fmt.Errorf("failed to get event triggers from database %q: %w", d.databaseName, err)
 	}
 
+	foreignServers, err := getForeignServers(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get foreign servers from database %q: %w", d.databaseName, err)
+	}
+
 	if err := txn.Commit(); err != nil {
 		return nil, err
 	}
@@ -231,6 +237,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	}
 	databaseMetadata.Extensions = extensions
 	databaseMetadata.EventTriggers = eventTriggers
+	databaseMetadata.ForeignServers = foreignServers
 
 	return databaseMetadata, err
 }
@@ -574,6 +581,94 @@ func getListForeignTableQuery() string {
 	WHERE c.relkind = 'f'
 	ORDER BY n.nspname, c.relname;`
 }
+
+// listForeignServerQuery reads a server's name, the wrapper it uses and its
+// options. array_to_json keeps an option's quotes and commas intact, so a
+// value that holds either still arrives as one entry; pg_foreign_server.srvoptions
+// is already ordered as the server writes it.
+var listForeignServerQuery = `
+SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+FROM pg_catalog.pg_foreign_server s
+	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+ORDER BY s.srvname;`
+
+// listForeignTableOptionsQuery reads the options a foreign table states itself,
+// apart from the server's; array_to_json has the same reason as above.
+var listForeignTableOptionsQuery = `
+SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+FROM pg_catalog.pg_foreign_table t
+	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+WHERE c.relkind = 'f'
+ORDER BY n.nspname, c.relname;`
+
+func getForeignServers(txn *sql.Tx) ([]*metadatapb.ForeignServerMetadata, error) {
+	rows, err := txn.Query(listForeignServerQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var servers []*metadatapb.ForeignServerMetadata
+	for rows.Next() {
+		var name, fdw, optionsJSON string
+		if err := rows.Scan(&name, &fdw, &optionsJSON); err != nil {
+			return nil, err
+		}
+		options, err := decodeOptionList(optionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("server %q options: %w", name, err)
+		}
+		servers = append(servers, &metadatapb.ForeignServerMetadata{
+			Name:    name,
+			Fdw:     fdw,
+			Options: options,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return servers, nil
+}
+
+func getForeignTableOptions(txn *sql.Tx) (map[tableKey][]string, error) {
+	rows, err := txn.Query(listForeignTableOptionsQuery)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	optionsMap := make(map[tableKey][]string)
+	for rows.Next() {
+		var schemaName, tableName, optionsJSON string
+		if err := rows.Scan(&schemaName, &tableName, &optionsJSON); err != nil {
+			return nil, err
+		}
+		options, err := decodeOptionList(optionsJSON)
+		if err != nil {
+			return nil, fmt.Errorf("foreign table %q.%q options: %w", schemaName, tableName, err)
+		}
+		optionsMap[tableKey{Schema: schemaName, Table: tableName}] = options
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return optionsMap, nil
+}
+
+// decodeOptionList reads one text[] of "key=value" entries, as array_to_json
+// writes it.
+func decodeOptionList(encoded string) ([]string, error) {
+	if encoded == "" {
+		return nil, nil
+	}
+	var options []string
+	if err := json.Unmarshal([]byte(encoded), &options); err != nil {
+		return nil, err
+	}
+	return options, nil
+}
+
 func getListTableQuery(isAtLeastPG10 bool) string {
 	relisPartition := ""
 	if isAtLeastPG10 {
@@ -673,26 +768,40 @@ func getForeignTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMe
 	}
 	defer rows.Close()
 
-	foreignTablesMap := make(map[string][]*metadatapb.ExternalTableMetadata)
-
+	type foreignTable struct {
+		schema, table, server string
+	}
+	var foreignTables []foreignTable
 	for rows.Next() {
 		var schemaName, tableName, foreignServerCatalog, foreignServerName string
 		if err := rows.Scan(&schemaName, &tableName, &foreignServerCatalog, &foreignServerName); err != nil {
 			return nil, err
 		}
-		externalTable := &metadatapb.ExternalTableMetadata{
-			Name:                 tableName,
-			ExternalServerName:   foreignServerName,
-			ExternalDatabaseName: foreignServerCatalog,
-		}
-		key := tableKey{Schema: schemaName, Table: externalTable.Name}
-		externalTable.Columns = columnMap[key]
-
-		foreignTablesMap[schemaName] = append(foreignTablesMap[schemaName], externalTable)
+		foreignTables = append(foreignTables, foreignTable{schema: schemaName, table: tableName, server: foreignServerName})
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+
+	// Read the options after closing the table rows: a transaction runs one
+	// statement at a time.
+	optionsMap, err := getForeignTableOptions(txn)
+	if err != nil {
+		return nil, err
+	}
+
+	foreignTablesMap := make(map[string][]*metadatapb.ExternalTableMetadata)
+	for _, table := range foreignTables {
+		key := tableKey{Schema: table.schema, Table: table.table}
+		foreignTablesMap[table.schema] = append(foreignTablesMap[table.schema], &metadatapb.ExternalTableMetadata{
+			Name:               table.table,
+			ExternalServerName: table.server,
+			Columns:            columnMap[key],
+			Options:            optionsMap[key],
+		})
 	}
 
 	return foreignTablesMap, nil

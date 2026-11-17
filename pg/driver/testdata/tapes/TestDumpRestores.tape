@@ -234,6 +234,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -4333,6 +4336,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -5492,6 +5551,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -12317,6 +12404,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -12399,6 +12503,13 @@
 |     subtype = double precision,
 |     multirange_type_name = app.float_multirange
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -17058,6 +17169,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -18217,6 +18384,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -25042,6 +25237,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -25273,6 +25485,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -29324,6 +29539,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -30483,6 +30754,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -37264,6 +37563,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -37345,6 +37661,13 @@
 | CREATE TYPE "app"."float_range" AS RANGE (
 |     subtype = double precision
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -41956,6 +42279,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -43115,6 +43494,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -49896,6 +50303,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -50127,6 +50551,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -54180,6 +54607,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -55339,6 +55822,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -62136,6 +62647,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -62217,6 +62745,13 @@
 | CREATE TYPE "app"."float_range" AS RANGE (
 |     subtype = double precision
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -66830,6 +67365,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -67989,6 +68580,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -74786,6 +75405,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -75017,6 +75653,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -79074,6 +79713,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -80233,6 +80928,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -86904,6 +87627,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -86986,6 +87726,13 @@
 |     subtype = double precision,
 |     multirange_type_name = app.float_multirange
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -91603,6 +92350,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -92762,6 +93565,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -99433,6 +100264,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -99664,6 +100512,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -103745,6 +104596,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -104904,6 +105811,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -111729,6 +112664,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -111811,6 +112763,13 @@
 |     subtype = double precision,
 |     multirange_type_name = app.float_multirange
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -116452,6 +117411,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -117611,6 +118626,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -124436,6 +125479,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -124667,6 +125727,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -128748,6 +129811,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -129907,6 +131026,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -136732,6 +137879,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -136814,6 +137978,13 @@
 |     subtype = double precision,
 |     multirange_type_name = app.float_multirange
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -141455,6 +142626,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -142614,6 +143841,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -149439,6 +150694,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -149670,6 +150942,9 @@
 | COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 |
 | -- Foreign tables.
+| CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+| CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+|     SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 |
 | -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 | -- column after a dropped one, a view of a relation it reads no column of, a
@@ -153817,6 +155092,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -154976,6 +156307,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -162199,6 +163558,23 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok
 
@@ -162281,6 +163657,13 @@
 |     subtype = double precision,
 |     multirange_type_name = app.float_multirange
 | );
+|
+| CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');
+|
+| CREATE FOREIGN TABLE "audit"."remote_orders" (
+|     "id" integer NOT NULL,
+|     "note" character varying(30)
+| ) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');
 |
 | CREATE SEQUENCE "app"."counter"
 |     AS integer
@@ -166988,6 +168371,62 @@
 : string
 | audit
 : string
+| remote_orders
+: string
+| id
+: string
+| integer
+: null
+: int64 32
+: int64 0
+: null
+: int64 1
+: null
+: string
+|
+: null
+: string
+| NO
+: null
+: null
+: string
+| pg_catalog
+: string
+| int4
+: null
+: null
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| note
+: string
+| character varying
+: int64 30
+: null
+: null
+: null
+: int64 2
+: null
+: string
+|
+: null
+: string
+| YES
+: null
+: null
+: string
+| pg_catalog
+: string
+| varchar
+: null
+: null
+< row
+: string
+| audit
+: string
 | scratch
 : string
 | note
@@ -168147,6 +169586,34 @@
 < column "foreign_table_name" "NAME"
 < column "foreign_server_catalog" "NAME"
 < column "foreign_server_name" "NAME"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| omni_testdumprestores_restored
+: string
+| loopback
+> query
+|
+| SELECT n.nspname, c.relname, COALESCE(array_to_json(t.ftoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_table t
+| 	JOIN pg_catalog.pg_class c ON c.oid = t.ftrelid
+| 	JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+| WHERE c.relkind = 'f'
+| ORDER BY n.nspname, c.relname;
+< result
+< column "nspname" "NAME"
+< column "relname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| audit
+: string
+| remote_orders
+: string
+| ["schema_name=public","table_name=orders"]
 > query
 |
 | 	SELECT pc.oid, tbl.schemaname, tbl.tablename,
@@ -175370,5 +176837,22 @@
 : string
 | D
 : null
+> query
+|
+| SELECT s.srvname, w.fdwname, COALESCE(array_to_json(s.srvoptions)::text, '[]')
+| FROM pg_catalog.pg_foreign_server s
+| 	JOIN pg_catalog.pg_foreign_data_wrapper w ON w.oid = s.srvfdw
+| ORDER BY s.srvname;
+< result
+< column "srvname" "NAME"
+< column "fdwname" "NAME"
+< column "coalesce" "TEXT"
+< row
+: string
+| loopback
+: string
+| postgres_fdw
+: string
+| ["host=localhost","dbname=postgres"]
 > commit
 < ok

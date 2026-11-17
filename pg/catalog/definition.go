@@ -99,6 +99,24 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 		return "", err
 	}
 
+	// Construct foreign servers after the extensions that provide their
+	// wrappers, then the foreign tables that name them.
+	for _, server := range metadata.ForeignServers {
+		if err := writeForeignServer(&buf, server); err != nil {
+			return "", err
+		}
+	}
+	for _, schema := range metadata.Schemas {
+		if schema.SkipDump {
+			continue
+		}
+		for _, externalTable := range schema.ExternalTables {
+			if err := writeForeignTable(&buf, schema.Name, externalTable); err != nil {
+				return "", err
+			}
+		}
+	}
+
 	// Build the graph for topological sort.
 	graph := newDefinitionGraph()
 	functionMap := make(map[string]*metadatapb.FunctionMetadata)
@@ -1391,6 +1409,107 @@ func signatureTypesOnly(signature string) string {
 // writeCollation writes a user-defined collation and its comment. The provider
 // decides which locale fields PostgreSQL takes: ICU and builtin take a locale,
 // libc takes the pair it sorts and classifies with.
+// writeForeignServer writes CREATE SERVER and the options the server states.
+// It is written after extensions, which provide the wrapper, and before every
+// foreign table that names it.
+func writeForeignServer(out io.Writer, server *metadatapb.ForeignServerMetadata) error {
+	if _, err := fmt.Fprintf(out, "CREATE SERVER \"%s\" FOREIGN DATA WRAPPER \"%s\"",
+		escapeIdentifier(server.Name), escapeIdentifier(server.Fdw)); err != nil {
+		return err
+	}
+	if err := writeForeignOptions(out, server.Options); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
+// writeForeignTable writes CREATE FOREIGN TABLE with the columns the sync read
+// and the options the table states itself. The server must already exist.
+func writeForeignTable(out io.Writer, schema string, table *metadatapb.ExternalTableMetadata) error {
+	if _, err := fmt.Fprintf(out, "CREATE FOREIGN TABLE \"%s\".\"%s\" (",
+		escapeIdentifier(schema), escapeIdentifier(table.Name)); err != nil {
+		return err
+	}
+	for i, column := range table.Columns {
+		separator := ",\n    "
+		if i == 0 {
+			separator = "\n    "
+		}
+		if _, err := io.WriteString(out, separator); err != nil {
+			return err
+		}
+		if err := writeColumnDefinition(out, column); err != nil {
+			return err
+		}
+	}
+	if _, err := io.WriteString(out, "\n)"); err != nil {
+		return err
+	}
+	if table.ExternalServerName != "" {
+		if _, err := fmt.Fprintf(out, " SERVER \"%s\"", escapeIdentifier(table.ExternalServerName)); err != nil {
+			return err
+		}
+	}
+	if err := writeForeignOptions(out, table.Options); err != nil {
+		return err
+	}
+	_, err := io.WriteString(out, ";\n\n")
+	return err
+}
+
+// writeForeignOptions writes an OPTIONS list from the entries pg_catalog stores
+// as "key=value". A value is a string; a key that is not a simple identifier is
+// quoted.
+func writeForeignOptions(out io.Writer, options []string) error {
+	if len(options) == 0 {
+		return nil
+	}
+	if _, err := io.WriteString(out, " OPTIONS ("); err != nil {
+		return err
+	}
+	for i, option := range options {
+		if i != 0 {
+			if _, err := io.WriteString(out, ", "); err != nil {
+				return err
+			}
+		}
+		key, value, ok := strings.Cut(option, "=")
+		if !ok {
+			key, value = option, ""
+		}
+		if err := writeForeignOptionName(out, key); err != nil {
+			return err
+		}
+		if _, err := fmt.Fprintf(out, " '%s'", escapeSingleQuote(value)); err != nil {
+			return err
+		}
+	}
+	_, err := io.WriteString(out, ")")
+	return err
+}
+
+func writeForeignOptionName(out io.Writer, name string) error {
+	if strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) {
+		_, err := io.WriteString(out, name)
+		return err
+	}
+	simple := name != ""
+	for i, r := range name {
+		if r == '_' || r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || i > 0 && r >= '0' && r <= '9' {
+			continue
+		}
+		simple = false
+		break
+	}
+	if simple {
+		_, err := io.WriteString(out, name)
+		return err
+	}
+	_, err := fmt.Fprintf(out, "\"%s\"", escapeIdentifier(name))
+	return err
+}
+
 func writeCollation(out io.Writer, schema string, collation *metadatapb.CollationMetadata) error {
 	var provider, locale string
 	switch collation.Provider {
@@ -1961,6 +2080,65 @@ func getObjectID(schema string, object string) string {
 	return buf.String()
 }
 
+// writeColumnDefinition writes one column of a relation, after the separator
+// that begins its line: its name, type, collation, generation or default, and
+// nullability.
+func writeColumnDefinition(out io.Writer, column *metadatapb.ColumnMetadata) error {
+	if _, err := io.WriteString(out, `"`); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, column.Name); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, `" `); err != nil {
+		return err
+	}
+
+	if _, err := io.WriteString(out, column.Type); err != nil {
+		return err
+	}
+
+	// A user-defined collation is written with its schema: the dump restores
+	// under an empty search_path, so its bare name reaches only the collations
+	// pg_catalog holds.
+	if column.Collation != "" {
+		if column.CollationSchema != "" {
+			if _, err := fmt.Fprintf(out, ` COLLATE "%s"."%s"`, escapeIdentifier(column.CollationSchema), escapeIdentifier(column.Collation)); err != nil {
+				return err
+			}
+		} else if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, escapeIdentifier(column.Collation)); err != nil {
+			return err
+		}
+	}
+
+	// A generated column carries its expression in place of a default.
+	if column.Generation != nil {
+		storage := "STORED"
+		if column.Generation.Type == metadatapb.GenerationMetadata_TYPE_VIRTUAL {
+			storage = "VIRTUAL"
+		}
+		if _, err := fmt.Fprintf(out, " GENERATED ALWAYS AS (%s) %s", column.Generation.Expression, storage); err != nil {
+			return err
+		}
+	} else if column.Default != "" {
+		if _, err := io.WriteString(out, ` DEFAULT `); err != nil {
+			return err
+		}
+		if _, err := io.WriteString(out, column.Default); err != nil {
+			return err
+		}
+	}
+
+	if !column.Nullable {
+		if _, err := io.WriteString(out, ` NOT NULL`); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func writeCreateTable(out io.Writer, schema string, tableName string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata, excludes []*metadatapb.ExcludeConstraintMetadata) error {
 	if _, err := io.WriteString(out, `CREATE TABLE "`); err != nil {
 		return err
@@ -2000,58 +2178,8 @@ func writeCreateTable(out io.Writer, schema string, tableName string, columns []
 		if err := writeItemSep(); err != nil {
 			return err
 		}
-
-		if _, err := io.WriteString(out, `"`); err != nil {
+		if err := writeColumnDefinition(out, column); err != nil {
 			return err
-		}
-
-		if _, err := io.WriteString(out, column.Name); err != nil {
-			return err
-		}
-
-		if _, err := io.WriteString(out, `" `); err != nil {
-			return err
-		}
-
-		if _, err := io.WriteString(out, column.Type); err != nil {
-			return err
-		}
-
-		// A user-defined collation is written with its schema: the dump restores
-		// under an empty search_path, so its bare name reaches only the collations
-		// pg_catalog holds.
-		if column.Collation != "" {
-			if column.CollationSchema != "" {
-				if _, err := fmt.Fprintf(out, ` COLLATE "%s"."%s"`, escapeIdentifier(column.CollationSchema), escapeIdentifier(column.Collation)); err != nil {
-					return err
-				}
-			} else if _, err := fmt.Fprintf(out, ` COLLATE "%s"`, escapeIdentifier(column.Collation)); err != nil {
-				return err
-			}
-		}
-
-		// A generated column carries its expression in place of a default.
-		if column.Generation != nil {
-			storage := "STORED"
-			if column.Generation.Type == metadatapb.GenerationMetadata_TYPE_VIRTUAL {
-				storage = "VIRTUAL"
-			}
-			if _, err := fmt.Fprintf(out, " GENERATED ALWAYS AS (%s) %s", column.Generation.Expression, storage); err != nil {
-				return err
-			}
-		} else if column.Default != "" {
-			if _, err := io.WriteString(out, ` DEFAULT `); err != nil {
-				return err
-			}
-			if _, err := io.WriteString(out, column.Default); err != nil {
-				return err
-			}
-		}
-
-		if !column.Nullable {
-			if _, err := io.WriteString(out, ` NOT NULL`); err != nil {
-				return err
-			}
 		}
 	}
 

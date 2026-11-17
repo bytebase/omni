@@ -72,7 +72,7 @@ func (x TaskMetadata_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TaskMetadata_State.Descriptor instead.
 func (TaskMetadata_State) EnumDescriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{13, 0}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{14, 0}
 }
 
 type StreamMetadata_Type int32
@@ -118,7 +118,7 @@ func (x StreamMetadata_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StreamMetadata_Type.Descriptor instead.
 func (StreamMetadata_Type) EnumDescriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{14, 0}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{15, 0}
 }
 
 type StreamMetadata_Mode int32
@@ -170,7 +170,7 @@ func (x StreamMetadata_Mode) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StreamMetadata_Mode.Descriptor instead.
 func (StreamMetadata_Mode) EnumDescriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{14, 1}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{15, 1}
 }
 
 // The type is the type of a table partition. Some database engines may not
@@ -244,7 +244,7 @@ func (x TablePartitionMetadata_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use TablePartitionMetadata_Type.Descriptor instead.
 func (TablePartitionMetadata_Type) EnumDescriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{19, 0}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{20, 0}
 }
 
 type ColumnMetadata_IdentityGeneration int32
@@ -293,7 +293,7 @@ func (x ColumnMetadata_IdentityGeneration) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ColumnMetadata_IdentityGeneration.Descriptor instead.
 func (ColumnMetadata_IdentityGeneration) EnumDescriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{20, 0}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{21, 0}
 }
 
 type GenerationMetadata_Type int32
@@ -342,7 +342,7 @@ func (x GenerationMetadata_Type) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use GenerationMetadata_Type.Descriptor instead.
 func (GenerationMetadata_Type) EnumDescriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{21, 0}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{22, 0}
 }
 
 // DatabaseSchemaMetadata is the schema metadata for databases.
@@ -377,8 +377,13 @@ type DatabaseSchemaMetadata struct {
 	// SCHEMA_NAME()): where an unqualified name is created, and where it is
 	// looked up before dbo. A sysadmin's is dbo.
 	DefaultSchema string `protobuf:"bytes,13,opt,name=default_schema,json=defaultSchema,proto3" json:"default_schema,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// The foreign servers of a database (PostgreSQL CREATE SERVER). A foreign
+	// table names one through ExternalTableMetadata.external_server_name, so a
+	// dump writes the server before the table. An engine that holds no foreign
+	// server leaves it empty.
+	ForeignServers []*ForeignServerMetadata `protobuf:"bytes,14,rep,name=foreign_servers,json=foreignServers,proto3" json:"foreign_servers,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *DatabaseSchemaMetadata) Reset() {
@@ -502,6 +507,80 @@ func (x *DatabaseSchemaMetadata) GetDefaultSchema() string {
 	return ""
 }
 
+func (x *DatabaseSchemaMetadata) GetForeignServers() []*ForeignServerMetadata {
+	if x != nil {
+		return x.ForeignServers
+	}
+	return nil
+}
+
+// ForeignServerMetadata is a foreign server (PostgreSQL CREATE SERVER): the
+// connection a foreign table that names it reaches its data through.
+type ForeignServerMetadata struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The name of the server.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The foreign data wrapper the server uses, such as "postgres_fdw".
+	Fdw string `protobuf:"bytes,2,opt,name=fdw,proto3" json:"fdw,omitempty"`
+	// The server's options as PostgreSQL's pg_foreign_server.srvoptions states
+	// them: each entry is "key=value", with the value unquoted. Empty when the
+	// server declares none.
+	Options       []string `protobuf:"bytes,3,rep,name=options,proto3" json:"options,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForeignServerMetadata) Reset() {
+	*x = ForeignServerMetadata{}
+	mi := &file_omni_metadata_database_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForeignServerMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForeignServerMetadata) ProtoMessage() {}
+
+func (x *ForeignServerMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_omni_metadata_database_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForeignServerMetadata.ProtoReflect.Descriptor instead.
+func (*ForeignServerMetadata) Descriptor() ([]byte, []int) {
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ForeignServerMetadata) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ForeignServerMetadata) GetFdw() string {
+	if x != nil {
+		return x.Fdw
+	}
+	return ""
+}
+
+func (x *ForeignServerMetadata) GetOptions() []string {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
 type LinkedDatabaseMetadata struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
@@ -513,7 +592,7 @@ type LinkedDatabaseMetadata struct {
 
 func (x *LinkedDatabaseMetadata) Reset() {
 	*x = LinkedDatabaseMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[1]
+	mi := &file_omni_metadata_database_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +604,7 @@ func (x *LinkedDatabaseMetadata) String() string {
 func (*LinkedDatabaseMetadata) ProtoMessage() {}
 
 func (x *LinkedDatabaseMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[1]
+	mi := &file_omni_metadata_database_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +617,7 @@ func (x *LinkedDatabaseMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LinkedDatabaseMetadata.ProtoReflect.Descriptor instead.
 func (*LinkedDatabaseMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{1}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *LinkedDatabaseMetadata) GetName() string {
@@ -616,7 +695,7 @@ type SchemaMetadata struct {
 
 func (x *SchemaMetadata) Reset() {
 	*x = SchemaMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[2]
+	mi := &file_omni_metadata_database_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -628,7 +707,7 @@ func (x *SchemaMetadata) String() string {
 func (*SchemaMetadata) ProtoMessage() {}
 
 func (x *SchemaMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[2]
+	mi := &file_omni_metadata_database_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -641,7 +720,7 @@ func (x *SchemaMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SchemaMetadata.ProtoReflect.Descriptor instead.
 func (*SchemaMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{2}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SchemaMetadata) GetName() string {
@@ -825,7 +904,7 @@ type RangeTypeMetadata struct {
 
 func (x *RangeTypeMetadata) Reset() {
 	*x = RangeTypeMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[3]
+	mi := &file_omni_metadata_database_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -837,7 +916,7 @@ func (x *RangeTypeMetadata) String() string {
 func (*RangeTypeMetadata) ProtoMessage() {}
 
 func (x *RangeTypeMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[3]
+	mi := &file_omni_metadata_database_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -850,7 +929,7 @@ func (x *RangeTypeMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RangeTypeMetadata.ProtoReflect.Descriptor instead.
 func (*RangeTypeMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{3}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *RangeTypeMetadata) GetName() string {
@@ -954,7 +1033,7 @@ type CollationMetadata struct {
 
 func (x *CollationMetadata) Reset() {
 	*x = CollationMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[4]
+	mi := &file_omni_metadata_database_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -966,7 +1045,7 @@ func (x *CollationMetadata) String() string {
 func (*CollationMetadata) ProtoMessage() {}
 
 func (x *CollationMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[4]
+	mi := &file_omni_metadata_database_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -979,7 +1058,7 @@ func (x *CollationMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CollationMetadata.ProtoReflect.Descriptor instead.
 func (*CollationMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{4}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *CollationMetadata) GetName() string {
@@ -1071,7 +1150,7 @@ type SynonymMetadata struct {
 
 func (x *SynonymMetadata) Reset() {
 	*x = SynonymMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[5]
+	mi := &file_omni_metadata_database_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1083,7 +1162,7 @@ func (x *SynonymMetadata) String() string {
 func (*SynonymMetadata) ProtoMessage() {}
 
 func (x *SynonymMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[5]
+	mi := &file_omni_metadata_database_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1096,7 +1175,7 @@ func (x *SynonymMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SynonymMetadata.ProtoReflect.Descriptor instead.
 func (*SynonymMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{5}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SynonymMetadata) GetName() string {
@@ -1155,7 +1234,7 @@ type EnumTypeMetadata struct {
 
 func (x *EnumTypeMetadata) Reset() {
 	*x = EnumTypeMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[6]
+	mi := &file_omni_metadata_database_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1167,7 +1246,7 @@ func (x *EnumTypeMetadata) String() string {
 func (*EnumTypeMetadata) ProtoMessage() {}
 
 func (x *EnumTypeMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[6]
+	mi := &file_omni_metadata_database_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1180,7 +1259,7 @@ func (x *EnumTypeMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EnumTypeMetadata.ProtoReflect.Descriptor instead.
 func (*EnumTypeMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{6}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EnumTypeMetadata) GetName() string {
@@ -1225,7 +1304,7 @@ type CompositeTypeMetadata struct {
 
 func (x *CompositeTypeMetadata) Reset() {
 	*x = CompositeTypeMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[7]
+	mi := &file_omni_metadata_database_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1237,7 +1316,7 @@ func (x *CompositeTypeMetadata) String() string {
 func (*CompositeTypeMetadata) ProtoMessage() {}
 
 func (x *CompositeTypeMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[7]
+	mi := &file_omni_metadata_database_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1250,7 +1329,7 @@ func (x *CompositeTypeMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompositeTypeMetadata.ProtoReflect.Descriptor instead.
 func (*CompositeTypeMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{7}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *CompositeTypeMetadata) GetName() string {
@@ -1298,7 +1377,7 @@ type CompositeTypeAttribute struct {
 
 func (x *CompositeTypeAttribute) Reset() {
 	*x = CompositeTypeAttribute{}
-	mi := &file_omni_metadata_database_proto_msgTypes[8]
+	mi := &file_omni_metadata_database_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1310,7 +1389,7 @@ func (x *CompositeTypeAttribute) String() string {
 func (*CompositeTypeAttribute) ProtoMessage() {}
 
 func (x *CompositeTypeAttribute) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[8]
+	mi := &file_omni_metadata_database_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1323,7 +1402,7 @@ func (x *CompositeTypeAttribute) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompositeTypeAttribute.ProtoReflect.Descriptor instead.
 func (*CompositeTypeAttribute) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{8}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *CompositeTypeAttribute) GetName() string {
@@ -1372,7 +1451,7 @@ type EventMetadata struct {
 
 func (x *EventMetadata) Reset() {
 	*x = EventMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[9]
+	mi := &file_omni_metadata_database_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1384,7 +1463,7 @@ func (x *EventMetadata) String() string {
 func (*EventMetadata) ProtoMessage() {}
 
 func (x *EventMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[9]
+	mi := &file_omni_metadata_database_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1397,7 +1476,7 @@ func (x *EventMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventMetadata.ProtoReflect.Descriptor instead.
 func (*EventMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{9}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *EventMetadata) GetName() string {
@@ -1497,7 +1576,7 @@ type SequenceMetadata struct {
 
 func (x *SequenceMetadata) Reset() {
 	*x = SequenceMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[10]
+	mi := &file_omni_metadata_database_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1509,7 +1588,7 @@ func (x *SequenceMetadata) String() string {
 func (*SequenceMetadata) ProtoMessage() {}
 
 func (x *SequenceMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[10]
+	mi := &file_omni_metadata_database_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1522,7 +1601,7 @@ func (x *SequenceMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SequenceMetadata.ProtoReflect.Descriptor instead.
 func (*SequenceMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{10}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SequenceMetadata) GetName() string {
@@ -1679,7 +1758,7 @@ type TriggerMetadata struct {
 
 func (x *TriggerMetadata) Reset() {
 	*x = TriggerMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[11]
+	mi := &file_omni_metadata_database_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1691,7 +1770,7 @@ func (x *TriggerMetadata) String() string {
 func (*TriggerMetadata) ProtoMessage() {}
 
 func (x *TriggerMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[11]
+	mi := &file_omni_metadata_database_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1704,7 +1783,7 @@ func (x *TriggerMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TriggerMetadata.ProtoReflect.Descriptor instead.
 func (*TriggerMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{11}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *TriggerMetadata) GetName() string {
@@ -1793,7 +1872,7 @@ type RuleMetadata struct {
 
 func (x *RuleMetadata) Reset() {
 	*x = RuleMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[12]
+	mi := &file_omni_metadata_database_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1805,7 +1884,7 @@ func (x *RuleMetadata) String() string {
 func (*RuleMetadata) ProtoMessage() {}
 
 func (x *RuleMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[12]
+	mi := &file_omni_metadata_database_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1818,7 +1897,7 @@ func (x *RuleMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuleMetadata.ProtoReflect.Descriptor instead.
 func (*RuleMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{12}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *RuleMetadata) GetName() string {
@@ -1899,7 +1978,7 @@ type TaskMetadata struct {
 
 func (x *TaskMetadata) Reset() {
 	*x = TaskMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[13]
+	mi := &file_omni_metadata_database_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1911,7 +1990,7 @@ func (x *TaskMetadata) String() string {
 func (*TaskMetadata) ProtoMessage() {}
 
 func (x *TaskMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[13]
+	mi := &file_omni_metadata_database_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1924,7 +2003,7 @@ func (x *TaskMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TaskMetadata.ProtoReflect.Descriptor instead.
 func (*TaskMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{13}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *TaskMetadata) GetName() string {
@@ -2021,7 +2100,7 @@ type StreamMetadata struct {
 
 func (x *StreamMetadata) Reset() {
 	*x = StreamMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[14]
+	mi := &file_omni_metadata_database_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2033,7 +2112,7 @@ func (x *StreamMetadata) String() string {
 func (*StreamMetadata) ProtoMessage() {}
 
 func (x *StreamMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[14]
+	mi := &file_omni_metadata_database_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2046,7 +2125,7 @@ func (x *StreamMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StreamMetadata.ProtoReflect.Descriptor instead.
 func (*StreamMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{14}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *StreamMetadata) GetName() string {
@@ -2159,7 +2238,7 @@ type TableMetadata struct {
 
 func (x *TableMetadata) Reset() {
 	*x = TableMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[15]
+	mi := &file_omni_metadata_database_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2171,7 +2250,7 @@ func (x *TableMetadata) String() string {
 func (*TableMetadata) ProtoMessage() {}
 
 func (x *TableMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[15]
+	mi := &file_omni_metadata_database_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2184,7 +2263,7 @@ func (x *TableMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TableMetadata.ProtoReflect.Descriptor instead.
 func (*TableMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{15}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *TableMetadata) GetName() string {
@@ -2365,7 +2444,7 @@ type CheckConstraintMetadata struct {
 
 func (x *CheckConstraintMetadata) Reset() {
 	*x = CheckConstraintMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[16]
+	mi := &file_omni_metadata_database_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2377,7 +2456,7 @@ func (x *CheckConstraintMetadata) String() string {
 func (*CheckConstraintMetadata) ProtoMessage() {}
 
 func (x *CheckConstraintMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[16]
+	mi := &file_omni_metadata_database_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2390,7 +2469,7 @@ func (x *CheckConstraintMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckConstraintMetadata.ProtoReflect.Descriptor instead.
 func (*CheckConstraintMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{16}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *CheckConstraintMetadata) GetName() string {
@@ -2427,7 +2506,7 @@ type ExcludeConstraintMetadata struct {
 
 func (x *ExcludeConstraintMetadata) Reset() {
 	*x = ExcludeConstraintMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[17]
+	mi := &file_omni_metadata_database_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2439,7 +2518,7 @@ func (x *ExcludeConstraintMetadata) String() string {
 func (*ExcludeConstraintMetadata) ProtoMessage() {}
 
 func (x *ExcludeConstraintMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[17]
+	mi := &file_omni_metadata_database_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2452,7 +2531,7 @@ func (x *ExcludeConstraintMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExcludeConstraintMetadata.ProtoReflect.Descriptor instead.
 func (*ExcludeConstraintMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{17}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ExcludeConstraintMetadata) GetName() string {
@@ -2478,14 +2557,27 @@ type ExternalTableMetadata struct {
 	// The external_database_name is the name of the external database.
 	ExternalDatabaseName string `protobuf:"bytes,3,opt,name=external_database_name,json=externalDatabaseName,proto3" json:"external_database_name,omitempty"`
 	// The columns is the ordered list of columns in a foreign table.
-	Columns       []*ColumnMetadata `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
+	Columns []*ColumnMetadata `protobuf:"bytes,4,rep,name=columns,proto3" json:"columns,omitempty"`
+	// The table's options as PostgreSQL's pg_foreign_table.ftoptions states
+	// them: each entry is "key=value", with the value unquoted. Empty when the
+	// table declares none.
+	Options []string `protobuf:"bytes,5,rep,name=options,proto3" json:"options,omitempty"`
+	// The location the engine states for an external table (OceanBase's
+	// LOCATION, which SHOW CREATE TABLE states). Empty when the engine states
+	// no location.
+	Location string `protobuf:"bytes,6,opt,name=location,proto3" json:"location,omitempty"`
+	// The FORMAT clause the engine states for an external table (OceanBase),
+	// without the FORMAT keyword and its enclosing parentheses: for example
+	// "TYPE = 'CSV', ENCODING = 'utf8mb4'". Empty when the engine states no
+	// format.
+	Format        string `protobuf:"bytes,7,opt,name=format,proto3" json:"format,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ExternalTableMetadata) Reset() {
 	*x = ExternalTableMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[18]
+	mi := &file_omni_metadata_database_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2497,7 +2589,7 @@ func (x *ExternalTableMetadata) String() string {
 func (*ExternalTableMetadata) ProtoMessage() {}
 
 func (x *ExternalTableMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[18]
+	mi := &file_omni_metadata_database_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2510,7 +2602,7 @@ func (x *ExternalTableMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExternalTableMetadata.ProtoReflect.Descriptor instead.
 func (*ExternalTableMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{18}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ExternalTableMetadata) GetName() string {
@@ -2539,6 +2631,27 @@ func (x *ExternalTableMetadata) GetColumns() []*ColumnMetadata {
 		return x.Columns
 	}
 	return nil
+}
+
+func (x *ExternalTableMetadata) GetOptions() []string {
+	if x != nil {
+		return x.Options
+	}
+	return nil
+}
+
+func (x *ExternalTableMetadata) GetLocation() string {
+	if x != nil {
+		return x.Location
+	}
+	return ""
+}
+
+func (x *ExternalTableMetadata) GetFormat() string {
+	if x != nil {
+		return x.Format
+	}
+	return ""
 }
 
 // TablePartitionMetadata is the metadata for table partitions.
@@ -2592,7 +2705,7 @@ type TablePartitionMetadata struct {
 
 func (x *TablePartitionMetadata) Reset() {
 	*x = TablePartitionMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[19]
+	mi := &file_omni_metadata_database_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2604,7 +2717,7 @@ func (x *TablePartitionMetadata) String() string {
 func (*TablePartitionMetadata) ProtoMessage() {}
 
 func (x *TablePartitionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[19]
+	mi := &file_omni_metadata_database_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2617,7 +2730,7 @@ func (x *TablePartitionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TablePartitionMetadata.ProtoReflect.Descriptor instead.
 func (*TablePartitionMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{19}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *TablePartitionMetadata) GetName() string {
@@ -2775,7 +2888,7 @@ type ColumnMetadata struct {
 
 func (x *ColumnMetadata) Reset() {
 	*x = ColumnMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[20]
+	mi := &file_omni_metadata_database_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2787,7 +2900,7 @@ func (x *ColumnMetadata) String() string {
 func (*ColumnMetadata) ProtoMessage() {}
 
 func (x *ColumnMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[20]
+	mi := &file_omni_metadata_database_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2800,7 +2913,7 @@ func (x *ColumnMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ColumnMetadata.ProtoReflect.Descriptor instead.
 func (*ColumnMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{20}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ColumnMetadata) GetName() string {
@@ -2946,7 +3059,7 @@ type GenerationMetadata struct {
 
 func (x *GenerationMetadata) Reset() {
 	*x = GenerationMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[21]
+	mi := &file_omni_metadata_database_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2958,7 +3071,7 @@ func (x *GenerationMetadata) String() string {
 func (*GenerationMetadata) ProtoMessage() {}
 
 func (x *GenerationMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[21]
+	mi := &file_omni_metadata_database_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2971,7 +3084,7 @@ func (x *GenerationMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GenerationMetadata.ProtoReflect.Descriptor instead.
 func (*GenerationMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{21}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *GenerationMetadata) GetType() GenerationMetadata_Type {
@@ -3012,7 +3125,7 @@ type ViewMetadata struct {
 
 func (x *ViewMetadata) Reset() {
 	*x = ViewMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[22]
+	mi := &file_omni_metadata_database_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3024,7 +3137,7 @@ func (x *ViewMetadata) String() string {
 func (*ViewMetadata) ProtoMessage() {}
 
 func (x *ViewMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[22]
+	mi := &file_omni_metadata_database_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3037,7 +3150,7 @@ func (x *ViewMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ViewMetadata.ProtoReflect.Descriptor instead.
 func (*ViewMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{22}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ViewMetadata) GetName() string {
@@ -3111,7 +3224,7 @@ type DependencyColumn struct {
 
 func (x *DependencyColumn) Reset() {
 	*x = DependencyColumn{}
-	mi := &file_omni_metadata_database_proto_msgTypes[23]
+	mi := &file_omni_metadata_database_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3123,7 +3236,7 @@ func (x *DependencyColumn) String() string {
 func (*DependencyColumn) ProtoMessage() {}
 
 func (x *DependencyColumn) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[23]
+	mi := &file_omni_metadata_database_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3136,7 +3249,7 @@ func (x *DependencyColumn) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyColumn.ProtoReflect.Descriptor instead.
 func (*DependencyColumn) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{23}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *DependencyColumn) GetSchema() string {
@@ -3182,7 +3295,7 @@ type MaterializedViewMetadata struct {
 
 func (x *MaterializedViewMetadata) Reset() {
 	*x = MaterializedViewMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[24]
+	mi := &file_omni_metadata_database_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3194,7 +3307,7 @@ func (x *MaterializedViewMetadata) String() string {
 func (*MaterializedViewMetadata) ProtoMessage() {}
 
 func (x *MaterializedViewMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[24]
+	mi := &file_omni_metadata_database_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3207,7 +3320,7 @@ func (x *MaterializedViewMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaterializedViewMetadata.ProtoReflect.Descriptor instead.
 func (*MaterializedViewMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{24}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *MaterializedViewMetadata) GetName() string {
@@ -3271,7 +3384,7 @@ type DependencyTable struct {
 
 func (x *DependencyTable) Reset() {
 	*x = DependencyTable{}
-	mi := &file_omni_metadata_database_proto_msgTypes[25]
+	mi := &file_omni_metadata_database_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3283,7 +3396,7 @@ func (x *DependencyTable) String() string {
 func (*DependencyTable) ProtoMessage() {}
 
 func (x *DependencyTable) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[25]
+	mi := &file_omni_metadata_database_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3296,7 +3409,7 @@ func (x *DependencyTable) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DependencyTable.ProtoReflect.Descriptor instead.
 func (*DependencyTable) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{25}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DependencyTable) GetSchema() string {
@@ -3339,7 +3452,7 @@ type FunctionMetadata struct {
 
 func (x *FunctionMetadata) Reset() {
 	*x = FunctionMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[26]
+	mi := &file_omni_metadata_database_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3351,7 +3464,7 @@ func (x *FunctionMetadata) String() string {
 func (*FunctionMetadata) ProtoMessage() {}
 
 func (x *FunctionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[26]
+	mi := &file_omni_metadata_database_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3364,7 +3477,7 @@ func (x *FunctionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FunctionMetadata.ProtoReflect.Descriptor instead.
 func (*FunctionMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{26}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *FunctionMetadata) GetName() string {
@@ -3460,7 +3573,7 @@ type ProcedureMetadata struct {
 
 func (x *ProcedureMetadata) Reset() {
 	*x = ProcedureMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[27]
+	mi := &file_omni_metadata_database_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3472,7 +3585,7 @@ func (x *ProcedureMetadata) String() string {
 func (*ProcedureMetadata) ProtoMessage() {}
 
 func (x *ProcedureMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[27]
+	mi := &file_omni_metadata_database_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3485,7 +3598,7 @@ func (x *ProcedureMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProcedureMetadata.ProtoReflect.Descriptor instead.
 func (*ProcedureMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{27}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *ProcedureMetadata) GetName() string {
@@ -3564,7 +3677,7 @@ type PackageMetadata struct {
 
 func (x *PackageMetadata) Reset() {
 	*x = PackageMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[28]
+	mi := &file_omni_metadata_database_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3576,7 +3689,7 @@ func (x *PackageMetadata) String() string {
 func (*PackageMetadata) ProtoMessage() {}
 
 func (x *PackageMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[28]
+	mi := &file_omni_metadata_database_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3589,7 +3702,7 @@ func (x *PackageMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PackageMetadata.ProtoReflect.Descriptor instead.
 func (*PackageMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{28}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *PackageMetadata) GetName() string {
@@ -3672,7 +3785,7 @@ type IndexMetadata struct {
 
 func (x *IndexMetadata) Reset() {
 	*x = IndexMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[29]
+	mi := &file_omni_metadata_database_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3684,7 +3797,7 @@ func (x *IndexMetadata) String() string {
 func (*IndexMetadata) ProtoMessage() {}
 
 func (x *IndexMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[29]
+	mi := &file_omni_metadata_database_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3697,7 +3810,7 @@ func (x *IndexMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndexMetadata.ProtoReflect.Descriptor instead.
 func (*IndexMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{29}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *IndexMetadata) GetName() string {
@@ -3843,7 +3956,7 @@ type IndexConstraintMetadata struct {
 
 func (x *IndexConstraintMetadata) Reset() {
 	*x = IndexConstraintMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[30]
+	mi := &file_omni_metadata_database_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3855,7 +3968,7 @@ func (x *IndexConstraintMetadata) String() string {
 func (*IndexConstraintMetadata) ProtoMessage() {}
 
 func (x *IndexConstraintMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[30]
+	mi := &file_omni_metadata_database_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3868,7 +3981,7 @@ func (x *IndexConstraintMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndexConstraintMetadata.ProtoReflect.Descriptor instead.
 func (*IndexConstraintMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{30}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *IndexConstraintMetadata) GetName() string {
@@ -3912,7 +4025,7 @@ type SpatialIndexConfig struct {
 
 func (x *SpatialIndexConfig) Reset() {
 	*x = SpatialIndexConfig{}
-	mi := &file_omni_metadata_database_proto_msgTypes[31]
+	mi := &file_omni_metadata_database_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3924,7 +4037,7 @@ func (x *SpatialIndexConfig) String() string {
 func (*SpatialIndexConfig) ProtoMessage() {}
 
 func (x *SpatialIndexConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[31]
+	mi := &file_omni_metadata_database_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3937,7 +4050,7 @@ func (x *SpatialIndexConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpatialIndexConfig.ProtoReflect.Descriptor instead.
 func (*SpatialIndexConfig) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{31}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *SpatialIndexConfig) GetMethod() string {
@@ -3993,7 +4106,7 @@ type TessellationConfig struct {
 
 func (x *TessellationConfig) Reset() {
 	*x = TessellationConfig{}
-	mi := &file_omni_metadata_database_proto_msgTypes[32]
+	mi := &file_omni_metadata_database_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4005,7 +4118,7 @@ func (x *TessellationConfig) String() string {
 func (*TessellationConfig) ProtoMessage() {}
 
 func (x *TessellationConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[32]
+	mi := &file_omni_metadata_database_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4018,7 +4131,7 @@ func (x *TessellationConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TessellationConfig.ProtoReflect.Descriptor instead.
 func (*TessellationConfig) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{32}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *TessellationConfig) GetScheme() string {
@@ -4062,7 +4175,7 @@ type BoundingBox struct {
 
 func (x *BoundingBox) Reset() {
 	*x = BoundingBox{}
-	mi := &file_omni_metadata_database_proto_msgTypes[33]
+	mi := &file_omni_metadata_database_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4074,7 +4187,7 @@ func (x *BoundingBox) String() string {
 func (*BoundingBox) ProtoMessage() {}
 
 func (x *BoundingBox) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[33]
+	mi := &file_omni_metadata_database_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4087,7 +4200,7 @@ func (x *BoundingBox) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoundingBox.ProtoReflect.Descriptor instead.
 func (*BoundingBox) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{33}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BoundingBox) GetXmin() float64 {
@@ -4129,7 +4242,7 @@ type GridLevel struct {
 
 func (x *GridLevel) Reset() {
 	*x = GridLevel{}
-	mi := &file_omni_metadata_database_proto_msgTypes[34]
+	mi := &file_omni_metadata_database_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4141,7 +4254,7 @@ func (x *GridLevel) String() string {
 func (*GridLevel) ProtoMessage() {}
 
 func (x *GridLevel) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[34]
+	mi := &file_omni_metadata_database_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4154,7 +4267,7 @@ func (x *GridLevel) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GridLevel.ProtoReflect.Descriptor instead.
 func (*GridLevel) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{34}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *GridLevel) GetLevel() int32 {
@@ -4197,7 +4310,7 @@ type StorageConfig struct {
 
 func (x *StorageConfig) Reset() {
 	*x = StorageConfig{}
-	mi := &file_omni_metadata_database_proto_msgTypes[35]
+	mi := &file_omni_metadata_database_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4209,7 +4322,7 @@ func (x *StorageConfig) String() string {
 func (*StorageConfig) ProtoMessage() {}
 
 func (x *StorageConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[35]
+	mi := &file_omni_metadata_database_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4222,7 +4335,7 @@ func (x *StorageConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StorageConfig.ProtoReflect.Descriptor instead.
 func (*StorageConfig) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{35}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *StorageConfig) GetFillfactor() int32 {
@@ -4345,7 +4458,7 @@ type DimensionalConfig struct {
 
 func (x *DimensionalConfig) Reset() {
 	*x = DimensionalConfig{}
-	mi := &file_omni_metadata_database_proto_msgTypes[36]
+	mi := &file_omni_metadata_database_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4357,7 +4470,7 @@ func (x *DimensionalConfig) String() string {
 func (*DimensionalConfig) ProtoMessage() {}
 
 func (x *DimensionalConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[36]
+	mi := &file_omni_metadata_database_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4370,7 +4483,7 @@ func (x *DimensionalConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DimensionalConfig.ProtoReflect.Descriptor instead.
 func (*DimensionalConfig) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{36}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *DimensionalConfig) GetDimensions() int32 {
@@ -4426,7 +4539,7 @@ type ExtensionMetadata struct {
 
 func (x *ExtensionMetadata) Reset() {
 	*x = ExtensionMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[37]
+	mi := &file_omni_metadata_database_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4438,7 +4551,7 @@ func (x *ExtensionMetadata) String() string {
 func (*ExtensionMetadata) ProtoMessage() {}
 
 func (x *ExtensionMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[37]
+	mi := &file_omni_metadata_database_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4451,7 +4564,7 @@ func (x *ExtensionMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExtensionMetadata.ProtoReflect.Descriptor instead.
 func (*ExtensionMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{37}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ExtensionMetadata) GetName() string {
@@ -4511,7 +4624,7 @@ type EventTriggerMetadata struct {
 
 func (x *EventTriggerMetadata) Reset() {
 	*x = EventTriggerMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[38]
+	mi := &file_omni_metadata_database_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4523,7 +4636,7 @@ func (x *EventTriggerMetadata) String() string {
 func (*EventTriggerMetadata) ProtoMessage() {}
 
 func (x *EventTriggerMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[38]
+	mi := &file_omni_metadata_database_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4536,7 +4649,7 @@ func (x *EventTriggerMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EventTriggerMetadata.ProtoReflect.Descriptor instead.
 func (*EventTriggerMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{38}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *EventTriggerMetadata) GetName() string {
@@ -4635,7 +4748,7 @@ type ForeignKeyMetadata struct {
 
 func (x *ForeignKeyMetadata) Reset() {
 	*x = ForeignKeyMetadata{}
-	mi := &file_omni_metadata_database_proto_msgTypes[39]
+	mi := &file_omni_metadata_database_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4647,7 +4760,7 @@ func (x *ForeignKeyMetadata) String() string {
 func (*ForeignKeyMetadata) ProtoMessage() {}
 
 func (x *ForeignKeyMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_omni_metadata_database_proto_msgTypes[39]
+	mi := &file_omni_metadata_database_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4660,7 +4773,7 @@ func (x *ForeignKeyMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ForeignKeyMetadata.ProtoReflect.Descriptor instead.
 func (*ForeignKeyMetadata) Descriptor() ([]byte, []int) {
-	return file_omni_metadata_database_proto_rawDescGZIP(), []int{39}
+	return file_omni_metadata_database_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ForeignKeyMetadata) GetName() string {
@@ -4730,7 +4843,7 @@ var File_omni_metadata_database_proto protoreflect.FileDescriptor
 
 const file_omni_metadata_database_proto_rawDesc = "" +
 	"\n" +
-	"\x1comni/metadata/database.proto\x12\romni.metadata\"\xf0\x04\n" +
+	"\x1comni/metadata/database.proto\x12\romni.metadata\"\xbf\x05\n" +
 	"\x16DatabaseSchemaMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x127\n" +
 	"\aschemas\x18\x02 \x03(\v2\x1d.omni.metadata.SchemaMetadataR\aschemas\x12#\n" +
@@ -4748,7 +4861,12 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"searchPath\x12J\n" +
 	"\x0eevent_triggers\x18\v \x03(\v2#.omni.metadata.EventTriggerMetadataR\reventTriggers\x12G\n" +
 	"\x0fpublic_synonyms\x18\f \x03(\v2\x1e.omni.metadata.SynonymMetadataR\x0epublicSynonyms\x12%\n" +
-	"\x0edefault_schema\x18\r \x01(\tR\rdefaultSchema\"\\\n" +
+	"\x0edefault_schema\x18\r \x01(\tR\rdefaultSchema\x12M\n" +
+	"\x0fforeign_servers\x18\x0e \x03(\v2$.omni.metadata.ForeignServerMetadataR\x0eforeignServers\"W\n" +
+	"\x15ForeignServerMetadata\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12\x10\n" +
+	"\x03fdw\x18\x02 \x01(\tR\x03fdw\x12\x18\n" +
+	"\aoptions\x18\x03 \x03(\tR\aoptions\"\\\n" +
 	"\x16LinkedDatabaseMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1a\n" +
 	"\busername\x18\x02 \x01(\tR\busername\x12\x12\n" +
@@ -4962,12 +5080,15 @@ const file_omni_metadata_database_proto_rawDesc = "" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x02 \x01(\tR\n" +
-	"expression\"\xcc\x01\n" +
+	"expression\"\x9a\x02\n" +
 	"\x15ExternalTableMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x120\n" +
 	"\x14external_server_name\x18\x02 \x01(\tR\x12externalServerName\x124\n" +
 	"\x16external_database_name\x18\x03 \x01(\tR\x14externalDatabaseName\x127\n" +
-	"\acolumns\x18\x04 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\"\xb7\x05\n" +
+	"\acolumns\x18\x04 \x03(\v2\x1d.omni.metadata.ColumnMetadataR\acolumns\x12\x18\n" +
+	"\aoptions\x18\x05 \x03(\tR\aoptions\x12\x1a\n" +
+	"\blocation\x18\x06 \x01(\tR\blocation\x12\x16\n" +
+	"\x06format\x18\a \x01(\tR\x06format\"\xb7\x05\n" +
 	"\x16TablePartitionMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12>\n" +
 	"\x04type\x18\x02 \x01(\x0e2*.omni.metadata.TablePartitionMetadata.TypeR\x04type\x12\x1e\n" +
@@ -5217,7 +5338,7 @@ func file_omni_metadata_database_proto_rawDescGZIP() []byte {
 }
 
 var file_omni_metadata_database_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_omni_metadata_database_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_omni_metadata_database_proto_msgTypes = make([]protoimpl.MessageInfo, 42)
 var file_omni_metadata_database_proto_goTypes = []any{
 	(TaskMetadata_State)(0),                // 0: omni.metadata.TaskMetadata.State
 	(StreamMetadata_Type)(0),               // 1: omni.metadata.StreamMetadata.Type
@@ -5226,111 +5347,113 @@ var file_omni_metadata_database_proto_goTypes = []any{
 	(ColumnMetadata_IdentityGeneration)(0), // 4: omni.metadata.ColumnMetadata.IdentityGeneration
 	(GenerationMetadata_Type)(0),           // 5: omni.metadata.GenerationMetadata.Type
 	(*DatabaseSchemaMetadata)(nil),         // 6: omni.metadata.DatabaseSchemaMetadata
-	(*LinkedDatabaseMetadata)(nil),         // 7: omni.metadata.LinkedDatabaseMetadata
-	(*SchemaMetadata)(nil),                 // 8: omni.metadata.SchemaMetadata
-	(*RangeTypeMetadata)(nil),              // 9: omni.metadata.RangeTypeMetadata
-	(*CollationMetadata)(nil),              // 10: omni.metadata.CollationMetadata
-	(*SynonymMetadata)(nil),                // 11: omni.metadata.SynonymMetadata
-	(*EnumTypeMetadata)(nil),               // 12: omni.metadata.EnumTypeMetadata
-	(*CompositeTypeMetadata)(nil),          // 13: omni.metadata.CompositeTypeMetadata
-	(*CompositeTypeAttribute)(nil),         // 14: omni.metadata.CompositeTypeAttribute
-	(*EventMetadata)(nil),                  // 15: omni.metadata.EventMetadata
-	(*SequenceMetadata)(nil),               // 16: omni.metadata.SequenceMetadata
-	(*TriggerMetadata)(nil),                // 17: omni.metadata.TriggerMetadata
-	(*RuleMetadata)(nil),                   // 18: omni.metadata.RuleMetadata
-	(*TaskMetadata)(nil),                   // 19: omni.metadata.TaskMetadata
-	(*StreamMetadata)(nil),                 // 20: omni.metadata.StreamMetadata
-	(*TableMetadata)(nil),                  // 21: omni.metadata.TableMetadata
-	(*CheckConstraintMetadata)(nil),        // 22: omni.metadata.CheckConstraintMetadata
-	(*ExcludeConstraintMetadata)(nil),      // 23: omni.metadata.ExcludeConstraintMetadata
-	(*ExternalTableMetadata)(nil),          // 24: omni.metadata.ExternalTableMetadata
-	(*TablePartitionMetadata)(nil),         // 25: omni.metadata.TablePartitionMetadata
-	(*ColumnMetadata)(nil),                 // 26: omni.metadata.ColumnMetadata
-	(*GenerationMetadata)(nil),             // 27: omni.metadata.GenerationMetadata
-	(*ViewMetadata)(nil),                   // 28: omni.metadata.ViewMetadata
-	(*DependencyColumn)(nil),               // 29: omni.metadata.DependencyColumn
-	(*MaterializedViewMetadata)(nil),       // 30: omni.metadata.MaterializedViewMetadata
-	(*DependencyTable)(nil),                // 31: omni.metadata.DependencyTable
-	(*FunctionMetadata)(nil),               // 32: omni.metadata.FunctionMetadata
-	(*ProcedureMetadata)(nil),              // 33: omni.metadata.ProcedureMetadata
-	(*PackageMetadata)(nil),                // 34: omni.metadata.PackageMetadata
-	(*IndexMetadata)(nil),                  // 35: omni.metadata.IndexMetadata
-	(*IndexConstraintMetadata)(nil),        // 36: omni.metadata.IndexConstraintMetadata
-	(*SpatialIndexConfig)(nil),             // 37: omni.metadata.SpatialIndexConfig
-	(*TessellationConfig)(nil),             // 38: omni.metadata.TessellationConfig
-	(*BoundingBox)(nil),                    // 39: omni.metadata.BoundingBox
-	(*GridLevel)(nil),                      // 40: omni.metadata.GridLevel
-	(*StorageConfig)(nil),                  // 41: omni.metadata.StorageConfig
-	(*DimensionalConfig)(nil),              // 42: omni.metadata.DimensionalConfig
-	(*ExtensionMetadata)(nil),              // 43: omni.metadata.ExtensionMetadata
-	(*EventTriggerMetadata)(nil),           // 44: omni.metadata.EventTriggerMetadata
-	(*ForeignKeyMetadata)(nil),             // 45: omni.metadata.ForeignKeyMetadata
-	nil,                                    // 46: omni.metadata.SpatialIndexConfig.EngineSpecificEntry
+	(*ForeignServerMetadata)(nil),          // 7: omni.metadata.ForeignServerMetadata
+	(*LinkedDatabaseMetadata)(nil),         // 8: omni.metadata.LinkedDatabaseMetadata
+	(*SchemaMetadata)(nil),                 // 9: omni.metadata.SchemaMetadata
+	(*RangeTypeMetadata)(nil),              // 10: omni.metadata.RangeTypeMetadata
+	(*CollationMetadata)(nil),              // 11: omni.metadata.CollationMetadata
+	(*SynonymMetadata)(nil),                // 12: omni.metadata.SynonymMetadata
+	(*EnumTypeMetadata)(nil),               // 13: omni.metadata.EnumTypeMetadata
+	(*CompositeTypeMetadata)(nil),          // 14: omni.metadata.CompositeTypeMetadata
+	(*CompositeTypeAttribute)(nil),         // 15: omni.metadata.CompositeTypeAttribute
+	(*EventMetadata)(nil),                  // 16: omni.metadata.EventMetadata
+	(*SequenceMetadata)(nil),               // 17: omni.metadata.SequenceMetadata
+	(*TriggerMetadata)(nil),                // 18: omni.metadata.TriggerMetadata
+	(*RuleMetadata)(nil),                   // 19: omni.metadata.RuleMetadata
+	(*TaskMetadata)(nil),                   // 20: omni.metadata.TaskMetadata
+	(*StreamMetadata)(nil),                 // 21: omni.metadata.StreamMetadata
+	(*TableMetadata)(nil),                  // 22: omni.metadata.TableMetadata
+	(*CheckConstraintMetadata)(nil),        // 23: omni.metadata.CheckConstraintMetadata
+	(*ExcludeConstraintMetadata)(nil),      // 24: omni.metadata.ExcludeConstraintMetadata
+	(*ExternalTableMetadata)(nil),          // 25: omni.metadata.ExternalTableMetadata
+	(*TablePartitionMetadata)(nil),         // 26: omni.metadata.TablePartitionMetadata
+	(*ColumnMetadata)(nil),                 // 27: omni.metadata.ColumnMetadata
+	(*GenerationMetadata)(nil),             // 28: omni.metadata.GenerationMetadata
+	(*ViewMetadata)(nil),                   // 29: omni.metadata.ViewMetadata
+	(*DependencyColumn)(nil),               // 30: omni.metadata.DependencyColumn
+	(*MaterializedViewMetadata)(nil),       // 31: omni.metadata.MaterializedViewMetadata
+	(*DependencyTable)(nil),                // 32: omni.metadata.DependencyTable
+	(*FunctionMetadata)(nil),               // 33: omni.metadata.FunctionMetadata
+	(*ProcedureMetadata)(nil),              // 34: omni.metadata.ProcedureMetadata
+	(*PackageMetadata)(nil),                // 35: omni.metadata.PackageMetadata
+	(*IndexMetadata)(nil),                  // 36: omni.metadata.IndexMetadata
+	(*IndexConstraintMetadata)(nil),        // 37: omni.metadata.IndexConstraintMetadata
+	(*SpatialIndexConfig)(nil),             // 38: omni.metadata.SpatialIndexConfig
+	(*TessellationConfig)(nil),             // 39: omni.metadata.TessellationConfig
+	(*BoundingBox)(nil),                    // 40: omni.metadata.BoundingBox
+	(*GridLevel)(nil),                      // 41: omni.metadata.GridLevel
+	(*StorageConfig)(nil),                  // 42: omni.metadata.StorageConfig
+	(*DimensionalConfig)(nil),              // 43: omni.metadata.DimensionalConfig
+	(*ExtensionMetadata)(nil),              // 44: omni.metadata.ExtensionMetadata
+	(*EventTriggerMetadata)(nil),           // 45: omni.metadata.EventTriggerMetadata
+	(*ForeignKeyMetadata)(nil),             // 46: omni.metadata.ForeignKeyMetadata
+	nil,                                    // 47: omni.metadata.SpatialIndexConfig.EngineSpecificEntry
 }
 var file_omni_metadata_database_proto_depIdxs = []int32{
-	8,  // 0: omni.metadata.DatabaseSchemaMetadata.schemas:type_name -> omni.metadata.SchemaMetadata
-	43, // 1: omni.metadata.DatabaseSchemaMetadata.extensions:type_name -> omni.metadata.ExtensionMetadata
-	7,  // 2: omni.metadata.DatabaseSchemaMetadata.linked_databases:type_name -> omni.metadata.LinkedDatabaseMetadata
-	44, // 3: omni.metadata.DatabaseSchemaMetadata.event_triggers:type_name -> omni.metadata.EventTriggerMetadata
-	11, // 4: omni.metadata.DatabaseSchemaMetadata.public_synonyms:type_name -> omni.metadata.SynonymMetadata
-	21, // 5: omni.metadata.SchemaMetadata.tables:type_name -> omni.metadata.TableMetadata
-	24, // 6: omni.metadata.SchemaMetadata.external_tables:type_name -> omni.metadata.ExternalTableMetadata
-	28, // 7: omni.metadata.SchemaMetadata.views:type_name -> omni.metadata.ViewMetadata
-	32, // 8: omni.metadata.SchemaMetadata.functions:type_name -> omni.metadata.FunctionMetadata
-	33, // 9: omni.metadata.SchemaMetadata.procedures:type_name -> omni.metadata.ProcedureMetadata
-	20, // 10: omni.metadata.SchemaMetadata.streams:type_name -> omni.metadata.StreamMetadata
-	19, // 11: omni.metadata.SchemaMetadata.tasks:type_name -> omni.metadata.TaskMetadata
-	30, // 12: omni.metadata.SchemaMetadata.materialized_views:type_name -> omni.metadata.MaterializedViewMetadata
-	16, // 13: omni.metadata.SchemaMetadata.sequences:type_name -> omni.metadata.SequenceMetadata
-	34, // 14: omni.metadata.SchemaMetadata.packages:type_name -> omni.metadata.PackageMetadata
-	15, // 15: omni.metadata.SchemaMetadata.events:type_name -> omni.metadata.EventMetadata
-	12, // 16: omni.metadata.SchemaMetadata.enum_types:type_name -> omni.metadata.EnumTypeMetadata
-	13, // 17: omni.metadata.SchemaMetadata.composite_types:type_name -> omni.metadata.CompositeTypeMetadata
-	11, // 18: omni.metadata.SchemaMetadata.synonyms:type_name -> omni.metadata.SynonymMetadata
-	10, // 19: omni.metadata.SchemaMetadata.collations:type_name -> omni.metadata.CollationMetadata
-	9,  // 20: omni.metadata.SchemaMetadata.range_types:type_name -> omni.metadata.RangeTypeMetadata
-	14, // 21: omni.metadata.CompositeTypeMetadata.attributes:type_name -> omni.metadata.CompositeTypeAttribute
-	0,  // 22: omni.metadata.TaskMetadata.state:type_name -> omni.metadata.TaskMetadata.State
-	1,  // 23: omni.metadata.StreamMetadata.type:type_name -> omni.metadata.StreamMetadata.Type
-	2,  // 24: omni.metadata.StreamMetadata.mode:type_name -> omni.metadata.StreamMetadata.Mode
-	26, // 25: omni.metadata.TableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	35, // 26: omni.metadata.TableMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	45, // 27: omni.metadata.TableMetadata.foreign_keys:type_name -> omni.metadata.ForeignKeyMetadata
-	25, // 28: omni.metadata.TableMetadata.partitions:type_name -> omni.metadata.TablePartitionMetadata
-	22, // 29: omni.metadata.TableMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
-	17, // 30: omni.metadata.TableMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	18, // 31: omni.metadata.TableMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	23, // 32: omni.metadata.TableMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
-	26, // 33: omni.metadata.ExternalTableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	3,  // 34: omni.metadata.TablePartitionMetadata.type:type_name -> omni.metadata.TablePartitionMetadata.Type
-	25, // 35: omni.metadata.TablePartitionMetadata.subpartitions:type_name -> omni.metadata.TablePartitionMetadata
-	35, // 36: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	22, // 37: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
-	23, // 38: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
-	27, // 39: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
-	4,  // 40: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
-	5,  // 41: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
-	29, // 42: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	26, // 43: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
-	17, // 44: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	18, // 45: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
-	29, // 46: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
-	17, // 47: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
-	35, // 48: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
-	31, // 49: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
-	36, // 50: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
-	37, // 51: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
-	38, // 52: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
-	41, // 53: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
-	42, // 54: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
-	46, // 55: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
-	39, // 56: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
-	40, // 57: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
-	58, // [58:58] is the sub-list for method output_type
-	58, // [58:58] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	9,  // 0: omni.metadata.DatabaseSchemaMetadata.schemas:type_name -> omni.metadata.SchemaMetadata
+	44, // 1: omni.metadata.DatabaseSchemaMetadata.extensions:type_name -> omni.metadata.ExtensionMetadata
+	8,  // 2: omni.metadata.DatabaseSchemaMetadata.linked_databases:type_name -> omni.metadata.LinkedDatabaseMetadata
+	45, // 3: omni.metadata.DatabaseSchemaMetadata.event_triggers:type_name -> omni.metadata.EventTriggerMetadata
+	12, // 4: omni.metadata.DatabaseSchemaMetadata.public_synonyms:type_name -> omni.metadata.SynonymMetadata
+	7,  // 5: omni.metadata.DatabaseSchemaMetadata.foreign_servers:type_name -> omni.metadata.ForeignServerMetadata
+	22, // 6: omni.metadata.SchemaMetadata.tables:type_name -> omni.metadata.TableMetadata
+	25, // 7: omni.metadata.SchemaMetadata.external_tables:type_name -> omni.metadata.ExternalTableMetadata
+	29, // 8: omni.metadata.SchemaMetadata.views:type_name -> omni.metadata.ViewMetadata
+	33, // 9: omni.metadata.SchemaMetadata.functions:type_name -> omni.metadata.FunctionMetadata
+	34, // 10: omni.metadata.SchemaMetadata.procedures:type_name -> omni.metadata.ProcedureMetadata
+	21, // 11: omni.metadata.SchemaMetadata.streams:type_name -> omni.metadata.StreamMetadata
+	20, // 12: omni.metadata.SchemaMetadata.tasks:type_name -> omni.metadata.TaskMetadata
+	31, // 13: omni.metadata.SchemaMetadata.materialized_views:type_name -> omni.metadata.MaterializedViewMetadata
+	17, // 14: omni.metadata.SchemaMetadata.sequences:type_name -> omni.metadata.SequenceMetadata
+	35, // 15: omni.metadata.SchemaMetadata.packages:type_name -> omni.metadata.PackageMetadata
+	16, // 16: omni.metadata.SchemaMetadata.events:type_name -> omni.metadata.EventMetadata
+	13, // 17: omni.metadata.SchemaMetadata.enum_types:type_name -> omni.metadata.EnumTypeMetadata
+	14, // 18: omni.metadata.SchemaMetadata.composite_types:type_name -> omni.metadata.CompositeTypeMetadata
+	12, // 19: omni.metadata.SchemaMetadata.synonyms:type_name -> omni.metadata.SynonymMetadata
+	11, // 20: omni.metadata.SchemaMetadata.collations:type_name -> omni.metadata.CollationMetadata
+	10, // 21: omni.metadata.SchemaMetadata.range_types:type_name -> omni.metadata.RangeTypeMetadata
+	15, // 22: omni.metadata.CompositeTypeMetadata.attributes:type_name -> omni.metadata.CompositeTypeAttribute
+	0,  // 23: omni.metadata.TaskMetadata.state:type_name -> omni.metadata.TaskMetadata.State
+	1,  // 24: omni.metadata.StreamMetadata.type:type_name -> omni.metadata.StreamMetadata.Type
+	2,  // 25: omni.metadata.StreamMetadata.mode:type_name -> omni.metadata.StreamMetadata.Mode
+	27, // 26: omni.metadata.TableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	36, // 27: omni.metadata.TableMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	46, // 28: omni.metadata.TableMetadata.foreign_keys:type_name -> omni.metadata.ForeignKeyMetadata
+	26, // 29: omni.metadata.TableMetadata.partitions:type_name -> omni.metadata.TablePartitionMetadata
+	23, // 30: omni.metadata.TableMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
+	18, // 31: omni.metadata.TableMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	19, // 32: omni.metadata.TableMetadata.rules:type_name -> omni.metadata.RuleMetadata
+	24, // 33: omni.metadata.TableMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
+	27, // 34: omni.metadata.ExternalTableMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	3,  // 35: omni.metadata.TablePartitionMetadata.type:type_name -> omni.metadata.TablePartitionMetadata.Type
+	26, // 36: omni.metadata.TablePartitionMetadata.subpartitions:type_name -> omni.metadata.TablePartitionMetadata
+	36, // 37: omni.metadata.TablePartitionMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	23, // 38: omni.metadata.TablePartitionMetadata.check_constraints:type_name -> omni.metadata.CheckConstraintMetadata
+	24, // 39: omni.metadata.TablePartitionMetadata.exclude_constraints:type_name -> omni.metadata.ExcludeConstraintMetadata
+	28, // 40: omni.metadata.ColumnMetadata.generation:type_name -> omni.metadata.GenerationMetadata
+	4,  // 41: omni.metadata.ColumnMetadata.identity_generation:type_name -> omni.metadata.ColumnMetadata.IdentityGeneration
+	5,  // 42: omni.metadata.GenerationMetadata.type:type_name -> omni.metadata.GenerationMetadata.Type
+	30, // 43: omni.metadata.ViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	27, // 44: omni.metadata.ViewMetadata.columns:type_name -> omni.metadata.ColumnMetadata
+	18, // 45: omni.metadata.ViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	19, // 46: omni.metadata.ViewMetadata.rules:type_name -> omni.metadata.RuleMetadata
+	30, // 47: omni.metadata.MaterializedViewMetadata.dependency_columns:type_name -> omni.metadata.DependencyColumn
+	18, // 48: omni.metadata.MaterializedViewMetadata.triggers:type_name -> omni.metadata.TriggerMetadata
+	36, // 49: omni.metadata.MaterializedViewMetadata.indexes:type_name -> omni.metadata.IndexMetadata
+	32, // 50: omni.metadata.FunctionMetadata.dependency_tables:type_name -> omni.metadata.DependencyTable
+	37, // 51: omni.metadata.IndexMetadata.constraints:type_name -> omni.metadata.IndexConstraintMetadata
+	38, // 52: omni.metadata.IndexMetadata.spatial_config:type_name -> omni.metadata.SpatialIndexConfig
+	39, // 53: omni.metadata.SpatialIndexConfig.tessellation:type_name -> omni.metadata.TessellationConfig
+	42, // 54: omni.metadata.SpatialIndexConfig.storage:type_name -> omni.metadata.StorageConfig
+	43, // 55: omni.metadata.SpatialIndexConfig.dimensional:type_name -> omni.metadata.DimensionalConfig
+	47, // 56: omni.metadata.SpatialIndexConfig.engine_specific:type_name -> omni.metadata.SpatialIndexConfig.EngineSpecificEntry
+	40, // 57: omni.metadata.TessellationConfig.bounding_box:type_name -> omni.metadata.BoundingBox
+	41, // 58: omni.metadata.TessellationConfig.grid_levels:type_name -> omni.metadata.GridLevel
+	59, // [59:59] is the sub-list for method output_type
+	59, // [59:59] is the sub-list for method input_type
+	59, // [59:59] is the sub-list for extension type_name
+	59, // [59:59] is the sub-list for extension extendee
+	0,  // [0:59] is the sub-list for field type_name
 }
 
 func init() { file_omni_metadata_database_proto_init() }
@@ -5338,15 +5461,15 @@ func file_omni_metadata_database_proto_init() {
 	if File_omni_metadata_database_proto != nil {
 		return
 	}
-	file_omni_metadata_database_proto_msgTypes[4].OneofWrappers = []any{}
-	file_omni_metadata_database_proto_msgTypes[20].OneofWrappers = []any{}
+	file_omni_metadata_database_proto_msgTypes[5].OneofWrappers = []any{}
+	file_omni_metadata_database_proto_msgTypes[21].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_omni_metadata_database_proto_rawDesc), len(file_omni_metadata_database_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   41,
+			NumMessages:   42,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

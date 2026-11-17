@@ -225,9 +225,9 @@ CREATE UNIQUE INDEX order_totals_customer ON app.order_totals (customer_id);
 COMMENT ON MATERIALIZED VIEW app.order_totals IS 'per customer';
 
 -- Foreign tables.
-CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres'); -- not restorable: TestDumpGaps
-CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30)) -- not restorable: TestDumpGaps
-    SERVER loopback OPTIONS (schema_name 'public', table_name 'orders'); -- not restorable: TestDumpGaps
+CREATE SERVER loopback FOREIGN DATA WRAPPER postgres_fdw OPTIONS (host 'localhost', dbname 'postgres');
+CREATE FOREIGN TABLE audit.remote_orders (id int NOT NULL, note varchar(30))
+    SERVER loopback OPTIONS (schema_name 'public', table_name 'orders');
 
 -- Shapes Bytebase's sync got wrong before the move: a sequence owned by a
 -- column after a dropped one, a view of a relation it reads no column of, a

@@ -1,408 +1,410 @@
 {
-  "name": "omni_sync_corpus",
-  "schemas": [
+  "name":  "omni_sync_corpus",
+  "schemas":  [
     {
-      "tables": [
+      "tables":  [
         {
-          "name": "accounts",
-          "columns": [
+          "name":  "accounts",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "default": "AUTO_INCREMENT",
-              "type": "bigint"
+              "name":  "id",
+              "position":  1,
+              "default":  "AUTO_INCREMENT",
+              "type":  "bigint"
             },
             {
-              "name": "email",
-              "position": 2,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci"
+              "name":  "email",
+              "position":  2,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
             },
             {
-              "name": "bio",
-              "position": 3,
-              "default": "NULL",
-              "nullable": true,
-              "type": "text",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci"
+              "name":  "bio",
+              "position":  3,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "text",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
             },
             {
-              "name": "status",
-              "position": 4,
-              "default": "'open'",
-              "type": "enum('open','closed')",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci"
+              "name":  "status",
+              "position":  4,
+              "default":  "'open'",
+              "type":  "enum('open','closed')",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
             },
             {
-              "name": "literal_ts",
-              "position": 5,
-              "default": "'CURRENT_TIMESTAMP'",
-              "type": "varchar(40)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci"
+              "name":  "literal_ts",
+              "position":  5,
+              "default":  "'CURRENT_TIMESTAMP'",
+              "type":  "varchar(40)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
             },
             {
-              "name": "balance",
-              "position": 6,
-              "default": "'0.0000'",
-              "type": "decimal(12,4)"
+              "name":  "balance",
+              "position":  6,
+              "default":  "'0.0000'",
+              "type":  "decimal(12,4)"
             },
             {
-              "name": "email_lower",
-              "position": 7,
-              "default": "'LOWER(`email`)'",
-              "nullable": true,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci",
-              "generation": {
-                "type": "TYPE_VIRTUAL",
-                "expression": "LOWER(`email`)"
+              "name":  "email_lower",
+              "position":  7,
+              "default":  "'LOWER(`email`)'",
+              "nullable":  true,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci",
+              "generation":  {
+                "type":  "TYPE_VIRTUAL",
+                "expression":  "LOWER(`email`)"
               }
             },
             {
-              "name": "display_tag",
-              "position": 8,
-              "default": "'CONCAT(`email`,\\':\\',\\'v1\\')'",
-              "nullable": true,
-              "type": "varchar(220)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci",
-              "generation": {
-                "type": "TYPE_STORED",
-                "expression": "CONCAT(`email`,':','v1')"
+              "name":  "display_tag",
+              "position":  8,
+              "default":  "'CONCAT(`email`,\\':\\',\\'v1\\')'",
+              "nullable":  true,
+              "type":  "varchar(220)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci",
+              "generation":  {
+                "type":  "TYPE_STORED",
+                "expression":  "CONCAT(`email`,':','v1')"
               }
             },
             {
-              "name": "created_at",
-              "position": 9,
-              "default": "CURRENT_TIMESTAMP",
-              "type": "datetime"
+              "name":  "created_at",
+              "position":  9,
+              "default":  "CURRENT_TIMESTAMP",
+              "type":  "datetime"
             },
             {
-              "name": "updated_at",
-              "position": 10,
-              "default": "CURRENT_TIMESTAMP",
-              "onUpdate": "CURRENT_TIMESTAMP(6)",
-              "type": "datetime(6)"
+              "name":  "updated_at",
+              "position":  10,
+              "default":  "CURRENT_TIMESTAMP",
+              "onUpdate":  "CURRENT_TIMESTAMP(6)",
+              "type":  "datetime(6)"
             },
             {
-              "name": "note",
-              "position": 11,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(100)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci",
-              "comment": "owner\\'s note"
+              "name":  "note",
+              "position":  11,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(100)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci",
+              "comment":  "owner\\'s note"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY",
-              "expressions": [
+              "name":  "PRIMARY",
+              "expressions":  [
                 "id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "primary": true,
-              "visible": true,
-              "comment": "customer accounts"
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true,
+              "comment":  "customer accounts"
             },
             {
-              "name": "idx_bio_prefix",
-              "expressions": [
+              "name":  "idx_bio_prefix",
+              "expressions":  [
                 "bio"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "32"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             },
             {
-              "name": "uk_email",
-              "expressions": [
+              "name":  "uk_email",
+              "expressions":  [
                 "email"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_general_ci",
-          "charset": "utf8mb4",
-          "comment": "customer accounts"
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "comment":  "customer accounts"
         },
         {
-          "name": "orders",
-          "columns": [
+          "name":  "orders",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "default": "AUTO_INCREMENT",
-              "type": "bigint"
+              "name":  "id",
+              "position":  1,
+              "default":  "AUTO_INCREMENT",
+              "type":  "bigint"
             },
             {
-              "name": "account_id",
-              "position": 2,
-              "type": "bigint"
+              "name":  "account_id",
+              "position":  2,
+              "type":  "bigint"
             },
             {
-              "name": "total",
-              "position": 3,
-              "type": "int"
+              "name":  "total",
+              "position":  3,
+              "type":  "int"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "PRIMARY",
-              "expressions": [
+              "name":  "PRIMARY",
+              "expressions":  [
                 "id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "unique": true,
-              "primary": true,
-              "visible": true
+              "type":  "BTREE",
+              "unique":  true,
+              "primary":  true,
+              "visible":  true
             },
             {
-              "name": "idx_account",
-              "expressions": [
+              "name":  "idx_account",
+              "expressions":  [
                 "account_id"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_general_ci",
-          "charset": "utf8mb4",
-          "foreignKeys": [
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "foreignKeys":  [
             {
-              "name": "fk_orders_account",
-              "columns": [
+              "name":  "fk_orders_account",
+              "columns":  [
                 "account_id"
               ],
-              "referencedTable": "accounts",
-              "referencedColumns": [
+              "referencedTable":  "accounts",
+              "referencedColumns":  [
                 "id"
               ],
-              "onDelete": "CASCADE",
-              "onUpdate": "RESTRICT",
-              "matchType": "NONE"
+              "onDelete":  "CASCADE",
+              "onUpdate":  "RESTRICT",
+              "matchType":  "NONE"
             }
           ],
-          "triggers": [
+          "triggers":  [
             {
-              "name": "trg_orders_bi",
-              "event": "INSERT",
-              "timing": "BEFORE",
-              "body": "TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END",
-              "sqlMode": "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
-              "characterSetClient": "utf8mb4",
-              "collationConnection": "utf8mb4_general_ci"
+              "name":  "trg_orders_bi",
+              "event":  "INSERT",
+              "timing":  "BEFORE",
+              "body":  "TRIGGER trg_orders_bi BEFORE INSERT ON orders FOR EACH ROW BEGIN IF NEW.total < 0 THEN SET NEW.total = 0; END IF; END",
+              "sqlMode":  "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
+              "characterSetClient":  "utf8mb4",
+              "collationConnection":  "utf8mb4_general_ci"
             }
           ]
         },
         {
-          "name": "__mv_container_0000000000000001",
-          "columns": [
+          "name":  "__mv_container_0000000000000001",
+          "columns":  [
             {
-              "name": "id",
-              "position": 1,
-              "default": "NULL",
-              "nullable": true,
-              "type": "bigint"
+              "name":  "id",
+              "position":  1,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "bigint"
             },
             {
-              "name": "email",
-              "position": 2,
-              "default": "NULL",
-              "nullable": true,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci"
+              "name":  "email",
+              "position":  2,
+              "default":  "NULL",
+              "nullable":  true,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
             }
           ],
-          "indexes": [
+          "indexes":  [
             {
-              "name": "idx_mv_email",
-              "expressions": [
+              "name":  "idx_mv_email",
+              "expressions":  [
                 "email"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             }
           ],
-          "engine": "InnoDB",
-          "collation": "utf8mb4_general_ci",
-          "charset": "utf8mb4",
-          "comment": "materialized accounts"
+          "engine":  "InnoDB",
+          "collation":  "utf8mb4_general_ci",
+          "charset":  "utf8mb4",
+          "comment":  "materialized accounts"
         }
       ],
-      "externalTables": [
+      "externalTables":  [
         {
-          "name": "ext_feed",
-          "columns": [
+          "name":  "ext_feed",
+          "columns":  [
             {
-              "name": "c1",
-              "position": 1,
-              "default": "'metadata$filecol1'",
-              "nullable": true,
-              "type": "int",
-              "generation": {
-                "type": "TYPE_STORED",
-                "expression": "metadata$filecol1"
+              "name":  "c1",
+              "position":  1,
+              "default":  "'metadata$filecol1'",
+              "nullable":  true,
+              "type":  "int",
+              "generation":  {
+                "type":  "TYPE_STORED",
+                "expression":  "metadata$filecol1"
               }
             },
             {
-              "name": "c2",
-              "position": 2,
-              "default": "'metadata$filecol2'",
-              "nullable": true,
-              "type": "varchar(10)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci",
-              "generation": {
-                "type": "TYPE_STORED",
-                "expression": "metadata$filecol2"
+              "name":  "c2",
+              "position":  2,
+              "default":  "'metadata$filecol2'",
+              "nullable":  true,
+              "type":  "varchar(10)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci",
+              "generation":  {
+                "type":  "TYPE_STORED",
+                "expression":  "metadata$filecol2"
               }
             }
-          ]
+          ],
+          "location":  "file:///tmp",
+          "format":  "TYPE = 'CSV', ENCODING = 'utf8mb4'"
         }
       ],
-      "views": [
+      "views":  [
         {
-          "name": "v_named_cols",
-          "definition": "select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`",
-          "columns": [
+          "name":  "v_named_cols",
+          "definition":  "select `omni_sync_corpus`.`accounts`.`id` AS `renamed_id` from `omni_sync_corpus`.`accounts`",
+          "columns":  [
             {
-              "name": "renamed_id",
-              "position": 1,
-              "type": "bigint"
+              "name":  "renamed_id",
+              "position":  1,
+              "type":  "bigint"
             }
           ]
         },
         {
-          "name": "v_named_cols_ref",
-          "definition": "select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`",
-          "columns": [
+          "name":  "v_named_cols_ref",
+          "definition":  "select `omni_sync_corpus`.`v_named_cols`.`renamed_id` AS `renamed_id` from `omni_sync_corpus`.`v_named_cols`",
+          "columns":  [
             {
-              "name": "renamed_id",
-              "position": 1,
-              "type": "bigint"
+              "name":  "renamed_id",
+              "position":  1,
+              "type":  "bigint"
             }
           ]
         },
         {
-          "name": "v_open_accounts",
-          "definition": "select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')",
-          "columns": [
+          "name":  "v_open_accounts",
+          "definition":  "select `omni_sync_corpus`.`accounts`.`id` AS `acct_id`,`omni_sync_corpus`.`accounts`.`email` AS `acct_email` from `omni_sync_corpus`.`accounts` where (`omni_sync_corpus`.`accounts`.`status` = 'open')",
+          "columns":  [
             {
-              "name": "acct_id",
-              "position": 1,
-              "type": "bigint"
+              "name":  "acct_id",
+              "position":  1,
+              "type":  "bigint"
             },
             {
-              "name": "acct_email",
-              "position": 2,
-              "type": "varchar(190)",
-              "characterSet": "utf8mb4",
-              "collation": "utf8mb4_general_ci"
+              "name":  "acct_email",
+              "position":  2,
+              "type":  "varchar(190)",
+              "characterSet":  "utf8mb4",
+              "collation":  "utf8mb4_general_ci"
             }
           ]
         }
       ],
-      "functions": [
+      "functions":  [
         {
-          "name": "fn_format_tag",
-          "definition": "CREATE FUNCTION `fn_format_tag`(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT) RETURNS varchar(64)\n    NO SQL\n    DETERMINISTIC\n    COMMENT 'formats a tag'\nBEGIN\n\tRETURN CONCAT(p_prefix, '-', p_id);\nEND",
-          "characterSetClient": "utf8mb4",
-          "collationConnection": "utf8mb4_general_ci",
-          "databaseCollation": "utf8mb4_general_ci",
-          "sqlMode": "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
-          "comment": "formats a tag"
+          "name":  "fn_format_tag",
+          "definition":  "CREATE FUNCTION `fn_format_tag`(p_prefix VARCHAR(16) CHARSET utf8mb4, p_id BIGINT) RETURNS varchar(64)\n    NO SQL\n    DETERMINISTIC\n    COMMENT 'formats a tag'\nBEGIN\n\tRETURN CONCAT(p_prefix, '-', p_id);\nEND",
+          "characterSetClient":  "utf8mb4",
+          "collationConnection":  "utf8mb4_general_ci",
+          "databaseCollation":  "utf8mb4_general_ci",
+          "sqlMode":  "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
+          "comment":  "formats a tag"
         }
       ],
-      "procedures": [
+      "procedures":  [
         {
-          "name": "sp_touch_order",
-          "definition": "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    READS SQL DATA\n    COMMENT 'reads order total'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
-          "characterSetClient": "utf8mb4",
-          "collationConnection": "utf8mb4_general_ci",
-          "databaseCollation": "utf8mb4_general_ci",
-          "sqlMode": "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
-          "comment": "reads order total"
+          "name":  "sp_touch_order",
+          "definition":  "CREATE PROCEDURE `sp_touch_order`(IN p_id BIGINT, OUT p_total INT)\n    READS SQL DATA\n    COMMENT 'reads order total'\nBEGIN\n\tSELECT total INTO p_total FROM orders WHERE id = p_id;\nEND",
+          "characterSetClient":  "utf8mb4",
+          "collationConnection":  "utf8mb4_general_ci",
+          "databaseCollation":  "utf8mb4_general_ci",
+          "sqlMode":  "STRICT_ALL_TABLES,NO_ZERO_IN_DATE,NO_AUTO_CREATE_USER",
+          "comment":  "reads order total"
         }
       ],
-      "materializedViews": [
+      "materializedViews":  [
         {
-          "name": "mv_accounts",
-          "definition": "select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`",
-          "comment": "materialized accounts",
-          "indexes": [
+          "name":  "mv_accounts",
+          "definition":  "select `omni_sync_corpus`.`accounts`.`id` AS `id`,`omni_sync_corpus`.`accounts`.`email` AS `email` from `omni_sync_corpus`.`accounts`",
+          "comment":  "materialized accounts",
+          "indexes":  [
             {
-              "name": "idx_mv_email",
-              "expressions": [
+              "name":  "idx_mv_email",
+              "expressions":  [
                 "email"
               ],
-              "keyLength": [
+              "keyLength":  [
                 "-1"
               ],
-              "descending": [
+              "descending":  [
                 false
               ],
-              "type": "BTREE",
-              "visible": true
+              "type":  "BTREE",
+              "visible":  true
             }
           ],
-          "skipDump": true
+          "skipDump":  true
         }
       ],
-      "events": [
+      "events":  [
         {
-          "name": "ev_daily_check"
+          "name":  "ev_daily_check"
         }
       ]
     }
   ],
-  "characterSet": "utf8mb4",
-  "collation": "utf8mb4_general_ci"
+  "characterSet":  "utf8mb4",
+  "collation":  "utf8mb4_general_ci"
 }

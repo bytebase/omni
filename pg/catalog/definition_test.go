@@ -556,3 +556,42 @@ func TestSchemaDefinitionWritesAnExtensionSchemasTypes(t *testing.T) {
 )`)
 	assert.Contains(t, got, `CREATE TABLE "ext"."t"`)
 }
+
+// TestDatabaseDefinitionWritesForeignServerBeforeForeignTable checks that a
+// foreign server and the options it and its table state are written, and that
+// the server comes before the table that names it: CREATE FOREIGN TABLE fails
+// if its server does not exist.
+func TestDatabaseDefinitionWritesForeignServerBeforeForeignTable(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name:    "loopback",
+			Fdw:     "postgres_fdw",
+			Options: []string{"host=localhost", "dbname=postgres"},
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "audit",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{{
+				Name:               "remote_orders",
+				ExternalServerName: "loopback",
+				Columns: []*metadatapb.ColumnMetadata{
+					{Name: "id", Type: "integer", Nullable: false},
+					{Name: "note", Type: "text", Nullable: true},
+				},
+				Options: []string{"schema_name=public", "table_name=orders"},
+			}},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	server := `CREATE SERVER "loopback" FOREIGN DATA WRAPPER "postgres_fdw" OPTIONS (host 'localhost', dbname 'postgres');`
+	table := `CREATE FOREIGN TABLE "audit"."remote_orders" (
+    "id" integer NOT NULL,
+    "note" text
+) SERVER "loopback" OPTIONS (schema_name 'public', table_name 'orders');`
+	assert.Contains(t, result, server)
+	assert.Contains(t, result, table)
+	assert.Less(t, strings.Index(result, server), strings.Index(result, table), "the server must be written before its foreign table")
+}

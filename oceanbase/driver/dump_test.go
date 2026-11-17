@@ -74,7 +74,7 @@ func TestDumpRestores(t *testing.T) {
 // TestDumpGaps pins OceanBase objects that a dump cannot faithfully restore
 // yet: generated columns (OceanBase fills COLUMN_DEFAULT alongside
 // GENERATION_EXPRESSION, so the dump emits both GENERATED ALWAYS and DEFAULT),
-// external tables, materialized views, and name-only events.
+// materialized views, and name-only events.
 func TestDumpGaps(t *testing.T) {
 	for _, gap := range []struct {
 		name, db, setup, wantErr string
@@ -96,11 +96,6 @@ func TestDumpGaps(t *testing.T) {
 			db:      "omni_gap_trg",
 			setup:   "CREATE TABLE trg_t (id INT PRIMARY KEY, v INT);\n\nCREATE TRIGGER trg_1 BEFORE INSERT ON trg_t FOR EACH ROW SET NEW.v = 1;",
 			wantErr: "syntax",
-		},
-		{
-			name:  "external table",
-			db:    "omni_gap_ext",
-			setup: "CREATE EXTERNAL TABLE ext_t (c1 INT) LOCATION = '/tmp' FORMAT = (TYPE = 'CSV');",
 		},
 		{
 			name:  "materialized view",
