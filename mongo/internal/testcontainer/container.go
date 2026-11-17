@@ -558,7 +558,7 @@ func start(ctx context.Context) (*mongo.Client, error) {
 			err = fmt.Errorf("docker provider panic: %v", r)
 		}
 	}()
-	container, err := testcontainers.Run(ctx, pin.Image,
+	container, err := testcontainers.Run(ctx, pin.ImageRef(),
 		testcontainers.WithEnv(map[string]string{
 			"MONGO_INITDB_ROOT_USERNAME": user,
 			"MONGO_INITDB_ROOT_PASSWORD": password,
@@ -614,6 +614,10 @@ func connect(ctx context.Context, addr string) (*mongo.Client, error) {
 	return client, nil
 }
 
+// checkDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func checkDigest(ctx context.Context, container testcontainers.Container, digest string) error {
 	info, err := container.Inspect(ctx)
 	if err != nil {

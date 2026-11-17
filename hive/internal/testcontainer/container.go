@@ -270,7 +270,7 @@ func start(ctx context.Context, pin enginetest.Pin) (err error) {
 	}()
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        pin.Image,
+			Image:        pin.ImageRef(),
 			ExposedPorts: []string{"10000/tcp"},
 			Env:          map[string]string{"SERVICE_NAME": "hiveserver2"},
 			Files: []testcontainers.ContainerFile{{
@@ -346,8 +346,10 @@ func Terminate() {
 	}
 }
 
-// CheckDigest fails unless c runs the image with the pinned repository digest.
-// A tag can be pushed again; a digest cannot.
+// CheckDigest proves the container runs the pinned image. The pull names
+// image@digest, so a moved tag cannot select another image; this check reads
+// what the daemon actually started, which is where the recorded answers came
+// from.
 func CheckDigest(ctx context.Context, c testcontainers.Container, digest string) error {
 	info, err := c.Inspect(ctx)
 	if err != nil {

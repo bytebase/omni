@@ -102,6 +102,9 @@ GO
 CREATE SEQUENCE app.seq_alias AS app.big_id START WITH 1 INCREMENT BY 1;
 GO
 
+CREATE SEQUENCE app.seq_decimal AS DECIMAL(38, 0) START WITH 1 INCREMENT BY 1;
+GO
+
 CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS
 BEGIN
 	UPDATE app.orders SET total = 0 WHERE total < 0 AND id IN (SELECT id FROM inserted);

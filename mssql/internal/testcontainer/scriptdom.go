@@ -92,7 +92,6 @@ func startHarness(pin enginetest.Pin) error {
 	if m == nil || string(m[1]) != pin.Tag {
 		return fmt.Errorf("mssql/scriptdom/harness.csproj does not reference ScriptDOM %s, which pins.tsv pins", pin.Tag)
 	}
-	image, _, _ := strings.Cut(pin.Image, ":")
 	// --user keeps bin/, obj/ and the NuGet cache owned by the invoking user;
 	// the cache persists across runs, per uid, since runners and developers
 	// share a host's /tmp. The SDK's first-run NuGet mutex needs a HOME it
@@ -108,7 +107,7 @@ func startHarness(pin enginetest.Pin) error {
 		"-v", harnessDir+":/src", "-v", cache+":/nuget", "-w", "/src",
 		"-e", "HOME=/tmp", "-e", "DOTNET_CLI_HOME=/tmp", "-e", "NUGET_PACKAGES=/nuget",
 		"-e", "DOTNET_CLI_TELEMETRY_OPTOUT=1", "-e", "DOTNET_NOLOGO=1", "-e", "MSSQL_HARNESS_LINE=1",
-		image+"@"+pin.Digest, "sh", "-c",
+		pin.ImageRef(), "sh", "-c",
 		"dotnet build -c Release -v quiet --nologo 1>&2 && exec dotnet bin/Release/net8.0/mssql-scriptdom-harness.dll")
 	in, err := cmd.StdinPipe()
 	if err != nil {

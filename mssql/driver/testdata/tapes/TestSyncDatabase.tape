@@ -105,6 +105,9 @@
 | CREATE SEQUENCE app.seq_alias AS app.big_id START WITH 1 INCREMENT BY 1;
 < ok 0 -
 > exec
+| CREATE SEQUENCE app.seq_decimal AS DECIMAL(38, 0) START WITH 1 INCREMENT BY 1;
+< ok 0 -
+> exec
 | CREATE TRIGGER app.trg_orders_bi ON app.orders AFTER INSERT AS
 | BEGIN
 | 	UPDATE app.orders SET total = 0 WHERE total < 0 AND id IN (SELECT id FROM inserted);
@@ -851,9 +854,12 @@
 | 		i.name,
 | 		i.type_desc,
 | 		i.is_unique,
+| 		i.filter_definition,
 | 		xi.secondary_type_desc,
 | 		pi.name AS using_index_name,
 | 		col.name AS column_name,
+| 		ic.key_ordinal,
+| 		ic.is_included_column,
 | 		ic.is_descending_key
 | 	FROM sys.indexes i
 | 	INNER JOIN sys.all_objects o ON o.object_id = i.object_id
@@ -864,9 +870,6 @@
 | 	INNER JOIN sys.all_columns col ON ic.column_id = col.column_id AND ic.object_id = col.object_id
 | 	WHERE i.index_id > 0 AND i.is_primary_key = 0 AND i.is_unique_constraint = 0
 | 		AND s.name in (N'app',N'dbo') AND o.type IN ('U', 'S', 'V')
-| 		-- A rowstore index's INCLUDE columns carry key_ordinal 0, and belong to no
-| 		-- key; a columnstore or XML index states every one of its columns that way.
-| 		AND (ic.key_ordinal > 0 OR i.type_desc IN ('CLUSTERED COLUMNSTORE', 'NONCLUSTERED COLUMNSTORE', 'XML'))
 | 	ORDER BY s.name, o.name, i.index_id, ic.key_ordinal, ic.index_column_id
 | 	
 < result
@@ -877,9 +880,12 @@
 < column "name" "NVARCHAR"
 < column "type_desc" "NVARCHAR"
 < column "is_unique" "BIT"
+< column "filter_definition" "NVARCHAR"
 < column "secondary_type_desc" "NVARCHAR"
 < column "using_index_name" "NVARCHAR"
 < column "column_name" "NVARCHAR"
+< column "key_ordinal" "TINYINT"
+< column "is_included_column" "BIT"
 < column "is_descending_key" "BIT"
 < row
 : string
@@ -893,10 +899,35 @@
 : string
 | NONCLUSTERED
 : bool false
+: string
+| ([status]='open')
+: null
+: null
+: string
+| email
+: int64 0
+: bool true
+: bool false
+< row
+: string
+| app
+: string
+| accounts
+: int64 901578250
+: int64 3
+: string
+| idx_accounts_status
+: string
+| NONCLUSTERED
+: bool false
+: string
+| ([status]='open')
 : null
 : null
 : string
 | status
+: int64 1
+: bool false
 : bool false
 < row
 : string
@@ -912,8 +943,11 @@
 : bool false
 : null
 : null
+: null
 : string
 | xml_doc
+: int64 0
+: bool false
 : bool false
 < row
 : string
@@ -927,10 +961,13 @@
 : string
 | NONCLUSTERED COLUMNSTORE
 : bool false
+: null
 : null
 : null
 : string
 | ts
+: int64 0
+: bool true
 : bool false
 < row
 : string
@@ -946,8 +983,11 @@
 : bool false
 : null
 : null
+: null
 : string
 | val
+: int64 0
+: bool true
 : bool false
 > query
 |
@@ -1231,339 +1271,23 @@
 | order sequence
 > query
 |
-| 		SELECT object_id, SUM(row_count) AS total_rows
-| 		FROM sys.dm_db_partition_stats
-| 		WHERE index_id < 2
-| 		GROUP BY object_id
+| 		SELECT ps.object_id, SUM(ps.row_count) AS total_rows
+| 		FROM sys.dm_db_partition_stats ps
+| 		INNER JOIN sys.tables t ON t.object_id = ps.object_id
+| 		INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
+| 		WHERE ps.index_id < 2 AND s.name IN (N'app',N'dbo')
+| 		GROUP BY ps.object_id
 < result
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
 < row
-: int64 3
-: int64 1530
-< row
-: int64 5
-: int64 196
-< row
-: int64 6
-: int64 0
-< row
-: int64 7
-: int64 234
-< row
-: int64 8
-: int64 2
-< row
-: int64 9
-: int64 3
-< row
-: int64 17
-: int64 0
-< row
-: int64 18
-: int64 0
-< row
-: int64 19
-: int64 0
-< row
-: int64 20
-: int64 2
-< row
-: int64 21
-: int64 0
-< row
-: int64 22
-: int64 0
-< row
-: int64 23
-: int64 1
-< row
-: int64 24
-: int64 2
-< row
-: int64 25
-: int64 0
-< row
-: int64 27
-: int64 14
-< row
-: int64 28
-: int64 0
-< row
-: int64 29
-: int64 229
-< row
-: int64 34
-: int64 2800
-< row
-: int64 35
-: int64 0
-< row
-: int64 36
-: int64 0
-< row
-: int64 37
-: int64 0
-< row
-: int64 38
-: int64 0
-< row
-: int64 40
-: int64 0
-< row
-: int64 41
-: int64 1264
-< row
-: int64 42
-: int64 0
-< row
-: int64 43
-: int64 0
-< row
-: int64 44
-: int64 1
-< row
-: int64 45
-: int64 0
-< row
-: int64 46
-: int64 0
-< row
-: int64 47
-: int64 0
-< row
-: int64 48
-: int64 0
-< row
-: int64 49
-: int64 5
-< row
-: int64 50
-: int64 35
-< row
-: int64 51
-: int64 0
-< row
-: int64 54
-: int64 229
-< row
-: int64 55
-: int64 458
-< row
-: int64 56
-: int64 0
-< row
-: int64 57
-: int64 0
-< row
-: int64 58
-: int64 23
-< row
-: int64 59
-: int64 0
-< row
-: int64 60
-: int64 288
-< row
-: int64 62
-: int64 0
-< row
-: int64 63
-: int64 0
-< row
-: int64 64
-: int64 27
-< row
-: int64 65
-: int64 0
-< row
-: int64 67
-: int64 0
-< row
-: int64 68
-: int64 0
-< row
-: int64 69
-: int64 1
-< row
-: int64 71
-: int64 0
-< row
-: int64 72
-: int64 0
-< row
-: int64 73
-: int64 0
-< row
-: int64 74
-: int64 210
-< row
-: int64 75
-: int64 123
-< row
-: int64 78
-: int64 0
-< row
-: int64 79
-: int64 0
-< row
-: int64 80
-: int64 0
-< row
-: int64 82
-: int64 0
-< row
-: int64 84
-: int64 0
-< row
-: int64 85
-: int64 0
-< row
-: int64 86
-: int64 0
-< row
-: int64 87
-: int64 0
-< row
-: int64 89
-: int64 0
-< row
-: int64 90
-: int64 98
-< row
-: int64 91
-: int64 100
-< row
-: int64 92
-: int64 112
-< row
-: int64 93
-: int64 19
-< row
-: int64 94
-: int64 0
-< row
-: int64 95
-: int64 0
-< row
-: int64 96
-: int64 0
-< row
-: int64 97
-: int64 3
-< row
-: int64 98
-: int64 6
-< row
-: int64 101575400
-: int64 0
-< row
-: int64 117575457
-: int64 0
-< row
-: int64 133575514
-: int64 0
-< row
-: int64 165575628
-: int64 0
-< row
-: int64 181575685
-: int64 0
-< row
-: int64 197575742
-: int64 0
-< row
-: int64 213575799
-: int64 0
-< row
-: int64 229575856
-: int64 1
-< row
-: int64 245575913
-: int64 3
-< row
-: int64 261575970
-: int64 0
-< row
-: int64 277576027
-: int64 0
-< row
-: int64 293576084
-: int64 0
-< row
-: int64 341576255
-: int64 0
-< row
-: int64 357576312
-: int64 0
-< row
-: int64 373576369
-: int64 0
-< row
-: int64 389576426
-: int64 0
-< row
-: int64 405576483
-: int64 0
-< row
-: int64 565577053
-: int64 0
-< row
-: int64 581577110
-: int64 0
-< row
-: int64 597577167
-: int64 0
-< row
-: int64 613577224
-: int64 0
-< row
-: int64 629577281
-: int64 0
-< row
-: int64 645577338
-: int64 0
-< row
-: int64 661577395
-: int64 0
-< row
-: int64 677577452
-: int64 0
-< row
-: int64 693577509
-: int64 0
-< row
-: int64 885578193
-: int64 0
-< row
 : int64 901578250
-: int64 0
-< row
-: int64 1013578649
 : int64 0
 < row
 : int64 1029578706
 : int64 0
 < row
 : int64 1077578877
-: int64 0
-< row
-: int64 1993058136
-: int64 0
-< row
-: int64 2025058250
-: int64 0
-< row
-: int64 2057058364
-: int64 0
-< row
-: int64 2073058421
-: int64 0
-< row
-: int64 2089058478
-: int64 0
-< row
-: int64 2105058535
 : int64 0
 > query
 |
@@ -1636,6 +1360,14 @@
 | 		s.name,
 | 		seq.name,
 | 		tp.name,
+| 		seq.precision,
+| 		seq.scale,
+| 		CAST(seq.start_value AS NVARCHAR(MAX)) AS start_value,
+| 		CAST(seq.increment AS NVARCHAR(MAX)) AS increment,
+| 		CAST(seq.minimum_value AS NVARCHAR(MAX)) AS minimum_value,
+| 		CAST(seq.maximum_value AS NVARCHAR(MAX)) AS maximum_value,
+| 		seq.is_cycling,
+| 		CASE WHEN seq.is_cached = 0 THEN N'NO CACHE' ELSE CAST(seq.cache_size AS NVARCHAR(MAX)) END AS cache_size,
 | 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM
 | 		sys.sequences seq
@@ -1652,6 +1384,14 @@
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
 < column "name" "NVARCHAR"
+< column "precision" "TINYINT"
+< column "scale" "TINYINT"
+< column "start_value" "NVARCHAR"
+< column "increment" "NVARCHAR"
+< column "minimum_value" "NVARCHAR"
+< column "maximum_value" "NVARCHAR"
+< column "is_cycling" "BIT"
+< column "cache_size" "NVARCHAR"
 < column "comment" "NVARCHAR"
 < row
 : string
@@ -1660,6 +1400,38 @@
 | seq_alias
 : string
 | big_id
+: int64 19
+: int64 0
+: string
+| 1
+: string
+| 1
+: string
+| -9223372036854775808
+: string
+| 9223372036854775807
+: bool false
+: null
+: null
+< row
+: string
+| app
+: string
+| seq_decimal
+: string
+| decimal
+: int64 38
+: int64 0
+: string
+| 1
+: string
+| 1
+: string
+| -99999999999999999999999999999999999999
+: string
+| 99999999999999999999999999999999999999
+: bool false
+: null
 : null
 < row
 : string
@@ -1668,6 +1440,19 @@
 | seq_orders
 : string
 | bigint
+: int64 19
+: int64 0
+: string
+| 10
+: string
+| 2
+: string
+| 1
+: string
+| 10000
+: bool true
+: string
+| 50
 : string
 | order sequence
 > query
@@ -1724,9 +1509,14 @@
 | 	SELECT
 | 		SCHEMA_NAME(ao.schema_id) AS schema_name,
 | 		ao.name AS procedure_name,
-| 		asm.definition
+| 		asm.definition,
+| 		CAST(ep.value AS NVARCHAR(MAX)) AS comment
 | 	FROM sys.all_objects ao
 |         INNER JOIN sys.all_sql_modules asm ON asm.object_id = ao.object_id
+| 		LEFT JOIN sys.extended_properties ep ON ep.major_id = ao.object_id
+| 			AND ep.minor_id = 0
+| 			AND ep.class = 1
+| 			AND ep.name = 'MS_Description'
 | 	WHERE ao.type IN ('P', 'RF')
 | 		AND ao.is_ms_shipped = 0 AND
 | 		(
@@ -1742,6 +1532,7 @@
 < column "schema_name" "NVARCHAR"
 < column "procedure_name" "NVARCHAR"
 < column "definition" "NVARCHAR"
+< column "comment" "NVARCHAR"
 < row
 : string
 | app
@@ -1753,6 +1544,7 @@
 | 	SELECT id, total FROM app.orders WHERE account_id = @account;
 | 	SELECT COUNT(*) AS n FROM app.orders WHERE account_id = @account;
 | END;
+: null
 < row
 : string
 | app
@@ -1763,6 +1555,7 @@
 | BEGIN
 | 	SELECT @total = total FROM app.orders WHERE id = @id;
 | END;
+: null
 > query
 |
 | 	SELECT 
@@ -1830,7 +1623,7 @@
 : string
 | V 
 < row
-: int64 1237579447
+: int64 1253579504
 : string
 | trg_orders_bi
 : string
