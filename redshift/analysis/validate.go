@@ -69,6 +69,25 @@ func validateEditorStatement(node ast.Node) (bool, bool) {
 	}
 }
 
+// UntracedRows reports whether statement answers rows the analysis cannot trace
+// to columns: a procedure call's OUT and INOUT parameters. A caller that masks
+// columns by tracing them has no lineage for those rows, so it withholds them.
+func UntracedRows(statement string) bool {
+	parsed, err := redshift.Parse(statement)
+	if err != nil {
+		return false
+	}
+	for _, stmt := range parsed {
+		if stmt.Empty() {
+			continue
+		}
+		if _, ok := stmt.AST.(*ast.CallStmt); ok {
+			return true
+		}
+	}
+	return false
+}
+
 func hasDMLInWithClause(withClause *ast.WithClause) bool {
 	if withClause == nil || withClause.Ctes == nil {
 		return false

@@ -387,3 +387,30 @@ func TestStripDatashareQualifier(t *testing.T) {
 		})
 	}
 }
+
+// TestReturnsRowsWithMasking pins that a caller which masks columns is given no
+// rows the analysis cannot trace: a procedure call's OUT and INOUT values.
+func TestReturnsRowsWithMasking(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		stmt    string
+		masking bool
+		want    bool
+	}{
+		{name: "a query is read", stmt: "SELECT 1", want: true},
+		{name: "a query is read with masking on", stmt: "SELECT 1", masking: true, want: true},
+		{name: "a procedure call is read", stmt: "CALL app.load_facts(1)", want: true},
+		{name: "a procedure call's rows are withheld with masking on", stmt: "CALL app.load_facts(1)", masking: true, want: false},
+		{name: "a command reports rows affected", stmt: "INSERT INTO t VALUES (1)", want: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := returnsRows(tc.stmt, tc.masking)
+			if err != nil {
+				t.Fatalf("returnsRows(%q): %v", tc.stmt, err)
+			}
+			if got != tc.want {
+				t.Errorf("returnsRows(%q, masking=%v) = %v, want %v", tc.stmt, tc.masking, got, tc.want)
+			}
+		})
+	}
+}

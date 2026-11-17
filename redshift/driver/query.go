@@ -70,7 +70,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 			statement = redshiftanalysis.StatementWithResultLimit(statement, opts.Limit)
 		}
 
-		returnsData, err := classifyQuery(statement)
+		returnsData, err := returnsRows(statement, opts.MaskingEnabled)
 		if err != nil {
 			return nil, err
 		}
@@ -114,6 +114,21 @@ func classifyQuery(statement string) (bool, error) {
 	_, returnsData, err := redshiftanalysis.ValidateQuery(statement)
 	if err != nil {
 		return false, err
+	}
+	return returnsData, nil
+}
+
+// returnsRows reports whether the session reads statement's answer rather than
+// reporting the rows it affected. A caller that masks columns traces them
+// through the statement, and a procedure call's OUT and INOUT values have no
+// lineage to trace, so its rows are withheld from that caller.
+func returnsRows(statement string, maskingEnabled bool) (bool, error) {
+	returnsData, err := classifyQuery(statement)
+	if err != nil {
+		return false, err
+	}
+	if returnsData && maskingEnabled && redshiftanalysis.UntracedRows(statement) {
+		return false, nil
 	}
 	return returnsData, nil
 }

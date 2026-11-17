@@ -590,3 +590,18 @@ func TestValidateQueryReturnsSyntaxError(t *testing.T) {
 	var parseErr *parser.ParseError
 	require.True(t, errors.As(err, &parseErr))
 }
+
+// TestUntracedRows pins which statements answer rows the analysis cannot trace
+// to columns.
+func TestUntracedRows(t *testing.T) {
+	for statement, want := range map[string]bool{
+		"SELECT * FROM t":          false,
+		"INSERT INTO t VALUES (1)": false,
+		"CALL app.load_facts(1)":   true,
+		"SELEC * FORM t":           false,
+	} {
+		if got := UntracedRows(statement); got != want {
+			t.Errorf("UntracedRows(%q) = %v, want %v", statement, got, want)
+		}
+	}
+}

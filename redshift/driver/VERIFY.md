@@ -305,7 +305,7 @@ mutation in the omni worktree, run the parity test, and require a failure; then
 
 ## Differences from Bytebase's driver, each to confirm on a cluster
 
-The port is close to `backend/plugin/db/redshift` and diverges in fourteen places.
+The port is close to `backend/plugin/db/redshift` and diverges in fifteen places.
 Every one is a decision the recording settles.
 
 | difference | why |
@@ -324,6 +324,7 @@ Every one is a decision the recording settles.
 | a synced column keeps its numeric precision and scale | `data_type` states `numeric` alone, so `numeric(12,2)` and `numeric(8,4)` synced alike |
 | a view's definition is read from `SHOW VIEW`, not `PG_VIEWS.definition` | `PG_VIEWS` states it in a varchar(256) and truncates a longer one, and a truncated definition is not the view; the recording settles what `SHOW VIEW` answers and that a long view's text comes back whole |
 | a procedure call is read as a query though it is not read-only | `CALL` answers its OUT and INOUT parameters as one row, which the classification now says independently of whether the statement may run read-only |
+| a procedure call's rows are withheld from a caller that masks columns | an OUT or INOUT value has no column lineage to trace, so a masked caller is given the affected-row count instead |
 
 ## What would unblock it
 
