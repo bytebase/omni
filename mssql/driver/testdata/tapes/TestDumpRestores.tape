@@ -43,6 +43,27 @@
 | CREATE INDEX [IX_children_status_note] ON [dump].[children] ([status]) INCLUDE ([note]);
 < ok 0 -
 > exec
+| -- A partitioned rowstore index reports the partitioning column it does not
+| -- key at key_ordinal 0 with is_included_column 0. The dump carries no
+| -- partition scheme to restore it with, so the index must be dumped with its
+| -- own key alone: taking the implicit column as the leading key would make the
+| -- source and the restored index disagree.
+| CREATE PARTITION FUNCTION [dump_pf] (INT) AS RANGE RIGHT FOR VALUES (100, 200);
+< ok 0 -
+> exec
+| CREATE PARTITION SCHEME [dump_ps] AS PARTITION [dump_pf] TO ([PRIMARY], [PRIMARY], [PRIMARY]);
+< ok 0 -
+> exec
+| CREATE TABLE [dump].[events] (
+| 	[id] INT NOT NULL,
+| 	[tenant] INT NOT NULL,
+| 	[payload] NVARCHAR(50) NULL
+| ) ON [dump_ps] ([tenant]);
+< ok 0 -
+> exec
+| CREATE CLUSTERED INDEX [IX_events_id] ON [dump].[events] ([id] ASC) ON [dump_ps] ([tenant]);
+< ok 0 -
+> exec
 | CREATE VIEW [dump].[v_parents] AS
 | 	SELECT [id], [name] FROM [dump].[parents];
 < ok 0 -
@@ -432,8 +453,78 @@
 : string
 | dump
 : string
-| v_parents
+| events
 : int64 1061578820
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| dump
+: string
+| events
+: int64 1061578820
+: int64 2
+: string
+| tenant
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| dump
+: string
+| events
+: int64 1061578820
+: int64 3
+: string
+| payload
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 100
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| dump
+: string
+| v_parents
+: int64 1077578877
 : int64 1
 : string
 | id
@@ -456,7 +547,7 @@
 | dump
 : string
 | v_parents
-: int64 1061578820
+: int64 1077578877
 : int64 2
 : string
 | name
@@ -705,6 +796,46 @@
 : null
 : string
 | status
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| events
+: int64 1061578820
+: int64 1
+: string
+| IX_events_id
+: string
+| CLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| tenant
+: int64 0
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| events
+: int64 1061578820
+: int64 1
+: string
+| IX_events_id
+: string
+| CLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| id
 : int64 1
 : bool false
 : bool false
@@ -889,6 +1020,12 @@
 | dump
 : string
 | children
+< row
+: int64 1061578820
+: string
+| dump
+: string
+| events
 > query
 |
 | 	SELECT
@@ -944,6 +1081,12 @@
 | dump
 : string
 | children
+< row
+: int64 1061578820
+: string
+| dump
+: string
+| events
 > query
 |
 | 		SELECT major_id, value
@@ -957,19 +1100,19 @@
 : string
 | parent rows
 < row
-: int64 1061578820
+: int64 1077578877
 : string
 | view note
 < row
-: int64 1077578877
+: int64 1093578934
 : string
 | function note
 < row
-: int64 1093578934
+: int64 1109578991
 : string
 | procedure note
 < row
-: int64 1125579048
+: int64 1141579105
 : string
 | sequence note
 > query
@@ -988,6 +1131,9 @@
 : int64 0
 < row
 : int64 1013578649
+: int64 0
+< row
+: int64 1061578820
 : int64 0
 > query
 |
@@ -1008,6 +1154,12 @@
 : string
 | children
 < row
+: int64 1061578820
+: string
+| dump
+: string
+| events
+< row
 : int64 901578250
 : string
 | dump
@@ -1025,7 +1177,7 @@
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
 < row
-: int64 1061578820
+: int64 1077578877
 : string
 | view note
 > query
@@ -1048,7 +1200,7 @@
 | dump
 : string
 | v_parents
-: int64 1061578820
+: int64 1077578877
 : string
 | CREATE VIEW [dump].[v_parents] AS
 | 	SELECT [id], [name] FROM [dump].[parents];
@@ -1263,7 +1415,7 @@
 < column "schemaName" "NVARCHAR"
 < column "objectType" "CHAR"
 < row
-: int64 1109578991
+: int64 1125579048
 : string
 | trg_parents
 : string
@@ -1316,6 +1468,7 @@
 | DROP SEQUENCE IF EXISTS [dump].[s];
 | ALTER TABLE [dump].[children] DROP CONSTRAINT IF EXISTS [FK_children_parents];
 | DROP TABLE IF EXISTS [dump].[children];
+| DROP TABLE IF EXISTS [dump].[events];
 | DROP TABLE IF EXISTS [dump].[parents];
 | DROP SCHEMA IF EXISTS [dump];
 < ok 0 -
@@ -1341,6 +1494,17 @@
 | EXEC sp_addextendedproperty 'MS_Description', N'sequence note', 'SCHEMA', 'dump', 'SEQUENCE', 's';
 < ok 2 -
 > exec
+| CREATE TABLE [dump].[events] (
+|     [id] int NOT NULL,
+|     [tenant] int NOT NULL,
+|     [payload] nvarchar(50) COLLATE SQL_Latin1_General_CP1_CI_AS
+| );
+|
+| CREATE CLUSTERED INDEX [IX_events_id] ON
+| [dump].[events] (
+|     [id] ASC
+| );
+|
 | CREATE TABLE [dump].[parents] (
 |     [id] int IDENTITY(1,1) NOT NULL,
 |     [name] nvarchar(100) COLLATE SQL_Latin1_General_CP1_CI_AS NOT NULL,
@@ -1443,7 +1607,7 @@
 < column "column_id" "INT"
 < column "comment" "NVARCHAR"
 < row
-: int64 1189579276
+: int64 1221579390
 : int64 2
 : string
 | the display name
@@ -1461,19 +1625,19 @@
 < column "definition" "NVARCHAR"
 < column "default_name" "NVARCHAR"
 < row
-: int64 1237579447
+: int64 1269579561
 : string
 | ('open')
 : string
 | DF_parents_status
 < row
-: int64 1253579504
+: int64 1285579618
 : string
 | (sysutcdatetime())
 : string
 | DF_parents_created
 < row
-: int64 1269579561
+: int64 1301579675
 : string
 | ((0))
 : string
@@ -1531,8 +1695,78 @@
 : string
 | dump
 : string
+| events
+: int64 1205579333
+: int64 1
+: string
+| id
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| dump
+: string
+| events
+: int64 1205579333
+: int64 2
+: string
+| tenant
+: string
+| int
+: bool false
+: null
+: null
+: int64 4
+: int64 10
+: int64 0
+: null
+: bool false
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| dump
+: string
+| events
+: int64 1205579333
+: int64 3
+: string
+| payload
+: string
+| nvarchar
+: bool false
+: null
+: null
+: int64 100
+: int64 0
+: int64 0
+: string
+| SQL_Latin1_General_CP1_CI_AS
+: bool true
+: bool false
+: int64 0
+: null
+: null
+< row
+: string
+| dump
+: string
 | parents
-: int64 1189579276
+: int64 1221579390
 : int64 1
 : string
 | id
@@ -1555,7 +1789,7 @@
 | dump
 : string
 | parents
-: int64 1189579276
+: int64 1221579390
 : int64 2
 : string
 | name
@@ -1579,7 +1813,7 @@
 | dump
 : string
 | parents
-: int64 1189579276
+: int64 1221579390
 : int64 3
 : string
 | status
@@ -1595,7 +1829,7 @@
 | SQL_Latin1_General_CP1_CI_AS
 : bool false
 : bool false
-: int64 1237579447
+: int64 1269579561
 : null
 : null
 < row
@@ -1603,7 +1837,7 @@
 | dump
 : string
 | parents
-: int64 1189579276
+: int64 1221579390
 : int64 4
 : string
 | created_at
@@ -1618,7 +1852,7 @@
 : null
 : bool false
 : bool false
-: int64 1253579504
+: int64 1285579618
 : null
 : null
 < row
@@ -1626,7 +1860,7 @@
 | dump
 : string
 | parents
-: int64 1189579276
+: int64 1221579390
 : int64 5
 : string
 | balance
@@ -1641,7 +1875,7 @@
 : null
 : bool false
 : bool false
-: int64 1269579561
+: int64 1301579675
 : null
 : null
 < row
@@ -1649,7 +1883,7 @@
 | dump
 : string
 | parents
-: int64 1189579276
+: int64 1221579390
 : int64 6
 : string
 | computed
@@ -1673,7 +1907,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 1
 : string
 | id
@@ -1696,7 +1930,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 2
 : string
 | parent_id
@@ -1719,7 +1953,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 3
 : string
 | status
@@ -1743,7 +1977,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 4
 : string
 | note
@@ -1767,7 +2001,7 @@
 | dump
 : string
 | v_parents
-: int64 1349579846
+: int64 1381579960
 : int64 1
 : string
 | id
@@ -1790,7 +2024,7 @@
 | dump
 : string
 | v_parents
-: int64 1349579846
+: int64 1381579960
 : int64 2
 : string
 | name
@@ -1946,7 +2180,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 3
 : string
 | IX_children_status
@@ -1966,7 +2200,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 3
 : string
 | IX_children_status
@@ -1986,7 +2220,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 4
 : string
 | IX_children_status_note
@@ -2006,7 +2240,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 4
 : string
 | IX_children_status_note
@@ -2026,7 +2260,7 @@
 | dump
 : string
 | children
-: int64 1301579675
+: int64 1333579789
 : int64 5
 : string
 | UX_children_note
@@ -2039,6 +2273,26 @@
 : null
 : string
 | note
+: int64 1
+: bool false
+: bool false
+< row
+: string
+| dump
+: string
+| events
+: int64 1205579333
+: int64 1
+: string
+| IX_events_id
+: string
+| CLUSTERED
+: bool false
+: null
+: null
+: null
+: string
+| id
 : int64 1
 : bool false
 : bool false
@@ -2176,7 +2430,7 @@
 | dump
 : string
 | children
-: int64 1333579789
+: int64 1365579903
 : string
 | FK_children_parents
 : string
@@ -2212,13 +2466,19 @@
 < column "schema_name" "NVARCHAR"
 < column "table_name" "NVARCHAR"
 < row
-: int64 1189579276
+: int64 1205579333
+: string
+| dump
+: string
+| events
+< row
+: int64 1221579390
 : string
 | dump
 : string
 | parents
 < row
-: int64 1301579675
+: int64 1333579789
 : string
 | dump
 : string
@@ -2238,10 +2498,10 @@
 < column "object_id" "INT"
 < column "definition" "NVARCHAR"
 < row
-: int64 1189579276
+: int64 1221579390
 : string
 | CK_parents_balance
-: int64 1285579618
+: int64 1317579732
 : string
 | ([balance]>=(0))
 > query
@@ -2267,13 +2527,19 @@
 : string
 | trace_xe_event_map
 < row
-: int64 1189579276
+: int64 1205579333
+: string
+| dump
+: string
+| events
+< row
+: int64 1221579390
 : string
 | dump
 : string
 | parents
 < row
-: int64 1301579675
+: int64 1333579789
 : string
 | dump
 : string
@@ -2287,23 +2553,23 @@
 < column "major_id" "INT"
 < column "value" "SQL_VARIANT"
 < row
-: int64 1173579219
+: int64 1189579276
 : string
 | sequence note
 < row
-: int64 1189579276
+: int64 1221579390
 : string
 | parent rows
 < row
-: int64 1349579846
+: int64 1381579960
 : string
 | view note
 < row
-: int64 1381579960
+: int64 1413580074
 : string
 | function note
 < row
-: int64 1397580017
+: int64 1429580131
 : string
 | procedure note
 > query
@@ -2318,10 +2584,13 @@
 < column "object_id" "INT"
 < column "total_rows" "BIGINT"
 < row
-: int64 1189579276
+: int64 1205579333
 : int64 0
 < row
-: int64 1301579675
+: int64 1221579390
+: int64 0
+< row
+: int64 1333579789
 : int64 0
 > query
 |
@@ -2336,13 +2605,19 @@
 < column "" "NVARCHAR"
 < column "name" "NVARCHAR"
 < row
-: int64 1301579675
+: int64 1333579789
 : string
 | dump
 : string
 | children
 < row
-: int64 1189579276
+: int64 1205579333
+: string
+| dump
+: string
+| events
+< row
+: int64 1221579390
 : string
 | dump
 : string
@@ -2359,7 +2634,7 @@
 < column "object_id" "INT"
 < column "comment" "NVARCHAR"
 < row
-: int64 1349579846
+: int64 1381579960
 : string
 | view note
 > query
@@ -2382,7 +2657,7 @@
 | dump
 : string
 | v_parents
-: int64 1349579846
+: int64 1381579960
 : string
 | CREATE VIEW [dump].[v_parents] AS
 | 	SELECT [id], [name] FROM [dump].[parents];
@@ -2597,7 +2872,7 @@
 < column "schemaName" "NVARCHAR"
 < column "objectType" "CHAR"
 < row
-: int64 1365579903
+: int64 1397580017
 : string
 | trg_parents
 : string

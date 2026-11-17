@@ -1525,6 +1525,16 @@ func getKeyAndIndexes(txn *sql.Tx, schemas []string) (map[tableKey][]*metadatapb
 	return keys, nil
 }
 
+// encryptedDefinition is what a sync writes where the server withholds an
+// encrypted module's body: a comment, so a dump that applies it creates
+// nothing. mssql/catalog's hasRestorableDefinition recognizes exactly this
+// text, which is why the module's comment is not attached to an object the
+// dump never creates; TestDumpKeepsAnEncryptedModuleCommentOut holds the two
+// ends together.
+func encryptedDefinition(kind, qualifiedName string) string {
+	return fmt.Sprintf("/* Definition of %s %s is encrypted. */", kind, qualifiedName)
+}
+
 // getViews gets all views of a database.
 func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
 	viewMap := make(map[string][]*metadatapb.ViewMetadata)
@@ -1586,7 +1596,7 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) 
 			// https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-all-sql-modules-transact-sql?view=sql-server-ver16
 			// https://www.mssqltips.com/sqlservertip/7465/encrypt-stored-procedure-sql-server/
 			// We will write a pseudo definition in pure comment.
-			viewDefinition = fmt.Sprintf("/* Definition of view %s.%s is encrypted. */", schemaName, view.Name)
+			viewDefinition = encryptedDefinition("view", schemaName+"."+view.Name)
 		} else {
 			viewDefinition = definition.String
 		}
@@ -1680,7 +1690,7 @@ ORDER BY st.name;
 		if err := rows.Scan(&objectID, &name, &events, &timing, &body, &parentName, &schemaName, &parentType); err != nil {
 			return nil, nil, err
 		}
-		bodyString := fmt.Sprintf("/* Definition of trigger %s.%s.%s is encrypted. */", schemaName, parentName, name)
+		bodyString := encryptedDefinition("trigger", schemaName+"."+parentName+"."+name)
 		if body.Valid {
 			bodyString = body.String
 		}
@@ -1820,7 +1830,7 @@ func getProcedures(txn *sql.Tx) (map[string][]*metadatapb.ProcedureMetadata, err
 			// https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-all-sql-modules-transact-sql?view=sql-server-ver16
 			// https://www.mssqltips.com/sqlservertip/7465/encrypt-stored-procedure-sql-server/
 			// We will write a pseudo definition in pure comment.
-			procedureDefinition = fmt.Sprintf("/* Definition of procedure %s.%s is encrypted. */", schemaName, procedure.Name)
+			procedureDefinition = encryptedDefinition("procedure", schemaName+"."+procedure.Name)
 		} else {
 			procedureDefinition = definition.String
 		}
@@ -1882,7 +1892,7 @@ func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error
 			// https://learn.microsoft.com/en-us/sql/relational-databases/system-catalog-views/sys-all-sql-modules-transact-sql?view=sql-server-ver16
 			// https://www.mssqltips.com/sqlservertip/7465/encrypt-stored-procedure-sql-server/
 			// We will write a pseudo definition in pure comment.
-			functionDefinition = fmt.Sprintf("/* Definition of function %s.%s is encrypted. */", schemaName, function.Name)
+			functionDefinition = encryptedDefinition("function", schemaName+"."+function.Name)
 		} else {
 			functionDefinition = definition.String
 		}

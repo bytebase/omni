@@ -192,9 +192,10 @@ func showplanFormat(format string) string {
 //
 // A batch of more than one statement is sent as one request, so what SQL Server
 // scopes to a batch (a DECLARE'd variable, a table variable) holds across its
-// statements. It reports such a batch's affected rows only through a collector
-// on the request, which a recorded exchange cannot hold, so only a lone
-// statement's count is read.
+// statements. It reports such a batch's affected rows only through the
+// *sqlexp.ReturnMessage message loop, whose MsgRowsAffected values are
+// interleaved with MsgNext and MsgNextResultSet; a tape cannot carry the message
+// object or that order, so only a lone statement's count is read.
 func (s *session) runBatch(ctx context.Context, statements []omnimssql.Statement, opts driver.QueryOptions) ([]*driver.Result, bool, error) {
 	if len(statements) == 1 {
 		results, err := s.runStatementAlone(ctx, statements[0], opts)
