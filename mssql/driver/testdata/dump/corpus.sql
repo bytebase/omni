@@ -39,6 +39,11 @@ GO
 CREATE INDEX [IX_children_status_note] ON [dump].[children] ([status]) INCLUDE ([note]);
 GO
 
+-- A filtered index renders its own predicate after its INCLUDE list, and the
+-- predicate is the text SQL Server reports, brackets and term order kept.
+CREATE INDEX [IX_children_open] ON [dump].[children] ([parent_id]) INCLUDE ([status]) WHERE [parent_id] > 0 AND [note] IS NOT NULL;
+GO
+
 -- A partitioned rowstore index reports the partitioning column it does not
 -- key at key_ordinal 0 with is_included_column 0. The dump carries no
 -- partition scheme to restore it with, so the index must be dumped with its
