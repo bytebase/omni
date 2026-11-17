@@ -1,6 +1,7 @@
 package analysis
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"reflect"
@@ -67,6 +68,73 @@ func (q *querySpanExtractor) findTempTable(rawName string) (*TempTable, bool) {
 	return nil, false
 }
 
+// untracedError reports the values a statement that answers with rows reads
+// and this call cannot trace: a #temp table or @table variable, whose rows the
+// batch's own statements wrote, and a local variable, whose value a statement
+// of the batch assigned. A write and a SELECT ... INTO answer with no rows, so
+// they read nothing a caller has to withhold.
+//
+// The scan is syntactic, so it reports these whether or not the span resolved a
+// table source: a query of only the server's metadata returns before resolution
+// and still reads whatever its FROM clause names. A variable method call (the
+// XML receiver of @x.nodes('/r')) names its variable in the node, not in a
+// child.
+func (q *querySpanExtractor) untracedError(root ast.Node) *UntracedError {
+	if !returnsRows(root) {
+		return nil
+	}
+	seenRelations := map[ColumnResource]bool{}
+	seenVariables := map[string]bool{}
+	var relations []ColumnResource
+	var variables []string
+	addRelation := func(name string) {
+		// Name the relation as the batch declared it, whatever case the
+		// statement wrote.
+		if tempTable, ok := q.findTempTable(name); ok {
+			name = tempTable.Name
+		}
+		relation := ColumnResource{Table: name}
+		if name == "" || seenRelations[relation] {
+			return
+		}
+		seenRelations[relation] = true
+		relations = append(relations, relation)
+	}
+	addVariable := func(name string) {
+		// A @@ name is a system function, whose value is the server's state
+		// rather than a column.
+		if name == "" || strings.HasPrefix(name, "@@") || seenVariables[name] {
+			return
+		}
+		seenVariables[name] = true
+		variables = append(variables, name)
+	}
+	ast.Inspect(root, func(node ast.Node) bool {
+		switch n := node.(type) {
+		case *ast.VariableRef:
+			addVariable(n.Name)
+		case *ast.TableVarMethodCallRef:
+			addVariable(n.Var)
+		case *ast.TableRef:
+			if strings.HasPrefix(n.Object, "#") {
+				addRelation(n.Object)
+			}
+		case *ast.TableVarRef:
+			addRelation(n.Name)
+		default:
+		}
+		return true
+	})
+	if len(relations) == 0 && len(variables) == 0 {
+		return nil
+	}
+	slices.SortFunc(relations, func(a, b ColumnResource) int {
+		return cmp.Or(cmp.Compare(a.Server, b.Server), cmp.Compare(a.Database, b.Database), cmp.Compare(a.Schema, b.Schema), cmp.Compare(a.Table, b.Table))
+	})
+	slices.Sort(variables)
+	return &UntracedError{Relations: relations, Variables: variables}
+}
+
 // tsqlFindTableSchemaByParts resolves a (linkedServer, database, schema, table)
 // tuple to a TableSource. Empty strings for database/schema mean "not specified
 // by the user"; defaults are applied here when looking up metadata. CTEs
@@ -74,14 +142,26 @@ func (q *querySpanExtractor) findTempTable(rawName string) (*TempTable, bool) {
 // specified.
 func (q *querySpanExtractor) tsqlFindTableSchemaByParts(linkedServer, rawDatabase, rawSchema, rawTable string) (tableSource, error) {
 	if linkedServer != "" {
-		// TODO(zp): How do we handle the linked server?
-		return nil, fmt.Errorf("linked server is not supported yet, but found %q", linkedServer)
+		// The server resolves the relation itself, through sys.servers. No
+		// object of the connected instance describes the table, so neither its
+		// columns nor a masking policy for them exist here.
+		parts := make([]string, 0, 3)
+		for _, part := range []string{rawDatabase, rawSchema, rawTable} {
+			if part != "" {
+				parts = append(parts, part)
+			}
+		}
+		return nil, &LinkedServerError{Server: linkedServer, Table: strings.Join(parts, ".")}
 	}
 	if strings.HasPrefix(rawTable, "#") {
+		// A temp table's rows come from the batch's own statements, which are
+		// other calls to ResolveQuerySpan, so the span marks the relation
+		// untraced rather than tracing through them. That holds for one the
+		// batch declared and for one it did not: the caller's map carries the
+		// columns, not what filled them.
 		if tempTable, ok := q.findTempTable(rawTable); ok {
 			return (*physicalTable)(tempTable), nil
 		}
-		// TODO(masking): Considering SELECT * INTO #temp FROM dbo.t1; SELECT * FROM #temp. We should mask the #temp.
 		return &pseudoTable{}, nil
 	}
 
@@ -496,6 +576,7 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 			Type:          queryType,
 			SourceColumns: accessTables,
 			Results:       []QuerySpanResult{},
+			Untraced:      q.untracedError(root),
 		}, nil
 	}
 
@@ -518,7 +599,16 @@ func (q *querySpanExtractor) getQuerySpan(statement string) (*ResolvedSpan, erro
 		SourceColumns:    accessTables,
 		Results:          pseudo.GetQuerySpanResult(),
 		PredicateColumns: q.predicateColumns,
+		Untraced:         q.untracedError(root),
 	}, nil
+}
+
+// returnsRows reports whether the statement answers with a result set: a
+// SELECT that writes no table of its own, whether it reads user tables or only
+// the system's.
+func returnsRows(root ast.Node) bool {
+	sel, ok := root.(*ast.SelectStmt)
+	return ok && selectIntoTarget(sel) == nil
 }
 
 // -------------------- SELECT processing --------------------
@@ -980,6 +1070,10 @@ func (q *querySpanExtractor) extractTableSource(node ast.Node) ([]tableSource, e
 	switch v := node.(type) {
 	case *ast.JoinClause:
 		return q.extractFromJoin(v)
+	case *ast.AdHocTableRef:
+		// OPENDATASOURCE: a provider reads the relation, not the connected
+		// instance.
+		return nil, &LinkedServerError{}
 	case *ast.TableRef:
 		ts, err := q.resolveTableRef(v)
 		if err != nil {
@@ -1132,6 +1226,13 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 	}
 	var columnNames []string
 	switch strings.ToUpper(fn.Name.Object) {
+	case "OPENQUERY":
+		// A pass-through query: the columns are the remote server's, and the
+		// statement spells none of them.
+		return nil, &LinkedServerError{Server: rowsetServerArgument(fn), PassThrough: true}
+	case "OPENROWSET":
+		// An ad-hoc provider read, with no linked server to name.
+		return nil, &LinkedServerError{}
 	case "STRING_SPLIT":
 		columnNames = []string{"value"}
 		hasOrdinal, err := stringSplitHasOrdinalColumn(fn.Args)
@@ -1167,6 +1268,18 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 		return nil, err
 	}
 	return &pseudoTable{Name: alias, Columns: columns}, nil
+}
+
+// rowsetServerArgument returns the linked server an OPENQUERY call names: its
+// first argument, which the parser reads as a table reference.
+func rowsetServerArgument(fn *ast.FuncCallExpr) string {
+	if fn.Args == nil || fn.Args.Len() == 0 {
+		return ""
+	}
+	if ref, ok := fn.Args.Items[0].(*ast.TableRef); ok {
+		return ref.Object
+	}
+	return ""
 }
 
 func stringSplitHasOrdinalColumn(args *ast.List) (bool, error) {
@@ -1413,6 +1526,16 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 				results = append(results, fields...)
 				continue
 			}
+			if assign, ok := v.Val.(*ast.SelectAssign); ok {
+				// SELECT @v = expr assigns a variable and produces no result
+				// column. SQL Server returns no result set for it, and rejects
+				// mixing it with a retrieving target (error 141). Resolve the
+				// value so the tables it reads stay in the span.
+				if _, err := q.resolveExpression(assign.Value); err != nil {
+					return nil, err
+				}
+				continue
+			}
 			r, err := q.resolveExpression(v.Val)
 			if err != nil {
 				return nil, err
@@ -1428,8 +1551,8 @@ func (q *querySpanExtractor) extractTargetList(list *ast.List) ([]QuerySpanResul
 			}
 			results = append(results, fields...)
 		case *ast.SelectAssign:
-			// SELECT @v = expr — no result column produced; just fold the expr
-			// for predicate/source tracking (omitted here since it doesn't emit a column).
+			// SELECT @v = expr as a bare target: no result column, and the
+			// value's tables are already in the span's access set.
 			continue
 		default:
 			if expr, ok := item.(ast.ExprNode); ok {
