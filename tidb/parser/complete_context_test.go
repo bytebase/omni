@@ -684,6 +684,26 @@ func TestCollectCompletionSignals(t *testing.T) {
 		// TiDB rejects the INSERT row alias (MySQL 8.0.19's `AS incoming(x)`),
 		// so these cases are MySQL's and OceanBase's, not this corpus's.
 		{
+			name: "chained join keeps the whole left operand",
+			sql:  "SELECT * FROM t1 JOIN t2 ON t1.a = t2.a JOIN t3 ON t1.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"t1"}, local: []ref{{table: "t1"}, {table: "t2"}, {table: "t3"}}},
+		},
+		{
+			name: "recursive cte with an unfinished body",
+			sql:  "WITH RECURSIVE c(x) AS (SELECT 1 UNION ALL SELECT c.| FROM c",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"c"}, local: []ref{{kind: RangeReferenceCTE, table: "c"}}, ctes: map[string][]string{"c": {"x"}}, cols: map[string][]string{"c": {"x"}}},
+		},
+		{
+			name: "unfinished references column list names the parent",
+			sql:  "ALTER TABLE child ADD FOREIGN KEY (a) REFERENCES parent (|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn}, local: []ref{{table: "parent", alias: "parent"}}},
+		},
+		{
+			name: "trigger row aliases name the trigger table",
+			sql:  "CREATE TRIGGER tr BEFORE INSERT ON db.t FOR EACH ROW SET NEW.a = NEW.|",
+			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindTable, ObjectKindView, ObjectKindColumn}, qualifier: []string{"NEW"}, local: []ref{{database: "db", table: "t", alias: "NEW"}}},
+		},
+		{
 			name: "intersect arms keep their own scope",
 			sql:  "SELECT a FROM t1 INTERSECT SELECT b FROM t2 WHERE |",
 			want: wantSignals{prefix: "", kinds: []ObjectKind{ObjectKindDatabase, ObjectKindTable, ObjectKindView, ObjectKindColumn, ObjectKindFunction}, local: []ref{{table: "t2"}}},
