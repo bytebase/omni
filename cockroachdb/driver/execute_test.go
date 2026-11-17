@@ -180,3 +180,16 @@ func TestGetRoutingIDFromCockroachCloudURL(t *testing.T) {
 		}
 	}
 }
+
+// TestGetCurrentDatabaseOwner reads the requested method directly. Bytebase's
+// plancheck runner type-asserts it on the concrete driver.
+func TestGetCurrentDatabaseOwner(t *testing.T) {
+	d := openTestDriver(t)
+	owner, err := d.GetCurrentDatabaseOwner(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if owner != "root" {
+		t.Errorf("owner = %q, want root", owner)
+	}
+}

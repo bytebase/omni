@@ -38,6 +38,15 @@ var (
 	_ driver.Dumper   = (*Driver)(nil)
 	_ driver.Querier  = (*Driver)(nil)
 	_ driver.Executor = (*Driver)(nil)
+
+	// These are the two methods Bytebase's plancheck runner type-asserts on a
+	// CockroachDB driver, beyond the contract interfaces.
+	_ interface {
+		CountAffectedRows(context.Context, string) (int64, error)
+	} = (*Driver)(nil)
+	_ interface {
+		GetCurrentDatabaseOwner(context.Context) (string, error)
+	} = (*Driver)(nil)
 )
 
 // Driver is an open CockroachDB driver: a pool of connections to one
