@@ -212,4 +212,52 @@ func assertSDLReloads(t *testing.T, want *Catalog, sdl string) {
 	if sql := GenerateMigration(want, got, Diff(want, got)).SQL(); sql != "" {
 		t.Errorf("the SDL does not reload the snapshot, migrating it would:\n%s\nSDL:\n%s", sql, sdl)
 	}
+	// The diff takes a partition's unattached index for the parent's, so the
+	// attachment is checked here: plain PostgreSQL keeps a partitioned index
+	// invalid until every partition's index is attached to it.
+	assertPartitionIndexesAttached(t, got, partitionedMetadata())
+}
+
+// assertPartitionIndexesAttached requires every partition index the snapshot
+// attaches to a parent index to be attached in c too.
+func assertPartitionIndexesAttached(t *testing.T, c *Catalog, meta *metadatapb.DatabaseSchemaMetadata) {
+	t.Helper()
+	attached := 0
+	for _, schema := range meta.Schemas {
+		for _, table := range schema.Tables {
+			var walk func(partitions []*metadatapb.TablePartitionMetadata)
+			walk = func(partitions []*metadatapb.TablePartitionMetadata) {
+				for _, partition := range partitions {
+					rel := c.GetRelation(schema.Name, partition.Name)
+					if rel == nil {
+						t.Errorf("the SDL leaves out partition %q", partition.Name)
+						continue
+					}
+					indexes := make(map[string]*Index)
+					for _, index := range c.IndexesOf(rel.OID) {
+						indexes[index.Name] = index
+					}
+					for _, index := range partition.Indexes {
+						if index.ParentIndexName == "" {
+							continue
+						}
+						attached++
+						got := indexes[index.Name]
+						if got == nil {
+							t.Errorf("the SDL leaves out index %q of partition %q", index.Name, partition.Name)
+							continue
+						}
+						if got.ParentIndexOID == 0 {
+							t.Errorf("the SDL leaves index %q of partition %q unattached to %q", index.Name, partition.Name, index.ParentIndexName)
+						}
+					}
+					walk(partition.Subpartitions)
+				}
+			}
+			walk(table.Partitions)
+		}
+	}
+	if attached == 0 {
+		t.Fatal("the snapshot holds no attached partition index, so nothing checks the attachment")
+	}
 }
