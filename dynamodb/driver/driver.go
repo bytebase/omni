@@ -55,7 +55,8 @@
 // skip, so a caller whose previous client always verified, as Bytebase's did,
 // keeps verifying unless its user asked to skip, rather than skipping because a
 // flag is unset. Config.Dial opens the connections the client makes, so an SSH
-// tunnel or a cloud connector reaches the endpoint unchanged.
+// tunnel or a cloud connector reaches the endpoint and the identity call
+// unchanged.
 // Config.Database is the pseudo database name the caller recorded, reported by
 // SyncDatabase and read by nothing else: DynamoDB has no databases, so a sync
 // reads every table of the region whatever that name says.

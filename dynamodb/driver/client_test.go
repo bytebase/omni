@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"sync/atomic"
 	"testing"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -149,4 +150,30 @@ func TestCallerAccount(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "InvalidClientTokenId")
 	})
+}
+
+// TestCallerAccountHonorsTheDialer holds that the identity call reaches STS
+// through the network path Config.Dial names: a tunnel or connector that
+// carries DynamoDB carries the account lookup too.
+func TestCallerAccountHonorsTheDialer(t *testing.T) {
+	setHermeticAWSEnv(t)
+	// The SDK retries a dial error with backoff; one attempt is enough to see
+	// that the dialer was used.
+	t.Setenv("AWS_MAX_ATTEMPTS", "1")
+	var dialed atomic.Int32
+	d, err := Open(context.Background(), driver.Config{
+		User:     "AKIDEXAMPLE",
+		Password: "secret",
+		Params:   map[string]string{ParamRegion: "us-east-1"},
+		Dial: func(_ context.Context, _, address string) (net.Conn, error) {
+			dialed.Add(1)
+			return nil, errors.New("dialer reached " + address)
+		},
+	})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, d.Close()) }()
+
+	_, err = d.client.CallerAccount(context.Background())
+	require.ErrorContains(t, err, "dialer reached sts.")
+	require.GreaterOrEqual(t, dialed.Load(), int32(1), "STS did not use Config.Dial")
 }

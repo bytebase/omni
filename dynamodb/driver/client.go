@@ -126,10 +126,22 @@ func newClient(ctx context.Context, cfg driver.Config) (client, error) {
 			o.BaseEndpoint = aws.String(endpoint)
 		})
 	}
+	// STS is a second host. Config.Dial still opens its connection, so a tunnel
+	// or connector that reaches AWS reaches the identity call too; Config.TLS
+	// names the DynamoDB endpoint's certificate, so the STS host is verified
+	// against the system roots rather than with settings made for another host.
+	awsHTTPClient := newAWSHTTPClient(cfg)
+	stsOptions := []func(*sts.Options){}
+	if awsHTTPClient != nil {
+		stsOptions = append(stsOptions, func(o *sts.Options) {
+			o.HTTPClient = awsHTTPClient
+		})
+	}
 	return &liveClient{
-		client:     awssdk.NewFromConfig(awsConfig, options...),
-		sts:        sts.NewFromConfig(awsConfig),
-		httpClient: httpClient,
+		client:        awssdk.NewFromConfig(awsConfig, options...),
+		sts:           sts.NewFromConfig(awsConfig, stsOptions...),
+		httpClient:    httpClient,
+		awsHTTPClient: awsHTTPClient,
 	}, nil
 }
 
@@ -202,6 +214,16 @@ func newHTTPClient(cfg driver.Config) (*http.Client, error) {
 	return &http.Client{Transport: transport}, nil
 }
 
+// newAWSHTTPClient returns the HTTP client the SDK's own services are reached
+// over, or nil for the SDK's. Only Config.Dial changes it: Config.TLS names the
+// DynamoDB endpoint's host, and the STS host is a different one.
+func newAWSHTTPClient(cfg driver.Config) *http.Client {
+	if cfg.Dial == nil {
+		return nil
+	}
+	return &http.Client{Transport: &http.Transport{DialContext: cfg.Dial}}
+}
+
 // endpointHost returns the host an endpoint URL names, for the TLS settings of
 // that host.
 func endpointHost(endpoint string) string {
@@ -216,9 +238,13 @@ func endpointHost(endpoint string) string {
 
 // liveClient is the client the driver opens against a DynamoDB endpoint.
 type liveClient struct {
-	client     *awssdk.Client
-	sts        *sts.Client
-	httpClient *http.Client
+	client *awssdk.Client
+	sts    *sts.Client
+	// httpClient reaches the DynamoDB endpoint; awsHTTPClient reaches the
+	// SDK's own services such as STS. They differ when Config.TLS supplies
+	// settings for the endpoint's host and no other.
+	httpClient    *http.Client
+	awsHTTPClient *http.Client
 }
 
 // CallerAccount asks STS which account the credential belongs to. Bytebase's
@@ -251,6 +277,9 @@ func (c *liveClient) Ping(ctx context.Context) error {
 func (c *liveClient) Close() error {
 	if c.httpClient != nil {
 		c.httpClient.CloseIdleConnections()
+	}
+	if c.awsHTTPClient != nil && c.awsHTTPClient != c.httpClient {
+		c.awsHTTPClient.CloseIdleConnections()
 	}
 	return nil
 }
