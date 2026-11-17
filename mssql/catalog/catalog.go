@@ -307,6 +307,9 @@ func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata,
 		if n.Computed.Persisted {
 			column.Type += " PERSISTED"
 		}
+		if n.Computed.NotNull {
+			column.Nullable = false
+		}
 	} else if n.DataType != nil {
 		column.Type = nodeText(n.DataType, source)
 	}
@@ -567,9 +570,13 @@ func (c *Catalog) execCreateTrigger(n *ast.CreateTriggerStmt, source string) {
 			}
 		}
 	}
+	timing := n.TriggerType
+	if strings.EqualFold(timing, "FOR") {
+		timing = "AFTER"
+	}
 	trigger := &metadata.TriggerMetadata{
 		Name:   n.Name.Object,
-		Timing: n.TriggerType,
+		Timing: timing,
 		Event:  strings.Join(events, ","),
 		Body:   definitionText(n, source),
 	}
@@ -614,7 +621,7 @@ func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {
 		}
 		positional = append(positional, value)
 	}
-	var name, comment, schemaName, tableName, columnName string
+	var name, comment, schemaName, tableName, columnName, objectType string
 	if len(named) > 0 {
 		name = named["name"]
 		comment = named["value"]
@@ -625,6 +632,10 @@ func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {
 		tableName = named["table"]
 		if tableName == "" {
 			tableName = named["level1name"]
+		}
+		objectType = named["table"]
+		if objectType == "" {
+			objectType = named["level1type"]
 		}
 		columnName = named["column"]
 		if columnName == "" {
@@ -640,7 +651,8 @@ func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {
 			switch strings.ToUpper(positional[i]) {
 			case "SCHEMA":
 				schemaName = positional[i+1]
-			case "TABLE":
+			case "TABLE", "VIEW", "FUNCTION", "PROCEDURE", "SEQUENCE":
+				objectType = strings.ToUpper(positional[i])
 				tableName = positional[i+1]
 			case "COLUMN":
 				columnName = positional[i+1]
@@ -650,7 +662,53 @@ func (c *Catalog) execExtendedProperty(n *ast.ExecStmt, source string) {
 	if !strings.EqualFold(name, "MS_Description") || schemaName == "" || tableName == "" {
 		return
 	}
-	c.applyComment(schemaName, tableName, columnName, comment)
+	c.applyCommentForType(schemaName, objectType, tableName, columnName, comment)
+}
+
+func (c *Catalog) applyCommentForType(schemaName, objectType, objectName, columnName, comment string) {
+	if objectType == "" {
+		objectType = "TABLE"
+	}
+	switch strings.ToUpper(objectType) {
+	case "TABLE":
+		c.applyComment(schemaName, objectName, columnName, comment)
+	case "VIEW":
+		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+			for _, view := range schema.Views {
+				if strings.EqualFold(view.Name, objectName) {
+					view.Comment = comment
+					return
+				}
+			}
+		}
+	case "FUNCTION":
+		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+			for _, function := range schema.Functions {
+				if strings.EqualFold(function.Name, objectName) {
+					function.Comment = comment
+					return
+				}
+			}
+		}
+	case "PROCEDURE":
+		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+			for _, procedure := range schema.Procedures {
+				if strings.EqualFold(procedure.Name, objectName) {
+					procedure.Comment = comment
+					return
+				}
+			}
+		}
+	case "SEQUENCE":
+		if schema := c.schemaByName[normalize(schemaName)]; schema != nil {
+			for _, sequence := range schema.Sequences {
+				if strings.EqualFold(sequence.Name, objectName) {
+					sequence.Comment = comment
+					return
+				}
+			}
+		}
+	}
 }
 
 func (c *Catalog) applyComment(schemaName, tableName, columnName, comment string) {

@@ -932,7 +932,7 @@ func blockingFunctionCheck(from, to *Catalog, diff *SchemaDiff) string {
 		}
 		for _, schema := range catalog.Metadata().Schemas {
 			for _, function := range schema.Functions {
-				if !strings.Contains(strings.ToUpper(function.Definition), "SCHEMABINDING") {
+				if !strings.Contains(strings.ToUpper(function.Definition), "SCHEMABINDING") || replaced[strings.ToLower(function.Name)] {
 					continue
 				}
 				for name := range replaced {
@@ -1110,7 +1110,7 @@ func columnDefaultChanged(diff *SchemaDiff, schemaName, tableName, columnName st
 				return true
 			}
 			if colDiff.Action == DiffAlter && colDiff.NewColumn != nil && strings.EqualFold(colDiff.NewColumn.Name, columnName) {
-				return true
+				return !expressionsEqual(colDiff.OldColumn.Default, colDiff.NewColumn.Default)
 			}
 		}
 	}
@@ -1493,6 +1493,9 @@ func generateColumnDefinition(column *metadata.ColumnMetadata) string {
 	isComputedColumn := strings.Contains(column.Type, " AS (") || strings.HasPrefix(column.Type, "AS (")
 	if isComputedColumn {
 		buf.WriteString(column.Type)
+		if !column.Nullable && strings.Contains(strings.ToUpper(column.Type), "PERSISTED") {
+			buf.WriteString(" NOT NULL")
+		}
 		return buf.String()
 	}
 	buf.WriteString(column.Type)

@@ -828,6 +828,9 @@ func writeKey(out *strings.Builder, key *metadata.IndexMetadata) {
 func writeColumn(out *strings.Builder, column *metadata.ColumnMetadata) {
 	fmt.Fprintf(out, "    %s %s", quote(column.Name), column.Type)
 	if isComputedColumnType(column.Type) {
+		if !column.Nullable && strings.Contains(strings.ToUpper(column.Type), "PERSISTED") {
+			out.WriteString(" NOT NULL")
+		}
 		return
 	}
 	if column.IsIdentity {
