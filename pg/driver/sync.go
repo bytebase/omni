@@ -270,7 +270,8 @@ func getExtensionDepend(txn *sql.Tx) (map[int]bool, error) {
 }
 
 var listCheckQuery = `
-SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+    pg_catalog.obj_description(con.oid, 'pg_constraint')
     FROM pg_catalog.pg_constraint con
         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -290,10 +291,16 @@ func getChecks(txn *sql.Tx) (map[tableKey][]*metadatapb.CheckConstraintMetadata,
 	for rows.Next() {
 		var checkMetadata metadatapb.CheckConstraintMetadata
 		var schemaName, tableName, checkDefinition string
-		if err := rows.Scan(&schemaName, &tableName, &checkMetadata.Name, &checkDefinition); err != nil {
+		var comment sql.NullString
+		if err := rows.Scan(&schemaName, &tableName, &checkMetadata.Name, &checkDefinition, &comment); err != nil {
 			return nil, err
 		}
 		checkMetadata.Expression = strings.TrimPrefix(checkDefinition, "CHECK ")
+		// COMMENT ON CONSTRAINT's text lives in pg_description, beside the
+		// constraint rather than in it.
+		if comment.Valid {
+			checkMetadata.Comment = comment.String
+		}
 
 		key := tableKey{Schema: schemaName, Table: tableName}
 		checksMap[key] = append(checksMap[key], &checkMetadata)
@@ -349,7 +356,8 @@ SELECT
 	confdeltype AS delete_option,
 	confupdtype AS update_option,
 	confmatchtype AS match_option,
-	pg_get_constraintdef(c.oid) AS fk_def
+	pg_get_constraintdef(c.oid) AS fk_def,
+	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 FROM
 	pg_constraint c
 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -376,7 +384,7 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 	for rows.Next() {
 		var fkMetadata metadatapb.ForeignKeyMetadata
 		var fkSchema, fkTable, fkDefinition string
-		var fkRefSchema sql.NullString
+		var fkRefSchema, fkComment sql.NullString
 		if err := rows.Scan(
 			&fkSchema,
 			&fkTable,
@@ -387,6 +395,7 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 			&fkMetadata.OnUpdate,
 			&fkMetadata.MatchType,
 			&fkDefinition,
+			&fkComment,
 		); err != nil {
 			return nil, err
 		}
@@ -395,6 +404,11 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 			continue
 		}
 		fkMetadata.ReferencedSchema = fkRefSchema.String
+		// COMMENT ON CONSTRAINT's text lives in pg_description, beside the
+		// constraint rather than in it.
+		if fkComment.Valid {
+			fkMetadata.Comment = fkComment.String
+		}
 
 		fkTable = formatTableNameFromRegclass(fkTable)
 		fkMetadata.ReferencedTable = formatTableNameFromRegclass(fkMetadata.ReferencedTable)

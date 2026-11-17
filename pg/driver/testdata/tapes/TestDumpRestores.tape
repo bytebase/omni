@@ -114,6 +114,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -135,6 +136,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -164,6 +166,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -173,6 +177,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -4991,7 +4996,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -5004,6 +5010,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -5013,6 +5020,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -5022,6 +5030,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -5031,6 +5040,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -5040,6 +5050,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -5049,6 +5061,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -5058,6 +5071,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -5067,6 +5082,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -5076,6 +5092,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -5085,6 +5102,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -5094,6 +5112,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -5129,7 +5149,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -5154,6 +5175,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -5173,6 +5195,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -5192,6 +5216,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -12105,6 +12130,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -12173,6 +12200,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -12208,6 +12237,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -12447,6 +12478,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -17225,7 +17258,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -17238,6 +17272,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -17247,6 +17282,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -17256,6 +17292,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -17265,6 +17302,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -17274,6 +17312,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -17283,6 +17323,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -17292,6 +17333,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -17301,6 +17344,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -17310,6 +17354,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -17319,6 +17364,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -17328,6 +17374,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -17363,7 +17411,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -17388,6 +17437,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -17407,6 +17457,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -17426,6 +17478,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -24191,6 +24244,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -24212,6 +24266,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -24241,6 +24296,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -24250,6 +24307,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -29020,7 +29078,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -29033,6 +29092,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -29042,6 +29102,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -29051,6 +29112,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -29060,6 +29122,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -29069,6 +29132,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -29078,6 +29143,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -29087,6 +29153,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -29096,6 +29164,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -29105,6 +29174,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -29114,6 +29184,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -29123,6 +29194,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -29158,7 +29231,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -29183,6 +29257,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -29202,6 +29277,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -29221,6 +29298,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -36114,6 +36192,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -36182,6 +36262,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -36217,6 +36299,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -36456,6 +36540,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -41186,7 +41272,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -41199,6 +41286,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -41208,6 +41296,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -41217,6 +41306,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -41226,6 +41316,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -41235,6 +41326,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -41244,6 +41337,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -41253,6 +41347,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -41262,6 +41358,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -41271,6 +41368,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -41280,6 +41378,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -41289,6 +41388,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -41324,7 +41425,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -41349,6 +41451,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -41368,6 +41471,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -41387,6 +41492,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -48132,6 +48238,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -48153,6 +48260,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -48182,6 +48290,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -48191,6 +48301,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -52963,7 +53074,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -52976,6 +53088,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -52985,6 +53098,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -52994,6 +53108,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -53003,6 +53118,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -53012,6 +53128,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -53021,6 +53139,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -53030,6 +53149,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -53039,6 +53160,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -53048,6 +53170,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -53057,6 +53180,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -53066,6 +53190,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -53101,7 +53227,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -53126,6 +53253,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -53145,6 +53273,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -53164,6 +53294,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -60073,6 +60204,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -60141,6 +60274,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -60176,6 +60311,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -60415,6 +60552,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -65147,7 +65286,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -65160,6 +65300,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -65169,6 +65310,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -65178,6 +65320,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -65187,6 +65330,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -65196,6 +65340,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -65205,6 +65351,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -65214,6 +65361,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -65223,6 +65372,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -65232,6 +65382,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -65241,6 +65392,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -65250,6 +65402,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -65285,7 +65439,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -65310,6 +65465,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -65329,6 +65485,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -65348,6 +65506,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -72109,6 +72268,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -72130,6 +72290,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -72159,6 +72320,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -72168,6 +72331,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -76944,7 +77108,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -76957,6 +77122,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -76966,6 +77132,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -76975,6 +77142,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -76984,6 +77152,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -76993,6 +77162,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -77002,6 +77173,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -77011,6 +77183,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -77020,6 +77194,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -77029,6 +77204,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -77038,6 +77214,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -77047,6 +77224,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -77082,7 +77261,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -77107,6 +77287,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -77126,6 +77307,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -77145,6 +77328,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -83902,6 +84086,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -83970,6 +84156,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -84005,6 +84193,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -84244,6 +84434,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -88980,7 +89172,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -88993,6 +89186,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -89002,6 +89196,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -89011,6 +89206,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -89020,6 +89216,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -89029,6 +89226,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -89038,6 +89237,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -89047,6 +89247,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -89056,6 +89258,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -89065,6 +89268,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -89074,6 +89278,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -89083,6 +89288,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -89118,7 +89325,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -89143,6 +89351,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -89162,6 +89371,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -89181,6 +89392,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -95790,6 +96002,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -95811,6 +96024,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -95840,6 +96054,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -95849,6 +96065,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -100649,7 +100866,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -100662,6 +100880,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -100671,6 +100890,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -100680,6 +100900,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -100689,6 +100910,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -100698,6 +100920,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -100707,6 +100931,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -100716,6 +100941,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -100725,6 +100952,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -100734,6 +100962,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -100743,6 +100972,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -100752,6 +100982,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -100787,7 +101019,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -100812,6 +101045,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -100831,6 +101065,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -100850,6 +101086,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -107763,6 +108000,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -107831,6 +108070,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -107866,6 +108107,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -108105,6 +108348,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -112865,7 +113110,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -112878,6 +113124,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -112887,6 +113134,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -112896,6 +113144,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -112905,6 +113154,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -112914,6 +113164,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -112923,6 +113175,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -112932,6 +113185,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -112941,6 +113196,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -112950,6 +113206,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -112959,6 +113216,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -112968,6 +113226,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -113003,7 +113263,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -113028,6 +113289,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -113047,6 +113309,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -113066,6 +113330,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -119831,6 +120096,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -119852,6 +120118,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -119881,6 +120148,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -119890,6 +120159,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -124690,7 +124960,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -124703,6 +124974,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -124712,6 +124984,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -124721,6 +124994,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -124730,6 +125004,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -124739,6 +125014,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -124748,6 +125025,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -124757,6 +125035,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -124766,6 +125046,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -124775,6 +125056,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -124784,6 +125066,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -124793,6 +125076,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -124828,7 +125113,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -124853,6 +125139,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -124872,6 +125159,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -124891,6 +125180,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -131804,6 +132094,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -131872,6 +132164,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -131907,6 +132201,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -132146,6 +132442,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -136906,7 +137204,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -136919,6 +137218,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -136928,6 +137228,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -136937,6 +137238,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -136946,6 +137248,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -136955,6 +137258,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -136964,6 +137269,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -136973,6 +137279,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -136982,6 +137290,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -136991,6 +137300,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -137000,6 +137310,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -137009,6 +137320,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -137044,7 +137357,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -137069,6 +137383,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -137088,6 +137403,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -137107,6 +137424,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -143872,6 +144190,7 @@
 | COMMENT ON TABLE app.customer IS 'who buys';
 | COMMENT ON COLUMN app.customer.email IS 'unique email';
 | COMMENT ON CONSTRAINT customer_email_key ON app.customer IS 'one account per email';
+| COMMENT ON CONSTRAINT customer_name_check ON app.customer IS 'the name a customer is known by';
 | CREATE INDEX customer_lower_name ON app.customer (lower(name) DESC NULLS LAST);
 | CREATE INDEX customer_tags ON app.customer USING gin (tags);
 | CREATE INDEX customer_partial ON app.customer (mood, id) WHERE flag;
@@ -143893,6 +144212,7 @@
 |     CONSTRAINT orders_customer_fk FOREIGN KEY (customer_id) REFERENCES app.customer (id)
 |         ON DELETE CASCADE ON UPDATE SET NULL DEFERRABLE INITIALLY DEFERRED
 | );
+| COMMENT ON CONSTRAINT orders_customer_fk ON app.orders IS 'an order belongs to a customer';
 |
 | CREATE TABLE app.booking (
 |     room int,
@@ -143922,6 +144242,8 @@
 |     region text NOT NULL,
 |     peak int CHECK (peak > -100)
 | ) PARTITION BY RANGE (logdate);
+| -- Before the partitions, so their clones of the constraint carry it too.
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement IS 'a peak is above the floor';
 | CREATE TABLE app.measurement_2025 PARTITION OF app.measurement
 |     FOR VALUES FROM ('2025-01-01') TO ('2026-01-01') PARTITION BY LIST (region);
 | CREATE TABLE app.measurement_2025_eu PARTITION OF app.measurement_2025 FOR VALUES IN ('eu');
@@ -143931,6 +144253,7 @@
 | CREATE INDEX measurement_city ON app.measurement (city_id, logdate);
 | CREATE UNIQUE INDEX measurement_key ON app.measurement (city_id, logdate, region);
 | COMMENT ON TABLE app.measurement_2026 IS 'this year';
+| COMMENT ON CONSTRAINT measurement_peak_check ON app.measurement_2026 IS 'this year''s peaks';
 |
 | CREATE TABLE app.sharded (id int, v text) PARTITION BY HASH (id);
 | CREATE TABLE app.sharded_0 PARTITION OF app.sharded FOR VALUES WITH (MODULUS 2, REMAINDER 0);
@@ -148797,7 +149120,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -148810,6 +149134,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -148819,6 +149144,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -148828,6 +149154,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -148837,6 +149164,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -148846,6 +149174,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -148855,6 +149185,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -148864,6 +149195,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -148873,6 +149206,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -148882,6 +149216,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -148891,6 +149226,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -148900,6 +149236,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -148935,7 +149273,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -148960,6 +149299,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -148979,6 +149319,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -148998,6 +149340,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
@@ -156309,6 +156652,8 @@
 |
 | COMMENT ON COLUMN "app"."customer"."email" IS 'unique email';
 |
+| COMMENT ON CONSTRAINT "customer_name_check" ON "app"."customer" IS 'the name a customer is known by';
+|
 | ALTER TABLE "app"."customer" ALTER COLUMN "alt_id" ADD GENERATED BY DEFAULT AS IDENTITY (
 |     SEQUENCE NAME "app"."customer_alt_id_seq"
 |     START WITH 1
@@ -156377,6 +156722,8 @@
 |
 | ALTER TABLE "app"."measurement" OWNER TO "postgres";
 |
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement" IS 'a peak is above the floor';
+|
 | CREATE TABLE "app"."measurement_2025" (
 |     "city_id" integer NOT NULL,
 |     "logdate" date NOT NULL,
@@ -156412,6 +156759,8 @@
 |     "peak" integer,
 |     CONSTRAINT "measurement_peak_check" CHECK (peak > '-100'::integer)
 | );
+|
+| COMMENT ON CONSTRAINT "measurement_peak_check" ON "app"."measurement_2026" IS 'this year''s peaks';
 |
 | ALTER TABLE ONLY "app"."measurement" ATTACH PARTITION "app"."measurement_2025" FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 |
@@ -156651,6 +157000,8 @@
 |     REFERENCES "app"."customer" ("id")
 |     ON DELETE CASCADE
 |     ON UPDATE SET NULL;
+|
+| COMMENT ON CONSTRAINT "orders_customer_fk" ON "app"."orders" IS 'an order belongs to a customer';
 |
 | ALTER TABLE "app"."ref_source"
 |     ADD CONSTRAINT "ref_source_x_y_fkey" FOREIGN KEY ("x", "y")
@@ -161477,7 +161828,8 @@
 : null
 > query
 |
-| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
+| SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true),
+|     pg_catalog.obj_description(con.oid, 'pg_constraint')
 |     FROM pg_catalog.pg_constraint con
 |         INNER JOIN pg_catalog.pg_class rel ON rel.oid = con.conrelid
 |         INNER JOIN pg_catalog.pg_namespace nsp ON nsp.oid = connamespace
@@ -161490,6 +161842,7 @@
 < column "relname" "NAME"
 < column "conname" "NAME"
 < column "pg_get_constraintdef" "TEXT"
+< column "obj_description" "TEXT"
 < row
 : string
 | app
@@ -161499,6 +161852,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -161508,6 +161862,7 @@
 | attached_x_positive
 : string
 | CHECK (id > 0)
+: null
 < row
 : string
 | app
@@ -161517,6 +161872,7 @@
 | customer_balance_check
 : string
 | CHECK (balance >= 0::numeric)
+: null
 < row
 : string
 | app
@@ -161526,6 +161882,8 @@
 | customer_name_check
 : string
 | CHECK (length(name) > 0)
+: string
+| the name a customer is known by
 < row
 : string
 | app
@@ -161535,6 +161893,7 @@
 | animal_legs_check
 : string
 | CHECK (legs >= 0)
+: null
 < row
 : string
 | app
@@ -161544,6 +161903,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| a peak is above the floor
 < row
 : string
 | app
@@ -161553,6 +161914,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -161562,6 +161924,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -161571,6 +161934,7 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: null
 < row
 : string
 | app
@@ -161580,6 +161944,8 @@
 | measurement_peak_check
 : string
 | CHECK (peak > '-100'::integer)
+: string
+| this year's peaks
 > query
 |
 | SELECT nsp.nspname, rel.relname, con.conname, pg_get_constraintdef(con.oid, true)
@@ -161615,7 +161981,8 @@
 | 	confdeltype AS delete_option,
 | 	confupdtype AS update_option,
 | 	confmatchtype AS match_option,
-| 	pg_get_constraintdef(c.oid) AS fk_def
+| 	pg_get_constraintdef(c.oid) AS fk_def,
+| 	pg_catalog.obj_description(c.oid, 'pg_constraint') AS fk_comment
 | FROM
 | 	pg_constraint c
 | 	JOIN pg_namespace n ON n.oid = c.connamespace
@@ -161640,6 +162007,7 @@
 < column "update_option" "CHAR"
 < column "match_option" "CHAR"
 < column "fk_def" "TEXT"
+< column "fk_comment" "TEXT"
 < row
 : string
 | app
@@ -161659,6 +162027,8 @@
 | s
 : string
 | FOREIGN KEY (customer_id) REFERENCES app.customer(id) ON UPDATE SET NULL ON DELETE CASCADE
+: string
+| an order belongs to a customer
 < row
 : string
 | app
@@ -161678,6 +162048,7 @@
 | f
 : string
 | FOREIGN KEY (x, y) REFERENCES app.ref_target(a, b) MATCH FULL ON DELETE SET DEFAULT
+: null
 > query
 | SELECT
 | 		n.nspname AS foreign_table_schema,
