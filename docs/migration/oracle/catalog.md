@@ -50,6 +50,10 @@ replay tests exercise.
   current schema.
 - A changed view's comments use `COMMENT ON TABLE`, which is Oracle's form for
   a view, and a changed procedure is always `CREATE OR REPLACE`.
+- A migration comments only what Oracle takes: a table (a view included), a
+  materialized view and a column. `COMMENT ON SEQUENCE`, `COMMENT ON FUNCTION`
+  and `COMMENT ON INDEX` are `ORA-32594, invalid object category`, so a
+  metadata comment on one of those renders no statement.
 - Renaming a column rewrites identifier tokens in check expressions, not string
   literals.
 - Identity options are read from the clause text, and identity alterations render
