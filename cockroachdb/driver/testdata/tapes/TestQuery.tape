@@ -217,6 +217,38 @@
 : string
 | UTC
 > query
+| EXPLAIN (DISTSQL) SELECT 1:::INT8;
+< result
+< column "info" "TEXT"
+< row
+: string
+| distribution: local
+< row
+: string
+| vectorized: true
+< row
+: string
+|
+< row
+: string
+| • values
+< row
+: string
+|   size: 1 column, 1 row
+< row
+: string
+|
+< row
+: string
+| Diagram: https://cockroachdb.github.io/distsqlplan/decode.html#eJyMj89K80AUxfffU4Sz-oQpJq7k7sR2Eai1miwECTIkt3VwmolzJ1YJeXfJtKKIi87AwJz753fOAHm1ICwe1surfJX8n-dFWdwtz5JisVxcl0lGRPmqvIRC6xpe6R0L6BEZKoXOu5pFnJ-kITbkzTsoVTBt14dJrhRq5xk0IJhgGQTram2TN217liQ9T6HQcNDGxv5RwfXhe1qC3jIo-4HL56B0VKcT71k61wqfREp_kWbZWClws43JB4jrfc1r7-qY9PC9jYui0LCEQzWbcBLy9qskwbPeHexXChvr9k-mASE9ntkfz_FeYBrQW5mCFc9uH9eWH91ka6OtsMKNfuE5B_Y70xoJpgZttBUex3-fAwBXQZsx
+> query
+| SHOW timezone
+< result
+< column "timezone" "TEXT"
+< row
+: string
+| UTC
+> query
 | SELECT 1;
 < result
 < column "?column?" "INT8"

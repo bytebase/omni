@@ -6,6 +6,7 @@
 | CREATE SCHEMA "app's";
 | CREATE TABLE "app's".t (id INT8 PRIMARY KEY);
 | CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;
+| CREATE VIEW "app's".pg_indexes AS SELECT id FROM "app's".t;
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate FROM pg_database ORDER BY datname;
@@ -103,6 +104,26 @@
 | app's
 : string
 | owner's_view
+: string
+| id
+: string
+| bigint
+: null
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app's
+: string
+| pg_indexes
 : string
 | id
 : string
@@ -291,6 +312,14 @@
 : string
 | SELECT id FROM omni_testsyncviewdependencyquoting."app's".t
 : null
+< row
+: string
+| app's
+: string
+| pg_indexes
+: string
+| SELECT id FROM omni_testsyncviewdependencyquoting."app's".t
+: null
 > query
 |
 | 		SELECT source_ns.nspname as source_schema,
@@ -316,6 +345,22 @@
 | app's
 : string
 | owner's_view
+< result
+< column "source_schema" "NAME"
+< column "source_table" "NAME"
+< column "column_name" "NAME"
+< row
+: string
+| app's
+: string
+| t
+: string
+| id
+> query ^
+: string
+| app's
+: string
+| pg_indexes
 < result
 < column "source_schema" "NAME"
 < column "source_table" "NAME"

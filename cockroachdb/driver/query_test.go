@@ -208,6 +208,19 @@ INSERT INTO other.thing VALUES (7);`)
 		}
 	})
 
+	t.Run("native explain", func(t *testing.T) {
+		results, err := session.Query(ctx, "SELECT 1:::INT8;", driver.QueryOptions{Explain: true, ExplainFormat: "JSON"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(results) != 1 || results[0].Err != nil {
+			t.Fatalf("results = %+v", results)
+		}
+		if len(results[0].Rows) != 1 || results[0].Plan == nil || results[0].Plan.Format != "JSON" {
+			t.Fatalf("plan = %+v/%+v, want a JSON plan", results[0].Rows, results[0].Plan)
+		}
+	})
+
 	t.Run("error stops the script", func(t *testing.T) {
 		results, err := session.Query(ctx, "SELECT 1; SELECT * FROM app.missing; SELECT 3;", driver.QueryOptions{})
 		if err != nil {

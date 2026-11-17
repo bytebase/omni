@@ -80,10 +80,30 @@ func (d *Driver) Execute(ctx context.Context, script string, opts driver.Execute
 		}
 	}
 
-	if opts.Transaction == driver.AutoCommit {
-		return d.executeInAutoCommitMode(ctx, owner, script, orderedCommands, opts.Log, isPlsql)
+	run := func() (int64, error) {
+		if opts.Transaction == driver.AutoCommit {
+			return d.executeInAutoCommitMode(ctx, owner, script, orderedCommands, opts.Log, isPlsql)
+		}
+		return d.executeInTransactionMode(ctx, owner, script, txCommands, nonTransactionAndSetRoleStmts, opts.Isolation, opts.Log, isPlsql)
 	}
-	return d.executeInTransactionMode(ctx, owner, script, txCommands, nonTransactionAndSetRoleStmts, opts.Isolation, opts.Log, isPlsql)
+	affected, err := run()
+	if err == nil || !isLockTimeoutError(err) {
+		return affected, err
+	}
+	for i := 0; i < opts.MaxRetries; i++ {
+		if opts.Log != nil {
+			opts.Log.Retry(err, i+1, opts.MaxRetries)
+		}
+		affected, err = run()
+		if err == nil || !isLockTimeoutError(err) {
+			break
+		}
+	}
+	return affected, err
+}
+
+func isLockTimeoutError(err error) bool {
+	return strings.Contains(err.Error(), "canceling statement due to lock timeout")
 }
 
 func (d *Driver) executeInTransactionMode(

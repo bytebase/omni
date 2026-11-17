@@ -274,6 +274,21 @@
               "table": "orders",
               "column": "customer_id"
             }
+          ],
+          "indexes": [
+            {
+              "name": "order_totals_pkey",
+              "expressions": [
+                "rowid"
+              ],
+              "descending": [
+                false
+              ],
+              "type": "btree",
+              "unique": true,
+              "primary": true,
+              "definition": "CREATE UNIQUE INDEX order_totals_pkey ON omni_testsyncdatabase.app.order_totals USING btree (rowid ASC)"
+            }
           ]
         }
       ],

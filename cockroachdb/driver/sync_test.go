@@ -182,7 +182,8 @@ func TestSyncViewDependencyQuoting(t *testing.T) {
 	mustExec(t, d.db, `
 CREATE SCHEMA "app's";
 CREATE TABLE "app's".t (id INT8 PRIMARY KEY);
-CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;`)
+CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;
+CREATE VIEW "app's".pg_indexes AS SELECT id FROM "app's".t;`)
 
 	got, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -192,11 +193,13 @@ CREATE VIEW "app's"."owner's_view" AS SELECT id FROM "app's".t;`)
 		if schema.Name != "app's" {
 			continue
 		}
-		if len(schema.Views) != 1 || schema.Views[0].Name != "owner's_view" {
-			t.Fatalf("views = %+v, want owner's_view", schema.Views)
+		if len(schema.Views) != 2 {
+			t.Fatalf("views = %+v, want owner's_view and pg_indexes", schema.Views)
 		}
-		if len(schema.Views[0].DependencyColumns) != 1 {
-			t.Fatalf("dependency columns = %+v, want one", schema.Views[0].DependencyColumns)
+		for _, view := range schema.Views {
+			if len(view.DependencyColumns) != 1 {
+				t.Errorf("%s dependency columns = %+v, want one", view.Name, view.DependencyColumns)
+			}
 		}
 		return
 	}
@@ -277,5 +280,22 @@ CREATE TABLE app.child_ref ("references" INT8 REFERENCES app.parent_ref("referen
 				}
 			}
 		}
+	}
+}
+
+// TestKeywordOutsideQuotes pins the foreign-key scanner on a name whose
+// uppercase spelling is a different byte length.
+func TestKeywordOutsideQuotes(t *testing.T) {
+	name := strings.Repeat("ı", 30)
+	definition := `FOREIGN KEY ("` + name + `") REFERENCES parent(id)`
+	columns, referenced, err := getForeignKeyColumnsAndReferencedColumns(definition)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(columns) != 1 || columns[0] != name {
+		t.Errorf("columns = %+v, want %q", columns, name)
+	}
+	if len(referenced) != 1 || referenced[0] != "id" {
+		t.Errorf("referenced = %+v, want id", referenced)
 	}
 }

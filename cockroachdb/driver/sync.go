@@ -92,7 +92,11 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get columns from database %q: %w", d.databaseName, err)
 	}
-	tableMap, externalTableMap, err := getTables(txn, isAtLeastPG10, columnMap)
+	indexMap, err := getIndexes(txn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get indexes from database %q: %w", d.databaseName, err)
+	}
+	tableMap, externalTableMap, err := getTables(txn, isAtLeastPG10, columnMap, indexMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tables from database %q: %w", d.databaseName, err)
 	}
@@ -107,7 +111,7 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 	if err != nil {
 		return nil, fmt.Errorf("failed to get views from database %q: %w", d.databaseName, err)
 	}
-	materializedViewMap, err := getMaterializedViews(txn)
+	materializedViewMap, err := getMaterializedViews(txn, indexMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get materialized views from database %q: %w", d.databaseName, err)
 	}
@@ -288,7 +292,6 @@ func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []st
 // keywordOutsideQuotes finds keyword in s at or after start, skipping quoted
 // identifiers so a name such as "references" is not mistaken for the keyword.
 func keywordOutsideQuotes(s, keyword string, start int) int {
-	upper := strings.ToUpper(s)
 	for i := start; i+len(keyword) <= len(s); i++ {
 		if s[i] == '"' {
 			i++
@@ -304,7 +307,7 @@ func keywordOutsideQuotes(s, keyword string, start int) int {
 			}
 			continue
 		}
-		if strings.HasPrefix(upper[i:], keyword) {
+		if strings.EqualFold(s[i:i+len(keyword)], keyword) {
 			return i
 		}
 	}
@@ -465,11 +468,7 @@ func getListTableQuery(isAtLeastPG10 bool) string {
 }
 
 // getTables gets all tables of a database.
-func getTables(txn *sql.Tx, isAtLeastPG10 bool, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.TableMetadata, map[string][]*metadatapb.ExternalTableMetadata, error) {
-	indexMap, err := getIndexes(txn)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get indexes: %w", err)
-	}
+func getTables(txn *sql.Tx, isAtLeastPG10 bool, columnMap map[tableKey][]*metadatapb.ColumnMetadata, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.TableMetadata, map[string][]*metadatapb.ExternalTableMetadata, error) {
 	foreignKeysMap, err := getForeignKeys(txn)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to get foreign keys: %w", err)
@@ -587,9 +586,6 @@ func getTablePartitions(txn *sql.Tx) (map[tableKey][]*metadatapb.TablePartitionM
 		if err := rows.Scan(&schemaName, &tableName, &inhSchemaName, &inhTableName, &partitionType, &relPartBound); err != nil {
 			return nil, err
 		}
-		if pganalysis.IsSystemTable(tableName) || pganalysis.IsSystemTable(inhTableName) {
-			continue
-		}
 		key := tableKey{Schema: inhSchemaName, Table: inhTableName}
 		metadata := &metadatapb.TablePartitionMetadata{
 			Name:       tableName,
@@ -695,7 +691,7 @@ LEFT JOIN pg_class c ON c.relname = m.matviewname AND c.relnamespace = n.oid AND
 WHERE m.schemaname NOT IN (%s)
 ORDER BY m.schemaname, m.matviewname;`, crrawanalysis.SystemSchemaWhereClause)
 
-func getMaterializedViews(txn *sql.Tx) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
+func getMaterializedViews(txn *sql.Tx, indexMap map[tableKey][]*metadatapb.IndexMetadata) (map[string][]*metadatapb.MaterializedViewMetadata, error) {
 	matviewMap := make(map[string][]*metadatapb.MaterializedViewMetadata)
 
 	rows, err := txn.Query(listMaterializedViewQuery)
@@ -710,11 +706,6 @@ func getMaterializedViews(txn *sql.Tx) (map[string][]*metadatapb.MaterializedVie
 		if err := rows.Scan(&schemaName, &matview.Name, &def, &comment); err != nil {
 			return nil, err
 		}
-		// Skip system views.
-		if pganalysis.IsSystemView(matview.Name) {
-			continue
-		}
-
 		// Return error on NULL view definition.
 		if !def.Valid {
 			return nil, fmt.Errorf("schema %q materialized view %q has empty definition; please check whether proper privileges have been granted to Bytebase", schemaName, matview.Name)
@@ -724,6 +715,7 @@ func getMaterializedViews(txn *sql.Tx) (map[string][]*metadatapb.MaterializedVie
 			matview.Comment = comment.String
 		}
 
+		matview.Indexes = indexMap[tableKey{Schema: schemaName, Table: matview.Name}]
 		matviewMap[schemaName] = append(matviewMap[schemaName], matview)
 	}
 	if err := rows.Err(); err != nil {
@@ -767,11 +759,6 @@ func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) 
 		if err := rows.Scan(&schemaName, &view.Name, &def, &comment); err != nil {
 			return nil, err
 		}
-		// Skip system views.
-		if pganalysis.IsSystemView(view.Name) {
-			continue
-		}
-
 		// Return error on NULL view definition.
 		// https://github.com/bytebase/bytebase/issues/343
 		if !def.Valid {
@@ -1031,11 +1018,6 @@ func getFunctions(txn *sql.Tx) (map[string][]*metadatapb.FunctionMetadata, error
 		if err := rows.Scan(&schemaName, &function.Name, &function.Definition); err != nil {
 			return nil, err
 		}
-		// Skip internal functions.
-		if pganalysis.IsSystemFunction(function.Name, function.Definition) {
-			continue
-		}
-
 		functionMap[schemaName] = append(functionMap[schemaName], function)
 	}
 	if err := rows.Err(); err != nil {

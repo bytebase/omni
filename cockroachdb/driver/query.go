@@ -68,7 +68,7 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 		statement := single.Text
 		planAsJSON := false
 		if opts.Explain {
-			explained, err := pganalysis.CockroachExplainStatement(statement, strings.EqualFold(opts.ExplainFormat, "JSON"))
+			explained, err := explainStatement(statement, strings.EqualFold(opts.ExplainFormat, "JSON"))
 			if err != nil {
 				return nil, err
 			}
@@ -164,6 +164,31 @@ func (s *session) Query(ctx context.Context, script string, opts driver.QueryOpt
 	}
 
 	return results, nil
+}
+
+// explainStatement builds the statement that plans statement in CockroachDB's
+// grammar, around the statement an EXPLAIN already names so a plan never
+// plans another plan. EXPLAIN ANALYZE executes what it plans, which an
+// explain request never does.
+func explainStatement(statement string, json bool) (string, error) {
+	parsed, err := crrawanalysis.Parse(statement)
+	if err != nil {
+		return "", err
+	}
+	if len(parsed) != 1 {
+		return "", fmt.Errorf("EXPLAIN plans a single statement")
+	}
+	planned := statement
+	switch node := parsed[0].AST.(type) {
+	case *crrawparsertree.ExplainAnalyze:
+		return "", pganalysis.ErrExplainAnalyzeExecutes
+	case *crrawparsertree.Explain:
+		planned = node.Statement.String()
+	}
+	if json {
+		return "EXPLAIN (DISTSQL) " + planned, nil
+	}
+	return "EXPLAIN " + planned, nil
 }
 
 // validateQuery reports whether the statement returns rows. CockroachDB's
