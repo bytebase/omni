@@ -30,8 +30,7 @@ type session struct {
 func (*session) Close() error { return nil }
 
 // Query runs each statement of script in order and returns one Result per
-// statement run. Errors stay gocql's types (*gocql.RequestErrInvalid and its
-// siblings) wrapped in the message the row read reported them with.
+// statement run. A statement's error is gocql's, as the package doc describes.
 //
 // A statement that fails ends the script with its error on its own Result;
 // the error returned is nil, since the script ran as far as it could.
@@ -118,9 +117,7 @@ func (s *session) run(ctx context.Context, statement string, opts driver.QueryOp
 			result.Rows = append(result.Rows, row)
 			totalBytes += driver.RowByteSize(row)
 			n := len(result.Rows)
-			// The size is measured where Bytebase measured it, every doubling
-			// of the row count.
-			if opts.MaxResultBytes > 0 && n&(n-1) == 0 && totalBytes > opts.MaxResultBytes {
+			if opts.MaxResultBytes > 0 && totalBytes > opts.MaxResultBytes {
 				result.Truncated = true
 				return result, nil
 			}
