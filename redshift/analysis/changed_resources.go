@@ -237,9 +237,13 @@ func SplitSearchPath(statement string) (string, string) {
 	if !strings.HasPrefix(statement, searchPathPrefix) {
 		return "", statement
 	}
-	setup, rest, ok := strings.Cut(statement, ";\n")
-	if !ok {
+	// The splitter finds the boundary outside a quoted identifier, which may
+	// itself hold a semicolon.
+	segments := redshift.Split(statement)
+	if len(segments) < 2 {
 		return "", statement
 	}
-	return setup, rest
+	setup := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(segments[0].Text), ";"))
+	// The newline the prefix wrote after the semicolon separates the two.
+	return setup, strings.TrimLeft(statement[segments[0].ByteEnd:], " \t\r\n")
 }

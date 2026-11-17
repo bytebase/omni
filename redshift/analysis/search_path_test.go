@@ -21,6 +21,13 @@ func TestSplitSearchPath(t *testing.T) {
 			wantStmt:  statement,
 		},
 		{
+			// A schema's name may hold the delimiter text inside its quotes.
+			name:      "a prefix whose schema holds a semicolon",
+			in:        withSearchPath(statement, []string{"app;\nname"}),
+			wantSetup: "SET LOCAL search_path TO \"app;\nname\"",
+			wantStmt:  statement,
+		},
+		{
 			name:     "a statement without a prefix",
 			in:       statement,
 			wantStmt: statement,
