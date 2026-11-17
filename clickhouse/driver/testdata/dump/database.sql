@@ -43,7 +43,7 @@ ORDER BY id
 SETTINGS index_granularity = 8192;
 
 --
--- Table structure for src
+-- Table structure for `src`
 --
 CREATE TABLE omni_testdump.src
 (
@@ -58,7 +58,7 @@ SETTINGS index_granularity = 4096
 COMMENT 'the source';
 
 --
--- Table structure for target
+-- Table structure for `target`
 --
 CREATE TABLE omni_testdump.target
 (
@@ -70,7 +70,7 @@ ORDER BY id
 SETTINGS index_granularity = 8192;
 
 --
--- Dictionary structure for dict
+-- Dictionary structure for `dict`
 --
 CREATE DICTIONARY omni_testdump.dict
 (
@@ -83,16 +83,19 @@ LIFETIME(MIN 0 MAX 300)
 LAYOUT(FLAT());
 
 --
--- Table structure for dict_table
+-- Dictionary structure for `view_dict`
 --
-CREATE TABLE omni_testdump.dict_table
+CREATE DICTIONARY omni_testdump.view_dict
 (
     `id` UInt64
 )
-ENGINE = Dictionary('omni_testdump.dict');
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(TABLE 'v_source'))
+LIFETIME(MIN 0 MAX 300)
+LAYOUT(FLAT());
 
 --
--- View structure for a_first
+-- View structure for `a_first`
 --
 CREATE VIEW omni_testdump.a_first
 (
@@ -102,7 +105,7 @@ AS SELECT id
 FROM omni_testdump.v_names;
 
 --
--- View structure for v_bridge
+-- View structure for `v_bridge`
 --
 CREATE VIEW omni_testdump.v_bridge
 (
@@ -115,7 +118,7 @@ AS SELECT
 FROM omni_testdump.mv_base;
 
 --
--- View structure for v_names
+-- View structure for `v_names`
 --
 CREATE VIEW omni_testdump.v_names
 (
@@ -128,7 +131,17 @@ AS SELECT
 FROM omni_testdump.src;
 
 --
--- Materialized view structure for mv_base
+-- View structure for `v_source`
+--
+CREATE VIEW omni_testdump.v_source
+(
+    `id` UInt64
+)
+AS SELECT id
+FROM omni_testdump.src;
+
+--
+-- Materialized view structure for `mv_base`
 --
 CREATE MATERIALIZED VIEW omni_testdump.mv_base TO omni_testdump.target
 (
@@ -141,7 +154,7 @@ AS SELECT
 FROM omni_testdump.src;
 
 --
--- Materialized view structure for mv_own
+-- Materialized view structure for `mv_own`
 --
 CREATE MATERIALIZED VIEW omni_testdump.mv_own
 (
@@ -167,7 +180,7 @@ AS SELECT
 FROM omni_testdump.src;
 
 --
--- Materialized view structure for a_after
+-- Materialized view structure for `a_after`
 --
 CREATE MATERIALIZED VIEW omni_testdump.a_after TO omni_testdump.target
 (
@@ -180,7 +193,7 @@ AS SELECT
 FROM omni_testdump.`nl\nmv`;
 
 --
--- Materialized view structure for a_top
+-- Materialized view structure for `a_top`
 --
 CREATE MATERIALIZED VIEW omni_testdump.a_top TO omni_testdump.target
 (
@@ -191,4 +204,22 @@ AS SELECT
     id,
     name
 FROM omni_testdump.v_bridge;
+
+--
+-- Table structure for `dict_table`
+--
+CREATE TABLE omni_testdump.dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.dict');
+
+--
+-- Table structure for `view_dict_table`
+--
+CREATE TABLE omni_testdump.view_dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.view_dict');
 

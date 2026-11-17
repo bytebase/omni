@@ -31,7 +31,7 @@
 : string
 | src
 > query
-| SHOW CREATE TABLE omni_gap_mv.mv
+| SHOW CREATE TABLE `omni_gap_mv`.`mv`
 < result
 < column "statement" "String" "string"
 < row
@@ -46,7 +46,7 @@
 | AS SELECT id
 | FROM omni_gap_mv.src
 > query
-| SHOW CREATE TABLE omni_gap_mv.src
+| SHOW CREATE TABLE `omni_gap_mv`.`src`
 < result
 < column "statement" "String" "string"
 < row
@@ -59,16 +59,16 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > exec
-| DROP DATABASE IF EXISTS omni_gap_mv
+| DROP DATABASE IF EXISTS `omni_gap_mv`
 < ok 0 -
 > exec
-| CREATE DATABASE omni_gap_mv
+| CREATE DATABASE `omni_gap_mv`
 < ok 0 -
 > begin
 < ok
 > exec
 | --
-| -- Table structure for src
+| -- Table structure for `src`
 | --
 | CREATE TABLE omni_gap_mv.src
 | (
@@ -82,7 +82,7 @@
 |
 |
 | --
-| -- Materialized view structure for mv
+| -- Materialized view structure for `mv`
 | --
 | CREATE MATERIALIZED VIEW omni_gap_mv.mv
 | (
@@ -138,7 +138,7 @@
 : string
 | t
 > query
-| SHOW CREATE TABLE omni_gap_database.t
+| SHOW CREATE TABLE `omni_gap_database`.`t`
 < result
 < column "statement" "String" "string"
 < row
@@ -151,16 +151,16 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > exec
-| DROP DATABASE IF EXISTS omni_gap_database
+| DROP DATABASE IF EXISTS `omni_gap_database`
 < ok 0 -
 > exec
-| CREATE DATABASE omni_gap_database
+| CREATE DATABASE `omni_gap_database`
 < ok 0 -
 > begin
 < ok
 > exec
 | --
-| -- Table structure for t
+| -- Table structure for `t`
 | --
 | CREATE TABLE omni_gap_database.t
 | (

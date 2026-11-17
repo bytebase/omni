@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"regexp"
 	"sort"
 	"strings"
 
@@ -168,12 +167,13 @@ func (d *Driver) dumpStatement(ctx context.Context, database, name string) (stri
 //   - tables, whose creation resolves nothing;
 //   - dictionaries, whose creation resolves nothing either, so they follow the
 //     tables their sources usually are;
-//   - tables on the Dictionary engine, which load their dictionary when they
-//     are created, and with it the dictionary's source;
 //   - views, whose creation does not resolve the query they hold, so their own
 //     order does not matter;
 //   - materialized views, which do resolve their source and their TO target
-//     when they are created, each after the materialized views it reads.
+//     when they are created, each after the materialized views it reads;
+//   - tables on the Dictionary engine last, since creating one loads its
+//     dictionary and the dictionary's source may be any object here, a view
+//     included, while nothing states what a dictionary reads.
 func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 	var tables, dictionaries, dictionaryTables, views, materializedViews []*dumpObject
 	for _, o := range objects {
@@ -192,9 +192,9 @@ func orderDumpObjects(objects []*dumpObject) []*dumpObject {
 	}
 	ordered := sortDumpObjects(tables)
 	ordered = append(ordered, sortDumpObjects(dictionaries)...)
-	ordered = append(ordered, sortDumpObjects(dictionaryTables)...)
 	ordered = append(ordered, sortDumpObjects(views)...)
-	return append(ordered, orderDumpMaterializedViews(materializedViews)...)
+	ordered = append(ordered, orderDumpMaterializedViews(materializedViews)...)
+	return append(ordered, sortDumpObjects(dictionaryTables)...)
 }
 
 // orderDumpMaterializedViews orders materialized views so that one follows every
@@ -293,7 +293,22 @@ func dumpExpandedReads(o *dumpObject, definitions map[string]*dumpObject) []stri
 // literal is not a read: an edge it added could close a cycle and make the order
 // fall back to names.
 func dumpReferences(stmt, database, name string) bool {
-	reference := dumpIdentifier(database) + "." + dumpIdentifier(name)
+	// ClickHouse writes each part of a reference bare where it can and in
+	// backquotes where it must — and in backquotes for the keywords it quotes
+	// anyway — so every spelling is looked for.
+	for _, db := range []string{database, dumpIdentifier(database)} {
+		for _, object := range []string{name, dumpIdentifier(name)} {
+			if dumpNamesOutsideString(stmt, db+"."+object) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// dumpNamesOutsideString reports whether stmt holds reference outside a string
+// literal, and not as the tail of a longer identifier.
+func dumpNamesOutsideString(stmt, reference string) bool {
 	for offset := 0; offset < len(stmt); {
 		start := strings.Index(stmt[offset:], reference)
 		if start < 0 {
@@ -338,19 +353,12 @@ func dumpInString(stmt string, want int) bool {
 	return quote == '\''
 }
 
-var plainIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
-
-// dumpIdentifier writes name the way ClickHouse's own rendering writes it: bare
-// when it is a plain identifier, and in backquotes otherwise, with the escapes
-// ClickHouse writes for a backslash, a backquote and the control characters an
-// identifier may hold. An object's name is quoted for the statement the dump
-// asks for, for the header above it — a -- comment a line break would end — and
-// for a reference another statement holds, which has to match the rendering the
-// server wrote.
+// dumpIdentifier writes name in backquotes, with the escapes ClickHouse writes
+// for a backslash, a backquote and the control characters an identifier may
+// hold. Quoting always is what makes the statement the dump asks for, the header
+// above it — a -- comment a line break would end — and the reference another
+// statement holds safe without a list of the keywords ClickHouse quotes anyway.
 func dumpIdentifier(name string) string {
-	if plainIdentifier.MatchString(name) {
-		return name
-	}
 	var b strings.Builder
 	b.WriteByte('`')
 	for i := 0; i < len(name); i++ {

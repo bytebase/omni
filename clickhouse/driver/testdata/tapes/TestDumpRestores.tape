@@ -88,6 +88,32 @@
 > exec
 |
 |
+| -- A dictionary whose source is a view, and a table that loads it: creating the
+| -- table queries the view, so both follow the views.
+| CREATE VIEW v_source AS SELECT id FROM src;
+< ok 0 -
+> exec
+|
+|
+| CREATE DICTIONARY view_dict (
+|   id UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'v_source'))
+| LAYOUT(FLAT())
+| LIFETIME(300);
+< ok 0 -
+> exec
+|
+|
+| CREATE TABLE view_dict_table (
+|   id UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.view_dict');
+< ok 0 -
+> exec
+|
+|
 | CREATE TABLE dict_table (
 |   id UInt64
 | )
@@ -601,6 +627,60 @@
 |
 : string
 |
+< row
+: string
+| v_source
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict_table
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
 > query
 |
 | 		SELECT
@@ -853,6 +933,51 @@
 |
 : string
 |
+< row
+: string
+| v_source
+: string
+| View
+: uint64 0
+: uint64 0
+: string
+| CREATE VIEW omni_testdumprestores.v_source (`id` UInt64) AS SELECT id FROM omni_testdumprestores.src
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE DICTIONARY omni_testdumprestores.view_dict (`id` UInt64) PRIMARY KEY id SOURCE(CLICKHOUSE(TABLE 'v_source')) LIFETIME(MIN 0 MAX 300) LAYOUT(FLAT())
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict_table
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE TABLE omni_testdumprestores.view_dict_table (`id` UInt64) ENGINE = Dictionary('omni_testdumprestores.view_dict')
+: string
+|
+: string
+|
+: string
+|
 > query
 |
 | 		SELECT
@@ -992,6 +1117,26 @@
 < column "type" "String" "string"
 < column "expr" "String" "string"
 < column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| view_dict
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| view_dict_table
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
 > query
 |
 | 		SELECT
@@ -1050,8 +1195,17 @@
 < row
 : string
 | v_names
+< row
+: string
+| v_source
+< row
+: string
+| view_dict
+< row
+: string
+| view_dict_table
 > query
-| SHOW CREATE TABLE omni_testdumprestores.`.events`
+| SHOW CREATE TABLE `omni_testdumprestores`.`.events`
 < result
 < column "statement" "String" "string"
 < row
@@ -1064,7 +1218,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdumprestores.`.innerXid.events`
+| SHOW CREATE TABLE `omni_testdumprestores`.`.innerXid.events`
 < result
 < column "statement" "String" "string"
 < row
@@ -1077,7 +1231,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdumprestores.a_after
+| SHOW CREATE TABLE `omni_testdumprestores`.`a_after`
 < result
 < column "statement" "String" "string"
 < row
@@ -1092,7 +1246,7 @@
 |     'y' AS name
 | FROM omni_testdumprestores.`nl\nmv`
 > query
-| SHOW CREATE TABLE omni_testdumprestores.a_first
+| SHOW CREATE TABLE `omni_testdumprestores`.`a_first`
 < result
 < column "statement" "String" "string"
 < row
@@ -1104,7 +1258,7 @@
 | AS SELECT id
 | FROM omni_testdumprestores.v_names
 > query
-| SHOW CREATE TABLE omni_testdumprestores.a_top
+| SHOW CREATE TABLE `omni_testdumprestores`.`a_top`
 < result
 < column "statement" "String" "string"
 < row
@@ -1119,7 +1273,7 @@
 |     name
 | FROM omni_testdumprestores.v_bridge
 > query
-| SHOW CREATE TABLE omni_testdumprestores.dict
+| SHOW CREATE TABLE `omni_testdumprestores`.`dict`
 < result
 < column "statement" "String" "string"
 < row
@@ -1134,7 +1288,7 @@
 | LIFETIME(MIN 0 MAX 300)
 | LAYOUT(FLAT())
 > query
-| SHOW CREATE TABLE omni_testdumprestores.dict_table
+| SHOW CREATE TABLE `omni_testdumprestores`.`dict_table`
 < result
 < column "statement" "String" "string"
 < row
@@ -1145,7 +1299,7 @@
 | )
 | ENGINE = Dictionary('omni_testdumprestores.dict')
 > query
-| SHOW CREATE TABLE omni_testdumprestores.`line\nbreak`
+| SHOW CREATE TABLE `omni_testdumprestores`.`line\nbreak`
 < result
 < column "statement" "String" "string"
 < row
@@ -1158,7 +1312,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdumprestores.mv_base
+| SHOW CREATE TABLE `omni_testdumprestores`.`mv_base`
 < result
 < column "statement" "String" "string"
 < row
@@ -1173,7 +1327,7 @@
 |     'omni_testdumprestores.a_top' AS name
 | FROM omni_testdumprestores.src
 > query
-| SHOW CREATE TABLE omni_testdumprestores.`nl\nmv`
+| SHOW CREATE TABLE `omni_testdumprestores`.`nl\nmv`
 < result
 < column "statement" "String" "string"
 < row
@@ -1188,7 +1342,7 @@
 |     'x' AS name
 | FROM omni_testdumprestores.src
 > query
-| SHOW CREATE TABLE omni_testdumprestores.`odd-name`
+| SHOW CREATE TABLE `omni_testdumprestores`.`odd-name`
 < result
 < column "statement" "String" "string"
 < row
@@ -1201,7 +1355,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdumprestores.src
+| SHOW CREATE TABLE `omni_testdumprestores`.`src`
 < result
 < column "statement" "String" "string"
 < row
@@ -1218,7 +1372,7 @@
 | SETTINGS index_granularity = 4096
 | COMMENT 'the source'
 > query
-| SHOW CREATE TABLE omni_testdumprestores.target
+| SHOW CREATE TABLE `omni_testdumprestores`.`target`
 < result
 < column "statement" "String" "string"
 < row
@@ -1232,7 +1386,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdumprestores.v_bridge
+| SHOW CREATE TABLE `omni_testdumprestores`.`v_bridge`
 < result
 < column "statement" "String" "string"
 < row
@@ -1247,7 +1401,7 @@
 |     name
 | FROM omni_testdumprestores.mv_base
 > query
-| SHOW CREATE TABLE omni_testdumprestores.v_names
+| SHOW CREATE TABLE `omni_testdumprestores`.`v_names`
 < result
 < column "statement" "String" "string"
 < row
@@ -1261,11 +1415,48 @@
 |     id,
 |     name
 | FROM omni_testdumprestores.src
+> query
+| SHOW CREATE TABLE `omni_testdumprestores`.`v_source`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE VIEW omni_testdumprestores.v_source
+| (
+|     `id` UInt64
+| )
+| AS SELECT id
+| FROM omni_testdumprestores.src
+> query
+| SHOW CREATE TABLE `omni_testdumprestores`.`view_dict`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE DICTIONARY omni_testdumprestores.view_dict
+| (
+|     `id` UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'v_source'))
+| LIFETIME(MIN 0 MAX 300)
+| LAYOUT(FLAT())
+> query
+| SHOW CREATE TABLE `omni_testdumprestores`.`view_dict_table`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE TABLE omni_testdumprestores.view_dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.view_dict')
 > exec
-| DROP DATABASE IF EXISTS omni_testdumprestores
+| DROP DATABASE IF EXISTS `omni_testdumprestores`
 < ok 0 -
 > exec
-| CREATE DATABASE omni_testdumprestores
+| CREATE DATABASE `omni_testdumprestores`
 < ok 0 -
 > begin
 < ok
@@ -1327,7 +1518,7 @@
 |
 |
 | --
-| -- Table structure for src
+| -- Table structure for `src`
 | --
 | CREATE TABLE omni_testdumprestores.src
 | (
@@ -1345,7 +1536,7 @@
 |
 |
 | --
-| -- Table structure for target
+| -- Table structure for `target`
 | --
 | CREATE TABLE omni_testdumprestores.target
 | (
@@ -1360,7 +1551,7 @@
 |
 |
 | --
-| -- Dictionary structure for dict
+| -- Dictionary structure for `dict`
 | --
 | CREATE DICTIONARY omni_testdumprestores.dict
 | (
@@ -1376,19 +1567,22 @@
 |
 |
 | --
-| -- Table structure for dict_table
+| -- Dictionary structure for `view_dict`
 | --
-| CREATE TABLE omni_testdumprestores.dict_table
+| CREATE DICTIONARY omni_testdumprestores.view_dict
 | (
 |     `id` UInt64
 | )
-| ENGINE = Dictionary('omni_testdumprestores.dict');
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'v_source'))
+| LIFETIME(MIN 0 MAX 300)
+| LAYOUT(FLAT());
 < ok 0 -
 > exec
 |
 |
 | --
-| -- View structure for a_first
+| -- View structure for `a_first`
 | --
 | CREATE VIEW omni_testdumprestores.a_first
 | (
@@ -1401,7 +1595,7 @@
 |
 |
 | --
-| -- View structure for v_bridge
+| -- View structure for `v_bridge`
 | --
 | CREATE VIEW omni_testdumprestores.v_bridge
 | (
@@ -1417,7 +1611,7 @@
 |
 |
 | --
-| -- View structure for v_names
+| -- View structure for `v_names`
 | --
 | CREATE VIEW omni_testdumprestores.v_names
 | (
@@ -1433,7 +1627,20 @@
 |
 |
 | --
-| -- Materialized view structure for mv_base
+| -- View structure for `v_source`
+| --
+| CREATE VIEW omni_testdumprestores.v_source
+| (
+|     `id` UInt64
+| )
+| AS SELECT id
+| FROM omni_testdumprestores.src;
+< ok 0 -
+> exec
+|
+|
+| --
+| -- Materialized view structure for `mv_base`
 | --
 | CREATE MATERIALIZED VIEW omni_testdumprestores.mv_base TO omni_testdumprestores.target
 | (
@@ -1465,7 +1672,7 @@
 |
 |
 | --
-| -- Materialized view structure for a_after
+| -- Materialized view structure for `a_after`
 | --
 | CREATE MATERIALIZED VIEW omni_testdumprestores.a_after TO omni_testdumprestores.target
 | (
@@ -1481,7 +1688,7 @@
 |
 |
 | --
-| -- Materialized view structure for a_top
+| -- Materialized view structure for `a_top`
 | --
 | CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target
 | (
@@ -1492,6 +1699,30 @@
 |     id,
 |     name
 | FROM omni_testdumprestores.v_bridge;
+< ok 0 -
+> exec
+|
+|
+| --
+| -- Table structure for `dict_table`
+| --
+| CREATE TABLE omni_testdumprestores.dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.dict');
+< ok 0 -
+> exec
+|
+|
+| --
+| -- Table structure for `view_dict_table`
+| --
+| CREATE TABLE omni_testdumprestores.view_dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.view_dict');
 < ok 0 -
 > commit
 < ok
@@ -1957,6 +2188,60 @@
 |
 : string
 |
+< row
+: string
+| v_source
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict_table
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
 > query
 |
 | 		SELECT
@@ -2209,6 +2494,51 @@
 |
 : string
 |
+< row
+: string
+| v_source
+: string
+| View
+: uint64 0
+: uint64 0
+: string
+| CREATE VIEW omni_testdumprestores.v_source (`id` UInt64) AS SELECT id FROM omni_testdumprestores.src
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE DICTIONARY omni_testdumprestores.view_dict (`id` UInt64) PRIMARY KEY id SOURCE(CLICKHOUSE(TABLE 'v_source')) LIFETIME(MIN 0 MAX 300) LAYOUT(FLAT())
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| view_dict_table
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE TABLE omni_testdumprestores.view_dict_table (`id` UInt64) ENGINE = Dictionary('omni_testdumprestores.view_dict')
+: string
+|
+: string
+|
+: string
+|
 > query
 |
 | 		SELECT
@@ -2343,6 +2673,26 @@
 | omni_testdumprestores
 : string
 | target
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| view_dict
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| view_dict_table
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"

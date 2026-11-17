@@ -63,6 +63,23 @@ SOURCE(CLICKHOUSE(TABLE 'src'))
 LAYOUT(FLAT())
 LIFETIME(300);
 
+-- A dictionary whose source is a view, and a table that loads it: creating the
+-- table queries the view, so both follow the views.
+CREATE VIEW v_source AS SELECT id FROM src;
+
+CREATE DICTIONARY view_dict (
+  id UInt64
+)
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(TABLE 'v_source'))
+LAYOUT(FLAT())
+LIFETIME(300);
+
+CREATE TABLE view_dict_table (
+  id UInt64
+)
+ENGINE = Dictionary('$database.view_dict');
+
 CREATE TABLE dict_table (
   id UInt64
 )

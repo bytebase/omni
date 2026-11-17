@@ -88,6 +88,32 @@
 > exec
 |
 |
+| -- A dictionary whose source is a view, and a table that loads it: creating the
+| -- table queries the view, so both follow the views.
+| CREATE VIEW v_source AS SELECT id FROM src;
+< ok 0 -
+> exec
+|
+|
+| CREATE DICTIONARY view_dict (
+|   id UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'v_source'))
+| LAYOUT(FLAT())
+| LIFETIME(300);
+< ok 0 -
+> exec
+|
+|
+| CREATE TABLE view_dict_table (
+|   id UInt64
+| )
+| ENGINE = Dictionary('omni_testdump.view_dict');
+< ok 0 -
+> exec
+|
+|
 | CREATE TABLE dict_table (
 |   id UInt64
 | )
@@ -205,8 +231,17 @@
 < row
 : string
 | v_names
+< row
+: string
+| v_source
+< row
+: string
+| view_dict
+< row
+: string
+| view_dict_table
 > query
-| SHOW CREATE TABLE omni_testdump.`.events`
+| SHOW CREATE TABLE `omni_testdump`.`.events`
 < result
 < column "statement" "String" "string"
 < row
@@ -219,7 +254,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdump.`.innerXid.events`
+| SHOW CREATE TABLE `omni_testdump`.`.innerXid.events`
 < result
 < column "statement" "String" "string"
 < row
@@ -232,7 +267,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdump.a_after
+| SHOW CREATE TABLE `omni_testdump`.`a_after`
 < result
 < column "statement" "String" "string"
 < row
@@ -247,7 +282,7 @@
 |     'y' AS name
 | FROM omni_testdump.`nl\nmv`
 > query
-| SHOW CREATE TABLE omni_testdump.a_first
+| SHOW CREATE TABLE `omni_testdump`.`a_first`
 < result
 < column "statement" "String" "string"
 < row
@@ -259,7 +294,7 @@
 | AS SELECT id
 | FROM omni_testdump.v_names
 > query
-| SHOW CREATE TABLE omni_testdump.a_top
+| SHOW CREATE TABLE `omni_testdump`.`a_top`
 < result
 < column "statement" "String" "string"
 < row
@@ -274,7 +309,7 @@
 |     name
 | FROM omni_testdump.v_bridge
 > query
-| SHOW CREATE TABLE omni_testdump.dict
+| SHOW CREATE TABLE `omni_testdump`.`dict`
 < result
 < column "statement" "String" "string"
 < row
@@ -289,7 +324,7 @@
 | LIFETIME(MIN 0 MAX 300)
 | LAYOUT(FLAT())
 > query
-| SHOW CREATE TABLE omni_testdump.dict_table
+| SHOW CREATE TABLE `omni_testdump`.`dict_table`
 < result
 < column "statement" "String" "string"
 < row
@@ -300,7 +335,7 @@
 | )
 | ENGINE = Dictionary('omni_testdump.dict')
 > query
-| SHOW CREATE TABLE omni_testdump.`line\nbreak`
+| SHOW CREATE TABLE `omni_testdump`.`line\nbreak`
 < result
 < column "statement" "String" "string"
 < row
@@ -313,7 +348,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdump.mv_base
+| SHOW CREATE TABLE `omni_testdump`.`mv_base`
 < result
 < column "statement" "String" "string"
 < row
@@ -328,7 +363,7 @@
 |     'omni_testdump.a_top' AS name
 | FROM omni_testdump.src
 > query
-| SHOW CREATE TABLE omni_testdump.mv_own
+| SHOW CREATE TABLE `omni_testdump`.`mv_own`
 < result
 < column "statement" "String" "string"
 < row
@@ -343,7 +378,7 @@
 | AS SELECT id
 | FROM omni_testdump.src
 > query
-| SHOW CREATE TABLE omni_testdump.`nl\nmv`
+| SHOW CREATE TABLE `omni_testdump`.`nl\nmv`
 < result
 < column "statement" "String" "string"
 < row
@@ -358,7 +393,7 @@
 |     'x' AS name
 | FROM omni_testdump.src
 > query
-| SHOW CREATE TABLE omni_testdump.`odd-name`
+| SHOW CREATE TABLE `omni_testdump`.`odd-name`
 < result
 < column "statement" "String" "string"
 < row
@@ -371,7 +406,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdump.src
+| SHOW CREATE TABLE `omni_testdump`.`src`
 < result
 < column "statement" "String" "string"
 < row
@@ -388,7 +423,7 @@
 | SETTINGS index_granularity = 4096
 | COMMENT 'the source'
 > query
-| SHOW CREATE TABLE omni_testdump.target
+| SHOW CREATE TABLE `omni_testdump`.`target`
 < result
 < column "statement" "String" "string"
 < row
@@ -402,7 +437,7 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 > query
-| SHOW CREATE TABLE omni_testdump.v_bridge
+| SHOW CREATE TABLE `omni_testdump`.`v_bridge`
 < result
 < column "statement" "String" "string"
 < row
@@ -417,7 +452,7 @@
 |     name
 | FROM omni_testdump.mv_base
 > query
-| SHOW CREATE TABLE omni_testdump.v_names
+| SHOW CREATE TABLE `omni_testdump`.`v_names`
 < result
 < column "statement" "String" "string"
 < row
@@ -431,3 +466,40 @@
 |     id,
 |     name
 | FROM omni_testdump.src
+> query
+| SHOW CREATE TABLE `omni_testdump`.`v_source`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE VIEW omni_testdump.v_source
+| (
+|     `id` UInt64
+| )
+| AS SELECT id
+| FROM omni_testdump.src
+> query
+| SHOW CREATE TABLE `omni_testdump`.`view_dict`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE DICTIONARY omni_testdump.view_dict
+| (
+|     `id` UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(TABLE 'v_source'))
+| LIFETIME(MIN 0 MAX 300)
+| LAYOUT(FLAT())
+> query
+| SHOW CREATE TABLE `omni_testdump`.`view_dict_table`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE TABLE omni_testdump.view_dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdump.view_dict')
