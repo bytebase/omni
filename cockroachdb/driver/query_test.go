@@ -243,3 +243,18 @@ func TestPadZeroes(t *testing.T) {
 		}
 	}
 }
+
+// TestValidateQueryExplainAnalyze pins the result-set decision without a
+// server: EXPLAIN ANALYZE of a mutation is not read-only, but it returns rows.
+func TestValidateQueryExplainAnalyze(t *testing.T) {
+	readOnly, returnsData, err := validateQuery("EXPLAIN ANALYZE UPDATE t SET v = v + 1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if readOnly {
+		t.Error("readOnly = true, want false")
+	}
+	if !returnsData {
+		t.Error("returnsData = false, want true")
+	}
+}

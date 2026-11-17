@@ -214,7 +214,9 @@ CREATE TABLE "sales.eu".parent (id INT8 PRIMARY KEY);
 CREATE TABLE "sales.eu".child (id INT8 PRIMARY KEY, parent_id INT8 REFERENCES "sales.eu".parent(id));
 CREATE SCHEMA app;
 CREATE TABLE app.parent_comma ("last,first" INT8 PRIMARY KEY);
-CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("last,first"));`)
+CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("last,first"));
+CREATE TABLE app.parent_paren ("x(y" INT8 PRIMARY KEY);
+CREATE TABLE app.child_paren ("x(y" INT8 REFERENCES app.parent_paren("x(y"));`)
 
 	got, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -236,18 +238,29 @@ CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("las
 			}
 		case "app":
 			for _, table := range schema.Tables {
-				if table.Name != "child_comma" {
-					continue
-				}
-				if len(table.ForeignKeys) != 1 {
-					t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
-				}
-				fk := table.ForeignKeys[0]
-				if len(fk.Columns) != 1 || fk.Columns[0] != "last,first" {
-					t.Errorf("columns = %+v, want last,first", fk.Columns)
-				}
-				if len(fk.ReferencedColumns) != 1 || fk.ReferencedColumns[0] != "last,first" {
-					t.Errorf("referenced columns = %+v, want last,first", fk.ReferencedColumns)
+				switch table.Name {
+				case "child_comma":
+					if len(table.ForeignKeys) != 1 {
+						t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
+					}
+					fk := table.ForeignKeys[0]
+					if len(fk.Columns) != 1 || fk.Columns[0] != "last,first" {
+						t.Errorf("columns = %+v, want last,first", fk.Columns)
+					}
+					if len(fk.ReferencedColumns) != 1 || fk.ReferencedColumns[0] != "last,first" {
+						t.Errorf("referenced columns = %+v, want last,first", fk.ReferencedColumns)
+					}
+				case "child_paren":
+					if len(table.ForeignKeys) != 1 {
+						t.Fatalf("foreign keys = %+v, want one", table.ForeignKeys)
+					}
+					fk := table.ForeignKeys[0]
+					if len(fk.Columns) != 1 || fk.Columns[0] != "x(y" {
+						t.Errorf("columns = %+v, want x(y", fk.Columns)
+					}
+					if len(fk.ReferencedColumns) != 1 || fk.ReferencedColumns[0] != "x(y" {
+						t.Errorf("referenced columns = %+v, want x(y", fk.ReferencedColumns)
+					}
 				}
 			}
 		}

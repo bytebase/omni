@@ -9,6 +9,8 @@
 | CREATE SCHEMA app;
 | CREATE TABLE app.parent_comma ("last,first" INT8 PRIMARY KEY);
 | CREATE TABLE app.child_comma ("last,first" INT8 REFERENCES app.parent_comma("last,first"));
+| CREATE TABLE app.parent_paren ("x(y" INT8 PRIMARY KEY);
+| CREATE TABLE app.child_paren ("x(y" INT8 REFERENCES app.parent_paren("x(y"));
 < ok 0 -
 > query
 | SELECT datname, pg_encoding_to_char(encoding), datcollate FROM pg_database ORDER BY datname;
@@ -149,9 +151,70 @@
 : string
 | app
 : string
+| child_paren
+: string
+| x(y
+: string
+| bigint
+: null
+: int64 1
+: null
+: string
+| YES
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app
+: string
+| child_paren
+: string
+| rowid
+: string
+| bigint
+: null
+: int64 2
+: string
+| unique_rowid()
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app
+: string
 | parent_comma
 : string
 | last,first
+: string
+| bigint
+: null
+: int64 1
+: null
+: string
+| NO
+: null
+: string
+| pg_catalog
+: string
+| int8
+: null
+< row
+: string
+| app
+: string
+| parent_paren
+: string
+| x(y
 : string
 | bigint
 : null
@@ -263,11 +326,35 @@
 : string
 | app
 : string
+| child_paren
+: string
+| child_paren_pkey
+: string
+| CREATE UNIQUE INDEX child_paren_pkey ON omni_testsyncforeignkeyquotedschema.app.child_paren USING btree (rowid ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| app
+: string
 | parent_comma
 : string
 | parent_comma_pkey
 : string
 | CREATE UNIQUE INDEX parent_comma_pkey ON omni_testsyncforeignkeyquotedschema.app.parent_comma USING btree ("last,first" ASC)
+: string
+| PRIMARY KEY
+: null
+< row
+: string
+| app
+: string
+| parent_paren
+: string
+| parent_paren_pkey
+: string
+| CREATE UNIQUE INDEX parent_paren_pkey ON omni_testsyncforeignkeyquotedschema.app.parent_paren USING btree ("x(y" ASC)
 : string
 | PRIMARY KEY
 : null
@@ -349,6 +436,25 @@
 | FOREIGN KEY ("last,first") REFERENCES app.parent_comma("last,first")
 < row
 : string
+| app
+: string
+| child_paren
+: string
+| child_paren_x(y_fkey
+: string
+| app
+: string
+| parent_paren
+: string
+| a
+: string
+| a
+: string
+| s
+: string
+| FOREIGN KEY ("x(y") REFERENCES app.parent_paren("x(y")
+< row
+: string
 | sales.eu
 : string
 | child
@@ -405,7 +511,21 @@
 : string
 | app
 : string
+| child_paren
+: int64 0
+: null
+< row
+: string
+| app
+: string
 | parent_comma
+: int64 0
+: null
+< row
+: string
+| app
+: string
+| parent_paren
 : int64 0
 : null
 < row

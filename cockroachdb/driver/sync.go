@@ -258,21 +258,85 @@ func convertForeignKeyActionCode(in string) string {
 }
 
 func getForeignKeyColumnsAndReferencedColumns(definition string) ([]string, []string, error) {
-	columnsRegexp := regexp.MustCompile(`FOREIGN KEY \((.*)\) REFERENCES (.*)\((.*)\)`)
-	matches := columnsRegexp.FindStringSubmatch(definition)
-	if len(matches) != 4 {
+	keyIndex := strings.Index(strings.ToUpper(definition), "FOREIGN KEY")
+	if keyIndex < 0 {
 		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
 	}
-	columnList, err := getColumnList(matches[1])
+	columns, _, ok := parenthesized(definition, keyIndex+len("FOREIGN KEY"))
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
+	}
+	referencesIndex := strings.Index(strings.ToUpper(definition), "REFERENCES")
+	if referencesIndex < 0 {
+		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
+	}
+	referencedColumns, _, ok := parenthesized(definition, referencesIndex+len("REFERENCES"))
+	if !ok {
+		return nil, nil, fmt.Errorf("invalid foreign key definition: %q", definition)
+	}
+	columnList, err := getColumnList(columns)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid foreign key definition %q: %w", definition, err)
 	}
-	referencedColumnList, err := getColumnList(matches[3])
+	referencedColumnList, err := getColumnList(referencedColumns)
 	if err != nil {
 		return nil, nil, fmt.Errorf("invalid foreign key definition %q: %w", definition, err)
 	}
-
 	return columnList, referencedColumnList, nil
+}
+
+// parenthesized returns the text inside the first parenthesis at or after
+// start, honoring quoted identifiers so a parenthesis inside a name does not
+// close the list, and the offset just past the closing parenthesis.
+func parenthesized(s string, start int) (string, int, bool) {
+	i := start
+	for i < len(s) && s[i] != '(' {
+		if s[i] == '"' {
+			i++
+			for i < len(s) {
+				if s[i] == '"' {
+					if i+1 < len(s) && s[i+1] == '"' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		}
+		i++
+	}
+	if i >= len(s) {
+		return "", start, false
+	}
+	begin := i + 1
+	depth := 1
+	i = begin
+	for i < len(s) {
+		switch s[i] {
+		case '"':
+			i++
+			for i < len(s) {
+				if s[i] == '"' {
+					if i+1 < len(s) && s[i+1] == '"' {
+						i += 2
+						continue
+					}
+					break
+				}
+				i++
+			}
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				return s[begin:i], i + 1, true
+			}
+		}
+		i++
+	}
+	return "", start, false
 }
 
 func getColumnList(definition string) ([]string, error) {
