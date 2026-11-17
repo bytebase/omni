@@ -77,6 +77,8 @@ A recording runs every test of a package against one server, so the harness must
 
 A shared object that cannot be emptied belongs to the test that made it. Record that test alone with `OMNI_RECORD=1 go test ./<engine>/driver/ -run '^TestName$'`, and keep its name out of a whole-package recording until the harness can remove the object.
 
+A `-run` pattern is a gate of its own: one that matches nothing exits 0, records nothing, and reads as a pass. So every recording command a document publishes names a test that exists, and `enginetest`'s `TestDocumentedRecordingCommands` fails one that does not. A row whose test is not written yet says so in prose instead of publishing a command.
+
 ## Selected upgrade targets
 
 The follow-up targets are MySQL `8.4.13` only, PostgreSQL `18.6-alpine`, Doris `4.0.8`, and StarRocks `4.1.7`. These are selected targets, not claims about the baselines currently exercised above. Pin a complete patch release or a dated vendor build when switching, then rerun the corresponding native oracle suites and investigate drift.

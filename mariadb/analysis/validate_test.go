@@ -31,6 +31,10 @@ func TestValidateQuery(t *testing.T) {
 		{"EXPLAIN SELECT a FROM t", true, true},
 		{"EXPLAIN DELETE FROM t", true, true},
 		{"INSERT INTO t VALUES (1)", false, false},
+		{"INSERT INTO t VALUES (1) RETURNING id", false, true},
+		{"REPLACE INTO t VALUES (1) RETURNING id", false, true},
+		{"DELETE FROM t RETURNING id", false, true},
+		{"UPDATE t SET a = 1", false, false},
 		{"SELECT 1; DELETE FROM t", false, false},
 	}
 	for _, tc := range tests {

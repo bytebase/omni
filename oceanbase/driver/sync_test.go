@@ -3,10 +3,12 @@ package driver
 import (
 	"context"
 	"database/sql"
+	sqldriver "database/sql/driver"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -362,5 +364,69 @@ func TestEscapeEventComment(t *testing.T) {
 		if got := escapeEventComment(tc.comment, tc.sqlMode); got != tc.want {
 			t.Errorf("escapeEventComment(%q, %q) = %q, want %q", tc.comment, tc.sqlMode, got, tc.want)
 		}
+	}
+}
+
+// eventRowsDriver answers the event query with the rows a test sets, so the
+// recreated-database case needs no server.
+type eventRowsDriver struct{ rows [][]sqldriver.Value }
+
+func (eventRowsDriver) Open(string) (sqldriver.Conn, error) { return eventRowsConn{}, nil }
+
+type eventRowsConn struct{}
+
+func (eventRowsConn) Prepare(string) (sqldriver.Stmt, error) { return nil, sqldriver.ErrSkip }
+func (eventRowsConn) Close() error                           { return nil }
+func (eventRowsConn) Begin() (sqldriver.Tx, error)           { return nil, sqldriver.ErrSkip }
+
+func (eventRowsConn) QueryContext(context.Context, string, []sqldriver.NamedValue) (sqldriver.Rows, error) {
+	return &eventRows{d: testEventRows}, nil
+}
+
+// eventRows returns the duplicate rows a dropped database's event and the
+// database created again under its name both list.
+type eventRows struct {
+	d    [][]sqldriver.Value
+	idx  int
+	done bool
+}
+
+func (r *eventRows) Columns() []string {
+	return []string{"EVENT_NAME", "EVENT_TYPE", "EXECUTE_AT", "INTERVAL_VALUE", "INTERVAL_FIELD", "STARTS", "ENDS", "STATUS", "ON_COMPLETION", "EVENT_COMMENT", "TIME_ZONE", "SQL_MODE", "EVENT_DEFINITION"}
+}
+func (r *eventRows) Close() error { return nil }
+func (r *eventRows) Next(dest []sqldriver.Value) error {
+	if r.idx >= len(r.d) {
+		return io.EOF
+	}
+	copy(dest, r.d[r.idx])
+	r.idx++
+	return nil
+}
+
+var testEventRows = [][]sqldriver.Value{
+	{"e", "RECURRING", "", "1", "DAY", "2030-01-01 00:00:00", "", "DISABLED", "PRESERVE", "", "SYSTEM", "ONLY_FULL_GROUP_BY", "INSERT INTO t VALUES (1)"},
+	{"e", "RECURRING", "", "1", "DAY", "2030-01-01 00:00:00", "", "DISABLED", "PRESERVE", "", "SYSTEM", "ONLY_FULL_GROUP_BY", "INSERT INTO t VALUES (1)"},
+}
+
+// TestGetEventListDeduplicatesRecreatedDatabaseEvents pins the case
+// information_schema.EVENTS cannot state: a database created again under a
+// dropped one's name lists that database's event until OceanBase forgets it,
+// and the sync must list the name once.
+func TestGetEventListDeduplicatesRecreatedDatabaseEvents(t *testing.T) {
+	sql.Register("test_oceanbase_event_rows", eventRowsDriver{})
+	db, err := sql.Open("test_oceanbase_event_rows", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+
+	d := &Driver{db: db, databaseName: "db"}
+	events, err := d.getEventList(context.Background(), "db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("getEventList returned %d events, want 1: %+v", len(events), events)
 	}
 }
