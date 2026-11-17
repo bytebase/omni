@@ -451,12 +451,16 @@ func (d *Driver) getTableClauses(ctx context.Context, tableName string) (*tableC
 	if err != nil {
 		return nil, err
 	}
+	clauses := &tableClauses{columns: map[string]*columnClauses{}, indexProperties: map[string]map[string]string{}}
+	// The definition is the server's own, so a shape omni does not parse yet
+	// costs this table its clause facts rather than the whole sync, as
+	// mysql/driver's partition count does. The golden pins the shapes the
+	// corpus covers, so a parse regression still fails the test.
 	stmt, err := parseCreateTable(definition)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse the answer to %q: %w", query, err)
+		return clauses, nil
 	}
 
-	clauses := &tableClauses{columns: map[string]*columnClauses{}, indexProperties: map[string]map[string]string{}}
 	if dist := stmt.DistributedBy; dist != nil {
 		clauses.distribution = &metadatapb.TableDistributionMetadata{
 			Method:      distributionMethod(dist.Type),
@@ -593,15 +597,14 @@ func (d *Driver) getProcedures(ctx context.Context) ([]*metadatapb.ProcedureMeta
 		if err != nil {
 			return nil, err
 		}
-		stmt, err := parseCreateProcedure(definition)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse the answer to %q: %w", createQuery, err)
+		procedure := &metadatapb.ProcedureMetadata{Name: name, Definition: definition}
+		// The definition is the server's own; a body omni does not parse loses
+		// the comment the definition states, not the procedure.
+		if stmt, err := parseCreateProcedure(definition); err == nil {
+			procedure.Name = stmt.Name.String()
+			procedure.Comment = stmt.Comment
 		}
-		procedures = append(procedures, &metadatapb.ProcedureMetadata{
-			Name:       stmt.Name.String(),
-			Definition: definition,
-			Comment:    stmt.Comment,
-		})
+		procedures = append(procedures, procedure)
 	}
 	return procedures, nil
 }
