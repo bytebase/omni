@@ -1,0 +1,7 @@
+# The workspace this engine's committed answers come from. Databricks is an
+# account service: there is no image and no container, so image names the
+# workspace host, digest is the SHA-256 of what SELECT VERSION() answered, and
+# the source tag names the SQL release, the SQL warehouse and the catalog the
+# tests record against. The token is never part of a pin.
+# columns: role, image, digest, source tag
+driver	dbc-3c689f3f-f754.cloud.databricks.com	sha256:21c3596967a931ba19b528877357d45cb7c2ea34abc68315d0c4ca7907d9f408	4.2.0 warehouse_id=45847ad2fbd0b316 catalog=workspace

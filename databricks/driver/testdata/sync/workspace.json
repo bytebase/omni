@@ -1,0 +1,1839 @@
+{
+  "name":  "workspace",
+  "schemas":  [
+    {
+      "name":  "default"
+    },
+    {
+      "name":  "information_schema",
+      "views":  [
+        {
+          "name":  "abac_policy_definitions",
+          "definition":  "SELECT * FROM system.information_schema.abac_policy_definitions WHERE catalog_name = 'workspace'",
+          "comment":  "Lists ABAC policies with their full authoring metadata.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "created_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "except_principals"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "for_securable_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "governed_tags"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "match_columns"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "on_securable_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "policy_id"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "policy_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "policy_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "privileges"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "schema_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "securable_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "to_principals"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "abac_policy_definitions",
+              "column":  "when_condition"
+            }
+          ]
+        },
+        {
+          "name":  "catalog_privileges",
+          "definition":  "SELECT * FROM system.information_schema.catalog_privileges WHERE catalog_name = 'workspace'",
+          "comment":  "Lists principals that have privileges on the catalogs.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_privileges",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_privileges",
+              "column":  "grantee"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_privileges",
+              "column":  "grantor"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_privileges",
+              "column":  "inherited_from"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_privileges",
+              "column":  "is_grantable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_privileges",
+              "column":  "privilege_type"
+            }
+          ]
+        },
+        {
+          "name":  "catalog_tags",
+          "definition":  "SELECT * FROM system.information_schema.catalog_tags WHERE catalog_name = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_tags",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_tags",
+              "column":  "tag_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalog_tags",
+              "column":  "tag_value"
+            }
+          ]
+        },
+        {
+          "name":  "catalogs",
+          "definition":  "SELECT * FROM system.information_schema.catalogs WHERE catalog_name = 'workspace'",
+          "comment":  "Describes catalogs.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "catalog_owner"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "created"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "created_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "custom_max_retention_hours"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "last_altered"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "last_altered_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "catalogs",
+              "column":  "url"
+            }
+          ]
+        },
+        {
+          "name":  "check_constraints",
+          "definition":  "SELECT * FROM system.information_schema.check_constraints WHERE constraint_catalog = 'workspace'",
+          "comment":  "Reserved for future use.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "check_constraints",
+              "column":  "check_clause"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "check_constraints",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "check_constraints",
+              "column":  "constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "check_constraints",
+              "column":  "constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "check_constraints",
+              "column":  "constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "check_constraints",
+              "column":  "sql_path"
+            }
+          ]
+        },
+        {
+          "name":  "column_masks",
+          "definition":  "SELECT * FROM system.information_schema.column_masks WHERE table_catalog = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "column_masks",
+              "column":  "column_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_masks",
+              "column":  "mask_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_masks",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_masks",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_masks",
+              "column":  "table_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_masks",
+              "column":  "using_columns"
+            }
+          ]
+        },
+        {
+          "name":  "column_tags",
+          "definition":  "SELECT * FROM system.information_schema.column_tags WHERE catalog_name = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "column_tags",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_tags",
+              "column":  "column_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_tags",
+              "column":  "schema_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_tags",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_tags",
+              "column":  "tag_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "column_tags",
+              "column":  "tag_value"
+            }
+          ]
+        },
+        {
+          "name":  "columns",
+          "definition":  "SELECT * FROM system.information_schema.columns WHERE table_catalog = 'workspace'",
+          "comment":  "Describes columns of tables and views in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "character_maximum_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "character_octet_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "collation_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "collation_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "collation_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "column_default"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "column_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "datetime_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "full_data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "generation_expression"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "identity_cycle"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "identity_generation"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "identity_increment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "identity_maximum"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "identity_minimum"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "identity_start"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "interval_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "interval_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "is_generated"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "is_identity"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "is_nullable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "is_system_time_period_end"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "is_system_time_period_start"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "is_updatable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "maximum_cardinality"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "numeric_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "numeric_precision_radix"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "numeric_scale"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "ordinal_position"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "partition_index"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "system_time_period_timestamp_generation"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "columns",
+              "column":  "table_schema"
+            }
+          ]
+        },
+        {
+          "name":  "constraint_column_usage",
+          "definition":  "SELECT * FROM system.information_schema.constraint_column_usage WHERE constraint_catalog = 'workspace'",
+          "comment":  "Describes the constraints referencing columns in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "column_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_column_usage",
+              "column":  "table_schema"
+            }
+          ]
+        },
+        {
+          "name":  "constraint_table_usage",
+          "definition":  "SELECT * FROM system.information_schema.constraint_table_usage WHERE constraint_catalog = 'workspace'",
+          "comment":  "Describes the constraints referencing tables in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_table_usage",
+              "column":  "constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_table_usage",
+              "column":  "constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_table_usage",
+              "column":  "constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_table_usage",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_table_usage",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "constraint_table_usage",
+              "column":  "table_schema"
+            }
+          ]
+        },
+        {
+          "name":  "information_schema_catalog_name",
+          "definition":  "SELECT 'workspace' AS CATALOG_NAME",
+          "comment":  "Returns the name of this information schema's catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "information_schema_catalog_name",
+              "column":  "catalog_name"
+            }
+          ]
+        },
+        {
+          "name":  "key_column_usage",
+          "definition":  "SELECT * FROM system.information_schema.key_column_usage WHERE constraint_catalog = 'workspace'",
+          "comment":  "Lists the columns of the primary or foreign key constraints within the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "column_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "ordinal_position"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "position_in_unique_constraint"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "key_column_usage",
+              "column":  "table_schema"
+            }
+          ]
+        },
+        {
+          "name":  "parameters",
+          "definition":  "SELECT * FROM system.information_schema.parameters WHERE specific_catalog = 'workspace'",
+          "comment":  "Describes parameters of routines (functions) in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "as_locator"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "character_maximum_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "character_octet_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "collation_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "collation_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "collation_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "datetime_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "full_data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "interval_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "interval_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "is_result"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "maximum_cardinality"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "numeric_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "numeric_precision_radix"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "numeric_scale"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "ordinal_position"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "parameter_default"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "parameter_mode"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "parameter_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "specific_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "specific_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "parameters",
+              "column":  "specific_schema"
+            }
+          ]
+        },
+        {
+          "name":  "referential_constraints",
+          "definition":  "SELECT * FROM system.information_schema.referential_constraints WHERE constraint_catalog = 'workspace'",
+          "comment":  "Describes referential (foreign key) constraints defined in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "delete_rule"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "match_option"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "unique_constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "unique_constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "unique_constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "referential_constraints",
+              "column":  "update_rule"
+            }
+          ]
+        },
+        {
+          "name":  "routine_columns",
+          "definition":  "SELECT * FROM system.information_schema.routine_columns WHERE specific_catalog = 'workspace'",
+          "comment":  "Describes result columns of table-valued functions.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "character_maximum_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "character_octet_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "collation_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "collation_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "collation_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "column_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "datetime_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "full_data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "interval_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "interval_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "maximum_cardinality"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "numeric_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "numeric_precision_radix"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "numeric_scale"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "ordinal_position"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "specific_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "specific_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_columns",
+              "column":  "specific_schema"
+            }
+          ]
+        },
+        {
+          "name":  "routine_privileges",
+          "definition":  "SELECT * FROM system.information_schema.routine_privileges WHERE specific_catalog = 'workspace'",
+          "comment":  "Lists principals that have privileges on the routines in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "grantee"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "grantor"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "inherited_from"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "is_grantable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "privilege_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "routine_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "routine_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "routine_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "specific_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "specific_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routine_privileges",
+              "column":  "specific_schema"
+            }
+          ]
+        },
+        {
+          "name":  "routines",
+          "definition":  "SELECT * FROM system.information_schema.routines WHERE specific_catalog = 'workspace'",
+          "comment":  "Describes routines (functions) in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "character_maximum_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "character_octet_length"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "collation_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "collation_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "collation_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "created"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "created_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "datetime_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "external_language"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "external_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "full_data_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "interval_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "interval_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "is_deterministic"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "is_null_call"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "last_altered"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "last_altered_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "maximum_cardinality"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "numeric_precision"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "numeric_precision_radix"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "numeric_scale"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "parameter_style"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_body"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_definition"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_owner"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "routine_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "security_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "specific_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "specific_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "specific_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "sql_data_access"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "routines",
+              "column":  "sql_path"
+            }
+          ]
+        },
+        {
+          "name":  "row_filters",
+          "definition":  "SELECT * FROM system.information_schema.row_filters WHERE table_catalog = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "row_filters",
+              "column":  "filter_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "row_filters",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "row_filters",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "row_filters",
+              "column":  "table_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "row_filters",
+              "column":  "target_columns"
+            }
+          ]
+        },
+        {
+          "name":  "schema_privileges",
+          "definition":  "SELECT * FROM system.information_schema.schema_privileges WHERE catalog_name = 'workspace'",
+          "comment":  "Lists principals that have privileges on the schemas in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "grantee"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "grantor"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "inherited_from"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "is_grantable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "privilege_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_privileges",
+              "column":  "schema_name"
+            }
+          ]
+        },
+        {
+          "name":  "schema_tags",
+          "definition":  "SELECT * FROM system.information_schema.schema_tags WHERE catalog_name = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "schema_tags",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_tags",
+              "column":  "schema_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_tags",
+              "column":  "tag_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schema_tags",
+              "column":  "tag_value"
+            }
+          ]
+        },
+        {
+          "name":  "schemata",
+          "definition":  "SELECT * FROM system.information_schema.schemata WHERE catalog_name = 'workspace'",
+          "comment":  "Describes schemas within the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "created"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "created_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "custom_max_retention_hours"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "last_altered"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "last_altered_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "schema_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "schema_owner"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "schemata",
+              "column":  "url"
+            }
+          ]
+        },
+        {
+          "name":  "table_constraints",
+          "definition":  "SELECT * FROM system.information_schema.table_constraints WHERE constraint_catalog = 'workspace'",
+          "comment":  "Describes metadata for all primary and foreign key constraints within the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "constraint_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "constraint_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "constraint_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "constraint_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "enforced"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "initially_deferred"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "is_deferrable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_constraints",
+              "column":  "table_schema"
+            }
+          ]
+        },
+        {
+          "name":  "table_privileges",
+          "definition":  "SELECT * FROM system.information_schema.table_privileges WHERE table_catalog = 'workspace'",
+          "comment":  "Lists principals that have privileges on the tables and views in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "grantee"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "grantor"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "inherited_from"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "is_grantable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "privilege_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_privileges",
+              "column":  "table_schema"
+            }
+          ]
+        },
+        {
+          "name":  "table_tags",
+          "definition":  "SELECT * FROM system.information_schema.table_tags WHERE catalog_name = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "table_tags",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_tags",
+              "column":  "schema_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_tags",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_tags",
+              "column":  "tag_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "table_tags",
+              "column":  "tag_value"
+            }
+          ]
+        },
+        {
+          "name":  "tables",
+          "definition":  "SELECT * FROM system.information_schema.tables WHERE table_catalog = 'workspace'",
+          "comment":  "Describes tables and views defined within the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "commit_action"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "created"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "created_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "data_source_format"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "is_insertable_into"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "last_altered"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "last_altered_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "storage_path"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "storage_sub_directory"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "table_owner"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "table_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "tables",
+              "column":  "table_type"
+            }
+          ]
+        },
+        {
+          "name":  "views",
+          "definition":  "SELECT * FROM system.information_schema.views WHERE table_catalog = 'workspace'",
+          "comment":  "Describes view specific information about the views in the catalog.",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "check_option"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "is_insertable_into"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "is_materialized"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "is_updatable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "sql_path"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "table_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "table_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "table_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "views",
+              "column":  "view_definition"
+            }
+          ]
+        },
+        {
+          "name":  "volume_privileges",
+          "definition":  "SELECT * FROM system.information_schema.volume_privileges WHERE volume_catalog = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "grantee"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "grantor"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "inherited_from"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "is_grantable"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "privilege_type"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "volume_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "volume_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_privileges",
+              "column":  "volume_schema"
+            }
+          ]
+        },
+        {
+          "name":  "volume_tags",
+          "definition":  "SELECT * FROM system.information_schema.volume_tags WHERE catalog_name = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "volume_tags",
+              "column":  "catalog_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_tags",
+              "column":  "schema_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_tags",
+              "column":  "tag_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_tags",
+              "column":  "tag_value"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volume_tags",
+              "column":  "volume_name"
+            }
+          ]
+        },
+        {
+          "name":  "volumes",
+          "definition":  "SELECT * FROM system.information_schema.volumes WHERE volume_catalog = 'workspace'",
+          "dependencyColumns":  [
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "comment"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "created"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "created_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "last_altered"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "last_altered_by"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "storage_location"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "volume_catalog"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "volume_name"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "volume_owner"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "volume_schema"
+            },
+            {
+              "schema":  "information_schema",
+              "table":  "volumes",
+              "column":  "volume_type"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name":  "omni_record",
+      "tables":  [
+        {
+          "name":  "facts",
+          "columns":  [
+            {
+              "name":  "id",
+              "nullable":  true,
+              "type":  "LONG"
+            },
+            {
+              "name":  "lookup_id",
+              "position":  1,
+              "nullable":  true,
+              "type":  "INT"
+            },
+            {
+              "name":  "notes",
+              "position":  2,
+              "nullable":  true,
+              "type":  "STRING"
+            }
+          ]
+        },
+        {
+          "name":  "lookup",
+          "columns":  [
+            {
+              "name":  "id",
+              "nullable":  true,
+              "type":  "INT"
+            },
+            {
+              "name":  "label",
+              "position":  1,
+              "type":  "STRING",
+              "comment":  "a column comment"
+            },
+            {
+              "name":  "amount",
+              "position":  2,
+              "nullable":  true,
+              "type":  "DECIMAL"
+            },
+            {
+              "name":  "flag",
+              "position":  3,
+              "nullable":  true,
+              "type":  "BOOLEAN"
+            },
+            {
+              "name":  "seen",
+              "position":  4,
+              "nullable":  true,
+              "type":  "TIMESTAMP"
+            },
+            {
+              "name":  "payload",
+              "position":  5,
+              "nullable":  true,
+              "type":  "BINARY"
+            }
+          ],
+          "comment":  "a synced comment"
+        }
+      ],
+      "views":  [
+        {
+          "name":  "recent",
+          "definition":  "SELECT id, lookup_id FROM workspace.omni_record.facts WHERE id > 0",
+          "dependencyColumns":  [
+            {
+              "schema":  "omni_record",
+              "table":  "recent",
+              "column":  "id"
+            },
+            {
+              "schema":  "omni_record",
+              "table":  "recent",
+              "column":  "lookup_id"
+            }
+          ]
+        }
+      ],
+      "materializedViews":  [
+        {
+          "name":  "totals",
+          "definition":  "SELECT lookup_id, SUM(id) AS total FROM workspace.omni_record.facts GROUP BY lookup_id"
+        }
+      ]
+    }
+  ]
+}

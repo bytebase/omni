@@ -19,6 +19,7 @@ require (
 	github.com/bytebase/gomongo v0.0.0-20260730033313-67ba6e249735
 	github.com/cockroachdb/cockroach-go/v2 v2.4.3
 	github.com/cockroachdb/cockroachdb-parser v0.25.2
+	github.com/databricks/databricks-sdk-go v0.192.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-connections v0.6.0
 	github.com/docker/go-units v0.5.0
@@ -137,6 +138,7 @@ require (
 	github.com/golang/geo v0.0.0-20210211234256-740aa86cb551 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.17 // indirect
 	github.com/googleapis/gax-go/v2 v2.26.2 // indirect
@@ -231,4 +233,5 @@ require (
 	google.golang.org/genproto v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260715232425-e75dac1f907d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260715232425-e75dac1f907d // indirect
+	gopkg.in/ini.v1 v1.67.0 // indirect
 )
