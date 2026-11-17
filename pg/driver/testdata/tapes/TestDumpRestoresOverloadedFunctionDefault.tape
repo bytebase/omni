@@ -78,6 +78,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -224,6 +225,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -335,6 +337,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -560,6 +563,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -636,7 +640,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
@@ -904,6 +909,7 @@
 | 	pg_depend
 | WHERE
 | 	deptype = 'e'
+| ORDER BY objid
 |
 < result
 < column "objid" "OID"
@@ -1050,6 +1056,7 @@
 |   left join pg_catalog.pg_namespace sp on cp.relnamespace = sp.oid
 |   left join pg_catalog.pg_namespace sc on cc.relnamespace = sc.oid
 | WHERE (cp.relkind = 'i' or cp.relkind = 'I') and (cc.relkind = 'i' or cc.relkind = 'I')
+| ORDER BY sc.nspname, cc.relname, sp.nspname, cp.relname
 |
 < result
 < column "nspname" "NAME"
@@ -1161,6 +1168,7 @@
 |         WHERE contype = 'x' and nsp.nspname NOT IN ('_timescaledb_cache','_timescaledb_catalog','_timescaledb_config','_timescaledb_internal','citus','citus_internal','columnar','columnar_internal','cron','information_schema','partman','pg_bitmapindex','pg_catalog','pg_toast','rw_catalog','squeeze','timescaledb_experimental','timescaledb_information')
 |         AND nsp.nspname NOT LIKE 'pg_temp%'
 |         AND nsp.nspname NOT LIKE 'pg_toast%'
+|         ORDER BY nsp.nspname, rel.relname, con.conname
 < result
 < column "nspname" "NAME"
 < column "relname" "NAME"
@@ -1386,6 +1394,7 @@
 |   AND n.nspname NOT LIKE 'pg_toast%'
 |   AND p.prokind <> 'a'
 |   AND pt.typrelid IS NOT NULL
+| order by function_oid, table_oid
 |
 < result
 < column "function_oid" "OID"
@@ -1462,7 +1471,8 @@
 |                 d.classid = 'pg_class'::regclass AND d.objid = c.oid AND
 |                 d.objsubid = 0 AND
 |                 d.refclassid = 'pg_class'::regclass AND d.deptype IN ('a', 'i'))
-| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL;
+| 	WHERE refobjid is NOT NULL and refobjsubid is NOT NULL
+| 	ORDER BY c.oid;
 < result
 < column "oid" "OID"
 < column "owning_tab" "OID"
