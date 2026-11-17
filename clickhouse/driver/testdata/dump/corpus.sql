@@ -106,6 +106,22 @@ CREATE TABLE a_mv_dict_table (
 )
 ENGINE = Dictionary('$database.mv_dict');
 
+-- A dictionary whose source is a query, and a table that loads it under a name
+-- that sorts first: the query reads z_src_mv, which the server parses like any
+-- other statement.
+CREATE DICTIONARY query_dict (
+  id UInt64
+)
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM $database.z_src_mv'))
+LAYOUT(FLAT())
+LIFETIME(300);
+
+CREATE TABLE a_query_dict_table (
+  id UInt64
+)
+ENGINE = Dictionary('$database.query_dict');
+
 CREATE VIEW v_names AS SELECT id, name FROM src;
 
 -- A view states its columns, which ClickHouse creates without resolving its

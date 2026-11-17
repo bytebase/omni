@@ -95,6 +95,18 @@ LIFETIME(MIN 0 MAX 300)
 LAYOUT(FLAT());
 
 --
+-- Dictionary structure for `query_dict`
+--
+CREATE DICTIONARY omni_testdump.query_dict
+(
+    `id` UInt64
+)
+PRIMARY KEY id
+SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM omni_testdump.z_src_mv'))
+LIFETIME(MIN 0 MAX 300)
+LAYOUT(FLAT());
+
+--
 -- Dictionary structure for `view_dict`
 --
 CREATE DICTIONARY omni_testdump.view_dict
@@ -256,6 +268,15 @@ CREATE TABLE omni_testdump.a_mv_dict_table
     `id` UInt64
 )
 ENGINE = Dictionary('omni_testdump.mv_dict');
+
+--
+-- Table structure for `a_query_dict_table`
+--
+CREATE TABLE omni_testdump.a_query_dict_table
+(
+    `id` UInt64
+)
+ENGINE = Dictionary('omni_testdump.query_dict');
 
 --
 -- Materialized view structure for `a_top`

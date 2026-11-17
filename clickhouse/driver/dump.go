@@ -129,9 +129,16 @@ func (d *Driver) dumpObjects(ctx context.Context, conn *sql.Conn, database strin
 		}
 		if o.kind == dumpDictionaryTable {
 			o.reads = dumpDictionaryTableReads(o, database, byName)
+			if query, ok := dumpDictionarySourceQuery(o, database, byName); ok {
+				reads, err := d.dumpReads(ctx, conn, database, o.name, query, definitions)
+				if err != nil {
+					return nil, err
+				}
+				o.reads = append(o.reads, reads...)
+			}
 			continue
 		}
-		reads, err := d.dumpReads(ctx, conn, database, o, definitions)
+		reads, err := d.dumpReads(ctx, conn, database, o.name, o.stmt, definitions)
 		if err != nil {
 			return nil, err
 		}
@@ -282,8 +289,8 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 // server parses o's statement: EXPLAIN AST renders every table a statement names
 // after the marker TableIdentifier, so a name inside a string literal, a column
 // or an alias is not a read, and neither is a name that merely starts another.
-func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database string, o *dumpObject, definitions map[string]*dumpObject) ([]string, error) {
-	query := "EXPLAIN AST " + o.stmt
+func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database, self, statement string, definitions map[string]*dumpObject) ([]string, error) {
+	query := "EXPLAIN AST " + statement
 	rows, err := conn.QueryContext(ctx, query)
 	if err != nil {
 		return nil, formatErrorWithQuery(err, query)
@@ -302,14 +309,20 @@ func (d *Driver) dumpReads(ctx context.Context, conn *sql.Conn, database string,
 		return nil, formatErrorWithQuery(err, query)
 	}
 
+	return dumpASTReads(ast.String(), database, self, definitions), nil
+}
+
+// dumpASTReads returns the definitions in definitions that the AST names as a
+// table, and not the statement's own object.
+func dumpASTReads(ast, database, self string, definitions map[string]*dumpObject) []string {
 	var reads []string
 	for name := range definitions {
-		if name != o.name && dumpASTNames(ast.String(), "TableIdentifier "+database+"."+name) {
+		if name != self && dumpASTNames(ast, "TableIdentifier "+database+"."+name) {
 			reads = append(reads, name)
 		}
 	}
 	sort.Strings(reads)
-	return reads, nil
+	return reads
 }
 
 // dumpASTNames reports whether the AST names reference as a node of its own: the
@@ -344,8 +357,10 @@ func dumpASTNames(ast, reference string) bool {
 // argument names the dictionary, and the dictionary's SOURCE names the table and
 // database it reads, as string literals.
 var (
-	dumpDictionaryEngine = regexp.MustCompile(`ENGINE = Dictionary\('((?:[^'\\]|\\.)*)'\)`)
-	dumpDictionarySource = regexp.MustCompile(`(?i)(?:TABLE|DB) '((?:[^'\\]|\\.)*)'`)
+	dumpDictionaryEngine   = regexp.MustCompile(`ENGINE = Dictionary\('((?:[^'\\]|\\.)*)'\)`)
+	dumpDictionaryTableKey = regexp.MustCompile(`(?i)TABLE '((?:[^'\\]|\\.)*)'`)
+	dumpDictionaryDBKey    = regexp.MustCompile(`(?i)DB '((?:[^'\\]|\\.)*)'`)
+	dumpDictionaryQuery    = regexp.MustCompile(`(?i)QUERY '((?:[^'\\]|\\.)*)'`)
 )
 
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
@@ -362,18 +377,37 @@ func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]
 	if dictionary == nil {
 		return nil
 	}
-	seen := make(map[string]bool, len(byName))
-	for _, source := range dumpDictionarySource.FindAllStringSubmatch(dictionary.stmt, -1) {
-		if read, name := dumpLiteralObject(dumpLiteralValue(source[1]), database, byName); read != nil && name != o.name {
-			seen[name] = true
-		}
+	table := dumpDictionaryTableKey.FindStringSubmatch(dictionary.stmt)
+	if table == nil {
+		return nil
 	}
-	reads := make([]string, 0, len(seen))
-	for name := range seen {
-		reads = append(reads, name)
+	if db := dumpDictionaryDBKey.FindStringSubmatch(dictionary.stmt); db != nil && !strings.EqualFold(dumpLiteralValue(db[1]), database) {
+		// A table of another database is not an object of this one, whatever it
+		// is called.
+		return nil
 	}
-	sort.Strings(reads)
-	return reads
+	if read, name := dumpLiteralObject(dumpLiteralValue(table[1]), database, byName); read != nil && name != o.name {
+		return []string{name}
+	}
+	return nil
+}
+
+// dumpDictionarySourceQuery returns the query a dictionary states as its source
+// instead of a table, which the server parses like any other statement.
+func dumpDictionarySourceQuery(o *dumpObject, database string, byName map[string]*dumpObject) (string, bool) {
+	engine := dumpDictionaryEngine.FindStringSubmatch(o.stmt)
+	if engine == nil {
+		return "", false
+	}
+	dictionary, _ := dumpLiteralObject(dumpLiteralValue(engine[1]), database, byName)
+	if dictionary == nil {
+		return "", false
+	}
+	query := dumpDictionaryQuery.FindStringSubmatch(dictionary.stmt)
+	if query == nil {
+		return "", false
+	}
+	return dumpLiteralValue(query[1]), true
 }
 
 // dumpLiteralValue returns what the text of a ClickHouse string literal stands

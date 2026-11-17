@@ -152,6 +152,28 @@
 > exec
 |
 |
+| -- A dictionary whose source is a query, and a table that loads it under a name
+| -- that sorts first: the query reads z_src_mv, which the server parses like any
+| -- other statement.
+| CREATE DICTIONARY query_dict (
+|   id UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM omni_testdumprestores.z_src_mv'))
+| LAYOUT(FLAT())
+| LIFETIME(300);
+< ok 0 -
+> exec
+|
+|
+| CREATE TABLE a_query_dict_table (
+|   id UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.query_dict');
+< ok 0 -
+> exec
+|
+|
 | CREATE VIEW v_names AS SELECT id, name FROM src;
 < ok 0 -
 > exec
@@ -377,6 +399,24 @@
 |
 < row
 : string
+| a_query_dict_table
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | a_top
 : string
 | id
@@ -579,6 +619,24 @@
 < row
 : string
 | odd-name
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| query_dict
 : string
 | id
 : uint64 1
@@ -945,6 +1003,21 @@
 |
 < row
 : string
+| a_query_dict_table
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE TABLE omni_testdumprestores.a_query_dict_table (`id` UInt64) ENGINE = Dictionary('omni_testdumprestores.query_dict')
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | a_top
 : string
 | MaterializedView
@@ -1065,6 +1138,21 @@
 | id
 : string
 | id
+< row
+: string
+| query_dict
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE DICTIONARY omni_testdumprestores.query_dict (`id` UInt64) PRIMARY KEY id SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM omni_testdumprestores.z_src_mv')) LIFETIME(MIN 0 MAX 300) LAYOUT(FLAT())
+: string
+|
+: string
+|
+: string
+|
 < row
 : string
 | src
@@ -1248,6 +1336,16 @@
 : string
 | omni_testdumprestores
 : string
+| a_query_dict_table
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
 | a_top
 < result
 < column "name" "String" "string"
@@ -1321,6 +1419,16 @@
 | omni_testdumprestores
 : string
 | odd-name
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| query_dict
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"
@@ -1420,6 +1528,9 @@
 | a_mv_dict_table
 < row
 : string
+| a_query_dict_table
+< row
+: string
 | a_top
 < row
 : string
@@ -1444,6 +1555,9 @@
 < row
 : string
 | odd-name
+< row
+: string
+| query_dict
 < row
 : string
 | src
@@ -1547,6 +1661,17 @@
 |     `id` UInt64
 | )
 | ENGINE = Dictionary('omni_testdumprestores.mv_dict')
+> query
+| SHOW CREATE TABLE `omni_testdumprestores`.`a_query_dict_table`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE TABLE omni_testdumprestores.a_query_dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.query_dict')
 > query
 | SHOW CREATE TABLE `omni_testdumprestores`.`a_top`
 < result
@@ -1658,6 +1783,20 @@
 | ENGINE = MergeTree
 | ORDER BY id
 | SETTINGS index_granularity = 8192
+> query
+| SHOW CREATE TABLE `omni_testdumprestores`.`query_dict`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE DICTIONARY omni_testdumprestores.query_dict
+| (
+|     `id` UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM omni_testdumprestores.z_src_mv'))
+| LIFETIME(MIN 0 MAX 300)
+| LAYOUT(FLAT())
 > query
 | SHOW CREATE TABLE `omni_testdumprestores`.`src`
 < result
@@ -1975,6 +2114,37 @@
 < row
 : string
 |        TableIdentifier omni_testdumprestores.v_names
+> query
+| EXPLAIN AST SELECT id FROM omni_testdumprestores.z_src_mv
+< result
+< column "explain" "String" "string"
+< row
+: string
+| SelectWithUnionQuery (children 1)
+< row
+: string
+|  ExpressionList (children 1)
+< row
+: string
+|   SelectQuery (children 2)
+< row
+: string
+|    ExpressionList (children 1)
+< row
+: string
+|     Identifier id
+< row
+: string
+|    TablesInSelectQuery (children 1)
+< row
+: string
+|     TablesInSelectQueryElement (children 1)
+< row
+: string
+|      TableExpression (children 1)
+< row
+: string
+|       TableIdentifier omni_testdumprestores.z_src_mv
 > query
 | EXPLAIN AST CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target
 | (
@@ -2594,6 +2764,21 @@
 |
 |
 | --
+| -- Dictionary structure for `query_dict`
+| --
+| CREATE DICTIONARY omni_testdumprestores.query_dict
+| (
+|     `id` UInt64
+| )
+| PRIMARY KEY id
+| SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM omni_testdumprestores.z_src_mv'))
+| LIFETIME(MIN 0 MAX 300)
+| LAYOUT(FLAT());
+< ok 0 -
+> exec
+|
+|
+| --
 | -- Dictionary structure for `view_dict`
 | --
 | CREATE DICTIONARY omni_testdumprestores.view_dict
@@ -2783,6 +2968,18 @@
 |
 |
 | --
+| -- Table structure for `a_query_dict_table`
+| --
+| CREATE TABLE omni_testdumprestores.a_query_dict_table
+| (
+|     `id` UInt64
+| )
+| ENGINE = Dictionary('omni_testdumprestores.query_dict');
+< ok 0 -
+> exec
+|
+|
+| --
 | -- Materialized view structure for `a_top`
 | --
 | CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target
@@ -2953,6 +3150,24 @@
 < row
 : string
 | a_mv_dict_table
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| a_query_dict_table
 : string
 | id
 : uint64 1
@@ -3172,6 +3387,24 @@
 < row
 : string
 | odd-name
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| query_dict
 : string
 | id
 : uint64 1
@@ -3538,6 +3771,21 @@
 |
 < row
 : string
+| a_query_dict_table
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE TABLE omni_testdumprestores.a_query_dict_table (`id` UInt64) ENGINE = Dictionary('omni_testdumprestores.query_dict')
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | a_top
 : string
 | MaterializedView
@@ -3658,6 +3906,21 @@
 | id
 : string
 | id
+< row
+: string
+| query_dict
+: string
+| Dictionary
+: uint64 0
+: uint64 0
+: string
+| CREATE DICTIONARY omni_testdumprestores.query_dict (`id` UInt64) PRIMARY KEY id SOURCE(CLICKHOUSE(QUERY 'SELECT id FROM omni_testdumprestores.z_src_mv')) LIFETIME(MIN 0 MAX 300) LAYOUT(FLAT())
+: string
+|
+: string
+|
+: string
+|
 < row
 : string
 | src
@@ -3841,6 +4104,16 @@
 : string
 | omni_testdumprestores
 : string
+| a_query_dict_table
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
 | a_top
 < result
 < column "name" "String" "string"
@@ -3914,6 +4187,16 @@
 | omni_testdumprestores
 : string
 | odd-name
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| query_dict
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"
