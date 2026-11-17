@@ -1,6 +1,7 @@
 // Package driver is MySQL's implementation of the driver contract in
 // github.com/bytebase/omni/driver: it connects through go-sql-driver/mysql,
-// syncs a server's metadata into omni/metadata, and dumps it as DDL.
+// syncs a server's metadata into omni/metadata, dumps it as DDL, and runs
+// interactive queries and change scripts.
 //
 // MySQL's wire handshake has no read-only session parameter, so
 // driver.Config.ReadOnly is ignored.
@@ -14,6 +15,7 @@ import (
 	"net"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -23,9 +25,11 @@ import (
 )
 
 var (
-	_ driver.Driver = (*Driver)(nil)
-	_ driver.Syncer = (*Driver)(nil)
-	_ driver.Dumper = (*Driver)(nil)
+	_ driver.Driver   = (*Driver)(nil)
+	_ driver.Syncer   = (*Driver)(nil)
+	_ driver.Dumper   = (*Driver)(nil)
+	_ driver.Querier  = (*Driver)(nil)
+	_ driver.Executor = (*Driver)(nil)
 )
 
 // Driver is an open MySQL driver: a pool of connections to one server and
@@ -34,6 +38,8 @@ type Driver struct {
 	db            *sql.DB
 	databaseName  string
 	engineVersion string
+	appName       string
+	killOnCancel  bool
 }
 
 // Open returns a driver for the server and database cfg names. It does not
@@ -55,6 +61,8 @@ func Open(_ context.Context, cfg driver.Config) (*Driver, error) {
 		db:            db,
 		databaseName:  cfg.Database,
 		engineVersion: cfg.EngineVersion,
+		appName:       sanitizeCommentToken(cfg.ApplicationName),
+		killOnCancel:  true,
 	}, nil
 }
 
@@ -153,6 +161,39 @@ func validateExtraParams(params map[string]string) error {
 		}
 	}
 	return nil
+}
+
+func sanitizeCommentToken(s string) string {
+	return strings.ReplaceAll(s, "*/", "")
+}
+
+func (d *Driver) withAppComment(stmt string) string {
+	if d.appName == "" {
+		return stmt
+	}
+	return fmt.Sprintf("/*app=%s*/ %s", d.appName, stmt)
+}
+
+func (d *Driver) readConnectionID(ctx context.Context, conn *sql.Conn) (uint64, error) {
+	if !d.killOnCancel {
+		return 0, nil
+	}
+	var raw string
+	if err := conn.QueryRowContext(ctx, "SELECT CONNECTION_ID();").Scan(&raw); err != nil {
+		return 0, err
+	}
+	return strconv.ParseUint(raw, 10, 64)
+}
+
+func (d *Driver) killQueryOnCancel(err error, connID uint64) {
+	if !d.killOnCancel || connID == 0 {
+		return
+	}
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		killCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_, _ = d.db.ExecContext(killCtx, fmt.Sprintf("KILL QUERY %d", connID))
+	}
 }
 
 // Ping reaches the server.
