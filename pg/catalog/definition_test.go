@@ -1248,3 +1248,78 @@ func TestDatabaseDefinitionOrdersForeignKeyTableAfterCheckRowType(t *testing.T) 
 	assert.Contains(t, result, a)
 	assert.Less(t, strings.Index(result, z), strings.Index(result, a), "the CHECK's row type must be written first")
 }
+
+// TestDatabaseDefinitionOrdersForeignKeyTableAfterDefaultRowType checks that a
+// default expression casting to another foreign table's type orders that table
+// first.
+func TestDatabaseDefinitionOrdersForeignKeyTableAfterDefaultRowType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{
+					Name:               "a",
+					ExternalServerName: "s",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer", Default: "((ROW(1)::public.z).id)"}},
+				},
+				{Name: "z", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+			},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	z := `CREATE FOREIGN TABLE "public"."z"`
+	a := `CREATE FOREIGN TABLE "public"."a"`
+	assert.Contains(t, result, z)
+	assert.Contains(t, result, a)
+	assert.Less(t, strings.Index(result, z), strings.Index(result, a), "the default's row type must be written first")
+}
+
+// TestDatabaseDefinitionOrdersForeignPartitionAfterCheckRowType checks that a
+// foreign partition's CHECK casting to another foreign table's type orders that
+// table before the parent.
+func TestDatabaseDefinitionOrdersForeignPartitionAfterCheckRowType(t *testing.T) {
+	meta := &metadatapb.DatabaseSchemaMetadata{
+		Name: "db",
+		ForeignServers: []*metadatapb.ForeignServerMetadata{{
+			Name: "s",
+			Fdw:  "postgres_fdw",
+		}},
+		Schemas: []*metadatapb.SchemaMetadata{{
+			Name: "public",
+			Tables: []*metadatapb.TableMetadata{{
+				Name:       "pt",
+				Columns:    []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+				Partitions: []*metadatapb.TablePartitionMetadata{{Name: "pt_remote", Schema: "public", Value: "FOR VALUES FROM (0) TO (10)"}},
+			}},
+			ExternalTables: []*metadatapb.ExternalTableMetadata{
+				{
+					Name:               "pt_remote",
+					ExternalServerName: "s",
+					Columns:            []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}},
+					CheckConstraints: []*metadatapb.CheckConstraintMetadata{{
+						Name:       "c",
+						Expression: "((ROW(id)::public.z).id > 0)",
+					}},
+				},
+				{Name: "z", ExternalServerName: "s", Columns: []*metadatapb.ColumnMetadata{{Name: "id", Type: "integer"}}},
+			},
+		}},
+	}
+
+	result, err := DatabaseDefinition(meta, DefinitionOptions{})
+	require.NoError(t, err)
+
+	z := `CREATE FOREIGN TABLE "public"."z"`
+	parent := `CREATE TABLE "public"."pt"`
+	assert.Contains(t, result, z)
+	assert.Contains(t, result, parent)
+	assert.Less(t, strings.Index(result, z), strings.Index(result, parent), "the CHECK's row type must be written before the parent")
+}

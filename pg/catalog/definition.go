@@ -265,6 +265,7 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 	}
 
 	addRelationTypeEdges(graph, foreignTableMap, tableMap, foreignPartitionParents)
+	addPartitionRelationTypeEdges(graph, externalTables, foreignPartitionParents, tableMap, foreignTableMap)
 
 	orderedList, err := graph.TopologicalSort()
 	if err != nil {
@@ -2248,45 +2249,81 @@ func addRelationTypeEdges(graph *definitionGraph, foreignTableMap map[string]*me
 }
 
 func addRelationTypeEdgesFor(graph *definitionGraph, id string, columns []*metadatapb.ColumnMetadata, checks []*metadatapb.CheckConstraintMetadata, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
-	addTypeRef := func(typeName string) {
-		schema, name, ok := strings.Cut(typeName, ".")
-		if !ok {
-			return
-		}
-		// An array of a row type is named _<relation>, as in public._z.
-		names := []string{name}
-		if strings.HasPrefix(name, "_") {
-			names = append(names, name[1:])
-		}
-		for _, relationName := range names {
-			dependencyID := getObjectID(schema, relationName)
-			if parentID, ok := partitionParents[dependencyID]; ok {
-				dependencyID = parentID
-			}
-			if dependencyID == id {
-				return
-			}
-			if _, ok := tableMap[dependencyID]; ok {
-				graph.AddEdge(dependencyID, id)
-				return
-			}
-			if _, ok := foreignTableMap[dependencyID]; ok {
-				graph.AddEdge(dependencyID, id)
-				return
-			}
-		}
-	}
 	for _, column := range columns {
-		addTypeRef(column.Type)
+		addColumnRelationTypeEdges(graph, id, column, tableMap, foreignTableMap, partitionParents)
 	}
 	for _, check := range checks {
-		node, err := parseScalar("SELECT " + checkExpressionForDependencies(check.Expression))
-		if err != nil {
+		addCheckRelationTypeEdges(graph, id, check, tableMap, foreignTableMap, partitionParents)
+	}
+}
+
+func addColumnRelationTypeEdges(graph *definitionGraph, id string, column *metadatapb.ColumnMetadata, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
+	addTypeRefEdge(graph, id, column.Type, tableMap, foreignTableMap, partitionParents)
+	if column.Default != "" {
+		addExprRelationTypeEdges(graph, id, column.Default, tableMap, foreignTableMap, partitionParents)
+	}
+	if column.Generation != nil && column.Generation.Expression != "" {
+		addExprRelationTypeEdges(graph, id, column.Generation.Expression, tableMap, foreignTableMap, partitionParents)
+	}
+}
+
+func addCheckRelationTypeEdges(graph *definitionGraph, id string, check *metadatapb.CheckConstraintMetadata, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
+	addExprRelationTypeEdges(graph, id, checkExpressionForDependencies(check.Expression), tableMap, foreignTableMap, partitionParents)
+}
+
+func addExprRelationTypeEdges(graph *definitionGraph, id, expression string, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
+	node, err := parseScalar("SELECT " + expression)
+	if err != nil {
+		return
+	}
+	_, _, typeRefs := collectExprDeps(node)
+	for _, typeRef := range typeRefs {
+		addTypeRefEdge(graph, id, typeRef, tableMap, foreignTableMap, partitionParents)
+	}
+}
+
+func addTypeRefEdge(graph *definitionGraph, id, typeName string, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string) {
+	schema, name, ok := strings.Cut(typeName, ".")
+	if !ok {
+		return
+	}
+	// An array of a row type is named _<relation>, as in public._z.
+	names := []string{name}
+	if strings.HasPrefix(name, "_") {
+		names = append(names, name[1:])
+	}
+	for _, relationName := range names {
+		dependencyID := getObjectID(schema, relationName)
+		if parentID, ok := partitionParents[dependencyID]; ok {
+			dependencyID = parentID
+		}
+		if dependencyID == id {
+			return
+		}
+		if _, ok := tableMap[dependencyID]; ok {
+			graph.AddEdge(dependencyID, id)
+			return
+		}
+		if _, ok := foreignTableMap[dependencyID]; ok {
+			graph.AddEdge(dependencyID, id)
+			return
+		}
+	}
+}
+
+// addPartitionRelationTypeEdges adds the relation-type edges of a foreign
+// partition's columns and checks to the parent that creates the partition.
+func addPartitionRelationTypeEdges(graph *definitionGraph, externalTables map[string]*metadatapb.ExternalTableMetadata, partitionParents map[string]string, tableMap map[string]*metadatapb.TableMetadata, foreignTableMap map[string]*metadatapb.ExternalTableMetadata) {
+	for id, table := range externalTables {
+		parentID, ok := partitionParents[id]
+		if !ok {
 			continue
 		}
-		_, _, typeRefs := collectExprDeps(node)
-		for _, typeRef := range typeRefs {
-			addTypeRef(typeRef)
+		for _, column := range table.Columns {
+			addColumnRelationTypeEdges(graph, parentID, column, tableMap, foreignTableMap, partitionParents)
+		}
+		for _, check := range table.CheckConstraints {
+			addCheckRelationTypeEdges(graph, parentID, check, tableMap, foreignTableMap, partitionParents)
 		}
 	}
 }
