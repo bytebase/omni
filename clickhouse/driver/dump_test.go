@@ -286,6 +286,13 @@ func TestDumpDictionaryTableReads(t *testing.T) {
 	// it is called here.
 	byName["foreign"] = &dumpObject{name: "foreign", stmt: "CREATE TABLE db.foreign\n(\n    `id` UInt64\n)\nENGINE = Dictionary('other.d')"}
 	require.Empty(t, dumpDictionaryTableReads(byName["foreign"], "db", byName))
+
+	// A query the rendering writes after INVALIDATE_QUERY is the one that reads.
+	byName["inv"] = &dumpObject{name: "inv", stmt: "CREATE DICTIONARY db.inv\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(CLICKHOUSE(INVALIDATE_QUERY 'SELECT 1' QUERY 'SELECT id FROM db.a_mv'))\nLAYOUT(FLAT())"}
+	byName["inv_table"] = &dumpObject{name: "inv_table", stmt: "CREATE TABLE db.inv_table\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db.inv')"}
+	query, ok := dumpDictionarySourceQuery(byName["inv_table"], "db", byName)
+	require.True(t, ok)
+	require.Equal(t, "SELECT id FROM db.a_mv", query)
 }
 
 // TestDumpViewTargetReads holds the TO clause a materialized view writes, which

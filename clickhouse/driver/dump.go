@@ -365,7 +365,7 @@ var (
 	dumpDictionaryEngine   = regexp.MustCompile(`ENGINE = Dictionary\('((?:[^'\\]|\\.)*)'\)`)
 	dumpDictionaryTableKey = regexp.MustCompile(`(?i)TABLE '((?:[^'\\]|\\.)*)'`)
 	dumpDictionaryDBKey    = regexp.MustCompile(`(?i)DB '((?:[^'\\]|\\.)*)'`)
-	dumpDictionaryQuery    = regexp.MustCompile(`(?i)QUERY '((?:[^'\\]|\\.)*)'`)
+	dumpDictionaryQuery    = regexp.MustCompile(`(?i)\bQUERY '((?:[^'\\]|\\.)*)'`)
 )
 
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
