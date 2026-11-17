@@ -794,7 +794,7 @@ func writeCreateTableSDL(out io.Writer, schemaName string, table *metadatapb.Tab
 		return err
 	}
 
-	if len(table.Partitions) > 0 && !tableMissingColumnMetadata(table) {
+	if !tableMissingColumnMetadata(table) && partitionKeyReported(table.Partitions) {
 		if _, err := io.WriteString(out, " PARTITION BY "); err != nil {
 			return err
 		}
@@ -911,6 +911,21 @@ type sdltable struct {
 	excludes []*metadatapb.ExcludeConstraintMetadata
 }
 
+// partitionKeyReported reports whether a snapshot says what a partitioned
+// table's key is. Sync records the key on each of the table's partitions, so a
+// snapshot holds it for all of them or none.
+func partitionKeyReported(partitions []*metadatapb.TablePartitionMetadata) bool {
+	return len(partitions) > 0 && partitions[0].GetExpression() != ""
+}
+
+// partitionOfParent reports whether the snapshot can write a partition as
+// PARTITION OF its parent: sync records on each partition the key it inherits
+// and the bound it holds, and without both LoadMetadata installs it as a plain
+// table.
+func partitionOfParent(partition *metadatapb.TablePartitionMetadata) bool {
+	return partition.GetExpression() != "" && partition.GetValue() != ""
+}
+
 // writePartitionTablesSDL writes t's partitions, each as CREATE TABLE ...
 // PARTITION OF its parent, parents before children: a partition takes its
 // parent's columns, so listing them again would only repeat what CREATE TABLE
@@ -954,10 +969,11 @@ func writePartitionsSDL(out io.Writer, parentSchema string, parent sdltable, par
 }
 
 func writePartitionSDL(out io.Writer, schemaName string, parent sdltable, partition *metadatapb.TablePartitionMetadata) error {
-	if partition.Value == "" {
-		// A snapshot that holds no bound for the partition cannot say what it
-		// holds; the parent's columns make it the plain table LoadMetadata
-		// installs from the same snapshot.
+	if !partitionOfParent(partition) {
+		// A snapshot that holds no bound for the partition, or none of the key
+		// it inherits, cannot say what the partition holds; the parent's
+		// columns make it the plain table LoadMetadata installs from the same
+		// snapshot.
 		if err := writeCreateTableSDL(out, schemaName, &metadatapb.TableMetadata{
 			Name:               partition.Name,
 			Columns:            parent.columns,
@@ -980,7 +996,7 @@ func writePartitionSDL(out io.Writer, schemaName string, parent sdltable, partit
 		return err
 	}
 	// A partition's own key is the expression its subpartitions report.
-	if len(partition.Subpartitions) > 0 {
+	if partitionKeyReported(partition.Subpartitions) {
 		if _, err := fmt.Fprintf(out, " PARTITION BY %s", partition.Subpartitions[0].Expression); err != nil {
 			return err
 		}
