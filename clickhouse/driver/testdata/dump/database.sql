@@ -130,6 +130,32 @@ AS SELECT id
 FROM omni_testdump.src;
 
 --
+-- Materialized view structure for `nl\nmv`
+--
+CREATE MATERIALIZED VIEW omni_testdump.`nl\nmv` TO omni_testdump.target
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    'x' AS name
+FROM omni_testdump.src;
+
+--
+-- Materialized view structure for a_after
+--
+CREATE MATERIALIZED VIEW omni_testdump.a_after TO omni_testdump.target
+(
+    `id` UInt64,
+    `name` String
+)
+AS SELECT
+    id,
+    'y' AS name
+FROM omni_testdump.`nl\nmv`;
+
+--
 -- Materialized view structure for a_top
 --
 CREATE MATERIALIZED VIEW omni_testdump.a_top TO omni_testdump.target

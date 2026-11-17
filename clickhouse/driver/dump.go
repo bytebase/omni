@@ -49,7 +49,7 @@ func (d *Driver) Dump(ctx context.Context, out io.Writer, _ *metadatapb.Database
 		return wrapDatabaseNotFound(err)
 	}
 	for _, o := range orderDumpObjects(objects) {
-		if _, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n%s;\n\n", dumpKindLabel(o.kind), dumpLabel(o.name), o.stmt); err != nil {
+		if _, err := fmt.Fprintf(out, "--\n-- %s structure for %s\n--\n%s;\n\n", dumpKindLabel(o.kind), dumpIdentifier(o.name), o.stmt); err != nil {
 			return err
 		}
 	}
@@ -307,20 +307,41 @@ func dumpInString(stmt string, want int) bool {
 var plainIdentifier = regexp.MustCompile(`^[A-Za-z_$][A-Za-z0-9_$]*$`)
 
 // dumpIdentifier writes name the way ClickHouse's own rendering writes it: bare
-// when it is a plain identifier, and in backquotes with backslashes and
-// backquotes escaped otherwise.
+// when it is a plain identifier, and in backquotes otherwise, with the escapes
+// ClickHouse writes for a backslash, a backquote and the control characters an
+// identifier may hold. An object's name is quoted for the statement the dump
+// asks for, for the header above it — a -- comment a line break would end — and
+// for a reference another statement holds, which has to match the rendering the
+// server wrote.
 func dumpIdentifier(name string) string {
 	if plainIdentifier.MatchString(name) {
 		return name
 	}
-	return "`" + strings.NewReplacer(`\`, `\\`, "`", "\\`").Replace(name) + "`"
-}
-
-// dumpLabel writes an object's name for the header of its statement. An
-// identifier may hold a line break, which a -- comment would not survive, so it
-// is escaped here.
-func dumpLabel(name string) string {
-	return strings.NewReplacer("\n", `\n`, "\r", `\r`, "\t", `\t`).Replace(dumpIdentifier(name))
+	var b strings.Builder
+	b.WriteByte('`')
+	for i := 0; i < len(name); i++ {
+		switch c := name[i]; c {
+		case '\\', '`':
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		case '\n':
+			b.WriteString(`\n`)
+		case '\r':
+			b.WriteString(`\r`)
+		case '\t':
+			b.WriteString(`\t`)
+		case '\b':
+			b.WriteString(`\b`)
+		case '\f':
+			b.WriteString(`\f`)
+		case 0:
+			b.WriteString(`\0`)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	b.WriteByte('`')
+	return b.String()
 }
 
 // dumpKindLabel names a kind of object for the header of its statement.

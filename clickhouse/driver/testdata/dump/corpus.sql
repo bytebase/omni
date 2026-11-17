@@ -73,4 +73,13 @@ CREATE MATERIALIZED VIEW mv_base TO target AS SELECT id, '$database.a_top' AS na
 -- is not a read.
 CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM mv_base;
 
+-- A materialized view whose name holds a line break, and one that reads it under
+-- a name that sorts first: the reference the dump looks for is the rendering
+-- ClickHouse writes, with the line break escaped.
+CREATE MATERIALIZED VIEW `nl
+mv` TO target AS SELECT id, 'x' AS name FROM src;
+
+CREATE MATERIALIZED VIEW a_after TO target AS SELECT id, 'y' AS name FROM `nl
+mv`;
+
 CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps

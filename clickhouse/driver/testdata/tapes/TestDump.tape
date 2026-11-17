@@ -110,6 +110,21 @@
 > exec
 |
 |
+| -- A materialized view whose name holds a line break, and one that reads it under
+| -- a name that sorts first: the reference the dump looks for is the rendering
+| -- ClickHouse writes, with the line break escaped.
+| CREATE MATERIALIZED VIEW `nl
+| mv` TO target AS SELECT id, 'x' AS name FROM src;
+< ok 0 -
+> exec
+|
+|
+| CREATE MATERIALIZED VIEW a_after TO target AS SELECT id, 'y' AS name FROM `nl
+| mv`;
+< ok 0 -
+> exec
+|
+|
 | CREATE MATERIALIZED VIEW mv_own ENGINE = MergeTree ORDER BY id AS SELECT id FROM src; -- not restorable: TestDumpGaps
 < ok 0 -
 > query
@@ -126,6 +141,9 @@
 < row
 : string
 | .events
+< row
+: string
+| a_after
 < row
 : string
 | a_first
@@ -148,6 +166,10 @@
 < row
 : string
 | mv_own
+< row
+: string
+| nl
+| mv
 < row
 : string
 | odd-name
@@ -173,6 +195,21 @@
 | ENGINE = MergeTree
 | ORDER BY id
 | SETTINGS index_granularity = 8192
+> query
+| SHOW CREATE TABLE omni_testdump.a_after
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE MATERIALIZED VIEW omni_testdump.a_after TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'y' AS name
+| FROM omni_testdump.`nl\nmv`
 > query
 | SHOW CREATE TABLE omni_testdump.a_first
 < result
@@ -227,8 +264,7 @@
 | )
 | ENGINE = Dictionary('omni_testdump.dict')
 > query
-| SHOW CREATE TABLE omni_testdump.`line
-| break`
+| SHOW CREATE TABLE omni_testdump.`line\nbreak`
 < result
 < column "statement" "String" "string"
 < row
@@ -269,6 +305,21 @@
 | ORDER BY id
 | SETTINGS index_granularity = 8192
 | AS SELECT id
+| FROM omni_testdump.src
+> query
+| SHOW CREATE TABLE omni_testdump.`nl\nmv`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE MATERIALIZED VIEW omni_testdump.`nl\nmv` TO omni_testdump.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'x' AS name
 | FROM omni_testdump.src
 > query
 | SHOW CREATE TABLE omni_testdump.`odd-name`

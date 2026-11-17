@@ -107,6 +107,21 @@
 | -- is not a read.
 | CREATE MATERIALIZED VIEW a_top TO target AS SELECT id, name FROM mv_base;
 < ok 0 -
+> exec
+|
+|
+| -- A materialized view whose name holds a line break, and one that reads it under
+| -- a name that sorts first: the reference the dump looks for is the rendering
+| -- ClickHouse writes, with the line break escaped.
+| CREATE MATERIALIZED VIEW `nl
+| mv` TO target AS SELECT id, 'x' AS name FROM src;
+< ok 0 -
+> exec
+|
+|
+| CREATE MATERIALIZED VIEW a_after TO target AS SELECT id, 'y' AS name FROM `nl
+| mv`;
+< ok 0 -
 > query
 |
 | 		SELECT
@@ -146,6 +161,42 @@
 | 0
 : string
 | UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| a_after
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| a_after
+: string
+| name
+: uint64 2
+: string
+|
+: string
+| 0
+: string
+| String
 : string
 |
 : string
@@ -300,6 +351,44 @@
 < row
 : string
 | mv_base
+: string
+| name
+: uint64 2
+: string
+|
+: string
+| 0
+: string
+| String
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| nl
+| mv
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| nl
+| mv
 : string
 | name
 : uint64 2
@@ -483,6 +572,21 @@
 | id
 < row
 : string
+| a_after
+: string
+| MaterializedView
+: uint64 0
+: uint64 0
+: string
+| CREATE MATERIALIZED VIEW omni_testdumprestores.a_after TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, 'y' AS name FROM omni_testdumprestores.`nl\nmv`
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | a_first
 : string
 | View
@@ -574,6 +678,22 @@
 |
 < row
 : string
+| nl
+| mv
+: string
+| MaterializedView
+: uint64 0
+: uint64 0
+: string
+| CREATE MATERIALIZED VIEW omni_testdumprestores.`nl\nmv` TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, 'x' AS name FROM omni_testdumprestores.src
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | odd-name
 : string
 | MergeTree
@@ -655,6 +775,16 @@
 : string
 | omni_testdumprestores
 : string
+| a_after
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
 | a_top
 < result
 < column "name" "String" "string"
@@ -697,6 +827,17 @@
 | omni_testdumprestores
 : string
 | mv_base
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| nl
+| mv
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"
@@ -756,6 +897,9 @@
 | .events
 < row
 : string
+| a_after
+< row
+: string
 | a_first
 < row
 : string
@@ -773,6 +917,10 @@
 < row
 : string
 | mv_base
+< row
+: string
+| nl
+| mv
 < row
 : string
 | odd-name
@@ -798,6 +946,21 @@
 | ENGINE = MergeTree
 | ORDER BY id
 | SETTINGS index_granularity = 8192
+> query
+| SHOW CREATE TABLE omni_testdumprestores.a_after
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE MATERIALIZED VIEW omni_testdumprestores.a_after TO omni_testdumprestores.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'y' AS name
+| FROM omni_testdumprestores.`nl\nmv`
 > query
 | SHOW CREATE TABLE omni_testdumprestores.a_first
 < result
@@ -852,8 +1015,7 @@
 | )
 | ENGINE = Dictionary('omni_testdumprestores.dict')
 > query
-| SHOW CREATE TABLE omni_testdumprestores.`line
-| break`
+| SHOW CREATE TABLE omni_testdumprestores.`line\nbreak`
 < result
 < column "statement" "String" "string"
 < row
@@ -879,6 +1041,21 @@
 | AS SELECT
 |     id,
 |     'omni_testdumprestores.a_top' AS name
+| FROM omni_testdumprestores.src
+> query
+| SHOW CREATE TABLE omni_testdumprestores.`nl\nmv`
+< result
+< column "statement" "String" "string"
+< row
+: string
+| CREATE MATERIALIZED VIEW omni_testdumprestores.`nl\nmv` TO omni_testdumprestores.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'x' AS name
 | FROM omni_testdumprestores.src
 > query
 | SHOW CREATE TABLE omni_testdumprestores.`odd-name`
@@ -1097,6 +1274,38 @@
 |
 |
 | --
+| -- Materialized view structure for `nl\nmv`
+| --
+| CREATE MATERIALIZED VIEW omni_testdumprestores.`nl\nmv` TO omni_testdumprestores.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'x' AS name
+| FROM omni_testdumprestores.src;
+< ok 0 -
+> exec
+|
+|
+| --
+| -- Materialized view structure for a_after
+| --
+| CREATE MATERIALIZED VIEW omni_testdumprestores.a_after TO omni_testdumprestores.target
+| (
+|     `id` UInt64,
+|     `name` String
+| )
+| AS SELECT
+|     id,
+|     'y' AS name
+| FROM omni_testdumprestores.`nl\nmv`;
+< ok 0 -
+> exec
+|
+|
+| --
 | -- Materialized view structure for a_top
 | --
 | CREATE MATERIALIZED VIEW omni_testdumprestores.a_top TO omni_testdumprestores.target
@@ -1150,6 +1359,42 @@
 | 0
 : string
 | UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| a_after
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| a_after
+: string
+| name
+: uint64 2
+: string
+|
+: string
+| 0
+: string
+| String
 : string
 |
 : string
@@ -1304,6 +1549,44 @@
 < row
 : string
 | mv_base
+: string
+| name
+: uint64 2
+: string
+|
+: string
+| 0
+: string
+| String
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| nl
+| mv
+: string
+| id
+: uint64 1
+: string
+|
+: string
+| 0
+: string
+| UInt64
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
+| nl
+| mv
 : string
 | name
 : uint64 2
@@ -1487,6 +1770,21 @@
 | id
 < row
 : string
+| a_after
+: string
+| MaterializedView
+: uint64 0
+: uint64 0
+: string
+| CREATE MATERIALIZED VIEW omni_testdumprestores.a_after TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, 'y' AS name FROM omni_testdumprestores.`nl\nmv`
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | a_first
 : string
 | View
@@ -1578,6 +1876,22 @@
 |
 < row
 : string
+| nl
+| mv
+: string
+| MaterializedView
+: uint64 0
+: uint64 0
+: string
+| CREATE MATERIALIZED VIEW omni_testdumprestores.`nl\nmv` TO omni_testdumprestores.target (`id` UInt64, `name` String) AS SELECT id, 'x' AS name FROM omni_testdumprestores.src
+: string
+|
+: string
+|
+: string
+|
+< row
+: string
 | odd-name
 : string
 | MergeTree
@@ -1659,6 +1973,16 @@
 : string
 | omni_testdumprestores
 : string
+| a_after
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
 | a_top
 < result
 < column "name" "String" "string"
@@ -1701,6 +2025,17 @@
 | omni_testdumprestores
 : string
 | mv_base
+< result
+< column "name" "String" "string"
+< column "type" "String" "string"
+< column "expr" "String" "string"
+< column "granularity" "UInt64" "uint64"
+> query ^
+: string
+| omni_testdumprestores
+: string
+| nl
+| mv
 < result
 < column "name" "String" "string"
 < column "type" "String" "string"
