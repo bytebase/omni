@@ -23,8 +23,12 @@
 // QueryOptions' Schema, Limit, ExplainFormat and MaskingEnabled: Elasticsearch
 // has no schemas, no statement to rewrite with a row limit, one plan format,
 // and nothing to withhold from a row. QueryOptions.Explain reads a search's
-// profile, and only a search can be explained. QueryOptions.MaxResultBytes
-// stops nothing: Bytebase read every row it was given, and the driver does too.
+// profile, and only a search can be explained. QueryOptions.MaxResultBytes is
+// measured on the answer: a REST answer is one row, so the row is kept and the
+// result says it is truncated once the header and row pass the cap. The answer
+// is read whole first, because a JSON document's size is only known once it is
+// decoded; Elasticsearch's own bounds (a search's size, from+size,
+// terminate_after) count rows or scanned hits, not bytes.
 // ExecuteOptions' transaction settings, CreateDatabase and MaxRetries do
 // nothing: every REST request stands alone.
 //
@@ -439,6 +443,12 @@ func (s *session) run(ctx context.Context, request *elasticsearch.Request, opts 
 	}
 	result.Columns = columns
 	result.Rows = [][]driver.Value{row}
+	if opts.MaxResultBytes > 0 && driver.HeaderByteSize(columns)+driver.RowByteSize(row) > opts.MaxResultBytes {
+		// One answer is one row, so the read has already stopped: the row that
+		// passed the cap is kept, as every other driver keeps the row that
+		// crosses it.
+		result.Truncated = true
+	}
 	result.Latency = time.Since(startTime)
 	return result, nil
 }
