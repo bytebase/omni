@@ -45,7 +45,9 @@
 // a no-op, so it may have no effect.
 //
 // A statement's error unwraps to *clickhouse.Exception, which carries the
-// server's error code and message. Result.AffectedRows is 0 for every statement
+// server's error code and message. A connection the server refuses, as for a
+// database it does not have (UNKNOWN_DATABASE, 81), fails with the same type
+// before any statement is sent. Result.AffectedRows is 0 for every statement
 // that runs on the exec path, a write included: the client reports no count, so
 // the driver has none to report.
 package driver
