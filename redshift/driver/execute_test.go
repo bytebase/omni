@@ -42,6 +42,10 @@ func TestRefuseImplicitCommit(t *testing.T) {
 		{statement: "CREATE TABLE t (a int)"},
 		{statement: "TRUNCATE facts", want: true},
 		{statement: "vacuum full facts", want: true},
+		// ANALYZE shares VACUUM's node, but a cluster runs it inside a
+		// transaction and rolls it back with the rest.
+		{statement: "ANALYZE facts"},
+		{statement: "analyze facts"},
 		{statement: "CREATE DATABASE other", want: true},
 		{statement: "DROP DATABASE other", want: true},
 		{statement: "COMMIT", want: true},

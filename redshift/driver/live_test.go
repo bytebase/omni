@@ -4,30 +4,36 @@ import (
 	"context"
 	"crypto/tls"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/jackc/pgx/v5"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/bytebase/omni/driver"
+	"github.com/bytebase/omni/enginetest"
+	metadatapb "github.com/bytebase/omni/metadata"
+	"github.com/bytebase/omni/redshift/internal/testcontainer"
 )
 
-// The live tests reach a real cluster and are the only tests in this package
-// that do. They skip with the variable's name when neither is set, because no
-// CI machine has a Redshift endpoint: REDSHIFT_DSN names a scratch cluster of
-// its own, and REDSHIFT_COMPAT_DSN the cluster omni's compat suite already asks,
-// which the recording in VERIFY.md may point both at.
+// The tested paths replay tapes recorded from one scratch cluster, and record
+// against it again under OMNI_RECORD=1. The tapes live beside this package and
+// name the cluster's release in redshift/testdata/pins.tsv; nothing here reads
+// an endpoint or a login, so a replay needs no credentials and reaches no
+// server. REDSHIFT_DSN is read only while recording.
 //
-// Nothing here has ever passed. It is the shape the day-of recording runs, and
-// VERIFY.md says what to do when one fails.
+// DATASHARE is the exception: it needs a second account that shares a database
+// into the cluster, which a scratch cluster does not have, so it skips and has
+// no tape.
 
-// dsnVariables are the environment variables a live test accepts, in the order
-// it reads them.
+// dsnVariables are the environment variables a live-only test accepts, in the
+// order it reads them.
 var dsnVariables = []string{"REDSHIFT_DSN", "REDSHIFT_COMPAT_DSN"}
 
-// liveConfig reads the cluster's connection settings out of the first DSN
+// liveConfig reads a connecting cluster's settings out of the first DSN
 // variable that is set, and skips the test when none is.
 func liveConfig(t *testing.T) driver.Config {
 	t.Helper()
@@ -39,7 +45,7 @@ func liveConfig(t *testing.T) driver.Config {
 		}
 	}
 	if dsn == "" {
-		t.Skipf("no %s to reach a cluster: the live tests need a scratch Redshift cluster, and skip rather than reach a PostgreSQL stand-in", strings.Join(dsnVariables, " or "))
+		t.Skipf("no %s to reach a cluster: this test needs a real Redshift endpoint, which a replay does not have", strings.Join(dsnVariables, " or "))
 	}
 
 	pgxConfig, err := pgx.ParseConfig(dsn)
@@ -61,24 +67,21 @@ func liveConfig(t *testing.T) driver.Config {
 	return cfg
 }
 
-// openLive returns an open driver for the cluster the environment names.
+// openLive returns the driver the test's tape was recorded through: one
+// connection, to the database the recording used.
 func openLive(t *testing.T) *Driver {
 	t.Helper()
-	d, err := Open(context.Background(), liveConfig(t))
-	if err != nil {
-		t.Fatalf("Open: %v", err)
-	}
-	t.Cleanup(func() { _ = d.Close() })
+	d := &Driver{db: testcontainer.Open(t), databaseName: testcontainer.Database}
 	if err := d.Ping(context.Background()); err != nil {
 		t.Fatalf("Ping: %v", err)
 	}
 	return d
 }
 
-// TestLiveSyncInstance reads the cluster's version, databases and roles, and
+// TestSyncInstance reads the cluster's version, databases and roles, and
 // pins the two things every other live test stands on: the version parses, and
 // the database the driver connects to is listed.
-func TestLiveSyncInstance(t *testing.T) {
+func TestSyncInstance(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
@@ -106,9 +109,9 @@ func TestLiveSyncInstance(t *testing.T) {
 	}
 }
 
-// TestLiveSyncDatabase reads the schema of the database the driver connects to:
+// TestSyncDatabase reads the schema of the database the driver connects to:
 // the queries a sync sends, and the metadata they produce.
-func TestLiveSyncDatabase(t *testing.T) {
+func TestSyncDatabase(t *testing.T) {
 	d := openLive(t)
 	database, err := d.SyncDatabase(context.Background())
 	if err != nil {
@@ -127,18 +130,62 @@ func TestLiveSyncDatabase(t *testing.T) {
 	if !contains(schemas, "public") {
 		t.Errorf("Schemas = %v, want it to hold public", schemas)
 	}
+	checkSyncGolden(t, database)
 }
 
-// TestLiveSyncDatabaseDatashare reads a database an inbound datashare created.
+// checkSyncGolden writes the sync's metadata in a recording and holds it to the
+// committed prototext in a replay. The comparison is proto.Equal rather than
+// bytes: protojson's spacing may change between builds, and the metadata is
+// what the recording settles.
+func checkSyncGolden(t *testing.T, database *metadatapb.DatabaseSchemaMetadata) {
+	t.Helper()
+	path := filepath.Join("testdata", "sync", database.Name+".json")
+	if enginetest.Recording(t) {
+		b, err := protojson.MarshalOptions{Multiline: true, Indent: "  "}.Marshal(database)
+		if err != nil {
+			t.Fatalf("marshal %s: %v", path, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatalf("create %s: %v", filepath.Dir(path), err)
+		}
+		if err := os.WriteFile(path, append(b, '\n'), 0o644); err != nil {
+			t.Fatalf("write %s: %v", path, err)
+		}
+		return
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s (record it): %v", path, err)
+	}
+	want := &metadatapb.DatabaseSchemaMetadata{}
+	if err := protojson.Unmarshal(body, want); err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if !proto.Equal(database, want) {
+		t.Errorf("SyncDatabase differs from %s:\n got %v\nwant %v", path, database, want)
+	}
+}
+
+// TestSyncDatabaseDatashare reads a database an inbound datashare created.
 // The branch reads SVV_ALL_SCHEMAS, SVV_ALL_TABLES and SVV_ALL_COLUMNS, because a
 // datashare publishes no pg_catalog entries.
 //
 // The test finds the share in the cluster's own database list rather than naming
 // one in the environment: a cluster with none skips, naming what a recording
 // must provision, instead of sending SVV_ALL_* against an ordinary database.
-func TestLiveSyncDatabaseDatashare(t *testing.T) {
+func TestSyncDatabaseDatashare(t *testing.T) {
 	ctx := context.Background()
-	d := openLive(t)
+	// The one test that reads a real endpoint rather than a tape: a share has
+	// no tape, because a recording of an ordinary cluster cannot make one.
+	cfg := liveConfig(t)
+	d, err := Open(ctx, cfg)
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = d.Close() })
+	if err := d.Ping(ctx); err != nil {
+		t.Fatalf("Ping: %v", err)
+	}
 
 	instance, err := d.SyncInstance(ctx)
 	if err != nil {
@@ -156,13 +203,13 @@ func TestLiveSyncDatabaseDatashare(t *testing.T) {
 	}
 
 	// The share is reached with the same login, marked as a share.
-	cfg := liveConfig(t)
-	cfg.Database = shared
-	if cfg.Params == nil {
-		cfg.Params = map[string]string{}
+	shareCfg := cfg
+	shareCfg.Database = shared
+	if shareCfg.Params == nil {
+		shareCfg.Params = map[string]string{}
 	}
-	cfg.Params[ParamDatashare] = "true"
-	share, err := Open(ctx, cfg)
+	shareCfg.Params[ParamDatashare] = "true"
+	share, err := Open(ctx, shareCfg)
 	if err != nil {
 		t.Fatalf("Open %q: %v", shared, err)
 	}
@@ -205,9 +252,9 @@ func TestLiveSyncDatabaseDatashare(t *testing.T) {
 	}
 }
 
-// TestLiveQuery runs statements through a session: a query that returns rows, a
+// TestQuery runs statements through a session: a query that returns rows, a
 // command that reports affected rows, the limit rewrite, and the plan.
-func TestLiveQuery(t *testing.T) {
+func TestQuery(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
@@ -269,9 +316,9 @@ func TestLiveQuery(t *testing.T) {
 	}
 }
 
-// TestLiveExecute runs a script in one transaction and then one that fails, and
+// TestExecute runs a script in one transaction and then one that fails, and
 // checks the failure leaves nothing behind.
-func TestLiveExecute(t *testing.T) {
+func TestExecute(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
@@ -304,15 +351,17 @@ func TestLiveExecute(t *testing.T) {
 	}
 }
 
-// TestLiveExecuteCreateDatabase runs CREATE DATABASE through the creation step,
+// TestExecuteCreateDatabase runs CREATE DATABASE through the creation step,
 // twice. The second run must find the database the first created and create
 // nothing, so a task that retries is not refused by the server.
-func TestLiveExecuteCreateDatabase(t *testing.T) {
+func TestExecuteCreateDatabase(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
-	created := "omni_create_" + strconv.FormatInt(time.Now().UnixNano(), 36)
-	t.Cleanup(func() {
+	created := "omni_create_probe"
+	// A fixed name keeps a recording's statements the same in every run; the
+	// cleanup below removes the database whichever way the test ends.
+	dropCreated := func() {
 		databases, err := d.getDatabases(context.Background())
 		if err != nil {
 			t.Errorf("getDatabases: %v", err)
@@ -328,7 +377,11 @@ func TestLiveExecuteCreateDatabase(t *testing.T) {
 			}
 			return
 		}
-	})
+	}
+	t.Cleanup(dropCreated)
+	// A run a previous recording left behind must not turn the first creation
+	// into the second run's no-op.
+	dropCreated()
 
 	// listed counts how many times the server names the database, which is what
 	// separates the second run's no-op from a second creation.
@@ -363,24 +416,32 @@ func TestLiveExecuteCreateDatabase(t *testing.T) {
 	}
 }
 
-// TestLiveCountAffectedRows reads the planner's estimate for a statement that
+// TestCountAffectedRows reads the planner's estimate for a statement that
 // modifies a table it has statistics for.
-func TestLiveCountAffectedRows(t *testing.T) {
+func TestCountAffectedRows(t *testing.T) {
 	ctx := context.Background()
 	d := openLive(t)
 
 	// Redshift has no generate_series, so a recursive CTE makes the rows the
-	// planner measures.
+	// planner measures. The probe is a permanent table rather than a temporary
+	// one: the estimate is read on another connection of the pool, which would
+	// not see a temporary table the script made.
+	t.Cleanup(func() {
+		if _, err := d.Execute(context.Background(), "DROP TABLE IF EXISTS public.omni_stats_probe", driver.ExecuteOptions{Transaction: driver.AutoCommit}); err != nil {
+			t.Errorf("DROP TABLE public.omni_stats_probe: %v", err)
+		}
+	})
 	if _, err := d.Execute(ctx, `
-		CREATE TEMP TABLE omni_stats_probe (a int);
-		INSERT INTO omni_stats_probe
+		DROP TABLE IF EXISTS public.omni_stats_probe;
+		CREATE TABLE public.omni_stats_probe (a int);
+		INSERT INTO public.omni_stats_probe
 			WITH RECURSIVE numbers(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM numbers WHERE n < 100)
 			SELECT 1 FROM numbers;
-		ANALYZE omni_stats_probe;
+		ANALYZE public.omni_stats_probe;
 	`, driver.ExecuteOptions{}); err != nil {
 		t.Fatalf("Execute: %v", err)
 	}
-	estimate, err := d.CountAffectedRows(ctx, "DELETE FROM omni_stats_probe WHERE a = 1")
+	estimate, err := d.CountAffectedRows(ctx, "DELETE FROM public.omni_stats_probe WHERE a = 1")
 	if err != nil {
 		t.Fatalf("CountAffectedRows: %v", err)
 	}

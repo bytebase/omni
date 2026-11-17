@@ -2,26 +2,22 @@
 // github.com/bytebase/omni/driver: it connects through pgx, syncs a server's
 // metadata into omni/metadata, and runs interactive queries and change scripts.
 //
-// # Unverified against a cluster
+// # Recorded from a cluster
 //
-// No test in this package has ever asked a Redshift server. The package is a
-// port of Bytebase's backend/plugin/db/redshift, whose tests reached only a
-// PostgreSQL parser and an SSH tunnel, and Redshift has no image omni can start
-// in a container: every answer the sync, query, execute and row-estimate paths
-// expect here was written from that driver and from Redshift's documentation,
-// and none was recorded. There are no tapes, no sync goldens and no dump
-// fixture beside this package, because nothing here can produce one. VERIFY.md
-// holds the recording plan: the cluster to pin, the tests to record in what
-// order, and the parity harness that holds this package to the driver it
-// replaces cell by cell. Treat a behavior this package states as unconfirmed
-// until that recording lands.
+// The sync, query, execute and row-estimate paths replay tapes recorded from a
+// single-node rg.large cluster running Redshift 1.0.539507 (PostgreSQL 8.0.2)
+// in us-west-2 on 2026-11-17, and testdata/sync/dev.json holds the metadata the
+// sync built from the corpus in testdata/corpus.sql. A replay starts no server
+// and needs no credentials; a recording (OMNI_RECORD=1) reads REDSHIFT_DSN and
+// testcontainer fails without it rather than write an empty tape. The pin row
+// in redshift/testdata/pins.tsv names the release and hashes SELECT version()'s
+// answer, so a cluster of another release is refused instead of replayed.
+// VERIFY.md records what the recording found and what remains unverified.
 //
-// Its tests therefore cover only what needs no server: the connection
-// configuration, statement classification, the value conversions, the row
-// estimate's plan reading and the pure helpers. Everything else is behind an
-// environment gate and skips naming it: the live tests read REDSHIFT_DSN,
-// falling back to the REDSHIFT_COMPAT_DSN the compat suite already names, and
-// both must point at one dedicated scratch cluster, because those tests write.
+// The datashare branch has no tape: an inbound share needs a second account
+// that publishes one, which the scratch cluster did not have. Its test skips,
+// and the sync queries it sends (SVV_ALL_SCHEMAS, SVV_ALL_TABLES and
+// SVV_ALL_COLUMNS) were only read against an ordinary database.
 //
 // # What it implements
 //
@@ -284,7 +280,8 @@ func (d *Driver) getDatabases(ctx context.Context) ([]*metadatapb.DatabaseSchema
 	rows, err := d.db.QueryContext(ctx, `
 		SELECT datname,
 		pg_encoding_to_char(encoding)
-		FROM pg_database;
+		FROM pg_database
+		ORDER BY datname;
 	`)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute databases query: %w", err)
@@ -308,7 +305,7 @@ func (d *Driver) getDatabases(ctx context.Context) ([]*metadatapb.DatabaseSchema
 
 // getConsumerDatabases reads the databases an inbound datashare created.
 func (d *Driver) getConsumerDatabases(ctx context.Context) (map[string]bool, error) {
-	const query = `SELECT consumer_database FROM SVV_DATASHARES WHERE share_type = 'INBOUND';`
+	const query = `SELECT consumer_database FROM SVV_DATASHARES WHERE share_type = 'INBOUND' ORDER BY consumer_database;`
 	rows, err := d.db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute datashares query: %w", err)

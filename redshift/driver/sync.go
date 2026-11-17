@@ -1,15 +1,26 @@
 package driver
 
 import (
+	"cmp"
 	"context"
 	"database/sql"
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/bytebase/omni/driver"
 	metadatapb "github.com/bytebase/omni/metadata"
 )
+
+// notSystemSchema is the predicate that leaves out the schemas a sync does not
+// report: information_schema, and every schema Redshift reserves for itself.
+// The reservation is the literal prefix "pg_", which the server refuses in
+// CREATE SCHEMA; a name such as pgdata is a user's. A LIKE cannot express it
+// here, because this Redshift does not take a backslash as its escape.
+func notSystemSchema(column string) string {
+	return fmt.Sprintf("substr(%s, 1, 3) <> 'pg_' AND %s <> 'information_schema'", column, column)
+}
 
 // tableKey names a table or a view inside one schema, which is how a sync
 // gathers the columns, indexes and foreign keys read by separate queries.
@@ -114,16 +125,17 @@ func (d *Driver) SyncDatabase(ctx context.Context) (*metadatapb.DatabaseSchemaMe
 
 // getSchemas reads the database's schema names in name order.
 func (d *Driver) getSchemas(txn *sql.Tx) ([]string, error) {
-	const query = `
+	query := fmt.Sprintf(`
 		SELECT
 			schema_name
 		FROM
 			SVV_ALL_SCHEMAS
 		WHERE
 			database_name = $1
+			AND %s
 		ORDER BY
 			schema_name;
-	`
+	`, notSystemSchema("schema_name"))
 	rows, err := txn.Query(query, d.databaseName)
 	if err != nil {
 		return nil, err
@@ -157,7 +169,7 @@ func getTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata)
 	}
 
 	tableMap := make(map[string][]*metadatapb.TableMetadata)
-	const query = `
+	query := fmt.Sprintf(`
 	SELECT
 		ptbl.schemaname,
 		ptbl.tablename,
@@ -168,7 +180,8 @@ func getTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata)
 	FROM pg_catalog.pg_tables AS ptbl
 	JOIN pg_namespace AS pns ON pns.nspname = ptbl.schemaname
 	LEFT JOIN pg_class AS pc ON pc.relname = ptbl.tablename AND pns.oid = pc.relnamespace
-	WHERE ptbl.schemaname NOT IN ('pg_catalog', 'information_schema');`
+	WHERE %s
+	ORDER BY ptbl.schemaname, ptbl.tablename;`, notSystemSchema("ptbl.schemaname"))
 	rows, err := txn.Query(query)
 	if err != nil {
 		return nil, err
@@ -202,7 +215,7 @@ func getTables(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata)
 func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, error) {
 	columnsMap := make(map[tableKey][]*metadatapb.ColumnMetadata)
 
-	const query = `
+	query := fmt.Sprintf(`
 	SELECT
 		cols.table_schema,
 		cols.table_name,
@@ -222,8 +235,8 @@ func getTableColumns(txn *sql.Tx) (map[tableKey][]*metadatapb.ColumnMetadata, er
 		INFORMATION_SCHEMA.COLUMNS AS cols
 		JOIN pg_namespace AS pns ON pns.nspname = cols.table_schema
 		LEFT JOIN pg_class AS pc ON pc.relname = cols.table_name AND pns.oid = pc.relnamespace
-	WHERE cols.table_schema NOT IN ('pg_catalog', 'information_schema')
-	ORDER BY cols.table_schema, cols.table_name, cols.ordinal_position;`
+	WHERE %s
+	ORDER BY cols.table_schema, cols.table_name, cols.ordinal_position;`, notSystemSchema("cols.table_schema"))
 	rows, err := txn.Query(query)
 	if err != nil {
 		return nil, err
@@ -369,7 +382,7 @@ func (d *Driver) getDatashareTableColumns(txn *sql.Tx) (map[tableKey][]*metadata
 func getViews(txn *sql.Tx, columnMap map[tableKey][]*metadatapb.ColumnMetadata) (map[string][]*metadatapb.ViewMetadata, error) {
 	viewMap := make(map[string][]*metadatapb.ViewMetadata)
 
-	const query = `
+	query := fmt.Sprintf(`
 SELECT
 	pgv.schemaname,
 	pgv.viewname,
@@ -377,8 +390,8 @@ SELECT
 FROM pg_catalog.pg_views AS pgv
 JOIN pg_namespace AS pns ON pns.nspname = pgv.schemaname
 JOIN pg_class AS pc ON pc.relname = pgv.viewname AND pns.oid = pc.relnamespace
-WHERE pgv.schemaname NOT IN ('pg_catalog', 'information_schema')
-ORDER BY pgv.schemaname, pgv.viewname;`
+WHERE %s
+ORDER BY pgv.schemaname, pgv.viewname;`, notSystemSchema("pgv.schemaname"))
 	rows, err := txn.Query(query)
 	if err != nil {
 		return nil, err
@@ -469,7 +482,7 @@ func showView(txn *sql.Tx, schemaName, viewName string) (string, error) {
 func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 	indexMap := make(map[tableKey][]*metadatapb.IndexMetadata)
 
-	const query = `
+	query := fmt.Sprintf(`
 	WITH index_positions AS (
 		SELECT generate_series(0, 31) as pos
 	)
@@ -490,10 +503,10 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 		JOIN pg_index AS ix ON ix.indexrelid = pc.oid
 		CROSS JOIN index_positions p
 	WHERE 
-		pgidx.schemaname NOT IN ('pg_catalog', 'information_schema')
+		%s
 		AND ix.indkey[p.pos] > 0  -- Only process positions that have actual columns
 	ORDER BY
-		pgidx.schemaname, pgidx.tablename, pgidx.indexname, p.pos;`
+		pgidx.schemaname, pgidx.tablename, pgidx.indexname, p.pos;`, notSystemSchema("pgidx.schemaname"))
 
 	rows, err := txn.Query(query)
 	if err != nil {
@@ -541,7 +554,21 @@ func getIndexes(txn *sql.Tx) (map[tableKey][]*metadatapb.IndexMetadata, error) {
 		return nil, err
 	}
 
-	for key, index := range indexData {
+	// The map's iteration order changes from run to run, and a table's indexes
+	// are a list: sort them so a tape holds one order.
+	keys := make([]indexKey, 0, len(indexData))
+	for key := range indexData {
+		keys = append(keys, key)
+	}
+	slices.SortFunc(keys, func(a, b indexKey) int {
+		return cmp.Or(
+			cmp.Compare(a.schema, b.schema),
+			cmp.Compare(a.table, b.table),
+			cmp.Compare(a.index, b.index),
+		)
+	})
+	for _, key := range keys {
+		index := indexData[key]
 		if columns, ok := indexColumns[key]; ok {
 			index.Expressions = columns
 		}
@@ -566,7 +593,7 @@ var indexMethodRegexp = regexp.MustCompile(`USING (\w+)`)
 // getForeignKeys reads the database's foreign keys, keyed by the table that
 // holds each.
 func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata, error) {
-	const query = `
+	query := fmt.Sprintf(`
 	SELECT
 		n.nspname AS fk_schema,
 		fk_cls.relname AS fk_table,
@@ -585,10 +612,10 @@ func getForeignKeys(txn *sql.Tx) (map[tableKey][]*metadatapb.ForeignKeyMetadata,
 		JOIN pg_class ref_cls ON ref_cls.oid = c.confrelid
 		JOIN pg_namespace ref_nsp ON ref_nsp.oid = ref_cls.relnamespace
 	WHERE
-		n.nspname NOT IN('pg_catalog', 'information_schema')
+		%s
 		AND c.contype = 'f'
 	ORDER BY fk_schema, fk_table, fk_name;
-	`
+	`, notSystemSchema("n.nspname"))
 	foreignKeysMap := make(map[tableKey][]*metadatapb.ForeignKeyMetadata)
 	rows, err := txn.Query(query)
 	if err != nil {
