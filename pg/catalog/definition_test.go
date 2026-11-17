@@ -820,6 +820,12 @@ func TestDatabaseDefinitionOrdersViewAfterForeignPartition(t *testing.T) {
 				Partitions: []*metadatapb.TablePartitionMetadata{{Name: "pt_remote", Value: "FOR VALUES FROM (0) TO (10)"}},
 			}},
 			ExternalTables: []*metadatapb.ExternalTableMetadata{{Name: "pt_remote", ExternalServerName: "s"}},
+			Functions: []*metadatapb.FunctionMetadata{{
+				Name:             "read_remote",
+				Signature:        "read_remote(public.pt_remote)",
+				Definition:       "CREATE FUNCTION public.read_remote(r public.pt_remote) RETURNS integer LANGUAGE sql AS $$ SELECT 1 $$;",
+				DependencyTables: []*metadatapb.DependencyTable{{Schema: "public", Table: "pt_remote"}},
+			}},
 			Views: []*metadatapb.ViewMetadata{{
 				Name:              "v",
 				Definition:        "SELECT id FROM public.pt_remote",
@@ -832,9 +838,12 @@ func TestDatabaseDefinitionOrdersViewAfterForeignPartition(t *testing.T) {
 	require.NoError(t, err)
 
 	partition := `CREATE FOREIGN TABLE "public"."pt_remote"`
+	function := "CREATE FUNCTION public.read_remote(r public.pt_remote)"
 	view := `CREATE VIEW "public"."v"`
 	assert.Contains(t, result, partition)
+	assert.Contains(t, result, function)
 	assert.Contains(t, result, view)
+	assert.Less(t, strings.Index(result, partition), strings.Index(result, function), "the foreign partition must exist before the function takes its row type")
 	assert.Less(t, strings.Index(result, partition), strings.Index(result, view), "the foreign partition must exist before the view reads it")
 }
 

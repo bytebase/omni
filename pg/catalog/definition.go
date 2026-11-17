@@ -127,6 +127,9 @@ func DatabaseDefinition(metadata *metadatapb.DatabaseSchemaMetadata, opts Defini
 			graph.AddNode(funcID)
 			for _, dependency := range function.DependencyTables {
 				dependencyID := getObjectID(dependency.Schema, dependency.Table)
+				if parentID, ok := foreignPartitionParents[dependencyID]; ok {
+					dependencyID = parentID
+				}
 				graph.AddEdge(dependencyID, funcID)
 			}
 		}
