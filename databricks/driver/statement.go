@@ -41,6 +41,7 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 	reader := bufio.NewReader(strings.NewReader(statement))
 	delimiter := false
 	comment := false
+	inlineComment := false
 	quote := rune(0)
 	done := false
 	hasContent := false
@@ -71,13 +72,13 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 			if line != "" {
 				contentEnd = byteOffset + len(line)
 			}
-			if scanLineQuotes(line, &quote) {
+			if scanLineQuotes(line, &quote, &inlineComment) {
 				execute = true
 			}
 		} else {
 			endsWithSemicolon := false
-			if !comment {
-				endsWithSemicolon = scanLineQuotes(line, &quote)
+			if !comment && (inlineComment || !strings.HasPrefix(line, "/*")) {
+				endsWithSemicolon = scanLineQuotes(line, &quote, &inlineComment)
 			}
 			switch {
 			case strings.HasPrefix(line, "/*"):
@@ -137,13 +138,23 @@ func applyMultiStatements(statement string, f func(text string, start, end int) 
 	return nil
 }
 
-// scanLineQuotes advances quote across one line, ignoring comment text after a
-// -- or /* that is outside a quoted string, and reports whether the last
-// content outside both is a semicolon.
-func scanLineQuotes(line string, quote *rune) bool {
+// scanLineQuotes advances quote and inlineComment across one line, ignoring
+// comment text outside a quoted string, and reports whether the last content
+// outside both is a semicolon. A block comment that opens after SQL text keeps
+// its state on the next line.
+func scanLineQuotes(line string, quote *rune, inlineComment *bool) bool {
 	last := byte(0)
 	for i := 0; i < len(line); {
 		c := line[i]
+		if *inlineComment {
+			if c == '*' && i+1 < len(line) && line[i+1] == '/' {
+				*inlineComment = false
+				i += 2
+				continue
+			}
+			i++
+			continue
+		}
 		if *quote != 0 {
 			if c == '\\' && *quote == '\'' && i+1 < len(line) {
 				i += 2
@@ -166,6 +177,11 @@ func scanLineQuotes(line string, quote *rune) bool {
 			break
 		}
 		if c == '/' && i+1 < len(line) && line[i+1] == '*' {
+			if end := strings.Index(line[i+2:], "*/"); end >= 0 {
+				i += 2 + end + 2
+				continue
+			}
+			*inlineComment = true
 			break
 		}
 		if c == '\'' || c == '"' || c == '`' {
@@ -174,7 +190,7 @@ func scanLineQuotes(line string, quote *rune) bool {
 		i++
 		last = c
 	}
-	return *quote == 0 && last == ';'
+	return *quote == 0 && !*inlineComment && last == ';'
 }
 
 // errCommentEnd is the splitter's answer to a block comment whose closing does
