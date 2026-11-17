@@ -269,4 +269,11 @@ func TestDumpDictionaryTableReads(t *testing.T) {
 	}
 	require.Equal(t, []string{"v_src"}, dumpDictionaryTableReads(byName["dt"], "db", byName))
 	require.Empty(t, dumpDictionaryTableReads(byName["dt_user"], "db", byName))
+
+	// A name the server escapes, in the ENGINE argument and in the source, is
+	// decoded before it is looked up.
+	byName["d'ict"] = &dumpObject{name: "d'ict", stmt: "CREATE DICTIONARY db.`d'ict`\n(\n    `id` UInt64\n)\nPRIMARY KEY id\nSOURCE(CLICKHOUSE(TABLE 'v\\\\src'))\nLAYOUT(FLAT())"}
+	byName["v\\src"] = &dumpObject{name: "v\\src"}
+	byName["escaped"] = &dumpObject{name: "escaped", stmt: "CREATE TABLE db.escaped\n(\n    `id` UInt64\n)\nENGINE = Dictionary('db.d\\'ict')"}
+	require.Equal(t, []string{"v\\src"}, dumpDictionaryTableReads(byName["escaped"], "db", byName))
 }

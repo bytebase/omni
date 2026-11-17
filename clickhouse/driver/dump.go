@@ -344,8 +344,8 @@ func dumpASTNames(ast, reference string) bool {
 // argument names the dictionary, and the dictionary's SOURCE names the table and
 // database it reads, as string literals.
 var (
-	dumpDictionaryEngine = regexp.MustCompile(`ENGINE = Dictionary\('([^']*)'\)`)
-	dumpDictionarySource = regexp.MustCompile(`(?i)(?:TABLE|DB) '([^']*)'`)
+	dumpDictionaryEngine = regexp.MustCompile(`ENGINE = Dictionary\('((?:[^'\\]|\\.)*)'\)`)
+	dumpDictionarySource = regexp.MustCompile(`(?i)(?:TABLE|DB) '((?:[^'\\]|\\.)*)'`)
 )
 
 // dumpDictionaryTableReads returns the objects a table on the Dictionary engine
@@ -358,13 +358,13 @@ func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]
 	if engine == nil {
 		return nil
 	}
-	dictionary, _ := dumpLiteralObject(engine[1], database, byName)
+	dictionary, _ := dumpLiteralObject(dumpLiteralValue(engine[1]), database, byName)
 	if dictionary == nil {
 		return nil
 	}
 	seen := make(map[string]bool, len(byName))
 	for _, source := range dumpDictionarySource.FindAllStringSubmatch(dictionary.stmt, -1) {
-		if read, name := dumpLiteralObject(source[1], database, byName); read != nil && name != o.name {
+		if read, name := dumpLiteralObject(dumpLiteralValue(source[1]), database, byName); read != nil && name != o.name {
 			seen[name] = true
 		}
 	}
@@ -374,6 +374,39 @@ func dumpDictionaryTableReads(o *dumpObject, database string, byName map[string]
 	}
 	sort.Strings(reads)
 	return reads
+}
+
+// dumpLiteralValue returns what the text of a ClickHouse string literal stands
+// for: a quote, a backslash and a control character are escaped with a backslash.
+func dumpLiteralValue(text string) string {
+	if !strings.Contains(text, `\`) {
+		return text
+	}
+	var value strings.Builder
+	for i := 0; i < len(text); i++ {
+		if text[i] != '\\' || i+1 == len(text) {
+			value.WriteByte(text[i])
+			continue
+		}
+		i++
+		switch c := text[i]; c {
+		case 'n':
+			value.WriteByte('\n')
+		case 'r':
+			value.WriteByte('\r')
+		case 't':
+			value.WriteByte('\t')
+		case 'b':
+			value.WriteByte('\b')
+		case 'f':
+			value.WriteByte('\f')
+		case '0':
+			value.WriteByte(0)
+		default:
+			value.WriteByte(c)
+		}
+	}
+	return value.String()
 }
 
 // dumpLiteralObject returns the object of byName that literal names. The server
