@@ -15,6 +15,13 @@
 // (ALTER SESSION SET CURRENT_SCHEMA), which is how an Oracle connection selects
 // what unqualified names resolve to. Config.ReadOnly is ignored: the driver does
 // not open a read-only session.
+//
+// Session.Query runs its statements with no transaction around them: a session
+// cannot begin, commit or roll back, so a probe that changed data would leave the
+// change behind. Nothing needs one today, because the one probe that runs a
+// statement asks for its plan with EXPLAIN PLAN, which does not execute it. An
+// advisor that probes with DML would need transaction control this driver does
+// not offer; the contract's Session has no method for it.
 package driver
 
 import (
