@@ -18,6 +18,11 @@
 // supports (Syncer, Dumper, Querier, Executor). Open does not reach the
 // server; Ping does. A Driver is safe for concurrent use.
 //
+// A capability only some engines have, or one that a session rather than the
+// driver answers, is a probe interface in probe.go: a caller that must know it
+// asks the driver, or the session it got from Querier.Session, for the
+// interface by name.
+//
 // Identifiers that a caller maps onto its own enums cross as strings equal
 // to those enum names (Message.Level, TransactionOp), so the two sides
 // tolerate being on different versions: a name one side does not know is
@@ -62,7 +67,9 @@ type Config struct {
 
 	// Dial opens the network connection in place of net.Dialer: an SSH
 	// tunnel or a cloud connector. The driver still speaks the engine's
-	// protocol, TLS included, over what Dial returns.
+	// protocol, TLS included, over what Dial returns. A driver whose engine's
+	// client cannot hold a dialer says so in its package doc and names what a
+	// caller must do instead (hive: forward a local port).
 	Dial func(ctx context.Context, network, address string) (net.Conn, error)
 
 	// Params are connection parameters in the engine's own vocabulary and

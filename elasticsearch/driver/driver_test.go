@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -215,6 +217,41 @@ func TestOpenUsesTheTransport(t *testing.T) {
 	require.Equal(t, 1, called)
 	require.True(t, secure, "a transport means https")
 	require.Equal(t, "/_plugins/_security/api/internalusers", d.securityRoute())
+
+	// The caller's transport dials, so a dialer beside it is refused rather
+	// than silently ignored.
+	_, err = Open(context.Background(), driver.Config{
+		Host: "search.example.com",
+		Dial: func(context.Context, string, string) (net.Conn, error) { return nil, errors.New("not dialed") },
+	}, Options{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) { return nil, nil })})
+	require.EqualError(t, err, "Config.Dial and Options.Transport both open the endpoint's connections: the caller's transport dials, so Config.Dial cannot be honoured")
+}
+
+// TestOpenDialsThroughConfigDial holds the endpoint to Config.Dial: the driver
+// opens the socket through the caller's tunnel or cloud connector instead of
+// resolving the host itself, and TLS is negotiated over what it returns.
+func TestOpenDialsThroughConfigDial(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"version": {"number": "8.19.25"}}`))
+	}))
+	defer srv.Close()
+
+	var asked []string
+	d, err := Open(context.Background(), driver.Config{
+		// A name no resolver knows: only the dialer reaches anything.
+		Host: "elasticsearch.example.com",
+		Port: "9200",
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			asked = append(asked, network+" "+address)
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, srv.Listener.Addr().String())
+		},
+	})
+	require.NoError(t, err)
+	defer func() { require.NoError(t, d.Close()) }()
+	require.NoError(t, d.Ping(context.Background()))
+	require.Equal(t, []string{"tcp elasticsearch.example.com:9200"}, asked)
 }
 
 // TestTheRouteIsSentAsWritten holds a route to the endpoint: a path that names a

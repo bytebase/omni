@@ -5,13 +5,15 @@
 //
 // It implements Driver, Syncer, Dumper, Querier and Executor. Dump writes
 // nothing: Redis keeps keys and no schema to render, so a synced database is its
-// number alone, and Bytebase's Dump wrote nothing either. The contract's probe,
-// PrivateDatabaseLinkOwner, does not apply either: Redis has no private database
-// link. The Executor's DDL, transaction and retry settings do not apply: Redis
-// creates no database and runs no transaction, so Execute runs a script's
-// commands one after another and nothing rolls back. Syncer.SyncInstance reports
-// no roles, as Bytebase's did not read any, and a database's keys are not a
-// schema, so SyncDatabase is the database number alone.
+// number alone, and Bytebase's Dump wrote nothing either. Of the contract's
+// probes, its sessions implement AllNodesQuerier, since Bytebase offers a
+// cluster-wide query; PrivateDatabaseLinkOwner does not apply, because Redis has
+// no private database link. The Executor's DDL, transaction and retry settings
+// do not apply: Redis creates no database and runs no transaction, so Execute
+// runs a script's commands one after another and nothing rolls back.
+// Syncer.SyncInstance reports no roles, as Bytebase's did not read any, and a
+// database's keys are not a schema, so SyncDatabase is the database number
+// alone.
 //
 // Redis has no SQL surface, so nothing under partiql/ or analysis is involved.
 // What the driver decides is what a script is — one command per line, its
@@ -66,9 +68,9 @@
 // the cap from the flag. QueryOptions.Schema, Limit, ExplainFormat and
 // MaskingEnabled do nothing, and Explain is refused: Redis states no plan and
 // Redis commands are not statements a row limit or a column trace rewrites.
-// Session's own QueryAllNodes runs a script on every cluster node, which is
-// Bytebase's per-request choice the contract has no field for; it answers one
-// server's driver with Bytebase's error text.
+// Session's own QueryAllNodes, the contract's AllNodesQuerier probe, runs a
+// command on every cluster node, which QueryOptions has no field for; a session
+// of one server answers it with Bytebase's error text.
 //
 // Execute runs every command of a script as its own request and returns the rows
 // affected, which is 0: a Redis command reports no row count. A command the
