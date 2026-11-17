@@ -2,13 +2,21 @@
 
 == TestDump default#1
 > exec
-| -- The schema the dump tests read. The external table and the two views are what
-| -- TestDumpRestores restores; the managed table and the partitioned one carry
-| -- what a dump leaves out, so each line of theirs ends with the gap marker.
+| -- The schema the dump tests read. The external table, the table whose name ends
+| -- in "__" and the two views are what TestDumpRestores restores; the managed
+| -- table and the partitioned one carry what a dump leaves out, so each line of
+| -- theirs ends with the gap marker.
 | CREATE EXTERNAL TABLE omni_dump.ext_users (id INT COMMENT 'the id', name STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION '/tmp/omni/dump_ext_users'
 < ok - -
 > exec
-| CREATE VIEW omni_dump.z_base AS SELECT id FROM omni_dump.ext_users
+| -- A name ending in "__", which Hive 4 has no index to give one to: every name
+| -- SHOW TABLES answers is a table's.
+| CREATE TABLE omni_dump.events__ (id INT) STORED AS PARQUET
+< ok - -
+> exec
+| -- A view holding the other's qualified name in a literal, which is not a read:
+| -- counting it would close a cycle with a_top's and leave the order to names.
+| CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
 < ok - -
 > exec
 | -- Only the order of the views, not their names, can replay this one.
@@ -49,6 +57,9 @@
 < row
 : string
 | events
+< row
+: string
+| events__
 < row
 : string
 | ext_users
@@ -126,6 +137,55 @@
 < row
 : string
 |   'last_modified_time'='1000000000', 
+< row
+: string
+|   'transient_lastDdlTime'='1000000000')
+> query
+| SHOW CREATE TABLE `omni_dump`.`events__`
+< result
+< column "createtab_stmt" "STRING"
+< row
+: string
+| CREATE EXTERNAL TABLE `omni_dump`.`events__`(
+< row
+: string
+|   `id` int)
+< row
+: string
+| ROW FORMAT SERDE 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+< row
+: string
+| STORED AS INPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+< row
+: string
+| OUTPUTFORMAT 
+< row
+: string
+|   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+< row
+: string
+| LOCATION
+< row
+: string
+|   'file:/opt/hive/data/warehouse/omni_dump.db/events__'
+< row
+: string
+| TBLPROPERTIES (
+< row
+: string
+|   'TRANSLATED_TO_EXTERNAL'='TRUE', 
+< row
+: string
+|   'bucketing_version'='2', 
+< row
+: string
+|   'external.table.purge'='TRUE', 
 < row
 : string
 |   'transient_lastDdlTime'='1000000000')
@@ -251,4 +311,4 @@
 < column "createtab_stmt" "STRING"
 < row
 : string
-| CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id` FROM `omni_dump`.`ext_users`
+| CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`

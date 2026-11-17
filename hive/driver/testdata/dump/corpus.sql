@@ -1,9 +1,16 @@
--- The schema the dump tests read. The external table and the two views are what
--- TestDumpRestores restores; the managed table and the partitioned one carry
--- what a dump leaves out, so each line of theirs ends with the gap marker.
+-- The schema the dump tests read. The external table, the table whose name ends
+-- in "__" and the two views are what TestDumpRestores restores; the managed
+-- table and the partitioned one carry what a dump leaves out, so each line of
+-- theirs ends with the gap marker.
 CREATE EXTERNAL TABLE omni_dump.ext_users (id INT COMMENT 'the id', name STRING) ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' STORED AS TEXTFILE LOCATION '/tmp/omni/dump_ext_users'
 
-CREATE VIEW omni_dump.z_base AS SELECT id FROM omni_dump.ext_users
+-- A name ending in "__", which Hive 4 has no index to give one to: every name
+-- SHOW TABLES answers is a table's.
+CREATE TABLE omni_dump.events__ (id INT) STORED AS PARQUET
+
+-- A view holding the other's qualified name in a literal, which is not a read:
+-- counting it would close a cycle with a_top's and leave the order to names.
+CREATE VIEW omni_dump.z_base AS SELECT id, '`omni_dump`.`a_top`' AS tag FROM omni_dump.ext_users
 
 -- Only the order of the views, not their names, can replay this one.
 CREATE VIEW omni_dump.a_top AS SELECT id FROM omni_dump.z_base

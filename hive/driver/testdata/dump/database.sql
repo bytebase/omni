@@ -23,6 +23,25 @@ TBLPROPERTIES (
   'transient_lastDdlTime'='1000000000');
 
 --
+-- Table structure for `events__`
+--
+CREATE EXTERNAL TABLE `omni_dump`.`events__`(
+  `id` int)
+ROW FORMAT SERDE 
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe' 
+STORED AS INPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat' 
+OUTPUTFORMAT 
+  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+LOCATION
+  'file:/opt/hive/data/warehouse/omni_dump.db/events__'
+TBLPROPERTIES (
+  'TRANSLATED_TO_EXTERNAL'='TRUE', 
+  'bucketing_version'='2', 
+  'external.table.purge'='TRUE', 
+  'transient_lastDdlTime'='1000000000');
+
+--
 -- Table structure for `ext_users`
 --
 CREATE EXTERNAL TABLE `omni_dump`.`ext_users`(
@@ -69,7 +88,7 @@ TBLPROPERTIES (
 --
 -- View structure for `z_base`
 --
-CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id` FROM `omni_dump`.`ext_users`;
+CREATE VIEW `omni_dump`.`z_base` AS SELECT `ext_users`.`id`, '`omni_dump`.`a_top`' AS `tag` FROM `omni_dump`.`ext_users`;
 
 --
 -- View structure for `a_top`

@@ -85,10 +85,9 @@ func (d *Driver) dumpObjects(ctx context.Context, database string) ([]*dumpObjec
 	return objects, nil
 }
 
-// dumpNames returns the database's object names, in name order. A name ending in
-// "__" is the shape one of Hive's own index tables takes, and the sync leaves
-// those out of a schema; the dump leaves them out too, so the two describe the
-// same objects.
+// dumpNames returns the database's object names, in name order. Every name SHOW
+// TABLES answers is an object to dump: Hive 4 parses no CREATE INDEX, so no name
+// is one of Hive's own index tables.
 func (d *Driver) dumpNames(ctx context.Context, database string) ([]string, error) {
 	query := "SHOW TABLES IN " + quoteBacktick(database)
 	rows, err := d.db.QueryContext(ctx, query)
@@ -101,9 +100,6 @@ func (d *Driver) dumpNames(ctx context.Context, database string) ([]string, erro
 		var name string
 		if err := rows.Scan(&name); err != nil {
 			return nil, fmt.Errorf("%s: %w", query, err)
-		}
-		if strings.HasSuffix(name, "__") {
-			continue
 		}
 		names = append(names, name)
 	}
@@ -211,18 +207,52 @@ func sortDumpObjects(objects []*dumpObject) []*dumpObject {
 // dumpReads returns the other views in views that o reads. Hive's rendering
 // writes every reference in a view's statement in backquotes and qualified with
 // its database, which is what the dump would write for it, so a reference is a
-// substring bounded by backquotes and o's own name in its CREATE statement is
+// substring bounded by backquotes, and o's own name in its CREATE statement is
 // not a read.
 func dumpReads(o *dumpObject, database string, views map[string]bool) []string {
 	var reads []string
 	for name := range views {
-		if name == o.name {
-			continue
-		}
-		if strings.Contains(o.stmt, quoteBacktick(database)+"."+quoteBacktick(name)) {
+		if name != o.name && dumpReferences(o.stmt, database, name) {
 			reads = append(reads, name)
 		}
 	}
 	sort.Strings(reads)
 	return reads
+}
+
+// dumpReferences reports whether stmt names database.name outside a string
+// literal. A name inside a literal is not a read, and the edge it would add can
+// close a cycle and leave the order to names.
+func dumpReferences(stmt, database, name string) bool {
+	reference := quoteBacktick(database) + "." + quoteBacktick(name)
+	for offset := 0; offset < len(stmt); {
+		start := strings.Index(stmt[offset:], reference)
+		if start < 0 {
+			return false
+		}
+		start += offset
+		if !dumpInString(stmt, start) {
+			return true
+		}
+		offset = start + len(reference)
+	}
+	return false
+}
+
+// dumpInString reports whether the byte at want is inside a string literal.
+// Hive's rendering quotes a string with ' or ", escapes with a backslash, and
+// writes a name in backquotes, where neither quote needs escaping.
+func dumpInString(stmt string, want int) bool {
+	quote := byte(0)
+	for i := 0; i < want && i < len(stmt); i++ {
+		switch c := stmt[i]; {
+		case quote == 0 && (c == '\'' || c == '"'):
+			quote = c
+		case quote != 0 && c == '\\':
+			i++
+		case quote != 0 && c == quote:
+			quote = 0
+		}
+	}
+	return quote != 0
 }
