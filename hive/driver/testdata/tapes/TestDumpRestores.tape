@@ -91,7 +91,7 @@
 > exec
 | -- A partitioned materialized view: the statement states a partition as a table
 | -- does, with the column's type, and a materialized view takes it without.
-| CREATE MATERIALIZED VIEW omni_dump.p_events_mv DISABLE REWRITE PARTITIONED ON (dt) AS SELECT id, dt FROM omni_dump.events
+| CREATE MATERIALIZED VIEW omni_dump.p_events_mv DISABLE REWRITE COMMENT 'says PARTITIONED BY (old)' PARTITIONED ON (dt) AS SELECT id, dt FROM omni_dump.events
 < ok - -
 > query
 | SHOW TABLES FROM `OMNI_DUMP`
@@ -1368,6 +1368,13 @@
 | bucketing_version   
 : string
 | 2                   
+< row
+: string
+|
+: string
+| comment             
+: string
+| says PARTITIONED BY (old)
 < row
 : string
 |
@@ -3988,6 +3995,13 @@
 : string
 |
 : string
+| comment             
+: string
+| says PARTITIONED BY (old)
+< row
+: string
+|
+: string
 | numFiles            
 : string
 | 1                   
@@ -4144,6 +4158,9 @@
 < row
 : string
 |   `id` int)
+< row
+: string
+| COMMENT 'says PARTITIONED BY (old)'
 < row
 : string
 | PARTITIONED BY ( 
@@ -4739,6 +4756,7 @@
 | -- Materialized view structure for `p_events_mv`
 | --
 | CREATE MATERIALIZED VIEW `omni_dump`.`p_events_mv` DISABLE REWRITE
+| COMMENT 'says PARTITIONED BY (old)'
 | PARTITIONED ON (`dt`)
 | ROW FORMAT SERDE 
 |   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 
@@ -6028,6 +6046,13 @@
 | bucketing_version   
 : string
 | 2                   
+< row
+: string
+|
+: string
+| comment             
+: string
+| says PARTITIONED BY (old)
 < row
 : string
 |
@@ -8627,6 +8652,13 @@
 : string
 |
 : string
+| comment             
+: string
+| says PARTITIONED BY (old)
+< row
+: string
+|
+: string
 | numFiles            
 : string
 | 0                   
@@ -8783,6 +8815,9 @@
 < row
 : string
 |   `id` int)
+< row
+: string
+| COMMENT 'says PARTITIONED BY (old)'
 < row
 : string
 | PARTITIONED BY ( 

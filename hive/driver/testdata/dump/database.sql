@@ -133,6 +133,7 @@ FROM `omni_dump`.`z_users`;
 -- Materialized view structure for `p_events_mv`
 --
 CREATE MATERIALIZED VIEW `omni_dump`.`p_events_mv` DISABLE REWRITE
+COMMENT 'says PARTITIONED BY (old)'
 PARTITIONED ON (`dt`)
 ROW FORMAT SERDE 
   'org.apache.hadoop.hive.ql.io.orc.OrcSerde' 

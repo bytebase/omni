@@ -297,30 +297,36 @@ func dumpQuotedEnd(stmt string, start int) (int, error) {
 // DESCRIBE FORMATTED states a table's partition columns only while
 // hive.display.partition.cols.separately is on.
 func dumpStatesPartitions(stmt string) bool {
+	_, ok := dumpKeyword(stmt, "PARTITIONED BY")
+	return ok
+}
+
+// dumpKeyword returns where stmt states keyword outside a quoted identifier or
+// literal, which a comment or a name may spell.
+func dumpKeyword(stmt, keyword string) (int, bool) {
 	for i := 0; i < len(stmt); i++ {
 		switch stmt[i] {
 		case '`', '\'':
 			end, err := dumpQuotedEnd(stmt, i)
 			if err != nil {
-				return false
+				return 0, false
 			}
 			i = end
 		default:
-			if strings.HasPrefix(stmt[i:], "PARTITIONED BY") {
-				return true
+			if strings.HasPrefix(stmt[i:], keyword) {
+				return i, true
 			}
 		}
 	}
-	return false
+	return 0, false
 }
 
 // dumpMaterializedViewClauses rewrites the clauses a stated CREATE TABLE holds
 // after its column list into the ones CREATE MATERIALIZED VIEW takes: the
 // partition clause names its columns without their types, as PARTITIONED ON.
 func dumpMaterializedViewClauses(clauses string) (string, error) {
-	const keyword = "PARTITIONED BY"
-	at := strings.Index(clauses, keyword)
-	if at < 0 {
+	at, ok := dumpKeyword(clauses, "PARTITIONED BY")
+	if !ok {
 		return clauses, nil
 	}
 	open := strings.IndexByte(clauses[at:], '(')

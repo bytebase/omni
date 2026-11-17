@@ -68,4 +68,4 @@ FROM omni_dump.z_users
 
 -- A partitioned materialized view: the statement states a partition as a table
 -- does, with the column's type, and a materialized view takes it without.
-CREATE MATERIALIZED VIEW omni_dump.p_events_mv DISABLE REWRITE PARTITIONED ON (dt) AS SELECT id, dt FROM omni_dump.events
+CREATE MATERIALIZED VIEW omni_dump.p_events_mv DISABLE REWRITE COMMENT 'says PARTITIONED BY (old)' PARTITIONED ON (dt) AS SELECT id, dt FROM omni_dump.events

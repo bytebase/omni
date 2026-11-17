@@ -355,6 +355,7 @@ func TestDumpStatesPartitions(t *testing.T) {
 		{name: "a plain table", stmt: "CREATE TABLE `db`.`t`(\n  `id` int)\nLOCATION\n  'x'"},
 		{name: "a partitioned table", stmt: "CREATE TABLE `db`.`t`(\n  `id` int)\nPARTITIONED BY ( \n  `dt` string)", state: true},
 		{name: "a comment spelling it", stmt: "CREATE TABLE `db`.`t`(\n  `id` int COMMENT 'PARTITIONED BY (x)')"},
+		{name: "a comment spelling it beside the clause", stmt: "CREATE TABLE `db`.`t`(\n  `id` int)\nCOMMENT 'PARTITIONED BY (x)'\nPARTITIONED BY ( \n  `dt` string)", state: true},
 		{name: "a name spelling it", stmt: "CREATE TABLE `db`.`PARTITIONED BY`(\n  `id` int)"},
 	} {
 		require.Equal(t, stmt.state, dumpStatesPartitions(stmt.stmt), stmt.name)
@@ -379,6 +380,11 @@ func TestDumpMaterializedViewClauses(t *testing.T) {
 			name: "one partition column",
 			in:   "\nPARTITIONED BY ( \n  `dt` string)\nROW FORMAT SERDE \n  'x'",
 			out:  "\nPARTITIONED ON (`dt`)\nROW FORMAT SERDE \n  'x'",
+		},
+		{
+			name: "a comment spelling the clause",
+			in:   "\nCOMMENT 'says PARTITIONED BY (old)'\nPARTITIONED BY ( \n  `dt` string)\nLOCATION\n  'x'",
+			out:  "\nCOMMENT 'says PARTITIONED BY (old)'\nPARTITIONED ON (`dt`)\nLOCATION\n  'x'",
 		},
 		{
 			name: "a comment before it and a type holding a comma",
