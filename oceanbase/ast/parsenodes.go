@@ -395,6 +395,75 @@ type CreateViewStmt struct {
 func (s *CreateViewStmt) nodeTag()  {}
 func (s *CreateViewStmt) stmtNode() {}
 
+// CreateMaterializedViewStmt represents a CREATE MATERIALIZED VIEW statement.
+//
+// Ref: create_mview_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9766).
+type CreateMaterializedViewStmt struct {
+	Loc          Loc
+	Name         *TableRef
+	Columns      []string                    // opt_mv_column_list's column_name_list
+	PrimaryKey   *MaterializedViewPrimaryKey // PRIMARY KEY (...) beside the columns, if any
+	Options      []*TableOption              // opt_table_option_list
+	Partitions   *PartitionClause            // opt_partition_option
+	ColumnGroup  string                      // WITH COLUMN GROUP (...), as written
+	MviewOptions *MviewOptions               // create_mview_opts
+	Select       *SelectStmt
+	SelectText   string // raw SQL text of the AS view_select_stmt portion
+	CheckOption  string // CASCADED, LOCAL
+}
+
+func (s *CreateMaterializedViewStmt) nodeTag()  {}
+func (s *CreateMaterializedViewStmt) stmtNode() {}
+
+// MaterializedViewPrimaryKey is the PRIMARY KEY (...) clause of a materialized
+// view's column list.
+type MaterializedViewPrimaryKey struct {
+	Loc       Loc
+	Columns   []string
+	IndexType string // BTREE or HASH, from USING; empty when unspecified
+	Comment   string
+}
+
+func (p *MaterializedViewPrimaryKey) nodeTag() {}
+
+// MviewOptions holds create_mview_opts: the refresh clause and the two
+// ENABLE/DISABLE switches that may follow it in either order.
+type MviewOptions struct {
+	Loc                Loc
+	Refresh            *MviewRefreshInfo // nil when no refresh clause is written
+	OnQueryComputation string            // ENABLE or DISABLE; empty when absent
+	QueryRewrite       string            // ENABLE or DISABLE; empty when absent
+}
+
+func (o *MviewOptions) nodeTag() {}
+
+// MviewRefreshInfo is one materialized view refresh clause. Which fields are
+// set depends on the form it came from: NEVER REFRESH sets Never; REFRESH
+// <method> sets Method and the optional clauses after it; an ALTER MATERIALIZED
+// VIEW action that names an interval sets StartWith and Next; one that names a
+// nested refresh mode sets NestedRefresh.
+type MviewRefreshInfo struct {
+	Loc           Loc
+	Never         bool     // NEVER REFRESH
+	Method        string   // FAST, COMPLETE, FORCE
+	NestedRefresh string   // INDIVIDUAL, INCONSISTENT, CONSISTENT
+	On            string   // DEMAND, COMMIT, STATEMENT
+	StartWith     ExprNode // START WITH <bit_expr>
+	Next          ExprNode // NEXT <bit_expr>
+}
+
+func (r *MviewRefreshInfo) nodeTag() {}
+
+// ParallelOption is parallel_option: PARALLEL [=] n or NOPARALLEL.
+type ParallelOption struct {
+	Loc        Loc
+	NoParallel bool
+	Degree     int64 // PARALLEL's degree; 0 for NOPARALLEL
+}
+
+func (o *ParallelOption) nodeTag() {}
+
 // CreateDatabaseStmt represents a CREATE DATABASE statement.
 type CreateDatabaseStmt struct {
 	Loc         Loc
@@ -2170,17 +2239,107 @@ type DropIndexStmt struct {
 func (s *DropIndexStmt) nodeTag()  {}
 func (s *DropIndexStmt) stmtNode() {}
 
-// DropViewStmt represents a DROP VIEW statement.
+// DropViewStmt represents a DROP VIEW statement, and DROP MATERIALIZED VIEW
+// when Materialized is set.
 type DropViewStmt struct {
-	Loc      Loc
-	IfExists bool
-	Views    []*TableRef
-	Cascade  bool
-	Restrict bool
+	Loc          Loc
+	IfExists     bool
+	Views        []*TableRef
+	Cascade      bool
+	Restrict     bool
+	Materialized bool // DROP MATERIALIZED VIEW rather than DROP VIEW
 }
 
 func (s *DropViewStmt) nodeTag()  {}
 func (s *DropViewStmt) stmtNode() {}
+
+// DropMaterializedViewLogStmt represents DROP MATERIALIZED VIEW LOG ON <table>.
+//
+// Ref: drop_mlog_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 10926).
+type DropMaterializedViewLogStmt struct {
+	Loc   Loc
+	Table *TableRef
+}
+
+func (s *DropMaterializedViewLogStmt) nodeTag()  {}
+func (s *DropMaterializedViewLogStmt) stmtNode() {}
+
+// CreateMaterializedViewLogStmt represents CREATE [OR REPLACE] MATERIALIZED
+// VIEW LOG ON <table>.
+//
+// Ref: create_mlog_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 10724).
+type CreateMaterializedViewLogStmt struct {
+	Loc       Loc
+	OrReplace bool
+	Table     *TableRef
+	Options   []*ParallelOption // opt_mlog_option_list
+	With      *MlogWith         // nil when no WITH clause is written
+	NewValues string            // INCLUDING or EXCLUDING; empty when absent
+	Purge     *MlogPurge        // nil when no PURGE clause is written
+}
+
+func (s *CreateMaterializedViewLogStmt) nodeTag()  {}
+func (s *CreateMaterializedViewLogStmt) stmtNode() {}
+
+// MlogWith is the WITH clause of a materialized view log: any special columns
+// (ROWID, PRIMARY KEY, SEQUENCE), then an optional parenthesized list of
+// reference columns. HasReferenceList tells an absent list from WITH ().
+type MlogWith struct {
+	Loc              Loc
+	SpecialColumns   []string // ROWID, PRIMARY KEY, SEQUENCE, in order
+	ReferenceColumns []string
+	HasReferenceList bool // the (...) after the special columns was written
+}
+
+func (w *MlogWith) nodeTag() {}
+
+// MlogPurge is the PURGE clause of a materialized view log.
+type MlogPurge struct {
+	Loc       Loc
+	Immediate bool   // PURGE IMMEDIATE
+	Sync      string // SYNCHRONOUS or ASYNCHRONOUS; empty when absent
+	StartWith ExprNode
+	Next      ExprNode
+}
+
+func (p *MlogPurge) nodeTag() {}
+
+// AlterMaterializedViewLogStmt represents ALTER MATERIALIZED VIEW LOG ON
+// <table> with one or more actions.
+//
+// Ref: alter_mlog_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 10075).
+type AlterMaterializedViewLogStmt struct {
+	Loc     Loc
+	Table   *TableRef
+	Actions []*AlterMlogAction
+}
+
+func (s *AlterMaterializedViewLogStmt) nodeTag()  {}
+func (s *AlterMaterializedViewLogStmt) stmtNode() {}
+
+// AlterMlogActionType enumerates the actions alter_mlog_action takes.
+type AlterMlogActionType int
+
+const (
+	AMLogParallel          AlterMlogActionType = iota // parallel_option
+	AMLogPurge                                        // PURGE mv_refresh_interval
+	AMLogLobInRowThreshold                            // LOB_INROW_THRESHOLD [=] n
+)
+
+// AlterMlogAction is one action of ALTER MATERIALIZED VIEW LOG.
+type AlterMlogAction struct {
+	Loc       Loc
+	Type      AlterMlogActionType
+	Parallel  *ParallelOption // AMLogParallel
+	StartWith ExprNode        // AMLogPurge
+	Next      ExprNode        // AMLogPurge
+	Threshold int64           // AMLogLobInRowThreshold
+}
+
+func (a *AlterMlogAction) nodeTag() {}
 
 // ParenExpr represents a parenthesized expression.
 type ParenExpr struct {
@@ -3004,6 +3163,44 @@ type AlterViewStmt struct {
 
 func (s *AlterViewStmt) nodeTag()  {}
 func (s *AlterViewStmt) stmtNode() {}
+
+// AlterMaterializedViewStmt represents ALTER MATERIALIZED VIEW with one or
+// more actions.
+//
+// Ref: alter_mview_stmt in OceanBase's src/sql/parser/sql_parser_mysql_mode.y
+// (v4.3.5_CE_BP6, line 9985).
+type AlterMaterializedViewStmt struct {
+	Loc     Loc
+	Name    *TableRef
+	Actions []*AlterMviewAction
+}
+
+func (s *AlterMaterializedViewStmt) nodeTag()  {}
+func (s *AlterMaterializedViewStmt) stmtNode() {}
+
+// AlterMviewActionType enumerates the actions alter_mview_action takes.
+type AlterMviewActionType int
+
+const (
+	AMViewEnableOnQueryComputation AlterMviewActionType = iota // [ENABLE|DISABLE] ON QUERY COMPUTATION
+	AMViewEnableQueryRewrite                                   // [ENABLE|DISABLE] QUERY REWRITE
+	AMViewParallel                                             // opt_set parallel_option
+	AMViewRefreshMethod                                        // REFRESH {FAST|COMPLETE|FORCE}
+	AMViewNeverRefresh                                         // NEVER REFRESH
+	AMViewRefreshInterval                                      // REFRESH [START WITH e] [NEXT e]
+	AMViewNestedRefresh                                        // REFRESH {INDIVIDUAL|INCONSISTENT|CONSISTENT}
+)
+
+// AlterMviewAction is one action of ALTER MATERIALIZED VIEW.
+type AlterMviewAction struct {
+	Loc      Loc
+	Type     AlterMviewActionType
+	Enable   bool            // the ENABLE/DISABLE switches
+	Parallel *ParallelOption // AMViewParallel
+	Refresh  *MviewRefreshInfo
+}
+
+func (a *AlterMviewAction) nodeTag() {}
 
 // AlterEventStmt represents an ALTER EVENT statement.
 type AlterEventStmt struct {

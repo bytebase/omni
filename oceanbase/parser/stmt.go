@@ -434,6 +434,12 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 	case kwVIEW:
 		return p.parseCreateViewStmt(start, false)
 
+	case kwMATERIALIZED:
+		if temporary {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return p.parseCreateMaterializedStmt(start, false)
+
 	case kwDATABASE, kwSCHEMA:
 		return p.parseCreateDatabaseStmt(start)
 
@@ -566,6 +572,10 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in
 		// that order and fails at whatever stands where VIEW belongs.
 		return p.parseCreateViewStmt(start, true)
+	case kwMATERIALIZED:
+		// CREATE OR REPLACE takes a materialized view log and nothing else;
+		// the materialized view itself has no OR REPLACE alternative.
+		return p.parseCreateMaterializedStmt(start, true)
 	default:
 		// DEFINER, which OceanBase takes on a view only after ALGORITHM, and
 		// SPATIAL, since OceanBase has no SPATIAL REFERENCE SYSTEM, fail here like
@@ -618,6 +628,9 @@ func (p *Parser) parseAlterDispatch() (nodes.Node, error) {
 
 	case kwVIEW:
 		return p.parseAlterViewStmt(start)
+
+	case kwMATERIALIZED:
+		return p.parseAlterMaterializedStmt(start)
 
 	case kwALGORITHM:
 		// ALTER ALGORITHM = ... VIEW — delegate to ALTER VIEW parser
@@ -705,6 +718,9 @@ func (p *Parser) parseDropDispatch() (nodes.Node, error) {
 
 	case kwVIEW:
 		return p.parseDropViewStmt(start)
+
+	case kwMATERIALIZED:
+		return p.parseDropMaterializedStmt(start)
 
 	case kwDATABASE, kwSCHEMA:
 		return p.parseDropDatabaseStmt(start)
