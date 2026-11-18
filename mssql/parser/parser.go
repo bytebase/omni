@@ -593,8 +593,14 @@ func (p *Parser) parseStmt() (nodes.StmtNode, error) {
 				next.Type == kwINTO {
 				return p.parseCopyIntoStmt()
 			}
-			// RENAME OBJECT/DATABASE (Azure Synapse/PDW)
-			if p.cur.Type == kwRENAME {
+			// RENAME OBJECT/DATABASE (Azure Synapse/PDW). SQL Server 2022
+			// has no RENAME statement, and its grammar's bare
+			// renameEntityStatement, `RENAME a TO a`, is Msg 156 there
+			// (measured): only the documented Synapse forms are read, and a
+			// RENAME without one of their two words falls through to the
+			// procedure call SQL Server reads it as.
+			if p.cur.Type == kwRENAME &&
+				(next.Type == kwOBJECT || next.Type == kwDATABASE) {
 				return p.parseRenameStmt()
 			}
 			// REVERT (security context)
@@ -656,7 +662,8 @@ func (p *Parser) parseAddStmt() (nodes.StmtNode, error) {
 		return stmt, nil
 	}
 
-	return nil, nil
+	// ADD names one of its two statements, and bare ADD is Msg 102 (measured).
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseCreateStmt dispatches CREATE to the appropriate sub-parser.
@@ -1408,11 +1415,11 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		// CREATE AVAILABILITY GROUP
+		// CREATE AVAILABILITY GROUP: the GROUP is required.
 		if p.cur.Type == kwAVAILABILITY {
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseCreateAvailabilityGroupStmt()
 			if err != nil {
@@ -1480,7 +1487,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		return nil, nil
+		// A CREATE with no object after it names nothing: bare CREATE is
+		// Msg 102 (measured).
+		return nil, p.syntaxErrorAtCur()
 	}
 }
 
@@ -2036,11 +2045,12 @@ func (p *Parser) parseAlterStmt() (nodes.StmtNode, error) {
 			}
 			return nil, p.syntaxErrorAtCur()
 		}
-		// ALTER AVAILABILITY GROUP
+		// ALTER AVAILABILITY GROUP: the GROUP is required, and ALTER
+		// AVAILABILITY a FAILOVER is Msg 102 (measured).
 		if p.cur.Type == kwAVAILABILITY {
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseAlterAvailabilityGroupStmt()
 			if err != nil {
@@ -2215,7 +2225,9 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 		}
 		if p.cur.Type == kwIF {
 			p.advance()
-			p.match(kwEXISTS)
+			if _, err := p.expect(kwEXISTS); err != nil {
+				return nil, err
+			}
 			dropStmt.IfExists = true
 		}
 		// Completion: after DROP DATABASE [IF EXISTS] → database_ref
@@ -2430,12 +2442,13 @@ func (p *Parser) parseDropOrSecurityStmt() (nodes.StmtNode, error) {
 			stmt.Loc.Start = loc
 			return stmt, nil
 		}
-		// DROP AVAILABILITY GROUP
+		// DROP AVAILABILITY GROUP: the GROUP is required, and DROP
+		// AVAILABILITY a is Msg 102 (measured).
 		if next.Type == kwAVAILABILITY {
 			p.advance() // consume DROP
 			p.advance() // consume AVAILABILITY
-			if p.cur.Type == kwGROUP {
-				p.advance() // consume GROUP
+			if _, err := p.expect(kwGROUP); err != nil {
+				return nil, err
 			}
 			stmt, err := p.parseDropAvailabilityGroupStmt()
 			if err != nil {

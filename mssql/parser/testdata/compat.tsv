@@ -165,7 +165,7 @@ reject	reject	engine	statement/createTableStatement	CREATE TABLE a AS
 reject	reject	engine	statement/createTableStatement!drop-1	TABLE a AS
 reject	reject	engine	statement/createTableStatement!drop-2	CREATE a AS
 reject	reject	engine	statement/createTableStatement!drop-3	CREATE TABLE AS
-accept	reject	engine	statement/createTableStatement!drop-4	CREATE TABLE a
+reject	reject	engine	statement/createTableStatement!drop-4	CREATE TABLE a
 reject	reject	engine	statement/createTableStatement!insert	CREATE TABLE a AS zzz
 reject	reject	engine	statement/createTableStatement!swap	CREATE_INDEX TABLE a AS
 accept	accept	engine	statement/alterTableStatement	ALTER TABLE a REBUILD
@@ -357,7 +357,7 @@ reject	reject	engine	statement/writeTextStatement!drop-4	WRITETEXT a 0x00
 reject	reject	engine	statement/writeTextStatement!insert	WRITETEXT a 0x00 NULL zzz
 reject	reject	engine	statement/writeTextStatement!swap	WSDL a 0x00 NULL
 accept	accept	engine	statement/lineNoStatement	LINENO 1
-accept	reject	engine	statement/lineNoStatement!drop-2	LINENO
+reject	reject	engine	statement/lineNoStatement!drop-2	LINENO
 reject	reject	engine	statement/lineNoStatement!insert	LINENO 1 zzz
 accept	accept	engine	statement/lineNoStatement!swap	LIST 1
 accept	accept	engine	statement/useStatement	USE a
@@ -438,7 +438,7 @@ reject	reject	engine	statement/fetchCursorStatement!drop-2	FETCH
 reject	reject	engine	statement/fetchCursorStatement!insert	FETCH @a zzz
 reject	reject	engine	statement/fetchCursorStatement!swap	FILE @a
 accept	accept	engine	statement/dropStatements	DROP DATABASE a
-accept	reject	engine	statement/dropStatements!drop-2	DROP a
+reject	reject	engine	statement/dropStatements!drop-2	DROP a
 reject	reject	engine	statement/dropStatements!drop-3	DROP DATABASE
 reject	reject	engine	statement/dropStatements!insert	DROP DATABASE a zzz
 reject	reject	engine	statement/dropStatements!swap	DROP_INDEX DATABASE a
@@ -546,19 +546,19 @@ reject	reject	engine	lastStatement/alterTriggerStatement!swap	ALWAYS TRIGGER a O
 accept	accept	engine	lastStatement/createDefaultStatement	CREATE DEFAULT a AS 1
 reject	reject	engine	lastStatement/createDefaultStatement!drop-1	DEFAULT a AS 1
 reject	reject	engine	lastStatement/createDefaultStatement!drop-2	CREATE a AS 1
-accept	reject	engine	lastStatement/createDefaultStatement!drop-3	CREATE DEFAULT AS 1
+reject	reject	engine	lastStatement/createDefaultStatement!drop-3	CREATE DEFAULT AS 1
 reject	reject	engine	lastStatement/createDefaultStatement!drop-4	CREATE DEFAULT a 1
-accept	reject	engine	lastStatement/createDefaultStatement!drop-5	CREATE DEFAULT a AS
+reject	reject	engine	lastStatement/createDefaultStatement!drop-5	CREATE DEFAULT a AS
 reject	reject	engine	lastStatement/createDefaultStatement!insert	CREATE DEFAULT a AS 1 zzz
 reject	reject	engine	lastStatement/createDefaultStatement!swap	CREATE_INDEX DEFAULT a AS 1
 accept	reject	engine	lastStatement/createRuleStatement	CREATE RULE a AS 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-1	RULE a AS 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-2	CREATE a AS 1 = 1
-accept	reject	engine	lastStatement/createRuleStatement!drop-3	CREATE RULE AS 1 = 1
+reject	reject	engine	lastStatement/createRuleStatement!drop-3	CREATE RULE AS 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-4	CREATE RULE a 1 = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-5	CREATE RULE a AS = 1
 reject	reject	engine	lastStatement/createRuleStatement!drop-6	CREATE RULE a AS 1 1
-accept	reject	engine	lastStatement/createRuleStatement!drop-7	CREATE RULE a AS 1 =
+reject	reject	engine	lastStatement/createRuleStatement!drop-7	CREATE RULE a AS 1 =
 reject	reject	engine	lastStatement/createRuleStatement!insert	CREATE RULE a AS 1 = 1 zzz
 reject	reject	engine	lastStatement/createRuleStatement!swap	CREATE_INDEX RULE a AS 1 = 1
 accept	accept	engine	lastStatement/createViewStatement	CREATE VIEW a AS SELECT *
@@ -707,14 +707,14 @@ reject	reject	engine	createOrAlterStatements(createOrAlterFunctionStatement|crea
 accept	accept	engine	identifierStatements/disableTriggerStatement_DISABLE	DISABLE TRIGGER a ON a
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-1	TRIGGER a ON a
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-2	DISABLE a ON a
-accept	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-3	DISABLE TRIGGER ON a
+reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-3	DISABLE TRIGGER ON a
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-4	DISABLE TRIGGER a a
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!drop-5	DISABLE TRIGGER a ON
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!insert	DISABLE TRIGGER a ON a zzz
 reject	reject	engine	identifierStatements/disableTriggerStatement_DISABLE!swap	DISABLED TRIGGER a ON a
 accept	accept	engine	identifierStatements/enableTriggerStatement_ENABLE	ENABLE TRIGGER a ON a
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-2	ENABLE a ON a
-accept	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-3	ENABLE TRIGGER ON a
+reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-3	ENABLE TRIGGER ON a
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-4	ENABLE TRIGGER a a
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!drop-5	ENABLE TRIGGER a ON
 reject	reject	engine	identifierStatements/enableTriggerStatement_ENABLE!insert	ENABLE TRIGGER a ON a zzz
@@ -753,7 +753,7 @@ reject	reject	engine	identifierStatements/sendStatement_SEND!swap	SENSITIVITY ON
 reject	reject	engine	identifierStatements/throwStatement_THROW	THROW
 reject	reject	engine	identifierStatements/renameEntityStatement_RENAME	RENAME a a TO a
 reject	reject	engine	identifierStatements/renameEntityStatement_RENAME!drop-1	a a TO a
-accept	reject	engine	identifierStatements/renameEntityStatement_RENAME!drop-2	RENAME a TO a
+reject	reject	engine	identifierStatements/renameEntityStatement_RENAME!drop-2	RENAME a TO a
 reject	reject	engine	identifierStatements/renameEntityStatement_RENAME!drop-4	RENAME a a a
 reject	reject	engine	identifierStatements/renameEntityStatement_RENAME!drop-5	RENAME a a TO
 reject	reject	engine	identifierStatements/renameEntityStatement_RENAME!insert	RENAME a a TO a zzz
@@ -761,7 +761,7 @@ reject	reject	engine	identifierStatements/renameEntityStatement_RENAME!swap	REOR
 accept	accept	engine	enableDisableTriggerBody/Trigger_(schemaObjectThreePartName_(Comma_sch~34315145)~8ca94101	DISABLE TRIGGER a ON a
 reject	reject	engine	enableDisableTriggerBody/Trigger_(schemaObjectThreePartName_(Comma_sch~34315145)~8ca94101!swap	DISABLE TRIM a ON a
 accept	accept	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_sch~34315145)/schemaObjectThreePartName_(Comma_schemaObjectThreePartName)*	DISABLE TRIGGER a ON a
-accept	reject	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_sch~34315145)/schemaObjectThreePartName_(Comma_schemaObjectThreePartName)*!truncate	DISABLE TRIGGER
+reject	reject	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_sch~34315145)/schemaObjectThreePartName_(Comma_schemaObjectThreePartName)*!truncate	DISABLE TRIGGER
 reject	reject	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_sch~34315145)/schemaObjectThreePartName_(Comma_schemaObjectThreePartName)*!insert	DISABLE TRIGGER a zzz ON a
 accept	accept	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_sch~34315145)/All	DISABLE TRIGGER ALL ON a
 reject	reject	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_sch~34315145)/All!insert	DISABLE TRIGGER ALL zzz ON a
@@ -769,8 +769,8 @@ accept	accept	engine	enableDisableTriggerBody(schemaObjectThreePartName_(Comma_s
 accept	accept	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/%empty	DISABLE TRIGGER a ON a
 accept	accept	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a	DISABLE TRIGGER a, a ON a
 reject	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a!drop-1	DISABLE TRIGGER a a ON a
-accept	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a!drop-2	DISABLE TRIGGER a, ON a
-accept	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a!truncate	DISABLE TRIGGER a,
+reject	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a!drop-2	DISABLE TRIGGER a, ON a
+reject	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a!truncate	DISABLE TRIGGER a,
 reject	reject	engine	enableDisableTriggerBody(Comma_schemaObjectThreePartName)*/Comma_schemaObjectThreePartName_(Comma_schemaObjectThre~d657f57a!insert	DISABLE TRIGGER a, a zzz ON a
 reject	reject	engine	create2005Statements/Create_(createAggregateStatement_AGGREGATE|c~84c54389)	CREATE MASTER KEY
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createAggregateStatement_AGGREGATE	CREATE AGGREGATE a(@a a) RETURNS a EXTERNAL NAME a
@@ -974,9 +974,9 @@ accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-1	CREATE SCHEMA COLLECTION a AS 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-2	CREATE XML COLLECTION a AS 1
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-3	CREATE XML SCHEMA a AS 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-4	CREATE XML SCHEMA COLLECTION AS 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-5	CREATE XML SCHEMA COLLECTION a 1
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-6	CREATE XML SCHEMA COLLECTION a AS
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-4	CREATE XML SCHEMA COLLECTION AS 1
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-5	CREATE XML SCHEMA COLLECTION a 1
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!drop-6	CREATE XML SCHEMA COLLECTION a AS
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!insert	CREATE XML SCHEMA COLLECTION a AS 1 zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createXmlStatements_XML!swap	CREATE XMLNAMESPACES SCHEMA COLLECTION a AS 1
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createLoginStatement_LOGIN	CREATE LOGIN a FROM WINDOWS
@@ -1080,9 +1080,9 @@ reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~8
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSymmetricKeyStatement_SYMMETRIC!swap	CREATE SYNCHRONOUS_COMMIT KEY a FROM PROVIDER a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM	CREATE SYNONYM a FOR a
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-1	CREATE a FOR a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-2	CREATE SYNONYM FOR a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-3	CREATE SYNONYM a a
-accept	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-4	CREATE SYNONYM a FOR
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-2	CREATE SYNONYM FOR a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-3	CREATE SYNONYM a a
+reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!drop-4	CREATE SYNONYM a FOR
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!insert	CREATE SYNONYM a FOR a zzz
 reject	reject	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createSynonymStatement_SYNONYM!swap	CREATE SYSTEM a FOR a
 accept	accept	engine	create2005Statements(createAggregateStatement_AGGREGATE|c~84c54389)/createTypeStatement_TYPE	CREATE TYPE a FROM a
@@ -5007,7 +5007,7 @@ reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAuthorizationStatement!swap	ALTER AUTH_REALM ON a TO a
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY	ALTER AVAILABILITY GROUP a FAILOVER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!drop-1	ALTER GROUP a FAILOVER
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!drop-2	ALTER AVAILABILITY a FAILOVER
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!drop-2	ALTER AVAILABILITY a FAILOVER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!drop-3	ALTER AVAILABILITY GROUP FAILOVER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterAvailabilityGroupStatement_AVAILABILITY!swap	ALTER AVAILABILITY_MODE GROUP a FAILOVER
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterBrokerPriorityStatement_BROKER	ALTER BROKER PRIORITY a FOR CONVERSATION
@@ -5190,9 +5190,9 @@ accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-1	ALTER SCHEMA COLLECTION a ADD 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-2	ALTER XML COLLECTION a ADD 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-3	ALTER XML SCHEMA a ADD 1
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-4	ALTER XML SCHEMA COLLECTION ADD 1
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-4	ALTER XML SCHEMA COLLECTION ADD 1
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-5	ALTER XML SCHEMA COLLECTION a 1
-accept	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-6	ALTER XML SCHEMA COLLECTION a ADD
+reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!drop-6	ALTER XML SCHEMA COLLECTION a ADD
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!insert	ALTER XML SCHEMA COLLECTION a ADD 1 zzz
 reject	reject	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterXmlSchemaCollectionStatement_XML!swap	ALTER XMLNAMESPACES SCHEMA COLLECTION a ADD 1
 accept	accept	engine	alter2005Statements(alterApplicationRoleStatement_APPLIC~c8ed16c5)/alterSecurityPolicyStatement_SECURITY	ALTER SECURITY POLICY a ADD NOT FOR REPLICATION
@@ -5782,7 +5782,7 @@ reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaE
 reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!drop-1	CREATE SCHEMA a TABLE a AS
 reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!drop-2	CREATE SCHEMA a CREATE a AS
 reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!drop-3	CREATE SCHEMA a CREATE TABLE AS
-accept	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!drop-4	CREATE SCHEMA a CREATE TABLE a
+reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!drop-4	CREATE SCHEMA a CREATE TABLE a
 reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!insert	CREATE SCHEMA a CREATE TABLE a AS zzz
 reject	reject	engine	createSchemaElementList(createSchemaElement)*/createSchemaElement_(createSchemaElement)*!swap	CREATE SCHEMA a CREATE_INDEX TABLE a AS
 reject	reject	engine	createSchemaElement/(createViewStatement|createTableState~7fe00a04)_optSemicolons	CREATE SCHEMA a CREATE TABLE a AS
@@ -6603,7 +6603,7 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement!insert	DROP SCHEMA a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropSchemaStatement!swap	DROP SCHEMABINDING a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE	DROP AGGREGATE a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE!drop-2	DROP AGGREGATE
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE!drop-2	DROP AGGREGATE
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE!insert	DROP AGGREGATE a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAggregateStatement_AGGREGATE!swap	DROP ALGORITHM a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY	DROP ASSEMBLY a
@@ -6612,12 +6612,12 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAssemblyStatement_ASSEMBLY!swap	DROP ASYMMETRIC a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY	DROP AVAILABILITY GROUP a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!drop-1	DROP GROUP a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!drop-2	DROP AVAILABILITY a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!drop-2	DROP AVAILABILITY a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!drop-3	DROP AVAILABILITY GROUP
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!insert	DROP AVAILABILITY GROUP a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropAvailabilityGroupStatement_AVAILABILITY!swap	DROP AVAILABILITY_MODE GROUP a
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION	DROP PARTITION FUNCTION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!drop-2	DROP PARTITION a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!drop-2	DROP PARTITION a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!drop-3	DROP PARTITION FUNCTION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!insert	DROP PARTITION FUNCTION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropPartitionStatements_PARTITION!swap	DROP PARTITIONS FUNCTION a
@@ -6696,7 +6696,7 @@ reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e448
 accept	accept	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML	DROP XML SCHEMA COLLECTION a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-1	DROP SCHEMA COLLECTION a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-2	DROP XML COLLECTION a
-accept	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-3	DROP XML SCHEMA a
+reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-3	DROP XML SCHEMA a
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!drop-4	DROP XML SCHEMA COLLECTION
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!insert	DROP XML SCHEMA COLLECTION a zzz
 reject	reject	engine	dropStatements(dropDatabaseStatements|dropIndexStat~ad2e4488)/dropXmlSchemaCollectionStatement_XML!swap	DROP XMLNAMESPACES SCHEMA COLLECTION a
@@ -6806,10 +6806,10 @@ reject	reject	engine	dropSchemaStatement(If_Exists)?/If_Exists!truncate	DROP SCH
 reject	reject	engine	dropSchemaStatement(If_Exists)?/If_Exists!insert	DROP SCHEMA IF EXISTS zzz a
 reject	reject	engine	dropSchemaStatement(If_Exists)?/If_Exists!swap	DROP SCHEMA IGNORE EXISTS a
 accept	accept	engine	dropSchemaStatement(Cascade|Restrict)?/%empty	DROP SCHEMA a
-accept	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Cascade	DROP SCHEMA a CASCADE
+reject	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Cascade	DROP SCHEMA a CASCADE
 reject	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Cascade!insert	DROP SCHEMA a CASCADE zzz
 reject	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Cascade!swap	DROP SCHEMA a CASE
-accept	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Restrict	DROP SCHEMA a RESTRICT
+reject	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Restrict	DROP SCHEMA a RESTRICT
 reject	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Restrict!insert	DROP SCHEMA a RESTRICT zzz
 reject	reject	engine	dropSchemaStatement(Cascade|Restrict)?/Restrict!swap	DROP SCHEMA a RESTRICTED_USER
 accept	accept	engine	dropServerStatements/SERVER_((AUDIT_(dropServerAuditSpecification~3b4ec644)	DROP SERVER AUDIT a
@@ -6850,7 +6850,7 @@ accept	accept	engine	dropDatabaseStatement(If_Exists)?/%empty	DROP DATABASE a
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/%empty!insert	DROP DATABASE zzz a
 accept	accept	engine	dropDatabaseStatement(If_Exists)?/If_Exists	DROP DATABASE IF EXISTS a
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!drop-1	DROP DATABASE EXISTS a
-accept	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!drop-2	DROP DATABASE IF a
+reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!drop-2	DROP DATABASE IF a
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!truncate	DROP DATABASE IF
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!insert	DROP DATABASE IF EXISTS zzz a
 reject	reject	engine	dropDatabaseStatement(If_Exists)?/If_Exists!swap	DROP DATABASE IGNORE EXISTS a
@@ -7030,7 +7030,7 @@ reject	reject	engine	dropTriggerStatement(If_Exists)?/If_Exists!swap	DROP TRIGGE
 accept	accept	engine	dropTriggerStatement(On_triggerScope)?/%empty	DROP TRIGGER a
 accept	accept	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope	DROP TRIGGER a ON DATABASE
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop-1	DROP TRIGGER a DATABASE
-accept	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop-2	DROP TRIGGER a ON
+reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!drop-2	DROP TRIGGER a ON
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!insert	DROP TRIGGER a ON DATABASE zzz
 reject	reject	engine	dropTriggerStatement(On_triggerScope)?/On_triggerScope!swap	DROP TRIGGER a ONLINE DATABASE
 accept	reject	engine	dropExternalTableStatement/Table_dropObjectList	DROP EXTERNAL TABLE a
@@ -7123,7 +7123,7 @@ reject	reject	engine	dropColumnStatements(dropColumnMasterKeyStatement_MASTER|~3
 accept	accept	engine	addSignatureStatement/signatureType_To_signableElement_By_cryptoListWithOptio~7a28b1d6	ADD SIGNATURE TO a BY CERTIFICATE a
 accept	accept	engine	dropSignatureStatement/signatureType_From_signableElement_By_cryptoListWithOpt~1d3cffcf	DROP SIGNATURE FROM a BY CERTIFICATE a
 accept	accept	engine	signatureType/(COUNTER)?_SIGNATURE	ADD SIGNATURE TO a BY CERTIFICATE a
-accept	reject	engine	signatureType/(COUNTER)?_SIGNATURE!truncate	ADD
+reject	reject	engine	signatureType/(COUNTER)?_SIGNATURE!truncate	ADD
 reject	reject	engine	signatureType/(COUNTER)?_SIGNATURE!insert	ADD SIGNATURE zzz TO a BY CERTIFICATE a
 accept	accept	engine	signatureType(COUNTER)?/%empty	ADD SIGNATURE TO a BY CERTIFICATE a
 reject	reject	engine	signatureType(COUNTER)?/%empty!insert	ADD zzz SIGNATURE TO a BY CERTIFICATE a
@@ -7651,7 +7651,7 @@ accept	accept	engine	createIndexStatement/Create_(Unique)?_(((Clustered|NonClust
 accept	accept	engine	createIndexStatement(Unique)?/%empty	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
 reject	reject	engine	createIndexStatement(Unique)?/%empty!insert	CREATE zzz CLUSTERED COLUMNSTORE INDEX a ON a
 reject	reject	engine	createIndexStatement(Unique)?/Unique	CREATE UNIQUE CLUSTERED COLUMNSTORE INDEX a ON a
-accept	reject	engine	createIndexStatement(Unique)?/Unique!truncate	CREATE
+reject	reject	engine	createIndexStatement(Unique)?/Unique!truncate	CREATE
 reject	reject	engine	createIndexStatement(Unique)?/Unique!insert	CREATE UNIQUE zzz CLUSTERED COLUMNSTORE INDEX a ON a
 reject	reject	engine	createIndexStatement(Unique)?/Unique!swap	CREATE UNKNOWN CLUSTERED COLUMNSTORE INDEX a ON a
 accept	accept	engine	createIndexStatement(((Clustered|NonClustered)_(createRel~7aee1a1e)/(Clustered|NonClustered)_(createRelationalIndexStatemen~534ec33e	CREATE CLUSTERED COLUMNSTORE INDEX a ON a
@@ -13042,12 +13042,12 @@ accept	accept	engine	checkConstraint/Check_replicationClauseOpt_LeftParenthesis_
 accept	accept	engine	cursorDataType/Cursor	DECLARE @a CURSOR
 accept	accept	engine	xmlDataType/(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?	DECLARE @a a
 accept	accept	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/%empty	DECLARE @a a
-accept	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744	DECLARE @a a(a)
+reject	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744	DECLARE @a a(a)
 reject	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744!drop-1	DECLARE @a a a)
-accept	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744!drop-2	DECLARE @a a()
+reject	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744!drop-2	DECLARE @a a()
 reject	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744!drop-3	DECLARE @a a(a
 reject	reject	engine	xmlDataType(LeftParenthesis_(Identifier)?_dataTy~77c89ae8)?/LeftParenthesis_(Identifier)?_dataTypeSchemaObjectName_~4edf9744!insert	DECLARE @a a(a) zzz
-accept	reject	engine	xmlDataType(Identifier)?/%empty	DECLARE @a a(a)
+reject	reject	engine	xmlDataType(Identifier)?/%empty	DECLARE @a a(a)
 reject	reject	engine	xmlDataType(Identifier)?/%empty!insert	DECLARE @a a(zzz a)
 reject	reject	engine	xmlDataType(Identifier)?/Identifier	DECLARE @a a(a a)
 reject	reject	engine	xmlDataType(Identifier)?/Identifier!truncate	DECLARE @a a(
@@ -13082,7 +13082,7 @@ accept	accept	engine	dataTypeParametersOpt(LeftParenthesis_(max|integer_(Comma_~
 reject	reject	engine	dataTypeParametersOpt(LeftParenthesis_(max|integer_(Comma_~ac44fe01)?/LeftParenthesis_(max|integer_(Comma_integer)?)_RightParenthesis!drop-1	DECLARE @a a MAX)
 reject	reject	engine	dataTypeParametersOpt(LeftParenthesis_(max|integer_(Comma_~ac44fe01)?/LeftParenthesis_(max|integer_(Comma_integer)?)_RightParenthesis!drop-3	DECLARE @a a(MAX
 reject	reject	engine	dataTypeParametersOpt(LeftParenthesis_(max|integer_(Comma_~ac44fe01)?/LeftParenthesis_(max|integer_(Comma_integer)?)_RightParenthesis!insert	DECLARE @a a(MAX) zzz
-accept	reject	engine	dataTypeParametersOpt(LeftParenthesis_(max|integer_(Comma_~ac44fe01)?/LeftParenthesis_(max|integer_(Comma_integer)?)_RightParenthesis!swap	DECLARE @a a(MAXDOP)
+reject	reject	engine	dataTypeParametersOpt(LeftParenthesis_(max|integer_(Comma_~ac44fe01)?/LeftParenthesis_(max|integer_(Comma_integer)?)_RightParenthesis!swap	DECLARE @a a(MAXDOP)
 accept	accept	engine	dataTypeParametersOpt(max|integer_(Comma_integer)?)/max	DECLARE @a a(MAX)
 reject	reject	engine	dataTypeParametersOpt(max|integer_(Comma_integer)?)/max!insert	DECLARE @a a(MAX zzz)
 accept	accept	engine	dataTypeParametersOpt(max|integer_(Comma_integer)?)/integer_(Comma_integer)?	DECLARE @a a(1)
@@ -13090,7 +13090,7 @@ reject	reject	engine	dataTypeParametersOpt(max|integer_(Comma_integer)?)/integer
 accept	accept	engine	dataTypeParametersOpt(Comma_integer)?/%empty	DECLARE @a a(1)
 accept	accept	engine	dataTypeParametersOpt(Comma_integer)?/Comma_integer	DECLARE @a a(1, 1)
 reject	reject	engine	dataTypeParametersOpt(Comma_integer)?/Comma_integer!drop-1	DECLARE @a a(1 1)
-accept	reject	engine	dataTypeParametersOpt(Comma_integer)?/Comma_integer!drop-2	DECLARE @a a(1,)
+reject	reject	engine	dataTypeParametersOpt(Comma_integer)?/Comma_integer!drop-2	DECLARE @a a(1,)
 reject	reject	engine	dataTypeParametersOpt(Comma_integer)?/Comma_integer!truncate	DECLARE @a a(1,
 reject	reject	engine	dataTypeParametersOpt(Comma_integer)?/Comma_integer!insert	DECLARE @a a(1, 1 zzz)
 accept	accept	engine	doubleDataType/Double_PRECISION_(LeftParenthesis_(max|integer)_RightP~~590ff2ec	DECLARE @a DOUBLE PRECISION
@@ -13125,7 +13125,7 @@ accept	accept	engine	dataTypeSchemaObjectName/identifier_(Dot_identifier)?	DECLA
 accept	accept	engine	dataTypeSchemaObjectName(Dot_identifier)?/%empty	DECLARE @a a
 accept	accept	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier	DECLARE @a a.a
 reject	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!drop-1	DECLARE @a a a
-accept	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!drop-2	DECLARE @a a.
+reject	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!drop-2	DECLARE @a a.
 reject	reject	engine	dataTypeSchemaObjectName(Dot_identifier)?/Dot_identifier!insert	DECLARE @a a.a zzz
 reject	reject	engine	schemaObjectNonEmptyTwoPartName/identifier_(Dot_identifier)?	ALTER SEQUENCE a
 reject	reject	engine	schemaObjectNonEmptyTwoPartName(Dot_identifier)?/%empty	ALTER SEQUENCE a
@@ -16679,8 +16679,8 @@ accept	accept	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/%empty	DROP AG
 reject	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/%empty!insert	DROP AGGREGATE zzz a
 accept	accept	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists	DROP AGGREGATE IF EXISTS a
 reject	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!drop-1	DROP AGGREGATE EXISTS a
-accept	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!drop-2	DROP AGGREGATE IF a
-accept	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!truncate	DROP AGGREGATE IF
+reject	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!drop-2	DROP AGGREGATE IF a
+reject	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!truncate	DROP AGGREGATE IF
 reject	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!insert	DROP AGGREGATE IF EXISTS zzz a
 reject	reject	engine	dropAggregateStatement_AGGREGATE(If_Exists)?/If_Exists!swap	DROP AGGREGATE IGNORE EXISTS a
 accept	accept	engine	dropAssemblyStatement_ASSEMBLY/ASSEMBLY_(If_Exists)?_dropObjectList_(With_NO_DEPENDENTS)?	DROP ASSEMBLY a
@@ -16696,7 +16696,7 @@ accept	accept	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/%empty	
 accept	accept	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS	DROP ASSEMBLY a WITH NO DEPENDENTS
 reject	reject	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS!drop-1	DROP ASSEMBLY a NO DEPENDENTS
 reject	reject	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS!drop-2	DROP ASSEMBLY a WITH DEPENDENTS
-accept	reject	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS!drop-3	DROP ASSEMBLY a WITH NO
+reject	reject	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS!drop-3	DROP ASSEMBLY a WITH NO
 reject	reject	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS!insert	DROP ASSEMBLY a WITH NO DEPENDENTS zzz
 reject	reject	engine	dropAssemblyStatement_ASSEMBLY(With_NO_DEPENDENTS)?/With_NO_DEPENDENTS!swap	DROP ASSEMBLY a WITHIN NO DEPENDENTS
 accept	accept	engine	dropAvailabilityGroupStatement_AVAILABILITY/AVAILABILITY_Group_identifier	DROP AVAILABILITY GROUP a

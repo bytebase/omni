@@ -105,8 +105,13 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 		}
 	}
 
-	// Column and constraint definitions
+	// Column and constraint definitions. SQL Server requires one, except on
+	// AS EDGE and AS FILETABLE, which it takes with no list: CREATE TABLE a
+	// and CREATE TABLE a AS NODE are Msg 102 (measured).
 	if _, err := p.expect('('); err != nil {
+		if !stmt.IsEdge && !stmt.IsFileTable {
+			return nil, err
+		}
 		stmt.Loc.End = p.prevEnd()
 		return stmt, nil
 	}
