@@ -483,7 +483,9 @@ func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Col
 		return &RangeTableEntryQ{
 			Kind:      RTERelation,
 			DBName:    ref.Schema,
-			TableName: ref.Name + ref.Dblink,
+			TableName: ref.Name,
+			Catalog:   ref.Catalog,
+			Dblink:    ref.Dblink,
 			Alias:     ref.Alias,
 			ERef:      erei,
 		}, nil, nil

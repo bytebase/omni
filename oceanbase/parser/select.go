@@ -1003,7 +1003,7 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	// The production that carries PARAMETERS is simple_select order_by
 	// opt_approx limit_clause opt_with_vector_index_parameters, so the ORDER BY
 	// comes with it: `SELECT a FROM t LIMIT 1 PARAMETERS(x = 1)` is a 1064.
-	if len(stmt.VectorIndexParams) > 0 && len(stmt.OrderBy) == 0 {
+	if (len(stmt.VectorIndexParams) > 0 || stmt.Approx) && len(stmt.OrderBy) == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
 
@@ -1775,14 +1775,21 @@ func (p *Parser) parseOdbcTableReference() (nodes.TableExpr, error) {
 	if _, err := p.expect('}'); err != nil {
 		return nil, err
 	}
-	if join, ok := inner.(*nodes.JoinClause); ok {
-		join.Loc.Start = start
-		join.Loc.End = p.prev.End
-	} else {
-		if ref, ok := inner.(*nodes.TableRef); ok {
-			ref.Loc.Start = start
-			ref.Loc.End = p.prev.End
-		}
+	// The braces and the word are the factor's, so its Loc spans them whatever
+	// kind of factor it holds.
+	switch inner := inner.(type) {
+	case *nodes.JoinClause:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.TableRef:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.SubqueryExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.ExternalTableRef:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.JsonTableExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
+	case *nodes.UnnestExpr:
+		inner.Loc.Start, inner.Loc.End = start, p.prev.End
 	}
 	return inner, nil
 }
@@ -2446,11 +2453,13 @@ func (p *Parser) parseVectorIndexParams() ([]*nodes.VectorIndexParam, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 		val := p.cur.Str
+		isName := p.isIdentToken()
 		p.advance()
 		params = append(params, &nodes.VectorIndexParam{
-			Loc:   nodes.Loc{Start: start, End: p.prev.End},
-			Name:  name,
-			Value: val,
+			Loc:    nodes.Loc{Start: start, End: p.prev.End},
+			Name:   name,
+			Value:  val,
+			IsName: isName,
 		})
 		if p.cur.Type != ',' {
 			break

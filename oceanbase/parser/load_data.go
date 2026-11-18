@@ -337,11 +337,13 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 		case p.cur.Type == kwLOGFILE:
 			p.advance()
 			p.match('=')
-			if p.cur.Type != tokSCONST {
-				return p.syntaxErrorAtCur()
+			// STRING_VALUE, which the lexer folds adjacent quoted strings into:
+			// `LOGFILE 'a' 'b'` is one name.
+			value, err := p.parseIntoString()
+			if err != nil {
+				return err
 			}
-			stmt.LogFile = p.cur.Str
-			p.advance()
+			stmt.LogFile = value
 		case p.isBareWord("REJECT") && p.peekNext().Type == kwLIMIT:
 			p.advance() // consume REJECT
 			p.advance() // consume LIMIT
@@ -355,11 +357,11 @@ func (p *Parser) parseLoadDataExtendedOptions(stmt *nodes.LoadDataStmt) error {
 		case p.isBareWord("BADFILE"):
 			p.advance()
 			p.match('=')
-			if p.cur.Type != tokSCONST {
-				return p.syntaxErrorAtCur()
+			value, err := p.parseIntoString()
+			if err != nil {
+				return err
 			}
-			stmt.BadFile = p.cur.Str
-			p.advance()
+			stmt.BadFile = value
 		default:
 			return nil
 		}

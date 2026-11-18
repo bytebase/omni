@@ -176,7 +176,7 @@ func (p *Parser) parseOptimizeTableStmt() (*nodes.OptimizeTableStmt, error) {
 		p.advance()
 		if p.cur.Type == kwALL {
 			p.advance()
-			stmt.Tenant = "ALL"
+			stmt.AllTenants = true
 		} else {
 			name, _, err := p.parseIdent()
 			if err != nil {

@@ -237,9 +237,13 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// two forms the server refuses with 1064; RANGE (expr) SIZE ('s') with no
 		// partition list reaches the executor and answers 1235, which is the gap
 		// this row records.
-		if pb := cmd.PartitionBy; pb != nil && pb.SplitSize != "" &&
-			(len(pb.Partitions) > 0 || (pb.Expr == nil && len(pb.Columns) == 0)) {
-			return &Error{Code: 1064, SQLState: "42000", Message: "SIZE cannot be altered"}
+		if pb := cmd.PartitionBy; pb != nil && pb.SplitSize != "" {
+			if len(pb.Partitions) > 0 || (pb.Expr == nil && len(pb.Columns) == 0) {
+				return &Error{Code: 1064, SQLState: "42000", Message: "SIZE cannot be altered"}
+			}
+			// RANGE (expr) SIZE ('s') with no partition list reaches the executor,
+			// which answers 1235 rather than the parser's 1064.
+			return errNotSupported("auto split tablet size")
 		}
 		return nil
 	case nodes.ATRemovePartitioning:
@@ -545,6 +549,19 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	if newKey != oldKey {
 		if _, dup := tbl.colByName[newKey]; dup {
 			return errDupColumn(colDef.Name)
+		}
+	}
+
+	// The column a BEFORE names is looked up before anything is replaced or
+	// removed: an ALTER that fails must leave the table as it was.
+	if cmd.Before != "" {
+		if _, ok := tbl.colByName[toLower(cmd.Before)]; !ok {
+			return errNoSuchColumn(cmd.Before, tbl.Name)
+		}
+	}
+	if cmd.After != "" {
+		if _, ok := tbl.colByName[toLower(cmd.After)]; !ok {
+			return errNoSuchColumn(cmd.After, tbl.Name)
 		}
 	}
 

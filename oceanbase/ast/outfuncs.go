@@ -2289,6 +2289,12 @@ func writeOptimizeTableStmt(sb *strings.Builder, n *OptimizeTableStmt) {
 	if n.NoWriteToBinlog {
 		sb.WriteString(" :no_write_to_binlog true")
 	}
+	if n.Tenant != "" {
+		fmt.Fprintf(sb, " :tenant %s", n.Tenant)
+	}
+	if n.AllTenants {
+		sb.WriteString(" :all_tenants true")
+	}
 	if len(n.Tables) > 0 {
 		sb.WriteString(" :tables ")
 		for i, t := range n.Tables {

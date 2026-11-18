@@ -182,11 +182,18 @@ func deparseRTERefQ(b *strings.Builder, idx int, q *deparseScope) {
 	rte := q.RangeTable[idx]
 	switch rte.Kind {
 	case RTERelation:
+		if rte.Catalog != "" {
+			b.WriteString(backtickIDQ(rte.Catalog))
+			b.WriteByte('.')
+		}
 		if rte.DBName != "" {
 			b.WriteString(backtickIDQ(rte.DBName))
 			b.WriteByte('.')
 		}
 		b.WriteString(backtickIDQ(rte.TableName))
+		if rte.Dblink != "" {
+			b.WriteString(rte.Dblink)
+		}
 		if rte.Alias != "" && rte.Alias != rte.TableName {
 			b.WriteString(" as ")
 			b.WriteString(backtickIDQ(rte.Alias))

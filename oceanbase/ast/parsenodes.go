@@ -1476,6 +1476,9 @@ type VectorIndexParam struct {
 	Loc   Loc
 	Name  string
 	Value string
+	// IsName is set when the value is a relation_name rather than a number or a
+	// boolean, so deparse quotes it as the identifier it is.
+	IsName bool
 }
 
 func (v *VectorIndexParam) nodeTag() {}
@@ -2420,10 +2423,12 @@ type OptimizeTableStmt struct {
 	Loc             Loc
 	NoWriteToBinlog bool
 	Tables          []*TableRef
-	// Tenant is optimize_stmt's TENANT form: the tenant's name, or "ALL" for
-	// OPTIMIZE TENANT ALL. It is "" for the TABLE form, which is the one MySQL
-	// has.
+	// Tenant is optimize_stmt's TENANT form: the tenant's name, and "" for the
+	// TABLE form, which is the one MySQL has.
 	Tenant string
+	// AllTenants is OPTIMIZE TENANT ALL, which is a mode of its own: a tenant
+	// may be called ALL, and one written in backquotes is that tenant.
+	AllTenants bool
 }
 
 func (s *OptimizeTableStmt) nodeTag()  {}

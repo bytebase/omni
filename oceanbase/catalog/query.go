@@ -342,6 +342,11 @@ type RangeTableEntryQ struct {
 	// name is in Alias / ERef.
 	DBName    string
 	TableName string
+	// Catalog and Dblink qualify a table this catalog does not hold: one another
+	// catalog names (`cat.db.t`) and one a database link reads (`t@link`). Both
+	// keep the statement's text so a stored view writes them back.
+	Catalog string
+	Dblink  string
 
 	// Alias is the user-provided alias (`FROM t AS x` → "x"). Empty if none.
 	Alias string

@@ -3884,7 +3884,7 @@ accept	accept	engine	load_data_extended_option_list/load_data_extended_option	LO
 accept	accept	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list	LOAD DATA INFILE 's' INTO TABLE a LOGFILE 's' LOGFILE 's'
 reject	reject	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!drop-1	LOAD DATA INFILE 's' INTO TABLE a 's' LOGFILE 's'
 reject	reject	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!drop-2	LOAD DATA INFILE 's' INTO TABLE a LOGFILE LOGFILE 's'
-reject	accept	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!drop-3	LOAD DATA INFILE 's' INTO TABLE a LOGFILE 's' 's'
+accept	accept	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!drop-3	LOAD DATA INFILE 's' INTO TABLE a LOGFILE 's' 's'
 reject	reject	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!drop-4	LOAD DATA INFILE 's' INTO TABLE a LOGFILE 's' LOGFILE
 reject	reject	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!insert	LOAD DATA INFILE 's' INTO TABLE a LOGFILE 's' LOGFILE 's' zzz
 reject	reject	engine	load_data_extended_option_list/load_data_extended_option_load_data_extended_option_list!swap	LOAD DATA INFILE 's' INTO TABLE a LOGICAL_READS 's' LOGFILE 's'

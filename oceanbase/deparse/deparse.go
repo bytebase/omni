@@ -409,7 +409,11 @@ func writeVectorIndexParams(b *strings.Builder, stmt *ast.SelectStmt) {
 		}
 		b.WriteString(quoteIdent(param.Name))
 		b.WriteString(" = ")
-		b.WriteString(strings.ToLower(param.Value))
+		if param.IsName {
+			b.WriteString(quoteIdent(param.Value))
+		} else {
+			b.WriteString(strings.ToLower(param.Value))
+		}
 	}
 	b.WriteString(")")
 }
