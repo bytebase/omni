@@ -1000,6 +1000,12 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 	if (stmt.Approx || len(stmt.VectorIndexParams) > 0) && len(stmt.From) == 0 {
 		return nil, p.syntaxErrorAtCur()
 	}
+	// The production that carries PARAMETERS is simple_select order_by
+	// opt_approx limit_clause opt_with_vector_index_parameters, so the ORDER BY
+	// comes with it: `SELECT a FROM t LIMIT 1 PARAMETERS(x = 1)` is a 1064.
+	if len(stmt.VectorIndexParams) > 0 && len(stmt.OrderBy) == 0 {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
 	if p.cur.Type == kwFOR {
@@ -2906,11 +2912,13 @@ func (p *Parser) parseIntoFileOptions(into *nodes.IntoClause) error {
 			return p.syntaxErrorAtCur()
 		}
 		value := p.cur.Str
+		isString := p.cur.Type == tokSCONST
 		p.advance()
 		into.FileOptions = append(into.FileOptions, &nodes.FileOption{
-			Loc:   nodes.Loc{Start: start, End: p.prev.End},
-			Name:  name,
-			Value: value,
+			Loc:           nodes.Loc{Start: start, End: p.prev.End},
+			Name:          name,
+			Value:         value,
+			ValueIsString: isString,
 		})
 	}
 }

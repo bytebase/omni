@@ -210,15 +210,15 @@ func (p *Parser) parseCreateDblinkStmt(start int) (nodes.Node, error) {
 	if _, err := p.expect(kwDATABASE); err != nil {
 		return nil, err
 	}
-	db, err := p.parseRelationFactor()
+	// database_factor: a database's name, or `catalog.database`. Neither a
+	// three-part name nor a database link is one.
+	db, err := p.parseRecyclebinName("DATABASE")
 	if err != nil {
 		return nil, err
 	}
-	stmt.Database = db.Catalog
-	if db.Schema != "" {
-		stmt.Database = db.Schema + "." + db.Name
-	} else {
-		stmt.Database = db.Name
+	stmt.Database = db.Name
+	if db.Catalog != "" {
+		stmt.Database = db.Catalog + "." + db.Name
 	}
 
 	if _, err := p.expect(kwIDENTIFIED); err != nil {

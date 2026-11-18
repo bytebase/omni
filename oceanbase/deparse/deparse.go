@@ -275,11 +275,14 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 		// fields and lines clauses.
 		for _, opt := range into.FileOptions {
 			b.WriteString(" " + strings.ToLower(opt.Name) + " ")
-			if opt.Name == "SINGLE" {
+			switch {
+			case opt.Name == "SINGLE":
 				b.WriteString(strings.ToLower(opt.Value))
-				continue
+			case opt.ValueIsString:
+				b.WriteString(str(opt.Value))
+			default:
+				b.WriteString(opt.Value)
 			}
-			b.WriteString(opt.Value)
 		}
 	default:
 		for i, v := range into.Vars {
@@ -2970,19 +2973,27 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			b.WriteString(" using ")
 			b.WriteString(strings.ToLower(n.Using))
 		}
-		// NTH_VALUE's FROM FIRST/LAST and the RESPECT/IGNORE NULLS of
-		// FIRST_VALUE, LAST_VALUE, LEAD, LAG and NTH_VALUE are part of the call
-		// and change its result, so a stored view keeps them.
-		if n.FromFirstLast != "" {
-			b.WriteString(" from ")
-			b.WriteString(strings.ToLower(n.FromFirstLast))
-		}
-		if n.NullTreatment != "" {
+		// LEAD and LAG write RESPECT/IGNORE NULLS inside their parameter list,
+		// `lead(a ignore nulls, 2)`; every other window function writes it after
+		// the ')'.
+		if (name == "LEAD" || name == "LAG") && n.NullTreatment != "" {
 			b.WriteString(" ")
 			b.WriteString(strings.ToLower(n.NullTreatment))
 			b.WriteString(" nulls")
 		}
 		b.WriteString(")")
+	}
+
+	// NTH_VALUE's FROM FIRST/LAST and the trailing RESPECT/IGNORE NULLS follow
+	// the parameter list.
+	if n.FromFirstLast != "" {
+		b.WriteString(" from ")
+		b.WriteString(strings.ToLower(n.FromFirstLast))
+	}
+	if n.NullTreatment != "" && name != "LEAD" && name != "LAG" {
+		b.WriteString(" ")
+		b.WriteString(strings.ToLower(n.NullTreatment))
+		b.WriteString(" nulls")
 	}
 
 	// Append OVER clause for window functions

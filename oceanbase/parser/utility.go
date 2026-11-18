@@ -691,7 +691,7 @@ func (p *Parser) parseHandlerReadStmt(start int, table *nodes.TableRef) (*nodes.
 		case kwFIRST, kwNEXT, kwPREV, kwLAST:
 			stmt.Direction = strings.ToUpper(p.advance().Str)
 		case '=', tokGreaterEq, tokLessEq, '>', '<':
-			p.advance() // consume the comparison operator
+			stmt.Operator = p.advance().Str // the comparison operator
 			if _, err := p.expect('('); err != nil {
 				return nil, err
 			}

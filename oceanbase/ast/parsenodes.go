@@ -1490,6 +1490,9 @@ type FileOption struct {
 	Loc   Loc
 	Name  string // "SINGLE", "MAX_FILE_SIZE" or "BUFFER_SIZE"
 	Value string
+	// ValueIsString is set when the value was a string literal, which a size
+	// takes beside an integer and a stored statement keeps quoted.
+	ValueIsString bool
 }
 
 func (o *FileOption) nodeTag() {}
@@ -2944,10 +2947,11 @@ type HandlerReadStmt struct {
 	Direction string // FIRST, NEXT, PREV, LAST
 	Index     string // index name for index-based reads
 	// Values is the expr_list of an index read with a comparison operator:
-	// `HANDLER t READ i >= (1, 2)`.
-	Values []ExprNode
-	Where  ExprNode // WHERE condition
-	Limit  *Limit   // LIMIT clause
+	// `HANDLER t READ i >= (1, 2)`, and Operator that operator as written.
+	Values   []ExprNode
+	Operator string
+	Where    ExprNode // WHERE condition
+	Limit    *Limit   // LIMIT clause
 }
 
 func (s *HandlerReadStmt) nodeTag()  {}
