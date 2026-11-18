@@ -225,7 +225,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	if p.atWord("SUPPLEMENTAL") {
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(true, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(true, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -978,7 +978,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	case p.atWord("SUPPLEMENTAL"):
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(false, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -1615,6 +1615,10 @@ func (p *Parser) parseAlterTableProperty() (*nodes.AlterTableCmd, error) {
 			if err := p.atExpectWord("DATA"); err != nil {
 				return nil, err
 			}
+			// Oracle reads no item of a nested table's object_properties
+			// here: parseATObjectProperties takes it as text.
+			defer func(saved bool) { p.upgradeIncludingData = saved }(p.upgradeIncludingData)
+			p.upgradeIncludingData = true
 			if err := p.parseATColumnProperties(options); err != nil {
 				return nil, err
 			}

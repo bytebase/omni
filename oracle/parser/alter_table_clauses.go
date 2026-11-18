@@ -1792,24 +1792,88 @@ func (p *Parser) nestedPhysicalPhase(allowed atClauses, phase int) int {
 // [ inline_ref_constraint ] | out_of_line_constraint
 // | out_of_line_ref_constraint | supplemental_logging_props } [, ...] ).
 //
-// Oracle judges no item of it. The clause stands in ALTER TABLE's
-// upgrade_table_clause alone, and the option it belongs to (UPGRADE [ NOT ]
-// INCLUDING DATA) answers ORA-01735 at byte 0 on the pinned server whatever
-// the group holds, on a table that holds the nested table column as on one
-// that does not: measured on a table of an object type with the nested table
-// column c stored as a nested table, ((c NULL)) and ((1 2 3)) answer it
-// alike, as ((a zzz)), ((UNIQUE())) and
-// ((SUPPLEMENTAL LOG GROUP a(a LOG))) do on a heap table. Oracle reads no
-// further, so nothing in the group is judged, and the
-// alterTable_object_properties and alterTable_supplemental_logging_props
-// rows of compat.tsv, whose statements hold just such text, are the judge's
-// acceptances for it. The group is therefore the balanced tokens Oracle's
-// lexer sees, and omni reads them as Oracle does, holding nothing inside.
+// Under ALTER TABLE's upgrade_table_clause Oracle judges no item of it: the
+// option it belongs to (UPGRADE [ NOT ] INCLUDING DATA) answers ORA-01735 at
+// byte 0 on the pinned server whatever the group holds, on a table that
+// holds the nested table column as on one that does not. Measured with a
+// table of an object type whose nested table column c is stored as one,
+// ((c NULL)) and ((1 2 3)) answer it alike, as ((a zzz)), ((UNIQUE())) and
+// ((SUPPLEMENTAL LOG GROUP a(a LOG))) do on a heap table. Nothing there is
+// judged, and the alterTable_object_properties and
+// alterTable_supplemental_logging_props rows of compat.tsv, whose statements
+// hold just such text, are the judge's acceptances for it. ALTER TABLE's
+// column_clauses run, and hold the group to the page's items there.
 func (p *Parser) parseATObjectProperties() error {
+	if p.upgradeIncludingData {
+		return p.skipATObjectProperties()
+	}
+	p.advance() // (
+	for {
+		switch {
+		case p.isOutOfLineRefConstraintStart():
+			tc, err := p.parseOutOfLineRefConstraint()
+			if err != nil {
+				return err
+			}
+			if tc == nil {
+				return p.syntaxErrorAtCur()
+			}
+		case p.isTableConstraintStart():
+			tc, err := p.parseTableConstraint()
+			if err != nil {
+				return err
+			}
+			if tc == nil {
+				return p.syntaxErrorAtCur()
+			}
+		case p.atWord("SUPPLEMENTAL") && p.atNextWord("LOG"):
+			p.advance()
+			if err := p.parseATSupplementalLogging(true, true, nil); err != nil {
+				return err
+			}
+		default:
+			if err := p.parseATName(); err != nil {
+				return err
+			}
+			if p.cur.Type == kwDEFAULT {
+				p.advance()
+				e, err := p.parseExpr()
+				if err != nil {
+					return err
+				}
+				if e == nil {
+					return p.syntaxErrorAtCur()
+				}
+			}
+			scopeSeen := false
+			for p.isATObjectInlineConstraintStart() {
+				if err := p.parseATObjectInlineConstraint(&scopeSeen); err != nil {
+					return err
+				}
+			}
+		}
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+		if p.cur.Type == ')' {
+			return p.syntaxErrorAtCur()
+		}
+	}
+	return p.atExpect(')')
+}
+
+// skipATObjectProperties reads the balanced text of the object_properties
+// group Oracle does not judge under upgrade_table_clause
+// (parseATObjectProperties): the tokens up to the group's own ')'.
+func (p *Parser) skipATObjectProperties() error {
 	p.advance() // (
 	for depth := 1; depth > 0; {
 		switch p.cur.Type {
 		case tokEOF:
+			return p.syntaxErrorAtCur()
+		case ';':
+			// A ';' ends the statement, so it cannot stand in the group.
 			return p.syntaxErrorAtCur()
 		case '(':
 			depth++
@@ -1817,6 +1881,72 @@ func (p *Parser) parseATObjectProperties() error {
 			depth--
 		}
 		p.advance()
+	}
+	return nil
+}
+
+// isATObjectInlineConstraintStart reports an item of object_properties'
+// inline_constraint or inline_ref_constraint after its column.
+func (p *Parser) isATObjectInlineConstraintStart() bool {
+	switch p.cur.Type {
+	case kwCONSTRAINT, kwNOT, kwNULL, kwUNIQUE, kwPRIMARY, kwCHECK, kwREFERENCES, kwWITH:
+		return true
+	}
+	return p.atWord("SCOPE")
+}
+
+// parseATObjectInlineConstraint reads one inline_constraint or
+// inline_ref_constraint of object_properties. Its column has no declared
+// type here, so the REF-only checks of parseInlineRefConstraint do not
+// apply: SCOPE IS and WITH ROWID are read as the page gives them.
+func (p *Parser) parseATObjectInlineConstraint(scopeSeen *bool) error {
+	named := p.cur.Type == kwCONSTRAINT
+	if named {
+		p.advance()
+		if !p.isIdentLike() {
+			return p.syntaxErrorAtCur()
+		}
+		if err := p.parseATName(); err != nil {
+			return err
+		}
+	}
+	if named && (p.cur.Type == kwWITH || p.atWord("SCOPE")) {
+		// SCOPE IS and WITH ROWID have no CONSTRAINT name in the page's
+		// inline_ref_constraint.
+		return p.syntaxErrorAtCur()
+	}
+	switch {
+	case p.cur.Type == kwNOT:
+		p.advance()
+		if err := p.atExpect(kwNULL); err != nil {
+			return err
+		}
+		var cs constraintState
+		return p.parseConstraintState(&cs)
+	case p.cur.Type == kwNULL:
+		p.advance()
+		var cs constraintState
+		return p.parseConstraintState(&cs)
+	case p.cur.Type == kwWITH:
+		p.advance()
+		return p.atExpect(kwROWID)
+	case p.atWord("SCOPE"):
+		if *scopeSeen {
+			return p.syntaxErrorAtCur()
+		}
+		*scopeSeen = true
+		p.advance()
+		if err := p.atExpect(kwIS); err != nil {
+			return err
+		}
+		return p.parseATQualifiedName()
+	}
+	cc, err := p.parseColumnConstraintInline()
+	if err != nil {
+		return err
+	}
+	if cc == nil {
+		return p.syntaxErrorAtCur()
 	}
 	return nil
 }
