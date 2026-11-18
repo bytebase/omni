@@ -1711,7 +1711,14 @@ func (p *Parser) parseATNestedTableStorage() error {
 					orgSeen = true
 					phase = 5
 				}
-				parsed, err := p.parseATClause(physical, nil)
+				var parsed bool
+				var err error
+				if rank == 4 && (p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS) {
+					err = p.parseATIndexCompression()
+					parsed = true
+				} else {
+					parsed, err = p.parseATClause(physical, nil)
+				}
 				if err != nil {
 					return err
 				}

@@ -684,6 +684,34 @@ func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
 		return prefix + kind + " " + unitKind + " " + name, nil
 	}
 	if repeatedKind && p.isIdentLike() && p.peekNext().Type == '.' {
+		// The outer kind takes its own optional schema before the program
+		// unit's, as in FROM PROCEDURE s.t.FUNCTION p.
+		ahead5 := p.peekAhead(5)
+		if ahead5[2].Type == '.' && isGrantProgramUnitKind(ahead5[3]) && isGrantWordToken(ahead5[4]) {
+			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+				return "", err
+			}
+			outerSchema, err := p.parseIdentifier()
+			if err != nil {
+				return "", err
+			}
+			p.advance() // consume '.'
+			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+				return "", err
+			}
+			innerSchema, err := p.parseIdentifier()
+			if err != nil {
+				return "", err
+			}
+			p.advance() // consume '.'
+			unitKind := p.cur.Str
+			p.advance()
+			obj, err := p.parseGrantObjectName(false)
+			if err != nil {
+				return "", err
+			}
+			return prefix + kind + " " + outerSchema + "." + innerSchema + "." + unitKind + " " + obj.Name, nil
+		}
 		ahead := p.peekAhead(3)
 		if isGrantProgramUnitKind(ahead[1]) && isGrantWordToken(ahead[2]) {
 			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
