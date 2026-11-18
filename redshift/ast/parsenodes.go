@@ -482,7 +482,11 @@ func (n *CTECycleClause) Tag() NodeTag { return T_CTECycleClause }
 type RoleSpec struct {
 	Roletype int    // type of role (RoleSpecType)
 	Rolename string // filled only for ROLESPEC_CSTRING
-	Loc      Loc    // token location, or -1 if unknown
+	// WithGrantOption is set where the grantee itself carries WITH GRANT
+	// OPTION, as Redshift's r_GRANT writes it per grantee. A grant statement's
+	// own GrantOption is the union of its grantees'.
+	WithGrantOption bool
+	Loc             Loc // token location, or -1 if unknown
 }
 
 func (n *RoleSpec) Tag() NodeTag { return T_RoleSpec }

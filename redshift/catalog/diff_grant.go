@@ -4,15 +4,22 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-// grantKey is the identity key for a grant: (objType, resolved object name, grantee, privilege, sorted columns).
+// grantKey is the identity key for a grant: its target, resolved object name,
+// grantee, privilege and sorted columns. target and granteeKind are the
+// alternatives the statement was written with, so an external table's grant and
+// a plain relation's are two, as an IAM role and a role named "iam_role:r" are.
 type grantKey struct {
-	objType   byte
-	objName   string
-	grantee   string
-	privilege string
-	columns   string // sorted, comma-joined
+	objType     byte
+	target      nodes.ObjectType
+	objName     string
+	grantee     string
+	granteeKind string
+	privilege   string
+	columns     string // sorted, comma-joined
 }
 
 // diffGrants compares grants between two catalogs and returns diff entries.
@@ -76,7 +83,7 @@ func grantSortKey(e GrantDiffEntry) string {
 	cols := make([]string, len(g.Columns))
 	copy(cols, g.Columns)
 	sort.Strings(cols)
-	return fmt.Sprintf("%c|%s|%s|%s|%d", g.ObjType, g.Grantee, g.Privilege, strings.Join(cols, ","), e.Action)
+	return fmt.Sprintf("%c|%d|%s|%s|%s|%s|%d", g.ObjType, g.Target, g.Grantee, g.GranteeKind, g.Privilege, strings.Join(cols, ","), e.Action)
 }
 
 // buildGrantMap builds a map from identity key to Grant for all grants in a catalog.
@@ -96,11 +103,13 @@ func makeGrantKey(c *Catalog, g Grant) grantKey {
 	copy(cols, g.Columns)
 	sort.Strings(cols)
 	return grantKey{
-		objType:   g.ObjType,
-		objName:   objName,
-		grantee:   g.Grantee,
-		privilege: g.Privilege,
-		columns:   strings.Join(cols, ","),
+		objType:     g.ObjType,
+		target:      g.Target,
+		objName:     objName,
+		grantee:     g.Grantee,
+		granteeKind: g.GranteeKind,
+		privilege:   g.Privilege,
+		columns:     strings.Join(cols, ","),
 	}
 }
 
