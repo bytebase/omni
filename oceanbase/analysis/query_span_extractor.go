@@ -747,23 +747,34 @@ func (q *querySpanExtractor) extractTableFunction(alias string, columns []string
 	if name == "" && len(args) > 0 {
 		name = q.exprName(args[0])
 	}
-	perArg := make([]ColumnSet, len(args))
+	fields := make([]QuerySpanResult, len(args))
 	all := ColumnSet{}
 	for i, arg := range args {
 		field, err := q.extractExpr(arg)
 		if err != nil {
 			return nil, err
 		}
-		perArg[i] = field.SourceColumns
+		fields[i] = field
 		all, _ = mergeColumnSet(all, field.SourceColumns)
 	}
 	var result []QuerySpanResult
+	// Without a column alias list the function's outputs are its arguments.
+	if len(columns) == 0 {
+		for i, field := range fields {
+			name := field.Name
+			if name == "" {
+				name = q.exprName(args[i])
+			}
+			result = append(result, QuerySpanResult{Name: name, SourceColumns: field.SourceColumns, IsPlainField: field.IsPlainField})
+		}
+		return &pseudoTable{Name: name, Columns: result}, nil
+	}
 	for i, column := range columns {
 		// UNNEST's outputs follow its arguments: the i-th output is the i-th
 		// argument's elements. With no such pairing, each reads them all.
 		sources := all
-		if len(columns) == len(perArg) {
-			sources = perArg[i]
+		if len(columns) == len(fields) {
+			sources = fields[i].SourceColumns
 		}
 		result = append(result, QuerySpanResult{Name: column, SourceColumns: sources})
 	}
@@ -1493,6 +1504,9 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 		*ast.CallStmt, *ast.DoStmt, *ast.HandlerOpenStmt, *ast.HandlerReadStmt, *ast.HandlerCloseStmt,
 		*ast.AnalyzeTableStmt, *ast.OptimizeTableStmt, *ast.CheckTableStmt, *ast.RepairTableStmt,
 		*ast.FlushStmt, *ast.KillStmt, *ast.ShutdownStmt, *ast.RestartStmt, *ast.XAStmt,
+		// method_opt is DBMS_STATS' statistics method and runs nothing; it keeps
+		// ANALYZE's class rather than staying unknown, which Bytebase denies.
+		*ast.MethodOptStmt,
 		*ast.SignalStmt, *ast.ResignalStmt, *ast.GetDiagnosticsStmt, *ast.DeclareVarStmt,
 		*ast.DeclareConditionStmt, *ast.DeclareHandlerStmt, *ast.DeclareCursorStmt,
 		*ast.IfStmt, *ast.WhileStmt, *ast.RepeatStmt, *ast.LoopStmt, *ast.LeaveStmt,
@@ -1837,6 +1851,18 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 	case *ast.RbIterateExpr:
 		collectAccessTablesFromExpr(result, n.Arg, defaultDatabase)
 	case *ast.ExternalTableRef:
+		// A format or property value may hold an expression, as FIELD_DELIMITER
+		// = (SELECT a FROM t1) does.
+		for _, prop := range n.Source {
+			if prop != nil {
+				collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+			}
+		}
+		for _, prop := range n.Format {
+			if prop != nil {
+				collectAccessTablesFromExpr(result, prop.Value, defaultDatabase)
+			}
+		}
 	default:
 	}
 }

@@ -212,9 +212,28 @@ func TestResolveQuerySpanTableFunctions(t *testing.T) {
 		"SELECT * FROM 's'(FORMAT(TYPE = 'csv')) AS e",
 		"LOAD DATA FROM SOURCE(TYPE = 's') INTO TABLE t1",
 		"LOAD DATA FROM(SELECT a FROM SOURCE(TYPE = 's')) INTO TABLE t1",
+		// Without a column alias list the outputs are the arguments.
+		"SELECT * FROM t1, UNNEST(t1.a)",
+		"SELECT * FROM RB_ITERATE(t1.a)",
+		// A format value may read a table.
+		"SELECT a FROM 's'(FORMAT(FIELD_DELIMITER = (SELECT a FROM t1)))",
+		"FOR COLUMNS",
 	} {
 		if _, err := resolve(t, statement); err != nil {
 			t.Errorf("ResolveQuerySpan(%q): %v", statement, err)
 		}
+	}
+}
+
+// TestResolveQuerySpanMethodOptClassified pins that a method_opt statement has a
+// permission class: Bytebase's SQL service denies a statement left unknown, and
+// this one is now parsed.
+func TestResolveQuerySpanMethodOptClassified(t *testing.T) {
+	span, err := resolve(t, "FOR COLUMNS")
+	if err != nil {
+		t.Fatalf("ResolveQuerySpan: %v", err)
+	}
+	if span.Type == analysis.QueryTypeUnknown {
+		t.Errorf("FOR COLUMNS is QueryTypeUnknown, want a class")
 	}
 }
