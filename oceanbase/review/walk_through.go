@@ -208,6 +208,9 @@ type walker struct {
 	// materialized lists the relations the walk holds as materialized views.
 	// Their ledger kind is empty, as an external table's is.
 	materialized map[walk.Key]bool
+	// materializedLogs holds each table's materialized view log state, as
+	// materializedLogUnknown, materializedLogPresent, or materializedLogAbsent.
+	materializedLogs map[walk.Key]int
 	// oceanBase is OceanBase's MySQL mode, whose deltas from MySQL each
 	// lowering gates on it.
 	oceanBase bool
@@ -217,16 +220,17 @@ func newWalker(sql string, stmts []statement, t review.Target, d dialect) *walke
 	fold := t.LowerCaseTableNames != 0
 	snap := newMySQLSnapshot(t.Schema, fold, d.oceanBase)
 	w := &walker{
-		sql:          sql,
-		stmts:        stmts,
-		snap:         snap,
-		foldTables:   fold,
-		oceanBase:    d.oceanBase,
-		current:      snap.db,
-		fkChecks:     t.ForeignKeyChecks,
-		triggered:    make(map[walk.Key]bool),
-		ignoresFKs:   make(map[walk.Key]bool),
-		materialized: make(map[walk.Key]bool),
+		sql:              sql,
+		stmts:            stmts,
+		snap:             snap,
+		foldTables:       fold,
+		oceanBase:        d.oceanBase,
+		current:          snap.db,
+		fkChecks:         t.ForeignKeyChecks,
+		triggered:        make(map[walk.Key]bool),
+		ignoresFKs:       make(map[walk.Key]bool),
+		materialized:     make(map[walk.Key]bool),
+		materializedLogs: make(map[walk.Key]int),
 	}
 	for name := range snap.triggered {
 		w.triggered[relKey(snap.db, name)] = true

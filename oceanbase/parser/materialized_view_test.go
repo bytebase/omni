@@ -126,4 +126,7 @@ func TestMaterializedViewCompletion(t *testing.T) {
 	if cs := Collect("DROP MATERIALIZED VIEW ", len("DROP MATERIALIZED VIEW ")); !cs.HasRule("view_ref") {
 		t.Error("Collect(\"DROP MATERIALIZED VIEW \") does not offer view_ref")
 	}
+	if cs := Collect("CREATE OR REPLACE ", len("CREATE OR REPLACE ")); !cs.HasToken(kwMATERIALIZED) {
+		t.Error("Collect(\"CREATE OR REPLACE \") does not offer MATERIALIZED")
+	}
 }

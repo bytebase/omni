@@ -45,11 +45,11 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.DropViewStmt:
 		return b.dropView(v)
 	case *ast.CreateMaterializedViewLogStmt:
-		return b.materializedViewLog(v.Table)
+		return b.materializedViewLog(v.Table, materializedLogCreate)
 	case *ast.AlterMaterializedViewLogStmt:
-		return b.materializedViewLog(v.Table)
+		return b.materializedViewLog(v.Table, materializedLogAlter)
 	case *ast.DropMaterializedViewLogStmt:
-		return b.materializedViewLog(v.Table)
+		return b.materializedViewLog(v.Table, materializedLogDrop)
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.DropTriggerStmt:
@@ -172,6 +172,11 @@ func (b *builder) clearDatabase(d string) {
 	for k := range b.w.materialized {
 		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
 			delete(b.w.materialized, k)
+		}
+	}
+	for k := range b.w.materializedLogs {
+		if names := walk.Names(k.Parent); len(names) > 0 && names[0] == d {
+			delete(b.w.materializedLogs, k)
 		}
 	}
 }
@@ -312,6 +317,9 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 	if prior == walk.Unknown {
 		b.Next()
 		b.Set(k, walk.Present, "")
+	} else {
+		// A new base table has no materialized view log.
+		b.w.materializedLogs[k] = materializedLogAbsent
 	}
 	return true
 }

@@ -567,6 +567,12 @@ func (p *Parser) parseCreateOrReplace(start int) (nodes.Node, error) {
 		return stmt, err
 	}
 
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwMATERIALIZED)
+		return nil, &ParseError{Message: "collecting"}
+	}
+
 	switch p.cur.Type {
 	case kwVIEW, kwALGORITHM, kwSQL:
 		// parseCreateViewStmt reads ALGORITHM, DEFINER, and SQL SECURITY in

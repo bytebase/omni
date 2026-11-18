@@ -47,10 +47,6 @@ func TestSDLValidation(t *testing.T) {
 			sql:  "CREATE DATABASE app; USE app; CREATE TABLE t (id int); CREATE VIEW v AS SELECT id FROM t;",
 		},
 		{
-			name: "valid CREATE MATERIALIZED VIEW",
-			sql:  "CREATE DATABASE app; USE app; CREATE TABLE t (id int); CREATE MATERIALIZED VIEW mv AS SELECT id FROM t;",
-		},
-		{
 			name: "valid CREATE INDEX",
 			sql:  "CREATE DATABASE app; USE app; CREATE TABLE t (id int); CREATE INDEX idx ON t (id);",
 		},

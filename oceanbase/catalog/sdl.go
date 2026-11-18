@@ -139,7 +139,6 @@ func validateSDLStmt(stmt nodes.Node) error {
 	case *nodes.CreateDatabaseStmt,
 		*nodes.CreateIndexStmt,
 		*nodes.CreateViewStmt,
-		*nodes.CreateMaterializedViewStmt,
 		*nodes.CreateFunctionStmt, // function or procedure (IsProcedure)
 		*nodes.CreateTriggerStmt,
 		*nodes.CreateEventStmt:
@@ -260,10 +259,6 @@ func extractSDLDeps(stmts []nodes.Node) []sdlDep {
 			if s.Name != nil {
 				keyToIdx[resolveTableRef(s.Name, dbAt[i])] = i
 			}
-		case *nodes.CreateMaterializedViewStmt:
-			if s.Name != nil {
-				keyToIdx[resolveTableRef(s.Name, dbAt[i])] = i
-			}
 		}
 	}
 
@@ -299,12 +294,6 @@ func sdlRefs(stmt nodes.Node, currentDB string) []objectKey {
 	case *nodes.CreateViewStmt:
 		// A view depends on every table/view in its SELECT body, excluding names
 		// bound by the query's own CTEs.
-		for _, ref := range selectTableRefs(s.Select) {
-			add(ref)
-		}
-
-	case *nodes.CreateMaterializedViewStmt:
-		// A materialized view depends on its SELECT body as a view does.
 		for _, ref := range selectTableRefs(s.Select) {
 			add(ref)
 		}
@@ -426,7 +415,7 @@ func sdlPriority(stmt nodes.Node) int {
 		// Routines before views/triggers in case a view or trigger body calls a
 		// routine (best-effort; routine bodies are not analyzed at load).
 		return 2
-	case *nodes.CreateViewStmt, *nodes.CreateMaterializedViewStmt:
+	case *nodes.CreateViewStmt:
 		return 3
 	case *nodes.CreateIndexStmt:
 		return 4

@@ -152,10 +152,11 @@ func (c *Catalog) createMaterializedViewLog(stmt *nodes.CreateMaterializedViewLo
 		return err
 	}
 	key := toLower(stmt.Table.Name)
-	if db.MaterializedViewLogs[key] && !stmt.OrReplace {
+	if db.MaterializedViewLogsKnown[key] && db.MaterializedViewLogs[key] && !stmt.OrReplace {
 		return errDupTable(stmt.Table.Name)
 	}
 	db.MaterializedViewLogs[key] = true
+	db.MaterializedViewLogsKnown[key] = true
 	return nil
 }
 
@@ -169,7 +170,8 @@ func (c *Catalog) alterMaterializedViewLog(stmt *nodes.AlterMaterializedViewLogS
 	if err != nil {
 		return err
 	}
-	if !db.MaterializedViewLogs[toLower(stmt.Table.Name)] {
+	key := toLower(stmt.Table.Name)
+	if db.MaterializedViewLogsKnown[key] && !db.MaterializedViewLogs[key] {
 		return errUnknownTable(db.Name, stmt.Table.Name)
 	}
 	return nil
@@ -186,10 +188,11 @@ func (c *Catalog) dropMaterializedViewLog(stmt *nodes.DropMaterializedViewLogStm
 		return err
 	}
 	key := toLower(stmt.Table.Name)
-	if !db.MaterializedViewLogs[key] {
+	if db.MaterializedViewLogsKnown[key] && !db.MaterializedViewLogs[key] {
 		return errUnknownTable(db.Name, stmt.Table.Name)
 	}
 	delete(db.MaterializedViewLogs, key)
+	db.MaterializedViewLogsKnown[key] = true
 	return nil
 }
 
@@ -855,13 +858,13 @@ func isViewStringMetadataNullableFunc(name string) bool {
 }
 
 func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
-	// A table among the names is 1347 before any view is dropped, IF EXISTS or not,
-	// wherever it stands in the list.
-	for _, ref := range stmt.Views {
-		if db, err := c.resolveDatabase(ref.Schema); err == nil && db.Tables[toLower(ref.Name)] != nil {
-			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, ref.Name)}
-		}
+	// Every name is checked before any view is dropped, IF EXISTS or not, so a
+	// wrong kind late in the list leaves the catalog as it was.
+	kindWord := "VIEW"
+	if stmt.Materialized {
+		kindWord = "MATERIALIZED VIEW"
 	}
+	seen := map[[2]string]bool{}
 	for _, ref := range stmt.Views {
 		db, err := c.resolveDatabase(ref.Schema)
 		if err != nil {
@@ -871,6 +874,13 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 			return err
 		}
 		key := toLower(ref.Name)
+		if seen[[2]string{toLower(db.Name), key}] {
+			continue
+		}
+		seen[[2]string{toLower(db.Name), key}] = true
+		if db.Tables[key] != nil {
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, ref.Name, kindWord)}
+		}
 		installed, exists := db.Views[key]
 		if !exists {
 			if stmt.IfExists {
@@ -879,13 +889,18 @@ func (c *Catalog) dropView(stmt *nodes.DropViewStmt) error {
 			return errUnknownTable(db.Name, ref.Name)
 		}
 		if installed.Materialized != stmt.Materialized {
-			kind := "VIEW"
-			if stmt.Materialized {
-				kind = "MATERIALIZED VIEW"
-			}
-			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, ref.Name, kind)}
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, ref.Name, kindWord)}
 		}
-		delete(db.Views, key)
+	}
+	for _, ref := range stmt.Views {
+		db, err := c.resolveDatabase(ref.Schema)
+		if err != nil {
+			continue
+		}
+		key := toLower(ref.Name)
+		if _, exists := db.Views[key]; exists {
+			delete(db.Views, key)
+		}
 	}
 	return nil
 }

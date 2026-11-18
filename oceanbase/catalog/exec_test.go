@@ -80,7 +80,7 @@ func TestExecMaterializedView(t *testing.T) {
 // not remove the other.
 func TestExecMaterializedViewKind(t *testing.T) {
 	c := New()
-	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE VIEW v AS SELECT 1; CREATE MATERIALIZED VIEW mv AS SELECT 1;", nil); err != nil {
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE VIEW v AS SELECT 1; CREATE VIEW v2 AS SELECT 2; CREATE MATERIALIZED VIEW mv AS SELECT 1;", nil); err != nil {
 		t.Fatal(err)
 	}
 	for _, tc := range []struct {
@@ -99,7 +99,18 @@ func TestExecMaterializedViewKind(t *testing.T) {
 			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
 		}
 	}
-	results, err := c.Exec("DROP MATERIALIZED VIEW mv; DROP VIEW v;", nil)
+	// A wrong kind later in a multi-name drop leaves the earlier view in place.
+	results, err := c.Exec("DROP VIEW v2, mv;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("DROP VIEW v2, mv: error = %v, want a wrong kind", results)
+	}
+	if c.GetDatabase("test").Views["v2"] == nil {
+		t.Error("DROP VIEW v2, mv removed v2 before rejecting mv")
+	}
+	results, err = c.Exec("DROP MATERIALIZED VIEW mv; DROP VIEW v; DROP VIEW v2;", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,6 +198,38 @@ func TestExecMaterializedViewLogState(t *testing.T) {
 		{"ALTER MATERIALIZED VIEW LOG ON t NOPARALLEL;", true},
 		{"DROP MATERIALIZED VIEW LOG ON t;", true},
 		{"CREATE MATERIALIZED VIEW LOG ON t;", false},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got := len(results) == 1 && results[0].Error != nil; got != tc.wantErr {
+			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
+		}
+	}
+}
+
+// TestExecRenameMaterializedView pins that RENAME TABLE moves the view a
+// materialized view installs, keeping its kind and its log.
+func TestExecRenameMaterializedView(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT); CREATE MATERIALIZED VIEW mv AS SELECT a FROM t; CREATE MATERIALIZED VIEW LOG ON t; RENAME TABLE mv TO mv2;", nil); err != nil {
+		t.Fatal(err)
+	}
+	db := c.GetDatabase("test")
+	if db.Views["mv"] != nil {
+		t.Error("RENAME TABLE left the old materialized view name")
+	}
+	if mv := db.Views["mv2"]; mv == nil || !mv.Materialized {
+		t.Errorf("RENAME TABLE did not move the materialized view: %+v", mv)
+	}
+	for _, tc := range []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"ALTER MATERIALIZED VIEW mv2 NOPARALLEL;", false},
+		{"DROP VIEW mv2;", true},
+		{"DROP MATERIALIZED VIEW mv2;", false},
 	} {
 		results, err := c.Exec(tc.sql, nil)
 		if err != nil {

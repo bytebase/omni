@@ -226,7 +226,17 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateDatabaseStmt:
 		return c.createDatabase(s)
 	case *nodes.CreateTableStmt:
-		return c.createTable(s)
+		if err := c.createTable(s); err != nil {
+			return err
+		}
+		if s.Table != nil {
+			if db, err := c.resolveDatabase(s.Table.Schema); err == nil {
+				key := toLower(s.Table.Name)
+				db.MaterializedViewLogsKnown[key] = true
+				delete(db.MaterializedViewLogs, key)
+			}
+		}
+		return nil
 	case *nodes.CreateIndexStmt:
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:

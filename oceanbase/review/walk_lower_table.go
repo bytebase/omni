@@ -593,6 +593,10 @@ func (b *builder) renameTable(v *ast.RenameTableStmt) bool {
 			return true
 		}
 		b.needFree(relKey(to.db, to.name), to.rng, to.written, kind) // 1050
+		if state, ok := b.w.materializedLogs[fk]; ok {
+			delete(b.w.materializedLogs, fk)
+			b.w.materializedLogs[relKey(to.db, to.name)] = state
+		}
 		b.moveTable(from, to, kind)
 		delete(moved, fk)
 		moved[relKey(to.db, to.name)] = kind
@@ -656,6 +660,7 @@ func (b *builder) dropTable(v *ast.DropTableStmt) bool {
 			b.droppedOwned(r)
 		default:
 			b.Set(k, walk.Absent, "")
+			delete(b.w.materializedLogs, k)
 			b.Clear(path)
 			b.droppedOwned(r)
 		}

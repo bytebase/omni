@@ -117,14 +117,51 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	return true
 }
 
+// Materialized view log states. A table the snapshot lists has none known, so
+// a log of it may exist.
+const (
+	materializedLogUnknown = iota
+	materializedLogPresent
+	materializedLogAbsent
+)
+
+// Materialized view log operations.
+const (
+	materializedLogCreate = iota
+	materializedLogAlter
+	materializedLogDrop
+)
+
 // materializedViewLog follows a materialized view log statement to its base
 // table. The walk models no log itself, but every form requires the table to
-// exist and be a base table.
-func (b *builder) materializedViewLog(tr *ast.TableRef) bool {
-	_, ok, lowered := b.tableOf(tr)
+// exist and be a base table, and it keeps whether a log of the table does.
+func (b *builder) materializedViewLog(tr *ast.TableRef, op int) bool {
+	r, ok, lowered := b.tableOf(tr)
 	if !ok {
 		return lowered
 	}
+	k := relKey(r.db, r.name)
+	state := b.w.materializedLogs[k]
+	switch op {
+	case materializedLogCreate:
+		if state == materializedLogPresent {
+			b.fail(r.rng, nil, review.NameTaken, alreadyExists("materialized view log", r.written, ""))
+			return true
+		}
+		state = materializedLogPresent
+	case materializedLogAlter:
+		if state == materializedLogAbsent {
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view log", r.written, ""))
+			return true
+		}
+	case materializedLogDrop:
+		if state == materializedLogAbsent {
+			b.fail(r.rng, nil, review.ObjectNotFound, notFound("materialized view log", r.written, ""))
+			return true
+		}
+		state = materializedLogAbsent
+	}
+	b.w.materializedLogs[k] = state
 	return true
 }
 
