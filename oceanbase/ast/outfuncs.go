@@ -842,6 +842,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 	if n.Temporary {
 		sb.WriteString(" :temporary true")
 	}
+	if n.External {
+		sb.WriteString(" :external true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -897,6 +900,9 @@ func writeCreateTableStmt(sb *strings.Builder, n *CreateTableStmt) {
 func writeAlterTableStmt(sb *strings.Builder, n *AlterTableStmt) {
 	sb.WriteString("{ALTER_TABLE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.External {
+		sb.WriteString(" :external true")
+	}
 	if n.Table != nil {
 		sb.WriteString(" :table ")
 		writeNode(sb, n.Table)
@@ -2576,6 +2582,10 @@ func writeSubqueryExpr(sb *strings.Builder, n *SubqueryExpr) {
 	}
 	if n.Alias != "" {
 		fmt.Fprintf(sb, " :alias %s", n.Alias)
+	}
+	if n.Flashback != nil {
+		sb.WriteString(" :flashback ")
+		writeNode(sb, n.Flashback)
 	}
 	if n.Select != nil {
 		sb.WriteString(" :select ")

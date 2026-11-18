@@ -21,6 +21,9 @@ func (b *builder) statement(n ast.Node) bool {
 	case *ast.UseStmt:
 		return b.use(v)
 	case *ast.CreateTableStmt:
+		if v.External {
+			return b.createExternalTable(v)
+		}
 		return b.createTable(v)
 	case *ast.AlterTableStmt:
 		return b.alterTable(v)
@@ -96,7 +99,8 @@ func (b *builder) statement(n ast.Node) bool {
 		*ast.ChecksumTableStmt, *ast.RepairTableStmt, *ast.FlushStmt,
 		*ast.GrantStmt, *ast.RevokeStmt, *ast.GrantRoleStmt, *ast.RevokeRoleStmt, *ast.SetRoleStmt, *ast.SetDefaultRoleStmt,
 		*ast.CreateUserStmt, *ast.AlterUserStmt, *ast.DropUserStmt, *ast.RenameUserStmt,
-		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt:
+		*ast.CreateRoleStmt, *ast.DropRoleStmt, *ast.SetPasswordStmt,
+		*ast.MethodOptStmt:
 		// None changes a name the walk keeps. SAVEPOINT and RELEASE keep
 		// what the change did; a ROLLBACK, which undoes it, is not here.
 		// RENAME USER and SET PASSWORD join the other user statements:
@@ -332,6 +336,43 @@ func (b *builder) createTable(v *ast.CreateTableStmt) bool {
 // foreign key longer than its space allows. The name after FOREIGN KEY
 // counts only without a CONSTRAINT symbol, which names the index in its
 // place (verified).
+// createExternalTable follows a CREATE EXTERNAL TABLE: it makes a relation of
+// no kind, as a synced external table is (walk_snapshot), because the walk
+// follows neither its columns nor its location. The name checks are the regular
+// ones: another relation of the name is in the way (1050), and the database
+// must exist (1049).
+func (b *builder) createExternalTable(v *ast.CreateTableStmt) bool {
+	if v.Table == nil {
+		return true
+	}
+	r, st := b.ref(v.Table)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	b.Order = walk.Lookups
+	if v.Table.Schema != "" {
+		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
+	}
+	k := relKey(r.db, r.name)
+	prior, _ := b.l.Lookup(k)
+	if !v.IfNotExists {
+		b.needFree(k, r.rng, r.written, "")
+		prior = walk.Absent
+	}
+	if prior == walk.Present {
+		return true // a note: nothing is created
+	}
+	b.Next()
+	if prior == walk.Unknown {
+		b.Optional()
+	}
+	b.Set(k, walk.Present, "")
+	return true
+}
+
 func (b *builder) namesTooLong(v *ast.CreateTableStmt) bool {
 	if v.Table != nil && b.tooLong(spaceRelation, v.Table.Name, rangeOf(v.Table.Loc)) {
 		return true

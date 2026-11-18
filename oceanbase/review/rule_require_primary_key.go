@@ -46,7 +46,9 @@ func checkRequirePrimaryKey(sql string, stmts []statement, r *reporter) {
 			if !v.IfNotExists && !v.Temporary {
 				settle(v.Table)
 			}
-			if v.Table == nil || v.Temporary || v.IfNotExists || v.Like != nil || createsPrimaryKey(v) {
+			// An external table has no in-engine storage and no primary key of
+			// its own to require.
+			if v.Table == nil || v.Temporary || v.External || v.IfNotExists || v.Like != nil || createsPrimaryKey(v) {
 				continue
 			}
 			list = append(list, &pending{ref: v.Table, index: s.index, rng: rangeOf(s.loc), code: review.TableWithoutPrimaryKey, message: "Creates table " + review.Code(table(v.Table)) + " without a primary key."})

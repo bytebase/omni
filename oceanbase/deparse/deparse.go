@@ -1537,6 +1537,15 @@ func tableExprName(tbl ast.TableExpr) string {
 		return t.Name
 	case *ast.SubqueryExpr:
 		return t.Alias
+	case *ast.UnnestExpr:
+		return t.Alias
+	case *ast.RbIterateExpr:
+		return t.Alias
+	case *ast.ExternalTableRef:
+		if t.Alias != "" {
+			return t.Alias
+		}
+		return t.Path
 	default:
 		return ""
 	}

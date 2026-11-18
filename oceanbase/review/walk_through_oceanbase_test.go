@@ -38,6 +38,14 @@ func TestWalkThroughOceanBase(t *testing.T) {
 	shop := review.Target{Schema: oceanBaseSchema(), LowerCaseTableNames: 1}
 	mysql := review.Target{Schema: walkSchema(), LowerCaseTableNames: 1}
 	oneFindingOB(t, "CREATE TABLE x (a int);\nCREATE TABLE t (a int);", 1, "Table `t` already exists.", shop)
+	// method_opt is a statement that runs nothing; the walk follows it.
+	noFindingOB(t, "FOR COLUMNS;", shop)
+	oneFindingOB(t, "FOR COLUMNS;\nALTER TABLE t ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;", 2, "Column `c` already exists in `t`.", shop)
+	// An external table is a relation of no kind, as a synced one is: its
+	// CREATE claims the name and its ALTER is followed like O7's.
+	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');", shop)
+	oneFindingOB(t, "CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');", 0, "The name `ext` is already taken.", shop)
+	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\nALTER EXTERNAL TABLE ext2 ADD COLUMN b INT;", shop)
 
 	t.Run("external tables and materialized views", func(t *testing.T) {
 		// They share the tables' namespace, of no kind the walk claims.

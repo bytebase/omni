@@ -44,6 +44,11 @@ func TestReviewOceanBase(t *testing.T) {
 			want: []finding{{0, "DROP PRIMARY KEY", "Removes the primary key of `plain`, and the change doesn't add one back.", []int{0}}},
 		},
 		{
+			name: "an external table has no primary key to require",
+			rule: review.RequirePrimaryKey,
+			sql:  "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');",
+		},
+		{
 			name: "the MySQL rules",
 			rule: review.RequireWhere,
 			sql:  "DELETE FROM t;",

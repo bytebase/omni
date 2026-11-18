@@ -166,10 +166,12 @@ func (p *Parser) externalTableRefAlias(ref *nodes.ExternalTableRef) (*nodes.Exte
 // the grammar builds.
 func (p *Parser) parseURLSpec() (*nodes.ExternalTableRef, *nodes.SelectStmt, error) {
 	if !p.atURLTableFunction() {
-		start := p.pos()
 		if _, err := p.expect('('); err != nil {
 			return nil, nil, err
 		}
+		// The query's Loc starts at its SELECT, as every SelectStmt's does, not
+		// at the url_spec's parenthesis.
+		start := p.pos()
 		if _, err := p.expect(kwSELECT); err != nil {
 			return nil, nil, err
 		}

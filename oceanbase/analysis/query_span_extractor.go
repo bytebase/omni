@@ -747,17 +747,24 @@ func (q *querySpanExtractor) extractTableFunction(alias string, columns []string
 	if name == "" && len(args) > 0 {
 		name = q.exprName(args[0])
 	}
-	sources := ColumnSet{}
-	for _, arg := range args {
+	perArg := make([]ColumnSet, len(args))
+	all := ColumnSet{}
+	for i, arg := range args {
 		field, err := q.extractExpr(arg)
 		if err != nil {
 			return nil, err
 		}
-		merged, _ := mergeColumnSet(sources, field.SourceColumns)
-		sources = merged
+		perArg[i] = field.SourceColumns
+		all, _ = mergeColumnSet(all, field.SourceColumns)
 	}
 	var result []QuerySpanResult
-	for _, column := range columns {
+	for i, column := range columns {
+		// UNNEST's outputs follow its arguments: the i-th output is the i-th
+		// argument's elements. With no such pairing, each reads them all.
+		sources := all
+		if len(columns) == len(perArg) {
+			sources = perArg[i]
+		}
 		result = append(result, QuerySpanResult{Name: column, SourceColumns: sources})
 	}
 	return &pseudoTable{Name: name, Columns: result}, nil
