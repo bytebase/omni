@@ -702,7 +702,8 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			if err != nil {
 				return err
 			}
-			if p.strictCTAS && partDesc.RangeExplicit && !partDesc.HasDefinitions {
+			if p.strictCTAS && (partDesc.RangeExplicit && !partDesc.HasDefinitions ||
+				len(partDesc.FuncExprs) > 0) {
 				return p.syntaxErrorAtCur()
 			}
 			stmt.PartitionBy = partDesc
@@ -876,8 +877,17 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 		}
 		for {
 			start := p.cur.Loc.Start
-			if _, err := p.parseExpr(); err != nil {
+			expr, err := p.parseExpr()
+			if err != nil {
 				return nil, err
+			}
+			if !explicitType {
+				// partitionExpr is only an identifier or a function call.
+				switch expr.(type) {
+				case *ast.ColumnRef, *ast.FuncCallExpr:
+				default:
+					return nil, p.syntaxErrorAtCur()
+				}
 			}
 			end := p.prev.Loc.End
 			pd.FuncExprs = append(pd.FuncExprs, strings.TrimSpace(p.input[start-p.baseOffset:end-p.baseOffset]))
@@ -886,6 +896,7 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 			}
 			p.advance() // consume ','
 		}
+		pd.Loc.End = p.prev.Loc.End
 	} else {
 		// Parse partition column/function list: (col1, func(col2), ...)
 		cols, funcs, err := p.parseIdentityOrFunctionList()
@@ -913,7 +924,15 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 
 			if p.cur.Kind == int(',') {
 				p.advance()
+				if p.strictCTAS && (p.cur.Kind == int(')') || p.cur.Kind == tokEOF) {
+					return nil, p.syntaxErrorAtCur()
+				}
+				continue
 			}
+			if p.strictCTAS && p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
+				return nil, p.syntaxErrorAtCur()
+			}
+			break
 		}
 		closeTok, err := p.expect(int(')'))
 		if err != nil {

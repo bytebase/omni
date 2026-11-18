@@ -22,6 +22,7 @@ func TestSubmitTask(t *testing.T) {
 		{"SUBMIT TASK properties AS INSERT INTO a SELECT CURRENT_USER", "properties", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK schedule AS INSERT INTO a SELECT CURRENT_USER", "schedule", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT 1", "", 1, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK AS INSERT INTO a PROPERTIES('timeout' = '2') SELECT 1", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK SCHEDULE START('20260101') EVERY(INTERVAL 10 SECOND) AS INSERT INTO a SELECT 1", "", 0,
 			&ast.TaskSchedule{Start: "20260101", Interval: "10", Unit: "SECOND"}, ast.T_InsertStmt},
 		{"SUBMIT TASK SCHEDULE EVERY(INTERVAL ((1)) DAY) AS INSERT INTO a SELECT 1", "", 0,
@@ -46,7 +47,6 @@ func TestSubmitTask(t *testing.T) {
 			&ast.TaskSchedule{Interval: "1", Unit: "DAY"}, ast.T_InsertStmt},
 		{"SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS CREATE TABLE a PARTITION BY (c) AS SELECT 1 AS c", "", 0, nil, ast.T_CreateTableStmt},
-		{"SUBMIT TASK AS CREATE TABLE a PARTITION BY date_trunc(c, 'day') AS SELECT 1 AS c", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM a", "", 0, nil, ast.T_DataCacheSelectStmt},
 		{"SUBMIT TASK SCHEDULE START('2026-01-01') EVERY(INTERVAL 1 DAY) AS INSERT INTO a SELECT 1", "", 0,
 			&ast.TaskSchedule{Start: "2026-01-01", Interval: "1", Unit: "DAY"}, ast.T_InsertStmt},
@@ -111,6 +111,10 @@ func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
 		"SUBMIT TASK AS CREATE TABLE a DUPLICATE KEY(a) CLUSTER BY (b) AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a AUTO PARTITION BY RANGE(c) () AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a PARTITION BY date_trunc(c, 'day') AS SELECT 1 AS c",
+		"SUBMIT TASK AS CREATE TABLE a PARTITION BY 1 AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) (PARTITION p VALUES LESS THAN (1),) AS SELECT 1 AS c",
+		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) (PARTITION p VALUES LESS THAN (1) PARTITION q VALUES LESS THAN (2)) AS SELECT 1 AS c",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

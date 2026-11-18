@@ -4544,7 +4544,7 @@ reject	reject	engine	insertStatement(insertLabelOrColumnAliases)*/insertLabelOrC
 reject	reject	engine	insertStatement(insertLabelOrColumnAliases)*/insertLabelOrColumnAliases_(insertLabelOrColumnAliases)*!insert	INSERT INTO a BY NAME zzz SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(insertLabelOrColumnAliases)*/insertLabelOrColumnAliases_(insertLabelOrColumnAliases)*!swap	INSERT INTO a CACHE NAME SELECT CURRENT_USER;
 accept	accept	engine	insertStatement(properties)?/%empty	INSERT INTO a SELECT CURRENT_USER;
-reject	accept	engine	insertStatement(properties)?/properties	INSERT INTO a PROPERTIES('a' = 'a') SELECT CURRENT_USER;
+accept	accept	engine	insertStatement(properties)?/properties	INSERT INTO a PROPERTIES('a' = 'a') SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(properties)?/properties!drop-1	INSERT INTO a('a' = 'a') SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(properties)?/properties!drop-2	INSERT INTO a PROPERTIES 'a' = 'a') SELECT CURRENT_USER;
 reject	reject	engine	insertStatement(properties)?/properties!drop-3	INSERT INTO a PROPERTIES(= 'a') SELECT CURRENT_USER;

@@ -125,6 +125,14 @@ modifiers:
 		}
 	}
 
+	if p.cur.Kind == kwPROPERTIES {
+		props, err := p.parseProperties()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Properties = props
+	}
+
 	// Source: VALUES (...), (...) | SELECT ... | WITH ... SELECT ...
 	switch p.cur.Kind {
 	case kwVALUES:
@@ -141,6 +149,9 @@ modifiers:
 		}
 		result, err := p.parseSetOpTail(sel)
 		if err != nil {
+			return nil, err
+		}
+		if err := p.settleQueryInto(result); err != nil {
 			return nil, err
 		}
 		stmt.Query = result
