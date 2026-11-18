@@ -451,6 +451,13 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		Walk(v, n.Query)
+	case *ExportMetadataStmt:
+		if n.Path != nil {
+			Walk(v, n.Path)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *ExportModelStmt:
 		if n.Name != nil {
 			Walk(v, n.Name)
@@ -631,6 +638,11 @@ func walkChildren(v Visitor, node Node) {
 			Walk(v, c)
 		}
 		walkNodes(v, n.Else)
+	case *ImportStmt:
+		Walk(v, n.Name)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *InExpr:
 		Walk(v, n.Expr)
 		walkNodes(v, n.Values)
@@ -765,6 +777,13 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.And)
 		if n.Action != nil {
 			Walk(v, n.Action)
+		}
+	case *ModuleStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		for _, c := range n.Options {
+			Walk(v, c)
 		}
 	case *NamedArg:
 		Walk(v, n.Value)
@@ -1035,6 +1054,11 @@ func walkChildren(v Visitor, node Node) {
 		for _, c := range n.Modes {
 			Walk(v, c)
 		}
+	case *ShowStmt:
+		if n.From != nil {
+			Walk(v, n.From)
+		}
+		Walk(v, n.Like)
 	case *StarExpr:
 		if n.Modifiers != nil {
 			Walk(v, n.Modifiers)
@@ -1109,6 +1133,14 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.Where)
 	case *UnaryExpr:
 		Walk(v, n.Expr)
+	case *UndropStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
+		}
+		Walk(v, n.ForSystemTime)
+		for _, c := range n.Options {
+			Walk(v, c)
+		}
 	case *UnnestExpr:
 		Walk(v, n.Array)
 		if n.Pivot != nil {

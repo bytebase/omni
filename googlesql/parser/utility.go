@@ -16,6 +16,9 @@ import (
 //	describe_info:       identifier? maybe_slashed_or_dashed_path_expression opt_from_path_expression?
 //	rename_statement:    RENAME identifier path_expression TO path_expression
 //	call_statement:      CALL path_expression '(' (tvf_argument (',' tvf_argument)*)? ')'
+//	show_statement:      SHOW show_target from_path_expression? like_string_literal?
+//	import_statement:    IMPORT import_type path_expression_or_string opt_as_or_into_alias opt_options_list
+//	module_statement:    MODULE path_expression opt_options_list
 //
 // CORRECTNESS (correctness-protocol.md). Adjudication per oracle.md:
 //   - CALL is parsed in FULL by the live Spanner emulator (it validates the arg
@@ -437,4 +440,164 @@ func (p *Parser) parseCallDescriptorArg() (ast.Node, error) {
 	arg.Columns = cols
 	arg.Loc.End = p.prev.Loc.End
 	return arg, nil
+}
+
+// ---------------------------------------------------------------------------
+// SHOW / IMPORT / MODULE (the module system and the metadata SHOW)
+// ---------------------------------------------------------------------------
+//
+// Grammar (googlesql.tm):
+//
+//	show_statement:   SHOW show_target from_path_expression? like_string_literal?
+//	show_target:      "MATERIALIZED" "VIEWS" | identifier
+//	import_statement: IMPORT import_type path_expression_or_string
+//	                    opt_as_or_into_alias opt_options_list
+//	import_type:      MODULE | PROTO
+//	module_statement: MODULE path_expression opt_options_list
+//
+// ORACLE NOTE: the Spanner emulator answers "Statement not supported: ShowStmt"
+// (and ImportStmt / ModuleStmt / UndropStmt) from statement dispatch, BEFORE it
+// parses the body — it accepts `SHOW a zzz` and `IMPORT MODULE` alike — so no
+// SHOW / IMPORT / MODULE row of testdata/compat.tsv is a parse verdict. The
+// grammar governs, and the canonical ZetaSQL corpus
+// (testdata/legacy/zetasql/parser/testdata/{show,modules}.sql) is the breadth
+// oracle these parsers are held to.
+
+// parseShowStmt parses a show_statement. SHOW is the current token. SHOW may
+// carry a pipe suffix (sql_statement_body_maybe_pipe_suffix), so the dispatch
+// routes it through parseMaybePipeSuffixStmt.
+func (p *Parser) parseShowStmt() (ast.Node, error) {
+	show := p.advance() // SHOW
+	stmt := &ast.ShowStmt{Loc: show.Loc}
+
+	// show_target: MATERIALIZED VIEWS | identifier. The two-word form is the
+	// grammar's own target; `SHOW `MATERIALIZED VIEWS`` (one backtick-quoted
+	// identifier) is the identifier alternative.
+	switch {
+	case p.cur.Type == kwMATERIALIZED && p.peekNext().Type == kwVIEWS:
+		p.advance() // MATERIALIZED
+		p.advance() // VIEWS
+		stmt.Target = "MATERIALIZED VIEWS"
+	case isIdentifierStart(p.cur.Type):
+		tok := p.advance()
+		target, err := p.identifierText(tok)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Target = target
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	stmt.Loc.End = p.prev.Loc.End
+
+	// from_path_expression?
+	if _, ok := p.match(kwFROM); ok {
+		from, err := p.parsePathExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.From = from
+		stmt.Loc.End = from.Loc.End
+	}
+
+	// like_string_literal? — LIKE string_literal (the literal, not a pattern
+	// expression).
+	if _, ok := p.match(kwLIKE); ok {
+		if p.cur.Type != tokString {
+			return nil, p.syntaxErrorAtCur()
+		}
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Like = lit
+		stmt.Loc.End = nodeLoc(lit).End
+	}
+	return stmt, nil
+}
+
+// parseImportStmt parses an import_statement. IMPORT is the current token.
+func (p *Parser) parseImportStmt() (ast.Node, error) {
+	imp := p.advance() // IMPORT
+	stmt := &ast.ImportStmt{Loc: imp.Loc}
+
+	// import_type: MODULE | PROTO.
+	switch p.cur.Type {
+	case kwMODULE:
+		p.advance()
+		stmt.Kind = ast.ImportModule
+	case kwPROTO:
+		p.advance()
+		stmt.Kind = ast.ImportProto
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+
+	// path_expression_or_string.
+	if p.cur.Type == tokString {
+		lit, err := p.parseStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = lit
+	} else {
+		path, err := p.parsePathExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Name = path
+	}
+	stmt.Loc.End = p.prev.Loc.End
+
+	// opt_as_or_into_alias: AS identifier | INTO identifier | empty.
+	switch p.cur.Type {
+	case kwAS, kwINTO:
+		kw := p.advance()
+		stmt.AliasKeyword = p.tokenSource(kw)
+		aliasTok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		alias, err := p.identifierText(aliasTok)
+		if err != nil {
+			return nil, err
+		}
+		stmt.Alias = alias
+		stmt.Loc.End = aliasTok.Loc.End
+	}
+
+	// opt_options_list.
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
+	}
+	return stmt, nil
+}
+
+// parseModuleStmt parses a module_statement. MODULE is the current token.
+func (p *Parser) parseModuleStmt() (ast.Node, error) {
+	mod := p.advance() // MODULE
+	stmt := &ast.ModuleStmt{Loc: mod.Loc}
+
+	name, err := p.parsePathExpr()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+	stmt.Loc.End = name.Loc.End
+
+	// opt_options_list.
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
+	}
+	return stmt, nil
 }

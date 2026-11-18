@@ -428,19 +428,37 @@ func TestExportModel_DashedPathRejected(t *testing.T) {
 	}
 }
 
-// --- EXPORT dispatch boundary ---
+// --- EXPORT METADATA ---
 
-func TestExportMetadata_RecognizedButUnsupported(t *testing.T) {
-	// EXPORT … METADATA is a valid BigQuery statement owned by the parser-utility
-	// node; this node routes it to the unsupported stub (recognized, not unknown).
-	_, errs := parseForTest("EXPORT TABLE METADATA FROM ds.t")
-	if len(errs) == 0 {
-		t.Fatal("want an error for the not-yet-supported EXPORT METADATA")
+func TestExportMetadata(t *testing.T) {
+	// EXPORT TABLE METADATA FROM <path> (export_metadata_statement). The statement
+	// is BigQuery-only; its compat row (export_metadata_statement/…) was judged
+	// accepted by the Spanner emulator, which takes the statement at dispatch and
+	// never parses it, so the grammar governs the shape.
+	n := parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t")
+	s, ok := n.(*ast.ExportMetadataStmt)
+	if !ok {
+		t.Fatalf("got %T, want *ast.ExportMetadataStmt", n)
 	}
-	// It must be the not-yet-supported message, not an unknown-statement message.
-	if !strings.Contains(errs[0].Error(), "EXPORT METADATA") {
-		t.Errorf("error = %q, want it to mention EXPORT METADATA", errs[0].Error())
+	if s.Path == nil || strings.Join(s.Path.Parts, ".") != "ds.t" {
+		t.Errorf("Path = %+v, want ds.t", s.Path)
 	}
+
+	// The optional WITH CONNECTION and OPTIONS clauses, and a dashed path.
+	s = parseOneStmt(t, "EXPORT TABLE METADATA FROM my-project.ds.t WITH CONNECTION c OPTIONS(a = 1)").(*ast.ExportMetadataStmt)
+	if !s.HasConnection || s.ConnectionName != "c" {
+		t.Errorf("connection = (%v, %q), want (true, c)", s.HasConnection, s.ConnectionName)
+	}
+	if len(s.Options) != 1 {
+		t.Errorf("Options = %+v, want 1 entry", s.Options)
+	}
+	if got := strings.Join(s.Path.Parts, "."); got != "my-project.ds.t" {
+		t.Errorf("Path = %q, want my-project.ds.t", got)
+	}
+
+	// EXPORT TABLE FUNCTION METADATA is the grammar's own action error.
+	assertReject(t, "EXPORT TABLE FUNCTION METADATA FROM ds.t")
+	assertReject(t, "EXPORT METADATA FROM ds.t")
 }
 
 // --- Rejects ---

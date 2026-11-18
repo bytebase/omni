@@ -89,6 +89,12 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 		{"quantified-comparison subquery", "SELECT * FROM t WHERE x = ANY (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
 		{"quantified-comparison all subquery", "SELECT * FROM t WHERE x > ALL (SELECT id FROM u)", DialectSpanner, []string{"t", "u"}},
 		{"set op", "SELECT a FROM t UNION ALL SELECT a FROM u", DialectBigQuery, []string{"t", "u"}},
+		// The `TABLE t` query primary (table_clause_reserved) names its table, and a
+		// set operation over TABLE primaries names every arm's.
+		{"table clause", "TABLE t", DialectBigQuery, []string{"t"}},
+		{"table clause qualified", "TABLE ds.t", DialectBigQuery, []string{"ds.t"}},
+		{"table clause set op", "TABLE a UNION ALL TABLE b", DialectBigQuery, []string{"a", "b"}},
+		{"table clause tvf argument", "TABLE f(TABLE u)", DialectBigQuery, []string{"u"}},
 		{"dedup same table", "SELECT * FROM t WHERE a IN (SELECT a FROM t)", DialectBigQuery, []string{"t"}},
 		// Spanner schema.table bucketing (named schema under one DB).
 		{"qualified table spanner", "SELECT a FROM myschema.t", DialectSpanner, []string{"myschema.t"}},

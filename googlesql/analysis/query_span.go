@@ -1026,6 +1026,13 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 		return w.visitSelect(n)
 	case *ast.SetOperation:
 		return w.visitSetOp(n)
+	case *ast.TableClause:
+		// The `TABLE t` query primary (table_clause_reserved): a read of the named
+		// table (or of a TVF's table arguments), output columns unresolved.
+		w.recordTableClauseTables(n)
+		if n.Table != nil {
+			w.buildTableExpr(n.Table)
+		}
 	}
 	return nil
 }

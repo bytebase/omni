@@ -22,25 +22,28 @@ import (
 //	clone_data_statement:   CLONE DATA INTO maybe_dashed_path_expression FROM clone_data_source_list
 //	clone_data_source_list: clone_data_source (UNION ALL clone_data_source)*
 //	clone_data_source:      maybe_dashed_path_expression opt_at_system_time? where_clause?
+//	export_metadata_statement: EXPORT table_or_table_function METADATA FROM
+//	    maybe_dashed_path_expression opt_with_connection_clause opt_options_list
 //
-// ORACLE NOTE — all four are BigQuery-ONLY at the GoogleSQL union level
-// (oracle.md). Probed against the live Spanner emulator 2026-06-05: every form
-// hard-syntax-REJECTS (e.g. `EXPORT DATA …` → "Syntax error: Unexpected keyword
-// EXPORT"). The union parser accepts them on the authority of the legacy .g4 +
-// the BigQuery truth1 corpus (OTHER-001 EXPORT DATA, OTHER-003 LOAD DATA); the
-// emulator verdict is non-authoritative and is recorded as a triangulation guard
-// in the suite:bq-ddl rows of testdata/compat.tsv.
+// ORACLE NOTE — all four are BigQuery-only at the GoogleSQL union level, and the
+// emulator decides no row of theirs: it answers "Statement not supported:
+// ExportDataStmt" / "AuxLoadDataStmt" / "CloneDataStmt" from statement dispatch
+// BEFORE it parses a body, so `LOAD DATA INTO FROM FILES()` and a truncated
+// `CLONE DATA INTO a FROM` come back as accepts too. The union parser follows
+// the grammar (testdata/README.md, "Most of those families are not parse
+// verdicts either") and the BigQuery corpus (OTHER-001 EXPORT DATA, OTHER-003
+// LOAD DATA).
 //
-// EXPORT … METADATA (export_metadata_statement) is a separate statement owned by
-// the parser-utility node and is intentionally NOT implemented here; the EXPORT
-// dispatch routes it to the unsupported stub.
+// EXPORT … METADATA (export_metadata_statement) is the third EXPORT form; it is
+// parsed here, beside its siblings, because it shares their WITH CONNECTION /
+// OPTIONS clauses.
 
 // parseExportStmt dispatches the three EXPORT statements on the keyword that
 // follows EXPORT:
 //
-//	EXPORT DATA …                         → export_data_statement   (this node)
-//	EXPORT MODEL …                        → export_model_statement  (this node)
-//	EXPORT (TABLE|TABLE FUNCTION) METADATA → export_metadata_statement (parser-utility)
+//	EXPORT DATA …                         → export_data_statement  (this node)
+//	EXPORT MODEL …                        → export_model_statement (this node)
+//	EXPORT (TABLE|TABLE FUNCTION) METADATA → export_metadata_statement (this node)
 //
 // cur is at EXPORT.
 func (p *Parser) parseExportStmt() (ast.Node, error) {
@@ -52,27 +55,91 @@ func (p *Parser) parseExportStmt() (ast.Node, error) {
 		// subqueries; wrap for fillSubqueries like the other statements here.
 		return p.parseStmtWithSubqueries(p.parseExportModel)
 	default:
-		// EXPORT TABLE [FUNCTION] METADATA FROM … — a valid BigQuery statement, but
-		// owned by the parser-utility node, not this one. Report it as not-yet-
-		// supported (a recognized statement) rather than mis-parsing it here.
-		return p.unsupported("EXPORT METADATA")
+		// EXPORT TABLE [FUNCTION] METADATA FROM … (export_metadata_statement).
+		return p.parseExportMetadata()
 	}
+}
+
+// parseExportMetadata parses an export_metadata_statement:
+//
+//	EXPORT (TABLE | TABLE FUNCTION) METADATA FROM maybe_dashed_path_expression
+//	  with_connection_clause? opt_options_list?
+//
+// cur is at EXPORT. The grammar reports `EXPORT TABLE FUNCTION METADATA` as a
+// syntax error (a table-valued function's metadata is not exportable), so a
+// FUNCTION keyword here is rejected.
+func (p *Parser) parseExportMetadata() (ast.Node, error) {
+	export := p.advance() // EXPORT
+	if _, err := p.expect(kwTABLE); err != nil {
+		return nil, err
+	}
+	if p.cur.Type == kwFUNCTION {
+		// export_metadata_statement's action: "EXPORT TABLE FUNCTION METADATA is not
+		// supported". Report it at the keyword, as ZetaSQL does.
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: EXPORT TABLE FUNCTION METADATA is not supported"}
+	}
+	if _, err := p.expect(kwMETADATA); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+
+	stmt := &ast.ExportMetadataStmt{Loc: export.Loc}
+	path, err := p.parseTablePath()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Path = path
+	stmt.Loc.End = path.Loc.End
+
+	// with_connection_clause?
+	if p.cur.Type == kwWITH && p.peekNext().Type == kwCONNECTION {
+		conn, err := p.parseConnectionClause()
+		if err != nil {
+			return nil, err
+		}
+		stmt.HasConnection = true
+		stmt.ConnectionName = conn
+		stmt.Loc.End = p.prev.Loc.End
+	}
+
+	// opt_options_list?
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
+		stmt.Loc.End = p.prev.Loc.End
+	}
+	return stmt, nil
 }
 
 // parseExportData parses an export_data_statement:
 //
-//	EXPORT DATA with_connection_clause? opt_options_list? AS query
+//	EXPORT DATA with_connection_clause? opt_options_list? AS query_after_as
 //
-// cur is at EXPORT.
+// cur is at EXPORT. query_after_as is a query or a GQL query, so `EXPORT DATA AS
+// GRAPH g RETURN …` is accepted here.
 func (p *Parser) parseExportData() (ast.Node, error) {
 	stmt, err := p.parseExportDataNoQuery()
 	if err != nil {
 		return nil, err
 	}
 
-	// as_query — AS query (required).
+	// as_query — AS query_after_as (required).
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
+	}
+	if p.cur.Type == kwGRAPH {
+		gql, err := p.parseGQLStmt()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Query = gql
+		stmt.Loc.End = nodeLoc(gql).End
+		return stmt, nil
 	}
 	q, err := p.parseQuery()
 	if err != nil {

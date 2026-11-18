@@ -858,7 +858,10 @@ func (p *Parser) parseParenthesizedQuery() (*ast.QueryStmt, error) {
 }
 
 // parseTableClauseOperand parses table_clause: `TABLE <path|tvf> [[AS] alias]
-// [PIVOT|UNPIVOT …] [WHERE expr]`.
+// [PIVOT|UNPIVOT …] [WHERE expr]`. Two rules reach it: the query primary
+// `table_clause_reserved` (`TABLE t` as a whole query, parseQueryPrimary) and
+// the `table_clause` operand of a pipe set operation / TVF argument. Only the
+// tvf form takes an alias and a PIVOT/UNPIVOT clause; a bare path takes neither.
 func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 	if err := p.enterNesting(); err != nil {
 		return nil, err
@@ -1209,12 +1212,16 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 	return fc, nil
 }
 
-// parsePipeTVFArg parses one tvf_argument in a pipe TVF call. It adds the two
-// alternatives the procedure-CALL helper does not read: `INPUT TABLE`, and a
-// named argument whose value is a table_clause (`arg => TABLE t`).
+// parsePipeTVFArg parses one tvf_argument of a TVF call. Two alternatives are
+// the pipe/CALL helpers' own — `INPUT TABLE` and a named argument whose value is
+// a table_clause (`arg => TABLE t`) — and the rest (`TABLE …` as a table_clause,
+// MODEL / CONNECTION / DESCRIPTOR clauses, named arguments, a positional
+// expression) are parseCallArg's.
 func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
-	if p.cur.Type == kwTABLE {
-		// tvf_argument's table_clause: `TABLE <path|tvf> [WHERE expr]`.
+	if p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF) {
+		// tvf_argument's table_clause: `TABLE <path|tvf> [WHERE expr]`. A bare
+		// TABLE, or one that begins a field access (`table.x`), is the
+		// non-reserved keyword as an ordinary expression instead.
 		return p.parseTableClauseOperand()
 	}
 	if p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE {
@@ -1232,7 +1239,11 @@ func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
 		}
 		p.advance() // identifier
 		p.advance() // '=>'
-		if p.cur.Type == kwTABLE {
+		if p.cur.Type == kwTABLE && (isIdentifierStart(p.peekNext().Type) || p.peekNext().Type == kwIF) {
+			// named_non_expr_argument: `arg => TABLE <path|tvf>`. A bare `arg =>
+			// TABLE` is the named_argument alternative, with the non-reserved
+			// TABLE keyword standing for an identifier expression (oracle: it
+			// accepts both).
 			tc, err := p.parseTableClauseOperand()
 			if err != nil {
 				return nil, err

@@ -20,6 +20,11 @@ func TestClassifySQL(t *testing.T) {
 		{"with cte", "WITH c AS (SELECT 1 AS n) SELECT n FROM c", Select},
 		{"set op union", "SELECT a FROM t UNION ALL SELECT a FROM u", Select},
 		{"parenthesized query", "(SELECT 1) UNION ALL (SELECT 2)", Select},
+		// The `TABLE t` query primary (query_primary: table_clause_reserved) is a
+		// read of that table, exactly like `SELECT * FROM t`.
+		{"table clause", "TABLE t", Select},
+		{"table clause with filter", "TABLE t WHERE a > 1", Select},
+		{"table clause tvf", "TABLE ds.f(a)", Select},
 
 		// --- DML ---
 		{"insert", "INSERT INTO t (a) VALUES (1)", DML},

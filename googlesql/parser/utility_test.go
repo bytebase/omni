@@ -792,3 +792,173 @@ func assertSubqueriesFilled(t *testing.T, node ast.Node) {
 		t.Errorf("%d of %d embedded subqueries left unfilled (Query==nil); the lineage walker cannot descend into them", unfilled, total)
 	}
 }
+
+// ---------------------------------------------------------------------------
+// SHOW
+// ---------------------------------------------------------------------------
+
+func parseShow(t *testing.T, sql string) *ast.ShowStmt {
+	t.Helper()
+	n := parseOneStmt(t, sql)
+	s, ok := n.(*ast.ShowStmt)
+	if !ok {
+		t.Fatalf("parseOneStmt(%q): got %T, want *ast.ShowStmt", sql, n)
+	}
+	return s
+}
+
+// TestParseShow covers show_statement's alternatives. The whole family is
+// unjudged by the Spanner emulator (it answers "Statement not supported:
+// ShowStmt" from dispatch and accepts `SHOW a zzz`), so the grammar and the
+// canonical corpus (testdata/legacy/zetasql/parser/testdata/show.sql) govern.
+func TestParseShow(t *testing.T) {
+	s := parseShow(t, "SHOW TABLES")
+	if s.Target != "TABLES" {
+		t.Errorf("Target = %q, want TABLES", s.Target)
+	}
+	if s.From != nil || s.Like != nil {
+		t.Errorf("From / Like = (%+v, %+v), want nil", s.From, s.Like)
+	}
+	if s.Loc.Start != 0 || s.Loc.End != len("SHOW TABLES") {
+		t.Errorf("Loc = %+v, want (0, %d)", s.Loc, len("SHOW TABLES"))
+	}
+
+	// FROM, LIKE, and both together.
+	s = parseShow(t, "SHOW TABLES FROM catalog.adwords LIKE 'KitchenSync%'")
+	if s.From == nil || len(s.From.Parts) != 2 {
+		t.Errorf("From = %+v, want catalog.adwords", s.From)
+	}
+	lit, ok := s.Like.(*ast.Literal)
+	if !ok || lit.Value != "KitchenSync%" {
+		t.Errorf("Like = %+v, want the KitchenSync%% literal", s.Like)
+	}
+
+	// show_target's two-word alternative, and the backtick-quoted spelling of the
+	// same name (the `identifier` alternative).
+	if got := parseShow(t, "SHOW MATERIALIZED VIEWS").Target; got != "MATERIALIZED VIEWS" {
+		t.Errorf("Target = %q, want MATERIALIZED VIEWS", got)
+	}
+	if got := parseShow(t, "SHOW `MATERIALIZED VIEWS`").Target; got != "MATERIALIZED VIEWS" {
+		t.Errorf("Target = %q, want MATERIALIZED VIEWS", got)
+	}
+
+	// A SHOW may carry a pipe suffix (sql_statement_body_maybe_pipe_suffix).
+	n := parseOneStmt(t, "SHOW TABLES |> WHERE a > 1")
+	if _, ok := n.(*ast.PipeStatement); !ok {
+		t.Errorf("got %T, want *ast.PipeStatement for a SHOW with a pipe suffix", n)
+	}
+}
+
+func TestParseShow_Rejects(t *testing.T) {
+	for _, sql := range []string{
+		"SHOW",
+		"SHOW a zzz",
+		"SHOW a FROM",
+		"SHOW a LIKE",
+		"SHOW a LIKE 1", // LIKE takes a string literal
+	} {
+		assertReject(t, sql)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// IMPORT / MODULE
+// ---------------------------------------------------------------------------
+
+func parseImport(t *testing.T, sql string) *ast.ImportStmt {
+	t.Helper()
+	n := parseOneStmt(t, sql)
+	s, ok := n.(*ast.ImportStmt)
+	if !ok {
+		t.Fatalf("parseOneStmt(%q): got %T, want *ast.ImportStmt", sql, n)
+	}
+	return s
+}
+
+func parseModule(t *testing.T, sql string) *ast.ModuleStmt {
+	t.Helper()
+	n := parseOneStmt(t, sql)
+	s, ok := n.(*ast.ModuleStmt)
+	if !ok {
+		t.Fatalf("parseOneStmt(%q): got %T, want *ast.ModuleStmt", sql, n)
+	}
+	return s
+}
+
+// TestParseImport covers import_statement's alternatives. Like SHOW, the family
+// is unjudged by the emulator ("Statement not supported: ImportStmt"), so the
+// grammar and the canonical corpus (modules.sql) govern.
+func TestParseImport(t *testing.T) {
+	s := parseImport(t, "IMPORT MODULE foo.bar.baz")
+	if s.Kind != ast.ImportModule {
+		t.Errorf("Kind = %v, want ImportModule", s.Kind)
+	}
+	if path, ok := s.Name.(*ast.PathExpr); !ok || len(path.Parts) != 3 {
+		t.Errorf("Name = %+v, want the foo.bar.baz path", s.Name)
+	}
+	if s.Alias != "" || s.AliasKeyword != "" || s.Options != nil {
+		t.Errorf("Alias / keyword / Options = (%q, %q, %+v), want empty", s.Alias, s.AliasKeyword, s.Options)
+	}
+
+	// import_type PROTO, and a string literal module name.
+	if s := parseImport(t, "IMPORT PROTO a.b"); s.Kind != ast.ImportProto {
+		t.Errorf("Kind = %v, want ImportProto", s.Kind)
+	}
+	if s := parseImport(t, `IMPORT MODULE "file.proto"`); s.Name == nil {
+		t.Error("Name = nil, want the string literal")
+	}
+
+	// opt_as_or_into_alias: both spellings. The alias is an identifier, and the
+	// corpus imports under keywords too (`IMPORT MODULE foo AS TABLE`).
+	for _, c := range []struct{ sql, kw, alias string }{
+		{"IMPORT MODULE a.b AS alias", "AS", "alias"},
+		{"IMPORT MODULE name.path INTO a", "INTO", "a"},
+		{"IMPORT MODULE foo AS TABLE", "AS", "TABLE"},
+	} {
+		s := parseImport(t, c.sql)
+		if s.Alias != c.alias || s.AliasKeyword != c.kw {
+			t.Errorf("%q: alias = (%q, %q), want (%q, %q)", c.sql, s.Alias, s.AliasKeyword, c.alias, c.kw)
+		}
+	}
+
+	// opt_options_list.
+	s = parseImport(t, "IMPORT MODULE a.foo AS foo OPTIONS(a = 1)")
+	if len(s.Options) != 1 {
+		t.Errorf("Options = %+v, want 1 entry", s.Options)
+	}
+	if s.Loc.End != len("IMPORT MODULE a.foo AS foo OPTIONS(a = 1)") {
+		t.Errorf("Loc.End = %d, want the end of the statement", s.Loc.End)
+	}
+}
+
+func TestParseImport_Rejects(t *testing.T) {
+	for _, sql := range []string{
+		"IMPORT a",          // import_type is MODULE | PROTO
+		"IMPORT MODULE",     // the module name is required
+		"IMPORT MODULE a b", // an alias needs AS or INTO
+		"IMPORT MODULE a AS",
+	} {
+		assertReject(t, sql)
+	}
+}
+
+func TestParseModule(t *testing.T) {
+	s := parseModule(t, "MODULE foo.bar")
+	if s.Name == nil || len(s.Name.Parts) != 2 {
+		t.Errorf("Name = %+v, want foo.bar", s.Name)
+	}
+	if s.Options != nil {
+		t.Errorf("Options = %+v, want nil", s.Options)
+	}
+
+	// A path component may be a non-reserved keyword (`MODULE import`), and an
+	// empty OPTIONS() is accepted.
+	if s := parseModule(t, "MODULE import.module.options OPTIONS(a = 1)"); len(s.Name.Parts) != 3 || len(s.Options) != 1 {
+		t.Errorf("Name / Options = (%+v, %+v), want 3 parts and 1 entry", s.Name.Parts, s.Options)
+	}
+	parseModule(t, "MODULE a OPTIONS()")
+
+	for _, sql := range []string{"MODULE", "MODULE a()", "MODULE a OPTIONS("} {
+		assertReject(t, sql)
+	}
+}

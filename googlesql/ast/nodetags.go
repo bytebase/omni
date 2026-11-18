@@ -245,7 +245,11 @@ const (
 	T_AnalyzeStmt
 	T_TableAndColumnInfo
 	T_DescribeStmt
+	T_ShowStmt
+	T_ImportStmt
+	T_ModuleStmt
 	T_RenameStmt
+	T_UndropStmt
 	T_CallArg
 	T_CallStmt
 
@@ -259,6 +263,7 @@ const (
 	// truth1 corpus (OTHER-001/OTHER-003).
 	T_ExportDataStmt
 	T_ExportModelStmt
+	T_ExportMetadataStmt
 	T_LoadDataStmt
 	T_CloneDataStmt
 	T_CloneDataSource
@@ -671,8 +676,16 @@ func (t NodeTag) String() string {
 		return "TableAndColumnInfo"
 	case T_DescribeStmt:
 		return "DescribeStmt"
+	case T_ShowStmt:
+		return "ShowStmt"
+	case T_ImportStmt:
+		return "ImportStmt"
+	case T_ModuleStmt:
+		return "ModuleStmt"
 	case T_RenameStmt:
 		return "RenameStmt"
+	case T_UndropStmt:
+		return "UndropStmt"
 	case T_CallArg:
 		return "CallArg"
 	case T_CallStmt:
@@ -681,6 +694,8 @@ func (t NodeTag) String() string {
 		return "ExportDataStmt"
 	case T_ExportModelStmt:
 		return "ExportModelStmt"
+	case T_ExportMetadataStmt:
+		return "ExportMetadataStmt"
 	case T_LoadDataStmt:
 		return "LoadDataStmt"
 	case T_CloneDataStmt:
