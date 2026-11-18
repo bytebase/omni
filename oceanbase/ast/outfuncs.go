@@ -1936,6 +1936,12 @@ func writeSetRoleStmt(sb *strings.Builder, n *SetRoleStmt) {
 	if n.All {
 		sb.WriteString(" :all true")
 	}
+	if n.AllExceptAll {
+		sb.WriteString(" :all_except_all true")
+	}
+	if n.AllExceptAllPrivileges {
+		sb.WriteString(" :all_except_all_privileges true")
+	}
 	if len(n.AllExcept) > 0 {
 		fmt.Fprintf(sb, " :all_except %s", strings.Join(n.AllExcept, ", "))
 	}
@@ -5577,12 +5583,24 @@ func writeCacheIndexStmt(sb *strings.Builder, n *CacheIndexStmt) {
 	if n.CacheSchema != "" {
 		fmt.Fprintf(sb, " :cache_schema %s", n.CacheSchema)
 	}
+	if n.CacheCatalog != "" {
+		fmt.Fprintf(sb, " :cache_catalog %s", n.CacheCatalog)
+	}
+	if n.CacheDblink != "" {
+		fmt.Fprintf(sb, " :cache_dblink %q", n.CacheDblink)
+	}
+	if n.IgnoreLeaves {
+		sb.WriteString(" :ignore_leaves true")
+	}
 	sb.WriteString("}")
 }
 
 func writeLoadIndexIntoCacheStmt(sb *strings.Builder, n *LoadIndexIntoCacheStmt) {
 	sb.WriteString("{LOAD_INDEX_INTO_CACHE")
 	fmt.Fprintf(sb, " :loc %d", n.Loc.Start)
+	if n.IgnoreLeaves {
+		sb.WriteString(" :ignore_leaves true")
+	}
 	if len(n.Tables) > 0 {
 		sb.WriteString(" :tables (")
 		for i, t := range n.Tables {

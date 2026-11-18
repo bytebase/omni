@@ -1055,7 +1055,7 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/RENAME
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1091	1091	engine	one_table@table	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1091	3940	engine	one_table@table	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-ok	1210	engine	one_table@table	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+1210	1210	engine	one_table@table	alter_table_action/REFRESH	ALTER TABLE a REFRESH
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 ok:a070047fd36c	ok:a070047fd36c	engine	one_table@table	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
@@ -1086,9 +1086,9 @@ ok:449319c55fc9	ok:449319c55fc9	engine	one_table@table	lock_opt/EXCLUSIVE	ALTER 
 1068	1068	engine	one_table@table	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:483bc8269091	ok:483bc8269091	engine	one_table@table	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 1176	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-ok	1235	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	one_table@table	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
-ok	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
+1176	1176	engine	one_table@table	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@table	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
 1072	1072	engine	one_table@table	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
 1072	1072	engine	one_table@table	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
@@ -1624,7 +1624,7 @@ ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/RENAM
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1091	1091	engine	one_table@column	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1091	3940	engine	one_table@column	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-ok	1210	engine	one_table@column	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+1210	1210	engine	one_table@column	alter_table_action/REFRESH	ALTER TABLE a REFRESH
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 ok:5d78096adb5d	ok:5d78096adb5d	engine	one_table@column	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 ok:04fbf22fd80d	ok:04fbf22fd80d	engine	one_table@column	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
@@ -1655,9 +1655,9 @@ ok:9e65dfde7e19	ok:9e65dfde7e19	engine	one_table@column	alter_index_option/ADD_a
 1068	1068	engine	one_table@column	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:773d846287e7	ok:773d846287e7	engine	one_table@column	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 1176	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-ok	1235	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1176	1176	engine	one_table@column	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
-ok	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
+1176	1176	engine	one_table@column	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@column	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED
 ok:e5cac50200af	ok:e5cac50200af	engine	one_table@column	add_key_or_index_opt/(_add_key_or_index_)	ALTER TABLE a ADD(KEY(a))
 ok:989aaa2a0497	ok:989aaa2a0497	engine	one_table@column	add_key_or_index/key_or_index_opt_index_name_opt_index_using_algorithm_(_sort_column_list_)_opt_index_option_list_opt_partition_option_with_column_group	ALTER TABLE a ADD KEY(a) WITH COLUMN GROUP(ALL COLUMNS)
@@ -2193,7 +2193,7 @@ ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/RENAME
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/RENAME_AS_relation_factor	ALTER TABLE a RENAME AS a
 1091	1091	engine	one_table@index	alter_table_action/alter_foreign_key_action	ALTER TABLE a DROP FOREIGN KEY a
 1091	3940	engine	one_table@index	alter_table_action/DROP_CONSTRAINT_constraint_name	ALTER TABLE a DROP CONSTRAINT a
-ok	1210	engine	one_table@index	alter_table_action/REFRESH	ALTER TABLE a REFRESH
+1210	1210	engine	one_table@index	alter_table_action/REFRESH	ALTER TABLE a REFRESH
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/REMOVE_TTL	ALTER TABLE a REMOVE TTL
 ok:1ac3e3ba399f	ok:1ac3e3ba399f	engine	one_table@index	alter_table_action/REMOVE_TTL!swap	ALTER TABLE a RENAME TTL
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_table_action/ALGORITHM_opt_equal_mark_algorithm_opt	ALTER TABLE a ALGORITHM DEFAULT
@@ -2224,7 +2224,7 @@ ok:25c111463945	ok:25c111463945	engine	one_table@index	alter_index_option/ADD_ad
 1068	1068	engine	one_table@index	alter_index_option/ADD_add_primary_key_opt	ALTER TABLE a ADD PRIMARY KEY(a)
 ok:8ad4b5558f9a	ok:8ad4b5558f9a	engine	one_table@index	alter_index_option/DROP_PRIMARY_KEY	ALTER TABLE a DROP PRIMARY KEY
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_visibility_option	ALTER TABLE a ALTER INDEX a VISIBLE
-ok	1235	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
+1235	1235	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_STORAGE_CACHE_POLICY_opt_equal_mark_(_storage_cache_policy_attribute_list_)	ALTER TABLE a ALTER INDEX a STORAGE_CACHE_POLICY(GLOBAL = 's')
 1061	1061	engine	one_table@index	alter_index_option/RENAME_key_or_index_index_name_TO_index_name	ALTER TABLE a RENAME KEY a TO a
 ok:b05454e6c466	ok:b05454e6c466	engine	one_table@index	alter_index_option/alter_with_opt_hint_INDEX_index_name_parallel_option	ALTER TABLE a ALTER INDEX a NOPARALLEL
 3940	3821	engine	one_table@index	alter_index_option/alter_with_opt_hint_CHECK_constraint_name_check_state	ALTER TABLE a ALTER CHECK a ENFORCED

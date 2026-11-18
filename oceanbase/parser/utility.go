@@ -1501,8 +1501,10 @@ func (p *Parser) parseCacheIndexStmt() (*nodes.CacheIndexStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	stmt.CacheSchema = cache.Schema
 	stmt.CacheName = cache.Name
+	stmt.CacheSchema = cache.Schema
+	stmt.CacheCatalog = cache.Catalog
+	stmt.CacheDblink = cache.Dblink
 
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
@@ -1625,13 +1627,14 @@ func (p *Parser) parseLoadIndexIntoCacheStmt(start int) (*nodes.LoadIndexIntoCac
 		p.advance()
 	}
 
-	// opt_ignore_leaves is IGNORE LEAVES, both words.
+	// opt_ignore_leaves is IGNORE LEAVES, both words, and it follows the whole
+	// table list: it applies to every table of it.
 	if p.cur.Type == kwIGNORE {
 		p.advance()
 		if _, err := p.expect(kwLEAVES); err != nil {
 			return nil, err
 		}
-		stmt.Tables[len(stmt.Tables)-1].IgnoreLeaves = true
+		stmt.IgnoreLeaves = true
 	}
 
 	stmt.Loc.End = p.prev.End

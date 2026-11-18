@@ -67,8 +67,9 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		// any_expr's `ALL (expr)` / `ANY (expr)` holds one expression of its own.
 		return analyzeExpr(c, n.Expr, scope)
 	case *nodes.OdbcEscapeExpr:
-		// `{fn expr}` is the escape's expression and nothing else.
-		return analyzeExpr(c, n.Expr, scope)
+		// The escape's word says how its expression is read (`{d '2026-01-01'}`
+		// is a date), so the IR keeps the whole escape as written.
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
 	case *nodes.RemoteSequenceExpr:
 		// A sequence read through a database link is a value of its own, which
 		// the IR keeps as written: it is no column of a local table, and it is

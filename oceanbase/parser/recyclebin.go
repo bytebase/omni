@@ -230,13 +230,18 @@ func (p *Parser) parseDumpMemoryStmt() (nodes.Node, error) {
 			p.advance()
 			continue
 		}
-		// CTX_ID takes a name or a string; the others take a string alone.
+		// CTX_ID takes relation_name_or_string, whose name may be an unreserved
+		// keyword; the others take a string alone.
 		if key == "CTX_ID" {
-			if p.cur.Type != tokSCONST && p.cur.Type != tokIDENT {
-				return nil, p.syntaxErrorAtCur()
+			if p.cur.Type == tokSCONST {
+				stmt.Args = append(stmt.Args, p.advance().Str)
+				continue
 			}
-			stmt.Args = append(stmt.Args, p.cur.Str)
-			p.advance()
+			name, _, err := p.parseIdent()
+			if err != nil {
+				return nil, err
+			}
+			stmt.Args = append(stmt.Args, name)
 			continue
 		}
 		if p.cur.Type != tokSCONST {

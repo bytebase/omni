@@ -472,6 +472,22 @@ func analyzeFromSubquery(c *Catalog, subq *nodes.SubqueryExpr, q *Query, scope *
 // analyzeTableRef resolves a table reference from the FROM clause against
 // the catalog, returning the RTE and the column list.
 func analyzeTableRef(c *Catalog, ref *nodes.TableRef) (*RangeTableEntryQ, []*Column, error) {
+	// A table another catalog holds, or one a database link names, is not this
+	// catalog's: its columns are unknown, and a local table of the same name is
+	// a different table.
+	if ref.Catalog != "" || ref.Dblink != "" {
+		erei := ref.Name + ref.Dblink
+		if ref.Alias != "" {
+			erei = ref.Alias
+		}
+		return &RangeTableEntryQ{
+			Kind:      RTERelation,
+			DBName:    ref.Schema,
+			TableName: ref.Name + ref.Dblink,
+			Alias:     ref.Alias,
+			ERef:      erei,
+		}, nil, nil
+	}
 	dbName := ref.Schema
 	if dbName == "" {
 		dbName = c.CurrentDatabase()

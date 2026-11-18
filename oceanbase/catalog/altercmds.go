@@ -150,6 +150,15 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// alter_constraint_option's list form, DROP CHECK (c1, c2) and
 		// DROP CONSTRAINT (c1, c2), drops every name it writes.
 		if len(cmd.ConstraintNames) > 0 {
+			// The list is one command, whose failure leaves the table as it was:
+			// every name is looked up before any of them is dropped.
+			if !cmd.IfExists {
+				for _, name := range cmd.ConstraintNames {
+					if !tableHasConstraint(tbl, name) {
+						return errCantDropKey(name)
+					}
+				}
+			}
 			for _, name := range cmd.ConstraintNames {
 				if err := c.alterDropConstraint(tbl, &nodes.AlterTableCmd{
 					Loc:      cmd.Loc,
@@ -173,6 +182,17 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterTableOption(tbl, cmd)
 	case nodes.ATAlterColumnDefault:
 		return c.alterColumnDefault(tbl, cmd)
+	case nodes.ATAlterIndexStorageCachePolicy:
+		// OceanBase parses the policy and refuses it outside shared storage,
+		// which is what checkIndexOptions records for the same option: 1235.
+		return errNotSupported("storage cache policy")
+	case nodes.ATAlterIndexParallel:
+		// Parallelism itself is not modeled, but the index the statement names
+		// must exist: the server answers 1176 when it does not.
+		if !tableHasIndex(tbl, cmd.Name) {
+			return errKeyNotExist(cmd.Name, tbl.Name)
+		}
+		return nil
 	case nodes.ATAlterIndexVisible:
 		return c.alterIndexVisibility(tbl, cmd, true)
 	case nodes.ATAlterIndexInvisible:
@@ -203,6 +223,10 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		return c.alterReorganizePartition(tbl, cmd)
 	case nodes.ATExchangePartition:
 		return c.alterExchangePartition(db, tbl, cmd)
+	case nodes.ATRefresh:
+		// REFRESH refreshes an external table's metadata. This catalog models no
+		// external table, so an ordinary one is a 1210 to the server.
+		return &Error{Code: 1210, SQLState: "HY000", Message: "Incorrect arguments to REFRESH"}
 	case nodes.ATPartitionBy:
 		// OceanBase parses a repartition that carries a SIZE ('size') and then
 		// refuses it: the pinned server answers 1064 on a table that exists
@@ -229,6 +253,29 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 		// Unsupported alter command; silently ignore.
 		return nil
 	}
+}
+
+// tableHasIndex reports whether the table holds an index of that name, the
+// primary key included.
+func tableHasIndex(tbl *Table, name string) bool {
+	key := toLower(name)
+	for _, idx := range tbl.Indexes {
+		if toLower(idx.Name) == key {
+			return true
+		}
+	}
+	return false
+}
+
+// tableHasConstraint reports whether the table holds a constraint of that name.
+func tableHasConstraint(tbl *Table, name string) bool {
+	key := toLower(name)
+	for _, con := range tbl.Constraints {
+		if toLower(con.Name) == key {
+			return true
+		}
+	}
+	return false
 }
 
 // alterCarriesColumnID reports whether an ADD COLUMN action carries column

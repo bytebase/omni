@@ -2087,7 +2087,12 @@ type SetRoleStmt struct {
 	None      bool     // NONE
 	All       bool     // ALL
 	AllExcept []string // ALL EXCEPT roles
-	Roles     []string // specific roles
+	// AllExceptAll and AllExceptAllPrivileges are set_role_clause's
+	// `ALL EXCEPT grant_privileges`, whose exemption is every privilege rather
+	// than a role.
+	AllExceptAll           bool
+	AllExceptAllPrivileges bool
+	Roles                  []string // specific roles
 }
 
 func (s *SetRoleStmt) nodeTag()  {}
@@ -3896,9 +3901,14 @@ func (s *BinlogStmt) stmtNode() {}
 type CacheIndexStmt struct {
 	Loc    Loc
 	Tables []*LoadIndexTable // tbl_index_list, or the one table of the PARTITION form
-	// CacheName is IN key_cache_name, and CacheSchema the database it names.
-	CacheName   string
-	CacheSchema string
+	// CacheName is IN key_cache_name, with the catalog, database and database
+	// link it may name beside it.
+	CacheName    string
+	CacheSchema  string
+	CacheCatalog string
+	CacheDblink  string
+	// IgnoreLeaves is opt_ignore_leaves, which applies to the whole table list.
+	IgnoreLeaves bool
 }
 
 func (s *CacheIndexStmt) nodeTag()  {}
@@ -3908,6 +3918,9 @@ func (s *CacheIndexStmt) stmtNode() {}
 type LoadIndexIntoCacheStmt struct {
 	Loc    Loc
 	Tables []*LoadIndexTable
+	// IgnoreLeaves is opt_ignore_leaves, which follows the whole table list and
+	// so applies to every table of it.
+	IgnoreLeaves bool
 }
 
 // LoadIndexTable represents one table of LOAD INDEX INTO CACHE, and one

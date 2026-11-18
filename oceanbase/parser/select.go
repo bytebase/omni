@@ -2750,7 +2750,9 @@ func (p *Parser) parseIntoClause() (*nodes.IntoClause, error) {
 		if p.cur.Type == kwPARTITION && p.peekNext().Type == kwBY {
 			p.advance() // consume PARTITION
 			p.advance() // consume BY
-			partitionBy, err := p.parseExpr()
+			// file_partition_opt is PARTITION BY bit_expr, so a comparison or a
+			// logical operator is no partition key here.
+			partitionBy, err := p.parseExprPrec(precBitOr)
 			if err != nil {
 				return nil, err
 			}

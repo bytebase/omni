@@ -1791,7 +1791,10 @@ func (p *Parser) parseSetRoleStmt(start int) (*nodes.SetRoleStmt, error) {
 			p.advance()
 			if p.cur.Type == kwALL {
 				p.advance()
-				p.match(kwPRIVILEGES)
+				stmt.AllExceptAll = true
+				if _, ok := p.match(kwPRIVILEGES); ok {
+					stmt.AllExceptAllPrivileges = true
+				}
 			} else {
 				roles, err := p.parseRoleRefList()
 				if err != nil {
