@@ -15,7 +15,7 @@ import (
 // view body the engine rejects (a `?` parameter marker); it is true on the
 // CREATE VIEW path (Exec) and false on a DefineView sync, whose body the engine
 // already accepted.
-func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody bool) error {
+func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBody, materialized bool) error {
 	db, err := c.resolveDatabase(stmt.Name.Schema)
 	if err != nil {
 		return err
@@ -36,8 +36,12 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		return errDupTable(stmt.Name.Name)
 	}
 	if existing, exists := db.Views[key]; exists {
-		if existing.Materialized {
-			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not VIEW", db.Name, stmt.Name.Name)}
+		if existing.Materialized != materialized {
+			kind := "VIEW"
+			if materialized {
+				kind = "MATERIALIZED VIEW"
+			}
+			return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not %s", db.Name, stmt.Name.Name, kind)}
 		}
 		if !stmt.OrReplace {
 			return errDupTable(stmt.Name.Name)
@@ -103,6 +107,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		ExplicitColumns: hasExplicit,
 		AnalyzedQuery:   analyzedQuery,
 		IsUpdatable:     true,
+		Materialized:    materialized,
 		namesUncertain:  viewColumnNamesUncertain(stmt.Columns, analyzedQuery, stmt.Select),
 	}
 	return nil
@@ -114,18 +119,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 // (metadata_load.go). The refresh options, partitioning, table options and
 // primary key change nothing the catalog tracks.
 func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt, source string) error {
-	view := materializedViewAsView(stmt)
-	if err := c.createView(view, source, true); err != nil {
-		return err
-	}
-	db, err := c.resolveDatabase(view.Name.Schema)
-	if err != nil {
-		return err
-	}
-	if installed := db.Views[toLower(view.Name.Name)]; installed != nil {
-		installed.Materialized = true
-	}
-	return nil
+	return c.createView(materializedViewAsView(stmt), source, true, true)
 }
 
 // materializedViewAsView turns CREATE MATERIALIZED VIEW into the CREATE VIEW

@@ -348,14 +348,14 @@ func (c *Catalog) installMetadataObject(o *metadataObject) error {
 		if err != nil {
 			return err
 		}
-		if err := c.DefineView(stmt); err != nil {
+		if o.materialized {
+			if err := c.DefineMaterializedView(stmt); err != nil {
+				return err
+			}
+		} else if err := c.DefineView(stmt); err != nil {
 			return err
 		}
-		installed := c.installedView(o.name)
-		if installed != nil {
-			installed.Materialized = o.materialized
-		}
-		nameViewColumns(installed, metadataViewColumnNames(o.view))
+		nameViewColumns(c.installedView(o.name), metadataViewColumnNames(o.view))
 		return nil
 	case metadataFunction:
 		stmt, err := parseRoutine(o.function.GetDefinition(), false)

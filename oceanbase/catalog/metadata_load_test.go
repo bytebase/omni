@@ -1109,8 +1109,12 @@ func TestLoadMetadataMaterializedView(t *testing.T) {
 	}))
 	requireReport(t, report, nil, nil)
 
-	if mv := c.installedView("mv"); mv == nil {
+	mv := c.installedView("mv")
+	if mv == nil {
 		t.Fatal("the materialized view is not installed")
+	}
+	if !mv.Materialized {
+		t.Error("the snapshot's materialized view is installed as an ordinary view")
 	}
 	sel, err := obparser.Parse("select id from v_over_mv")
 	if err != nil {

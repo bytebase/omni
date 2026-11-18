@@ -230,7 +230,7 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 	case *nodes.CreateIndexStmt:
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:
-		return c.createView(s, source, true)
+		return c.createView(s, source, true, false)
 	case *nodes.CreateMaterializedViewStmt:
 		return c.createMaterializedView(s, source)
 	case *nodes.AlterViewStmt:
