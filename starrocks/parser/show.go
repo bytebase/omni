@@ -721,6 +721,9 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 				}
 			}
 			if isQueryBody(query) && p.cur.Kind == kwINTO {
+				if queryHasInto(query) {
+					return nil, p.syntaxErrorAtCur()
+				}
 				into, err := p.parseIntoOutfileClause()
 				if err != nil {
 					return nil, err

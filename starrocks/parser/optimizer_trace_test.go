@@ -117,6 +117,7 @@ func TestOptimizerTraceRejects(t *testing.T) {
 		"TRACE ALL a zzz SELECT 1",
 		"TRACE ALL INSERT INTO t SELECT 1",
 		"EXPLAIN TRACE ALL SELECT 1",
+		"TRACE ALL SELECT 1 INTO OUTFILE 'a' INTO OUTFILE 'b'",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

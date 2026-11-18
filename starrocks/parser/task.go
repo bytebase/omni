@@ -451,6 +451,9 @@ func (p *Parser) parseOptimizerTrace(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	if p.cur.Kind == kwINTO {
+		if queryHasInto(query) {
+			return nil, p.syntaxErrorAtCur()
+		}
 		into, err := p.parseIntoOutfileClause()
 		if err != nil {
 			return nil, err
@@ -480,6 +483,20 @@ func attachWith(node ast.Node, with *ast.WithClause) {
 		n.With = with
 		n.Loc.Start = with.Loc.Start
 	}
+}
+
+// queryHasInto reports whether the query already carries an INTO OUTFILE
+// clause, including one on an arm or inside a parenthesized group.
+func queryHasInto(node ast.Node) bool {
+	switch n := node.(type) {
+	case *ast.SelectStmt:
+		return n.Into != nil
+	case *ast.ParenSelect:
+		return n.Into != nil || queryHasInto(n.Sel)
+	case *ast.SetOpStmt:
+		return n.Into != nil || queryHasInto(n.Left) || queryHasInto(n.Right)
+	}
+	return false
 }
 
 // attachInto stores an INTO OUTFILE clause on the query node that owns the

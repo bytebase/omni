@@ -96,11 +96,6 @@ func ResolveQuerySpan(statement string, opts ResolveOptions) (*ResolvedQuerySpan
 	if file != nil && len(file.Stmts) > 0 {
 		node = file.Stmts[0]
 	}
-	// GetQuerySpan walks only a top-level SELECT/set operation, so EXPLAIN
-	// would report no access tables unless the planned statement is walked.
-	if explain, ok := node.(*ast.ExplainStmt); ok && explain.Query != nil {
-		node = explain.Query
-	}
 	queryType := Classify(single)
 	if classified, ok := astQueryType(node); ok {
 		queryType = classified

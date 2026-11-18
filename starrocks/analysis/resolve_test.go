@@ -374,6 +374,20 @@ func TestResolveQuerySpanFailsClosedOnLexError(t *testing.T) {
 	}
 }
 
+// EXPLAIN answers with plan rows, not the planned query's projection.
+func TestResolveQuerySpanExplainHasNoResults(t *testing.T) {
+	span, err := ResolveQuerySpan("EXPLAIN SELECT secret AS exposed FROM t", ResolveOptions{DefaultDatabase: "db"})
+	if err != nil {
+		t.Fatalf("ResolveQuerySpan: %v", err)
+	}
+	if len(span.Results) != 0 {
+		t.Errorf("Results = %+v, want none", span.Results)
+	}
+	if len(span.SourceColumns) != 1 {
+		t.Errorf("SourceColumns = %+v, want db.t", span.SourceColumns)
+	}
+}
+
 func TestResolveQuerySpanResultsLineage(t *testing.T) {
 	// The span carries per-column lineage: each output column lists the
 	// column references that feed it. Masking reads it from here; Bytebase's

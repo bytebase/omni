@@ -136,11 +136,13 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		// The submitted statement is the one that writes; the task wrapper
 		// only schedules it. A qualified task name selects its database for
 		// the submitted statement.
+		taskDatabase := database
+		if taskDB, _ := objectName(n.Name, ""); taskDB != "" {
+			taskDatabase = taskDB
+			// Creating the task is itself a write in the task's database.
+			changes.Resources = append(changes.Resources, ChangedResource{Database: taskDB, DatabaseOnly: true})
+		}
 		if n.Statement != nil {
-			taskDatabase := database
-			if taskDB, _ := objectName(n.Name, ""); taskDB != "" {
-				taskDatabase = taskDB
-			}
 			inner := ExtractChangedResources(n.Statement, taskDatabase, text)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
