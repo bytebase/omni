@@ -133,8 +133,9 @@ const (
 
 // WithClause represents a WITH (CTE) clause.
 type WithClause struct {
-	XmlNamespaces *List // optional XMLNAMESPACES declarations
-	CTEs          *List // list of CommonTableExpr
+	XmlNamespaces *List    // optional XMLNAMESPACES declarations
+	CTContext     ExprNode // CHANGE_TRACKING_CONTEXT ( binary_or_variable )
+	CTEs          *List    // list of CommonTableExpr
 	Loc           Loc
 }
 

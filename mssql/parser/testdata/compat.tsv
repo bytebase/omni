@@ -463,7 +463,7 @@ reject	reject	engine	statement/endConversationStatement!swap	ENDPOINT CONVERSATI
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements/(withCommonTableExpressionsAndXmlNamespaces)?_(select|d~26cf1717	SELECT *
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/%empty	SELECT *
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/%empty!insert	zzz SELECT *
-reject	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
+accept	accept	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces!drop-1	CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces!drop-2	WITH(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespacesStatements(withCommonTableExpressionsAndXmlNamespaces)?/withCommonTableExpressionsAndXmlNamespaces!drop-3	WITH CHANGE_TRACKING_CONTEXT 0x00) SELECT *
@@ -8053,7 +8053,7 @@ reject	reject	engine	indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!tr
 reject	reject	engine	indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!insert	ALTER TABLE a REBUILD WITH(WAIT_AT_LOW_PRIORITY(MAX_DURATION = 1, ABORT_AFTER_WAIT = a) zzz)
 reject	reject	engine	indexOption/waitAtLowPriorityOption_WAIT_AT_LOW_PRIORITY!swap	ALTER TABLE a REBUILD WITH(WAIT_STATS_CAPTURE_MODE(MAX_DURATION = 1, ABORT_AFTER_WAIT = a))
 reject	reject	engine	indexOption/indexStateOption	ALTER TABLE a REBUILD WITH(a = ON)
-reject	accept	engine	withCommonTableExpressionsAndXmlNamespaces/With_(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)_(C~f0559948	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
+accept	accept	engine	withCommonTableExpressionsAndXmlNamespaces/With_(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)_(C~f0559948	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 accept	accept	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES	WITH XMLNAMESPACES(DEFAULT 'a') SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-1	WITH(DEFAULT 'a') SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!drop-2	WITH XMLNAMESPACES DEFAULT 'a') SELECT *
@@ -8063,7 +8063,7 @@ reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XM
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!truncate	WITH XMLNAMESPACES(DEFAULT 'a'
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!insert	WITH XMLNAMESPACES(DEFAULT 'a') zzz SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/xmlNamespaces_XMLNAMESPACES!swap	WITH XML_COMPRESSION(DEFAULT 'a') SELECT *
-reject	accept	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/ctContext_CHANGE_TRACKING_CONTEXT	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
+accept	accept	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/ctContext_CHANGE_TRACKING_CONTEXT	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/ctContext_CHANGE_TRACKING_CONTEXT!swap	WITH CHARACTER_SET(0x00) SELECT *
 accept	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/commonTableExpression	WITH a AS(SELECT *) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/commonTableExpression!drop-1	WITH AS(SELECT *) SELECT *
@@ -8075,7 +8075,7 @@ reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XM
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/commonTableExpression!truncate	WITH a AS(SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/commonTableExpression!insert	WITH a AS(SELECT *) zzz SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(xmlNamespaces_XMLNAMESPACES|ctContex~890955dc)/commonTableExpression!swap	WITH a ASC(SELECT *) SELECT *
-reject	accept	engine	withCommonTableExpressionsAndXmlNamespaces(Comma_commonTableExpression)*/%empty	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
+accept	accept	engine	withCommonTableExpressionsAndXmlNamespaces(Comma_commonTableExpression)*/%empty	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(Comma_commonTableExpression)*/Comma_commonTableExpression_(Comma_commonTableExpression)*	WITH CHANGE_TRACKING_CONTEXT(0x00), a AS(SELECT *) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(Comma_commonTableExpression)*/Comma_commonTableExpression_(Comma_commonTableExpression)*!drop-1	WITH CHANGE_TRACKING_CONTEXT(0x00) a AS(SELECT *) SELECT *
 reject	reject	engine	withCommonTableExpressionsAndXmlNamespaces(Comma_commonTableExpression)*/Comma_commonTableExpression_(Comma_commonTableExpression)*!drop-2	WITH CHANGE_TRACKING_CONTEXT(0x00), AS(SELECT *) SELECT *
@@ -16923,7 +16923,7 @@ reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Co
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!truncate	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!insert	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT 'a' zzz) SELECT *
 reject	reject	engine	xmlNamespaces_XMLNAMESPACES(Comma_xmlNamespacesElement)*/Comma_xmlNamespacesElement_(Comma_xmlNamespacesElement)*!swap	WITH XMLNAMESPACES(DEFAULT 'a', DEFAULT_DATABASE 'a') SELECT *
-reject	accept	engine	ctContext_CHANGE_TRACKING_CONTEXT/CHANGE_TRACKING_CONTEXT_LeftParenthesis_binaryOrVariabl~a39ca77e	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
+accept	accept	engine	ctContext_CHANGE_TRACKING_CONTEXT/CHANGE_TRACKING_CONTEXT_LeftParenthesis_binaryOrVariabl~a39ca77e	WITH CHANGE_TRACKING_CONTEXT(0x00) SELECT *
 reject	reject	engine	xmlForClause_XML/XML_xmlForClauseMode_(Comma_xmlParam)*	SELECT * FOR XML a
 reject	reject	engine	xmlForClause_XML(Comma_xmlParam)*/%empty	SELECT * FOR XML a
 reject	reject	engine	xmlForClause_XML(Comma_xmlParam)*/Comma_xmlParam_(Comma_xmlParam)*	SELECT * FOR XML a, a

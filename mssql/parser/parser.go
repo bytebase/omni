@@ -241,7 +241,7 @@ func isNilNode(n nodes.Node) bool {
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
 func (p *Parser) parseWithStmt() (nodes.StmtNode, error) {
 	loc := p.pos()
-	withClause, err := p.parseWithClause()
+	withClause, err := p.parseWithClause(true)
 	if err != nil {
 		return nil, err
 	}

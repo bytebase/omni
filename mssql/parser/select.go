@@ -64,7 +64,7 @@ func (p *Parser) parseSelectStmtWithCTE() (*nodes.SelectStmt, error) {
 	var withClause *nodes.WithClause
 	if p.cur.Type == kwWITH {
 		var err error
-		withClause, err = p.parseWithClause()
+		withClause, err = p.parseWithClause(false)
 		if err != nil {
 			return nil, err
 		}
@@ -481,7 +481,12 @@ func (p *Parser) parseSetOperation(left *nodes.SelectStmt) (*nodes.SelectStmt, e
 //	[ WITH { [ XMLNAMESPACES , ] [ <common_table_expression> [ , ...n ] ] } ]
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/queries/with-common-table-expression-transact-sql
-func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
+// statementLevel says whether the clause is a statement's own (a batch's
+// WITH ... SELECT/INSERT/UPDATE/DELETE/MERGE) or one written inside another
+// statement, as a view's body. SQL Server takes CHANGE_TRACKING_CONTEXT only
+// at statement level and without a CTE list (Msg 22108, measured), so the
+// nested callers refuse it.
+func (p *Parser) parseWithClause(statementLevel bool) (*nodes.WithClause, error) {
 	loc := p.pos()
 	// Record CTE position for completion module
 	if p.completing {
@@ -499,8 +504,8 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		Loc: nodes.Loc{Start: loc, End: -1},
 	}
 
-	// Optional XMLNAMESPACES (...)
-	xmlComma := false
+	// Optional XMLNAMESPACES (...) or CHANGE_TRACKING_CONTEXT ( binary_or_variable )
+	firstComma := false
 	if p.cur.Type == kwXMLNAMESPACES {
 		var err error
 		wc.XmlNamespaces, err = p.parseXmlNamespaces()
@@ -509,7 +514,17 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 		}
 		// A comma after XMLNAMESPACES separates it from the CTE list, so it
 		// commits the clause to having at least one CTE.
-		_, xmlComma = p.match(',')
+		_, firstComma = p.match(',')
+	} else if p.atChangeTrackingContext() {
+		if !statementLevel {
+			return nil, p.newParseError(p.pos(), "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
+		}
+		var err error
+		wc.CTContext, err = p.parseChangeTrackingContext()
+		if err != nil {
+			return nil, err
+		}
+		_, firstComma = p.match(',')
 	}
 
 	// CTE list terminator is multi-token (SELECT / INSERT / UPDATE / DELETE /
@@ -539,12 +554,69 @@ func (p *Parser) parseWithClause() (*nodes.WithClause, error) {
 	// Otherwise "WITH SELECT 1" / "WITH INSERT ..." would parse as a statement
 	// carrying an empty clause, and "WITH XMLNAMESPACES (...), INSERT ..."
 	// would parse with a dangling comma.
-	if len(ctes) == 0 && (wc.XmlNamespaces == nil || xmlComma) {
+	if len(ctes) == 0 && (firstComma || (wc.XmlNamespaces == nil && wc.CTContext == nil)) {
 		return nil, p.unexpectedToken()
+	}
+	if wc.CTContext != nil && len(ctes) > 0 {
+		return nil, p.newParseError(nodes.NodeLoc(wc.CTContext).Start, "CHANGE_TRACKING_CONTEXT cannot be used with a SELECT statement")
 	}
 	wc.CTEs = &nodes.List{Items: ctes}
 	wc.Loc.End = p.prevEnd()
 	return wc, nil
+}
+
+// atChangeTrackingContext reports whether the WITH clause opens with
+// CHANGE_TRACKING_CONTEXT. ScriptDOM's keyword tables hold no such word: its
+// grammar reads the text with a predicate, `{NextTokenMatches(
+// CodeGenerationSupporter.ChangeTrackingContext)}?` (TSql160.g:21536,
+// ctContext), so the word stays an identifier and is compared by its text
+// here, as CLONE and OF are in parseCreateTableCloneStmt.
+func (p *Parser) atChangeTrackingContext() bool {
+	return p.withWordIs("CHANGE_TRACKING_CONTEXT")
+}
+
+// withWordIs reports whether the current token is the WITH-clause word `word`
+// (upper case): its keyword token when the lexer has one, else an
+// undelimited identifier with that text, as tableWordIs and indexWordIs do.
+func (p *Parser) withWordIs(word string) bool {
+	if kw := lookupKeyword(word); kw != tokIDENT {
+		return p.cur.Type == kw
+	}
+	return p.cur.Type == tokIDENT && !p.isDelimited(p.cur) && strings.ToUpper(p.cur.Str) == word
+}
+
+// parseChangeTrackingContext parses ctContext (TSql160.g:21536):
+//
+//	CHANGE_TRACKING_CONTEXT ( binary_or_variable )
+//
+// The argument is a binary constant or a variable, and SQL Server takes
+// nothing else there.
+func (p *Parser) parseChangeTrackingContext() (nodes.ExprNode, error) {
+	p.advance() // consume CHANGE_TRACKING_CONTEXT
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var value nodes.ExprNode
+	switch {
+	case p.cur.Type == tokVARIABLE || p.cur.Type == tokSYSVARIABLE:
+		v, err := p.parsePrimary()
+		if err != nil {
+			return nil, err
+		}
+		if v == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		value = v
+	case p.cur.Type == tokICONST && procIsBinary(p.cur):
+		tok := p.advance()
+		value = &nodes.Literal{Type: nodes.LitInteger, Str: tok.Str, Loc: nodes.Loc{Start: tok.Loc, End: p.prevEnd()}}
+	default:
+		return nil, p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return value, nil
 }
 
 // atWithClauseEnd reports whether the current token ends a CTE list: the

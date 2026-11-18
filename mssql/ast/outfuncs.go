@@ -2790,6 +2790,10 @@ func writeWithClause(sb *strings.Builder, n *WithClause) {
 		sb.WriteString(" :xmlNamespaces ")
 		writeNode(sb, n.XmlNamespaces)
 	}
+	if n.CTContext != nil {
+		sb.WriteString(" :ctContext ")
+		writeNode(sb, n.CTContext)
+	}
 	if n.CTEs != nil {
 		sb.WriteString(" :ctes ")
 		writeNode(sb, n.CTEs)
