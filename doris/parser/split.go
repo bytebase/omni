@@ -255,8 +255,17 @@ func isDorisTCLBeginFollower(tok Token) bool {
 // BEGIN and END are also non-reserved words Doris reads as identifiers (SELECT
 // begin FROM t), so the frame reads them as constructs only where one can
 // stand: at the start of a statement (after a separator, after the block's own
-// BEGIN, or after the word a control-flow statement puts before its body) or,
-// for CASE, anywhere but after a dot.
+// BEGIN, or after the word a control-flow statement puts before its body), at
+// the end of a declaration whose body follows (DECLARE CONTINUE HANDLER FOR
+// SQLEXCEPTION BEGIN), or, for CASE, anywhere but after a dot.
+//
+// Some places read either way, and only an expression parser could tell them
+// apart: SELECT 1 begin names an alias, arr[1:begin] slices, and lbl: BEGIN
+// labels a block; BEGIN also follows a declaration's condition identifier and
+// a tail's arbitrary word (ALTER PROCEDURE a() zzz BEGIN x). Split is lexical
+// and never fails (AGENTS.md), so it takes the construct reading where a
+// statement can stand, and the identifier reading after an operator or the
+// start of an expression, and the boundary it draws then follows that reading.
 type blockFrame struct {
 	stack   []blockConstruct // innermost last
 	endCase bool             // the last token was the END of an END CASE
