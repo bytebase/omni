@@ -312,12 +312,11 @@ func (p *Parser) parseDropRestorePointStmt(start int) (*nodes.DropStmt, error) {
 	if p.cur.Type == kwFORCE {
 		return nil, p.syntaxErrorAtCur()
 	}
-	name, err := p.parseObjectName()
+	// A restore point takes no schema and no reserved word (ORA-03048,
+	// ORA-03050), as CREATE RESTORE POINT's does.
+	name, err := p.parseUnqualifiedName()
 	if err != nil {
 		return nil, err
-	}
-	if name == nil || name.Name == "" {
-		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 	stmt.Loc.End = p.prev.End

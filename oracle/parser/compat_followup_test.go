@@ -63,6 +63,10 @@ func TestParseFollowupForms(t *testing.T) {
 		// name) and no FORCE (ORA-03049 at the word).
 		{`DROP RESTORE POINT IF EXISTS a`, 29},
 		{`DROP RESTORE POINT a FORCE`, 21},
+		// A restore point takes no schema and no reserved word, as CREATE
+		// RESTORE POINT's does (ORA-03048, ORA-03050).
+		{`DROP RESTORE POINT a.b FOR PLUGGABLE DATABASE p`, 20},
+		{`DROP RESTORE POINT SELECT FOR PLUGGABLE DATABASE p`, 19},
 		// PRESERVE TABLE ends a DROP MATERIALIZED VIEW: Oracle answers
 		// ORA-03049 at a FORCE before it and at anything after it.
 		{`DROP MATERIALIZED VIEW a FORCE PRESERVE TABLE`, 31},
