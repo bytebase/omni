@@ -152,7 +152,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "stats_sample_pages":
 			tbl.StatsSamplePages = opt.Value
 		case "min_rows":
-			tbl.MinRows = opt.Value
+			tbl.MinRows = canonicalRows(opt.Value)
 		case "max_rows":
 			tbl.MaxRows = canonicalRows(opt.Value)
 		case "avg_row_length":

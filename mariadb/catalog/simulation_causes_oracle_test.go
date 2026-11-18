@@ -410,6 +410,27 @@ func TestSimulationCausesOracle(t *testing.T) {
 			contains: []string{"MAX_ROWS=1"},
 		},
 		{
+			name:     "ALTER TABLE MODIFY SERIAL",
+			setup:    []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT)"},
+			stmt:     "ALTER TABLE a MODIFY c SERIAL",
+			code:     0,
+			contains: []string{"`c` bigint(20) unsigned NOT NULL AUTO_INCREMENT", "UNIQUE KEY `c` (`c`)"},
+		},
+		{
+			name:     "ALTER TABLE CHANGE SERIAL",
+			setup:    []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT)"},
+			stmt:     "ALTER TABLE a CHANGE c y SERIAL",
+			code:     0,
+			contains: []string{"`y` bigint(20) unsigned NOT NULL AUTO_INCREMENT", "UNIQUE KEY `y` (`y`)"},
+		},
+		{
+			name:     "ALTER TABLE MIN_ROWS with a fraction",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a MIN_ROWS 1.5",
+			code:     0,
+			contains: []string{"MIN_ROWS=1"},
+		},
+		{
 			name: "CREATE TABLE with the Aria engine",
 			stmt: "CREATE TABLE x (a INT) ENGINE=Aria",
 			code: 0,

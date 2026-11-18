@@ -350,6 +350,20 @@ func TestSimulationCausesOracle(t *testing.T) {
 			contains: []string{"`a` binary(1)"},
 		},
 		{
+			name:     "ALTER TABLE MODIFY SERIAL",
+			setup:    []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT)"},
+			stmt:     "ALTER TABLE a MODIFY c SERIAL",
+			code:     0,
+			contains: []string{"`c` bigint unsigned NOT NULL AUTO_INCREMENT", "UNIQUE KEY `c` (`c`)"},
+		},
+		{
+			name:     "ALTER TABLE CHANGE SERIAL",
+			setup:    []string{"CREATE TABLE a (b INT PRIMARY KEY, c INT)"},
+			stmt:     "ALTER TABLE a CHANGE c y SERIAL",
+			code:     0,
+			contains: []string{"`y` bigint unsigned NOT NULL AUTO_INCREMENT", "UNIQUE KEY `y` (`y`)"},
+		},
+		{
 			name:  "REMOVE PARTITIONING of a table with none",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a REMOVE PARTITIONING",

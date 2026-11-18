@@ -786,6 +786,27 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 		updateColumnRefsInIndexes(tbl, oldName, colDef.Name)
 	}
 
+	// SERIAL implies a unique key here too: a replacement keeps the keys the
+	// old definition had and adds the new one's, so MODIFY of a SERIAL column
+	// leaves two unique keys. Measured on mysql:8.0.46.
+	if colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial") {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
+	}
+
 	// Handle repositioning.
 	if cmd.First || cmd.After != "" {
 		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
@@ -1369,7 +1390,7 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 		// CREATE TABLE path; the caller adds its unique key.
 		if strings.EqualFold(colDef.TypeName.Name, "serial") {
 			col.DataType = "bigint"
-			col.ColumnType = "bigint(20) unsigned"
+			col.ColumnType = "bigint unsigned"
 			col.AutoIncrement = true
 			col.Nullable = false
 		}
