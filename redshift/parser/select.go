@@ -313,7 +313,7 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		}
 		if p.collectMode() {
 			for _, t := range []int{
-				WHERE, GROUP_P, HAVING, QUALIFY, WINDOW,
+				WHERE, START, GROUP_P, HAVING, QUALIFY, WINDOW,
 				ORDER, LIMIT, OFFSET, FETCH, FOR,
 				UNION, EXCEPT, INTERSECT, ';',
 			} {
@@ -335,6 +335,24 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		}
 		if p.collectMode() {
 			for _, t := range []int{
+				START, GROUP_P, HAVING, QUALIFY, WINDOW,
+				ORDER, LIMIT, OFFSET, FETCH, FOR,
+				UNION, EXCEPT, INTERSECT, ';',
+			} {
+				p.addTokenCandidate(t)
+			}
+			return stmt, nil
+		}
+	}
+
+	// START WITH / CONNECT BY, Redshift's hierarchical-query clauses. They sit
+	// between WHERE and GROUP BY, as r_SELECT_synopsis writes them.
+	if p.isRedshiftConnectByStart() {
+		if err := p.parseRedshiftConnectBy(stmt); err != nil {
+			return nil, err
+		}
+		if p.collectMode() {
+			for _, t := range []int{
 				GROUP_P, HAVING, QUALIFY, WINDOW,
 				ORDER, LIMIT, OFFSET, FETCH, FOR,
 				UNION, EXCEPT, INTERSECT, ';',
@@ -353,15 +371,19 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		}
 		// Check for ALL or DISTINCT
 		if p.cur.Type == ALL {
+			// GROUP BY ALL groups by every column no aggregate uses, so the
+			// docs let it stand alone; an expression list may still follow.
 			p.advance()
-			// GROUP BY ALL is treated the same as GROUP BY (all is default)
+			stmt.GroupAll = true
 		} else if p.cur.Type == DISTINCT {
 			p.advance()
 			stmt.GroupDistinct = true
 		}
-		stmt.GroupClause, err = p.parseGroupByList()
-		if err != nil {
-			return nil, err
+		if !stmt.GroupAll || p.isAExprStart() {
+			stmt.GroupClause, err = p.parseGroupByList()
+			if err != nil {
+				return nil, err
+			}
 		}
 		if p.collectMode() {
 			for _, t := range []int{
@@ -421,10 +443,18 @@ func (p *Parser) parseRedshiftTopClause(stmt *nodes.SelectStmt) error {
 	return nil
 }
 
+// parseRedshiftExcludeList parses the EXCLUDE clause r_SELECT_synopsis and
+// r_SELECT_INTO put after the select list. The docs write it in two forms,
+// one name, or a parenthesized list of names:
+//
+//	[ EXCLUDE { column_name | ( column_name [, ...] ) } ]
+//
+// Each name is recorded as a String, in the order written.
 func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 	p.advance() // consume EXCLUDE
-	if _, err := p.expect('('); err != nil {
-		return nil, err
+	parenthesized := p.cur.Type == '('
+	if parenthesized {
+		p.advance()
 	}
 	name, err := p.parseColId()
 	if err != nil {
@@ -439,10 +469,51 @@ func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 		}
 		items = append(items, &nodes.String{Str: name})
 	}
-	if _, err := p.expect(')'); err != nil {
-		return nil, err
+	if parenthesized {
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
 	}
 	return &nodes.List{Items: items}, nil
+}
+
+// parseRedshiftConnectBy parses the hierarchical-query clauses the docs write
+// as START WITH <condition> CONNECT BY <condition>, with START WITH optional:
+//
+//	[ (START WITH <expr>) CONNECT BY <expr> ]
+//
+// Grammar reference: selectSynopsis and selectInto in RedshiftDocs.g4.
+func (p *Parser) parseRedshiftConnectBy(stmt *nodes.SelectStmt) error {
+	if p.cur.Type == START {
+		p.advance() // consume START
+		if _, err := p.expect(WITH); err != nil {
+			return err
+		}
+		cond, err := p.parseAExpr(0)
+		if err != nil {
+			return err
+		}
+		if cond == nil && !p.collectMode() {
+			return p.syntaxErrorAtCur()
+		}
+		stmt.StartWith = cond
+	}
+	// CONNECT is no keyword of this package, so it is matched as the word.
+	if !p.consumeRedshiftWord("connect") {
+		return p.syntaxErrorAtCur()
+	}
+	if _, err := p.expect(BY); err != nil {
+		return err
+	}
+	cond, err := p.parseAExpr(0)
+	if err != nil {
+		return err
+	}
+	if cond == nil && !p.collectMode() {
+		return p.syntaxErrorAtCur()
+	}
+	stmt.ConnectBy = cond
+	return nil
 }
 
 // parseValuesClause parses a VALUES clause.

@@ -23,3 +23,16 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftAlterDatabaseIntegrationStart` | the unquoted word `INTEGRATION` | the word | `TestIsRedshiftAlterDatabaseIntegrationStart` |
 | `isRedshiftDataMovementOptionStart` | a ColLabel that is not `FROM`, `TO`, `WHERE` or a terminator | the category and stop tokens | `TestIsRedshiftDataMovementOptionStart` |
 | `isRedshiftCopyColumnStart` | a name immediately before `FROM` or `TO` | the category and one lookahead | `TestIsRedshiftCopyColumnStart` |
+| `isRedshiftConnectByStart` | `START WITH`, the unquoted `CONNECT BY` | the word and one lookahead | `TestIsRedshiftConnectByStart` |
+| `isRedshiftVacuumTwoWordModeStart` | `SORT ONLY`, `DELETE ONLY` | the word and one lookahead | `TestIsRedshiftVacuumTwoWordModeStart` |
+| `isRedshiftPartitionTransformCallStart` | `YEAR`, `MONTH`, `DAY`, `HOUR`, `TRUNCATE` or the word `BUCKET` before `(` | the token and one lookahead | `TestIsRedshiftPartitionTransformCallStart` |
+| `isRedshiftRoleSpecStart` | a name, or `CURRENT_USER` / `CURRENT_ROLE` / `SESSION_USER` | the token after a comma | `TestIsRedshiftRoleSpecStart` |
+
+The predicates `isRedshiftConnectByStart` and `isRedshiftVacuumTwoWordModeStart`
+read a second token because the first one is a name in the other reading:
+`SELECT * FROM t start` aliases a table `start`, and `VACUUM SORT` vacuums a
+table named `sort`. `isRedshiftConnectByStart` is also what
+`isReservedForClause` asks, so a bare `START` or `CONNECT` still names an
+alias. `isRedshiftPartitionTransformCallStart` tells `PARTITIONED BY
+(BUCKET(16, a))` from a column named `bucket`, and `isRedshiftRoleSpecStart`
+ends a `role_list` at the comma before a repeated `WITH` clause.

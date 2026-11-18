@@ -864,6 +864,10 @@ func (p *Parser) parseAlterTableCmd() (*nodes.AlterTableCmd, error) {
 			cmd, err = p.parseRedshiftMaskingForDatashares()
 			break
 		}
+		if p.cur.Type == PARTITION {
+			cmd, err = p.parseRedshiftAlterTablePartitionLocation()
+			break
+		}
 		// exhaustive-gap fix: unknown alter_table_cmd lead keyword.
 		// Previously returned a zero-value AlterTableCmd (Subtype=0 == AT_AddColumn),
 		// injecting a phantom AddColumn command into the Cmds list.
@@ -897,18 +901,46 @@ func (p *Parser) parseRedshiftAlterTableAppend() (*nodes.AlterTableCmd, error) {
 	}, nil
 }
 
+// parseRedshiftAutoRefresh parses ALTER MATERIALIZED VIEW's
+// AUTO REFRESH { YES [ INTERVAL <number> ] | NO }.
+//
+// Grammar reference: alterMaterializedView in RedshiftDocs.g4.
 func (p *Parser) parseRedshiftAutoRefresh() (*nodes.AlterTableCmd, error) {
 	p.advance() // consume AUTO
 	if _, err := p.expect(REFRESH); err != nil {
 		return nil, err
 	}
-	enabled, err := p.parseRedshiftYesNo()
+	enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
 	if err != nil {
 		return nil, err
 	}
-	return makeRedshiftAlterOptionCmd("auto_refresh", []nodes.Node{
-		makeDefElem("enabled", &nodes.Boolean{Boolval: enabled}),
-	}), nil
+	opts := []nodes.Node{makeDefElem("enabled", &nodes.Boolean{Boolval: enabled})}
+	if interval != nil {
+		opts = append(opts, makeDefElem("interval", interval))
+	}
+	return makeRedshiftAlterOptionCmd("auto_refresh", opts), nil
+}
+
+// parseRedshiftAutoRefreshSettings parses the words after AUTO REFRESH: YES
+// with the INTERVAL minutes the docs make optional there, or NO. It returns
+// whether automatic refresh is on and the interval, nil when the clause
+// carries none.
+//
+// Grammar reference: alterMaterializedView and materializedViewCreateSqlCommand
+// in RedshiftDocs.g4 both write AUTO REFRESH ( YES ( INTERVAL NUMBER )? | NO ).
+func (p *Parser) parseRedshiftAutoRefreshSettings() (bool, *nodes.Integer, error) {
+	enabled, err := p.parseRedshiftYesNo()
+	if err != nil {
+		return false, nil, err
+	}
+	if !enabled || p.cur.Type != INTERVAL {
+		return enabled, nil, nil
+	}
+	p.advance() // consume INTERVAL
+	if !p.isNumericOnlyStart() {
+		return false, nil, p.syntaxErrorAtCur()
+	}
+	return enabled, &nodes.Integer{Ival: p.parseSignedIconst()}, nil
 }
 
 func (p *Parser) parseRedshiftRowLevelSecurity() (*nodes.AlterTableCmd, error) {
@@ -1015,11 +1047,46 @@ func (p *Parser) parseRedshiftAlterTableLocationInto(opts []nodes.Node) ([]nodes
 		return opts, nil
 	}
 	p.advance()
-	location, err := p.parseRedshiftStringLiteral()
+	for {
+		location, err := p.parseRedshiftStringLiteral()
+		if err != nil {
+			return nil, err
+		}
+		// The docs write ADD PARTITION's tail as LOCATION 's3://...' [, ...],
+		// one location per string, so each string gets its own DefElem and a
+		// reader takes the first as the partition's location.
+		opts = append(opts, makeDefElem("location", &nodes.String{Str: location}))
+		if p.cur.Type != ',' {
+			return opts, nil
+		}
+		p.advance()
+	}
+}
+
+// parseRedshiftAlterTablePartitionLocation parses the external-table action
+// ALTER TABLE a PARTITION ( partition_spec ) SET LOCATION 's3://...'.
+//
+// Grammar reference: alterTable_external_table_action in RedshiftDocs.g4.
+func (p *Parser) parseRedshiftAlterTablePartitionLocation() (*nodes.AlterTableCmd, error) {
+	p.advance() // consume PARTITION
+	spec, err := p.parseRedshiftPartitionSpec()
 	if err != nil {
 		return nil, err
 	}
-	return append(opts, makeDefElem("location", &nodes.String{Str: location})), nil
+	if _, err := p.expect(SET); err != nil {
+		return nil, err
+	}
+	opts := []nodes.Node{makeDefElem("partition", spec)}
+	opts, err = p.parseRedshiftAlterTableLocationInto(opts)
+	if err != nil {
+		return nil, err
+	}
+	if len(opts) == 1 {
+		// The action is PARTITION (...) SET LOCATION; SET of anything else is
+		// no external-table action.
+		return nil, p.syntaxErrorAtCur()
+	}
+	return makeRedshiftAlterOptionCmd("set_partition_location", opts), nil
 }
 
 func (p *Parser) parseRedshiftStringLiteral() (string, error) {
@@ -2258,6 +2325,12 @@ func (p *Parser) parseRoleList() (*nodes.List, error) {
 	}
 	items := []nodes.Node{rs}
 	for p.cur.Type == ',' {
+		if !isRedshiftRoleSpecStart(p.peekNext()) {
+			// The comma ends the list: r_CREATE_GROUP repeats its WITH clause
+			// after a comma (CREATE GROUP g WITH USER u, WITH USER v), and WITH
+			// begins no RoleSpec.
+			break
+		}
 		p.advance()
 		rs, err = p.parseRoleSpec()
 		if err != nil {

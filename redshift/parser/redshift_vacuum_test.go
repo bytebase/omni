@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/redshift/ast"
@@ -83,6 +84,33 @@ func TestRedshiftVacuumQualifiedAndQuotedRelationParse(t *testing.T) {
 		}
 		if rel.Relation == nil || rel.Relation.Relname != tc.relname {
 			t.Fatalf("Parse(%q): relname = %#v, want %q", tc.sql, rel.Relation, tc.relname)
+		}
+	}
+}
+
+// TestRedshiftVacuumTwoWordModeNeedsOnly pins SORT ONLY and DELETE ONLY as
+// modes: without ONLY the word names the relation, as r_VACUUM_command's
+// optional table name allows, so VACUUM SORT is a VACUUM of a table named sort.
+func TestRedshiftVacuumTwoWordModeNeedsOnly(t *testing.T) {
+	for _, sql := range []string{"VACUUM SORT", "VACUUM DELETE"} {
+		stmt := singleStmt(t, sql)
+		vacuum, ok := stmt.(*nodes.VacuumStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected VacuumStmt, got %T", sql, stmt)
+		}
+		if findDefElem(vacuum.Options, "mode") != nil {
+			t.Fatalf("Parse(%q): mode = %#v, want none", sql, vacuum.Options)
+		}
+		if vacuum.Rels == nil || len(vacuum.Rels.Items) != 1 {
+			t.Fatalf("Parse(%q): rels = %#v, want one relation", sql, vacuum.Rels)
+		}
+		rel, ok := vacuum.Rels.Items[0].(*nodes.VacuumRelation)
+		if !ok || rel.Relation == nil {
+			t.Fatalf("Parse(%q): relation = %#v, want a named relation", sql, vacuum.Rels.Items[0])
+		}
+		want := strings.ToLower(sql[len("VACUUM "):])
+		if rel.Relation.Relname != want {
+			t.Fatalf("Parse(%q): relname = %q, want %q", sql, rel.Relation.Relname, want)
 		}
 	}
 }

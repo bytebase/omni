@@ -3933,6 +3933,12 @@ func (p *Parser) isReservedForClause() bool {
 	if p.curIdentEquals("minus") {
 		return true
 	}
+	// START WITH and CONNECT BY are clauses of a SELECT, and START and CONNECT
+	// are names everywhere else, so only the clause's own continuation reserves
+	// them (SELECT * FROM t START WITH 1 CONNECT BY 1).
+	if p.isRedshiftConnectByStart() {
+		return true
+	}
 	switch p.cur.Type {
 	case FROM, WHERE, GROUP_P, HAVING, QUALIFY, ORDER, LIMIT, OFFSET, FETCH,
 		FOR, UNION, INTERSECT, EXCEPT, INTO, WINDOW, EXCLUDE:

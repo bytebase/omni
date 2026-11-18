@@ -46,18 +46,16 @@ func (p *Parser) parseVacuumStmt() (nodes.Node, error) {
 		p.advance()
 		opts = append(opts, makeDefElem("full", nil))
 		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "full"}))
-	} else if p.redshiftWordEqual("sort") {
-		p.advance()
+	} else if p.isRedshiftVacuumTwoWordModeStart() {
+		mode := "delete_only"
+		if p.redshiftWordEqual("sort") {
+			mode = "sort_only"
+		}
+		p.advance() // consume SORT or DELETE
 		if _, err := p.expect(ONLY); err != nil {
 			return nil, err
 		}
-		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "sort_only"}))
-	} else if p.cur.Type == DELETE_P {
-		p.advance()
-		if _, err := p.expect(ONLY); err != nil {
-			return nil, err
-		}
-		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "delete_only"}))
+		opts = append(opts, makeDefElem("mode", &nodes.String{Str: mode}))
 	} else if p.cur.Type == REINDEX {
 		p.advance()
 		opts = append(opts, makeDefElem("mode", &nodes.String{Str: "reindex"}))
@@ -158,13 +156,24 @@ func (p *Parser) parseAnalyzeStmt() (nodes.Node, error) {
 	if p.cur.Type == COMPRESSION {
 		p.advance()
 		n.Options = appendToList(n.Options, makeDefElem("compression", nil))
+		// r_ANALYZE_COMPRESSION writes the table as optional and its column
+		// list outside it, so ANALYZE COMPRESSION (a) may open the column list
+		// with no table for it to belong to. The relation's VaCols hold the
+		// list and its Relation is nil then.
+		if p.cur.Type == '(' {
+			cols, err := p.parseParenColumnList()
+			if err != nil {
+				return nil, err
+			}
+			n.Rels = &nodes.List{Items: []nodes.Node{&nodes.VacuumRelation{VaCols: cols, Loc: nodes.NoLoc()}}}
+		}
 	}
 	if p.cur.Type == VERBOSE {
 		p.advance()
 		n.Options = appendToList(n.Options, makeDefElem("verbose", nil))
 	}
 
-	if !p.redshiftAnalyzeOptionStart() {
+	if n.Rels == nil && !p.redshiftAnalyzeOptionStart() {
 		rels, err := p.parseOptVacuumRelationList()
 		if err != nil {
 			return nil, err

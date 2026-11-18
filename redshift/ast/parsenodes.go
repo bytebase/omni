@@ -21,8 +21,11 @@ type SelectStmt struct {
 	FromClause     *List       // the FROM clause
 	WhereClause    Node        // WHERE qualification
 	GroupClause    *List       // GROUP BY clauses
+	GroupAll       bool        // Is this GROUP BY ALL?
 	GroupDistinct  bool        // Is this GROUP BY DISTINCT?
 	HavingClause   Node        // HAVING conditional-expression
+	StartWith      Node        // Redshift START WITH condition of a hierarchical query
+	ConnectBy      Node        // Redshift CONNECT BY condition of a hierarchical query
 	QualifyClause  Node        // Redshift QUALIFY conditional-expression
 	WindowClause   *List       // WINDOW window_name AS (...), ...
 	ExcludeList    *List       // Redshift SELECT * EXCLUDE (...) result names

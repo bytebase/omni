@@ -452,3 +452,77 @@ func TestIsRedshiftCopyColumnStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftConnectByStart holds the clause's two entries to the words
+// they need after them: START WITH, and the unquoted CONNECT BY.
+func TestIsRedshiftConnectByStart(t *testing.T) {
+	for _, sql := range []string{"START WITH", "start with", "CONNECT BY", "connect by"} {
+		if !newLeadParser(sql).isRedshiftConnectByStart() {
+			t.Errorf("isRedshiftConnectByStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{
+		"START",         // a bare START is a name
+		"START BY",      // START needs WITH
+		"CONNECT",       // a bare CONNECT is a name
+		"CONNECT WITH",  // CONNECT needs BY
+		`"connect" BY`,  // a quoted name is no keyword
+		`"start" WITH`,  // a quoted name is no keyword
+		"starting WITH", // no prefix matches
+		"1 WITH",
+	} {
+		if newLeadParser(sql).isRedshiftConnectByStart() {
+			t.Errorf("isRedshiftConnectByStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+// TestIsRedshiftVacuumTwoWordModeStart holds the two modes to the ONLY after
+// them: without it the word is the relation VACUUM acts on.
+func TestIsRedshiftVacuumTwoWordModeStart(t *testing.T) {
+	for _, sql := range []string{"SORT ONLY", "sort only", "DELETE ONLY", "delete only"} {
+		if !newLeadParser(sql).isRedshiftVacuumTwoWordModeStart() {
+			t.Errorf("isRedshiftVacuumTwoWordModeStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"SORT", "DELETE", "SORT sales", "DELETE sales", "FULL ONLY", "REINDEX", "1 ONLY", `"sort" ONLY`} {
+		if newLeadParser(sql).isRedshiftVacuumTwoWordModeStart() {
+			t.Errorf("isRedshiftVacuumTwoWordModeStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+// TestIsRedshiftPartitionTransformCallStart holds the transform calls to the
+// '(' they need: each of the six names is unreserved, so each names a column
+// otherwise.
+func TestIsRedshiftPartitionTransformCallStart(t *testing.T) {
+	for _, sql := range []string{
+		"YEAR(a)", "MONTH(a)", "DAY(a)", "HOUR(a)", "BUCKET(1, a)", "TRUNCATE(1, a)",
+	} {
+		if !newLeadParser(sql).isRedshiftPartitionTransformCallStart() {
+			t.Errorf("isRedshiftPartitionTransformCallStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{
+		"YEAR", "BUCKET", "TRUNCATE", "a", `"YEAR"(a)`, "MSK(a)", "YES(a)", "1",
+	} {
+		if newLeadParser(sql).isRedshiftPartitionTransformCallStart() {
+			t.Errorf("isRedshiftPartitionTransformCallStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+// TestIsRedshiftRoleSpecStart holds role_list's continuation to what RoleSpec
+// takes: a name, or one of PostgreSQL's three role keywords.
+func TestIsRedshiftRoleSpecStart(t *testing.T) {
+	for _, sql := range []string{"a", "user1", "CURRENT_USER", "CURRENT_ROLE", "SESSION_USER"} {
+		if !isRedshiftRoleSpecStart(newLeadParser(sql).cur) {
+			t.Errorf("isRedshiftRoleSpecStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"WITH", "1", "'s'", ";"} {
+		if isRedshiftRoleSpecStart(newLeadParser(sql).cur) {
+			t.Errorf("isRedshiftRoleSpecStart(%q) = true, want false", sql)
+		}
+	}
+}

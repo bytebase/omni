@@ -791,8 +791,15 @@ func (p *Parser) parseDropdbStmt(stmtLoc int) (nodes.Node, error) {
 		return nil, err
 	}
 
-	// Optional: opt_with '(' drop_option_list ')'
+	// Redshift's DROP DATABASE database_name [ FORCE ] is a bare keyword, not
+	// PostgreSQL's WITH ( FORCE ) option list.
 	var options *nodes.List
+	if p.cur.Type == FORCE {
+		p.advance()
+		options = appendToList(options, makeDefElem("force", nil))
+	}
+
+	// Optional: opt_with '(' drop_option_list ')'
 	if p.cur.Type == WITH || p.cur.Type == '(' {
 		if p.cur.Type == WITH {
 			p.advance() // consume WITH
@@ -800,12 +807,14 @@ func (p *Parser) parseDropdbStmt(stmtLoc int) (nodes.Node, error) {
 		if _, err := p.expect('('); err != nil {
 			return nil, err
 		}
-		if options, err = p.parseDropOptionList(); err != nil {
+		var dropOptions *nodes.List
+		if dropOptions, err = p.parseDropOptionList(); err != nil {
 			return nil, err
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err
 		}
+		options = appendNodeLists(options, dropOptions)
 	}
 
 	return &nodes.DropdbStmt{

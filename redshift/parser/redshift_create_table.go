@@ -150,18 +150,10 @@ func (p *Parser) parseRedshiftIdentityColumnConstraint() (*nodes.Constraint, err
 
 	var opts *nodes.List
 	if p.cur.Type == '(' {
-		p.advance()
-		var items []nodes.Node
-		if p.cur.Type != ')' {
-			items = append(items, makeDefElem("start", p.parseNumericOnly()))
-			if p.cur.Type == ',' {
-				p.advance()
-				items = append(items, makeDefElem("increment", p.parseNumericOnly()))
-			}
-		}
-		p.expect(')')
-		if len(items) > 0 {
-			opts = &nodes.List{Items: items}
+		var err error
+		opts, err = p.parseRedshiftIdentitySeedStepOptions()
+		if err != nil {
+			return nil, err
 		}
 	}
 

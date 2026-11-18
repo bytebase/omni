@@ -817,6 +817,8 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.WhereClause)
 		walkList(v, n.GroupClause)
 		Walk(v, n.HavingClause)
+		Walk(v, n.StartWith)
+		Walk(v, n.ConnectBy)
 		Walk(v, n.QualifyClause)
 		walkList(v, n.WindowClause)
 		walkList(v, n.ExcludeList)

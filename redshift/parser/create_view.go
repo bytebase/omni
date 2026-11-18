@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
@@ -393,7 +395,7 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	if err != nil {
 		return nil, err
 	}
-	options, err = p.parseRedshiftMaterializedViewOptionsInto(options)
+	options, err = p.parseRedshiftMaterializedViewOptionsInto(options, accessMethod)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +414,15 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	}, nil
 }
 
-func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List) (*nodes.List, error) {
+// parseRedshiftMaterializedViewOptionsInto parses the clauses
+// r_CREATE_MATERIALIZED_VIEW puts after the view's name, its column list and
+// its access method: BACKUP, DISTSTYLE, DISTKEY, SORTKEY and AUTO REFRESH,
+// plus the LOCATION, PARTITIONED BY and TABLE PROPERTIES tail that only the
+// USING ICEBERG form takes.
+//
+// Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
+func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, accessMethod string) (*nodes.List, error) {
+	iceberg := strings.EqualFold(accessMethod, "iceberg")
 	for {
 		consumed := false
 		attrs, err := p.parseRedshiftCreateTableAttributes()
@@ -428,17 +438,160 @@ func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List) (
 			if _, err := p.expect(REFRESH); err != nil {
 				return nil, err
 			}
-			enabled, err := p.parseRedshiftYesNo()
+			enabled, interval, err := p.parseRedshiftAutoRefreshSettings()
 			if err != nil {
 				return nil, err
 			}
 			options = appendToList(options, makeDefElem("auto_refresh", &nodes.Boolean{Boolval: enabled}))
+			if interval != nil {
+				options = appendToList(options, makeDefElem("auto_refresh_interval", interval))
+			}
 			consumed = true
+		}
+		if iceberg {
+			var icebergConsumed bool
+			options, icebergConsumed, err = p.parseRedshiftIcebergMaterializedViewOptions(options)
+			if err != nil {
+				return nil, err
+			}
+			consumed = consumed || icebergConsumed
 		}
 		if !consumed {
 			return options, nil
 		}
 	}
+}
+
+// parseRedshiftIcebergMaterializedViewOptions parses the clauses the docs put
+// after USING ICEBERG on r_CREATE_MATERIALIZED_VIEW, each optional and in this
+// order:
+//
+//	[ LOCATION 's3://bucket/folder/' ]
+//	[ PARTITIONED BY ( partition_transform [, ...] ) ]
+//	[ TABLE PROPERTIES ( 'name' = 'value' [, ...] ) ]
+//
+// It reports whether it read one, so its caller's loop knows to go on. The
+// table properties keep the shape ALTER TABLE ... SET TABLE PROPERTIES gives
+// them: a list of one DefElem per 'name' = 'value' pair.
+func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List) (*nodes.List, bool, error) {
+	consumed := false
+	for {
+		switch {
+		case p.cur.Type == LOCATION:
+			p.advance()
+			location, err := p.parseRedshiftStringLiteral()
+			if err != nil {
+				return nil, false, err
+			}
+			options = appendToList(options, makeDefElem("location", &nodes.String{Str: location}))
+		case p.redshiftKeywordIs("partitioned"):
+			// PARTITIONED BY is not a PostgreSQL clause; both words are names
+			// there, so neither is a keyword token in this package.
+			p.advance()
+			if _, err := p.expect(BY); err != nil {
+				return nil, false, err
+			}
+			transforms, err := p.parseRedshiftPartitionTransforms()
+			if err != nil {
+				return nil, false, err
+			}
+			options = appendToList(options, makeDefElem("partitioned_by", transforms))
+		case p.cur.Type == TABLE:
+			p.advance()
+			if !p.consumeRedshiftWord("properties") {
+				return nil, false, p.syntaxErrorAtCur()
+			}
+			properties, err := p.parseRedshiftStringOptionList()
+			if err != nil {
+				return nil, false, err
+			}
+			options = appendToList(options, makeDefElem("table_properties", properties))
+		default:
+			return options, consumed, nil
+		}
+		consumed = true
+	}
+}
+
+// parseRedshiftPartitionTransforms parses the partition_transform list after
+// PARTITIONED BY:
+//
+//	( partition_transform [, ...] )
+func (p *Parser) parseRedshiftPartitionTransforms() (*nodes.List, error) {
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	var items []nodes.Node
+	for {
+		transform, err := p.parseRedshiftPartitionTransform()
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, transform)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
+	}
+	return &nodes.List{Items: items}, nil
+}
+
+// parseRedshiftPartitionTransform parses one partition_transform. The
+// Parameters section of materialized-view-create-sql-command lists it, and
+// docs-fixes.tsv has the converter read that section as its definition:
+//
+//	column_name | YEAR( column_name ) | MONTH( column_name ) |
+//	DAY( column_name ) | HOUR( column_name ) |
+//	BUCKET( number, column_name ) | TRUNCATE( number, column_name )
+//
+// Only those calls are transforms, so only those parse; a column is a ColumnRef
+// and a call is a FuncCall of that name, which is what the transform means.
+func (p *Parser) parseRedshiftPartitionTransform() (nodes.Node, error) {
+	loc := p.pos()
+	if p.isRedshiftPartitionTransformCallStart() {
+		name := strings.ToLower(p.advance().Str)
+		if _, err := p.expect('('); err != nil {
+			return nil, err
+		}
+		var args []nodes.Node
+		if name == "bucket" || name == "truncate" {
+			// BUCKET ( number, column_name )
+			if !p.isNumericOnlyStart() {
+				return nil, p.syntaxErrorAtCur()
+			}
+			args = append(args, p.parseNumericOnly())
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+		}
+		column, err := p.parseColId()
+		if err != nil {
+			return nil, err
+		}
+		args = append(args, &nodes.ColumnRef{
+			Fields: &nodes.List{Items: []nodes.Node{&nodes.String{Str: column}}},
+			Loc:    nodes.Loc{Start: p.prev.Loc, End: p.prev.End},
+		})
+		if _, err := p.expect(')'); err != nil {
+			return nil, err
+		}
+		return &nodes.FuncCall{
+			Funcname: makeFuncName(name),
+			Args:     &nodes.List{Items: args},
+			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
+		}, nil
+	}
+	column, err := p.parseColId()
+	if err != nil {
+		return nil, err
+	}
+	return &nodes.ColumnRef{
+		Fields: &nodes.List{Items: []nodes.Node{&nodes.String{Str: column}}},
+		Loc:    nodes.Loc{Start: loc, End: p.prev.End},
+	}, nil
 }
 
 // parseOptWithData parses opt_with_data. It ends its statement, so WITH
