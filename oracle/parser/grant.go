@@ -221,6 +221,9 @@ func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 		return nil, err
 	}
 	if programs {
+		if err := p.parseGrantContainer(); err != nil {
+			return nil, err
+		}
 		stmt.Loc.End = p.prev.End
 		return stmt, nil
 	}

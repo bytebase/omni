@@ -1568,7 +1568,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 	}
 	if p.cur.Type == '(' {
 		p.advance()
-		var orgSeen, clusterSeen bool
+		var orgSeen, clusterSeen, objectSeen, nonObjectSeen bool
 		for n := 0; ; n++ {
 			if p.cur.Type == ')' && n > 0 {
 				p.advance()
@@ -1576,14 +1576,16 @@ func (p *Parser) parseATNestedTableStorage() error {
 			}
 			start := p.pos()
 			if p.cur.Type == '(' {
-				if clusterSeen {
+				if objectSeen || nonObjectSeen {
 					return p.syntaxErrorAtCur()
 				}
+				objectSeen = true
 				if err := p.parseATObjectProperties(); err != nil {
 					return err
 				}
 				continue
 			}
+			nonObjectSeen = true
 			if p.atWord("ORGANIZATION") {
 				if clusterSeen || orgSeen {
 					return p.syntaxErrorAtCur()

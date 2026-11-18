@@ -56,6 +56,9 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 			// object_properties of a nested table's storage table puts it
 			// inside the parentheses, as its own converted rule does.
 			insideColumns := objectProperties && p.cur.Type == kwCOLUMNS
+			if objectProperties && !insideColumns {
+				return p.syntaxErrorAtCur()
+			}
 			if insideColumns {
 				p.advance()
 			}
