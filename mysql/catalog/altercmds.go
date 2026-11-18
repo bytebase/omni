@@ -173,6 +173,10 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 	// Snapshot the table so we can rollback on any sub-command failure.
 	snapshot := cloneTable(tbl)
 	origKey := key
+	beforeConstraints := make(map[*Constraint]bool, len(tbl.Constraints))
+	for _, con := range tbl.Constraints {
+		beforeConstraints[con] = true
+	}
 
 	for _, cmd := range stmt.Commands {
 		if err := c.execAlterCmd(db, tbl, cmd, leaves); err != nil {
@@ -180,7 +184,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 			return err
 		}
 	}
-	if err := checkKeysOnFinalTable(tbl, stmt.Commands); err != nil {
+	if err := c.checkKeysOnFinalTable(tbl, stmt.Commands, beforeConstraints); err != nil {
 		undoAlter(db, origKey, tbl, snapshot)
 		return err
 	}
@@ -196,7 +200,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 // SPATIAL key's part must be NOT NULL (1252). A primary key also makes the
 // columns it names NOT NULL, which its own command could not do while a later
 // column was still missing (measured on mysql:8.0.46).
-func checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd) error {
+func (c *Catalog) checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd, before map[*Constraint]bool) error {
 	for _, cmd := range commands {
 		if cmd == nil {
 			continue
@@ -228,6 +232,19 @@ func checkKeysOnFinalTable(tbl *Table, commands []*nodes.AlterTableCmd) error {
 				if err := validateIndexColumns(tbl, buildIndexColumns(con), false, true); err != nil {
 					return err
 				}
+			}
+		}
+	}
+	// A foreign key is judged on the table the statement leaves too: a local
+	// column a later command adds is what 3780 compares, and 1830 needs the
+	// NOT NULL that command writes (measured on mysql:8.0.46).
+	if c.foreignKeyChecks {
+		for _, con := range tbl.Constraints {
+			if before[con] || con.Type != ConForeignKey {
+				continue
+			}
+			if err := c.validateSingleFK(tbl.Database, tbl, con); err != nil {
+				return err
 			}
 		}
 	}

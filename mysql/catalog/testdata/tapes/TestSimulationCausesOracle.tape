@@ -733,6 +733,80 @@
 | CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
 < ok 0 0
 > exec
+| CREATE TABLE s (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (x2) REFERENCES s(id), ADD x2 VARCHAR(10)
+< error
+| 3780 HY000 Referencing column 'x2' and referenced column 'id' in foreign key constraint 'a_ibfk_1' are incompatible.
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE s (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (x2) REFERENCES s(id) ON DELETE SET NULL, ADD x2 INT NOT NULL
+< error
+| 1830 HY000 Column 'x2' cannot be NOT NULL: needed in a foreign key constraint 'a_ibfk_1' SET NULL
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
+| CREATE TABLE s (id INT PRIMARY KEY)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (x2) REFERENCES s(id), ADD x2 INT
+< ok 0 0
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
+| CREATE TABLE a (b INT PRIMARY KEY, c INT, d INT, KEY idx_d (d))
+< ok 0 0
+> exec
 | ALTER TABLE a ADD SPATIAL KEY(x), ADD x GEOMETRY
 < error
 | 1252 42000 All parts of a SPATIAL index must be NOT NULL

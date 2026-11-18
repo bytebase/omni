@@ -245,6 +245,26 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1170,
 		},
 		{
+			// A foreign key is judged on the columns the statement leaves: 3780
+			// compares the local column a later command adds.
+			name:  "ADD FOREIGN KEY whose local column a later command adds",
+			setup: []string{oneTable, "CREATE TABLE s (id INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY (x2) REFERENCES s(id), ADD x2 VARCHAR(10)",
+			code:  3780,
+		},
+		{
+			name:  "ADD FOREIGN KEY SET NULL beside a later-added NOT NULL column",
+			setup: []string{oneTable, "CREATE TABLE s (id INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY (x2) REFERENCES s(id) ON DELETE SET NULL, ADD x2 INT NOT NULL",
+			code:  1830,
+		},
+		{
+			name:  "ADD FOREIGN KEY whose local column a later command adds as its type",
+			setup: []string{oneTable, "CREATE TABLE s (id INT PRIMARY KEY)"},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY (x2) REFERENCES s(id), ADD x2 INT",
+			code:  0,
+		},
+		{
 			name:  "ADD SPATIAL KEY over a later-added nullable column",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a ADD SPATIAL KEY(x), ADD x GEOMETRY",
