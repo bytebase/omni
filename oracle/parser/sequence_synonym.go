@@ -286,6 +286,12 @@ func (p *Parser) parseCreateSynonymStmt(start int, orReplace, public bool) (*nod
 
 	// [ EDITIONABLE | NONEDITIONABLE ]
 	if p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE") {
+		stmt.Edition = p.cur.Str
+		p.advance()
+	}
+	// [ PUBLIC ]
+	if p.cur.Type == kwPUBLIC {
+		stmt.Public = true
 		p.advance()
 	}
 	// SYNONYM keyword

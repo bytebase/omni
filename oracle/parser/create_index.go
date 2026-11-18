@@ -484,6 +484,9 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			if without {
 				return nil, p.syntaxErrorAtCur()
 			}
+			if err := p.ixOnce(seen, "ARRAY"); err != nil {
+				return nil, err
+			}
 			p.advance()
 			stmt.ArrayDML = true
 		default:
@@ -693,6 +696,9 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 		case p.isKeywordStr("DML"):
 			if without {
 				return nil, p.syntaxErrorAtCur()
+			}
+			if err := p.ixOnce(seen, "ARRAY"); err != nil {
+				return nil, err
 			}
 			p.advance()
 			stmt.ArrayDML = true

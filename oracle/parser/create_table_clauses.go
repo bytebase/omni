@@ -1168,32 +1168,44 @@ func (p *Parser) isCreateTableColumnClauseStart() bool {
 //
 // CREATE TABLE adds annotations: Oracle 23ai refuses DROP there, and a name
 // given twice, at the second.
-func (p *Parser) parseCreateTableAnnotations() error {
+func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
+	anns := &nodes.List{}
 	p.advance() // consume ANNOTATIONS
 	if err := p.expectCreateTableToken('('); err != nil {
-		return err
+		return nil, err
 	}
 	seen := map[string]bool{}
 	for {
+		start := p.pos()
+		op := ""
 		if p.cur.Type == kwADD {
+			op = "ADD"
 			p.advance()
 		}
 		if seen[p.cur.Str] && p.isCreateTableNameStart() {
-			return p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
 		seen[p.cur.Str] = true
+		name := p.cur.Str
 		if err := p.parseCreateTableName(); err != nil {
-			return err
+			return nil, err
 		}
+		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start}}
 		if p.cur.Type == tokSCONST {
+			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.String{Str: p.cur.Str}}}
 			p.advance()
 		}
+		opt.Loc.End = p.prev.End
+		anns.Items = append(anns.Items, opt)
 		if p.cur.Type != ',' {
 			break
 		}
 		p.advance() // consume ','
 	}
-	return p.expectCreateTableToken(')')
+	if err := p.expectCreateTableToken(')'); err != nil {
+		return nil, err
+	}
+	return anns, nil
 }
 
 // parseCreateTableEditionClauses reads a virtual column's

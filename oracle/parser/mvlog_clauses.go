@@ -1516,9 +1516,10 @@ func (p *Parser) parseMVLogSplit(stmt *nodes.AlterMviewLogStmt) error {
 				}
 				p.advance()
 			}
-			if p.cur.Type == ')' {
-				p.advance()
+			if p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
 			}
+			p.advance()
 		} else {
 			p.advance() // consume (
 			for {

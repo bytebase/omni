@@ -441,6 +441,7 @@ func walkChildren(v Visitor, node Node) {
 		}
 		Walk(v, n.Virtual)
 		walkList(v, n.Constraints)
+		walkList(v, n.Annotations)
 	case *CommentStmt:
 		if n.Object != nil {
 			Walk(v, n.Object)

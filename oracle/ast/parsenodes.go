@@ -1640,7 +1640,7 @@ type ColumnDef struct {
 	DropIdentity            bool            // DROP IDENTITY (ALTER TABLE MODIFY)
 	Constraints             *List           // column constraints (list of *ColumnConstraint)
 	Collation               string          // COLLATE
-	Annotations             bool            // ANNOTATIONS clause present
+	Annotations             *List           // column annotations, one *DDLOption each
 	Loc                     Loc             // start location
 }
 
@@ -1956,6 +1956,7 @@ type CreateSynonymStmt struct {
 	IfNotExists bool        // IF NOT EXISTS
 	Name        *ObjectName // synonym name
 	Target      *ObjectName // target object
+	Edition     string      // EDITIONABLE or NONEDITIONABLE
 	Sharing     string      // SHARING = { METADATA | NONE }
 	Loc         Loc         // start location
 }

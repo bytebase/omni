@@ -740,9 +740,10 @@ func (p *Parser) parseATSplitPartition(cmd *nodes.AlterTableCmd) error {
 				}
 				p.advance()
 			}
-			if p.cur.Type == ')' {
-				p.advance()
+			if p.cur.Type != ')' {
+				return p.syntaxErrorAtCur()
 			}
+			p.advance()
 		} else {
 			p.advance() // consume (
 			// INTO alone lists range or list partition descriptions, each

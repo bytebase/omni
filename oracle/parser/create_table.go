@@ -226,14 +226,9 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		// Check for EDITIONABLE / NONEDITIONABLE [ PUBLIC ] SYNONYM
 		if p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE") {
 			next := p.peekNext()
-			if next.Type == kwSYNONYM {
-				p.advance()
+			if next.Type == kwSYNONYM ||
+				(next.Type == kwPUBLIC && len(p.peekAhead(2)) == 2 && p.peekAhead(2)[1].Type == kwSYNONYM) {
 				return p.parseCreateSynonymStmt(start, orReplace, public)
-			}
-			if next.Type == kwPUBLIC && len(p.peekAhead(2)) == 2 && p.peekAhead(2)[1].Type == kwSYNONYM {
-				p.advance() // EDITIONABLE / NONEDITIONABLE
-				p.advance() // PUBLIC
-				return p.parseCreateSynonymStmt(start, orReplace, true)
 			}
 		}
 		// Check for EDITIONING / EDITIONABLE / NONEDITIONABLE VIEW
@@ -670,7 +665,7 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			return nil, p.syntaxErrorAtCur()
 		}
 	} else if (p.cur.Type == kwIDENTITY || p.cur.Type == kwKEY || p.cur.Type == kwNULLS ||
-		p.cur.Type == kwSAMPLE || p.cur.Type == kwUSING) &&
+		((p.cur.Type == kwSAMPLE || p.cur.Type == kwUSING) && p.alterMview)) &&
 		(p.alterTableModifyColumn ||
 			((p.cur.Type == kwKEY || p.cur.Type == kwNULLS) && p.createTableColumns &&
 				(p.peekNext().Type == ')' || p.peekNext().Type == ','))) {
@@ -756,7 +751,7 @@ func isOracleTypeToken(tokenType int) bool {
 }
 
 func columnDefHasProperties(col *nodes.ColumnDef) bool {
-	return col.Annotations || col.Sort || col.Visible || col.Invisible || col.Default != nil ||
+	return (col.Annotations != nil && col.Annotations.Len() > 0) || col.Sort || col.Visible || col.Invisible || col.Default != nil ||
 		col.Identity != nil || col.Virtual != nil || col.NotNull || col.Null ||
 		col.DropIdentity || col.Encrypt != "" || col.Collation != "" ||
 		(col.Constraints != nil && col.Constraints.Len() > 0)
@@ -1001,10 +996,11 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 						return err
 					}
 				case "ANNOTATIONS":
-					if err := p.parseCreateTableAnnotations(); err != nil {
+					anns, err := p.parseCreateTableAnnotations()
+					if err != nil {
 						return err
 					}
-					col.Annotations = true
+					col.Annotations = anns
 				case "SORT":
 					p.advance()
 					col.Sort = true

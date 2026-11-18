@@ -2123,6 +2123,16 @@ func writeColumnDef(sb *strings.Builder, n *ColumnDef) {
 	if n.DropIdentity {
 		sb.WriteString(" :dropIdentity true")
 	}
+	if n.Annotations != nil && n.Annotations.Len() > 0 {
+		sb.WriteString(" :annotations (")
+		for i, item := range n.Annotations.Items {
+			if i > 0 {
+				sb.WriteString(" ")
+			}
+			writeNode(sb, item)
+		}
+		sb.WriteString(")")
+	}
 	if n.Constraints != nil {
 		sb.WriteString(" :constraints ")
 		writeNode(sb, n.Constraints)
@@ -3192,6 +3202,9 @@ func writeCreateSynonymStmt(sb *strings.Builder, n *CreateSynonymStmt) {
 	}
 	if n.IfNotExists {
 		sb.WriteString(" :ifNotExists true")
+	}
+	if n.Edition != "" {
+		sb.WriteString(fmt.Sprintf(" :edition %q", n.Edition))
 	}
 	if n.Name != nil {
 		sb.WriteString(" :name ")
