@@ -717,11 +717,11 @@ reject	reject	engine	stmt/alter_sensitive_rule_stmt!drop-5	ALTER SENSITIVE RULE 
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!insert	ALTER SENSITIVE RULE a ENABLE zzz
 reject	reject	engine	stmt/alter_sensitive_rule_stmt!swap	ALWAYS SENSITIVE RULE a ENABLE
 accept	reject	engine	pl_expr_stmt/DO_expr	DO a
-reject	accept	engine	expr_list/expr	SELECT [ a ]
+accept	accept	engine	expr_list/expr	SELECT [ a ]
 reject	reject	engine	expr_list/expr!drop-1	SELECT [ ]
 reject	reject	engine	expr_list/expr!truncate	SELECT [
 reject	reject	engine	expr_list/expr!insert	SELECT [ a zzz ]
-reject	accept	engine	expr_list/expr_list_,_expr	SELECT [ a, a ]
+accept	accept	engine	expr_list/expr_list_,_expr	SELECT [ a, a ]
 reject	reject	engine	expr_list/expr_list_,_expr!drop-1	SELECT [, a ]
 reject	reject	engine	expr_list/expr_list_,_expr!drop-2	SELECT [ a a ]
 reject	reject	engine	expr_list/expr_list_,_expr!drop-3	SELECT [ a, ]
@@ -1288,7 +1288,7 @@ accept	accept	engine	simple_expr/window_function	SELECT RANK() OVER a
 reject	reject	engine	simple_expr/window_function!drop-1	SELECT() OVER a
 reject	reject	engine	simple_expr/window_function!drop-2	SELECT RANK) OVER a
 reject	reject	engine	simple_expr/window_function!drop-3	SELECT RANK(OVER a
-accept	reject	engine	simple_expr/window_function!drop-4	SELECT RANK() a
+reject	reject	engine	simple_expr/window_function!drop-4	SELECT RANK() a
 reject	reject	engine	simple_expr/window_function!drop-5	SELECT RANK() OVER
 accept	accept	engine	simple_expr/window_function!insert	SELECT RANK() OVER a zzz
 reject	reject	engine	simple_expr/window_function!swap	SELECT RB_AND_AGG() OVER a
@@ -1472,27 +1472,27 @@ accept	accept	engine	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_gener
 reject	reject	engine	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_generalized_window_clause!drop-7	SELECT COUNT(DISTINCT a) OVER
 accept	accept	engine	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_generalized_window_clause!insert	SELECT COUNT(DISTINCT a) OVER a zzz
 reject	reject	engine	window_function/COUNT_(_DISTINCT_expr_list_)_OVER_new_generalized_window_clause!swap	SELECT COUNT_TO_EXISTS(DISTINCT a) OVER a
-reject	accept	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause	SELECT APPROX_COUNT_DISTINCT(a) OVER a
+accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause	SELECT APPROX_COUNT_DISTINCT(a) OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!drop-2	SELECT APPROX_COUNT_DISTINCT a) OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!drop-3	SELECT APPROX_COUNT_DISTINCT() OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!drop-4	SELECT APPROX_COUNT_DISTINCT(a OVER a
 accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!drop-5	SELECT APPROX_COUNT_DISTINCT(a) a
-accept	reject	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!drop-6	SELECT APPROX_COUNT_DISTINCT(a) OVER
-reject	accept	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!insert	SELECT APPROX_COUNT_DISTINCT(a) OVER a zzz
-reject	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) OVER a
+reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!drop-6	SELECT APPROX_COUNT_DISTINCT(a) OVER
+accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_(_expr_list_)_OVER_new_generalized_window_clause!insert	SELECT APPROX_COUNT_DISTINCT(a) OVER a zzz
+accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!drop-2	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS a) OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!drop-3	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS() OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!drop-4	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a OVER a
 accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!drop-5	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) a
-accept	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!drop-6	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) OVER
-reject	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!insert	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) OVER a zzz
-reject	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) OVER a
+reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!drop-6	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) OVER
+accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)_OVER_new_generalized_window_clause!insert	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) OVER a zzz
+accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!drop-2	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE a) OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!drop-3	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE() OVER a
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!drop-4	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a OVER a
 accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!drop-5	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) a
-accept	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!drop-6	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) OVER
-reject	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!insert	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) OVER a zzz
+reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!drop-6	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) OVER
+accept	accept	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!insert	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) OVER a zzz
 reject	reject	engine	window_function/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)_OVER_new_generalized_window_clause!swap	SELECT ARBITRATION(a) OVER a
 accept	accept	engine	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause	SELECT SUM(a) OVER a
 reject	reject	engine	window_function/SUM_(_opt_distinct_or_all_expr_)_OVER_new_generalized_window_clause!drop-2	SELECT SUM a) OVER a
@@ -1609,7 +1609,7 @@ accept	accept	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_
 reject	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-2	SELECT LISTAGG a) OVER a
 reject	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-3	SELECT LISTAGG() OVER a
 reject	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-4	SELECT LISTAGG(a OVER a
-accept	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-5	SELECT LISTAGG(a) a
+reject	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-5	SELECT LISTAGG(a) a
 reject	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!drop-6	SELECT LISTAGG(a) OVER
 accept	accept	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!insert	SELECT LISTAGG(a) OVER a zzz
 reject	reject	engine	window_function/LISTAGG_(_opt_distinct_expr_list_opt_order_by_opt_separator_)_OVER_new_generalized_window_clause!swap	SELECT LN(a) OVER a
@@ -1617,21 +1617,21 @@ accept	accept	engine	window_function/RANK_(_)_OVER_new_generalized_window_clause
 accept	accept	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause	SELECT DENSE_RANK() OVER a
 reject	reject	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!drop-2	SELECT DENSE_RANK) OVER a
 reject	reject	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!drop-3	SELECT DENSE_RANK(OVER a
-accept	reject	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!drop-4	SELECT DENSE_RANK() a
+reject	reject	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!drop-4	SELECT DENSE_RANK() a
 reject	reject	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!drop-5	SELECT DENSE_RANK() OVER
 accept	accept	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!insert	SELECT DENSE_RANK() OVER a zzz
 reject	reject	engine	window_function/DENSE_RANK_(_)_OVER_new_generalized_window_clause!swap	SELECT DEPTH() OVER a
 accept	accept	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause	SELECT PERCENT_RANK() OVER a
 reject	reject	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!drop-2	SELECT PERCENT_RANK) OVER a
 reject	reject	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!drop-3	SELECT PERCENT_RANK(OVER a
-accept	reject	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!drop-4	SELECT PERCENT_RANK() a
+reject	reject	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!drop-4	SELECT PERCENT_RANK() a
 reject	reject	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!drop-5	SELECT PERCENT_RANK() OVER
 accept	accept	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!insert	SELECT PERCENT_RANK() OVER a zzz
 reject	reject	engine	window_function/PERCENT_RANK_(_)_OVER_new_generalized_window_clause!swap	SELECT PERFORMANCE() OVER a
 accept	accept	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause	SELECT ROW_NUMBER() OVER a
 reject	reject	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!drop-2	SELECT ROW_NUMBER) OVER a
 reject	reject	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!drop-3	SELECT ROW_NUMBER(OVER a
-accept	reject	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!drop-4	SELECT ROW_NUMBER() a
+reject	reject	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!drop-4	SELECT ROW_NUMBER() a
 reject	reject	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!drop-5	SELECT ROW_NUMBER() OVER
 accept	accept	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!insert	SELECT ROW_NUMBER() OVER a zzz
 reject	reject	engine	window_function/ROW_NUMBER_(_)_OVER_new_generalized_window_clause!swap	SELECT RT() OVER a
@@ -1639,14 +1639,14 @@ accept	accept	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_
 reject	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!drop-2	SELECT NTILE a) OVER a
 reject	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!drop-3	SELECT NTILE() OVER a
 reject	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!drop-4	SELECT NTILE(a OVER a
-accept	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!drop-5	SELECT NTILE(a) a
+reject	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!drop-5	SELECT NTILE(a) a
 reject	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!drop-6	SELECT NTILE(a) OVER
 accept	accept	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!insert	SELECT NTILE(a) OVER a zzz
 reject	reject	engine	window_function/NTILE_(_expr_)_OVER_new_generalized_window_clause!swap	SELECT NULL(a) OVER a
 accept	accept	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause	SELECT CUME_DIST() OVER a
 reject	reject	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!drop-2	SELECT CUME_DIST) OVER a
 reject	reject	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!drop-3	SELECT CUME_DIST(OVER a
-accept	reject	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!drop-4	SELECT CUME_DIST() a
+reject	reject	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!drop-4	SELECT CUME_DIST() a
 reject	reject	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!drop-5	SELECT CUME_DIST() OVER
 accept	accept	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!insert	SELECT CUME_DIST() OVER a zzz
 reject	reject	engine	window_function/CUME_DIST_(_)_OVER_new_generalized_window_clause!swap	SELECT CURDATE() OVER a
@@ -1654,7 +1654,7 @@ accept	accept	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_
 reject	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-2	SELECT FIRST_VALUE a) OVER a
 reject	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-3	SELECT FIRST_VALUE() OVER a
 reject	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-4	SELECT FIRST_VALUE(a OVER a
-accept	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-5	SELECT FIRST_VALUE(a) a
+reject	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-5	SELECT FIRST_VALUE(a) a
 reject	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-6	SELECT FIRST_VALUE(a) OVER
 accept	accept	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!insert	SELECT FIRST_VALUE(a) OVER a zzz
 reject	reject	engine	window_function/FIRST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!swap	SELECT FIXED(a) OVER a
@@ -1662,7 +1662,7 @@ accept	accept	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_n
 reject	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-2	SELECT LAST_VALUE a) OVER a
 reject	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-3	SELECT LAST_VALUE() OVER a
 reject	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-4	SELECT LAST_VALUE(a OVER a
-accept	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-5	SELECT LAST_VALUE(a) a
+reject	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-5	SELECT LAST_VALUE(a) a
 reject	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!drop-6	SELECT LAST_VALUE(a) OVER
 accept	accept	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!insert	SELECT LAST_VALUE(a) OVER a zzz
 reject	reject	engine	window_function/LAST_VALUE_win_fun_first_last_params_OVER_new_generalized_window_clause!swap	SELECT LATERAL(a) OVER a
@@ -1670,7 +1670,7 @@ accept	accept	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_gener
 reject	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-2	SELECT LEAD a) OVER a
 reject	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-3	SELECT LEAD() OVER a
 reject	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-4	SELECT LEAD(a OVER a
-accept	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-5	SELECT LEAD(a) a
+reject	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-5	SELECT LEAD(a) a
 reject	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-6	SELECT LEAD(a) OVER
 accept	accept	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!insert	SELECT LEAD(a) OVER a zzz
 reject	reject	engine	window_function/LEAD_win_fun_lead_lag_params_OVER_new_generalized_window_clause!swap	SELECT LEADER(a) OVER a
@@ -1678,7 +1678,7 @@ accept	accept	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_genera
 reject	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-2	SELECT LAG a) OVER a
 reject	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-3	SELECT LAG() OVER a
 reject	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-4	SELECT LAG(a OVER a
-accept	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-5	SELECT LAG(a) a
+reject	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-5	SELECT LAG(a) a
 reject	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!drop-6	SELECT LAG(a) OVER
 accept	accept	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!insert	SELECT LAG(a) OVER a zzz
 reject	reject	engine	window_function/LAG_win_fun_lead_lag_params_OVER_new_generalized_window_clause!swap	SELECT LANGUAGE(a) OVER a
@@ -1688,11 +1688,11 @@ reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_f
 reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!drop-4	SELECT NTH_VALUE(a a) OVER a
 reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!drop-5	SELECT NTH_VALUE(a,) OVER a
 reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!drop-6	SELECT NTH_VALUE(a, a OVER a
-accept	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!drop-7	SELECT NTH_VALUE(a, a) a
+reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!drop-7	SELECT NTH_VALUE(a, a) a
 reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!drop-8	SELECT NTH_VALUE(a, a) OVER
 accept	accept	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!insert	SELECT NTH_VALUE(a, a) OVER a zzz
 reject	reject	engine	window_function/NTH_VALUE_(_expr_,_simple_expr_)_opt_from_first_or_last_opt_respect_or_ignore_nulls_OVER_new_generalized_window_clause!swap	SELECT NTILE(a, a) OVER a
-reject	accept	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a
+accept	accept	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a
 reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-1	SELECT(1.5, a, 1, 's') OVER a
 reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-2	SELECT TOP_K_FRE_HIST 1.5, a, 1, 's') OVER a
 reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-3	SELECT TOP_K_FRE_HIST(, a, 1, 's') OVER a
@@ -1704,10 +1704,10 @@ reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_I
 reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-9	SELECT TOP_K_FRE_HIST(1.5, a, 1,) OVER a
 reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-10	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's' OVER a
 accept	accept	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-11	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') a
-accept	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-12	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER
-reject	accept	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!insert	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a zzz
+reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!drop-12	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER
+accept	accept	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!insert	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') OVER a zzz
 reject	reject	engine	window_function/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)_OVER_new_generalized_window_clause!swap	SELECT TP_NAME(1.5, a, 1, 's') OVER a
-reject	accept	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause	SELECT HYBRID_HIST(a, 1) OVER a
+accept	accept	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause	SELECT HYBRID_HIST(a, 1) OVER a
 reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-1	SELECT(a, 1) OVER a
 reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-2	SELECT HYBRID_HIST a, 1) OVER a
 reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-3	SELECT HYBRID_HIST(, 1) OVER a
@@ -1715,8 +1715,8 @@ reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_
 reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-5	SELECT HYBRID_HIST(a,) OVER a
 reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-6	SELECT HYBRID_HIST(a, 1 OVER a
 accept	accept	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-7	SELECT HYBRID_HIST(a, 1) a
-accept	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-8	SELECT HYBRID_HIST(a, 1) OVER
-reject	accept	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!insert	SELECT HYBRID_HIST(a, 1) OVER a zzz
+reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!drop-8	SELECT HYBRID_HIST(a, 1) OVER
+accept	accept	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!insert	SELECT HYBRID_HIST(a, 1) OVER a zzz
 reject	reject	engine	window_function/HYBRID_HIST_(_bit_expr_,_INTNUM_)_OVER_new_generalized_window_clause!swap	SELECT ID(a, 1) OVER a
 accept	accept	engine	window_function/BIT_AND_(_opt_all_expr_)_OVER_new_generalized_window_clause	SELECT BIT_AND(a) OVER a
 reject	reject	engine	window_function/BIT_AND_(_opt_all_expr_)_OVER_new_generalized_window_clause!drop-2	SELECT BIT_AND a) OVER a
@@ -1741,7 +1741,7 @@ reject	reject	engine	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generaliz
 accept	accept	engine	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause!insert	SELECT BIT_XOR(a) OVER a zzz
 reject	reject	engine	window_function/BIT_XOR_(_opt_all_expr_)_OVER_new_generalized_window_clause!swap	SELECT BLOB(a) OVER a
 reject	accept	engine	first_or_last/FIRST	SELECT NTH_VALUE(a, a) FROM FIRST OVER a
-accept	reject	engine	first_or_last/FIRST!drop-1	SELECT NTH_VALUE(a, a) FROM OVER a
+reject	reject	engine	first_or_last/FIRST!drop-1	SELECT NTH_VALUE(a, a) FROM OVER a
 reject	reject	engine	first_or_last/FIRST!truncate	SELECT NTH_VALUE(a, a) FROM
 reject	reject	engine	first_or_last/FIRST!insert	SELECT NTH_VALUE(a, a) FROM FIRST zzz OVER a
 reject	reject	engine	first_or_last/FIRST!swap	SELECT NTH_VALUE(a, a) FROM FIRST_VALUE OVER a
@@ -1764,7 +1764,7 @@ reject	reject	engine	respect_or_ignore/IGNORE!swap	SELECT FIRST_VALUE(a IGNORE_L
 reject	accept	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS	SELECT FIRST_VALUE(a) RESPECT NULLS OVER a
 reject	reject	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS!drop-1	SELECT FIRST_VALUE(a) NULLS OVER a
 reject	reject	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS!drop-2	SELECT FIRST_VALUE(a) RESPECT OVER a
-accept	reject	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS!truncate	SELECT FIRST_VALUE(a) RESPECT
+reject	reject	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS!truncate	SELECT FIRST_VALUE(a) RESPECT
 reject	reject	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS!insert	SELECT FIRST_VALUE(a) RESPECT NULLS zzz OVER a
 reject	reject	engine	opt_respect_or_ignore_nulls/respect_or_ignore_NULLS!swap	SELECT FIRST_VALUE(a) RESTART NULLS OVER a
 accept	accept	engine	opt_respect_or_ignore_nulls/%empty	SELECT FIRST_VALUE(a) OVER a
@@ -1945,15 +1945,15 @@ reject	reject	engine	geometry_collection/GEOMETRYCOLLECTION!swap	SELECT GET()
 accept	accept	engine	geometry_collection/GEOMCOLLECTION	SELECT GEOMCOLLECTION()
 reject	reject	engine	geometry_collection/GEOMCOLLECTION!insert	SELECT GEOMCOLLECTION zzz()
 reject	reject	engine	geometry_collection/GEOMCOLLECTION!swap	SELECT GEOMETRY()
-reject	accept	engine	opt_null_pos/%empty	SELECT ARRAY_AGG(a ORDER BY a)
+accept	accept	engine	opt_null_pos/%empty	SELECT ARRAY_AGG(a ORDER BY a)
 reject	reject	engine	opt_null_pos/%empty!insert	SELECT ARRAY_AGG(a ORDER BY a zzz)
-reject	accept	engine	opt_null_pos/NULLS_LAST	SELECT ARRAY_AGG(a ORDER BY a NULLS LAST)
+accept	accept	engine	opt_null_pos/NULLS_LAST	SELECT ARRAY_AGG(a ORDER BY a NULLS LAST)
 reject	reject	engine	opt_null_pos/NULLS_LAST!drop-1	SELECT ARRAY_AGG(a ORDER BY a LAST)
 reject	reject	engine	opt_null_pos/NULLS_LAST!drop-2	SELECT ARRAY_AGG(a ORDER BY a NULLS)
 reject	reject	engine	opt_null_pos/NULLS_LAST!truncate	SELECT ARRAY_AGG(a ORDER BY a NULLS
 reject	reject	engine	opt_null_pos/NULLS_LAST!insert	SELECT ARRAY_AGG(a ORDER BY a NULLS LAST zzz)
 reject	reject	engine	opt_null_pos/NULLS_LAST!swap	SELECT ARRAY_AGG(a ORDER BY a NULL_IF LAST)
-reject	accept	engine	opt_null_pos/NULLS_FIRST	SELECT ARRAY_AGG(a ORDER BY a NULLS FIRST)
+accept	accept	engine	opt_null_pos/NULLS_FIRST	SELECT ARRAY_AGG(a ORDER BY a NULLS FIRST)
 reject	reject	engine	opt_null_pos/NULLS_FIRST!drop-1	SELECT ARRAY_AGG(a ORDER BY a FIRST)
 reject	reject	engine	opt_null_pos/NULLS_FIRST!insert	SELECT ARRAY_AGG(a ORDER BY a NULLS FIRST zzz)
 reject	reject	engine	opt_null_pos/NULLS_FIRST!swap	SELECT ARRAY_AGG(a ORDER BY a NULL_IF FIRST)
@@ -1984,29 +1984,29 @@ reject	reject	engine	func_expr/COUNT_(_DISTINCT_expr_list_)!drop-4	SELECT COUNT(
 reject	reject	engine	func_expr/COUNT_(_DISTINCT_expr_list_)!drop-5	SELECT COUNT(DISTINCT a
 accept	accept	engine	func_expr/COUNT_(_DISTINCT_expr_list_)!insert	SELECT COUNT(DISTINCT a) zzz
 reject	reject	engine	func_expr/COUNT_(_DISTINCT_expr_list_)!swap	SELECT COUNT_TO_EXISTS(DISTINCT a)
-reject	accept	engine	func_expr/COUNT_(_UNIQUE_expr_list_)	SELECT COUNT(UNIQUE a)
+accept	accept	engine	func_expr/COUNT_(_UNIQUE_expr_list_)	SELECT COUNT(UNIQUE a)
 reject	reject	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!drop-1	SELECT(UNIQUE a)
 reject	reject	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!drop-2	SELECT COUNT UNIQUE a)
 reject	reject	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!drop-4	SELECT COUNT(UNIQUE)
 reject	reject	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!drop-5	SELECT COUNT(UNIQUE a
-reject	accept	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!insert	SELECT COUNT(UNIQUE a) zzz
+accept	accept	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!insert	SELECT COUNT(UNIQUE a) zzz
 reject	reject	engine	func_expr/COUNT_(_UNIQUE_expr_list_)!swap	SELECT COUNT_TO_EXISTS(UNIQUE a)
 accept	accept	engine	func_expr/APPROX_COUNT_DISTINCT_(_expr_list_)	SELECT APPROX_COUNT_DISTINCT(a)
 reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_(_expr_list_)!drop-2	SELECT APPROX_COUNT_DISTINCT a)
-accept	reject	engine	func_expr/APPROX_COUNT_DISTINCT_(_expr_list_)!drop-3	SELECT APPROX_COUNT_DISTINCT()
+reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_(_expr_list_)!drop-3	SELECT APPROX_COUNT_DISTINCT()
 reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_(_expr_list_)!drop-4	SELECT APPROX_COUNT_DISTINCT(a
 accept	accept	engine	func_expr/APPROX_COUNT_DISTINCT_(_expr_list_)!insert	SELECT APPROX_COUNT_DISTINCT(a) zzz
 accept	accept	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a)
 reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)!drop-2	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS a)
-accept	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)!drop-3	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS()
+reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)!drop-3	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS()
 reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)!drop-4	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a
 accept	accept	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_(_expr_list_)!insert	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS(a) zzz
 accept	accept	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a)
 reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!drop-2	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE a)
-accept	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!drop-3	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE()
+reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!drop-3	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE()
 reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!drop-4	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a
 accept	accept	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!insert	SELECT APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE(a) zzz
-accept	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!swap	SELECT ARBITRATION(a)
+reject	reject	engine	func_expr/APPROX_COUNT_DISTINCT_SYNOPSIS_MERGE_(_expr_)!swap	SELECT ARBITRATION(a)
 accept	accept	engine	func_expr/SUM_(_opt_distinct_or_all_expr_)	SELECT SUM(a)
 reject	reject	engine	func_expr/SUM_(_opt_distinct_or_all_expr_)!drop-2	SELECT SUM a)
 reject	reject	engine	func_expr/SUM_(_opt_distinct_or_all_expr_)!drop-3	SELECT SUM()
@@ -2017,13 +2017,13 @@ reject	reject	engine	func_expr/MAX_(_opt_distinct_or_all_expr_)!drop-2	SELECT MA
 reject	reject	engine	func_expr/MAX_(_opt_distinct_or_all_expr_)!drop-3	SELECT MAX()
 reject	reject	engine	func_expr/MAX_(_opt_distinct_or_all_expr_)!drop-4	SELECT MAX(a
 accept	accept	engine	func_expr/MAX_(_opt_distinct_or_all_expr_)!insert	SELECT MAX(a) zzz
-accept	reject	engine	func_expr/MAX_(_opt_distinct_or_all_expr_)!swap	SELECT MAXIMIZE(a)
+reject	reject	engine	func_expr/MAX_(_opt_distinct_or_all_expr_)!swap	SELECT MAXIMIZE(a)
 accept	accept	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)	SELECT MIN(a)
 reject	reject	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)!drop-2	SELECT MIN a)
 reject	reject	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)!drop-3	SELECT MIN()
 reject	reject	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)!drop-4	SELECT MIN(a
 accept	accept	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)!insert	SELECT MIN(a) zzz
-accept	reject	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)!swap	SELECT MINOR(a)
+reject	reject	engine	func_expr/MIN_(_opt_distinct_or_all_expr_)!swap	SELECT MINOR(a)
 accept	accept	engine	func_expr/AVG_(_opt_distinct_or_all_expr_)	SELECT AVG(a)
 reject	reject	engine	func_expr/AVG_(_opt_distinct_or_all_expr_)!drop-2	SELECT AVG a)
 reject	reject	engine	func_expr/AVG_(_opt_distinct_or_all_expr_)!drop-3	SELECT AVG()
@@ -2108,12 +2108,12 @@ accept	accept	engine	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr
 reject	reject	engine	func_expr/PERCENTILE_CONT_(_opt_distinct_or_all_expr_,_expr_list_)!swap	SELECT PERCENT_RANK(a, a)
 accept	accept	engine	func_expr/GROUPING_(_expr_)	SELECT GROUPING(a)
 reject	reject	engine	func_expr/GROUPING_(_expr_)!drop-2	SELECT GROUPING a)
-accept	reject	engine	func_expr/GROUPING_(_expr_)!drop-3	SELECT GROUPING()
+reject	reject	engine	func_expr/GROUPING_(_expr_)!drop-3	SELECT GROUPING()
 reject	reject	engine	func_expr/GROUPING_(_expr_)!drop-4	SELECT GROUPING(a
 accept	accept	engine	func_expr/GROUPING_(_expr_)!insert	SELECT GROUPING(a) zzz
 accept	accept	engine	func_expr/GROUPING_ID_(_expr_list_)	SELECT GROUPING_ID(a)
 reject	reject	engine	func_expr/GROUPING_ID_(_expr_list_)!drop-2	SELECT GROUPING_ID a)
-accept	reject	engine	func_expr/GROUPING_ID_(_expr_list_)!drop-3	SELECT GROUPING_ID()
+reject	reject	engine	func_expr/GROUPING_ID_(_expr_list_)!drop-3	SELECT GROUPING_ID()
 reject	reject	engine	func_expr/GROUPING_ID_(_expr_list_)!drop-4	SELECT GROUPING_ID(a
 accept	accept	engine	func_expr/GROUPING_ID_(_expr_list_)!insert	SELECT GROUPING_ID(a) zzz
 accept	accept	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)	SELECT GROUP_CONCAT(a)
@@ -2121,7 +2121,7 @@ reject	reject	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_b
 reject	reject	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)!drop-3	SELECT GROUP_CONCAT()
 reject	reject	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)!drop-4	SELECT GROUP_CONCAT(a
 accept	accept	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)!insert	SELECT GROUP_CONCAT(a) zzz
-accept	reject	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)!swap	SELECT GTS(a)
+reject	reject	engine	func_expr/GROUP_CONCAT_(_opt_distinct_expr_list_opt_order_by_opt_separator_)!swap	SELECT GTS(a)
 accept	accept	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's')
 accept	accept	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!drop-1	SELECT(1.5, a, 1, 's')
 reject	reject	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!drop-2	SELECT TOP_K_FRE_HIST 1.5, a, 1, 's')
@@ -2134,7 +2134,7 @@ reject	reject	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_
 reject	reject	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!drop-9	SELECT TOP_K_FRE_HIST(1.5, a, 1,)
 reject	reject	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!drop-10	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's'
 accept	accept	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!insert	SELECT TOP_K_FRE_HIST(1.5, a, 1, 's') zzz
-accept	reject	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!swap	SELECT TP_NAME(1.5, a, 1, 's')
+reject	reject	engine	func_expr/TOP_K_FRE_HIST_(_DECIMAL_VAL_,_bit_expr_,_INTNUM_,_expr_const_)!swap	SELECT TP_NAME(1.5, a, 1, 's')
 accept	accept	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)	SELECT HYBRID_HIST(a, 1)
 accept	accept	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!drop-1	SELECT(a, 1)
 reject	reject	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!drop-2	SELECT HYBRID_HIST a, 1)
@@ -2143,7 +2143,7 @@ reject	reject	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!drop-4	SELECT H
 reject	reject	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!drop-5	SELECT HYBRID_HIST(a,)
 reject	reject	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!drop-6	SELECT HYBRID_HIST(a, 1
 accept	accept	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!insert	SELECT HYBRID_HIST(a, 1) zzz
-accept	reject	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!swap	SELECT ID(a, 1)
+reject	reject	engine	func_expr/HYBRID_HIST_(_bit_expr_,_INTNUM_)!swap	SELECT ID(a, 1)
 accept	accept	engine	func_expr/IF_(_expr_,_expr_,_expr_)	SELECT IF(a, a, a)
 accept	accept	engine	func_expr/IF_(_expr_,_expr_,_expr_)!drop-1	SELECT(a, a, a)
 reject	reject	engine	func_expr/IF_(_expr_,_expr_,_expr_)!drop-2	SELECT IF a, a, a)
@@ -2157,10 +2157,10 @@ accept	accept	engine	func_expr/IF_(_expr_,_expr_,_expr_)!insert	SELECT IF(a, a, 
 reject	reject	engine	func_expr/IF_(_expr_,_expr_,_expr_)!swap	SELECT IGNORE(a, a, a)
 accept	accept	engine	func_expr/ISNULL_(_expr_)	SELECT ISNULL(a)
 reject	reject	engine	func_expr/ISNULL_(_expr_)!drop-2	SELECT ISNULL a)
-accept	reject	engine	func_expr/ISNULL_(_expr_)!drop-3	SELECT ISNULL()
+reject	reject	engine	func_expr/ISNULL_(_expr_)!drop-3	SELECT ISNULL()
 reject	reject	engine	func_expr/ISNULL_(_expr_)!drop-4	SELECT ISNULL(a
 accept	accept	engine	func_expr/ISNULL_(_expr_)!insert	SELECT ISNULL(a) zzz
-accept	reject	engine	func_expr/ISNULL_(_expr_)!swap	SELECT ISOLATE(a)
+reject	reject	engine	func_expr/ISNULL_(_expr_)!swap	SELECT ISOLATE(a)
 accept	accept	engine	func_expr/cur_timestamp_func	SELECT CURRENT_TIMESTAMP
 accept	accept	engine	func_expr/sysdate_func	SELECT SYSDATE()
 reject	reject	engine	func_expr/sysdate_func!drop-2	SELECT SYSDATE)
@@ -2248,34 +2248,34 @@ reject	reject	engine	func_expr/TRIM_(_parameterized_trim_)!drop-2	SELECT TRIM a)
 reject	reject	engine	func_expr/TRIM_(_parameterized_trim_)!drop-3	SELECT TRIM()
 reject	reject	engine	func_expr/TRIM_(_parameterized_trim_)!drop-4	SELECT TRIM(a
 accept	accept	engine	func_expr/TRIM_(_parameterized_trim_)!insert	SELECT TRIM(a) zzz
-accept	reject	engine	func_expr/TRIM_(_parameterized_trim_)!swap	SELECT TRIM_SPACE(a)
+reject	reject	engine	func_expr/TRIM_(_parameterized_trim_)!swap	SELECT TRIM_SPACE(a)
 accept	accept	engine	func_expr/DATE_(_expr_)	SELECT DATE(a)
 reject	reject	engine	func_expr/DATE_(_expr_)!drop-2	SELECT DATE a)
-accept	reject	engine	func_expr/DATE_(_expr_)!drop-3	SELECT DATE()
+reject	reject	engine	func_expr/DATE_(_expr_)!drop-3	SELECT DATE()
 reject	reject	engine	func_expr/DATE_(_expr_)!drop-4	SELECT DATE(a
 accept	accept	engine	func_expr/DATE_(_expr_)!insert	SELECT DATE(a) zzz
 reject	reject	engine	func_expr/DATE_(_expr_)!swap	SELECT DATETIME(a)
 accept	accept	engine	func_expr/DAY_(_expr_)	SELECT DAY(a)
 reject	reject	engine	func_expr/DAY_(_expr_)!drop-2	SELECT DAY a)
-accept	reject	engine	func_expr/DAY_(_expr_)!drop-3	SELECT DAY()
+reject	reject	engine	func_expr/DAY_(_expr_)!drop-3	SELECT DAY()
 reject	reject	engine	func_expr/DAY_(_expr_)!drop-4	SELECT DAY(a
 accept	accept	engine	func_expr/DAY_(_expr_)!insert	SELECT DAY(a) zzz
 reject	reject	engine	func_expr/DAY_(_expr_)!swap	SELECT DAY_HOUR(a)
 accept	accept	engine	func_expr/YEAR_(_expr_)	SELECT YEAR(a)
 reject	reject	engine	func_expr/YEAR_(_expr_)!drop-2	SELECT YEAR a)
-accept	reject	engine	func_expr/YEAR_(_expr_)!drop-3	SELECT YEAR()
+reject	reject	engine	func_expr/YEAR_(_expr_)!drop-3	SELECT YEAR()
 reject	reject	engine	func_expr/YEAR_(_expr_)!drop-4	SELECT YEAR(a
 accept	accept	engine	func_expr/YEAR_(_expr_)!insert	SELECT YEAR(a) zzz
 reject	reject	engine	func_expr/YEAR_(_expr_)!swap	SELECT YEAR_MONTH(a)
 accept	accept	engine	func_expr/TIME_(_expr_)	SELECT TIME(a)
 reject	reject	engine	func_expr/TIME_(_expr_)!drop-2	SELECT TIME a)
-accept	reject	engine	func_expr/TIME_(_expr_)!drop-3	SELECT TIME()
+reject	reject	engine	func_expr/TIME_(_expr_)!drop-3	SELECT TIME()
 reject	reject	engine	func_expr/TIME_(_expr_)!drop-4	SELECT TIME(a
 accept	accept	engine	func_expr/TIME_(_expr_)!insert	SELECT TIME(a) zzz
-accept	reject	engine	func_expr/TIME_(_expr_)!swap	SELECT TIMES(a)
+reject	reject	engine	func_expr/TIME_(_expr_)!swap	SELECT TIMES(a)
 accept	accept	engine	func_expr/TIMESTAMP_(_expr_)	SELECT TIMESTAMP(a)
 reject	reject	engine	func_expr/TIMESTAMP_(_expr_)!drop-2	SELECT TIMESTAMP a)
-accept	reject	engine	func_expr/TIMESTAMP_(_expr_)!drop-3	SELECT TIMESTAMP()
+reject	reject	engine	func_expr/TIMESTAMP_(_expr_)!drop-3	SELECT TIMESTAMP()
 reject	reject	engine	func_expr/TIMESTAMP_(_expr_)!drop-4	SELECT TIMESTAMP(a
 accept	accept	engine	func_expr/TIMESTAMP_(_expr_)!insert	SELECT TIMESTAMP(a) zzz
 reject	reject	engine	func_expr/TIMESTAMP_(_expr_)!swap	SELECT TIMESTAMPADD(a)
@@ -2289,13 +2289,13 @@ accept	accept	engine	func_expr/TIMESTAMP_(_expr_,_expr_)!insert	SELECT TIMESTAMP
 reject	reject	engine	func_expr/TIMESTAMP_(_expr_,_expr_)!swap	SELECT TIMESTAMPADD(a, a)
 accept	accept	engine	func_expr/MONTH_(_expr_)	SELECT MONTH(a)
 reject	reject	engine	func_expr/MONTH_(_expr_)!drop-2	SELECT MONTH a)
-accept	reject	engine	func_expr/MONTH_(_expr_)!drop-3	SELECT MONTH()
+reject	reject	engine	func_expr/MONTH_(_expr_)!drop-3	SELECT MONTH()
 reject	reject	engine	func_expr/MONTH_(_expr_)!drop-4	SELECT MONTH(a
 accept	accept	engine	func_expr/MONTH_(_expr_)!insert	SELECT MONTH(a) zzz
-accept	reject	engine	func_expr/MONTH_(_expr_)!swap	SELECT MOVE(a)
+reject	reject	engine	func_expr/MONTH_(_expr_)!swap	SELECT MOVE(a)
 accept	accept	engine	func_expr/WEEK_(_expr_)	SELECT WEEK(a)
 reject	reject	engine	func_expr/WEEK_(_expr_)!drop-2	SELECT WEEK a)
-accept	reject	engine	func_expr/WEEK_(_expr_)!drop-3	SELECT WEEK()
+reject	reject	engine	func_expr/WEEK_(_expr_)!drop-3	SELECT WEEK()
 reject	reject	engine	func_expr/WEEK_(_expr_)!drop-4	SELECT WEEK(a
 accept	accept	engine	func_expr/WEEK_(_expr_)!insert	SELECT WEEK(a) zzz
 accept	accept	engine	func_expr/WEEK_(_expr_,_expr_)	SELECT WEEK(a, a)
@@ -2308,13 +2308,13 @@ accept	accept	engine	func_expr/WEEK_(_expr_,_expr_)!insert	SELECT WEEK(a, a) zzz
 reject	reject	engine	func_expr/WEEK_(_expr_,_expr_)!swap	SELECT WEIGHT_STRING(a, a)
 accept	accept	engine	func_expr/QUARTER_(_expr_)	SELECT QUARTER(a)
 reject	reject	engine	func_expr/QUARTER_(_expr_)!drop-2	SELECT QUARTER a)
-accept	reject	engine	func_expr/QUARTER_(_expr_)!drop-3	SELECT QUARTER()
+reject	reject	engine	func_expr/QUARTER_(_expr_)!drop-3	SELECT QUARTER()
 reject	reject	engine	func_expr/QUARTER_(_expr_)!drop-4	SELECT QUARTER(a
 accept	accept	engine	func_expr/QUARTER_(_expr_)!insert	SELECT QUARTER(a) zzz
 reject	reject	engine	func_expr/QUARTER_(_expr_)!swap	SELECT QUERY(a)
 accept	accept	engine	func_expr/SECOND_(_expr_)	SELECT SECOND(a)
 reject	reject	engine	func_expr/SECOND_(_expr_)!drop-2	SELECT SECOND a)
-accept	reject	engine	func_expr/SECOND_(_expr_)!drop-3	SELECT SECOND()
+reject	reject	engine	func_expr/SECOND_(_expr_)!drop-3	SELECT SECOND()
 reject	reject	engine	func_expr/SECOND_(_expr_)!drop-4	SELECT SECOND(a
 accept	accept	engine	func_expr/SECOND_(_expr_)!insert	SELECT SECOND(a) zzz
 reject	reject	engine	func_expr/SECOND_(_expr_)!swap	SELECT SECOND_MICROSECOND(a)
@@ -2329,19 +2329,19 @@ accept	accept	engine	func_expr/GET_FORMAT_(_get_format_unit_,_expr_)!insert	SELE
 reject	reject	engine	func_expr/GET_FORMAT_(_get_format_unit_,_expr_)!swap	SELECT GLOBAL(DATETIME, a)
 accept	accept	engine	func_expr/MINUTE_(_expr_)	SELECT MINUTE(a)
 reject	reject	engine	func_expr/MINUTE_(_expr_)!drop-2	SELECT MINUTE a)
-accept	reject	engine	func_expr/MINUTE_(_expr_)!drop-3	SELECT MINUTE()
+reject	reject	engine	func_expr/MINUTE_(_expr_)!drop-3	SELECT MINUTE()
 reject	reject	engine	func_expr/MINUTE_(_expr_)!drop-4	SELECT MINUTE(a
 accept	accept	engine	func_expr/MINUTE_(_expr_)!insert	SELECT MINUTE(a) zzz
 reject	reject	engine	func_expr/MINUTE_(_expr_)!swap	SELECT MINUTE_MICROSECOND(a)
 accept	accept	engine	func_expr/MICROSECOND_(_expr_)	SELECT MICROSECOND(a)
 reject	reject	engine	func_expr/MICROSECOND_(_expr_)!drop-2	SELECT MICROSECOND a)
-accept	reject	engine	func_expr/MICROSECOND_(_expr_)!drop-3	SELECT MICROSECOND()
+reject	reject	engine	func_expr/MICROSECOND_(_expr_)!drop-3	SELECT MICROSECOND()
 reject	reject	engine	func_expr/MICROSECOND_(_expr_)!drop-4	SELECT MICROSECOND(a
 accept	accept	engine	func_expr/MICROSECOND_(_expr_)!insert	SELECT MICROSECOND(a) zzz
-accept	reject	engine	func_expr/MICROSECOND_(_expr_)!swap	SELECT MICRO_INDEX_CLUSTERED(a)
+reject	reject	engine	func_expr/MICROSECOND_(_expr_)!swap	SELECT MICRO_INDEX_CLUSTERED(a)
 accept	accept	engine	func_expr/HOUR_(_expr_)	SELECT HOUR(a)
 reject	reject	engine	func_expr/HOUR_(_expr_)!drop-2	SELECT HOUR a)
-accept	reject	engine	func_expr/HOUR_(_expr_)!drop-3	SELECT HOUR()
+reject	reject	engine	func_expr/HOUR_(_expr_)!drop-3	SELECT HOUR()
 reject	reject	engine	func_expr/HOUR_(_expr_)!drop-4	SELECT HOUR(a
 accept	accept	engine	func_expr/HOUR_(_expr_)!insert	SELECT HOUR(a) zzz
 reject	reject	engine	func_expr/HOUR_(_expr_)!swap	SELECT HOUR_MICROSECOND(a)
@@ -2411,7 +2411,7 @@ reject	reject	engine	func_expr/TIMESTAMPDIFF_(_timestamp_params_)!drop-6	SELECT 
 reject	reject	engine	func_expr/TIMESTAMPDIFF_(_timestamp_params_)!drop-7	SELECT TIMESTAMPDIFF(DAY, a,)
 reject	reject	engine	func_expr/TIMESTAMPDIFF_(_timestamp_params_)!drop-8	SELECT TIMESTAMPDIFF(DAY, a, a
 accept	accept	engine	func_expr/TIMESTAMPDIFF_(_timestamp_params_)!insert	SELECT TIMESTAMPDIFF(DAY, a, a) zzz
-accept	reject	engine	func_expr/TIMESTAMPDIFF_(_timestamp_params_)!swap	SELECT TIME_UNIT(DAY, a, a)
+reject	reject	engine	func_expr/TIMESTAMPDIFF_(_timestamp_params_)!swap	SELECT TIME_UNIT(DAY, a, a)
 accept	accept	engine	func_expr/TIMESTAMPADD_(_timestamp_params_)	SELECT TIMESTAMPADD(DAY, a, a)
 reject	reject	engine	func_expr/TIMESTAMPADD_(_timestamp_params_)!drop-2	SELECT TIMESTAMPADD DAY, a, a)
 reject	reject	engine	func_expr/TIMESTAMPADD_(_timestamp_params_)!drop-3	SELECT TIMESTAMPADD(, a, a)
@@ -2432,7 +2432,7 @@ accept	accept	engine	func_expr/EXTRACT_(_date_unit_FROM_expr_)!insert	SELECT EXT
 reject	reject	engine	func_expr/EXTRACT_(_date_unit_FROM_expr_)!swap	SELECT FAILOVER(DAY FROM a)
 accept	accept	engine	func_expr/ASCII_(_expr_)	SELECT ASCII(a)
 reject	reject	engine	func_expr/ASCII_(_expr_)!drop-2	SELECT ASCII a)
-accept	reject	engine	func_expr/ASCII_(_expr_)!drop-3	SELECT ASCII()
+reject	reject	engine	func_expr/ASCII_(_expr_)!drop-3	SELECT ASCII()
 reject	reject	engine	func_expr/ASCII_(_expr_)!drop-4	SELECT ASCII(a
 accept	accept	engine	func_expr/ASCII_(_expr_)!insert	SELECT ASCII(a) zzz
 reject	reject	engine	func_expr/ASCII_(_expr_)!swap	SELECT ASENSITIVE(a)
@@ -2448,19 +2448,19 @@ reject	reject	engine	func_expr/VALUES_(_column_definition_ref_)!drop-3	SELECT VA
 reject	reject	engine	func_expr/VALUES_(_column_definition_ref_)!drop-4	SELECT VALUES(a
 accept	accept	engine	func_expr/VALUES_(_column_definition_ref_)!insert	SELECT VALUES(a) zzz
 reject	reject	engine	func_expr/VALUES_(_column_definition_ref_)!swap	SELECT VARBINARY(a)
-reject	accept	engine	func_expr/CHARACTER_(_expr_list_)	SELECT CHARACTER(a)
+accept	accept	engine	func_expr/CHARACTER_(_expr_list_)	SELECT CHARACTER(a)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_)!drop-2	SELECT CHARACTER a)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_)!drop-3	SELECT CHARACTER()
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_)!drop-4	SELECT CHARACTER(a
-reject	accept	engine	func_expr/CHARACTER_(_expr_list_)!insert	SELECT CHARACTER(a) zzz
+accept	accept	engine	func_expr/CHARACTER_(_expr_list_)!insert	SELECT CHARACTER(a) zzz
 accept	accept	engine	func_expr/CHARACTER_(_expr_list_)!swap	SELECT CHARSET(a)
-reject	accept	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)	SELECT CHARACTER(a USING a)
+accept	accept	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)	SELECT CHARACTER(a USING a)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!drop-2	SELECT CHARACTER a USING a)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!drop-3	SELECT CHARACTER(USING a)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!drop-4	SELECT CHARACTER(a a)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!drop-5	SELECT CHARACTER(a USING)
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!drop-6	SELECT CHARACTER(a USING a
-reject	accept	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!insert	SELECT CHARACTER(a USING a) zzz
+accept	accept	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!insert	SELECT CHARACTER(a USING a) zzz
 reject	reject	engine	func_expr/CHARACTER_(_expr_list_USING_charset_name_)!swap	SELECT CHARSET(a USING a)
 accept	accept	engine	func_expr/LOG_(_expr_,_expr_)	SELECT LOG(a, a)
 reject	reject	engine	func_expr/LOG_(_expr_,_expr_)!drop-2	SELECT LOG a, a)
@@ -2472,13 +2472,13 @@ accept	accept	engine	func_expr/LOG_(_expr_,_expr_)!insert	SELECT LOG(a, a) zzz
 reject	reject	engine	func_expr/LOG_(_expr_,_expr_)!swap	SELECT LOGFILE(a, a)
 accept	accept	engine	func_expr/LOG_(_expr_)	SELECT LOG(a)
 reject	reject	engine	func_expr/LOG_(_expr_)!drop-2	SELECT LOG a)
-accept	reject	engine	func_expr/LOG_(_expr_)!drop-3	SELECT LOG()
+reject	reject	engine	func_expr/LOG_(_expr_)!drop-3	SELECT LOG()
 reject	reject	engine	func_expr/LOG_(_expr_)!drop-4	SELECT LOG(a
 accept	accept	engine	func_expr/LOG_(_expr_)!insert	SELECT LOG(a) zzz
 reject	reject	engine	func_expr/LOG_(_expr_)!swap	SELECT LOGFILE(a)
 accept	accept	engine	func_expr/LN_(_expr_)	SELECT LN(a)
 reject	reject	engine	func_expr/LN_(_expr_)!drop-2	SELECT LN a)
-accept	reject	engine	func_expr/LN_(_expr_)!drop-3	SELECT LN()
+reject	reject	engine	func_expr/LN_(_expr_)!drop-3	SELECT LN()
 reject	reject	engine	func_expr/LN_(_expr_)!drop-4	SELECT LN(a
 accept	accept	engine	func_expr/LN_(_expr_)!insert	SELECT LN(a) zzz
 reject	reject	engine	func_expr/LN_(_expr_)!swap	SELECT LOAD(a)
@@ -2498,12 +2498,12 @@ accept	accept	engine	func_expr/id_dot_id_(_opt_expr_as_list_)	SELECT a.a()
 reject	reject	engine	func_expr/id_dot_id_(_opt_expr_as_list_)!drop-2	SELECT a.a)
 reject	reject	engine	func_expr/id_dot_id_(_opt_expr_as_list_)!drop-3	SELECT a.a(
 accept	accept	engine	func_expr/id_dot_id_(_opt_expr_as_list_)!insert	SELECT a.a() zzz
-reject	accept	engine	func_expr/sys_interval_func	SELECT CHECK(a)
+accept	accept	engine	func_expr/sys_interval_func	SELECT CHECK(a)
 reject	reject	engine	func_expr/sys_interval_func!drop-2	SELECT CHECK a)
 reject	reject	engine	func_expr/sys_interval_func!drop-3	SELECT CHECK()
 reject	reject	engine	func_expr/sys_interval_func!drop-4	SELECT CHECK(a
-reject	accept	engine	func_expr/sys_interval_func!insert	SELECT CHECK(a) zzz
-accept	reject	engine	func_expr/sys_interval_func!swap	SELECT CHECKPOINT(a)
+accept	accept	engine	func_expr/sys_interval_func!insert	SELECT CHECK(a) zzz
+reject	reject	engine	func_expr/sys_interval_func!swap	SELECT CHECKPOINT(a)
 accept	accept	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)	SELECT CALC_PARTITION_ID(a, a)
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!drop-2	SELECT CALC_PARTITION_ID a, a)
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!drop-3	SELECT CALC_PARTITION_ID(, a)
@@ -2511,7 +2511,7 @@ reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!drop-4	
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!drop-5	SELECT CALC_PARTITION_ID(a,)
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!drop-6	SELECT CALC_PARTITION_ID(a, a
 accept	accept	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!insert	SELECT CALC_PARTITION_ID(a, a) zzz
-accept	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!swap	SELECT CALIBRATION(a, a)
+reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_)!swap	SELECT CALIBRATION(a, a)
 accept	accept	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)	SELECT CALC_PARTITION_ID(a, a, a)
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!drop-2	SELECT CALC_PARTITION_ID a, a, a)
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!drop-3	SELECT CALC_PARTITION_ID(, a, a)
@@ -2521,7 +2521,7 @@ reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_exp
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!drop-7	SELECT CALC_PARTITION_ID(a, a,)
 reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!drop-8	SELECT CALC_PARTITION_ID(a, a, a
 accept	accept	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!insert	SELECT CALC_PARTITION_ID(a, a, a) zzz
-accept	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!swap	SELECT CALIBRATION(a, a, a)
+reject	reject	engine	func_expr/CALC_PARTITION_ID_(_bit_expr_,_bit_expr_,_bit_expr_)!swap	SELECT CALIBRATION(a, a, a)
 accept	accept	engine	func_expr/WEIGHT_STRING_(_expr_opt_ws_as_char_opt_ws_levels_)	SELECT WEIGHT_STRING(a)
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_opt_ws_as_char_opt_ws_levels_)!drop-2	SELECT WEIGHT_STRING a)
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_opt_ws_as_char_opt_ws_levels_)!drop-3	SELECT WEIGHT_STRING()
@@ -2539,7 +2539,7 @@ reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_AS_BINARY_ws_nweights_)!drop
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_AS_BINARY_ws_nweights_)!drop-8	SELECT WEIGHT_STRING(a AS BINARY(1)
 accept	accept	engine	func_expr/WEIGHT_STRING_(_expr_AS_BINARY_ws_nweights_)!insert	SELECT WEIGHT_STRING(a AS BINARY(1)) zzz
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_AS_BINARY_ws_nweights_)!swap	SELECT WF_TOPN(a AS BINARY(1))
-reject	accept	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)	SELECT WEIGHT_STRING(a, 1, 1, 1, 1)
+accept	accept	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)	SELECT WEIGHT_STRING(a, 1, 1, 1, 1)
 accept	accept	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!drop-1	SELECT(a, 1, 1, 1, 1)
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!drop-2	SELECT WEIGHT_STRING a, 1, 1, 1, 1)
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!drop-3	SELECT WEIGHT_STRING(, 1, 1, 1, 1)
@@ -2552,7 +2552,7 @@ reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!drop-10	SELECT WEIGHT_STRING(a, 1, 1, 1 1)
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!drop-11	SELECT WEIGHT_STRING(a, 1, 1, 1,)
 reject	reject	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!drop-12	SELECT WEIGHT_STRING(a, 1, 1, 1, 1
-reject	accept	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!insert	SELECT WEIGHT_STRING(a, 1, 1, 1, 1) zzz
+accept	accept	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!insert	SELECT WEIGHT_STRING(a, 1, 1, 1, 1) zzz
 accept	accept	engine	func_expr/WEIGHT_STRING_(_expr_,_INTNUM_,_INTNUM_,_INTNUM_,_INTNUM_)!swap	SELECT WF_TOPN(a, 1, 1, 1, 1)
 accept	accept	engine	func_expr/json_extract_unquote_expr	SELECT a ->> 's'
 reject	reject	engine	func_expr/json_extract_unquote_expr!drop-1	SELECT ->> 's'
@@ -2586,35 +2586,35 @@ reject	reject	engine	func_expr/POINT_(_expr_,_expr_)!drop-4	SELECT POINT(a a)
 reject	reject	engine	func_expr/POINT_(_expr_,_expr_)!drop-5	SELECT POINT(a,)
 reject	reject	engine	func_expr/POINT_(_expr_,_expr_)!drop-6	SELECT POINT(a, a
 accept	accept	engine	func_expr/POINT_(_expr_,_expr_)!insert	SELECT POINT(a, a) zzz
-accept	reject	engine	func_expr/POINT_(_expr_,_expr_)!swap	SELECT POLICY(a, a)
+reject	reject	engine	func_expr/POINT_(_expr_,_expr_)!swap	SELECT POLICY(a, a)
 accept	accept	engine	func_expr/LINESTRING_(_expr_list_)	SELECT LINESTRING(a)
 reject	reject	engine	func_expr/LINESTRING_(_expr_list_)!drop-2	SELECT LINESTRING a)
-accept	reject	engine	func_expr/LINESTRING_(_expr_list_)!drop-3	SELECT LINESTRING()
+reject	reject	engine	func_expr/LINESTRING_(_expr_list_)!drop-3	SELECT LINESTRING()
 reject	reject	engine	func_expr/LINESTRING_(_expr_list_)!drop-4	SELECT LINESTRING(a
 accept	accept	engine	func_expr/LINESTRING_(_expr_list_)!insert	SELECT LINESTRING(a) zzz
-accept	reject	engine	func_expr/LINESTRING_(_expr_list_)!swap	SELECT LINE_DELIMITER(a)
+reject	reject	engine	func_expr/LINESTRING_(_expr_list_)!swap	SELECT LINE_DELIMITER(a)
 accept	accept	engine	func_expr/MULTIPOINT_(_expr_list_)	SELECT MULTIPOINT(a)
 reject	reject	engine	func_expr/MULTIPOINT_(_expr_list_)!drop-2	SELECT MULTIPOINT a)
-accept	reject	engine	func_expr/MULTIPOINT_(_expr_list_)!drop-3	SELECT MULTIPOINT()
+reject	reject	engine	func_expr/MULTIPOINT_(_expr_list_)!drop-3	SELECT MULTIPOINT()
 reject	reject	engine	func_expr/MULTIPOINT_(_expr_list_)!drop-4	SELECT MULTIPOINT(a
 accept	accept	engine	func_expr/MULTIPOINT_(_expr_list_)!insert	SELECT MULTIPOINT(a) zzz
 accept	accept	engine	func_expr/MULTILINESTRING_(_expr_list_)	SELECT MULTILINESTRING(a)
 reject	reject	engine	func_expr/MULTILINESTRING_(_expr_list_)!drop-2	SELECT MULTILINESTRING a)
-accept	reject	engine	func_expr/MULTILINESTRING_(_expr_list_)!drop-3	SELECT MULTILINESTRING()
+reject	reject	engine	func_expr/MULTILINESTRING_(_expr_list_)!drop-3	SELECT MULTILINESTRING()
 reject	reject	engine	func_expr/MULTILINESTRING_(_expr_list_)!drop-4	SELECT MULTILINESTRING(a
 accept	accept	engine	func_expr/MULTILINESTRING_(_expr_list_)!insert	SELECT MULTILINESTRING(a) zzz
 accept	accept	engine	func_expr/POLYGON_(_expr_list_)	SELECT POLYGON(a)
 reject	reject	engine	func_expr/POLYGON_(_expr_list_)!drop-2	SELECT POLYGON a)
-accept	reject	engine	func_expr/POLYGON_(_expr_list_)!drop-3	SELECT POLYGON()
+reject	reject	engine	func_expr/POLYGON_(_expr_list_)!drop-3	SELECT POLYGON()
 reject	reject	engine	func_expr/POLYGON_(_expr_list_)!drop-4	SELECT POLYGON(a
 accept	accept	engine	func_expr/POLYGON_(_expr_list_)!insert	SELECT POLYGON(a) zzz
-accept	reject	engine	func_expr/POLYGON_(_expr_list_)!swap	SELECT POOL(a)
+reject	reject	engine	func_expr/POLYGON_(_expr_list_)!swap	SELECT POOL(a)
 accept	accept	engine	func_expr/MULTIPOLYGON_(_expr_list_)	SELECT MULTIPOLYGON(a)
 reject	reject	engine	func_expr/MULTIPOLYGON_(_expr_list_)!drop-2	SELECT MULTIPOLYGON a)
-accept	reject	engine	func_expr/MULTIPOLYGON_(_expr_list_)!drop-3	SELECT MULTIPOLYGON()
+reject	reject	engine	func_expr/MULTIPOLYGON_(_expr_list_)!drop-3	SELECT MULTIPOLYGON()
 reject	reject	engine	func_expr/MULTIPOLYGON_(_expr_list_)!drop-4	SELECT MULTIPOLYGON(a
 accept	accept	engine	func_expr/MULTIPOLYGON_(_expr_list_)!insert	SELECT MULTIPOLYGON(a) zzz
-accept	reject	engine	func_expr/MULTIPOLYGON_(_expr_list_)!swap	SELECT MULTIVALUE(a)
+reject	reject	engine	func_expr/MULTIPOLYGON_(_expr_list_)!swap	SELECT MULTIVALUE(a)
 accept	accept	engine	func_expr/geometry_collection_(_expr_list_)	SELECT GEOMETRYCOLLECTION(a)
 reject	reject	engine	func_expr/geometry_collection_(_expr_list_)!drop-2	SELECT GEOMETRYCOLLECTION a)
 reject	reject	engine	func_expr/geometry_collection_(_expr_list_)!drop-4	SELECT GEOMETRYCOLLECTION(a
@@ -2626,7 +2626,7 @@ reject	reject	engine	func_expr/geometry_collection_(_)!drop-3	SELECT GEOMETRYCOL
 accept	accept	engine	func_expr/geometry_collection_(_)!insert	SELECT GEOMETRYCOLLECTION() zzz
 accept	accept	engine	func_expr/_ST_ASMVT_(_column_ref_)	SELECT _ST_ASMVT(a)
 reject	reject	engine	func_expr/_ST_ASMVT_(_column_ref_)!drop-2	SELECT _ST_ASMVT a)
-accept	reject	engine	func_expr/_ST_ASMVT_(_column_ref_)!drop-3	SELECT _ST_ASMVT()
+reject	reject	engine	func_expr/_ST_ASMVT_(_column_ref_)!drop-3	SELECT _ST_ASMVT()
 reject	reject	engine	func_expr/_ST_ASMVT_(_column_ref_)!drop-4	SELECT _ST_ASMVT(a
 accept	accept	engine	func_expr/_ST_ASMVT_(_column_ref_)!insert	SELECT _ST_ASMVT(a) zzz
 accept	accept	engine	func_expr/_ST_ASMVT_(_column_ref_,_mvt_param_)	SELECT _ST_ASMVT(a, 's')
@@ -2675,25 +2675,25 @@ accept	accept	engine	func_expr/_ST_ASMVT_(_column_ref_,_mvt_param_,_mvt_param_,_
 accept	accept	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)	SELECT LAST_REFRESH_SCN(1)
 accept	accept	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!drop-1	SELECT(1)
 reject	reject	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!drop-2	SELECT LAST_REFRESH_SCN 1)
-accept	reject	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!drop-3	SELECT LAST_REFRESH_SCN()
+reject	reject	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!drop-3	SELECT LAST_REFRESH_SCN()
 reject	reject	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!drop-4	SELECT LAST_REFRESH_SCN(1
 accept	accept	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!insert	SELECT LAST_REFRESH_SCN(1) zzz
-accept	reject	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!swap	SELECT LAST_VALUE(1)
+reject	reject	engine	func_expr/LAST_REFRESH_SCN_(_INTNUM_)!swap	SELECT LAST_VALUE(1)
 accept	accept	engine	func_expr/SUM_OPNSIZE_(_expr_)	SELECT SUM_OPNSIZE(a)
 reject	reject	engine	func_expr/SUM_OPNSIZE_(_expr_)!drop-2	SELECT SUM_OPNSIZE a)
-accept	reject	engine	func_expr/SUM_OPNSIZE_(_expr_)!drop-3	SELECT SUM_OPNSIZE()
+reject	reject	engine	func_expr/SUM_OPNSIZE_(_expr_)!drop-3	SELECT SUM_OPNSIZE()
 reject	reject	engine	func_expr/SUM_OPNSIZE_(_expr_)!drop-4	SELECT SUM_OPNSIZE(a
 accept	accept	engine	func_expr/SUM_OPNSIZE_(_expr_)!insert	SELECT SUM_OPNSIZE(a) zzz
 reject	reject	engine	func_expr/SUM_OPNSIZE_(_expr_)!swap	SELECT SUPER(a)
 accept	accept	engine	func_expr/ARRAY_(_expr_list_)	SELECT ARRAY(a)
 reject	reject	engine	func_expr/ARRAY_(_expr_list_)!drop-2	SELECT ARRAY a)
-accept	reject	engine	func_expr/ARRAY_(_expr_list_)!drop-3	SELECT ARRAY()
+reject	reject	engine	func_expr/ARRAY_(_expr_list_)!drop-3	SELECT ARRAY()
 reject	reject	engine	func_expr/ARRAY_(_expr_list_)!drop-4	SELECT ARRAY(a
 accept	accept	engine	func_expr/ARRAY_(_expr_list_)!insert	SELECT ARRAY(a) zzz
-reject	accept	engine	func_expr/[_expr_list_]	SELECT [ a ]
+accept	accept	engine	func_expr/[_expr_list_]	SELECT [ a ]
 reject	reject	engine	func_expr/[_expr_list_]!drop-1	SELECT a ]
 reject	reject	engine	func_expr/[_expr_list_]!drop-3	SELECT [ a
-reject	accept	engine	func_expr/[_expr_list_]!insert	SELECT [ a ] zzz
+accept	accept	engine	func_expr/[_expr_list_]!insert	SELECT [ a ] zzz
 accept	accept	engine	func_expr/vector_distance_expr	SELECT VECTOR_DISTANCE(a, a)
 reject	reject	engine	func_expr/vector_distance_expr!drop-2	SELECT VECTOR_DISTANCE a, a)
 reject	reject	engine	func_expr/vector_distance_expr!drop-3	SELECT VECTOR_DISTANCE(, a)
@@ -2708,40 +2708,40 @@ reject	reject	engine	func_expr/vector_similarity_expr!drop-4	SELECT VECTOR_SIMIL
 reject	reject	engine	func_expr/vector_similarity_expr!drop-5	SELECT VECTOR_SIMILARITY(a,)
 reject	reject	engine	func_expr/vector_similarity_expr!drop-6	SELECT VECTOR_SIMILARITY(a, a
 accept	accept	engine	func_expr/vector_similarity_expr!insert	SELECT VECTOR_SIMILARITY(a, a) zzz
-accept	reject	engine	func_expr/vector_similarity_expr!swap	SELECT VERBOSE(a, a)
+reject	reject	engine	func_expr/vector_similarity_expr!swap	SELECT VERBOSE(a, a)
 accept	accept	engine	func_expr/MAP_(_expr_list_)	SELECT MAP(a)
 reject	reject	engine	func_expr/MAP_(_expr_list_)!drop-2	SELECT MAP a)
-accept	reject	engine	func_expr/MAP_(_expr_list_)!drop-3	SELECT MAP()
+reject	reject	engine	func_expr/MAP_(_expr_list_)!drop-3	SELECT MAP()
 reject	reject	engine	func_expr/MAP_(_expr_list_)!drop-4	SELECT MAP(a
 accept	accept	engine	func_expr/MAP_(_expr_list_)!insert	SELECT MAP(a) zzz
 reject	reject	engine	func_expr/MAP_(_expr_list_)!swap	SELECT MASTER(a)
 accept	accept	engine	func_expr/RB_BUILD_AGG_(_expr_)	SELECT RB_BUILD_AGG(a)
 reject	reject	engine	func_expr/RB_BUILD_AGG_(_expr_)!drop-2	SELECT RB_BUILD_AGG a)
-accept	reject	engine	func_expr/RB_BUILD_AGG_(_expr_)!drop-3	SELECT RB_BUILD_AGG()
+reject	reject	engine	func_expr/RB_BUILD_AGG_(_expr_)!drop-3	SELECT RB_BUILD_AGG()
 reject	reject	engine	func_expr/RB_BUILD_AGG_(_expr_)!drop-4	SELECT RB_BUILD_AGG(a
 accept	accept	engine	func_expr/RB_BUILD_AGG_(_expr_)!insert	SELECT RB_BUILD_AGG(a) zzz
 accept	accept	engine	func_expr/RB_OR_AGG_(_expr_)	SELECT RB_OR_AGG(a)
 reject	reject	engine	func_expr/RB_OR_AGG_(_expr_)!drop-2	SELECT RB_OR_AGG a)
-accept	reject	engine	func_expr/RB_OR_AGG_(_expr_)!drop-3	SELECT RB_OR_AGG()
+reject	reject	engine	func_expr/RB_OR_AGG_(_expr_)!drop-3	SELECT RB_OR_AGG()
 reject	reject	engine	func_expr/RB_OR_AGG_(_expr_)!drop-4	SELECT RB_OR_AGG(a
 accept	accept	engine	func_expr/RB_OR_AGG_(_expr_)!insert	SELECT RB_OR_AGG(a) zzz
 accept	accept	engine	func_expr/RB_AND_AGG_(_expr_)	SELECT RB_AND_AGG(a)
 reject	reject	engine	func_expr/RB_AND_AGG_(_expr_)!drop-2	SELECT RB_AND_AGG a)
-accept	reject	engine	func_expr/RB_AND_AGG_(_expr_)!drop-3	SELECT RB_AND_AGG()
+reject	reject	engine	func_expr/RB_AND_AGG_(_expr_)!drop-3	SELECT RB_AND_AGG()
 reject	reject	engine	func_expr/RB_AND_AGG_(_expr_)!drop-4	SELECT RB_AND_AGG(a
 accept	accept	engine	func_expr/RB_AND_AGG_(_expr_)!insert	SELECT RB_AND_AGG(a) zzz
 accept	accept	engine	func_expr/RB_ITERATE_(_simple_expr_)	SELECT RB_ITERATE(a)
 reject	reject	engine	func_expr/RB_ITERATE_(_simple_expr_)!drop-2	SELECT RB_ITERATE a)
-accept	reject	engine	func_expr/RB_ITERATE_(_simple_expr_)!drop-3	SELECT RB_ITERATE()
+reject	reject	engine	func_expr/RB_ITERATE_(_simple_expr_)!drop-3	SELECT RB_ITERATE()
 reject	reject	engine	func_expr/RB_ITERATE_(_simple_expr_)!drop-4	SELECT RB_ITERATE(a
 accept	accept	engine	func_expr/RB_ITERATE_(_simple_expr_)!insert	SELECT RB_ITERATE(a) zzz
 accept	accept	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)	SELECT ARRAY_AGG(a)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!drop-2	SELECT ARRAY_AGG a)
-accept	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!drop-3	SELECT ARRAY_AGG()
+reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!drop-3	SELECT ARRAY_AGG()
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!drop-4	SELECT ARRAY_AGG(a
 accept	accept	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!insert	SELECT ARRAY_AGG(a) zzz
 accept	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_)!swap	SELECT ARRAY_FILTER(a)
-reject	accept	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)	SELECT ARRAY_AGG(a ORDER BY a)
+accept	accept	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)	SELECT ARRAY_AGG(a ORDER BY a)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!drop-1	SELECT(a ORDER BY a)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!drop-2	SELECT ARRAY_AGG a ORDER BY a)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!drop-3	SELECT ARRAY_AGG(ORDER BY a)
@@ -2749,7 +2749,7 @@ reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!drop-5	SELECT ARRAY_AGG(a ORDER a)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!drop-6	SELECT ARRAY_AGG(a ORDER BY)
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!drop-7	SELECT ARRAY_AGG(a ORDER BY a
-reject	accept	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!insert	SELECT ARRAY_AGG(a ORDER BY a) zzz
+accept	accept	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!insert	SELECT ARRAY_AGG(a ORDER BY a) zzz
 reject	reject	engine	func_expr/ARRAY_AGG_(_opt_distinct_expr_order_by_opt_null_)!swap	SELECT ARRAY_FILTER(a ORDER BY a)
 accept	accept	engine	func_expr/ARRAY_MAP_(_lambda_expr_,_expr_list_)	SELECT ARRAY_MAP(a -> a, a)
 accept	reject	engine	func_expr/ARRAY_MAP_(_lambda_expr_,_expr_list_)!drop-1	SELECT(a -> a, a)
@@ -2791,13 +2791,13 @@ reject	reject	engine	func_expr/ARRAY_FILTER_(_lambda_expr_,_expr_list_)!drop-8	S
 accept	accept	engine	func_expr/ARRAY_FILTER_(_lambda_expr_,_expr_list_)!insert	SELECT ARRAY_FILTER(a -> a, a) zzz
 accept	accept	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)	SELECT RB_OR_CARDINALITY_AGG(a)
 reject	reject	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)!drop-2	SELECT RB_OR_CARDINALITY_AGG a)
-accept	reject	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)!drop-3	SELECT RB_OR_CARDINALITY_AGG()
+reject	reject	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)!drop-3	SELECT RB_OR_CARDINALITY_AGG()
 reject	reject	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)!drop-4	SELECT RB_OR_CARDINALITY_AGG(a
 accept	accept	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)!insert	SELECT RB_OR_CARDINALITY_AGG(a) zzz
 reject	reject	engine	func_expr/RB_OR_CARDINALITY_AGG_(_expr_)!swap	SELECT READ(a)
 accept	accept	engine	func_expr/RB_AND_CARDINALITY_AGG_(_expr_)	SELECT RB_AND_CARDINALITY_AGG(a)
 reject	reject	engine	func_expr/RB_AND_CARDINALITY_AGG_(_expr_)!drop-2	SELECT RB_AND_CARDINALITY_AGG a)
-accept	reject	engine	func_expr/RB_AND_CARDINALITY_AGG_(_expr_)!drop-3	SELECT RB_AND_CARDINALITY_AGG()
+reject	reject	engine	func_expr/RB_AND_CARDINALITY_AGG_(_expr_)!drop-3	SELECT RB_AND_CARDINALITY_AGG()
 reject	reject	engine	func_expr/RB_AND_CARDINALITY_AGG_(_expr_)!drop-4	SELECT RB_AND_CARDINALITY_AGG(a
 accept	accept	engine	func_expr/RB_AND_CARDINALITY_AGG_(_expr_)!insert	SELECT RB_AND_CARDINALITY_AGG(a) zzz
 accept	accept	engine	func_expr/SPLIT_(_expr_,_expr_)	SELECT SPLIT(a, a)
@@ -2865,7 +2865,7 @@ reject	reject	engine	vector_similarity_expr/VECTOR_SIMILARITY_(_expr_,_expr_,_ve
 reject	reject	engine	vector_similarity_expr/VECTOR_SIMILARITY_(_expr_,_expr_,_vector_similarity_metric_)!drop-7	SELECT VECTOR_SIMILARITY(a, a,)
 reject	reject	engine	vector_similarity_expr/VECTOR_SIMILARITY_(_expr_,_expr_,_vector_similarity_metric_)!drop-8	SELECT VECTOR_SIMILARITY(a, a, COSINE
 accept	accept	engine	vector_similarity_expr/VECTOR_SIMILARITY_(_expr_,_expr_,_vector_similarity_metric_)!insert	SELECT VECTOR_SIMILARITY(a, a, COSINE) zzz
-accept	reject	engine	vector_similarity_expr/VECTOR_SIMILARITY_(_expr_,_expr_,_vector_similarity_metric_)!swap	SELECT VERBOSE(a, a, COSINE)
+reject	reject	engine	vector_similarity_expr/VECTOR_SIMILARITY_(_expr_,_expr_,_vector_similarity_metric_)!swap	SELECT VERBOSE(a, a, COSINE)
 accept	accept	engine	vector_similarity_metric/COSINE	SELECT VECTOR_SIMILARITY(a, a, COSINE)
 reject	reject	engine	vector_similarity_metric/COSINE!truncate	SELECT VECTOR_SIMILARITY(a, a,
 reject	reject	engine	vector_similarity_metric/COSINE!insert	SELECT VECTOR_SIMILARITY(a, a, COSINE zzz)
@@ -2911,7 +2911,7 @@ reject	reject	engine	sys_interval_func/INTERVAL_(_expr_,_expr_,_expr_list_)!drop
 reject	reject	engine	sys_interval_func/INTERVAL_(_expr_,_expr_,_expr_list_)!drop-8	SELECT INTERVAL(a, a, a
 accept	accept	engine	sys_interval_func/INTERVAL_(_expr_,_expr_,_expr_list_)!insert	SELECT INTERVAL(a, a, a) zzz
 reject	reject	engine	sys_interval_func/INTERVAL_(_expr_,_expr_,_expr_list_)!swap	SELECT INTO(a, a, a)
-reject	accept	engine	sys_interval_func/CHECK_(_expr_)	SELECT CHECK(a)
+accept	accept	engine	sys_interval_func/CHECK_(_expr_)	SELECT CHECK(a)
 accept	accept	engine	utc_timestamp_func/UTC_TIMESTAMP	SELECT UTC_TIMESTAMP
 accept	accept	engine	utc_timestamp_func/UTC_TIMESTAMP_(_)	SELECT UTC_TIMESTAMP()
 reject	reject	engine	utc_timestamp_func/UTC_TIMESTAMP_(_)!drop-2	SELECT UTC_TIMESTAMP)
@@ -3051,7 +3051,7 @@ accept	accept	engine	opt_distinct/DISTINCT	SELECT GROUP_CONCAT(DISTINCT a)
 reject	reject	engine	opt_distinct/DISTINCT!truncate	SELECT GROUP_CONCAT(
 reject	reject	engine	opt_distinct/DISTINCT!insert	SELECT GROUP_CONCAT(DISTINCT zzz a)
 reject	reject	engine	opt_distinct/DISTINCT!swap	SELECT GROUP_CONCAT(DISTINCT_PUSHDOWN a)
-reject	accept	engine	opt_distinct/UNIQUE	SELECT GROUP_CONCAT(UNIQUE a)
+accept	accept	engine	opt_distinct/UNIQUE	SELECT GROUP_CONCAT(UNIQUE a)
 reject	reject	engine	opt_distinct/UNIQUE!insert	SELECT GROUP_CONCAT(UNIQUE zzz a)
 reject	reject	engine	opt_distinct/UNIQUE!swap	SELECT GROUP_CONCAT(UNIT a)
 accept	accept	engine	opt_distinct_or_all/%empty	SELECT SUM(a)
@@ -3063,7 +3063,7 @@ reject	reject	engine	opt_distinct_or_all/ALL!swap	SELECT SUM(ALLOW a)
 accept	accept	engine	opt_distinct_or_all/DISTINCT	SELECT SUM(DISTINCT a)
 reject	reject	engine	opt_distinct_or_all/DISTINCT!insert	SELECT SUM(DISTINCT zzz a)
 reject	reject	engine	opt_distinct_or_all/DISTINCT!swap	SELECT SUM(DISTINCT_PUSHDOWN a)
-reject	accept	engine	opt_distinct_or_all/UNIQUE	SELECT SUM(UNIQUE a)
+accept	accept	engine	opt_distinct_or_all/UNIQUE	SELECT SUM(UNIQUE a)
 reject	reject	engine	opt_distinct_or_all/UNIQUE!insert	SELECT SUM(UNIQUE zzz a)
 reject	reject	engine	opt_distinct_or_all/UNIQUE!swap	SELECT SUM(UNIT a)
 accept	accept	engine	opt_separator/%empty	SELECT GROUP_CONCAT(a)
@@ -9634,18 +9634,18 @@ reject	reject	engine	sort_list/sort_list_,_sort_key!drop-2	SELECT a ORDER BY a a
 reject	reject	engine	sort_list/sort_list_,_sort_key!drop-3	SELECT a ORDER BY a,
 reject	reject	engine	sort_list/sort_list_,_sort_key!insert	SELECT a ORDER BY a, a zzz
 accept	accept	engine	sort_key/expr_opt_asc_desc	SELECT a ORDER BY a
-reject	accept	engine	order_by_opt_null/ORDER_BY_sort_list_opt_null	SELECT ARRAY_AGG(a ORDER BY a)
+accept	accept	engine	order_by_opt_null/ORDER_BY_sort_list_opt_null	SELECT ARRAY_AGG(a ORDER BY a)
 reject	reject	engine	order_by_opt_null/ORDER_BY_sort_list_opt_null!truncate	SELECT ARRAY_AGG(a ORDER BY
 reject	reject	engine	order_by_opt_null/ORDER_BY_sort_list_opt_null!swap	SELECT ARRAY_AGG(a ORDERED BY a)
-reject	accept	engine	sort_list_opt_null/sort_key_opt_null	SELECT ARRAY_AGG(a ORDER BY a)
-reject	accept	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null	SELECT ARRAY_AGG(a ORDER BY a, a)
+accept	accept	engine	sort_list_opt_null/sort_key_opt_null	SELECT ARRAY_AGG(a ORDER BY a)
+accept	accept	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null	SELECT ARRAY_AGG(a ORDER BY a, a)
 reject	reject	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null!drop-1	SELECT ARRAY_AGG(a ORDER BY, a)
 reject	reject	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null!drop-2	SELECT ARRAY_AGG(a ORDER BY a a)
 reject	reject	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null!drop-3	SELECT ARRAY_AGG(a ORDER BY a,)
 reject	reject	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null!truncate	SELECT ARRAY_AGG(a ORDER BY a,
 reject	reject	engine	sort_list_opt_null/sort_list_opt_null_,_sort_key_opt_null!insert	SELECT ARRAY_AGG(a ORDER BY a, a zzz)
-reject	accept	engine	sort_key_opt_null/expr_opt_asc_desc_null	SELECT ARRAY_AGG(a ORDER BY a)
-reject	accept	engine	opt_asc_desc_null/opt_asc_desc_opt_null_pos	SELECT ARRAY_AGG(a ORDER BY a)
+accept	accept	engine	sort_key_opt_null/expr_opt_asc_desc_null	SELECT ARRAY_AGG(a ORDER BY a)
+accept	accept	engine	opt_asc_desc_null/opt_asc_desc_opt_null_pos	SELECT ARRAY_AGG(a ORDER BY a)
 accept	accept	engine	opt_asc_desc/%empty	SELECT a ORDER BY a
 accept	accept	engine	opt_asc_desc/ASC	SELECT a ORDER BY a ASC
 reject	reject	engine	opt_asc_desc/ASC!insert	SELECT a ORDER BY a ASC zzz

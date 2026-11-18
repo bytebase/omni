@@ -290,6 +290,7 @@ func TestOceanBaseAggQuantifierInvariant(t *testing.T) {
 		nodes.AggQuantAll:            {"ALL", false},
 		nodes.AggQuantDistinctAll:    {"DISTINCT ALL", true},
 		nodes.AggQuantDistinctRowAll: {"DISTINCTROW ALL", true},
+		nodes.AggQuantUnique:         {"UNIQUE", true},
 	}
 	for q, w := range want {
 		if q.String() != w.text {

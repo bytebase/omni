@@ -902,6 +902,10 @@ const (
 	AggQuantAll
 	AggQuantDistinctAll
 	AggQuantDistinctRowAll
+	// AggQuantUnique is COUNT's UNIQUE spelling. It de-duplicates like
+	// DISTINCT, but the written word is kept because an automatic column
+	// name is the text as written.
+	AggQuantUnique
 )
 
 // String returns the quantifier as written, empty for AggQuantNone.
@@ -917,6 +921,8 @@ func (q AggQuantifier) String() string {
 		return "DISTINCT ALL"
 	case AggQuantDistinctRowAll:
 		return "DISTINCTROW ALL"
+	case AggQuantUnique:
+		return "UNIQUE"
 	}
 	return ""
 }
@@ -927,7 +933,7 @@ func (q AggQuantifier) String() string {
 // an in_sum_expr whose own opt_all follows it.
 func (q AggQuantifier) RemovesDuplicates() bool {
 	switch q {
-	case AggQuantDistinct, AggQuantDistinctRow, AggQuantDistinctAll, AggQuantDistinctRowAll:
+	case AggQuantDistinct, AggQuantDistinctRow, AggQuantDistinctAll, AggQuantDistinctRowAll, AggQuantUnique:
 		return true
 	}
 	return false

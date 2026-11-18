@@ -85,6 +85,15 @@ var aggArgSpecs = map[string]aggArgSpec{
 // nothing and returns AggQuantNone when no quantifier is written.
 func (p *Parser) parseAggQuantifier(allowed quantSet) (nodes.AggQuantifier, error) {
 	switch p.cur.Type {
+	case kwUNIQUE:
+		// UNIQUE is DISTINCT's other spelling in opt_distinct and in COUNT's
+		// own production, and takes no following ALL: OceanBase 4.3.5 parses
+		// count(unique c1) and answers 1064 for count(unique all c1).
+		if allowed&quantDistinct == 0 {
+			return nodes.AggQuantNone, p.syntaxErrorAtCur()
+		}
+		p.advance()
+		return nodes.AggQuantUnique, nil
 	case kwDISTINCT, kwDISTINCTROW:
 		if allowed&(quantDistinct|quantDistinctAll) == 0 {
 			return nodes.AggQuantNone, p.syntaxErrorAtCur()
