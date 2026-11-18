@@ -153,6 +153,11 @@ func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMateri
 	}
 	stmt.MviewOptions = opts
 
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwAS)
+		return nil, &ParseError{Message: "collecting"}
+	}
 	if _, err := p.expect(kwAS); err != nil {
 		return nil, err
 	}

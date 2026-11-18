@@ -144,6 +144,14 @@ func TestMaterializedViewCompletion(t *testing.T) {
 	if cs := Collect("CREATE MATERIALIZED VIEW mv ", len("CREATE MATERIALIZED VIEW mv ")); !cs.HasToken(kwAS) {
 		t.Error("Collect(\"CREATE MATERIALIZED VIEW mv \") does not offer AS")
 	}
+	for _, sql := range []string{
+		"CREATE MATERIALIZED VIEW mv REFRESH FAST ",
+		"CREATE MATERIALIZED VIEW mv WITH COLUMN GROUP(ALL COLUMNS) ",
+	} {
+		if cs := Collect(sql, len(sql)); !cs.HasToken(kwAS) {
+			t.Errorf("Collect(%q) does not offer AS", sql)
+		}
+	}
 	if cs := Collect("ALTER MATERIALIZED VIEW ", len("ALTER MATERIALIZED VIEW ")); !cs.HasRule("view_ref") {
 		t.Error("Collect(\"ALTER MATERIALIZED VIEW \") does not offer view_ref")
 	}

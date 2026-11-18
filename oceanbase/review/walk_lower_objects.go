@@ -236,7 +236,7 @@ func materializedViewColumns(v *ast.CreateMaterializedViewStmt) []string {
 		return nil
 	}
 	var names []string
-	for _, target := range v.Select.TargetList {
+	for _, target := range ast.LeftmostQueryLeaf(v.Select).TargetList {
 		t, ok := target.(*ast.ResTarget)
 		if !ok {
 			continue
@@ -376,6 +376,10 @@ func (b *builder) createTrigger(v *ast.CreateTriggerStmt) bool {
 	r, ok, lowered := b.tableOf(v.Table)
 	if !ok {
 		return lowered
+	}
+	if b.w.materialized[relKey(r.db, r.name)] {
+		b.fail(r.rng, nil, review.WrongObjectKind, wrongKind(r.written, "materialized view", "table"))
+		return true
 	}
 	rng := b.anchor()
 	if b.tooLong(spaceTrigger, v.Name, rng) {
