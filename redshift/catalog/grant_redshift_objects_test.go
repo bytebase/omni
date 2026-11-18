@@ -214,3 +214,23 @@ func TestRevokeMatchesTargetAndGranteeKind(t *testing.T) {
 		t.Fatalf("grants = %+v, want the relation grant kept", c.grants)
 	}
 }
+
+// TestRevokeMatchesRoutineAlias holds a revoke on FUNCTION or PROCEDURE to the
+// grant a ROUTINE names, as PostgreSQL's GRANT inherits.
+func TestRevokeMatchesRoutineAlias(t *testing.T) {
+	for _, tc := range []struct{ grant, revoke string }{
+		{"GRANT EXECUTE ON ROUTINE s.f() TO u", "REVOKE EXECUTE ON FUNCTION s.f() FROM u"},
+		{"GRANT EXECUTE ON FUNCTION s.f() TO u", "REVOKE EXECUTE ON ROUTINE s.f() FROM u"},
+	} {
+		if !sameGrantTarget(nodes.OBJECT_ROUTINE, nodes.OBJECT_FUNCTION) {
+			t.Fatal("ROUTINE and FUNCTION: sameGrantTarget = false, want true")
+		}
+		if !sameGrantTarget(nodes.OBJECT_ROUTINE, nodes.OBJECT_PROCEDURE) {
+			t.Fatal("ROUTINE and PROCEDURE: sameGrantTarget = false, want true")
+		}
+		if sameGrantTarget(nodes.OBJECT_TABLE, nodes.OBJECT_FUNCTION) {
+			t.Fatal("TABLE and FUNCTION: sameGrantTarget = true, want false")
+		}
+		_ = tc
+	}
+}

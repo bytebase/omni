@@ -186,7 +186,7 @@ func (c *Catalog) execRevoke(stmt *nodes.GrantStmt, objTypeCode byte, privs []gr
 func (c *Catalog) revokeGrants(target nodes.ObjectType, objType byte, objOID uint32, grantees []grantee, privs []grantPriv) {
 	n := 0
 	for _, g := range c.grants {
-		if g.ObjType == objType && g.ObjOID == objOID && g.Target == target &&
+		if g.ObjType == objType && g.ObjOID == objOID && sameGrantTarget(g.Target, target) &&
 			matchGrantee(g, grantees) && matchPriv(g.Privilege, privs) {
 			continue // remove
 		}
@@ -194,6 +194,19 @@ func (c *Catalog) revokeGrants(target nodes.ObjectType, objType byte, objOID uin
 		n++
 	}
 	c.grants = c.grants[:n]
+}
+
+// sameGrantTarget reports whether two grant targets name the same object: a
+// ROUTINE is a function or a procedure, according to PostgreSQL's GRANT, which
+// this catalog inherits.
+func sameGrantTarget(a, b nodes.ObjectType) bool {
+	if a == b {
+		return true
+	}
+	routine := func(x nodes.ObjectType) bool {
+		return x == nodes.OBJECT_FUNCTION || x == nodes.OBJECT_PROCEDURE
+	}
+	return (a == nodes.OBJECT_ROUTINE && routine(b)) || (b == nodes.OBJECT_ROUTINE && routine(a))
 }
 
 // matchGrantee matches a recorded grant's grantee against a list of grantees.

@@ -216,6 +216,9 @@ func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, er
 		grantees, procedureDatashare, err = p.parseRedshiftGranteeList(kind, objtype, objects, privs, true, true)
 		if !procedureDatashare && err == nil {
 			grantOption, err = p.parseOptGrantGrantOption()
+			if grantOption {
+				setLastGranteeGrantOption(grantees)
+			}
 		}
 	}
 	if err != nil {
@@ -764,6 +767,17 @@ func (p *Parser) parseRedshiftGrantRoleNameList() (*nodes.List, error) {
 	return result, nil
 }
 
+// setLastGranteeGrantOption marks the grantee a statement's trailing WITH GRANT
+// OPTION follows, which is the last one.
+func setLastGranteeGrantOption(grantees *nodes.List) {
+	if grantees == nil || len(grantees.Items) == 0 {
+		return
+	}
+	if rs, ok := grantees.Items[len(grantees.Items)-1].(*nodes.RoleSpec); ok {
+		rs.WithGrantOption = true
+	}
+}
+
 // redshiftGrantKind says which alternative of r_GRANT or r_REVOKE names the
 // target, where the AST's Objtype alone cannot: an EXTERNAL SCHEMA is an
 // OBJECT_SCHEMA and both of a DATASHARE's alternatives are OBJECT_DATASHARE.
@@ -890,10 +904,8 @@ func (p *Parser) parseRedshiftOptionableGrantees(allowOption bool) (*nodes.List,
 			if _, err := p.expect(OPTION); err != nil {
 				return nil, false, err
 			}
+			grantee.WithGrantOption = true
 			withGrantOption = true
-			if p.cur.Type == ',' {
-				return nil, false, p.syntaxErrorAtCur()
-			}
 		}
 		if p.cur.Type != ',' {
 			return result, withGrantOption, nil
@@ -1382,20 +1394,13 @@ func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOpti
 	} else if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, err := p.parseRedshiftScopedGrantees()
+	// r_GRANT writes username ( WITH GRANT OPTION )? per grantee; a REVOKE's
+	// scoped grantees take none. The statement's flag is their union.
+	grantees, read, err := p.parseRedshiftScopedGrantees(isGrant)
 	if err != nil {
 		return nil, err
 	}
-	if isGrant {
-		// r_GRANT writes username ( WITH GRANT OPTION )?, and the AST carries one
-		// option for the statement, as PostgreSQL's does. A mixed list reads the
-		// trailing option only.
-		read, err := p.parseOptGrantGrantOption()
-		if err != nil {
-			return nil, err
-		}
-		grantOption = grantOption || read
-	}
+	grantOption = grantOption || read
 	// A scoped permission ends after its grantees: no CASCADE, no RESTRICT.
 	return &nodes.GrantStmt{
 		IsGrant:     isGrant,
@@ -1412,30 +1417,44 @@ func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOpti
 // parseRedshiftScopedGrantees parses a scoped permission's grantees, which
 // r_GRANT and r_REVOKE write as
 // { username [ WITH GRANT OPTION ] | ROLE role_name } [, ...].
-func (p *Parser) parseRedshiftScopedGrantees() (*nodes.List, error) {
+func (p *Parser) parseRedshiftScopedGrantees(allowOption bool) (*nodes.List, bool, error) {
 	result := &nodes.List{}
+	withGrantOption := false
 	for {
 		loc := p.pos()
 		// A scoped grantee is a username or a role, never the PUBLIC pseudo-role.
 		if p.redshiftKeywordIs("public") {
-			return nil, p.syntaxErrorAtCur()
+			return nil, false, p.syntaxErrorAtCur()
 		}
 		// ROLE is unreserved, so ROLE with no name after it is the username
 		// "role".
-		if p.isRedshiftRoleGranteeStart() {
+		isRole := p.isRedshiftRoleGranteeStart()
+		if isRole {
 			p.advance()
 		}
 		name, err := p.parseColId()
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		result.Items = append(result.Items, &nodes.RoleSpec{
+		grantee := &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CSTRING),
 			Rolename: name,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
-		})
+		}
+		result.Items = append(result.Items, grantee)
+		if allowOption && !isRole && p.cur.Type == WITH {
+			p.advance()
+			if _, err := p.expect(GRANT); err != nil {
+				return nil, false, err
+			}
+			if _, err := p.expect(OPTION); err != nil {
+				return nil, false, err
+			}
+			grantee.WithGrantOption = true
+			withGrantOption = true
+		}
 		if p.cur.Type != ',' {
-			return result, nil
+			return result, withGrantOption, nil
 		}
 		p.advance()
 	}
@@ -1832,6 +1851,7 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 			//   { SELECT | UPDATE } ( column [, ...] ) [ , ( column [, ...] ) ... ]
 			// and the alternative ends there: no other privilege follows it.
 			p.advance() // consume ','
+			listStart := p.pos()
 			p.advance() // consume '('
 			cols, err := p.parseColumnList()
 			if err != nil {
@@ -1840,7 +1860,7 @@ func (p *Parser) parsePrivilegeList() (*nodes.List, error) {
 			if _, err := p.expect(')'); err != nil {
 				return nil, err
 			}
-			priv = &nodes.AccessPriv{PrivName: priv.PrivName, Cols: cols, Loc: nodes.Loc{Start: priv.Loc.Start, End: p.prev.End}}
+			priv = &nodes.AccessPriv{PrivName: priv.PrivName, Cols: cols, Loc: nodes.Loc{Start: listStart, End: p.prev.End}}
 			result.Items = append(result.Items, priv)
 			columnListOnly = true
 			continue

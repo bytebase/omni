@@ -64,10 +64,23 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		t.Errorf("%q: grantee range = %q, want alice", optSQL, optSQL[rs.Loc.Start:rs.Loc.End])
 	}
 
-	// WITH GRANT OPTION follows a username, and the AST holds one option for the
-	// statement, so it ends the grantee list.
+	// WITH GRANT OPTION follows a username, and stays on that grantee when the
+	// list continues.
+	mixed := singleStmt(t, "GRANT ALTER ON DATASHARE d TO alice WITH GRANT OPTION, ROLE r").(*nodes.GrantStmt)
+	if !mixed.GrantOption {
+		t.Error("datashare grant: GrantOption = false, want true")
+	}
+	if rs := mixed.Grantees.Items[0].(*nodes.RoleSpec); !rs.WithGrantOption {
+		t.Error("alice: WithGrantOption = false, want true")
+	}
+	if rs := mixed.Grantees.Items[1].(*nodes.RoleSpec); rs.WithGrantOption {
+		t.Error("ROLE r: WithGrantOption = true, want false")
+	}
 	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE d TO ROLE r, a WITH GRANT OPTION").(*nodes.GrantStmt); !grant.GrantOption {
 		t.Error("datashare grant with a username option: GrantOption = false, want true")
+	}
+	if grant := singleStmt(t, "GRANT ALTER ON DATASHARE d TO a, b").(*nodes.GrantStmt); grant.GrantOption {
+		t.Error("datashare grant without an option: GrantOption = true, want false")
 	}
 
 	// A datashare consumer keeps the VIA DATA CATALOG qualifier, per account.
@@ -145,7 +158,6 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		// WITH GRANT OPTION follows a username, never ROLE, GROUP or PUBLIC.
 		"GRANT ALTER ON DATASHARE d TO ROLE r WITH GRANT OPTION",
 		"GRANT ALTER ON DATASHARE d TO PUBLIC WITH GRANT OPTION",
-		"GRANT ALTER ON DATASHARE d TO a WITH GRANT OPTION, ROLE r",
 		// CREATE MODEL's option follows a username too.
 		"GRANT CREATE MODEL TO PUBLIC WITH GRANT OPTION",
 		"GRANT CREATE MODEL TO ROLE r WITH GRANT OPTION",
@@ -311,6 +323,13 @@ func TestRedshiftGrantScopedTemplates(t *testing.T) {
 	if grant := singleStmt(t, "GRANT CREATE FOR SCHEMAS IN DATABASE d TO a, b WITH GRANT OPTION").(*nodes.GrantStmt); !grant.GrantOption {
 		t.Error("scoped grant to two grantees: GrantOption = false, want true")
 	}
+	scoped := singleStmt(t, "GRANT CREATE FOR SCHEMAS IN DATABASE d TO a WITH GRANT OPTION, b").(*nodes.GrantStmt)
+	if rs := scoped.Grantees.Items[0].(*nodes.RoleSpec); !rs.WithGrantOption {
+		t.Error("scoped grant: the first grantee's WithGrantOption = false, want true")
+	}
+	if rs := scoped.Grantees.Items[1].(*nodes.RoleSpec); rs.WithGrantOption {
+		t.Error("scoped grant: the second grantee's WithGrantOption = true, want false")
+	}
 	if grant := singleStmt(t, "GRANT CREATE FOR SCHEMAS IN DATABASE d TO a, b").(*nodes.GrantStmt); grant.GrantOption {
 		t.Error("scoped grant without an option: GrantOption = true, want false")
 	}
@@ -419,6 +438,45 @@ func TestRedshiftFuncArgNameVersusType(t *testing.T) {
 		fp := fn.Parameters.Items[0].(*nodes.FunctionParameter)
 		if fp.Name != tc.name {
 			t.Errorf("Parse(%q): first parameter name = %q, want %q", tc.sql, fp.Name, tc.name)
+		}
+	}
+}
+
+// TestRedshiftGrantParameterNames pins the argument-name reading against both
+// keyword categories the inherited param_name takes: a column-name keyword
+// (INT) and a type-or-function name keyword (AUTHORIZATION).
+func TestRedshiftGrantParameterNames(t *testing.T) {
+	for _, tc := range []struct {
+		sql  string
+		name string
+	}{
+		{"CREATE FUNCTION f(IN authorization int) RETURNS int AS 's' LANGUAGE sql", "authorization"},
+		{"CREATE FUNCTION f(authorization int) RETURNS int AS 's' LANGUAGE sql", "authorization"},
+		{"CREATE FUNCTION f(IN character varying) RETURNS int AS 's' LANGUAGE sql", ""},
+		{"CREATE FUNCTION f(int int) RETURNS int AS 's' LANGUAGE sql", "int"},
+	} {
+		fn, ok := singleStmt(t, tc.sql).(*nodes.CreateFunctionStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): expected CreateFunctionStmt", tc.sql)
+		}
+		if fp := fn.Parameters.Items[0].(*nodes.FunctionParameter); fp.Name != tc.name {
+			t.Errorf("Parse(%q): name = %q, want %q", tc.sql, fp.Name, tc.name)
+		}
+	}
+}
+
+// TestRedshiftGrantRepeatedColumnLoc pins each repeated column list's own range:
+// it starts at its parenthesis, not at the first privilege.
+func TestRedshiftGrantRepeatedColumnLoc(t *testing.T) {
+	sql := "GRANT SELECT(a), (b), (c) ON t TO u"
+	grant, ok := singleStmt(t, sql).(*nodes.GrantStmt)
+	if !ok {
+		t.Fatalf("Parse(%q): expected GrantStmt", sql)
+	}
+	for i, want := range []string{"SELECT(a)", "(b)", "(c)"} {
+		priv := grant.Privileges.Items[i].(*nodes.AccessPriv)
+		if got := sql[priv.Loc.Start:priv.Loc.End]; got != want {
+			t.Errorf("privilege %d range = %q, want %q", i, got, want)
 		}
 	}
 }
