@@ -400,7 +400,7 @@ func (p *Parser) atSelectListEnd() bool {
 	switch p.cur.Type {
 	case kwFROM, kwWHERE, kwGROUP, kwHAVING, kwQUALIFY, kwWINDOW,
 		kwORDER, kwLIMIT, kwUNION, kwINTERSECT, kwEXCEPT,
-		int(')'), int(';'), tokEOF:
+		tokPipe, int(')'), int(';'), tokEOF:
 		return true
 	}
 	return false

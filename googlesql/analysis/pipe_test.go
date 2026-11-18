@@ -19,12 +19,16 @@ func TestClassifyPipe(t *testing.T) {
 		{"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY x", Select},
 		{"|> AGGREGATE", Select},
 		{"|> WHERE x > 1 |> DISTINCT", Select},
-		{"DESCRIBE t |> AGGREGATE COUNT(*)", Select},
+		// A piped statement keeps its head's classification: DESCRIBE and CALL
+		// are Unknown, and a reading suffix does not turn them into a read.
+		{"DESCRIBE t |> AGGREGATE COUNT(*)", Unknown},
 		{"|> INSERT t", DML},
 		{"SELECT 1 |> INSERT t", DML},
 		{"|> CREATE TABLE t (x INT64)", DDL},
 		{"SELECT 1 |> IF true THEN (|> INSERT t) ELSE (|> DISTINCT)", DML},
 		{"|> TEE (|> INSERT t), (|> DISTINCT)", DML},
+		// Conflicting write types on different runtime paths are Unknown.
+		{"|> IF true THEN (|> INSERT t) ELSE (|> CREATE TABLE u (x INT64))", Unknown},
 		{"|> EXPORT DATA OPTIONS(uri = 'x')", Unknown},
 	}
 	for _, tc := range tests {
@@ -47,6 +51,7 @@ func TestStatementTypeOfPipe(t *testing.T) {
 		{"SELECT 1 |> INSERT t", Insert},
 		{"|> CREATE TABLE t (x INT64)", CreateTable},
 		{"|> IF true THEN (|> INSERT t) ELSE (|> DISTINCT)", Insert},
+		{"|> IF true THEN (|> INSERT t) ELSE (|> CREATE TABLE u (x INT64))", StatementTypeUnspecified},
 	}
 	for _, tc := range tests {
 		file, err := parseFile(tc.sql)
@@ -60,17 +65,30 @@ func TestStatementTypeOfPipe(t *testing.T) {
 }
 
 func TestGetQuerySpanPipe(t *testing.T) {
-	t.Run("a query keeps its projection and records pipe tables", func(t *testing.T) {
-		span, err := GetQuerySpan("SELECT x FROM t |> JOIN u ON true |> WHERE x > 1", DialectBigQuery)
+	t.Run("a row-only suffix keeps the projection", func(t *testing.T) {
+		span, err := GetQuerySpan("SELECT x FROM t |> WHERE x > 1 |> ORDER BY x |> LIMIT 5", DialectBigQuery)
 		if err != nil {
 			t.Fatalf("GetQuerySpan: %v", err)
 		}
 		if got := resultNames(span); len(got) != 1 || got[0] != "x" {
 			t.Errorf("results = %v, want [x]", got)
 		}
-		want := []string{"t", "u"}
-		if got := tableNames(span); len(got) != 2 || got[0] != want[0] || got[1] != want[1] {
-			t.Errorf("tables = %v, want %v", got, want)
+		if got := tableNames(span); len(got) != 1 || got[0] != "t" {
+			t.Errorf("tables = %v, want [t]", got)
+		}
+	})
+
+	t.Run("a projection-changing suffix fails closed", func(t *testing.T) {
+		for _, sql := range []string{
+			"SELECT secret FROM t |> EXTEND secret AS copy",
+			"SELECT x FROM t |> JOIN u ON true",
+			"SELECT x FROM t |> SELECT x AS y",
+			"SELECT x FROM t |> DROP x",
+			"SELECT x FROM t |> AGGREGATE COUNT(*)",
+		} {
+			if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+				t.Errorf("GetQuerySpan(%q) returned a span; want fail closed", sql)
+			}
 		}
 	})
 
@@ -89,6 +107,19 @@ func TestGetQuerySpanPipe(t *testing.T) {
 	t.Run("a pipe INSERT is DML", func(t *testing.T) {
 		if got := ClassifySQL("|> INSERT t (x)", DialectBigQuery); got != DML {
 			t.Errorf("ClassifySQL = %v, want DML", got)
+		}
+	})
+
+	t.Run("a piped CALL keeps the head's unknown classification", func(t *testing.T) {
+		if got := ClassifySQL("CALL p() |> WHERE true", DialectBigQuery); got != Unknown {
+			t.Errorf("ClassifySQL = %v, want Unknown", got)
+		}
+		file, err := parseFile("CALL p() |> WHERE true")
+		if err != nil {
+			t.Fatalf("parse: %v", err)
+		}
+		if got := StatementTypeOf(file.Stmts[0]); got != Execute {
+			t.Errorf("StatementTypeOf = %v, want Execute", got)
 		}
 	})
 }

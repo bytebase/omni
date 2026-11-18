@@ -503,8 +503,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// parseSetStmt itself.
 		return p.parseSetStmt()
 	case kwRUN:
-		// RUN may carry a pipe suffix (sql_statement_body_maybe_pipe_suffix).
-		return p.parseMaybePipeSuffixStmt(p.parseRunBatchStmt)
+		// RUN BATCH is a sql_statement_body_no_pipe_suffix form: the
+		// pipe-capable rule holds the distinct run_statement, which this
+		// parser does not read, so a suffix after RUN BATCH is not accepted.
+		return p.parseRunBatchStmt()
 	case kwABORT:
 		return p.parseAbortBatchStmt()
 

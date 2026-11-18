@@ -78,6 +78,28 @@ func trimStatement(statement string) string {
 // rejects a WITH clause, so a query it cannot rewrite — a non-literal LIMIT, a
 // shape the parser does not read, a FOR UPDATE that a read-only transaction
 // refuses anyway — is returned unchanged.
+
+// rewritePipeResultLimit caps a pipe query at limitCount rows by rewriting its
+// terminal `|> LIMIT` operator, or appending `|> LIMIT n` when the pipeline has
+// no terminal limit. A terminal non-literal limit (`|> LIMIT @n`) is left alone,
+// as a non-literal LIMIT is for a plain query; `|> LIMIT ALL` is capped by
+// appending an operator, which the grammar and the engine allow.
+func rewritePipeResultLimit(statement string, pipe *ast.Subpipeline, limitCount int) string {
+	if n := len(pipe.Ops); n > 0 {
+		if lim, ok := pipe.Ops[n-1].(*ast.PipeLimitOffset); ok && lim.Limit != nil {
+			if count, ok := lim.Limit.(*ast.Literal); ok && count.Kind == ast.LitInt {
+				if count.Ival <= int64(limitCount) {
+					return statement
+				}
+				return statement[:count.Loc.Start] + strconv.Itoa(limitCount) + statement[count.Loc.End:]
+			}
+			return statement
+		}
+	}
+	end := pipe.Loc.End
+	return statement[:end] + " |> LIMIT " + strconv.Itoa(limitCount) + statement[end:]
+}
+
 func RewriteResultLimit(statement string, limitCount int) string {
 	file, err := parser.Parse(statement)
 	if err != nil || len(file.Stmts) != 1 {
@@ -87,11 +109,10 @@ func RewriteResultLimit(statement string, limitCount int) string {
 	if !ok || query.ForUpdate {
 		return statement
 	}
-	// A pipe query's LIMIT must be a `|> LIMIT` operator: a bare LIMIT after a
-	// pipe operator does not parse (it is not a query-level clause), so
-	// appending one would change the statement. Leave it alone.
+	// A pipe query's LIMIT is a `|> LIMIT` operator, not a query-level clause,
+	// so it is capped by lowering that operator or appending one.
 	if query.Pipe != nil {
-		return statement
+		return rewritePipeResultLimit(statement, query.Pipe, limitCount)
 	}
 	if query.Limit == nil {
 		end := query.Loc.End

@@ -156,8 +156,11 @@ func Classify(node ast.Node, dialect Dialect) QueryType {
 		if t := classifyPipe(n.Pipeline); t != Select {
 			return t
 		}
-		if head, ok := n.Head.(*ast.QueryStmt); ok {
-			return Classify(head, dialect)
+		// The suffix only reads; the head keeps its own classification. A
+		// CALL can write from its body, so it stays Unknown rather than
+		// becoming a read merely because a pipeable suffix follows it.
+		if n.Head != nil {
+			return Classify(n.Head, dialect)
 		}
 		return Select
 
@@ -225,42 +228,65 @@ func classifyPipe(p *ast.Subpipeline) QueryType {
 	if p == nil {
 		return Select
 	}
+	t := Select
 	for _, op := range p.Ops {
-		switch n := op.(type) {
-		case *ast.PipeInsert:
-			return DML
-		case *ast.PipeCreateTable:
-			return DDL
-		case *ast.PipeExportData:
-			return Unknown
-		case *ast.PipeLog:
-			if t := classifyPipe(n.Pipeline); t != Select {
-				return t
-			}
-		case *ast.PipeIf:
-			for _, c := range n.Cases {
-				if t := classifyPipe(c.Then); t != Select {
-					return t
-				}
-			}
-			if t := classifyPipe(n.Else); t != Select {
-				return t
-			}
-		case *ast.PipeFork:
-			for _, branch := range n.Pipelines {
-				if t := classifyPipe(branch); t != Select {
-					return t
-				}
-			}
-		case *ast.PipeTee:
-			for _, branch := range n.Pipelines {
-				if t := classifyPipe(branch); t != Select {
-					return t
-				}
-			}
+		t = mergeQueryTypes(t, classifyPipeOp(op))
+	}
+	return t
+}
+
+// classifyPipeOp classifies one pipe operator, including the subpipelines a
+// branching operator holds.
+func classifyPipeOp(op ast.Node) QueryType {
+	switch n := op.(type) {
+	case *ast.PipeInsert:
+		return DML
+	case *ast.PipeCreateTable:
+		return DDL
+	case *ast.PipeExportData:
+		return Unknown
+	case *ast.PipeLog:
+		return classifyPipe(n.Pipeline)
+	case *ast.PipeIf:
+		t := Select
+		for _, c := range n.Cases {
+			t = mergeQueryTypes(t, classifyPipe(c.Then))
 		}
+		return mergeQueryTypes(t, classifyPipe(n.Else))
+	case *ast.PipeFork:
+		t := Select
+		for _, branch := range n.Pipelines {
+			t = mergeQueryTypes(t, classifyPipe(branch))
+		}
+		return t
+	case *ast.PipeTee:
+		t := Select
+		for _, branch := range n.Pipelines {
+			t = mergeQueryTypes(t, classifyPipe(branch))
+		}
+		return t
 	}
 	return Select
+}
+
+// mergeQueryTypes combines two classifications of paths a statement can take.
+// Reading one path and writing another still writes (DML or DDL); a DML and a
+// DDL path, or a path this package cannot classify, make the whole statement
+// Unknown rather than picking one.
+func mergeQueryTypes(a, b QueryType) QueryType {
+	if a == Unknown || b == Unknown {
+		return Unknown
+	}
+	if a == b {
+		return a
+	}
+	if a == Select {
+		return b
+	}
+	if b == Select {
+		return a
+	}
+	return Unknown
 }
 
 // ClassifySQL parses sql and returns the QueryType of its first statement in

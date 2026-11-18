@@ -209,6 +209,16 @@ func TestPipe_OperatorShapes(t *testing.T) {
 		}
 	})
 
+	t.Run("row pattern parentheses are in the Loc", func(t *testing.T) {
+		sql := "|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN((a)) DEFINE a AS true)"
+		pipe := subpipelineOf(t, firstStmt(t, sql))
+		pat := pipe.Ops[0].(*ast.PipeMatchRecognize).Clause.Pattern
+		want := strings.Index(sql, "PATTERN(") + len("PATTERN(")
+		if pat.Loc.Start != want {
+			t.Errorf("pattern Loc = %+v, want it to start at the outer '(' (%d)", pat.Loc, want)
+		}
+	})
+
 	t.Run("insert has no source", func(t *testing.T) {
 		pipe := subpipelineOf(t, firstStmt(t, "|> INSERT INTO t (x) ON CONFLICT DO NOTHING"))
 		ins := pipe.Ops[0].(*ast.PipeInsert).Insert
@@ -261,6 +271,8 @@ func TestPipe_RejectsFragments(t *testing.T) {
 		"DESCRIBE t |>",
 		"|> LOG(SELECT 1)",
 		"|> LOG(WHERE true)",
+		"|> IF true THEN () ELSEIF@1 false THEN ()",
+		"|> IF true THEN () ELSE IF false THEN ()",
 	}
 	for _, sql := range reject {
 		t.Run(sql, func(t *testing.T) {
@@ -294,6 +306,10 @@ func TestPipe_AcceptsValidNearMisses(t *testing.T) {
 		"|> EXTEND a WINDOW w AS ()",
 		"|> AGGREGATE x AS y DESC NULLS LAST, GROUP AND ORDER BY z NULLS FIRST",
 		"|> IF true THEN () ELSEIF false THEN (|> DISTINCT) ELSE ()",
+		"SELECT x, |> WHERE true",
+		"|> SELECT x, |> WHERE true",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a || b) DEFINE a AS true, b AS true)",
+		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN((a)) DEFINE a AS true)",
 		"|> JOIN a USING (x, y)",
 		"|> FULL OUTER HASH JOIN a ON true",
 	}

@@ -443,7 +443,38 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 	if p == nil {
 		return
 	}
+	// A pipe WITH makes its CTEs visible to the operators after it, so they
+	// enter scope progressively as the pipeline is walked.
+	var scope *cteScope
 	for _, op := range p.Ops {
+		if n, ok := op.(*ast.PipeWith); ok {
+			if n.With == nil {
+				continue
+			}
+			if scope == nil {
+				scope = &cteScope{names: make(map[string]bool), columns: make(map[string][]projColumn), parent: w.scope}
+				w.scope = scope
+			}
+			recursive := n.With.Recursive
+			for _, cte := range n.With.CTEs {
+				if cte == nil || cte.Name == "" {
+					continue
+				}
+				w.span.CTEs = append(w.span.CTEs, cte.Name)
+				lower := strings.ToLower(cte.Name)
+				if recursive {
+					scope.names[lower] = true
+				}
+				var cols []projColumn
+				if cte.Query != nil {
+					cols = w.resolveCTEColumns(cte, recursive, scope, lower)
+				}
+				cols = applyCTEColumnAliases(cols, cte.Columns)
+				scope.names[lower] = true
+				scope.columns[lower] = cols
+			}
+			continue
+		}
 		switch n := op.(type) {
 		case *ast.PipeWhere:
 			w.walkPredicate(n.Expr)
@@ -491,14 +522,6 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 			}
 		case *ast.PipeRecursiveUnion:
 			w.visitPipeOperand(n.RHS)
-		case *ast.PipeWith:
-			if n.With != nil {
-				for _, cte := range n.With.CTEs {
-					if cte != nil && cte.Query != nil {
-						w.visitBody(cte.Query)
-					}
-				}
-			}
 		case *ast.PipeInsert:
 			w.discoverTables(n.Insert)
 		case *ast.PipeCreateTable:
@@ -542,6 +565,9 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 			}
 		}
 	}
+	if scope != nil {
+		w.scope = scope.parent
+	}
 }
 
 // walkPipeSelect walks the item list and GROUP BY of a pipe operator that holds
@@ -562,6 +588,30 @@ func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
 			}
 		}
 	}
+}
+
+// pipeKeepsProjection reports whether every operator in a pipe suffix leaves
+// the input's output columns alone. Filtering and ordering change rows, not
+// columns; SELECT, EXTEND, AGGREGATE, RENAME, DROP, SET, JOIN, CALL, PIVOT,
+// UNPIVOT and the set operations change them, so a span carrying the input's
+// projection is not the statement's projection.
+func pipeKeepsProjection(p *ast.Subpipeline) bool {
+	if p == nil {
+		return true
+	}
+	for _, op := range p.Ops {
+		switch n := op.(type) {
+		case *ast.PipeWhere, *ast.PipeOrderBy, *ast.PipeLimitOffset, *ast.PipeDistinct,
+			*ast.PipeTablesample, *ast.PipeAssert, *ast.PipeWith:
+		case *ast.PipeLog:
+			if !pipeKeepsProjection(n.Pipeline) {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 // visitPipeOperand walks one operand of a pipe set operation or recursive
@@ -636,6 +686,9 @@ func (w *spanWalker) visitQueryStmt(q *ast.QueryStmt) []projColumn {
 	// tables the operators name are recorded.
 	if q.Pipe != nil {
 		w.visitPipe(q.Pipe)
+		if !pipeKeepsProjection(q.Pipe) {
+			w.failClosed(fmt.Errorf("a pipe operator after a query changes the query's projection, which this walker does not resolve (fail closed)"))
+		}
 	}
 
 	// Query-level ORDER BY / LIMIT / OFFSET keys may reference columns.

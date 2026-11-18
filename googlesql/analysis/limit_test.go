@@ -71,12 +71,26 @@ func TestRewriteResultLimit(t *testing.T) {
 			want:      "SELECT x FROM t ORDER BY x FOR UPDATE",
 		},
 		{
-			// A pipe query parses, but its LIMIT has to be a `|> LIMIT`
-			// operator: a bare LIMIT after `|> WHERE …` is not a query-level
-			// clause, so the rewrite leaves the statement alone.
-			name:      "pipe query is unchanged",
+			// A pipe query's limit is a `|> LIMIT` operator, so the cap is
+			// appended as one.
+			name:      "pipe query gets a pipe limit",
 			statement: "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
-			want:      "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1",
+			want:      "WITH a AS (SELECT x FROM t) SELECT x FROM a |> WHERE x > 1 |> LIMIT 100",
+		},
+		{
+			name:      "pipe query limit is lowered",
+			statement: "SELECT x FROM t |> LIMIT 5000",
+			want:      "SELECT x FROM t |> LIMIT 100",
+		},
+		{
+			name:      "pipe query limit all is capped by another operator",
+			statement: "SELECT x FROM t |> LIMIT ALL",
+			want:      "SELECT x FROM t |> LIMIT ALL |> LIMIT 100",
+		},
+		{
+			name:      "non-literal pipe limit is unchanged",
+			statement: "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
+			want:      "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
 		},
 		{
 			name:      "dml is unchanged",

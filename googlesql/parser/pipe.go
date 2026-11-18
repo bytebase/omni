@@ -1087,9 +1087,10 @@ func (p *Parser) parsePipeCall(start int) (ast.Node, error) {
 // parsePipeIf parses `IF cond THEN ( … ) [ELSEIF cond THEN ( … )]* [ELSE ( … )]`.
 func (p *Parser) parsePipeIf(start int) (ast.Node, error) {
 	op := &ast.PipeIf{Loc: ast.Loc{Start: start}}
-	for {
+	for first := true; ; first = false {
 		kwTok := p.advance() // IF / ELSEIF
-		if p.cur.Type == int('@') {
+		// Only pipe_if_prefix has a hint; pipe_if_elseif has none.
+		if first && p.cur.Type == int('@') {
 			if herr := p.skipHint(); herr != nil {
 				return nil, herr
 			}
@@ -1451,20 +1452,46 @@ func (p *Parser) parseRowPatternExpr() (*ast.RowPattern, error) {
 	if err != nil {
 		return nil, err
 	}
-	for p.cur.Type == int('|') {
-		p.advance() // '|'
-		right, err := p.parseRowPatternConcatenationOrEmpty()
-		if err != nil {
-			return nil, err
-		}
-		left = &ast.RowPattern{
-			Kind:  ast.RowPatternAlternate,
-			Left:  left,
-			Right: right,
-			Loc:   ast.Loc{Start: left.Loc.Start, End: right.Loc.End},
+	for {
+		switch p.cur.Type {
+		case int('|'):
+			p.advance()
+			right, err := p.parseRowPatternConcatenationOrEmpty()
+			if err != nil {
+				return nil, err
+			}
+			left = &ast.RowPattern{
+				Kind:  ast.RowPatternAlternate,
+				Left:  left,
+				Right: right,
+				Loc:   ast.Loc{Start: left.Loc.Start, End: right.Loc.End},
+			}
+		case tokBoolOr:
+			// `a || b` is an alternation with an empty pattern between the two
+			// `|` symbols (the grammar's dedicated || alternative).
+			tok := p.advance()
+			right, err := p.parseRowPatternConcatenationOrEmpty()
+			if err != nil {
+				return nil, err
+			}
+			mid := tok.Loc.Start + 1
+			empty := &ast.RowPattern{Kind: ast.RowPatternEmpty, Loc: ast.Loc{Start: mid, End: mid}}
+			inner := &ast.RowPattern{
+				Kind:  ast.RowPatternAlternate,
+				Left:  left,
+				Right: empty,
+				Loc:   ast.Loc{Start: left.Loc.Start, End: mid},
+			}
+			left = &ast.RowPattern{
+				Kind:  ast.RowPatternAlternate,
+				Left:  inner,
+				Right: right,
+				Loc:   ast.Loc{Start: left.Loc.Start, End: right.Loc.End},
+			}
+		default:
+			return left, nil
 		}
 	}
-	return left, nil
 }
 
 // parseRowPatternConcatenationOrEmpty parses row_pattern_concatenation_or_empty:
@@ -1536,7 +1563,7 @@ func (p *Parser) parseRowPatternFactor() (*ast.RowPattern, error) {
 // parenthesized row pattern.
 func (p *Parser) parseRowPatternPrimary() (*ast.RowPattern, error) {
 	if p.cur.Type == int('(') {
-		p.advance()
+		openTok := p.advance()
 		inner, err := p.parseRowPatternExpr()
 		if err != nil {
 			return nil, err
@@ -1546,7 +1573,7 @@ func (p *Parser) parseRowPatternPrimary() (*ast.RowPattern, error) {
 			return nil, err
 		}
 		inner.Parens = true
-		inner.Loc = ast.Loc{Start: inner.Loc.Start, End: closeTok.Loc.End}
+		inner.Loc = ast.Loc{Start: openTok.Loc.Start, End: closeTok.Loc.End}
 		return inner, nil
 	}
 	tok, err := p.expectIdentifier()
