@@ -542,6 +542,12 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			}
 			name = p.prev.Str
 			if first {
+				if p.isIdentLike() {
+					value = p.cur.Str
+					valueLoc = nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
+					hasValue = true
+					p.advance()
+				}
 				for p.isIdentLike() {
 					p.advance()
 				}
@@ -553,6 +559,9 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: value, Loc: valueLoc}}}
 		}
 		anns.Items = append(anns.Items, opt)
+		if p.cur.Type == ',' && op != "DROP" {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type != ',' {
 			break
 		}

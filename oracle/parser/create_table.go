@@ -1051,7 +1051,11 @@ func (p *Parser) parseColumnProperties(col *nodes.ColumnDef) error {
 func (p *Parser) parseInlineRefConstraint(col *nodes.ColumnDef) error {
 	// Oracle reads SCOPE IS and WITH ROWID on a column with no datatype, and
 	// on any column of ALTER TABLE ... ADD (compat.tsv's inline_ref_constraint
-	// rows); CREATE TABLE's typed non-REF column still refuses them.
+	// rows); CREATE TABLE's typed non-REF column still refuses them, and so
+	// does a MODIFY column, whose grammar has no inline_ref_constraint.
+	if col.TypeName == nil && p.alterTableModifyColumn {
+		return p.syntaxErrorAtCur()
+	}
 	if col.TypeName != nil && !col.TypeName.IsRef && !p.alterTableAddColumn && !p.alterTableAddList {
 		return p.syntaxErrorAtCur()
 	}

@@ -539,15 +539,14 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 				}
 				p.advance()
 			}
-			typeStart := p.pos()
-			name, err := p.parseOperatorType()
+			name, err := p.ixObjectName()
 			if err != nil {
 				return nil, err
 			}
-			if name == "" {
+			if name == nil || name.Name == "" {
 				return nil, p.syntaxErrorAtCur()
 			}
-			names[i] = &nodes.ObjectName{Name: name, Loc: nodes.Loc{Start: typeStart, End: p.prev.End}}
+			names[i] = name
 		}
 		pairs = append(pairs, &nodes.ArrayDMLTypePair{Type: names[0], VarrayType: names[1], Loc: nodes.Loc{Start: pairStart, End: p.prev.End}})
 		if p.cur.Type != ')' {
