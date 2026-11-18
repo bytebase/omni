@@ -1949,9 +1949,9 @@ alterReplicationGroup
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/alter-resource-monitor
-// fix: an ALTER names SET or TRIGGERS; both optional made ALTER RESOURCE MONITOR <name> a statement
+// fix: an ALTER names SET or TRIGGERS; SET takes one or more properties and TRIGGERS may follow it, as the page's example SET CREDIT_QUOTA=2000 TRIGGERS ... does; both optional made ALTER RESOURCE MONITOR <name> a statement
 alterResourceMonitor
-    : 'ALTER' 'RESOURCE' 'MONITOR' ('IF' 'EXISTS')? ID ('SET' ('CREDIT_QUOTA' '=' NUMBER ('FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER'))? ('START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER') ('START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY') ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'END_TIMESTAMP' '=' STRING ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? | 'NOTIFY_USERS' '=' '(' ID (',' ID)* ')') | 'TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)
+    : 'ALTER' 'RESOURCE' 'MONITOR' ('IF' 'EXISTS')? ID ('SET' ('CREDIT_QUOTA' '=' NUMBER | 'FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER') | 'START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY') | 'END_TIMESTAMP' '=' STRING | 'NOTIFY_USERS' '=' '(' ID (',' ID)* ')') ('CREDIT_QUOTA' '=' NUMBER)? ('FREQUENCY' '=' ('MONTHLY' | 'DAILY' | 'WEEKLY' | 'YEARLY' | 'NEVER'))? ('START_TIMESTAMP' '=' (STRING | 'IMMEDIATELY'))? ('END_TIMESTAMP' '=' STRING)? ('NOTIFY_USERS' '=' '(' ID (',' ID)* ')')? ('TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)? | 'TRIGGERS' alterResourceMonitor_triggerDefinition alterResourceMonitor_triggerDefinition*)
     ;
 alterResourceMonitor_triggerDefinition
     : 'ON' NUMBER 'PERCENT' 'DO' ('SUSPEND' | 'SUSPEND_IMMEDIATE' | 'NOTIFY')
@@ -2134,11 +2134,11 @@ alterSemanticView
 // https://docs.snowflake.com/en/sql-reference/sql/alter-sequence
 // fix: the increment may be negative, as the parameters say
 // fix: INCREMENT is the action; the bracket around it made ALTER SEQUENCE <name>, and [ SET ] alone, statements
-// fix: SET sets ORDER or COMMENT, one at a time, as the parameters say; both optional made SET alone valid
+// fix: SET sets ORDER or COMMENT, or both, as the parameters say; both optional made SET alone valid
 alterSequence
     : 'ALTER' 'SEQUENCE' ('IF' 'EXISTS')? QNAME 'RENAME' 'TO' QNAME
     | 'ALTER' 'SEQUENCE' ('IF' 'EXISTS')? QNAME 'SET'? 'INCREMENT' 'BY'? '='? '-'? NUMBER
-    | 'ALTER' 'SEQUENCE' ('IF' 'EXISTS')? QNAME 'SET' (('ORDER' | 'NOORDER') | 'COMMENT' '=' STRING)
+    | 'ALTER' 'SEQUENCE' ('IF' 'EXISTS')? QNAME 'SET' (('ORDER' | 'NOORDER') ('COMMENT' '=' STRING)? | 'COMMENT' '=' STRING)
     | 'ALTER' 'SEQUENCE' ('IF' 'EXISTS')? QNAME 'UNSET' 'COMMENT'
     ;
 
@@ -5357,17 +5357,17 @@ executeDbtProject
     ;
 
 // https://docs.snowflake.com/en/sql-reference/sql/execute-dcm-project
-// fix: USING takes name => value pairs and names a configuration only as a whole, and ENVIRONMENT takes a bind variable, as the parameters say; a bare USING and ENVIRONMENT(a) were forms
-// fix: ENVIRONMENT takes a bind variable, as the parameters say, not an identifier
+// fix: ENVIRONMENT takes a bind variable or a client ?; the scripting :name form is left out because this notation writes : and the name as two tokens the row generator separates
+// fix: ENVIRONMENT takes a bind variable or a client ?; the scripting :name form is left out because this notation writes : and the name as two tokens the row generator separates
 executeDcmProject
     : 'EXECUTE' 'DCM' 'PROJECT' QNAME 'PLAN' 'DELTA'? (executeDcmProject_fromSource | executeDcmProject_fromDeployment) ('OUTPUT_PATH' STRING)?
     | 'EXECUTE' 'DCM' 'PROJECT' QNAME 'DEPLOY' ('AS' ID)? (executeDcmProject_fromSource | executeDcmProject_fromDeployment)
     | 'EXECUTE' 'DCM' 'PROJECT' QNAME 'TEST' 'ALL'
-    | 'EXECUTE' 'DCM' 'PROJECT' QNAME 'PREVIEW' QNAME 'USING' 'CONFIGURATION' ID ('ENVIRONMENT' '(' VARIABLE ')')? 'FROM' STRING ('LIMIT' NUMBER)?
+    | 'EXECUTE' 'DCM' 'PROJECT' QNAME 'PREVIEW' QNAME 'USING' 'CONFIGURATION' ID ('ENVIRONMENT' '(' (VARIABLE | '?') ')')? 'FROM' STRING ('LIMIT' NUMBER)?
     | 'EXECUTE' 'DCM' 'PROJECT' QNAME 'PURGE' ('AS' ID)?
     ;
 executeDcmProject_fromSource
-    : ('USING' ('CONFIGURATION' ID ('(' ID '=>' EXPR (',' ID '=>' EXPR)* ')')? | '(' ID '=>' EXPR (',' ID '=>' EXPR)* ')'))? ('ENVIRONMENT' '(' VARIABLE ')')? 'FROM' STRING
+    : ('USING' ('CONFIGURATION' ID ('(' ID '=>' EXPR (',' ID '=>' EXPR)* ')')? | '(' ID '=>' EXPR (',' ID '=>' EXPR)* ')'))? ('ENVIRONMENT' '(' (VARIABLE | '?') ')')? 'FROM' STRING
     ;
 executeDcmProject_fromDeployment
     : 'FROM' 'DEPLOYMENT' (ID | 'LAST' | 'LATEST')

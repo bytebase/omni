@@ -18,13 +18,13 @@ generated grammar and rows moved with them.
 
 | Rows | Old pin total | Old agree | Old docs only | New total | New agree | New docs only |
 | --- | --- | --- | --- | --- | --- | --- |
-| One per alternative | 19,775 | 19,638 | 137 | 19,778 | 19,716 | 62 |
-| Near-misses | 53,876 | 758 | 49 | 53,891 | 755 | 46 |
-| All | 73,651 | 20,396 | 186 | 73,669 | 20,471 | 108 |
+| One per alternative | 19,775 | 19,638 | 137 | 19,788 | 19,726 | 62 |
+| Near-misses | 53,876 | 758 | 49 | 53,915 | 755 | 46 |
+| All | 73,651 | 20,396 | 186 | 73,703 | 20,481 | 108 |
 
 `undocumented` rows are the near-misses the docs do not derive; docs say what is
 valid, not what Snowflake refuses, so they pass whatever omni says. The new pin
-has 53,090 of them.
+has 53,114 of them.
 
 ## The grammar and its fixes
 
@@ -45,7 +45,10 @@ the enumerated DCM `LOG_LEVEL`, the service role's
 PROJECT`, the Iceberg REST column parentheses and `[ ... ]` tails, the `ALTER
 LISTING` version name and stage/manifest values, the missing `|` in `ALTER
 SCHEMA`'s `UNSET` list, the DCM `USING` name/value pairs and bind variable, and
-`CREATE EXTERNAL TABLE`'s template `LOCATION` and non-empty column list.
+`CREATE EXTERNAL TABLE`'s template `LOCATION` and non-empty column list. The
+DCM bind variable is `$<session_variable>` or the client `?`; the scripting
+`:name` form has no generated row because this notation writes `:` and the name
+as two tokens, which the row generator separates.
 
 The object-type sample still reads `ACCOUNT` as an object type that takes a
 name. Removing it is a converter change, which a pin-bump PR may not carry

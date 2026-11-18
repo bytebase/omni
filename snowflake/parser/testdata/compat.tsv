@@ -19398,7 +19398,7 @@ accept	accept	docs	alterReplicationGroup(IMMEDIATE)?/%empty	ALTER REPLICATION GR
 accept	accept	docs	alterReplicationGroup(IMMEDIATE)?/IMMEDIATE	ALTER REPLICATION GROUP a SUSPEND IMMEDIATE
 reject	undocumented	docs	alterReplicationGroup(IMMEDIATE)?/IMMEDIATE!insert	ALTER REPLICATION GROUP a SUSPEND IMMEDIATE zzz
 reject	undocumented	docs	alterReplicationGroup(IMMEDIATE)?/IMMEDIATE!swap	ALTER REPLICATION GROUP a SUSPEND IMMEDIATELY
-accept	accept	docs	alterResourceMonitor/ALTER_RESOURCE_MONITOR_(IF_EXISTS)?_ID_(SET_(CREDIT_QUO~e8c70783	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor/ALTER_RESOURCE_MONITOR_(IF_EXISTS)?_ID_(SET_(CREDIT_QUO~1a7879dc	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(IF_EXISTS)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/%empty!insert	ALTER RESOURCE MONITOR zzz a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS	ALTER RESOURCE MONITOR IF EXISTS a SET CREDIT_QUOTA = 1
@@ -19407,51 +19407,44 @@ reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!drop-2	ALTER
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!truncate	ALTER RESOURCE MONITOR IF
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!insert	ALTER RESOURCE MONITOR IF EXISTS zzz a SET CREDIT_QUOTA = 1
 reject	undocumented	docs	alterResourceMonitor(IF_EXISTS)?/IF_EXISTS!swap	ALTER RESOURCE MONITOR IGNORE EXISTS a SET CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)!swap	ALTER RESOURCE MONITOR a SETS CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON 1 PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS 1 PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON PERCENT DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON 1 DO SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT SUSPEND
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND zzz
-reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER_(FREQUENC~dacb3c69)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON 1 PERCENT DO SUSPEND
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(MONTHLY|DAILY|WEEKL~12def5c0	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(MONTHLY|DAILY|WEEKL~12def5c0!swap	ALTER RESOURCE MONITOR a SET CSV = 1
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!drop-1	ALTER RESOURCE MONITOR a SET = MONTHLY
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!drop-2	ALTER RESOURCE MONITOR a SET FREQUENCY MONTHLY
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!drop-3	ALTER RESOURCE MONITOR a SET FREQUENCY =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!insert	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)_(START_~6a5031ce!swap	ALTER RESOURCE MONITOR a SET FROM = MONTHLY
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!drop-1	ALTER RESOURCE MONITOR a SET = 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!drop-2	ALTER RESOURCE MONITOR a SET START_TIMESTAMP 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!drop-3	ALTER RESOURCE MONITOR a SET START_TIMESTAMP =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's' zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)_(END_TIMESTAMP_=~2303ddb8!swap	ALTER RESOURCE MONITOR a SET STATEMENT = 's'
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!drop-2	ALTER RESOURCE MONITOR a SET END_TIMESTAMP 's'
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!drop-3	ALTER RESOURCE MONITOR a SET END_TIMESTAMP =
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!insert	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's' zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/END_TIMESTAMP_=_STRING_(NOTIFY_USERS_=_(_ID_(,_ID)*_))?!swap	ALTER RESOURCE MONITOR a SET ENFORCED = 's'
-accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-1	ALTER RESOURCE MONITOR a SET =(a)
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS(a)
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-3	ALTER RESOURCE MONITOR a SET NOTIFY_USERS = a)
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-4	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =()
-reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-5	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a) zzz
-accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER_(FREQUENCY_=_(~9c9eacdf)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!swap	ALTER RESOURCE MONITOR a SET NOT_ENFORCED =(a)
-accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
-accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY
-reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = MONTHLY
-accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY MONTHLY
-reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY =
-accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY zzz
-accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FROM = MONTHLY
+accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)_(CR~2cbc804a	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)_(CR~2cbc804a!swap	ALTER RESOURCE MONITOR a SETS CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a TRIGGERS 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a TRIGGERS ON PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a TRIGGERS ON 1 DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT SUSPEND
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	alterResourceMonitor(SET_(CREDIT_QUOTA_=_NUMBER|FREQUENCY~8c0c17e1)/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a TRIM_SPACE ON 1 PERCENT DO SUSPEND
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/CREDIT_QUOTA_=_NUMBER	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/CREDIT_QUOTA_=_NUMBER!swap	ALTER RESOURCE MONITOR a SET CSV = 1
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-1	ALTER RESOURCE MONITOR a SET = MONTHLY
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-2	ALTER RESOURCE MONITOR a SET FREQUENCY MONTHLY
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-3	ALTER RESOURCE MONITOR a SET FREQUENCY =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!insert	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!swap	ALTER RESOURCE MONITOR a SET FROM = MONTHLY
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-1	ALTER RESOURCE MONITOR a SET = 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-2	ALTER RESOURCE MONITOR a SET START_TIMESTAMP 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-3	ALTER RESOURCE MONITOR a SET START_TIMESTAMP =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's' zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!swap	ALTER RESOURCE MONITOR a SET STATEMENT = 's'
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!drop-2	ALTER RESOURCE MONITOR a SET END_TIMESTAMP 's'
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!drop-3	ALTER RESOURCE MONITOR a SET END_TIMESTAMP =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!insert	ALTER RESOURCE MONITOR a SET END_TIMESTAMP = 's' zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/END_TIMESTAMP_=_STRING!swap	ALTER RESOURCE MONITOR a SET ENFORCED = 's'
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-1	ALTER RESOURCE MONITOR a SET =(a)
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS(a)
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-3	ALTER RESOURCE MONITOR a SET NOTIFY_USERS = a)
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-4	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =()
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-5	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a) zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER|FREQUENCY_=_(M~1690be6d)/NOTIFY_USERS_=_(_ID_(,_ID)*_)!swap	ALTER RESOURCE MONITOR a SET NOT_ENFORCED =(a)
 accept	accept	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/MONTHLY	ALTER RESOURCE MONITOR a SET FREQUENCY = MONTHLY
 accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/MONTHLY!swap	ALTER RESOURCE MONITOR a SET FREQUENCY = MOVE
 accept	accept	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/DAILY	ALTER RESOURCE MONITOR a SET FREQUENCY = DAILY
@@ -19466,6 +19459,31 @@ accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)
 accept	accept	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/NEVER	ALTER RESOURCE MONITOR a SET FREQUENCY = NEVER
 accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/NEVER!insert	ALTER RESOURCE MONITOR a SET FREQUENCY = NEVER zzz
 accept	undocumented	docs	alterResourceMonitor(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)/NEVER!swap	ALTER RESOURCE MONITOR a SET FREQUENCY = NEXTVAL
+accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/STRING	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
+accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY
+accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY zzz
+accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!swap	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMUTABLE
+accept	accept	docs	alterResourceMonitor(,_ID)*/%empty	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/%empty!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a zzz)
+accept	accept	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a)
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a a)
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,)
+reject	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,
+accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a zzz)
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA = 1
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = 1
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA 1
+reject	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA =
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CREDIT_QUOTA = 1 zzz
+accept	undocumented	docs	alterResourceMonitor(CREDIT_QUOTA_=_NUMBER)?/CREDIT_QUOTA_=_NUMBER!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 CSV = 1
+accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY
+reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = MONTHLY
+accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY MONTHLY
+reject	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY =
+accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FREQUENCY = MONTHLY zzz
+accept	undocumented	docs	alterResourceMonitor(FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YE~c7adba39)?/FREQUENCY_=_(MONTHLY|DAILY|WEEKLY|YEARLY|NEVER)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 FROM = MONTHLY
 accept	accept	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 START_TIMESTAMP = 's'
 reject	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 = 's'
@@ -19473,10 +19491,6 @@ reject	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIAT
 reject	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 START_TIMESTAMP =
 accept	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 START_TIMESTAMP = 's' zzz
 accept	undocumented	docs	alterResourceMonitor(START_TIMESTAMP_=_(STRING|IMMEDIATELY))?/START_TIMESTAMP_=_(STRING|IMMEDIATELY)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 STATEMENT = 's'
-accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/STRING	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = 's'
-accept	accept	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY
-accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!insert	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMEDIATELY zzz
-accept	undocumented	docs	alterResourceMonitor(STRING|IMMEDIATELY)/IMMEDIATELY!swap	ALTER RESOURCE MONITOR a SET START_TIMESTAMP = IMMUTABLE
 accept	accept	docs	alterResourceMonitor(END_TIMESTAMP_=_STRING)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
 accept	accept	docs	alterResourceMonitor(END_TIMESTAMP_=_STRING)?/END_TIMESTAMP_=_STRING	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 END_TIMESTAMP = 's'
 reject	undocumented	docs	alterResourceMonitor(END_TIMESTAMP_=_STRING)?/END_TIMESTAMP_=_STRING!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 END_TIMESTAMP 's'
@@ -19492,13 +19506,16 @@ accept	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NO
 reject	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NOTIFY_USERS_=_(_ID_(,_ID)*_)!drop-5	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 NOTIFY_USERS =(a
 accept	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NOTIFY_USERS_=_(_ID_(,_ID)*_)!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 NOTIFY_USERS =(a) zzz
 accept	undocumented	docs	alterResourceMonitor(NOTIFY_USERS_=_(_ID_(,_ID)*_))?/NOTIFY_USERS_=_(_ID_(,_ID)*_)!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 NOT_ENFORCED =(a)
-accept	accept	docs	alterResourceMonitor(,_ID)*/%empty	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a)
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/%empty!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a zzz)
-accept	accept	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a)
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a a)
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,)
-reject	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!truncate	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a,
-accept	undocumented	docs	alterResourceMonitor(,_ID)*/,_ID_(,_ID)*!insert	ALTER RESOURCE MONITOR a SET NOTIFY_USERS =(a, a zzz)
+accept	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/%empty	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1
+accept	accept	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-1	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 ON 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-2	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS 1 PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-3	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON PERCENT DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-4	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON 1 DO SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-5	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON 1 PERCENT SUSPEND
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!drop-6	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON 1 PERCENT DO
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!insert	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIGGERS ON 1 PERCENT DO SUSPEND zzz
+reject	undocumented	docs	alterResourceMonitor(TRIGGERS_alterResourceMonitor_trigge~9be61b51)?/TRIGGERS_alterResourceMonitor_triggerDefinition_(alterR~2a98f4d1!swap	ALTER RESOURCE MONITOR a SET CREDIT_QUOTA = 1 TRIM_SPACE ON 1 PERCENT DO SUSPEND
 accept	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/%empty	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND
 accept	accept	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND ON 1 PERCENT DO SUSPEND
 reject	undocumented	docs	alterResourceMonitor(alterResourceMonitor_triggerDefinition)*/alterResourceMonitor_triggerDefinition_(alterResourceMo~93a8e7f9!drop-1	ALTER RESOURCE MONITOR a TRIGGERS ON 1 PERCENT DO SUSPEND 1 PERCENT DO SUSPEND
@@ -21946,14 +21963,14 @@ reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_RENAME_
 reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!insert	ALTER SEQUENCE a RENAME TO a zzz
 reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_RENAME_TO_QNAME!swap	ALWAYS SEQUENCE a RENAME TO a
 accept	accept	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_(SET)?_INCREMENT_(BY)~c28b27e0	ALTER SEQUENCE a INCREMENT 1
-accept	accept	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf	ALTER SEQUENCE a SET ORDER
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!drop-1	SEQUENCE a SET ORDER
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!drop-2	ALTER a SET ORDER
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!drop-3	ALTER SEQUENCE SET ORDER
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!drop-4	ALTER SEQUENCE a ORDER
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!drop-5	ALTER SEQUENCE a SET
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!insert	ALTER SEQUENCE a SET ORDER zzz
-reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)|~034bd9cf!swap	ALWAYS SEQUENCE a SET ORDER
+accept	accept	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208	ALTER SEQUENCE a SET ORDER
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!drop-1	SEQUENCE a SET ORDER
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!drop-2	ALTER a SET ORDER
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!drop-3	ALTER SEQUENCE SET ORDER
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!drop-4	ALTER SEQUENCE a ORDER
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!drop-5	ALTER SEQUENCE a SET
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!insert	ALTER SEQUENCE a SET ORDER zzz
+reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_SET_((ORDER|NOORDER)_~705ca208!swap	ALWAYS SEQUENCE a SET ORDER
 accept	accept	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_UNSET_COMMENT	ALTER SEQUENCE a UNSET COMMENT
 reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-1	SEQUENCE a UNSET COMMENT
 reject	undocumented	docs	alterSequence/ALTER_SEQUENCE_(IF_EXISTS)?_QNAME_UNSET_COMMENT!drop-3	ALTER SEQUENCE UNSET COMMENT
@@ -21986,18 +22003,25 @@ reject	undocumented	docs	alterSequence(=)?/=!insert	ALTER SEQUENCE a INCREMENT =
 accept	accept	docs	alterSequence(-)?/%empty	ALTER SEQUENCE a INCREMENT 1
 accept	accept	docs	alterSequence(-)?/-	ALTER SEQUENCE a INCREMENT - 1
 reject	undocumented	docs	alterSequence(-)?/-!insert	ALTER SEQUENCE a INCREMENT - zzz 1
-accept	accept	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/(ORDER|NOORDER)	ALTER SEQUENCE a SET ORDER
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/(ORDER|NOORDER)!swap	ALTER SEQUENCE a SET ORGANIZATION
-accept	accept	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/COMMENT_=_STRING	ALTER SEQUENCE a SET COMMENT = 's'
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/COMMENT_=_STRING!drop-1	ALTER SEQUENCE a SET = 's'
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/COMMENT_=_STRING!drop-2	ALTER SEQUENCE a SET COMMENT 's'
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/COMMENT_=_STRING!drop-3	ALTER SEQUENCE a SET COMMENT =
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/COMMENT_=_STRING!insert	ALTER SEQUENCE a SET COMMENT = 's' zzz
-reject	undocumented	docs	alterSequence((ORDER|NOORDER)|COMMENT_=_STRING)/COMMENT_=_STRING!swap	ALTER SEQUENCE a SET COMMENTS = 's'
+accept	accept	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/(ORDER|NOORDER)_(COMMENT_=_STRING)?	ALTER SEQUENCE a SET ORDER
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/(ORDER|NOORDER)_(COMMENT_=_STRING)?!swap	ALTER SEQUENCE a SET ORGANIZATION
+accept	accept	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING	ALTER SEQUENCE a SET COMMENT = 's'
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!drop-1	ALTER SEQUENCE a SET = 's'
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!drop-2	ALTER SEQUENCE a SET COMMENT 's'
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!drop-3	ALTER SEQUENCE a SET COMMENT =
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!insert	ALTER SEQUENCE a SET COMMENT = 's' zzz
+reject	undocumented	docs	alterSequence((ORDER|NOORDER)_(COMMENT_=_STRING)?|~8bbf8624)/COMMENT_=_STRING!swap	ALTER SEQUENCE a SET COMMENTS = 's'
 accept	accept	docs	alterSequence(ORDER|NOORDER)/ORDER	ALTER SEQUENCE a SET ORDER
 accept	accept	docs	alterSequence(ORDER|NOORDER)/NOORDER	ALTER SEQUENCE a SET NOORDER
 reject	undocumented	docs	alterSequence(ORDER|NOORDER)/NOORDER!insert	ALTER SEQUENCE a SET NOORDER zzz
 reject	undocumented	docs	alterSequence(ORDER|NOORDER)/NOORDER!swap	ALTER SEQUENCE a SET NOPURGE
+accept	accept	docs	alterSequence(COMMENT_=_STRING)?/%empty	ALTER SEQUENCE a SET ORDER
+accept	accept	docs	alterSequence(COMMENT_=_STRING)?/COMMENT_=_STRING	ALTER SEQUENCE a SET ORDER COMMENT = 's'
+reject	undocumented	docs	alterSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-1	ALTER SEQUENCE a SET ORDER = 's'
+reject	undocumented	docs	alterSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-2	ALTER SEQUENCE a SET ORDER COMMENT 's'
+reject	undocumented	docs	alterSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!drop-3	ALTER SEQUENCE a SET ORDER COMMENT =
+reject	undocumented	docs	alterSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!insert	ALTER SEQUENCE a SET ORDER COMMENT = 's' zzz
+reject	undocumented	docs	alterSequence(COMMENT_=_STRING)?/COMMENT_=_STRING!swap	ALTER SEQUENCE a SET ORDER COMMENTS = 's'
 accept	accept	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(SUSPEND|RESUME)	ALTER SERVICE a SUSPEND
 accept	accept	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(alterService_fromSpec~14bd7c49	ALTER SERVICE a FROM SPECIFICATION 's'
 reject	undocumented	docs	alterService/ALTER_SERVICE_(IF_EXISTS)?_QNAME_(alterService_fromSpec~14bd7c49!drop-1	SERVICE a FROM SPECIFICATION 's'
@@ -52897,20 +52921,20 @@ reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_TEST_ALL!dr
 reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_TEST_ALL!drop-6	EXECUTE DCM PROJECT a TEST
 reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_TEST_ALL!insert	EXECUTE DCM PROJECT a TEST ALL zzz
 reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_TEST_ALL!swap	EXECUTE_AS_ROLE DCM PROJECT a TEST ALL
-accept	accept	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-1	DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-2	EXECUTE PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-3	EXECUTE DCM a PREVIEW a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-4	EXECUTE DCM PROJECT PREVIEW a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-5	EXECUTE DCM PROJECT a a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-6	EXECUTE DCM PROJECT a PREVIEW USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-7	EXECUTE DCM PROJECT a PREVIEW a CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-8	EXECUTE DCM PROJECT a PREVIEW a USING a FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-9	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION FROM 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-10	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a 's'
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!drop-11	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' zzz
-reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~c026956f!swap	EXECUTE_AS_ROLE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
+accept	accept	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-1	DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-2	EXECUTE PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-3	EXECUTE DCM a PREVIEW a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-4	EXECUTE DCM PROJECT PREVIEW a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-5	EXECUTE DCM PROJECT a a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-6	EXECUTE DCM PROJECT a PREVIEW USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-7	EXECUTE DCM PROJECT a PREVIEW a CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-8	EXECUTE DCM PROJECT a PREVIEW a USING a FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-9	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION FROM 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-10	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a 's'
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!drop-11	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' zzz
+reject	undocumented	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PREVIEW_QNAME_USING_CONFIGURA~6397d405!swap	EXECUTE_AS_ROLE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
 accept	accept	docs	executeDcmProject/EXECUTE_DCM_PROJECT_QNAME_PURGE_(AS_ID)?	EXECUTE DCM PROJECT a PURGE
 accept	accept	docs	executeDcmProject(DELTA)?/%empty	EXECUTE DCM PROJECT a PLAN FROM 's'
 reject	undocumented	docs	executeDcmProject(DELTA)?/%empty!insert	EXECUTE DCM PROJECT a PLAN zzz FROM 's'
@@ -52938,23 +52962,28 @@ reject	undocumented	docs	executeDcmProject(AS_ID)?/AS_ID!drop-1	EXECUTE DCM PROJ
 reject	undocumented	docs	executeDcmProject(AS_ID)?/AS_ID!drop-2	EXECUTE DCM PROJECT a PURGE AS
 reject	undocumented	docs	executeDcmProject(AS_ID)?/AS_ID!insert	EXECUTE DCM PROJECT a PURGE AS a zzz
 reject	undocumented	docs	executeDcmProject(AS_ID)?/AS_ID!swap	EXECUTE DCM PROJECT a PURGE ASC a
-accept	accept	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/%empty	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/%empty!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a zzz FROM 's'
-accept	accept	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a) FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-1	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a($a) FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-2	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT $a) FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-3	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT() FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-4	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!truncate	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a) zzz FROM 's'
-reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!swap	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENV_VARS($a) FROM 's'
+accept	accept	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/%empty	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/%empty!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a zzz FROM 's'
+accept	accept	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a) FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-1	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a($a) FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-2	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT $a) FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-3	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT() FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-4	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!truncate	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a) zzz FROM 's'
+reject	undocumented	docs	executeDcmProject(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!swap	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENV_VARS($a) FROM 's'
+accept	accept	docs	executeDcmProject(VARIABLE|?)/VARIABLE	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a) FROM 's'
+reject	undocumented	docs	executeDcmProject(VARIABLE|?)/VARIABLE!truncate	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT(
+reject	undocumented	docs	executeDcmProject(VARIABLE|?)/VARIABLE!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT($a zzz) FROM 's'
+accept	accept	docs	executeDcmProject(VARIABLE|?)/?	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT(?) FROM 's'
+reject	undocumented	docs	executeDcmProject(VARIABLE|?)/?!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a ENVIRONMENT(? zzz) FROM 's'
 accept	accept	docs	executeDcmProject(LIMIT_NUMBER)?/%empty	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's'
 accept	accept	docs	executeDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' LIMIT 1
 reject	undocumented	docs	executeDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-1	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' 1
 reject	undocumented	docs	executeDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!drop-2	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' LIMIT
 reject	undocumented	docs	executeDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!insert	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' LIMIT 1 zzz
 reject	undocumented	docs	executeDcmProject(LIMIT_NUMBER)?/LIMIT_NUMBER!swap	EXECUTE DCM PROJECT a PREVIEW a USING CONFIGURATION a FROM 's' LINKED_CATALOG 1
-accept	accept	docs	executeDcmProject_fromSource/(USING_(CONFIGURATION_ID_((_ID_=>_EXP~fba75889)?_(ENVIR~0ecdd3ab	EXECUTE DCM PROJECT a PLAN FROM 's'
+accept	accept	docs	executeDcmProject_fromSource/(USING_(CONFIGURATION_ID_((_ID_=>_EXP~fba75889)?_(ENVIR~751bd425	EXECUTE DCM PROJECT a PLAN FROM 's'
 accept	accept	docs	executeDcmProject_fromSource(USING_(CONFIGURATION_ID_((_ID_=>_EXP~fba75889)?/%empty	EXECUTE DCM PROJECT a PLAN FROM 's'
 accept	accept	docs	executeDcmProject_fromSource(USING_(CONFIGURATION_ID_((_ID_=>_EXP~fba75889)?/USING_(CONFIGURATION_ID_((_ID_=>_EXPR_(,_ID~30fa03be)	EXECUTE DCM PROJECT a PLAN USING CONFIGURATION a FROM 's'
 reject	undocumented	docs	executeDcmProject_fromSource(USING_(CONFIGURATION_ID_((_ID_=>_EXP~fba75889)?/USING_(CONFIGURATION_ID_((_ID_=>_EXPR_(,_ID~30fa03be)!drop-1	EXECUTE DCM PROJECT a PLAN CONFIGURATION a FROM 's'
@@ -52991,15 +53020,20 @@ reject	undocumented	docs	executeDcmProject_fromSource(,_ID_=>_EXPR)*/,_ID_=>_EXP
 reject	undocumented	docs	executeDcmProject_fromSource(,_ID_=>_EXPR)*/,_ID_=>_EXPR_(,_ID_=>_EXPR)*!drop-4	EXECUTE DCM PROJECT a PLAN USING(a => 1, a =>) FROM 's'
 reject	undocumented	docs	executeDcmProject_fromSource(,_ID_=>_EXPR)*/,_ID_=>_EXPR_(,_ID_=>_EXPR)*!truncate	EXECUTE DCM PROJECT a PLAN USING(a => 1, a =>
 reject	undocumented	docs	executeDcmProject_fromSource(,_ID_=>_EXPR)*/,_ID_=>_EXPR_(,_ID_=>_EXPR)*!insert	EXECUTE DCM PROJECT a PLAN USING(a => 1, a => 1 zzz) FROM 's'
-accept	accept	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/%empty	EXECUTE DCM PROJECT a PLAN FROM 's'
-accept	accept	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a) FROM 's'
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-1	EXECUTE DCM PROJECT a PLAN($a) FROM 's'
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-2	EXECUTE DCM PROJECT a PLAN ENVIRONMENT $a) FROM 's'
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-3	EXECUTE DCM PROJECT a PLAN ENVIRONMENT() FROM 's'
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!drop-4	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a FROM 's'
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!truncate	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!insert	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a) zzz FROM 's'
-reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_VARIABLE_))?/ENVIRONMENT_(_VARIABLE_)!swap	EXECUTE DCM PROJECT a PLAN ENV_VARS($a) FROM 's'
+accept	accept	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/%empty	EXECUTE DCM PROJECT a PLAN FROM 's'
+accept	accept	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a) FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-1	EXECUTE DCM PROJECT a PLAN($a) FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-2	EXECUTE DCM PROJECT a PLAN ENVIRONMENT $a) FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-3	EXECUTE DCM PROJECT a PLAN ENVIRONMENT() FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!drop-4	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!truncate	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!insert	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a) zzz FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(ENVIRONMENT_(_(VARIABLE|?)_))?/ENVIRONMENT_(_(VARIABLE|?)_)!swap	EXECUTE DCM PROJECT a PLAN ENV_VARS($a) FROM 's'
+accept	accept	docs	executeDcmProject_fromSource(VARIABLE|?)/VARIABLE	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a) FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(VARIABLE|?)/VARIABLE!truncate	EXECUTE DCM PROJECT a PLAN ENVIRONMENT(
+reject	undocumented	docs	executeDcmProject_fromSource(VARIABLE|?)/VARIABLE!insert	EXECUTE DCM PROJECT a PLAN ENVIRONMENT($a zzz) FROM 's'
+accept	accept	docs	executeDcmProject_fromSource(VARIABLE|?)/?	EXECUTE DCM PROJECT a PLAN ENVIRONMENT(?) FROM 's'
+reject	undocumented	docs	executeDcmProject_fromSource(VARIABLE|?)/?!insert	EXECUTE DCM PROJECT a PLAN ENVIRONMENT(? zzz) FROM 's'
 accept	accept	docs	executeDcmProject_fromDeployment/FROM_DEPLOYMENT_(ID|LAST|LATEST)	EXECUTE DCM PROJECT a PLAN FROM DEPLOYMENT a
 accept	accept	docs	executeDcmProject_fromDeployment(ID|LAST|LATEST)/ID	EXECUTE DCM PROJECT a PLAN FROM DEPLOYMENT a
 accept	accept	docs	executeDcmProject_fromDeployment(ID|LAST|LATEST)/LAST	EXECUTE DCM PROJECT a PLAN FROM DEPLOYMENT LAST
