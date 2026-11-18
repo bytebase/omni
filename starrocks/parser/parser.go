@@ -979,9 +979,11 @@ func isQueryStatementBody(n ast.Node) bool {
 	if isQueryBody(n) {
 		return true
 	}
-	switch n.(type) {
-	case *ast.OptimizerTraceStmt, *ast.ExplainStmt:
-		return true
+	switch n := n.(type) {
+	case *ast.OptimizerTraceStmt:
+		return n.Query != nil && isQueryBody(n.Query)
+	case *ast.ExplainStmt:
+		return n.Query != nil && isQueryBody(n.Query)
 	}
 	return false
 }

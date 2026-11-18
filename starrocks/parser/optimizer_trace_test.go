@@ -76,6 +76,19 @@ func TestOptimizerTraceRejectsExpressionSubquery(t *testing.T) {
 	}
 }
 
+// queryStatement's explain prefix precedes a queryRelation, so explained DML
+// is not a valid INSERT source or CTAS body.
+func TestExplainedDMLRejectedInQueryStatement(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT INTO dst EXPLAIN INSERT INTO inner_dst SELECT 1",
+		"CREATE TABLE dst AS EXPLAIN INSERT INTO inner_dst SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
 func TestOptimizerTraceRejects(t *testing.T) {
 	for _, sql := range []string{
 		"TRACE SELECT 1",

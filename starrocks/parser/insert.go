@@ -161,10 +161,15 @@ modifiers:
 		stmt.Query = trace
 
 	case kwEXPLAIN, kwDESC, kwDESCRIBE:
-		// queryStatement's optional prefix is (explainDesc | optimizerTrace).
+		// queryStatement's optional prefix is (explainDesc | optimizerTrace),
+		// and its explainDesc precedes a queryRelation, not another DML.
 		explain, err := p.parseExplain()
 		if err != nil {
 			return nil, err
+		}
+		explained := explain.(*ast.ExplainStmt)
+		if explained.Query == nil || !isQueryBody(explained.Query) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Query = explain
 
