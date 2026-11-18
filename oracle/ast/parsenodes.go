@@ -1054,9 +1054,10 @@ func (n *SelectStmt) stmtNode() {}
 
 // ResTarget represents a target in the select list.
 type ResTarget struct {
-	Name string   // column alias (AS name)
-	Expr ExprNode // expression
-	Loc  Loc
+	Name      string   // column alias (AS name)
+	AliasBind bool     // the alias was a bind variable
+	Expr      ExprNode // expression
+	Loc       Loc
 }
 
 func (n *ResTarget) nodeTag() {}
@@ -3320,12 +3321,16 @@ type AlterMaterializedViewStmt struct {
 	DeallocateKeep   string // KEEP size
 
 	// EVALUATE USING EDITION
-	EditionName   string // edition name
-	ConsiderFresh bool   // CONSIDER FRESH after the edition
-	FreshMode     string // FRESH or CONSISTENT FRESH after the edition
+	EditionName      string // edition name
+	ConsiderFresh    bool   // CONSIDER FRESH after the edition
+	FreshMode        string // FRESH or CONSISTENT FRESH after the edition
+	EvaluationSuffix string // tolerated word after the edition
 
 	// ANNOTATIONS operations
 	Annotations *List // annotations_clause operations, one *DDLOption each
+
+	// MODIFY column
+	Modify *AlterTableCmd // the parsed MODIFY command
 
 	// MODIFY SCOPE FOR
 	ScopeColumn string      // ref column name

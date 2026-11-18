@@ -1958,6 +1958,9 @@ func writeResTarget(sb *strings.Builder, n *ResTarget) {
 	if n.Name != "" {
 		sb.WriteString(fmt.Sprintf(" :name %q", n.Name))
 	}
+	if n.AliasBind {
+		sb.WriteString(" :aliasBind true")
+	}
 	if n.Expr != nil {
 		sb.WriteString(" :val ")
 		writeNode(sb, n.Expr)
@@ -4668,6 +4671,9 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 	if n.FreshMode != "" {
 		sb.WriteString(fmt.Sprintf(" :freshMode %q", n.FreshMode))
 	}
+	if n.EvaluationSuffix != "" {
+		sb.WriteString(fmt.Sprintf(" :evaluationSuffix %q", n.EvaluationSuffix))
+	}
 	if n.Annotations != nil && n.Annotations.Len() > 0 {
 		sb.WriteString(" :annotations (")
 		for i, item := range n.Annotations.Items {
@@ -4677,6 +4683,10 @@ func writeAlterMaterializedViewStmt(sb *strings.Builder, n *AlterMaterializedVie
 			writeNode(sb, item)
 		}
 		sb.WriteString(")")
+	}
+	if n.Modify != nil {
+		sb.WriteString(" :modify ")
+		writeNode(sb, n.Modify)
 	}
 	if n.Options != nil && n.Options.Len() > 0 {
 		sb.WriteString(" :options (")

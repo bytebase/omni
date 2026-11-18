@@ -803,6 +803,7 @@ func (p *Parser) parseResTarget() (*nodes.ResTarget, error) {
 		// Oracle takes a bind variable after an expression as its alias
 		// (compat.tsv's suite:lexer row SELECT :a :b FROM dual).
 		rt.Name = p.cur.Str
+		rt.AliasBind = true
 		p.advance()
 	} else if p.isAliasCandidate() {
 		var parseErr963 error

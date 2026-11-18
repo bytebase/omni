@@ -138,6 +138,9 @@ func walkChildren(v Visitor, node Node) {
 		Walk(v, n.StartWith)
 		Walk(v, n.Next)
 		walkList(v, n.Annotations)
+		if n.Modify != nil {
+			Walk(v, n.Modify)
+		}
 		if n.ScopeTable != nil {
 			Walk(v, n.ScopeTable)
 		}

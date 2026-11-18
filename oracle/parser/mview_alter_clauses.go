@@ -307,7 +307,9 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 		// and checks the column after the parse (ORA-22858).
 		setAlterMviewAction(stmt, "MODIFY")
 		cmd, err := p.parseAlterTableModify()
-		_ = cmd // the AST keeps no modified column of a view
+		if err == nil {
+			stmt.Modify = cmd
+		}
 		return err
 	case p.cur.Type == kwMODIFY && p.atNextWord("LOB"):
 		setAlterMviewAction(stmt, "MODIFY_LOB")
@@ -891,6 +893,7 @@ func (p *Parser) parseAlterMviewEvaluation(stmt *nodes.AlterMaterializedViewStmt
 			}
 		case p.isIdentLike() && !p.atWord("CONSIDER") && !p.atWord("ENABLE") && !p.atWord("DISABLE") &&
 			!p.atWord("QUERY") && !p.atWord("COMPILE") && !p.atWord("REFRESH") && !p.atWord("USING") && !p.atWord("MODIFY"):
+			stmt.EvaluationSuffix = p.cur.Str
 			p.advance()
 		}
 		return nil
