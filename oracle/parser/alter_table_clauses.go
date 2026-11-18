@@ -1745,6 +1745,11 @@ func (p *Parser) parseATNestedTableStorage() error {
 // order: deferred segment creation, segment attributes, compression,
 // inmemory, then an organization clause.
 func (p *Parser) nestedPhysicalPhase(allowed atClauses) int {
+	if p.cur.Type == kwCOMPRESS && p.peekNext().Type == tokICONST {
+		// COMPRESS integer is an index-organized table's prefix compression,
+		// the alternative to its mapping table and threshold.
+		return 4
+	}
 	switch p.atClauseAt(allowed) {
 	case atcSegmentCreation:
 		return 0
