@@ -188,6 +188,29 @@ func (p *Parser) parseAExprAtom() (nodes.Node, error) {
 		return n, nil
 	case UNIQUE:
 		return p.parseUniquePredicate()
+	case PRIOR:
+		// CONNECT BY's PRIOR marks the parent row's side of the condition
+		// (CONNECT BY PRIOR id = parent_id). PRIOR is unreserved everywhere
+		// else, where it names a column, so only a CONNECT BY condition reads
+		// it as the prefix operator.
+		if !p.inConnectBy {
+			return p.parseCExpr()
+		}
+		p.advance()
+		arg, err := p.parseAExpr(precUnary)
+		if err != nil {
+			return nil, err
+		}
+		if arg == nil {
+			return nil, p.syntaxErrorAtCur()
+		}
+		n := &nodes.A_Expr{
+			Kind:  nodes.AEXPR_OP,
+			Name:  &nodes.List{Items: []nodes.Node{&nodes.String{Str: "prior"}}},
+			Rexpr: arg,
+		}
+		setNodeLoc(n, loc, p.prev.End)
+		return n, nil
 	case OPERATOR:
 		// OPERATOR is an unreserved keyword: before any token but '('
 		// it is a column name.

@@ -27,6 +27,7 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftVacuumTwoWordModeStart` | `SORT ONLY`, `DELETE ONLY` | the word and one lookahead | `TestIsRedshiftVacuumTwoWordModeStart` |
 | `isRedshiftPartitionTransformCallStart` | `YEAR`, `MONTH`, `DAY`, `HOUR`, `TRUNCATE` or the word `BUCKET` before `(` | the token and one lookahead | `TestIsRedshiftPartitionTransformCallStart` |
 | `isRedshiftRoleSpecStart` | a name, or `CURRENT_USER` / `CURRENT_ROLE` / `SESSION_USER` | the token after a comma | `TestIsRedshiftRoleSpecStart` |
+| `isRedshiftNumberStart` | a sign and an `Iconst` | `isNumericOnlyStart`, less `FCONST` | `TestIsRedshiftNumberStart` |
 
 The predicates `isRedshiftConnectByStart` and `isRedshiftVacuumTwoWordModeStart`
 read a second token because the first one is a name in the other reading:
@@ -35,4 +36,15 @@ table named `sort`. `isRedshiftConnectByStart` is also what
 `isReservedForClause` asks, so a bare `START` or `CONNECT` still names an
 alias. `isRedshiftPartitionTransformCallStart` tells `PARTITIONED BY
 (BUCKET(16, a))` from a column named `bucket`, and `isRedshiftRoleSpecStart`
-ends a `role_list` at the comma before a repeated `WITH` clause.
+ends a `role_list` at the comma before a repeated `WITH` clause. Its set is
+`parseNonReservedWord`'s, which is wider than `isColIdToken`'s: a type or
+function name keyword such as `FULL` names a role too. `isRedshiftNumberStart`
+is the docs' `NUMBER`, which `testdata/tokens.tsv` samples as an integer:
+`AUTO REFRESH YES INTERVAL` and `IDENTITY`'s seed and step take no float.
+
+## Redshift-only expression context
+
+`CONNECT BY`'s `PRIOR` is the one prefix operator whose meaning depends on
+where it sits: `Parser.inConnectBy` is true only while the clause's condition
+is parsed, and `parseAExprAtom` reads `PRIOR` as
+`A_Expr{AEXPR_OP, "prior"}` there and as a column name everywhere else.

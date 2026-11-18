@@ -369,9 +369,31 @@ func (c *Catalog) analyzeSimpleSelect(stmt *nodes.SelectStmt, opts AnalyzeOption
 		q.JoinTree.Quals = qual
 	}
 
+	// 3b. Redshift's hierarchical-query clauses, which sit between WHERE and
+	// GROUP BY: (START WITH expr)? CONNECT BY expr.
+	if stmt.StartWith != nil {
+		qual, err := ac.transformExpr(stmt.StartWith)
+		if err != nil {
+			return nil, err
+		}
+		q.StartWithQual = qual
+	}
+	if stmt.ConnectBy != nil {
+		qual, err := ac.transformExpr(stmt.ConnectBy)
+		if err != nil {
+			return nil, err
+		}
+		q.ConnectByQual = qual
+	}
+
 	// 4. Process GROUP BY clause.
 	//
 	// pg: src/backend/parser/parse_clause.c — transformGroupClause
+	if stmt.GroupAll {
+		// GROUP BY ALL groups by every column no aggregate uses, so it carries
+		// no list of its own: the analyzed Query keeps the clause for deparse.
+		q.GroupAll = true
+	}
 	if stmt.GroupClause != nil {
 		hasGroupingSets := false
 		for _, item := range stmt.GroupClause.Items {
@@ -2929,6 +2951,22 @@ func (ac *analyzeCtx) transformAExpr(ae *nodes.A_Expr) (AnalyzedExpr, error) {
 		opName = stringVal(ae.Name.Items[len(ae.Name.Items)-1])
 	}
 
+	// Redshift's CONNECT BY PRIOR marks the parent row's side of the condition.
+	// It is no operator the catalog holds: its value and type are the operand's,
+	// and the deparser writes the word back before them.
+	if ae.Lexpr == nil && strings.EqualFold(opName, "prior") {
+		right, err := ac.transformExpr(ae.Rexpr)
+		if err != nil {
+			return nil, err
+		}
+		return &OpExpr{
+			OpName:     "PRIOR",
+			ResultType: right.exprType(),
+			Collation:  right.exprCollation(),
+			Right:      right,
+		}, nil
+	}
+
 	var left AnalyzedExpr
 	var leftOID uint32
 	if ae.Lexpr != nil {
@@ -3414,7 +3452,28 @@ func (ac *analyzeCtx) analyzeSubSelectWithOptions(stmt *nodes.SelectStmt, disall
 		q.JoinTree.Quals = qual
 	}
 
+	// Redshift's hierarchical-query clauses, between WHERE and GROUP BY.
+	if stmt.StartWith != nil {
+		qual, err := subAc.transformExpr(stmt.StartWith)
+		if err != nil {
+			return nil, err
+		}
+		q.StartWithQual = qual
+	}
+	if stmt.ConnectBy != nil {
+		qual, err := subAc.transformExpr(stmt.ConnectBy)
+		if err != nil {
+			return nil, err
+		}
+		q.ConnectByQual = qual
+	}
+
 	// GROUP BY.
+	if stmt.GroupAll {
+		// GROUP BY ALL carries no list of its own; the Query keeps the clause
+		// for deparse.
+		q.GroupAll = true
+	}
 	if stmt.GroupClause != nil {
 		hasGroupingSets := false
 		for _, item := range stmt.GroupClause.Items {

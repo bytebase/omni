@@ -197,6 +197,16 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 		d.getRuleExpr(query.JoinTree.Quals, false)
 	}
 
+	// Redshift's hierarchical-query clauses, between WHERE and GROUP BY.
+	if query.StartWithQual != nil {
+		d.appendContextKeyword(" START WITH ", -prettyIndentStd, prettyIndentStd, 0)
+		d.getRuleExpr(query.StartWithQual, false)
+	}
+	if query.ConnectByQual != nil {
+		d.appendContextKeyword(" CONNECT BY ", -prettyIndentStd, prettyIndentStd, 0)
+		d.getRuleExpr(query.ConnectByQual, false)
+	}
+
 	// GROUP BY.
 	if len(query.GroupingSets) > 0 {
 		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
@@ -206,6 +216,9 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 			}
 			d.getGroupingSet(gs, query.TargetList)
 		}
+	} else if query.GroupAll {
+		// Redshift's GROUP BY ALL carries no list of its own.
+		d.appendContextKeyword(" GROUP BY ALL", -prettyIndentStd, prettyIndentStd, 0)
 	} else if len(query.GroupClause) > 0 {
 		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
 		for i, grp := range query.GroupClause {

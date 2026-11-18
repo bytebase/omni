@@ -515,7 +515,7 @@ func TestIsRedshiftPartitionTransformCallStart(t *testing.T) {
 // TestIsRedshiftRoleSpecStart holds role_list's continuation to what RoleSpec
 // takes: a name, or one of PostgreSQL's three role keywords.
 func TestIsRedshiftRoleSpecStart(t *testing.T) {
-	for _, sql := range []string{"a", "user1", "CURRENT_USER", "CURRENT_ROLE", "SESSION_USER"} {
+	for _, sql := range []string{"a", "user1", "CURRENT_USER", "CURRENT_ROLE", "SESSION_USER", "full", "left", "join"} {
 		if !isRedshiftRoleSpecStart(newLeadParser(sql).cur) {
 			t.Errorf("isRedshiftRoleSpecStart(%q) = false, want true", sql)
 		}
@@ -523,6 +523,21 @@ func TestIsRedshiftRoleSpecStart(t *testing.T) {
 	for _, sql := range []string{"WITH", "1", "'s'", ";"} {
 		if isRedshiftRoleSpecStart(newLeadParser(sql).cur) {
 			t.Errorf("isRedshiftRoleSpecStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+// TestIsRedshiftNumberStart holds the docs' NUMBER to the integer its sample in
+// tokens.tsv spells: a sign and an Iconst, and no float.
+func TestIsRedshiftNumberStart(t *testing.T) {
+	for _, sql := range []string{"1", "-1", "+1", "100"} {
+		if !newLeadParser(sql).isRedshiftNumberStart() {
+			t.Errorf("isRedshiftNumberStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"1.5", "a", "'s'", ")", "INTERVAL"} {
+		if newLeadParser(sql).isRedshiftNumberStart() {
+			t.Errorf("isRedshiftNumberStart(%q) = true, want false", sql)
 		}
 	}
 }

@@ -61,7 +61,10 @@ type Query struct {
 	RangeTable     []*RangeTableEntry
 	JoinTree       *JoinTree
 	GroupClause    []*SortGroupClause
+	GroupAll       bool // Redshift's GROUP BY ALL: every column no aggregate uses
 	HavingQual     AnalyzedExpr
+	StartWithQual  AnalyzedExpr // Redshift's START WITH condition of a hierarchical query
+	ConnectByQual  AnalyzedExpr // Redshift's CONNECT BY condition of a hierarchical query
 	QualifyQual    AnalyzedExpr
 	SortClause     []*SortGroupClause
 	LimitCount     AnalyzedExpr

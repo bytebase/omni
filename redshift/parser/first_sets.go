@@ -822,10 +822,20 @@ func (p *Parser) isRedshiftPartitionTransformCallStart() bool {
 	return slices.Contains(redshiftPartitionTransformTokens, p.cur.Type) || p.redshiftKeywordIs("bucket")
 }
 
+// isRedshiftNumberStart reports whether the current token starts one of the
+// docs' NUMBER values. testdata/tokens.tsv samples NUMBER as an integer, so a
+// float is no NUMBER: AUTO REFRESH YES INTERVAL, BUCKET's bucket count and an
+// identity's seed and step all take a SignedIconst.
+//
+// Validated by TestIsRedshiftNumberStart in first_sets_test.go.
+func (p *Parser) isRedshiftNumberStart() bool {
+	return p.isNumericOnlyStart() && p.cur.Type != FCONST
+}
+
 // isRedshiftRoleSpecStart reports whether tok begins a RoleSpec, which a
-// role_list repeats after a comma: a name, or one of the three roles PostgreSQL
-// writes as keywords. WITH begins no RoleSpec, so a comma before it ends the
-// list, which is how r_CREATE_GROUP repeats its WITH clause
+// role_list repeats after a comma: a NonReservedWord, or one of the three roles
+// PostgreSQL writes as keywords. WITH begins no RoleSpec, so a comma before it
+// ends the list, which is how r_CREATE_GROUP repeats its WITH clause
 // (CREATE GROUP g WITH USER u, WITH USER v).
 //
 // Grammar reference: RoleSpec in postgres/src/backend/parser/gram.y, and
@@ -836,5 +846,17 @@ func isRedshiftRoleSpecStart(tok Token) bool {
 	case CURRENT_ROLE, CURRENT_USER, SESSION_USER:
 		return true
 	}
-	return tok.Type == IDENT || isColIdToken(tok)
+	// parseRoleSpec's other form is parseNonReservedWord, whose FIRST set is
+	// wider than ColId's: a type or function name keyword such as FULL names a
+	// role too.
+	if tok.Type == IDENT {
+		return true
+	}
+	if kw := LookupKeyword(tok.Str); kw != nil && kw.Token == tok.Type {
+		switch kw.Category {
+		case UnreservedKeyword, ColNameKeyword, TypeFuncNameKeyword:
+			return true
+		}
+	}
+	return false
 }

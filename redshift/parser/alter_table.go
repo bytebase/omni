@@ -937,7 +937,7 @@ func (p *Parser) parseRedshiftAutoRefreshSettings() (bool, *nodes.Integer, error
 		return enabled, nil, nil
 	}
 	p.advance() // consume INTERVAL
-	if !p.isNumericOnlyStart() {
+	if !p.isRedshiftNumberStart() {
 		return false, nil, p.syntaxErrorAtCur()
 	}
 	return enabled, &nodes.Integer{Ival: p.parseSignedIconst()}, nil
@@ -1010,7 +1010,7 @@ func (p *Parser) parseRedshiftAlterTableAddPartition(missingOk bool) (*nodes.Alt
 	if missingOk {
 		opts = append(opts, makeDefElem("missing_ok", &nodes.Boolean{Boolval: true}))
 	}
-	opts, err = p.parseRedshiftAlterTableLocationInto(opts)
+	opts, err = p.parseRedshiftAlterTableLocationsInto(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -1042,29 +1042,42 @@ func (p *Parser) parseRedshiftPartitionSpec() (*nodes.List, error) {
 	return spec, nil
 }
 
-func (p *Parser) parseRedshiftAlterTableLocationInto(opts []nodes.Node) ([]nodes.Node, error) {
+// parseRedshiftAlterTableLocationsInto parses ADD PARTITION's tail, which the
+// docs write as LOCATION 's3://...' [, ...]: one location per string, so each
+// string gets its own DefElem and a reader takes the first as the partition's
+// location.
+func (p *Parser) parseRedshiftAlterTableLocationsInto(opts []nodes.Node) ([]nodes.Node, error) {
 	if p.cur.Type != LOCATION {
 		return opts, nil
 	}
 	p.advance()
+	locations, err := p.parseRedshiftAlterTableLocations()
+	if err != nil {
+		return nil, err
+	}
+	return append(opts, locations...), nil
+}
+
+// parseRedshiftAlterTableLocations parses LOCATION's strings, the first and
+// then one per comma, as a location DefElem each.
+func (p *Parser) parseRedshiftAlterTableLocations() ([]nodes.Node, error) {
+	var locations []nodes.Node
 	for {
 		location, err := p.parseRedshiftStringLiteral()
 		if err != nil {
 			return nil, err
 		}
-		// The docs write ADD PARTITION's tail as LOCATION 's3://...' [, ...],
-		// one location per string, so each string gets its own DefElem and a
-		// reader takes the first as the partition's location.
-		opts = append(opts, makeDefElem("location", &nodes.String{Str: location}))
+		locations = append(locations, makeDefElem("location", &nodes.String{Str: location}))
 		if p.cur.Type != ',' {
-			return opts, nil
+			return locations, nil
 		}
 		p.advance()
 	}
 }
 
 // parseRedshiftAlterTablePartitionLocation parses the external-table action
-// ALTER TABLE a PARTITION ( partition_spec ) SET LOCATION 's3://...'.
+// ALTER TABLE a PARTITION ( partition_spec ) SET LOCATION 's3://...', whose
+// location is one string.
 //
 // Grammar reference: alterTable_external_table_action in RedshiftDocs.g4.
 func (p *Parser) parseRedshiftAlterTablePartitionLocation() (*nodes.AlterTableCmd, error) {
@@ -1076,17 +1089,17 @@ func (p *Parser) parseRedshiftAlterTablePartitionLocation() (*nodes.AlterTableCm
 	if _, err := p.expect(SET); err != nil {
 		return nil, err
 	}
-	opts := []nodes.Node{makeDefElem("partition", spec)}
-	opts, err = p.parseRedshiftAlterTableLocationInto(opts)
+	if _, err := p.expect(LOCATION); err != nil {
+		return nil, err
+	}
+	location, err := p.parseRedshiftStringLiteral()
 	if err != nil {
 		return nil, err
 	}
-	if len(opts) == 1 {
-		// The action is PARTITION (...) SET LOCATION; SET of anything else is
-		// no external-table action.
-		return nil, p.syntaxErrorAtCur()
-	}
-	return makeRedshiftAlterOptionCmd("set_partition_location", opts), nil
+	return makeRedshiftAlterOptionCmd("set_partition_location", []nodes.Node{
+		makeDefElem("partition", spec),
+		makeDefElem("location", &nodes.String{Str: location}),
+	}), nil
 }
 
 func (p *Parser) parseRedshiftStringLiteral() (string, error) {

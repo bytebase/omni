@@ -85,6 +85,44 @@ func TestRedshiftSelectConnectByParse(t *testing.T) {
 	}
 }
 
+// TestRedshiftSelectConnectByPriorParse pins PRIOR, the prefix operator that
+// marks the parent row's side of a CONNECT BY condition. PRIOR is unreserved,
+// so outside the condition it still names a column.
+func TestRedshiftSelectConnectByPriorParse(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t CONNECT BY PRIOR id = parent_id;",
+		"SELECT * FROM t START WITH parent_id IS NULL CONNECT BY PRIOR id = parent_id;",
+		"SELECT * FROM t CONNECT BY PRIOR id > 0 AND PRIOR depth < 5;",
+		"SELECT prior FROM t;",
+		"SELECT * FROM prior;",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q): %v", sql, err)
+		}
+	}
+
+	sel, ok := singleStmt(t, "SELECT * FROM t CONNECT BY PRIOR id = parent_id;").(*nodes.SelectStmt)
+	if !ok {
+		t.Fatal("expected SelectStmt")
+	}
+	eq, ok := sel.ConnectBy.(*nodes.A_Expr)
+	if !ok || eq.Lexpr == nil {
+		t.Fatalf("ConnectBy = %#v, want the comparison over PRIOR", sel.ConnectBy)
+	}
+	prior, ok := eq.Lexpr.(*nodes.A_Expr)
+	if !ok || prior.Lexpr != nil || prior.Rexpr == nil {
+		t.Fatalf("left side = %#v, want the prefix operator over id", eq.Lexpr)
+	}
+	if name := prior.Name.Items[0].(*nodes.String).Str; name != "prior" {
+		t.Fatalf("prefix operator = %q, want prior", name)
+	}
+
+	// Outside a CONNECT BY condition PRIOR is a name and no operator.
+	if _, err := Parse("SELECT * FROM t WHERE PRIOR id = 1;"); err == nil {
+		t.Error("PRIOR as a prefix operator outside CONNECT BY parsed, want a syntax error")
+	}
+}
+
 // TestRedshiftSelectConnectByNeedsClauseKeywords holds the two ways in: a bare
 // START or CONNECT is a name, and the clause needs its own continuation.
 func TestRedshiftSelectConnectByNeedsClauseKeywords(t *testing.T) {

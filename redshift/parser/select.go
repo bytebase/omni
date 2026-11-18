@@ -505,7 +505,11 @@ func (p *Parser) parseRedshiftConnectBy(stmt *nodes.SelectStmt) error {
 	if _, err := p.expect(BY); err != nil {
 		return err
 	}
+	// PRIOR is the condition's prefix operator, and a name everywhere else.
+	savedInConnectBy := p.inConnectBy
+	p.inConnectBy = true
 	cond, err := p.parseAExpr(0)
+	p.inConnectBy = savedInConnectBy
 	if err != nil {
 		return err
 	}

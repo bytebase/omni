@@ -559,7 +559,7 @@ func (p *Parser) parseRedshiftPartitionTransform() (nodes.Node, error) {
 		var args []nodes.Node
 		if name == "bucket" || name == "truncate" {
 			// BUCKET ( number, column_name )
-			if !p.isNumericOnlyStart() {
+			if !p.isRedshiftNumberStart() {
 				return nil, p.syntaxErrorAtCur()
 			}
 			args = append(args, p.parseNumericOnly())

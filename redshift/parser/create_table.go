@@ -847,7 +847,10 @@ func (p *Parser) parseRedshiftIdentitySeqOptions() (*nodes.List, error) {
 	return p.parseRedshiftIdentitySeedStepOptions()
 }
 
-// parseRedshiftIdentitySeedStepOptions parses IDENTITY's ( seed, step ).
+// parseRedshiftIdentitySeedStepOptions parses IDENTITY's ( seed, step ). Both
+// numbers are required once '(' is read, as the docs write them:
+//
+//	IDENTITY [ ( seed, step ) ]
 //
 // Grammar reference: createTableNew_column_attributes in RedshiftDocs.g4.
 func (p *Parser) parseRedshiftIdentitySeedStepOptions() (*nodes.List, error) {
@@ -855,24 +858,19 @@ func (p *Parser) parseRedshiftIdentitySeedStepOptions() (*nodes.List, error) {
 		return nil, err
 	}
 	var items []nodes.Node
-	if p.cur.Type != ')' {
-		if !p.isNumericOnlyStart() {
+	for i, name := range []string{"start", "increment"} {
+		if i > 0 {
+			if _, err := p.expect(','); err != nil {
+				return nil, err
+			}
+		}
+		if !p.isRedshiftNumberStart() {
 			return nil, p.syntaxErrorAtCur()
 		}
-		items = append(items, makeDefElem("start", p.parseNumericOnly()))
-		if p.cur.Type == ',' {
-			p.advance()
-			if !p.isNumericOnlyStart() {
-				return nil, p.syntaxErrorAtCur()
-			}
-			items = append(items, makeDefElem("increment", p.parseNumericOnly()))
-		}
+		items = append(items, makeDefElem(name, p.parseNumericOnly()))
 	}
 	if _, err := p.expect(')'); err != nil {
 		return nil, err
-	}
-	if len(items) == 0 {
-		return nil, nil
 	}
 	return &nodes.List{Items: items}, nil
 }
