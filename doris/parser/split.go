@@ -83,6 +83,8 @@ func SplitAll(input string) []Segment {
 	var frame blockFrame
 	var proc procedureHead
 	var heldSemicolons []int
+	atStart := true
+	headOpen := false
 
 	// We need lookahead after kwBEGIN to disambiguate TCL from a compound
 	// block: one token for most followers, two for BEGIN WITH LABEL (WITH
@@ -147,7 +149,8 @@ func SplitAll(input string) []Segment {
 		case stateTop:
 			wasInParens := proc.inParens
 			proc.step(tok)
-			if wasInParens && !proc.inParens {
+			closedParens := wasInParens && !proc.inParens
+			if closedParens {
 				// The parentheses closed: what they held belongs to the
 				// statement.
 				heldSemicolons = heldSemicolons[:0]
@@ -157,6 +160,13 @@ func SplitAll(input string) []Segment {
 				if proc.inParens {
 					// A BEGIN inside a procedure's parentheses is text the
 					// rule's `.*?` takes, not a compound block.
+					break
+				}
+				if !atStart && !headOpen {
+					// BEGIN is a non-reserved word Doris reads as a column
+					// (SELECT begin FROM t): only where a statement can begin
+					// — or where the procedure's body follows its COMMENT
+					// clause — does it open a block.
 					break
 				}
 				next := peekToken()
@@ -174,6 +184,7 @@ func SplitAll(input string) []Segment {
 					state = stateInBlock
 					frame.open()
 					proc.reset()
+					atStart = false
 				}
 			case int(';'):
 				if proc.inParens {
@@ -190,6 +201,17 @@ func SplitAll(input string) []Segment {
 				emit(tok.Loc.Start)
 				stmtStart = tok.Loc.End
 				proc.reset()
+			}
+			// A statement can begin at the start of the input, after a
+			// separator, and right after a procedure's own parentheses, whose
+			// COMMENT clause may stand between it and the body.
+			atStart = tok.Kind == int(';') || closedParens
+			if closedParens {
+				headOpen = true
+			} else if tok.Kind != kwCOMMENT && tok.Kind != tokString && tok.Kind != int(')') {
+				// The parameter list's own parentheses close early on a type
+				// such as VARCHAR(50), leaving the list's ')' to come.
+				headOpen = false
 			}
 
 		case stateInBlock:
@@ -312,7 +334,7 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 			// An expression's END closes it, and a word after it is the item's
 			// alias (SELECT CASE WHEN 1 THEN 2 END loop). Where an operand is
 			// due, the word names a column instead (CASE WHEN end THEN ...).
-			if b.endsOperand() {
+			if !b.expectsOperand() {
 				b.pop()
 			}
 			return b.empty()
@@ -333,15 +355,19 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 	return false
 }
 
-// startsStatement reports whether a construct can begin where the frame stands:
-// after a separator, after the block's own BEGIN, or after the word a
-// control-flow statement puts before its body (THEN, ELSE, DO, LOOP, REPEAT).
-func (b *blockFrame) startsStatement() bool {
-	switch b.prev.Kind {
-	case kwBEGIN, int(';'), kwTHEN, kwELSE, kwDO:
+// startsStatement reports whether a construct can begin where the frame stands.
+func (b *blockFrame) startsStatement() bool { return startsStatementAt(b.prev) }
+
+// startsStatementAt reports whether a construct can begin after prev: after a
+// separator, after a block's own BEGIN, after a block label's ':', or after the
+// word a control-flow statement puts before its body (THEN, ELSE, DO, LOOP,
+// REPEAT).
+func startsStatementAt(prev Token) bool {
+	switch prev.Kind {
+	case kwBEGIN, int(';'), int(':'), kwTHEN, kwELSE, kwDO:
 		return true
 	case tokIdent:
-		switch strings.ToUpper(b.prev.Str) {
+		switch strings.ToUpper(prev.Str) {
 		case "LOOP", "REPEAT":
 			return true
 		}
@@ -349,14 +375,20 @@ func (b *blockFrame) startsStatement() bool {
 	return false
 }
 
-// endsOperand reports whether the last token read ends an operand, so the END
-// that follows closes an expression. BEGIN and END are non-reserved words too,
-// and where one stands in an operand's place it names a column
-// (CASE WHEN end THEN ...).
-func (b *blockFrame) endsOperand() bool {
+// expectsOperand reports whether the last token read leaves an operand due,
+// so an END that follows names a column rather than closing an expression:
+// BEGIN and END are non-reserved words too (CASE WHEN end THEN ...). Every
+// other token — a literal, an identifier, a keyword standing for a value such
+// as NULL, the ')' of a call — ends an operand, and the END closes it.
+func (b *blockFrame) expectsOperand() bool {
 	switch b.prev.Kind {
-	case tokInt, tokFloat, tokString, tokIdent, tokQuotedIdent, tokHexLiteral,
-		tokBitLiteral, tokPlaceholder, int(')'), kwEND:
+	case int('('), int(','), int('='), int('<'), int('>'), int('+'), int('-'),
+		int('*'), int('/'), int('%'), int('&'), int('|'), int('^'), int('~'),
+		tokLessEq, tokGreaterEq, tokNotEq, tokNullSafeEq, tokLogicalAnd,
+		tokDoublePipes, tokAssign, tokArrow,
+		kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwIN, kwIS, kwLIKE,
+		kwBETWEEN, kwAS, kwCASE, kwSELECT, kwWHERE, kwBY, kwHAVING, kwON,
+		kwSET, kwDISTINCT, kwALL, kwEXISTS, kwFROM:
 		return true
 	}
 	return false

@@ -195,17 +195,21 @@ func (p *Parser) collectProcedureParens() (string, error) {
 // offsets it returns reach past what the lexer skipped.
 func (p *Parser) collectProcedureTail() {
 	var frame blockFrame
+	// A statement can begin right after the procedure's parentheses, which is
+	// where its body stands.
+	prev := Token{Kind: int(';')}
 	for p.cur.Kind != tokEOF {
 		if frame.empty() {
 			if p.cur.Kind == int(';') {
 				return
 			}
-			if p.cur.Kind == kwBEGIN && p.beginOpensCompoundBlock() {
-				// Split decides the transaction forms only outside a block:
-				// inside one, a BEGIN always deepens it.
+			// A BEGIN opens the block only where one can stand (SELECT begin
+			// FROM t names a column), and only outside a block, where Split
+			// still has the transaction forms to rule out.
+			if p.cur.Kind == kwBEGIN && startsStatementAt(prev) && p.beginOpensCompoundBlock() {
 				frame.open()
 			}
-			p.advance()
+			prev = p.advance()
 			continue
 		}
 		tok := p.advance() // p.cur is the token after this one

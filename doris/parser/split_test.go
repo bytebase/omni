@@ -203,12 +203,14 @@ func TestSplit_UnclosedBlock(t *testing.T) {
 // ';' inside its parentheses separates nothing (SEMICOLON is otherwise only a
 // statement delimiter, DorisParser.g4:29-33).
 func TestProcedureTextFollowsSplit(t *testing.T) {
+	// A BEGIN in the free text opens a block only where a statement can begin,
+	// since it is also a column name: ALTER PROCEDURE a() zzz BEGIN x; is the
+	// text zzz and a column named BEGIN.
 	for _, sql := range []string{
-		"CREATE PROCEDURE a() zzz BEGIN x; SELECT 1;",
-		"ALTER PROCEDURE a() zzz BEGIN x; SELECT 1;",
-		"CREATE PROCEDURE a() zzz BEGIN x; END; SELECT 1;",
-		"CREATE PROCEDURE a() zzz BEGIN BEGIN; END;",
-		"ALTER PROCEDURE a() zzz BEGIN TRANSACTION; SELECT 1;",
+		"ALTER PROCEDURE a() BEGIN SELECT 1; END; SELECT 1;",
+		"CREATE PROCEDURE p(IN x INT, OUT y VARCHAR(50)) BEGIN SELECT 1; END; SELECT 1;",
+		"CREATE PROCEDURE p() COMMENT 'c' BEGIN SELECT 1; END; SELECT 1;",
+		"ALTER PROCEDURE a() BEGIN TRANSACTION; SELECT 1;",
 		"ALTER PROCEDURE a(); SELECT 1;",
 		"CREATE PROCEDURE a(x;y); SELECT 1;",
 		"ALTER PROCEDURE a(x;y) zzz; SELECT 1;",
@@ -277,6 +279,12 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		// block, and a named terminator inside a CASE closes its own statement.
 		"CREATE PROCEDURE p() BEGIN IF a THEN BEGIN SELECT 1; END; END IF; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN LOOP BEGIN SELECT 1; END; END LOOP; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN lbl: BEGIN SELECT 1; END; END; SELECT 2;",
+		// NULL and CURRENT_DATE end an operand, so the CASE's END closes it.
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN NULL END; END; SELECT 2;",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN CURRENT_DATE END; END; SELECT 2;",
+		// BEGIN after a statement's first word names a column.
+		"ALTER PROCEDURE a() SELECT begin FROM t; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN IF b THEN SET x = 1; END IF; END CASE; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN LOOP SET x = 1; END LOOP; END CASE; END; SELECT 2;",
 		// An END naming a column inside a CASE branch, and an expression CASE
