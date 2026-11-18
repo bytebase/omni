@@ -225,7 +225,8 @@ const (
 	procHeadAlter                                     // ALTER
 	procHeadReplace                                   // REPLACE
 	procHeadVerb                                      // PROCEDURE or PROC
-	procHeadName                                      // in the name
+	procHeadNamePart                                  // a part of the name
+	procHeadNameDone                                  // a part read: '.' or '(' comes next
 	procHeadNot                                       // not a procedure statement
 )
 
@@ -275,16 +276,22 @@ func (h *procedureHead) step(tok Token) {
 		// The rule names the procedure with multipartIdentifier, whose parts
 		// are identifiers and identifiers written as keywords.
 		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent || tok.Kind >= 700 {
-			h.state = procHeadName
+			h.state = procHeadNameDone
 		} else {
 			h.state = procHeadNot
 		}
-	case procHeadName:
-		switch {
-		case tok.Kind == int('('):
+	case procHeadNamePart:
+		if tok.Kind == tokIdent || tok.Kind == tokQuotedIdent || tok.Kind >= 700 {
+			h.state = procHeadNameDone
+		} else {
+			h.state = procHeadNot
+		}
+	case procHeadNameDone:
+		switch tok.Kind {
+		case int('('):
 			h.inParens = true
-		case tok.Kind == int('.'), tok.Kind == tokIdent, tok.Kind == tokQuotedIdent, tok.Kind >= 700:
-			// Another part of the name.
+		case int('.'):
+			h.state = procHeadNamePart
 		default:
 			h.state = procHeadNot
 		}

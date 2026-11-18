@@ -228,11 +228,18 @@ func TestProcedureTextFollowsSplit(t *testing.T) {
 		}
 	}
 
-	// ALTER and REPLACE reach a procedure only through PROCEDURE or PROC, so
-	// other ALTER statements keep their separators even when their text leaves
-	// a parenthesis open.
-	if got := Split("ALTER TABLE t ADD COLUMN c DECIMAL(10; SELECT 1;"); len(got) != 2 {
-		t.Errorf("Split(ALTER TABLE ... DECIMAL(10; SELECT 1;) = %+v, want 2 segments", got)
+	// ALTER and REPLACE reach a procedure only through PROCEDURE or PROC, and
+	// the name is multipartIdentifier (identifier ('.' identifier)*), so other
+	// statements keep their separators even when their text leaves a
+	// parenthesis open.
+	for _, sql := range []string{
+		"ALTER TABLE t ADD COLUMN c DECIMAL(10; SELECT 1;",
+		"ALTER PROCEDURE a zzz (; SELECT 1;",
+		"ALTER PROCEDURE a. (; SELECT 1;",
+	} {
+		if got := Split(sql); len(got) != 2 {
+			t.Errorf("Split(%q) = %+v, want 2 segments", sql, got)
+		}
 	}
 }
 
