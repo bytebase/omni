@@ -773,6 +773,13 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 		prev3, prev2, prev1 = prev2, prev1, tok
 		switch tok.Type {
 		case ';':
+			if extraClose != nil {
+				if depth == -1 && settled() && shape.allowsExtraClose() {
+					depth = 0
+				} else if settled() {
+					return &ParseError{Message: fmt.Sprintf("syntax error at or near %q", ")"), Position: extraClose.Loc}
+				}
+			}
 			javaHead = embeddedSourceHead{}
 			shape = extraCloseShape{}
 			extraClose = nil
@@ -800,7 +807,7 @@ func scanDelimiters(lexer *Lexer, sql string, end int, settled func() bool) erro
 				// read as Oracle does; one in the middle is the error it
 				// always was.
 				next := lexer.lookahead(lexer.pos, lexer.end).NextToken()
-				if depth == -1 && extraClose == nil && next.Type == tokEOF {
+				if depth == -1 && extraClose == nil && (next.Type == tokEOF || next.Type == ';') {
 					extraClose = &tok
 					continue
 				}

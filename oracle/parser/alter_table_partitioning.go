@@ -608,6 +608,9 @@ func (p *Parser) parseATTruncatePartition(cmd *nodes.AlterTableCmd) error {
 		return p.syntaxErrorAtCur()
 	}
 	cmd.Subtype = p.cur.Str
+	if !p.alterMview && p.atWord("SUBPARTITIONS") {
+		cmd.Subtype = "SUBPARTITION"
+	}
 	p.advance() // PARTITION | SUBPARTITION
 	if err := p.parseATPartitionOrKeyList(cmd); err != nil {
 		return err

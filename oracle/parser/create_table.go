@@ -223,10 +223,18 @@ func (p *Parser) parseCreateStmt() (nodes.StmtNode, error) {
 		if p.isIdentLikeStr("NO") || p.cur.Type == kwNOT {
 			return p.parseCreateViewStmt(start, orReplace)
 		}
-		// Check for EDITIONABLE / NONEDITIONABLE SYNONYM
-		if (p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE")) && p.peekNext().Type == kwSYNONYM {
-			p.advance()
-			return p.parseCreateSynonymStmt(start, orReplace, public)
+		// Check for EDITIONABLE / NONEDITIONABLE [ PUBLIC ] SYNONYM
+		if p.isIdentLikeStr("EDITIONABLE") || p.isIdentLikeStr("NONEDITIONABLE") {
+			next := p.peekNext()
+			if next.Type == kwSYNONYM {
+				p.advance()
+				return p.parseCreateSynonymStmt(start, orReplace, public)
+			}
+			if next.Type == kwPUBLIC && len(p.peekAhead(2)) == 2 && p.peekAhead(2)[1].Type == kwSYNONYM {
+				p.advance() // EDITIONABLE / NONEDITIONABLE
+				p.advance() // PUBLIC
+				return p.parseCreateSynonymStmt(start, orReplace, true)
+			}
 		}
 		// Check for EDITIONING / EDITIONABLE / NONEDITIONABLE VIEW
 		if p.isIdentLike() && (p.cur.Str == "EDITIONING" || p.cur.Str == "EDITIONABLE" || p.cur.Str == "NONEDITIONABLE") {
