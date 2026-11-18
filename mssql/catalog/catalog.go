@@ -297,6 +297,19 @@ func (c *Catalog) execCreateTable(n *ast.CreateTableStmt, source string) {
 			table.Indexes = append(table.Indexes, inlineIndexMetadata(index, source))
 		}
 	}
+	// A primary key's columns allow no NULL, and a key written beside a column
+	// may name one the loop had not read yet: `CREATE TABLE t (x int PRIMARY
+	// KEY (y), y int NULL)` keys y. The columns all exist now.
+	for _, index := range table.Indexes {
+		if !index.Primary {
+			continue
+		}
+		for _, name := range index.Expressions {
+			if column := columnByName(table, name); column != nil {
+				column.Nullable = false
+			}
+		}
+	}
 }
 
 func (c *Catalog) extractColumn(n *ast.ColumnDef, table *metadata.TableMetadata, schemaName, source string) {

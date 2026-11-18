@@ -113,6 +113,11 @@ func (p *Parser) parseObjectRef(completionRule string) (*nodes.TableRef, error) 
 	// Collect dot-separated parts
 	parts := append(leading, name)
 	for p.cur.Type == '.' {
+		// Four parts are the most, and a fifth is Msg 117: "The object name
+		// '...a.b' contains more than the maximum number of prefixes".
+		if len(parts) == 4 {
+			return nil, p.newParseError(p.cur.Loc, "an object name has at most four parts")
+		}
 		p.advance() // consume .
 		// Completion: after dot in qualified name → caller-specific object rule.
 		if p.collectMode() {

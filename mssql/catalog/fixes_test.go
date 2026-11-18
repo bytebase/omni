@@ -926,3 +926,18 @@ func TestColumnLevelKeyWithColumns(t *testing.T) {
 		}
 	}
 }
+
+// TestColumnLevelKeyNamesALaterColumn checks the same for a key whose column
+// the CREATE TABLE body has not reached yet: the primary key's columns allow
+// no NULL once every column exists.
+func TestColumnLevelKeyNamesALaterColumn(t *testing.T) {
+	c, err := LoadSQL(`CREATE TABLE [dbo].[t] ([x] int PRIMARY KEY ([y]), [y] int NULL);`)
+	require.NoError(t, err)
+	table := c.GetTable("dbo", "t")
+	require.NotNil(t, table)
+	for _, col := range table.Columns {
+		if col.Name == "y" {
+			require.False(t, col.Nullable, "the primary key holds y")
+		}
+	}
+}
