@@ -423,12 +423,10 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 // Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
 func (p *Parser) parseRedshiftMaterializedViewOptionsInto(options *nodes.List, accessMethod string) (*nodes.List, error) {
 	if strings.EqualFold(accessMethod, "iceberg") {
-		// The Iceberg clauses follow USING ICEBERG immediately, in their own
-		// order, so they are read once rather than in the loop below.
-		var err error
-		if options, err = p.parseRedshiftIcebergMaterializedViewOptions(options); err != nil {
-			return nil, err
-		}
+		// The Iceberg form is the docs' other alternative: it takes LOCATION,
+		// PARTITIONED BY and TABLE PROPERTIES in that order, and none of the
+		// ordinary clauses the loop below reads.
+		return p.parseRedshiftIcebergMaterializedViewOptions(options)
 	}
 	for {
 		consumed := false

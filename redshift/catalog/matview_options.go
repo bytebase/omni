@@ -39,7 +39,12 @@ func deparseMatViewOptions(rel *Relation) string {
 		return " DISTSTYLE " + strings.ToUpper(stringVal(elem.Arg))
 	})
 	each("distkey", func(elem *nodes.DefElem) string {
-		return " DISTKEY (" + strings.Join(stringListItems(elem.Arg.(*nodes.List)), ", ") + ")"
+		// The attribute parser takes a bare DISTKEY as well as DISTKEY (col).
+		list, ok := elem.Arg.(*nodes.List)
+		if !ok {
+			return " DISTKEY"
+		}
+		return " DISTKEY (" + strings.Join(stringListItems(list), ", ") + ")"
 	})
 	// SORTKEY's style is a DefElem of its own, written before it.
 	each("sortstyle", func(elem *nodes.DefElem) string {
