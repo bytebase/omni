@@ -836,13 +836,16 @@ func applyFutureColumns(tbl *Table, changes []futureColumn) {
 			tbl.Columns[at] = col
 		}
 		if ch.from != "" {
-			// A CHANGE moves its source definition. If the destination is
-			// already a column the live CHANGE will fail with 1060, so it
-			// contributes no prospective definition.
+			// A CHANGE moves its source definition. If the source is gone or
+			// the destination is already a column, the live CHANGE fails
+			// (1054 or 1060) and contributes no prospective definition.
+			group := aliases[toLower(ch.from)]
+			if _, ok := tbl.colByName[toLower(ch.from)]; !ok && len(group) == 0 {
+				continue
+			}
 			if !strings.EqualFold(ch.from, ch.def.Name) && tbl.GetColumn(ch.def.Name) != nil {
 				continue
 			}
-			group := aliases[toLower(ch.from)]
 			if len(group) == 0 {
 				group = []string{ch.from}
 			}
@@ -882,6 +885,11 @@ func applyFutureColumns(tbl *Table, changes []futureColumn) {
 			col.Position = tbl.Columns[at].Position
 			tbl.Columns[at] = col
 		} else {
+			// A MODIFY whose source is gone fails with 1054; it adds nothing
+			// for an earlier key to see.
+			if !ch.add {
+				continue
+			}
 			col := buildColumnFromDef(tbl, ch.def)
 			col.Position = len(tbl.Columns) + 1
 			tbl.Columns = append(tbl.Columns, col)
