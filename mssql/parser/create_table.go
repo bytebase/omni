@@ -107,13 +107,18 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 
 	// Column and constraint definitions. SQL Server requires one, except on
 	// AS EDGE and AS FILETABLE, which it takes with no list: CREATE TABLE a
-	// and CREATE TABLE a AS NODE are Msg 102 (measured).
+	// and CREATE TABLE a AS NODE are Msg 102 (measured). Their statements
+	// still take the table options that follow a list, as
+	// CREATE TABLE ft AS FILETABLE WITH (FILETABLE_DIRECTORY = 'docs') does.
+	listed := true
 	if _, err := p.expect('('); err != nil {
 		if !stmt.IsEdge && !stmt.IsFileTable {
 			return nil, err
 		}
-		stmt.Loc.End = p.prevEnd()
-		return stmt, nil
+		listed = false
+	}
+	if !listed {
+		return p.parseCreateTableOptions(stmt)
 	}
 
 	// Completion: inside CREATE TABLE column list → constraint keywords / columnref
@@ -212,6 +217,13 @@ func (p *Parser) parseCreateTableStmt() (*nodes.CreateTableStmt, error) {
 		stmt.Constraints = &nodes.List{Items: constraints}
 	}
 
+	return p.parseCreateTableOptions(stmt)
+}
+
+// parseCreateTableOptions parses what follows a CREATE TABLE body: ON
+// <filegroup>, TEXTIMAGE_ON, FILESTREAM_ON and WITH ( table_options ), and
+// ends the statement.
+func (p *Parser) parseCreateTableOptions(stmt *nodes.CreateTableStmt) (*nodes.CreateTableStmt, error) {
 	// Completion: after closing paren → ON/WITH/;
 	if p.collectMode() {
 		p.addTokenCandidate(kwON)
@@ -420,8 +432,15 @@ func (p *Parser) parseOneTableOption() (*nodes.TableOption, error) {
 			p.expect(')')
 		}
 	} else {
-		// Simple NAME = VALUE
-		if p.isIdentLike() {
+		// Simple NAME = VALUE. FILETABLE_DIRECTORY is the one that takes a
+		// string (<directory_name>), which the option keeps as written,
+		// quotes and all; the constraint-name options beside it take an
+		// identifier, and the server refuses `FILETABLE_PRIMARY_KEY_
+		// CONSTRAINT_NAME = 'pk'` (measured).
+		if name == "FILETABLE_DIRECTORY" && (p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST) {
+			opt.Value = p.tokenText(p.cur)
+			p.advance()
+		} else if p.isIdentLike() {
 			opt.Value = strings.ToUpper(p.cur.Str)
 			p.advance()
 		} else if p.cur.Type == kwON {
