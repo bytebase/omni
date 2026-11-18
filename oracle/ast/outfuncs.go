@@ -7100,6 +7100,9 @@ func writeCreateIndextypeStmt(sb *strings.Builder, n *CreateIndextypeStmt) {
 	if n.ArrayDML {
 		sb.WriteString(" :arrayDML true")
 	}
+	if len(n.ArrayDMLTypes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :arrayDMLTypes %q", strings.Join(n.ArrayDMLTypes, ";")))
+	}
 	if n.WithoutArrayDML {
 		sb.WriteString(" :withoutArrayDML true")
 	}
@@ -7146,6 +7149,9 @@ func writeAlterIndextypeStmt(sb *strings.Builder, n *AlterIndextypeStmt) {
 	}
 	if n.ArrayDML {
 		sb.WriteString(" :arrayDML true")
+	}
+	if len(n.ArrayDMLTypes) > 0 {
+		sb.WriteString(fmt.Sprintf(" :arrayDMLTypes %q", strings.Join(n.ArrayDMLTypes, ";")))
 	}
 	if n.WithoutArrayDML {
 		sb.WriteString(" :withoutArrayDML true")

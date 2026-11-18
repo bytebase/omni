@@ -471,9 +471,11 @@ func (p *Parser) parseCreateIndextypeStmt(start int, orReplace bool) (*nodes.Cre
 			if err := p.ixOnce(seen, "ARRAY"); err != nil {
 				return nil, err
 			}
-			if err := p.parseArrayDMLTail(); err != nil {
+			pairs, err := p.parseArrayDMLTail()
+			if err != nil {
 				return nil, err
 			}
+			stmt.ArrayDMLTypes = append(stmt.ArrayDMLTypes, pairs...)
 			if without {
 				stmt.WithoutArrayDML = true
 			} else {
@@ -517,31 +519,37 @@ func (p *Parser) parseStorageTableTail() (string, error) {
 //
 // The page allows a list of pairs; Oracle takes one (WITH ARRAY DML (a, a),
 // (a, a) is refused at the second).
-func (p *Parser) parseArrayDMLTail() error {
+func (p *Parser) parseArrayDMLTail() ([]string, error) {
 	p.advance() // ARRAY
 	if err := p.ixWord("DML"); err != nil {
-		return err
+		return nil, err
 	}
 	if p.cur.Type != '(' {
-		return nil
+		return nil, nil
 	}
+	var pairs []string
 	for {
 		p.advance() // consume (
+		var names [2]string
 		for i := 0; i < 2; i++ {
 			if i > 0 {
 				if p.cur.Type != ',' {
-					return p.syntaxErrorAtCur()
+					return nil, p.syntaxErrorAtCur()
 				}
 				p.advance()
 			}
-			if name, err := p.parseOperatorType(); err != nil {
-				return err
-			} else if name == "" {
-				return p.syntaxErrorAtCur()
+			name, err := p.parseOperatorType()
+			if err != nil {
+				return nil, err
 			}
+			if name == "" {
+				return nil, p.syntaxErrorAtCur()
+			}
+			names[i] = name
 		}
+		pairs = append(pairs, names[0]+","+names[1])
 		if p.cur.Type != ')' {
-			return p.syntaxErrorAtCur()
+			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
 		// The page allows a list of pairs; Oracle takes one or more.
@@ -550,7 +558,7 @@ func (p *Parser) parseArrayDMLTail() error {
 		}
 		p.advance() // consume ,
 	}
-	return nil
+	return pairs, nil
 }
 
 // parseIndextypeOp reads [ schema. ] operator ( parameter_type [, ...] ).
@@ -645,9 +653,11 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 		}
 		if p.cur.Type == kwWITH && p.peekNext().Str == "ARRAY" {
 			p.advance()
-			if err := p.parseArrayDMLTail(); err != nil {
+			pairs, err := p.parseArrayDMLTail()
+			if err != nil {
 				return nil, err
 			}
+			stmt.ArrayDMLTypes = append(stmt.ArrayDMLTypes, pairs...)
 			seen["ARRAY"] = true
 			stmt.ArrayDML = true
 		}
@@ -686,9 +696,11 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 			if err := p.ixOnce(seen, "ARRAY"); err != nil {
 				return nil, err
 			}
-			if err := p.parseArrayDMLTail(); err != nil {
+			pairs, err := p.parseArrayDMLTail()
+			if err != nil {
 				return nil, err
 			}
+			stmt.ArrayDMLTypes = append(stmt.ArrayDMLTypes, pairs...)
 			if without {
 				stmt.WithoutArrayDML = true
 			} else {

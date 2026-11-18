@@ -475,6 +475,7 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 		start := p.pos()
 		op := ""
 		var name, value string
+		var valueLoc nodes.Loc
 		switch {
 		case p.cur.Type == kwADD, p.cur.Type == kwDROP:
 			op = p.cur.Str
@@ -494,6 +495,7 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			name = p.prev.Str
 			if p.cur.Type == tokSCONST {
 				value = p.cur.Str
+				valueLoc = nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 				p.advance()
 			}
 		case p.atWord("REPLACE"):
@@ -505,9 +507,10 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			name = p.prev.Str
 			if p.cur.Type == tokSCONST {
 				value = p.cur.Str
+				valueLoc = nodes.Loc{Start: p.cur.Loc, End: p.cur.End}
 				p.advance()
 			}
-		case p.atWord("REMOVE") && p.atNextWord("ALL"):
+		case p.atWord("REMOVE") && (p.peekNext().Type == kwALL || p.atNextWord("ALL")):
 			op = "REMOVE"
 			p.advance()
 			p.advance()
@@ -539,7 +542,7 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 		}
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start, End: p.prev.End}}
 		if value != "" {
-			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.String{Str: value}}}
+			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: value, Loc: valueLoc}}}
 		}
 		anns.Items = append(anns.Items, opt)
 		if p.cur.Type != ',' {

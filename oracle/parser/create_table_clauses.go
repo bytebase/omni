@@ -1192,7 +1192,7 @@ func (p *Parser) parseCreateTableAnnotations() (*nodes.List, error) {
 		}
 		opt := &nodes.DDLOption{Key: op, Value: name, Loc: nodes.Loc{Start: start}}
 		if p.cur.Type == tokSCONST {
-			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.String{Str: p.cur.Str}}}
+			opt.Items = &nodes.List{Items: []nodes.Node{&nodes.StringLiteral{Val: p.cur.Str, Loc: nodes.Loc{Start: p.cur.Loc, End: p.cur.End}}}}
 			p.advance()
 		}
 		opt.Loc.End = p.prev.End
