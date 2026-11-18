@@ -219,7 +219,7 @@ func (p *Parser) parseAlterTableAdd() (*nodes.AlterTableCmd, error) {
 	if p.atWord("SUPPLEMENTAL") {
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "ADD SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(true, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(true, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
@@ -969,7 +969,7 @@ func (p *Parser) parseAlterTableDrop() (*nodes.AlterTableCmd, error) {
 	case p.atWord("SUPPLEMENTAL"):
 		p.advance() // consume SUPPLEMENTAL
 		cmd := &nodes.AlterTableCmd{Action: nodes.AT_ALTER_PROPERTY, Subtype: "DROP SUPPLEMENTAL LOG", Options: &nodes.List{}}
-		if err := p.parseATSupplementalLogging(false, cmd.Options); err != nil {
+		if err := p.parseATSupplementalLogging(false, false, cmd.Options); err != nil {
 			return nil, err
 		}
 		cmd.Loc = nodes.Loc{Start: start, End: p.prev.End}
