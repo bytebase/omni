@@ -287,7 +287,10 @@ func (p *Parser) parseComparison(left Expr) (Expr, error) {
 // preceding NOT was consumed. notLoc is the NOT token's Loc (valid only when not
 // is true) so the result span starts at NOT.
 func (p *Parser) parseNegatablePredicate(left Expr, not bool, notLoc ast.Loc) (Expr, error) {
-	start := left.Span().Start
+	start := p.cur.Loc.Start
+	if left != nil {
+		start = left.Span().Start
+	}
 	if not {
 		start = notLoc.Start
 	}
@@ -369,8 +372,9 @@ func (p *Parser) parseMatchPredicate(left Expr) (Expr, error) {
 		return nil, err
 	}
 	// A body that is no query is a syntax error at the '(' in Trino's reading,
-	// not at the body's first token.
-	if _, perr := Parse(sub.RawText); perr != nil {
+	// not at the body's first token. In a strict parse the body was already
+	// parsed in place, so SubqueryExpr.Query says whether it is a query.
+	if p.strictTrailing && sub.Query == nil {
 		return nil, &ParseError{Position: openTok.Loc.Start, End: openTok.Loc.End, Message: "expected a query in MATCH("}
 	}
 	return &MatchExpr{

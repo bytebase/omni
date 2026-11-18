@@ -377,20 +377,29 @@ func valuesRowElements(row parser.Expr) []parser.Expr {
 // lineage that grows by an arm's sources each time, so n arms of distinct
 // columns cost O(n²).
 func resolveSetOpCols(n *parser.SetOperation, cte *cteDefs) []outCol {
-	// rights lists the chain's right operands, outermost first.
-	var rights []parser.QueryNode
+	// rights lists the chain's right operands and whether that operation is
+	// CORRESPONDING, outermost first.
+	type setOpRight struct {
+		node          parser.QueryNode
+		corresponding bool
+	}
+	var rights []setOpRight
 	var node parser.QueryNode = n
 	for {
 		op, ok := node.(*parser.SetOperation)
 		if !ok {
 			break
 		}
-		rights = append(rights, op.Right)
+		rights = append(rights, setOpRight{node: op.Right, corresponding: op.Corresponding})
 		node = op.Left
 	}
 	m := newArmMerger(resolveNodeCols(node, cte))
 	for i := len(rights) - 1; i >= 0; i-- {
-		m.merge(resolveNodeCols(rights[i], cte))
+		if rights[i].corresponding {
+			m.mergeCorresponding(resolveNodeCols(rights[i].node, cte))
+		} else {
+			m.merge(resolveNodeCols(rights[i].node, cte))
+		}
 	}
 	return m.cols
 }
@@ -458,6 +467,43 @@ func (m *armMerger) merge(right []outCol) {
 			}
 		}
 	}
+}
+
+// mergeCorresponding merges a CORRESPONDING arm by name: the result keeps only
+// the left columns whose names also occur on the right, in left order, and each
+// such column unions the right column's sources. Trino rejects CORRESPONDING BY
+// columns semantically, so the column-name intersection is the supported form.
+func (m *armMerger) mergeCorresponding(right []outCol) {
+	if m.opaque || hasOpaque(right) {
+		return
+	}
+	byName := make(map[string]outCol, len(right))
+	for _, c := range right {
+		if _, ok := byName[c.name]; !ok {
+			byName[c.name] = c
+		}
+	}
+	var cols []outCol
+	var seen []map[ColumnRef]bool
+	for _, left := range m.cols {
+		r, ok := byName[left.name]
+		if !ok {
+			continue
+		}
+		merged := left
+		seenMap := make(map[ColumnRef]bool, len(left.sources)+len(r.sources))
+		out := make([]ColumnRef, 0, len(left.sources)+len(r.sources))
+		for _, ref := range append(append([]ColumnRef(nil), left.sources...), r.sources...) {
+			if !seenMap[ref] {
+				seenMap[ref] = true
+				out = append(out, ref)
+			}
+		}
+		merged.sources = out
+		cols = append(cols, merged)
+		seen = append(seen, seenMap)
+	}
+	m.cols, m.seen, m.copied = cols, seen, true
 }
 
 // resolveSpecCols computes the resolved output columns of one SELECT block: it
@@ -774,6 +820,8 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 		return joinProjection(left, right, n)
 	case *parser.ParenRelation:
 		return s.add(n.Inner, alias, colAliases)
+	case *parser.NearestRelation:
+		return s.add(n.From, alias, colAliases)
 	case *parser.TableRelation:
 		parts := normalizedParts(n.Name)
 		// A single-part name that matches an in-scope CTE is a derived relation

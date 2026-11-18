@@ -568,11 +568,17 @@ func (p *Parser) parseFunctionCall(name *ast.QualifiedName, processingMode strin
 
 	if !fc.Star {
 		// setQuantifier? expression (, expression)*
+		quantified := false
 		if p.cur.Kind == kwDISTINCT {
 			p.advance()
 			fc.Distinct = true
+			quantified = true
 		} else if p.cur.Kind == kwALL {
 			p.advance() // ALL is the default; recorded by absence of Distinct
+			quantified = true
+		}
+		if quantified && (p.cur.Kind == int(')') || p.cur.Kind == kwORDER) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		if p.cur.Kind != int(')') && p.cur.Kind != kwORDER {
 			first, err := p.parseArgument()

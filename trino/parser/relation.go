@@ -784,9 +784,10 @@ func (p *Parser) parseNearestRelation() (Relation, error) {
 	if _, err := p.expect(kwFROM); err != nil {
 		return nil, err
 	}
+	savedNoMatchAlias := p.noMatchAlias
 	p.noMatchAlias = true
 	from, err := p.parseRelation()
-	p.noMatchAlias = false
+	p.noMatchAlias = savedNoMatchAlias
 	if err != nil {
 		return nil, err
 	}

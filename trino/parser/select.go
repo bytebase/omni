@@ -278,7 +278,10 @@ func (p *Parser) parseQueryStmt() (ast.Node, error) {
 // File holds ast.Node statements. Query is the parsed query body.
 type QueryStmt struct {
 	Query *Query
-	Loc   ast.Loc
+	// Session holds the `WITH SESSION name = value …` properties of the
+	// rootQueryWithSession statement form; nil otherwise.
+	Session []SessionProperty
+	Loc     ast.Loc
 }
 
 // Tag implements ast.Node.
@@ -850,7 +853,7 @@ func startsExpression(kind TokenKind) bool {
 		kwNULL, kwTRUE, kwFALSE,
 		tokString, tokUnicodeString, tokInteger, tokDecimal, tokDouble, tokBinaryLiteral,
 		tokQuestion, int('?'),
-		kwINTERVAL, int('('),
+		kwINTERVAL, int('('), int('['),
 		kwARRAY, kwROW, kwCASE, kwCAST, kwTRY_CAST, kwEXISTS,
 		kwEXTRACT, kwTRIM, kwNORMALIZE, kwLISTAGG, kwGROUPING,
 		kwJSON_EXISTS, kwJSON_VALUE, kwJSON_QUERY, kwJSON_OBJECT, kwJSON_ARRAY,

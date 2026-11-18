@@ -13,36 +13,25 @@ type SessionProperty struct {
 	Loc   ast.Loc
 }
 
-// QueryWithSessionStmt is `WITH SESSION prop (, prop)* rootQuery`.
-type QueryWithSessionStmt struct {
-	Properties []SessionProperty
-	Query      *Query
-	Loc        ast.Loc
-}
-
-func (n *QueryWithSessionStmt) Tag() ast.NodeTag { return ast.T_Invalid }
-func (n *QueryWithSessionStmt) Span() ast.Loc    { return n.Loc }
-
-var _ ast.Node = (*QueryWithSessionStmt)(nil)
-
 // parseQueryWithSessionStmt parses `WITH SESSION prop (, prop)* query`. WITH is
-// current and SESSION is the next token.
+// current and SESSION is the next token. The result is an ordinary QueryStmt
+// carrying the session properties, so every analysis consumer keeps working.
 func (p *Parser) parseQueryWithSessionStmt() (ast.Node, error) {
 	withTok := p.advance() // consume WITH
 	p.advance()            // consume SESSION
-	s := &QueryWithSessionStmt{Loc: ast.Loc{Start: withTok.Loc.Start}}
+	s := &QueryStmt{Loc: ast.Loc{Start: withTok.Loc.Start}}
 	first, err := p.parseSessionProperty()
 	if err != nil {
 		return nil, err
 	}
-	s.Properties = append(s.Properties, first)
+	s.Session = append(s.Session, first)
 	for p.cur.Kind == int(',') {
 		p.advance() // consume ','
 		next, err := p.parseSessionProperty()
 		if err != nil {
 			return nil, err
 		}
-		s.Properties = append(s.Properties, next)
+		s.Session = append(s.Session, next)
 	}
 	q, err := p.parseQuery()
 	if err != nil {

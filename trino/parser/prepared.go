@@ -389,6 +389,27 @@ func (p *Parser) parseDeallocateStmt() (ast.Node, error) {
 	}, nil
 }
 
+// stringSourceOffset maps a byte offset in a string literal's decoded value to
+// the byte offset of that character in the source token. A doubled quote is one
+// decoded byte but two source bytes.
+func (p *Parser) stringSourceOffset(tok Token, decoded int) int {
+	raw := p.sourceSlice(tok.Loc.Start, tok.Loc.End)
+	if len(raw) < 2 {
+		return tok.Loc.Start + decoded
+	}
+	i, n := 1, 0
+	for i < len(raw)-1 && n < decoded {
+		if raw[i] == '\'' && i+1 < len(raw)-1 && raw[i+1] == '\'' {
+			n++
+			i += 2
+		} else {
+			n++
+			i++
+		}
+	}
+	return tok.Loc.Start + i
+}
+
 // parseExecuteStmt parses both EXECUTE forms, dispatching on a leading
 // IMMEDIATE:
 //
@@ -466,8 +487,8 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 		if _, err := Parse(strTok.Str); err != nil {
 			if errs := AllErrors(err); len(errs) > 0 {
 				return nil, &ParseError{
-					Position: strTok.Loc.Start + 1 + errs[0].Position,
-					End:      strTok.Loc.Start + 1 + errs[0].End,
+					Position: p.stringSourceOffset(strTok, errs[0].Position),
+					End:      p.stringSourceOffset(strTok, errs[0].End),
 					Message:  errs[0].Message,
 				}
 			}
