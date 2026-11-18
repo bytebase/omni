@@ -984,20 +984,21 @@ func (p *Parser) parseSimpleSelect() (*nodes.SelectStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	// opt_with_vector_index_parameters: PARAMETERS (name = value, ...), after
+	// the LIMIT of a vector search.
+	params, err := p.parseVectorIndexParams()
+	if err != nil {
+		return nil, err
+	}
+	stmt.VectorIndexParams = params
+
 	// The vector search forms belong to simple_select_with_order_and_limit,
 	// whose FROM is required: no_table_select_with_order_and_limit has neither
 	// opt_approx nor opt_with_vector_index_parameters, so
-	// `SELECT 1 ORDER BY 1 APPROX LIMIT 1` is a 1064.
+	// `SELECT 1 ORDER BY 1 APPROX LIMIT 1` and `SELECT 1 LIMIT 1 PARAMETERS(x = 1)`
+	// are 1064s.
 	if (stmt.Approx || len(stmt.VectorIndexParams) > 0) && len(stmt.From) == 0 {
 		return nil, p.syntaxErrorAtCur()
-	}
-
-	// opt_with_vector_index_parameters: PARAMETERS (name = value, ...), after
-	// the LIMIT of a vector search.
-	if params, err := p.parseVectorIndexParams(); err != nil {
-		return nil, err
-	} else {
-		stmt.VectorIndexParams = params
 	}
 
 	// FOR UPDATE / FOR SHARE / LOCK IN SHARE MODE
@@ -1752,12 +1753,18 @@ func (p *Parser) parseOdbcTableReference() (nodes.TableExpr, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	p.advance() // consume OJ
-	inner, err := p.parseTableFactor()
+	// The escape holds a table_reference, which is a table factor and the joins
+	// after it: `{ OJ a JOIN b ON a.id = b.id }` is one.
+	factor, err := p.parseTableFactor()
 	if err != nil {
 		return nil, err
 	}
-	if inner == nil {
+	if factor == nil {
 		return nil, p.syntaxErrorAtCur()
+	}
+	inner, err := p.parseJoinChain(factor, true)
+	if err != nil {
+		return nil, err
 	}
 	if _, err := p.expect('}'); err != nil {
 		return nil, err
@@ -2279,7 +2286,7 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 	for {
 		start := p.pos()
 		var expr nodes.ExprNode
-		set, err := p.parseGroupingSet(false)
+		set, err := p.parseGroupingSet(true)
 		switch {
 		case err != nil:
 			return nil, err
@@ -2325,21 +2332,22 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 // It returns nil and no error when the tokens are none of those, and the caller
 // reads an ordinary expression instead.
 //
-// nested lets an item be a ROLLUP or a CUBE itself, which only a GROUPING SETS
-// list allows: `GROUP BY ROLLUP(ROLLUP(a))` is a 1064 while
+// allowRollup lets the word open a ROLLUP or a CUBE here, which the GROUP BY list
+// and a GROUPING SETS list allow and a ROLLUP or CUBE list does not:
+// `GROUP BY ROLLUP(ROLLUP(a))` is a 1064 while
 // `GROUP BY GROUPING SETS(ROLLUP(a))` is not.
 //
 // Ref: sort_key_for_group_by, rollup_clause, cube_clause,
 // grouping_sets_clause, grouping_sets and gs_group_by_expr in
 // sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 13531-13623).
-func (p *Parser) parseGroupingSet(nested bool) (*nodes.GroupingSet, error) {
+func (p *Parser) parseGroupingSet(allowRollup bool) (*nodes.GroupingSet, error) {
 	start := p.pos()
 
 	kind := ""
 	switch {
-	case p.cur.Type == kwROLLUP:
+	case p.cur.Type == kwROLLUP && allowRollup:
 		kind = "ROLLUP"
-	case p.cur.Type == kwCUBE:
+	case p.cur.Type == kwCUBE && allowRollup:
 		kind = "CUBE"
 	case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS:
 		kind = "GROUPING SETS"

@@ -59,6 +59,25 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		return analyzeCastExpr(c, n, scope)
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
+	case *nodes.QuantifiedExpr:
+		// any_expr's `ALL (expr)` / `ANY (expr)` holds one expression of its own.
+		return analyzeExpr(c, n.Expr, scope)
+	case *nodes.OdbcEscapeExpr:
+		// `{fn expr}` is the escape's expression and nothing else.
+		return analyzeExpr(c, n.Expr, scope)
+	case *nodes.RemoteSequenceExpr:
+		// A sequence read through a database link is a value of its own, with no
+		// column of a local table behind it.
+		return &ConstExprQ{Value: deparse.Deparse(n)}, nil
+	case *nodes.GroupingSet:
+		// A GROUP BY item's grouping set holds the expressions it groups by.
+		if len(n.Items) == 0 {
+			return &ConstExprQ{IsNull: true, Value: "NULL"}, nil
+		}
+		if len(n.Items) == 1 {
+			return analyzeExpr(c, n.Items[0], scope)
+		}
+		return &ConstExprQ{Value: deparse.Deparse(n)}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:

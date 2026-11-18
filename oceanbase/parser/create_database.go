@@ -322,8 +322,13 @@ func (p *Parser) parseDatabaseOption() (*nodes.DatabaseOption, bool, error) {
 // Ref: charset_name in sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 7442-7480).
 func (p *Parser) parseCharsetName() (string, error) {
 	switch p.cur.Type {
-	case tokIDENT, tokSCONST, kwBINARY, kwASCII:
-		if !isCharsetNameWord(p.cur.Str) {
+	case tokSCONST, kwBINARY, kwASCII:
+		tok := p.advance()
+		return tok.Str, nil
+	case tokIDENT:
+		// A quoted name spells a name whatever it says; an unquoted one is a
+		// charset name only if OceanBase's lexer has no keyword for it.
+		if !p.backtickQuotedAt(p.cur.Loc) && !isCharsetNameWord(p.cur.Str) {
 			return "", p.syntaxErrorAtCur()
 		}
 		tok := p.advance()

@@ -361,8 +361,11 @@ func (p *Parser) parseSetCharsetName() (string, int, error) {
 		return "", 0, p.syntaxErrorAtCur()
 	}
 	switch p.cur.Type {
-	case tokIDENT, tokSCONST, kwBINARY, kwASCII:
-		if !isCharsetNameWord(p.cur.Str) {
+	case tokSCONST, kwBINARY, kwASCII:
+		tok := p.advance()
+		return tok.Str, tok.Loc, nil
+	case tokIDENT:
+		if !p.backtickQuotedAt(p.cur.Loc) && !isCharsetNameWord(p.cur.Str) {
 			return "", 0, p.syntaxErrorAtCur()
 		}
 		tok := p.advance()

@@ -9736,7 +9736,7 @@ reject	reject	engine	table_reference/{_OJ_table_factor_}!drop-3	SELECT a FROM { 
 reject	reject	engine	table_reference/{_OJ_table_factor_}!drop-4	SELECT a FROM { OJ a
 reject	reject	engine	table_reference/{_OJ_table_factor_}!insert	SELECT a FROM { OJ a } zzz
 reject	reject	engine	table_reference/{_OJ_table_factor_}!swap	SELECT a FROM { OLD a }
-reject	accept	engine	table_reference/{_OJ_joined_table_}	SELECT a FROM { OJ a JOIN a }
+accept	accept	engine	table_reference/{_OJ_joined_table_}	SELECT a FROM { OJ a JOIN a }
 reject	reject	engine	table_reference/{_OJ_joined_table_}!drop-1	SELECT a FROM OJ a JOIN a }
 reject	reject	engine	table_reference/{_OJ_joined_table_}!drop-2	SELECT a FROM { a JOIN a }
 reject	reject	engine	table_reference/{_OJ_joined_table_}!drop-3	SELECT a FROM { OJ JOIN a }

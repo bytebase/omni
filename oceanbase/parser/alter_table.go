@@ -1618,12 +1618,14 @@ func (p *Parser) parseColumnPositioning(cmd *nodes.AlterTableCmd) error {
 		}
 		cmd.After = name
 	} else if p.isBareWord("BEFORE") {
+		// opt_position_column's other arm, which places the column before the one
+		// it names where AFTER places it after.
 		p.advance()
 		name, _, err := p.parseIdentifier()
 		if err != nil {
 			return err
 		}
-		cmd.After = name
+		cmd.Before = name
 	}
 	return nil
 }

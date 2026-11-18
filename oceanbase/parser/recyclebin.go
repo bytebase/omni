@@ -54,13 +54,39 @@ func (p *Parser) parsePurgeStmt() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	name, err := p.parseRelationFactor()
+	name, err := p.parseRecyclebinName(stmt.Kind)
 	if err != nil {
 		return nil, err
 	}
 	stmt.Name = name
 	stmt.Loc.End = p.prev.End
 	return stmt, nil
+}
+
+// parseRecyclebinName reads the object of a PURGE or FLASHBACK. TABLE and INDEX
+// take a relation_factor; a database takes a database_factor and a tenant a
+// single relation_name, so neither takes a three-part name or a database link.
+func (p *Parser) parseRecyclebinName(kind string) (*nodes.TableRef, error) {
+	if kind == "TABLE" || kind == "INDEX" {
+		return p.parseRelationFactor()
+	}
+	start := p.pos()
+	name, _, err := p.parseIdent()
+	if err != nil {
+		return nil, err
+	}
+	ref := &nodes.TableRef{Loc: nodes.Loc{Start: start}, Name: name}
+	// A database_factor's `catalog.db` is the one qualified form.
+	if kind == "DATABASE" && p.cur.Type == '.' {
+		p.advance()
+		db, err := p.parseNameAfterDot()
+		if err != nil {
+			return nil, err
+		}
+		ref.Catalog, ref.Name = name, db
+	}
+	ref.Loc.End = p.prev.End
+	return ref, nil
 }
 
 // parseFlashbackStmt parses OceanBase's flashback_stmt, which restores an
@@ -95,7 +121,7 @@ func (p *Parser) parseFlashbackStmt() (nodes.Node, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 
-	name, err := p.parseRelationFactor()
+	name, err := p.parseRecyclebinName(stmt.Kind)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +143,7 @@ func (p *Parser) parseFlashbackStmt() (nodes.Node, error) {
 		if _, err := p.expect(kwTO); err != nil {
 			return nil, err
 		}
-		renameTo, err := p.parseRelationFactor()
+		renameTo, err := p.parseRecyclebinName(stmt.Kind)
 		if err != nil {
 			return nil, err
 		}

@@ -147,6 +147,21 @@ func (c *Catalog) execAlterCmd(db *Database, tbl *Table, cmd *nodes.AlterTableCm
 	case nodes.ATDropIndex:
 		return c.alterDropIndex(tbl, cmd)
 	case nodes.ATDropConstraint:
+		// alter_constraint_option's list form, DROP CHECK (c1, c2) and
+		// DROP CONSTRAINT (c1, c2), drops every name it writes.
+		if len(cmd.ConstraintNames) > 0 {
+			for _, name := range cmd.ConstraintNames {
+				if err := c.alterDropConstraint(tbl, &nodes.AlterTableCmd{
+					Loc:      cmd.Loc,
+					Type:     cmd.Type,
+					Name:     name,
+					IfExists: cmd.IfExists,
+				}); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
 		return c.alterDropConstraint(tbl, cmd)
 	case nodes.ATRenameColumn:
 		return c.alterRenameColumn(tbl, cmd)
@@ -235,7 +250,7 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	// Handle multi-column parenthesized form: ADD (col1 INT, col2 INT, ...)
 	if len(cmd.Columns) > 0 {
 		for _, colDef := range cmd.Columns {
-			if err := c.addSingleColumn(tbl, colDef, false, ""); err != nil {
+			if err := c.addSingleColumn(tbl, colDef, &nodes.AlterTableCmd{}); err != nil {
 				return err
 			}
 		}
@@ -247,11 +262,11 @@ func (c *Catalog) alterAddColumn(tbl *Table, cmd *nodes.AlterTableCmd) error {
 		return nil
 	}
 
-	return c.addSingleColumn(tbl, colDef, cmd.First, cmd.After)
+	return c.addSingleColumn(tbl, colDef, cmd)
 }
 
 // addSingleColumn adds one column definition to the table.
-func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first bool, after string) error {
+func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, cmd *nodes.AlterTableCmd) error {
 	if err := checkAddedGeneratedCheck(colDef); err != nil {
 		return err
 	}
@@ -270,7 +285,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
-	if err := insertColumn(tbl, col, first, after); err != nil {
+	if err := insertColumn(tbl, col, cmd.First, cmd.After, cmd.Before); err != nil {
 		return err
 	}
 
@@ -507,10 +522,10 @@ func (c *Catalog) alterReplaceColumn(tbl *Table, oldName string, cmd *nodes.Alte
 	}
 
 	// Handle repositioning.
-	if cmd.First || cmd.After != "" {
+	if cmd.First || cmd.After != "" || cmd.Before != "" {
 		tbl.Columns = append(tbl.Columns[:idx], tbl.Columns[idx+1:]...)
 		rebuildColIndex(tbl)
-		if err := insertColumn(tbl, col, cmd.First, cmd.After); err != nil {
+		if err := insertColumn(tbl, col, cmd.First, cmd.After, cmd.Before); err != nil {
 			return err
 		}
 	} else {
@@ -1066,10 +1081,11 @@ func (c *Catalog) alterIndexVisibility(tbl *Table, cmd *nodes.AlterTableCmd, vis
 
 // insertColumn inserts col into tbl at the position specified by first/after.
 // If neither first nor after is set, appends at end. Always rebuilds the column index.
-func insertColumn(tbl *Table, col *Column, first bool, after string) error {
-	if first {
+func insertColumn(tbl *Table, col *Column, first bool, after, before string) error {
+	switch {
+	case first:
 		tbl.Columns = append([]*Column{col}, tbl.Columns...)
-	} else if after != "" {
+	case after != "":
 		afterIdx, ok := tbl.colByName[toLower(after)]
 		if !ok {
 			return errNoSuchColumn(after, tbl.Name)
@@ -1078,7 +1094,15 @@ func insertColumn(tbl *Table, col *Column, first bool, after string) error {
 		tbl.Columns = append(tbl.Columns, nil)
 		copy(tbl.Columns[pos+1:], tbl.Columns[pos:])
 		tbl.Columns[pos] = col
-	} else {
+	case before != "":
+		beforeIdx, ok := tbl.colByName[toLower(before)]
+		if !ok {
+			return errNoSuchColumn(before, tbl.Name)
+		}
+		tbl.Columns = append(tbl.Columns, nil)
+		copy(tbl.Columns[beforeIdx+1:], tbl.Columns[beforeIdx:])
+		tbl.Columns[beforeIdx] = col
+	default:
 		tbl.Columns = append(tbl.Columns, col)
 	}
 	rebuildColIndex(tbl)

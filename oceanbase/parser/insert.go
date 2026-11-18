@@ -138,6 +138,11 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 	aliasable := false
 	switch p.cur.Type {
 	case kwVALUE, kwVALUES:
+		// INSERT OVERWRITE's source is a query: insert_stmt's OVERWRITE arm is
+		// opt_into_single_table_insert, and no values_clause of rows.
+		if stmt.Overwrite {
+			return nil, p.syntaxErrorAtCur()
+		}
 		if p.cur.Type == kwVALUES && p.peekNext().Type == kwROW {
 			if err := p.parseInsertValuesQuery(stmt); err != nil {
 				return nil, err
@@ -154,7 +159,7 @@ func (p *Parser) parseInsertOrReplace(isReplace bool) (*nodes.InsertStmt, error)
 
 	case kwSET:
 		// SET names its own columns, so it follows the table directly.
-		if stmt.Columns != nil {
+		if stmt.Columns != nil || stmt.Overwrite {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance() // consume SET

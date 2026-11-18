@@ -318,6 +318,7 @@ type AlterTableCmd struct {
 	IfExists       bool
 	First          bool             // FIRST positioning
 	After          string           // AFTER column positioning
+	Before         string           // BEFORE column positioning (opt_position_column)
 	PartitionNames []string         // for partition operations (DROP/TRUNCATE/ANALYZE/CHECK/OPTIMIZE/REBUILD/REPAIR/REORGANIZE/DISCARD/IMPORT)
 	AllPartitions  bool             // for partition operations using ALL
 	PartitionDefs  []*PartitionDef  // for ADD PARTITION / REORGANIZE PARTITION ... INTO

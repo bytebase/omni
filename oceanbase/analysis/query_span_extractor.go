@@ -112,7 +112,7 @@ func joinTableSources(l, r tableSource, tp joinType, using []string) tableSource
 // a NATURAL join every column name both sides share.
 func joinedColumnNames(l, r tableSource, tp joinType, using []string) []string {
 	switch tp {
-	case NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin:
+	case NaturalInnerJoin, NaturalLeftOuterJoin, NaturalRightOuterJoin, NaturalFullOuterJoin:
 		var names []string
 		rightColumns := r.GetQuerySpanResult()
 		for _, field := range l.GetQuerySpanResult() {
@@ -707,6 +707,15 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if isDualTable(t) {
 			return &pseudoTable{Name: t.Name}, nil
 		}
+		// A table read through a database link is remote: its columns are not
+		// the local catalog's, so nothing of a same-named local table's is.
+		if t.Dblink != "" {
+			name := t.Name
+			if t.Alias != "" {
+				name = t.Alias
+			}
+			return &pseudoTable{Name: name}, nil
+		}
 		tableSource, err := q.findTableSchema(t.Schema, t.Name)
 		if err != nil {
 			return nil, err
@@ -1187,6 +1196,29 @@ func (q *querySpanExtractor) extractExpr(expr ast.ExprNode) (QuerySpanResult, er
 			return QuerySpanResult{}, err
 		}
 		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.QuantifiedExpr:
+		// any_expr's `ALL (expr)` is one expression, whose columns are the
+		// comparison's.
+		sourceColumns, err := q.mergeExprSources(e.Expr)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.OdbcEscapeExpr:
+		sourceColumns, err := q.mergeExprSources(e.Expr)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
+	case *ast.RemoteSequenceExpr:
+		// A sequence read through a database link is no column of a table here.
+		return QuerySpanResult{Name: q.exprName(e)}, nil
+	case *ast.GroupingSet:
+		sourceColumns, err := q.mergeExprSources(e.Items...)
+		if err != nil {
+			return QuerySpanResult{}, err
+		}
+		return QuerySpanResult{Name: q.exprName(e), SourceColumns: sourceColumns, IsPlainField: false}, nil
 	default:
 		return QuerySpanResult{}, fmt.Errorf("unsupported omni MySQL expression %T", expr)
 	}
@@ -1428,6 +1460,14 @@ func exprNodeLoc(node ast.Node) (ast.Loc, bool) {
 	case *ast.ParenExpr:
 		return n.Loc, true
 	case *ast.StarExpr:
+		return n.Loc, true
+	case *ast.QuantifiedExpr:
+		return n.Loc, true
+	case *ast.OdbcEscapeExpr:
+		return n.Loc, true
+	case *ast.RemoteSequenceExpr:
+		return n.Loc, true
+	case *ast.GroupingSet:
 		return n.Loc, true
 	default:
 		return ast.Loc{}, false
@@ -1818,6 +1858,10 @@ func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, d
 		return
 	}
 	if isDualTable(tableRef) {
+		return
+	}
+	// A database link's table is not the local catalog's resource.
+	if tableRef.Dblink != "" {
 		return
 	}
 	database := tableRef.Schema

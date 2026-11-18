@@ -201,6 +201,25 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 			b.WriteString("s3 ")
 		}
 		b.WriteString(str(into.Outfile))
+		// OceanBase's file_partition_opt stands right after the file, before the
+		// format, and its FORMAT (...) list replaces the fields and lines
+		// clauses.
+		if into.PartitionBy != nil {
+			b.WriteString(" partition by ")
+			writeExpr(b, into.PartitionBy)
+		}
+		if len(into.ExternalFormat) > 0 {
+			b.WriteString(" format(")
+			for i, prop := range into.ExternalFormat {
+				if i > 0 {
+					b.WriteString(",")
+				}
+				b.WriteString(strings.ToLower(prop.Name))
+				b.WriteString("=")
+				writeExpr(b, prop.Value)
+			}
+			b.WriteString(")")
+		}
 		if into.Charset != "" {
 			b.WriteString(" character set " + into.Charset)
 		}
@@ -245,6 +264,16 @@ func writeIntoClause(b *strings.Builder, into *ast.IntoClause) {
 			if into.EncryptionKey != "" {
 				b.WriteString(" " + str(into.EncryptionKey))
 			}
+		}
+		// file_opt: SINGLE, MAX_FILE_SIZE and BUFFER_SIZE, which follow the
+		// fields and lines clauses.
+		for _, opt := range into.FileOptions {
+			b.WriteString(" " + strings.ToLower(opt.Name) + " ")
+			if opt.Name == "SINGLE" {
+				b.WriteString(strings.ToLower(opt.Value))
+				continue
+			}
+			b.WriteString(opt.Value)
 		}
 	default:
 		for i, v := range into.Vars {
@@ -2903,6 +2932,18 @@ func writeFuncCallExpr(b *strings.Builder, n *ast.FuncCallExpr) {
 			// char(65 using 'utf8mb4').
 			b.WriteString(" using ")
 			b.WriteString(strings.ToLower(n.Using))
+		}
+		// NTH_VALUE's FROM FIRST/LAST and the RESPECT/IGNORE NULLS of
+		// FIRST_VALUE, LAST_VALUE, LEAD, LAG and NTH_VALUE are part of the call
+		// and change its result, so a stored view keeps them.
+		if n.FromFirstLast != "" {
+			b.WriteString(" from ")
+			b.WriteString(strings.ToLower(n.FromFirstLast))
+		}
+		if n.NullTreatment != "" {
+			b.WriteString(" ")
+			b.WriteString(strings.ToLower(n.NullTreatment))
+			b.WriteString(" nulls")
 		}
 		b.WriteString(")")
 	}
