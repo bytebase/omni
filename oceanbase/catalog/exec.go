@@ -231,8 +231,17 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		return c.createIndex(s)
 	case *nodes.CreateViewStmt:
 		return c.createView(s, source, true)
+	case *nodes.CreateMaterializedViewStmt:
+		return c.createView(materializedViewAsView(s), source, true)
 	case *nodes.AlterViewStmt:
 		return c.alterView(s, source)
+	case *nodes.AlterMaterializedViewStmt:
+		// A refresh or an ENABLE/DISABLE switch changes no query the catalog
+		// holds, and the catalog models no other part of a materialized view.
+		return nil
+	case *nodes.CreateMaterializedViewLogStmt, *nodes.AlterMaterializedViewLogStmt, *nodes.DropMaterializedViewLogStmt:
+		// A materialized view log is not a schema object the catalog holds.
+		return nil
 	case *nodes.AlterTableStmt:
 		return c.alterTable(s)
 	case *nodes.AlterDatabaseStmt:

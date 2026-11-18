@@ -105,6 +105,22 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	return nil
 }
 
+// materializedViewAsView turns CREATE MATERIALIZED VIEW into the CREATE VIEW
+// the catalog models. A snapshot's materialized view already installs this way
+// (metadata_load.go): the catalog holds no materialized view, so it holds the
+// view its query is. The refresh options, partitioning, table options and
+// primary key change nothing the catalog tracks.
+func materializedViewAsView(stmt *nodes.CreateMaterializedViewStmt) *nodes.CreateViewStmt {
+	return &nodes.CreateViewStmt{
+		Loc:         stmt.Loc,
+		Name:        stmt.Name,
+		Columns:     stmt.Columns,
+		Select:      stmt.Select,
+		SelectText:  stmt.SelectText,
+		CheckOption: stmt.CheckOption,
+	}
+}
+
 // viewColumnNamesUncertain reports whether a view's stored column names may not be
 // the ones the engine gives. A column list the statement wrote is the engine's too;
 // otherwise the names come from the body, and an analysis that did not finish

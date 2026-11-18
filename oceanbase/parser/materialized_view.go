@@ -15,7 +15,7 @@ import (
 // src/sql/parser/sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 9766 and 10724).
 func (p *Parser) parseCreateMaterializedStmt(start int, orReplace bool) (nodes.Node, error) {
 	p.advance() // consume MATERIALIZED
-	if _, err := p.expect(kwVIEW); err != nil {
+	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
 	if p.isBareWord("LOG") {
@@ -35,6 +35,19 @@ func (p *Parser) parseCreateMaterializedStmt(start int, orReplace bool) (nodes.N
 //	       [index_using_algorithm] [COMMENT 'string']]) ]
 //	    [table_option_list] [partition_option] [with_column_group]
 //	    [create_mview_opts] AS view_select_stmt [opt_check_option]
+//
+// parseMaterializedViewKeyword reads VIEW after MATERIALIZED, and offers it in
+// completion mode.
+func (p *Parser) parseMaterializedViewKeyword() error {
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwVIEW)
+		return &ParseError{Message: "collecting"}
+	}
+	_, err := p.expect(kwVIEW)
+	return err
+}
+
 func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMaterializedViewStmt, error) {
 	stmt := &nodes.CreateMaterializedViewStmt{Loc: nodes.Loc{Start: start}}
 
@@ -631,7 +644,7 @@ func (p *Parser) parseParallelOption() (*nodes.ParallelOption, bool, error) {
 // MATERIALIZED VIEW LOG. p.cur is MATERIALIZED.
 func (p *Parser) parseAlterMaterializedStmt(start int) (nodes.Node, error) {
 	p.advance() // consume MATERIALIZED
-	if _, err := p.expect(kwVIEW); err != nil {
+	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
 	if p.isBareWord("LOG") {
@@ -816,7 +829,7 @@ func (p *Parser) parseAlterMlogAction() (*nodes.AlterMlogAction, error) {
 // MATERIALIZED VIEW LOG. p.cur is MATERIALIZED.
 func (p *Parser) parseDropMaterializedStmt(start int) (nodes.Node, error) {
 	p.advance() // consume MATERIALIZED
-	if _, err := p.expect(kwVIEW); err != nil {
+	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
 	if p.isBareWord("LOG") {

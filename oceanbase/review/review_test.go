@@ -263,6 +263,14 @@ func TestDisallowDropObject(t *testing.T) {
 			},
 		},
 		{
+			name: "materialized views",
+			sql:  "DROP MATERIALIZED VIEW mv;\nDROP MATERIALIZED VIEW LOG ON t;",
+			want: []finding{
+				{0, "DROP MATERIALIZED VIEW mv", "Drops materialized view `mv`.", []int{0}},
+				{1, "DROP MATERIALIZED VIEW LOG ON t", "Drops materialized view log `t`.", []int{0}},
+			},
+		},
+		{
 			name: "constraints belong to DisallowDropConstraint",
 			sql:  "ALTER TABLE t DROP PRIMARY KEY, DROP FOREIGN KEY fk_p, DROP CHECK ck_n, DROP CONSTRAINT uk_code;\nDROP INDEX `PRIMARY` ON t;",
 		},

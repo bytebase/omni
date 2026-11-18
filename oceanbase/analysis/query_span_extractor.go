@@ -1422,13 +1422,16 @@ func classifyQueryType(node ast.Node, allSystems bool, source string) QueryType 
 	case *ast.SetPasswordStmt, *ast.HelpStmt:
 		return QueryTypeUnknown
 	case *ast.CreateDatabaseStmt, *ast.CreateTableStmt, *ast.CreateIndexStmt, *ast.CreateViewStmt,
+		*ast.CreateMaterializedViewStmt, *ast.CreateMaterializedViewLogStmt,
 		*ast.CreateEventStmt, *ast.CreateTriggerStmt, *ast.CreateFunctionStmt,
 		*ast.CreateUserStmt, *ast.CreateRoleStmt, *ast.CreateTablespaceStmt, *ast.CreateServerStmt,
 		*ast.CreateLogfileGroupStmt, *ast.CreateSpatialRefSysStmt, *ast.CreateResourceGroupStmt,
 		*ast.AlterDatabaseStmt, *ast.AlterTableStmt, *ast.AlterViewStmt, *ast.AlterEventStmt,
+		*ast.AlterMaterializedViewStmt, *ast.AlterMaterializedViewLogStmt,
 		*ast.AlterUserStmt, *ast.AlterRoutineStmt, *ast.AlterTablespaceStmt, *ast.AlterServerStmt,
 		*ast.AlterLogfileGroupStmt, *ast.AlterResourceGroupStmt, *ast.AlterInstanceStmt,
 		*ast.DropDatabaseStmt, *ast.DropTableStmt, *ast.DropIndexStmt, *ast.DropViewStmt,
+		*ast.DropMaterializedViewLogStmt,
 		*ast.DropEventStmt, *ast.DropTriggerStmt, *ast.DropRoutineStmt,
 		*ast.DropUserStmt, *ast.DropRoleStmt, *ast.DropTablespaceStmt, *ast.DropServerStmt,
 		*ast.DropLogfileGroupStmt, *ast.DropSpatialRefSysStmt, *ast.DropResourceGroupStmt,
@@ -1583,6 +1586,17 @@ func collectAccessTablesFromNode(result ColumnSet, node ast.Node, defaultDatabas
 	case *ast.CreateViewStmt:
 		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
 		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+	case *ast.CreateMaterializedViewStmt:
+		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+		collectAccessTablesFromNode(result, n.Select, defaultDatabase)
+	case *ast.CreateMaterializedViewLogStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+	case *ast.AlterMaterializedViewStmt:
+		collectAccessTablesFromTableRef(result, n.Name, defaultDatabase)
+	case *ast.AlterMaterializedViewLogStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
+	case *ast.DropMaterializedViewLogStmt:
+		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
 	case *ast.AlterTableStmt:
 		collectAccessTablesFromTableRef(result, n.Table, defaultDatabase)
 		for _, command := range n.Commands {

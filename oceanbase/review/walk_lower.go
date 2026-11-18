@@ -36,10 +36,18 @@ func (b *builder) statement(n ast.Node) bool {
 		return b.dropIndex(v)
 	case *ast.CreateViewStmt:
 		return b.createView(v)
+	case *ast.CreateMaterializedViewStmt:
+		return b.createMaterializedView(v)
 	case *ast.AlterViewStmt:
 		return b.alterView(v)
+	case *ast.AlterMaterializedViewStmt:
+		return b.alterMaterializedView(v)
 	case *ast.DropViewStmt:
 		return b.dropView(v)
+	case *ast.CreateMaterializedViewLogStmt, *ast.AlterMaterializedViewLogStmt, *ast.DropMaterializedViewLogStmt:
+		// The walk models no materialized view log, and none of these changes a
+		// name it keeps.
+		return true
 	case *ast.CreateTriggerStmt:
 		return b.createTrigger(v)
 	case *ast.DropTriggerStmt:

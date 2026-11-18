@@ -117,6 +117,43 @@ func (b *builder) createView(v *ast.CreateViewStmt) bool {
 	return true
 }
 
+// createMaterializedView follows CREATE MATERIALIZED VIEW. The walk models a
+// materialized view as a relation of no kind, as a snapshot's own materialized
+// views are (walk_snapshot.go); it does not follow the view's body or its
+// refresh options.
+func (b *builder) createMaterializedView(v *ast.CreateMaterializedViewStmt) bool {
+	r, st := b.ref(v.Name)
+	switch st {
+	case refFailed:
+		return true
+	case refUnknown:
+		return false
+	}
+	if b.tooLong(spaceRelation, v.Name.Name, r.rng) {
+		return true
+	}
+	if v.Name.Schema != "" {
+		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
+	}
+	k := relKey(r.db, r.name)
+	b.needFree(k, r.rng, r.written, "materialized view")
+	b.Set(k, walk.Present, "")
+	return true
+}
+
+// alterMaterializedView follows ALTER MATERIALIZED VIEW, which names an object
+// the walk holds as a relation of no kind.
+func (b *builder) alterMaterializedView(v *ast.AlterMaterializedViewStmt) bool {
+	r, st := b.ref(v.Name)
+	switch st {
+	case refFailed:
+		return true
+	case refOK:
+		b.needKind(relKey(r.db, r.name), []string{""}, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+	}
+	return true
+}
+
 func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 	r, st := b.ref(v.Name)
 	switch st {
@@ -130,6 +167,9 @@ func (b *builder) alterView(v *ast.AlterViewStmt) bool {
 
 // dropView follows DROP VIEW, which looks every view up first.
 func (b *builder) dropView(v *ast.DropViewStmt) bool {
+	if v.Materialized {
+		return b.dropMaterializedView(v)
+	}
 	b.Order = walk.Lookups
 	for _, t := range v.Views {
 		b.Next()
@@ -157,6 +197,32 @@ func (b *builder) dropView(v *ast.DropViewStmt) bool {
 			b.Set(k, walk.Absent, "")
 		case f == walk.Present && kind == "":
 			b.Set(k, walk.Unknown, "")
+		}
+	}
+	return true
+}
+
+// dropMaterializedView follows DROP MATERIALIZED VIEW. A materialized view is
+// a relation of no kind, so any relation of the name may be the one the
+// statement drops.
+func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
+	b.Order = walk.Lookups
+	for _, t := range v.Views {
+		b.Next()
+		r, st := b.ref(t)
+		switch st {
+		case refFailed:
+			return true
+		case refUnknown:
+			return false
+		}
+		k := relKey(r.db, r.name)
+		f, _ := b.l.Lookup(k)
+		if !v.IfExists {
+			b.needKind(k, []string{""}, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
+		}
+		if f == walk.Present {
+			b.Set(k, walk.Absent, "")
 		}
 	}
 	return true

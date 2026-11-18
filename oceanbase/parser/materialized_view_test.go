@@ -103,3 +103,19 @@ func TestMaterializedView(t *testing.T) {
 		}
 	}
 }
+
+// TestMaterializedViewCompletion pins that the new statements are reachable
+// from completion: MATERIALIZED heads a CREATE, ALTER and DROP, and VIEW
+// follows it.
+func TestMaterializedViewCompletion(t *testing.T) {
+	for _, sql := range []string{"CREATE ", "ALTER ", "DROP "} {
+		if cs := Collect(sql, len(sql)); !cs.HasToken(kwMATERIALIZED) {
+			t.Errorf("Collect(%q) does not offer MATERIALIZED", sql)
+		}
+	}
+	for _, sql := range []string{"CREATE MATERIALIZED ", "ALTER MATERIALIZED ", "DROP MATERIALIZED "} {
+		if cs := Collect(sql, len(sql)); !cs.HasToken(kwVIEW) {
+			t.Errorf("Collect(%q) does not offer VIEW", sql)
+		}
+	}
+}
