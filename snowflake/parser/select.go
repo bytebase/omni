@@ -187,8 +187,12 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 		stmt.All = true
 	}
 
-	// TOP n
-	if p.cur.Type == kwTOP {
+	// TOP n. TOP is a non-reserved keyword with no limitation on its use, so
+	// it names a column wherever no count follows it: `SELECT top FROM t`
+	// reads a select item named top, and only `SELECT TOP <n>` is the clause.
+	// https://docs.snowflake.com/en/sql-reference/reserved-keywords
+	// https://docs.snowflake.com/en/sql-reference/sql/select
+	if p.cur.Type == kwTOP && p.startsTopCount() {
 		p.advance() // consume TOP
 		topExpr, err := p.parseTopCount()
 		if err != nil {
@@ -282,6 +286,17 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 	stmt.Loc.End = p.prev.Loc.End
 
 	return stmt, nil
+}
+
+// startsTopCount reports whether the TOP at cur begins the TOP clause rather
+// than a select item named top. TOP takes a constant, so only a number, a
+// session variable or a parenthesized count begins it.
+func (p *Parser) startsTopCount() bool {
+	switch p.peekNext().Type {
+	case tokInt, tokFloat, tokReal, tokVariable, '(':
+		return true
+	}
+	return false
 }
 
 // parseTopCount parses the count following TOP. Snowflake documents TOP n
