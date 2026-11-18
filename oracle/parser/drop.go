@@ -183,6 +183,19 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
 
+	// [ PRESERVE TABLE ] is the one option DROP MATERIALIZED VIEW takes, and
+	// it ends the statement: Oracle answers ORA-03049 at FORCE before it, at a
+	// second PRESERVE and at PURGE after it.
+	if stmt.ObjectType == nodes.OBJECT_MATERIALIZED_VIEW && p.isKeywordStr("PRESERVE") {
+		p.advance() // consume PRESERVE
+		if err := p.expectWords("TABLE"); err != nil {
+			return nil, err
+		}
+		stmt.PreserveTable = true
+		stmt.Loc.End = p.prev.End
+		return stmt, nil
+	}
+
 	// Optional trailing options: CASCADE CONSTRAINTS, PURGE, FORCE, ONLINE, DEFERRED/IMMEDIATE INVALIDATION
 	for {
 		if p.cur.Type == kwCASCADE {
@@ -220,14 +233,6 @@ func (p *Parser) parseDropStmt() (nodes.StmtNode, error) {
 			if err := p.expectWords("INVALIDATION"); err != nil {
 				return nil, err
 			}
-		} else if stmt.ObjectType == nodes.OBJECT_MATERIALIZED_VIEW && p.isKeywordStr("PRESERVE") {
-			// DROP MATERIALIZED VIEW ... [ PRESERVE TABLE ] keeps the
-			// materialized view's table.
-			p.advance() // consume PRESERVE
-			if err := p.expectWords("TABLE"); err != nil {
-				return nil, err
-			}
-			stmt.PreserveTable = true
 		} else {
 			break
 		}
@@ -315,6 +320,7 @@ func (p *Parser) parseDropRestorePointStmt(start int) (*nodes.DropStmt, error) {
 		return nil, p.syntaxErrorAtCur()
 	}
 	stmt.Names.Items = append(stmt.Names.Items, name)
+	stmt.Loc.End = p.prev.End
 	if p.cur.Type == kwFORCE {
 		return nil, p.syntaxErrorAtCur()
 	}

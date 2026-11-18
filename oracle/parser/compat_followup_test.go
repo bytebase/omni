@@ -61,6 +61,10 @@ func TestParseFollowupForms(t *testing.T) {
 		// name) and no FORCE (ORA-03049 at the word).
 		{`DROP RESTORE POINT IF EXISTS a`, 29},
 		{`DROP RESTORE POINT a FORCE`, 21},
+		// PRESERVE TABLE ends a DROP MATERIALIZED VIEW: Oracle answers
+		// ORA-03049 at a FORCE before it and at anything after it.
+		{`DROP MATERIALIZED VIEW a FORCE PRESERVE TABLE`, 31},
+		{`DROP MATERIALIZED VIEW a PRESERVE TABLE PRESERVE TABLE`, 40},
 	}
 	for _, c := range refusedAt {
 		_, err := Parse(c.sql)
@@ -87,6 +91,9 @@ func TestParseFollowupForms(t *testing.T) {
 		`CREATE MATERIALIZED VIEW LOG ON a PARTITION BY RANGE(a) INTERVAL(1) STORE IN(a)(PARTITION VALUES LESS THAN(1))`,
 		`CREATE TABLE a (a NUMBER) PARTITION BY RANGE(a) INTERVAL(1) STORE IN()`,
 		`CREATE MATERIALIZED VIEW a JSON(a) AS SELECT 1 FROM dual`,
+		// A word followed by its clause's own words is that clause, which
+		// Oracle refuses at what follows (ORA-02000 at 56).
+		`CREATE MATERIALIZED VIEW a JSON(b) AS BUILD IMMEDIATE AS SELECT 1 FROM dual`,
 	}
 	for _, sql := range refused {
 		if _, err := Parse(sql); err == nil {

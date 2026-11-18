@@ -674,14 +674,18 @@ func (p *Parser) parseMviewJSONStorage() error {
 	if p.cur.Type == '(' {
 		return p.parseCreateTableLobStorageParameters()
 	}
-	// A word that starts a materialized view clause is taken as the LOB
-	// segment's name here too: Oracle answers CREATE MATERIALIZED VIEW a
-	// JSON (b) AS BUILD IMMEDIATE AS SELECT ... with ORA-02000 at the AS
-	// before the query (its verdict is a rejection at 56), so reading BUILD
-	// as the name and failing at IMMEDIATE is the same rejection, where
-	// reading it as the build clause would accept a statement Oracle
-	// refuses.
+	// A name here stands alone before the clause's parameters or the view's
+	// own AS. A word followed by anything else opens a materialized view
+	// clause instead, and Oracle refuses the statement at what follows it:
+	// CREATE MATERIALIZED VIEW a JSON (b) AS BUILD IMMEDIATE AS SELECT ...
+	// answers ORA-02000 at the AS before the query, AS REFRESH FAST ORA-02000
+	// at 48, AS USING INDEX ORA-02461 at 46, where AS BUILD AS SELECT and AS
+	// NOCACHE AS SELECT name the segment (ORA-00904 at the column they
+	// resolve).
 	if p.isCreateTableNameStart() {
+		if next := p.peekNext(); next.Type != '(' && next.Type != kwAS {
+			return p.syntaxErrorAtCur()
+		}
 		if err := p.parseCreateTableName(); err != nil {
 			return err
 		}
