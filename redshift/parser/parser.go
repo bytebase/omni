@@ -206,12 +206,15 @@ func (p *Parser) parseStmt() (nodes.Node, error) {
 				SCHEMA, DEFAULT, FUNCTION, PROCEDURE, ROUTINE,
 				TYPE_P, DOMAIN_P, COLLATION, CONVERSION_P, EXTENSION,
 				AGGREGATE, TEXT_P, LANGUAGE, PROCEDURAL, LARGE_P,
-				EVENT, SYSTEM_P, TABLESPACE, TRIGGER, RULE, TABLE,
+				EVENT, SYSTEM_P, TABLESPACE, TRIGGER, RULE, TABLE, TEMPLATE,
 			}
 			for _, t := range alterTokens {
 				p.addTokenCandidate(t)
 			}
 			return nil, errCollecting
+		}
+		if p.isRedshiftTemplateLead(p.cur) {
+			return p.parseRedshiftAlterTemplateStmt(alterLoc)
 		}
 		if objectType := p.redshiftAlterObjectType(); objectType != "" {
 			return p.parseRedshiftObjectStmt("alter", objectType, alterLoc)
@@ -464,7 +467,7 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 			POLICY, TRIGGER, CONSTRAINT, EVENT, FOREIGN, SERVER,
 			LANGUAGE, TRUSTED, PROCEDURAL, GLOBAL,
 			PUBLICATION, SUBSCRIPTION, RULE, EXTENSION, ACCESS,
-			CAST, TRANSFORM, CONVERSION_P, DEFAULT, TABLESPACE, SCHEMA,
+			CAST, TRANSFORM, CONVERSION_P, DEFAULT, TABLESPACE, SCHEMA, TEMPLATE,
 		}
 		for _, t := range createTokens {
 			p.addTokenCandidate(t)
@@ -472,6 +475,10 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 		return nil, errCollecting
 	}
 	next := p.peekNext()
+	if p.isRedshiftTemplateLead(next) {
+		p.advance() // consume CREATE
+		return p.parseRedshiftCreateTemplateStmt("create", createLoc)
+	}
 	if isRedshiftCreateObjectLead(next) {
 		p.advance() // consume CREATE
 		objectType := p.redshiftCreateObjectType()
@@ -488,6 +495,9 @@ func (p *Parser) parseCreateDispatch() (nodes.Node, error) {
 
 		if _, err := p.expect(REPLACE); err != nil {
 			return nil, err
+		}
+		if p.isRedshiftTemplateLead(p.cur) {
+			return p.parseRedshiftCreateTemplateStmt("create or replace", createLoc)
 		}
 		if objectType := p.redshiftCreateObjectType(); objectType != "" {
 			return p.parseRedshiftObjectStmt("create or replace", objectType, createLoc)

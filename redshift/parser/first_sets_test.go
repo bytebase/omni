@@ -123,3 +123,59 @@ func TestIsTableConstraintStartCoverage(t *testing.T) {
 		}
 	}
 }
+
+func TestIsRedshiftDocShowStart(t *testing.T) {
+	newShowParser := func(sql string) *Parser {
+		p := &Parser{lexer: NewLexer(sql), source: sql}
+		p.advance() // SHOW
+		p.advance() // token after SHOW
+		return p
+	}
+	for _, sql := range []string{
+		"SHOW USER LOCKOUT",
+		"SHOW COLUMN GRANTS ON TABLE s.t",
+		"SHOW CONSTRAINTS PRIMARY KEYS FROM TABLE s.t",
+		"SHOW FUNCTIONS FROM SCHEMA s",
+		"SHOW PARAMETERS OF FUNCTION s.f(INT)",
+		"SHOW RLS POLICIES",
+		"SHOW MASKING POLICIES",
+		"SHOW PROCEDURES FROM SCHEMA s",
+		"SHOW TEMPLATE t",
+		"SHOW TEMPLATES FROM SCHEMA s",
+	} {
+		if !newShowParser(sql).isRedshiftDocShowStart() {
+			t.Errorf("isRedshiftDocShowStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{
+		"SHOW ALL",
+		"SHOW search_path",
+		"SHOW rls",
+		"SHOW template",
+		"SHOW template;",
+		"SHOW parameters.foo",
+		`SHOW "RLS" POLICIES`,
+		`SHOW USER "LOCKOUT"`,
+		`SHOW "TEMPLATE" t`,
+		"SHOW DATABASES",
+	} {
+		if newShowParser(sql).isRedshiftDocShowStart() {
+			t.Errorf("isRedshiftDocShowStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftTemplateLead(t *testing.T) {
+	for _, kw := range Keywords {
+		p := &Parser{}
+		tok := Token{Type: kw.Token, Str: kw.Name}
+		if got, want := p.isRedshiftTemplateLead(tok), kw.Token == TEMPLATE; got != want {
+			t.Errorf("isRedshiftTemplateLead(%q) = %v, want %v", kw.Name, got, want)
+		}
+	}
+	p := &Parser{lexer: NewLexer(`"template"`), source: `"template"`}
+	p.advance()
+	if p.isRedshiftTemplateLead(p.cur) {
+		t.Error(`isRedshiftTemplateLead("template") = true, want false`)
+	}
+}

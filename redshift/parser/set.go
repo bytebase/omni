@@ -599,6 +599,9 @@ func (p *Parser) varNameFormKind() int {
 //	| SHOW ALL
 func (p *Parser) parseVariableShowStmt() (nodes.Node, error) {
 	loc := p.prev.Loc // SHOW was already consumed
+	if p.isRedshiftDocShowStart() {
+		return p.parseRedshiftDocShowStmt(loc)
+	}
 	if p.isRedshiftShowStart() {
 		return p.parseRedshiftShowStmt(loc)
 	}

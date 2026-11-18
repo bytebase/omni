@@ -508,3 +508,48 @@ var numericOnlyLeadTokens = []int{ICONST, FCONST, '+', '-'}
 func (p *Parser) isNumericOnlyStart() bool {
 	return slices.Contains(numericOnlyLeadTokens, p.cur.Type)
 }
+
+// isRedshiftShowClauseFollow reports whether tok, after a single-word Redshift
+// SHOW lead (CONSTRAINTS, FUNCTIONS, PARAMETERS, PROCEDURES, TEMPLATE,
+// TEMPLATES), begins that command's clause rather than ending a bare
+// `SHOW <parameter>` or `SHOW <prefix>.<parameter>`.
+func isRedshiftShowClauseFollow(tok Token) bool {
+	return tok.Type != 0 && tok.Type != ';' && tok.Type != '.'
+}
+
+// isRedshiftDocShowStart reports whether the tokens after SHOW begin one of
+// the Redshift SHOW commands parsed strictly by parseRedshiftDocShowStmt in
+// redshift_template_show.go:
+//   - SHOW USER LOCKOUT
+//   - SHOW COLUMN GRANTS ...
+//   - SHOW { RLS | MASKING } POLICIES ...
+//   - SHOW { CONSTRAINTS | FUNCTIONS | PARAMETERS | PROCEDURES | TEMPLATE | TEMPLATES } <clause>
+//
+// Validated by TestIsRedshiftDocShowStart in first_sets_test.go.
+func (p *Parser) isRedshiftDocShowStart() bool {
+	next := p.peekNext()
+	switch {
+	case p.cur.Type == USER && p.redshiftTokIsWord(next, "lockout"):
+		return true
+	case p.cur.Type == COLUMN && p.redshiftTokIsWord(next, "grants"):
+		return true
+	case (p.redshiftCurIsWord("rls") || p.redshiftCurIsWord("masking")) && p.redshiftTokIsWord(next, "policies"):
+		return true
+	case p.redshiftCurIsWord("constraints") ||
+		p.redshiftCurIsWord("functions") ||
+		p.redshiftCurIsWord("parameters") ||
+		p.redshiftCurIsWord("procedures") ||
+		p.redshiftCurIsWord("template") ||
+		p.redshiftCurIsWord("templates"):
+		return isRedshiftShowClauseFollow(next)
+	default:
+		return false
+	}
+}
+
+// isRedshiftTemplateLead reports whether tok is the unquoted TEMPLATE keyword
+// that introduces CREATE [OR REPLACE] TEMPLATE, ALTER TEMPLATE, or DROP
+// TEMPLATE. Validated by TestIsRedshiftTemplateLead in first_sets_test.go.
+func (p *Parser) isRedshiftTemplateLead(tok Token) bool {
+	return tok.Type == TEMPLATE && !p.isDelimitedIdentToken(tok)
+}

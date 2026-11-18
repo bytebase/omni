@@ -45,6 +45,9 @@ func (p *Parser) parseDropStmt(stmtLoc int) (nodes.Node, error) {
 }
 
 func (p *Parser) parseDropStmtInner() (nodes.Node, error) {
+	if p.isRedshiftTemplateLead(p.cur) {
+		return p.parseRedshiftDropTemplateStmt(p.stmtStart)
+	}
 	if objectType := p.redshiftDropObjectType(); objectType != "" {
 		return p.parseRedshiftObjectStmt("drop", objectType, p.stmtStart)
 	}

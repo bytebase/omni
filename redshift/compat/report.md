@@ -7,8 +7,8 @@ Source: https://docs.aws.amazon.com/redshift/latest/dg/c_SQL_commands.html
 | Status | Count |
 |---|---:|
 | supported_runtime | 27 |
-| supported_parse | 91 |
-| explicit_unsupported | 6 |
+| supported_parse | 97 |
+| explicit_unsupported | 0 |
 | not_relevant | 0 |
 
 ## Legacy Corpus
@@ -77,7 +77,7 @@ Status: skipped (REDSHIFT_COMPAT_DSN is not set)
 | ALTER SYSTEM | supported_parse | ok |
 | ALTER TABLE | supported_runtime | ok |
 | ALTER TABLE APPEND | supported_parse | ok |
-| ALTER TEMPLATE | explicit_unsupported | error |
+| ALTER TEMPLATE | supported_parse | ok |
 | ALTER USER | supported_parse | ok |
 | ANALYZE | supported_parse | ok |
 | ANALYZE COMPRESSION | supported_parse | ok |
@@ -110,7 +110,7 @@ Status: skipped (REDSHIFT_COMPAT_DSN is not set)
 | CREATE SCHEMA | supported_runtime | ok |
 | CREATE TABLE | supported_runtime | ok |
 | CREATE TABLE AS | supported_parse | ok |
-| CREATE TEMPLATE | explicit_unsupported | error |
+| CREATE TEMPLATE | supported_parse | ok |
 | CREATE USER | supported_parse | ok |
 | CREATE VIEW | supported_parse | ok |
 | DEALLOCATE | supported_parse | ok |
@@ -135,7 +135,7 @@ Status: skipped (REDSHIFT_COMPAT_DSN is not set)
 | DROP ROLE | supported_parse | ok |
 | DROP SCHEMA | supported_runtime | ok |
 | DROP TABLE | supported_runtime | ok |
-| DROP TEMPLATE | explicit_unsupported | error |
+| DROP TEMPLATE | supported_parse | ok |
 | DROP USER | supported_parse | ok |
 | DROP VIEW | supported_parse | ok |
 | END | supported_parse | ok |
@@ -158,9 +158,9 @@ Status: skipped (REDSHIFT_COMPAT_DSN is not set)
 | SET SESSION AUTHORIZATION | supported_parse | ok |
 | SET SESSION CHARACTERISTICS | supported_parse | ok |
 | SHOW | supported_runtime | ok |
-| SHOW COLUMN GRANTS | explicit_unsupported | error |
+| SHOW COLUMN GRANTS | supported_parse | ok |
 | SHOW COLUMNS | supported_runtime | ok |
-| SHOW CONSTRAINTS | explicit_unsupported | error |
+| SHOW CONSTRAINTS | supported_parse | ok |
 | SHOW EXTERNAL TABLE | supported_runtime | ok |
 | SHOW DATABASES | supported_runtime | ok |
 | SHOW FUNCTIONS | supported_parse | ok |
@@ -174,7 +174,7 @@ Status: skipped (REDSHIFT_COMPAT_DSN is not set)
 | SHOW SCHEMAS | supported_runtime | ok |
 | SHOW TABLE | supported_runtime | ok |
 | SHOW TABLES | supported_runtime | ok |
-| SHOW TEMPLATE | explicit_unsupported | error |
+| SHOW TEMPLATE | supported_parse | ok |
 | SHOW TEMPLATES | supported_parse | ok |
 | SHOW VIEW | supported_runtime | ok |
 | START TRANSACTION | supported_parse | ok |
