@@ -283,24 +283,22 @@ func isDecimalInteger(s string) bool {
 // accepts: yyyyMMdd, yyyy-MM-dd, yyyyMMddHHmmss, yyyy-MM-dd HH:mm:ss, or the
 // same with microseconds.
 func validTaskStart(s string) bool {
-	var layouts []string
-	switch len(s) {
-	case 8:
-		layouts = []string{"20060102", "06-01-02"}
-	case 10:
-		layouts = []string{"2006-01-02"}
-	case 14:
-		layouts = []string{"20060102150405", "06-01-02 15:04", "06-01-02T15:04"}
-	case 16:
-		layouts = []string{"2006-01-02 15:04", "2006-01-02T15:04"}
-	case 17:
-		layouts = []string{"06-01-02 15:04:05", "06-01-02T15:04:05"}
-	case 19:
-		layouts = []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05"}
-	case 26:
-		layouts = []string{"2006-01-02 15:04:05.000000", "2006-01-02T15:04:05.000000"}
-	default:
-		return false
+	layouts := []string{
+		"20060102", "06-01-02", "20060102150405",
+		"2006-01-02",
+		"2006-01-02 15:04", "2006-01-02T15:04",
+		"06-01-02 15:04", "06-01-02T15:04",
+		"2006-01-02 15:04:05", "2006-01-02T15:04:05",
+		"06-01-02 15:04:05", "06-01-02T15:04:05",
+	}
+	for digits := 1; digits <= 6; digits++ {
+		frac := "." + strings.Repeat("0", digits)
+		layouts = append(layouts,
+			"2006-01-02 15:04:05"+frac,
+			"2006-01-02T15:04:05"+frac,
+			"06-01-02 15:04:05"+frac,
+			"06-01-02T15:04:05"+frac,
+		)
 	}
 	for _, layout := range layouts {
 		if _, err := time.Parse(layout, s); err == nil {
