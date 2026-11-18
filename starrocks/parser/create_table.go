@@ -702,6 +702,9 @@ func (p *Parser) parseCreateTableClauses(stmt *ast.CreateTableStmt) error {
 			if err != nil {
 				return err
 			}
+			if p.strictCTAS && partDesc.Type == "RANGE" && !partDesc.HasDefinitions {
+				return p.syntaxErrorAtCur()
+			}
 			stmt.PartitionBy = partDesc
 			continue
 
@@ -877,6 +880,7 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 
 	// Parse partition definitions: (...)
 	if p.cur.Kind == int('(') {
+		pd.HasDefinitions = true
 		p.advance() // consume '('
 		for p.cur.Kind != int(')') && p.cur.Kind != tokEOF {
 			item, err := p.parsePartitionItem()

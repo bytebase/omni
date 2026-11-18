@@ -134,12 +134,13 @@ var _ Node = (*KeyDesc)(nil)
 //
 //	[AUTO] PARTITION BY RANGE|LIST (cols/functions) (partition_defs...)
 type PartitionDesc struct {
-	Type       string           // "RANGE" or "LIST"
-	Auto       bool             // AUTO PARTITION
-	Columns    []string         // column names or function expressions (stored as raw strings)
-	FuncExprs  []string         // if partition columns include function expressions
-	Partitions []*PartitionItem // individual partition definitions
-	Loc        Loc
+	Type           string           // "RANGE" or "LIST"
+	Auto           bool             // AUTO PARTITION
+	Columns        []string         // column names or function expressions (stored as raw strings)
+	FuncExprs      []string         // if partition columns include function expressions
+	Partitions     []*PartitionItem // individual partition definitions
+	HasDefinitions bool             // a second parenthesized definition list was present
+	Loc            Loc
 }
 
 // Tag implements Node.

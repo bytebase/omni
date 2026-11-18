@@ -32,6 +32,8 @@ func TestSubmitTask(t *testing.T) {
 			&ast.TaskSchedule{Interval: "1", Unit: "DAY"}, ast.T_InsertStmt},
 		{"SUBMIT TASK SCHEDULE START('2026-01-01 12:30') EVERY(INTERVAL 1 DAY) AS INSERT INTO a SELECT 1", "", 0,
 			&ast.TaskSchedule{Start: "2026-01-01 12:30", Interval: "1", Unit: "DAY"}, ast.T_InsertStmt},
+		{"SUBMIT TASK SCHEDULE START('26-01-01 12:30') EVERY(INTERVAL 1 DAY) AS INSERT INTO a SELECT 1", "", 0,
+			&ast.TaskSchedule{Start: "26-01-01 12:30", Interval: "1", Unit: "DAY"}, ast.T_InsertStmt},
 		{"SUBMIT TASK SCHEDULE START('2026-01-01T12:30:00') EVERY(INTERVAL 1 DAY) AS INSERT INTO a SELECT 1", "", 0,
 			&ast.TaskSchedule{Start: "2026-01-01T12:30:00", Interval: "1", Unit: "DAY"}, ast.T_InsertStmt},
 		{"SUBMIT TASK SCHEDULE EVERY(INTERVAL 9223372036854775807 DAY) AS INSERT INTO a SELECT 1", "", 0,
@@ -102,6 +104,7 @@ func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
 		"SUBMIT TASK AS CREATE TABLE a PROPERTIES('x' = 'y') COMMENT 'c' AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a DUPLICATE KEY(a) CLUSTER BY (b) AS SELECT 1",
 		"SUBMIT TASK AS CREATE TABLE a AUTO PARTITION BY RANGE(c) () AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a PARTITION BY RANGE(c) AS SELECT 1",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)
@@ -215,5 +218,16 @@ func TestAlterLoad(t *testing.T) {
 	}
 	if len(stmt.Properties) != 1 || stmt.Properties[0].Key != "a" || stmt.Properties[0].Value != "a" {
 		t.Errorf("Properties = %+v, want one a=a pair", stmt.Properties)
+	}
+}
+
+func TestSubmitTaskInsertWithSetOperation(t *testing.T) {
+	for _, sql := range []string{
+		"SUBMIT TASK AS INSERT INTO t WITH c AS (SELECT 1) SELECT * FROM c UNION SELECT 2",
+		"INSERT INTO t WITH c AS (SELECT 1) SELECT * FROM c UNION SELECT 2",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%q: unexpected errors: %v", sql, errs)
+		}
 	}
 }

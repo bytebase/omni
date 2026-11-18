@@ -146,9 +146,12 @@ modifiers:
 		stmt.Query = result
 
 	case kwWITH:
-		withStmt, err := p.parseWithSelect()
+		withStmt, err := p.parseWithStatement()
 		if err != nil {
 			return nil, err
+		}
+		if !isQueryBody(withStmt) {
+			return nil, p.syntaxErrorAtCur()
 		}
 		stmt.Query = withStmt
 

@@ -320,13 +320,15 @@ func validTaskStart(s string) bool {
 	var layouts []string
 	switch len(s) {
 	case 8:
-		layouts = []string{"20060102"}
+		layouts = []string{"20060102", "06-01-02"}
 	case 10:
 		layouts = []string{"2006-01-02"}
 	case 14:
-		layouts = []string{"20060102150405"}
+		layouts = []string{"20060102150405", "06-01-02 15:04", "06-01-02T15:04"}
 	case 16:
 		layouts = []string{"2006-01-02 15:04", "2006-01-02T15:04"}
+	case 17:
+		layouts = []string{"06-01-02 15:04:05", "06-01-02T15:04:05"}
 	case 19:
 		layouts = []string{"2006-01-02 15:04:05", "2006-01-02T15:04:05"}
 	case 26:
