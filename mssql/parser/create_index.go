@@ -364,13 +364,16 @@ func (p *Parser) parseIndexColumnList() (*nodes.List, error) {
 //	filterExpression (TSql160.g:17113)
 //	    : filterExpressionPrimary ( And filterExpression )?
 //	filterExpressionPrimary (TSql160.g:17080)
-//	    : filterColumn ( Is ( Not )? Null | filterComparisonPredicate | filterInPredicate )
-//	    | LeftParenthesis filterExpression RightParenthesis
+//	    : filterColumn ( Is ( filterNullPredicate | ( Not )? Distinct From
+//	      ( filterNullPredicateFromDistinctPredicate | filterDistinctPredicate ) )
+//	      | filterComparisonPredicate | filterInPredicate )
+//	    | filterParenthesisExpression
 //	filterComparisonPredicate (TSql160.g:17176) : comparisonOperator expression
 //	filterInPredicate (TSql160.g:17190) : In ( expression ( , expression )* )
+//	filterNullPredicateFromDistinctPredicate (TSql160.g:17166) : Null
+//	filterDistinctPredicate (TSql160.g:17153) : expression
 //
-// OR, NOT, NOT IN, BETWEEN and LIKE are refused (Msg 156). IS [NOT]
-// DISTINCT FROM (TSql160.g:17080) is not read: the AST has no node for it.
+// OR, NOT, NOT IN, BETWEEN and LIKE are refused (Msg 156).
 func (p *Parser) indexFilterExpression() (nodes.ExprNode, error) {
 	// A parenthesized predicate recurses through here (indexFilterPrimary).
 	if err := p.enterNesting(); err != nil {
@@ -429,18 +432,46 @@ func (p *Parser) indexFilterPrimary() (nodes.ExprNode, error) {
 	if _, ok := col.(*nodes.ColumnRef); !ok {
 		return nil, p.newParseError(loc, "a filter predicate must start with a column")
 	}
+	// parseQualifiedRef stops at a keyword after a dot and leaves the dot
+	// consumed, so `a.IS NULL` would read as `a IS NULL`. SQL Server refuses
+	// it (Msg 102 at IS).
+	if p.prev.Type == '.' {
+		return nil, p.syntaxErrorAtCur()
+	}
 
 	switch {
 	case p.cur.Type == kwIS:
 		p.advance()
-		test := nodes.IsNull
+		not := false
 		if _, ok := p.match(kwNOT); ok {
-			test = nodes.IsNotNull
+			not = true
 		}
-		if _, err := p.expect(kwNULL); err != nil {
+		if _, ok := p.match(kwNULL); ok {
+			test := nodes.IsNull
+			if not {
+				test = nodes.IsNotNull
+			}
+			return &nodes.IsExpr{Expr: col, TestType: test, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		}
+		// IS [NOT] DISTINCT FROM NULL | expression
+		if _, ok := p.match(kwDISTINCT); !ok {
+			return nil, p.unexpectedToken()
+		}
+		if _, err := p.expect(kwFROM); err != nil {
 			return nil, err
 		}
-		return &nodes.IsExpr{Expr: col, TestType: test, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
+		value, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		if value == nil {
+			return nil, p.unexpectedToken()
+		}
+		test := nodes.IsDistinctFrom
+		if not {
+			test = nodes.IsNotDistinctFrom
+		}
+		return &nodes.IsExpr{Expr: col, TestType: test, Value: value, Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}, nil
 	case p.cur.Type == kwIN:
 		p.advance()
 		if _, err := p.expect('('); err != nil {

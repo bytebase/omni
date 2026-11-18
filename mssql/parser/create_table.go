@@ -1366,7 +1366,9 @@ func (p *Parser) parseRefAction() nodes.ReferentialAction {
 	return nodes.RefActNone
 }
 
-// parseInlineTableIndex parses an inline INDEX definition inside a CREATE TABLE body.
+// parseInlineTableIndex parses an inline INDEX definition inside a CREATE
+// TABLE body and in ALTER TABLE's ADD list (tableElement's
+// inlineIndexTableDefinition, TSql160.g:28735).
 //
 // BNF: mssql/parser/bnf/create-table-transact-sql.bnf
 //
@@ -1383,6 +1385,12 @@ func (p *Parser) parseRefAction() nodes.ReferentialAction {
 //	         | filegroup_name | default } ]
 //	    [ FILESTREAM_ON { filestream_filegroup_name | partition_scheme_name | "NULL" } ]
 //	}
+//
+// What SQL Server refuses while it parses (its answers are in
+// mssql/parser/testdata/compat.tsv): a name is required, a columnstore index
+// that is not clustered takes a key list and a clustered one takes none
+// (TSql160.g:28739's action), INCLUDE follows a key list, ON a filegroup, and
+// a clustered index takes no filter (TSql160.g:17072's filterProhibited).
 func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 	loc := p.pos()
 	p.advance() // consume INDEX
@@ -1392,7 +1400,10 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 	}
 
 	// index_name
-	name, _ := p.parseIdentifier()
+	name, ok := p.parseIdentifier()
+	if !ok {
+		return nil, p.unexpectedToken()
+	}
 	idx.Name = name
 
 	// [ UNIQUE ]
@@ -1432,12 +1443,13 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 	if p.cur.Type == kwCOLUMNSTORE {
 		p.advance()
 		idx.Columnstore = true
-		if p.cur.Type == '(' {
-			var err error
-			idx.Columns, err = p.parseIndexColumnList()
-			if err != nil {
-				return nil, err
-			}
+		if p.cur.Type != '(' {
+			return nil, p.newParseError(p.cur.Loc, "a nonclustered columnstore index takes a key list")
+		}
+		var err error
+		idx.Columns, err = p.parseIndexColumnList()
+		if err != nil {
+			return nil, err
 		}
 		goto trailingOptions
 	}
@@ -1454,20 +1466,28 @@ func (p *Parser) parseInlineTableIndex() (*nodes.InlineIndexDef, error) {
 trailingOptions:
 	// [ INCLUDE ( column_name [ ,...n ] ) ]
 	if p.cur.Type == kwINCLUDE {
+		if idx.Columns == nil {
+			return nil, p.unexpectedToken()
+		}
 		p.advance()
-		if p.cur.Type == '(' {
-			var err error
-			idx.IncludeCols, err = p.parseParenIdentList()
-			if err != nil {
-				return nil, err
-			}
+		if p.cur.Type != '(' {
+			return nil, p.unexpectedToken()
+		}
+		var err error
+		idx.IncludeCols, err = p.parseParenIdentList()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	// [ WHERE <filter_predicate> ]
-	if _, ok := p.match(kwWHERE); ok {
+	if p.cur.Type == kwWHERE {
+		if idx.Clustered != nil && *idx.Clustered {
+			return nil, p.newParseError(p.cur.Loc, "a clustered index takes no filter")
+		}
+		p.advance()
 		var err error
-		idx.WhereClause, err = p.parseExpr()
+		idx.WhereClause, err = p.indexFilterExpression()
 		if err != nil {
 			return nil, err
 		}
@@ -1486,9 +1506,14 @@ trailingOptions:
 	}
 
 	// [ ON { partition_scheme_name ( column_name ) | filegroup_name | default } ]
+	// filegroupOrPartitionScheme is stringOrIdentifier (TSql160.g:17224).
 	if p.cur.Type == kwON {
 		p.advance()
-		if p.isIdentLike() || p.cur.Type == kwPRIMARY {
+		switch {
+		case p.cur.Type == tokSCONST || p.cur.Type == tokNSCONST:
+			idx.OnFilegroup = p.cur.Str
+			p.advance()
+		case p.isIdentLike() || p.cur.Type == kwPRIMARY:
 			fg := p.cur.Str
 			p.advance()
 			if p.cur.Type == '(' {
@@ -1499,6 +1524,8 @@ trailingOptions:
 			} else {
 				idx.OnFilegroup = fg
 			}
+		default:
+			return nil, p.unexpectedToken()
 		}
 	}
 

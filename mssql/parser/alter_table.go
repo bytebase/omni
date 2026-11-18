@@ -217,11 +217,19 @@ func (p *Parser) parseAlterTableStmt() (*nodes.AlterTableStmt, error) {
 	return stmt, nil
 }
 
-// parseAlterTableAdd parses ADD with comma-separated columns/constraints,
-// or ADD PERIOD FOR SYSTEM_TIME.
+// parseAlterTableAdd parses ADD with comma-separated columns, constraints and
+// indexes, or ADD PERIOD FOR SYSTEM_TIME.
 //
-//	ADD { <column_definition> | <table_constraint> } [ ,...n ]
+// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/alter-table-transact-sql
+//
+//	ADD { <column_definition> | <table_constraint> | <table_index> } [ ,...n ]
 //	ADD PERIOD FOR SYSTEM_TIME ( start_col , end_col )
+//
+// <table_index> is the tableElement ScriptDOM reads here
+// (alterTableAddTableElementStatement : Add tableDefinition, TSql160.g:28579,
+// whose tableElement -> inlineIndexTableDefinition is at 28735), so the ALTER
+// TABLE form reads the same inline INDEX definition a CREATE TABLE body does,
+// its filterClause included. The ADD list of the docs carries <table_index>.
 func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 	p.advance() // consume ADD
 
@@ -252,7 +260,16 @@ func (p *Parser) parseAlterTableAdd(withCheck string) ([]nodes.Node, error) {
 			Loc: nodes.Loc{Start: loc, End: -1},
 		}
 
-		if p.cur.Type == kwCONSTRAINT {
+		if p.cur.Type == kwINDEX {
+			// ADD INDEX name [ UNIQUE ] [ CLUSTERED | NONCLUSTERED ] [ (...) ]
+			// [ INCLUDE (...) ] [ WHERE ... ] [ WITH (...) ] [ ON ... ]
+			action.Type = nodes.ATAddIndex
+			idx, err := p.parseInlineTableIndex()
+			if err != nil {
+				return nil, err
+			}
+			action.Index = idx
+		} else if p.cur.Type == kwCONSTRAINT {
 			action.Type = nodes.ATAddConstraint
 			action.WithCheck = withCheck
 			var err error

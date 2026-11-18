@@ -160,7 +160,7 @@ func allKnownNodes() []Node {
 		&CreateSelectiveXmlIndexStmt{}, &CreateSpatialIndexStmt{},
 		&CreateAggregateStmt{}, &CreateJsonIndexStmt{}, &CreateVectorIndexStmt{},
 		&CreateMaterializedViewStmt{}, &CreateFederationStmt{},
-		&CreateExternalTableAsSelectStmt{}, &CreateTableCloneStmt{},
+		&CreateTableCloneStmt{},
 		&CreateTableAsSelectStmt{}, &CreateRemoteTableAsSelectStmt{},
 
 		// Statements — DDL: ALTER

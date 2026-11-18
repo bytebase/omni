@@ -67,6 +67,9 @@ func walkChildren(v Visitor, node Node) {
 		if n.Constraint != nil {
 			Walk(v, n.Constraint)
 		}
+		if n.Index != nil {
+			Walk(v, n.Index)
+		}
 		if n.DataType != nil {
 			Walk(v, n.DataType)
 		}
@@ -194,13 +197,6 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.WithOptions)
 		walkList(v, n.AttachOptions)
 		walkList(v, n.Options)
-	case *CreateExternalTableAsSelectStmt:
-		if n.Name != nil {
-			Walk(v, n.Name)
-		}
-		walkList(v, n.Columns)
-		walkList(v, n.Options)
-		Walk(v, n.Query)
 	case *CreateFederationStmt:
 		if n.DataType != nil {
 			Walk(v, n.DataType)
@@ -537,6 +533,7 @@ func walkChildren(v Visitor, node Node) {
 		walkList(v, n.OptionClause)
 	case *IsExpr:
 		Walk(v, n.Expr)
+		Walk(v, n.Value)
 	case *JoinClause:
 		Walk(v, n.Left)
 		Walk(v, n.Right)

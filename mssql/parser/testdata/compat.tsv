@@ -147,7 +147,7 @@ reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!dr
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!drop-3	CREATE TABLE a(a WITH(HEAP) AS SELECT *
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!truncate	CREATE TABLE a(a
 reject	reject	engine	ctasCreateTableStatement(columnNameList)?/columnNameList!insert	CREATE TABLE a(a) zzz WITH(HEAP) AS SELECT *
-accept	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-1	CREATE EXTERNAL TABLE a(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-2	CREATE EXTERNAL TABLE a WITH DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	ctasCreateExternalTableStatement/withExternalTableOptions_As_selectStatement!drop-3	CREATE EXTERNAL TABLE a WITH(= a) AS SELECT *
@@ -4183,7 +4183,7 @@ reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_str
 reject	reject	engine	addSearchPropertyListAction(Comma_Identifier_EqualsSign_stringLiteral)?/Comma_Identifier_EqualsSign_stringLiteral!insert	ALTER SEARCH PROPERTY LIST a ADD 'a' WITH(PROPERTY_SET_GUID = 'a', PROPERTY_INT_ID = 1, a = 'a' zzz)
 reject	reject	engine	dropSearchPropertyListAction/Drop_stringLiteral	ALTER SEARCH PROPERTY LIST a DROP 'a'
 accept	accept	engine	createExternalStatements/External_(createExternalTableStatement|createE~94c12a25)	CREATE EXTERNAL RESOURCE POOL a
-accept	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!drop-1	CREATE EXTERNAL a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!drop-2	CREATE EXTERNAL TABLE WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	createExternalStatements(createExternalTableStatement|createE~94c12a25)/createExternalTableStatement!swap	CREATE EXTERNAL TABLESAMPLE a WITH(DATA_SOURCE = a) AS SELECT *
@@ -7789,17 +7789,17 @@ accept	accept	engine	columnstoreIndexKeyColumn/identifierColumnReferenceExpressi
 reject	reject	engine	columnstoreIndexKeyColumn/graphPseudoColumn	CREATE COLUMNSTORE INDEX a ON a($IDENTITY)
 reject	reject	engine	columnstoreIndexKeyColumn/graphPseudoColumn!insert	CREATE COLUMNSTORE INDEX a ON a($IDENTITY zzz)
 reject	reject	engine	graphPseudoColumn/systemColumn	CREATE INDEX a ON a($IDENTITY)
-reject	accept	engine	filterClause/Where_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterClause/Where_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
 reject	reject	engine	filterClause/Where_filterExpression!drop-1	ALTER TABLE a ADD INDEX a IDENTITYCOL IS NULL
 reject	reject	engine	filterClause/Where_filterExpression!drop-2	ALTER TABLE a ADD INDEX a WHERE IS NULL
 reject	reject	engine	filterClause/Where_filterExpression!drop-3	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL NULL
 reject	reject	engine	filterClause/Where_filterExpression!drop-4	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS
 reject	reject	engine	filterClause/Where_filterExpression!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL zzz
 reject	reject	engine	filterClause/Where_filterExpression!swap	ALTER TABLE a ADD INDEX a WHILE IDENTITYCOL IS NULL
-reject	accept	engine	filterExpressionPrimary/(filterColumn_(Is_(filterNullPredicat~d29068b8)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterExpressionPrimary/(filterColumn_(Is_(filterNullPredicat~d29068b8)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
 reject	reject	engine	filterExpressionPrimary/(filterColumn_(Is_(filterNullPredicat~d29068b8)!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITY_INSERT IS NULL
-reject	accept	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterColumn_(Is_(filterNullPredicate|(Not)?_Disti~696eadba)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
-reject	accept	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL IS NULL)
+accept	accept	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterColumn_(Is_(filterNullPredicate|(Not)?_Disti~696eadba)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL IS NULL)
 reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression!drop-1	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL)
 reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression!drop-2	ALTER TABLE a ADD INDEX a WHERE(IS NULL)
 reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression!drop-3	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL NULL)
@@ -7807,71 +7807,71 @@ reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredica
 reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression!drop-5	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL IS NULL
 reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression!insert	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL IS NULL) zzz
 reject	reject	engine	filterExpressionPrimary(filterColumn_(Is_(filterNullPredicat~d29068b8)/filterParenthesisExpression!swap	ALTER TABLE a ADD INDEX a WHERE(IDENTITY_INSERT IS NULL)
-reject	accept	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/Is_(filterNullPredicate|(Not)?_Distinct_~dc013d8d)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/Is_(filterNullPredicate|(Not)?_Distinct_~dc013d8d)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/Is_(filterNullPredicate|(Not)?_Distinct_~dc013d8d)!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL ISOLATION NULL
-reject	accept	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterComparisonPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL = 1
+accept	accept	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterComparisonPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL = 1
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterComparisonPredicate!drop-1	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL 1
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterComparisonPredicate!drop-2	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL =
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterComparisonPredicate!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL = 1 zzz
-reject	accept	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
+accept	accept	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate!drop-1	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL(1)
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate!drop-2	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN 1)
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate!drop-3	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN()
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate!drop-4	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1) zzz
 reject	reject	engine	filterExpressionPrimary(Is_(filterNullPredicate|(Not)?_Disti~696eadba)/filterInPredicate!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL INCLUDE(1)
-reject	accept	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/filterNullPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/filterNullPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
 reject	reject	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/filterNullPredicate!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULLIF
-reject	accept	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
+accept	accept	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
 reject	reject	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc!drop-1	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS FROM NULL
 reject	reject	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc!drop-2	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT NULL
 reject	reject	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc!drop-3	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM
 reject	reject	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL zzz
 reject	reject	engine	filterExpressionPrimary(filterNullPredicate|(Not)?_Distinct_~dc013d8d)/(Not)?_Distinct_From_(filterNullPredicateFromDistinctPr~035725bc!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTRIBUTED FROM NULL
-reject	accept	engine	filterExpressionPrimary(Not)?/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
+accept	accept	engine	filterExpressionPrimary(Not)?/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
 reject	reject	engine	filterExpressionPrimary(Not)?/%empty!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS zzz DISTINCT FROM NULL
-reject	accept	engine	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
+accept	accept	engine	filterExpressionPrimary(Not)?/Not	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT DISTINCT FROM NULL
 reject	reject	engine	filterExpressionPrimary(Not)?/Not!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOT zzz DISTINCT FROM NULL
 reject	reject	engine	filterExpressionPrimary(Not)?/Not!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NOTIFICATION DISTINCT FROM NULL
-reject	accept	engine	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterNullPredicateFromDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
+accept	accept	engine	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterNullPredicateFromDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
 reject	reject	engine	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterNullPredicateFromDistinctPredicate!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULLIF
-reject	accept	engine	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
+accept	accept	engine	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
 reject	reject	engine	filterExpressionPrimary(filterNullPredicateFromDistinctPredi~e2c4c1b6)/filterDistinctPredicate!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1 zzz
-reject	accept	engine	filterExpression/filterExpressionPrimary_(And_filterExpression)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
-reject	accept	engine	filterExpression(And_filterExpression)?/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
-reject	accept	engine	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
+accept	accept	engine	filterExpression/filterExpressionPrimary_(And_filterExpression)?	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterExpression(And_filterExpression)?/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterExpression(And_filterExpression)?/And_filterExpression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL
 reject	reject	engine	filterExpression(And_filterExpression)?/And_filterExpression!drop-1	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL IDENTITYCOL IS NULL
 reject	reject	engine	filterExpression(And_filterExpression)?/And_filterExpression!drop-2	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IS NULL
 reject	reject	engine	filterExpression(And_filterExpression)?/And_filterExpression!drop-3	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL NULL
 reject	reject	engine	filterExpression(And_filterExpression)?/And_filterExpression!drop-4	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS
 reject	reject	engine	filterExpression(And_filterExpression)?/And_filterExpression!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL AND IDENTITYCOL IS NULL zzz
 reject	reject	engine	filterExpression(And_filterExpression)?/And_filterExpression!swap	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL ANONYMOUS IDENTITYCOL IS NULL
-reject	accept	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d)	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
 reject	reject	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d)!truncate	ALTER TABLE a ADD INDEX a WHERE
 reject	reject	engine	filterColumn/(specialColumn|multiPartIdentifier_(D~136ccc2d)!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL zzz IS NULL
-reject	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
-reject	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
+accept	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/specialColumn	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?	ALTER TABLE a ADD INDEX a WHERE a IS NULL
 reject	reject	engine	filterColumn(specialColumn|multiPartIdentifier_(D~136ccc2d)/multiPartIdentifier_(Dot_specialColumn)?!insert	ALTER TABLE a ADD INDEX a WHERE a zzz IS NULL
-reject	accept	engine	filterColumn(Dot_specialColumn)?/%empty	ALTER TABLE a ADD INDEX a WHERE a IS NULL
-reject	accept	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
+accept	accept	engine	filterColumn(Dot_specialColumn)?/%empty	ALTER TABLE a ADD INDEX a WHERE a IS NULL
+accept	accept	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL IS NULL
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!drop-1	ALTER TABLE a ADD INDEX a WHERE a IDENTITYCOL IS NULL
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!drop-2	ALTER TABLE a ADD INDEX a WHERE a.IS NULL
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!truncate	ALTER TABLE a ADD INDEX a WHERE a.
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!insert	ALTER TABLE a ADD INDEX a WHERE a.IDENTITYCOL zzz IS NULL
 reject	reject	engine	filterColumn(Dot_specialColumn)?/Dot_specialColumn!swap	ALTER TABLE a ADD INDEX a WHERE a.IDENTITY_INSERT IS NULL
-reject	accept	engine	filterNullPredicate/booleanExpressionNullPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
-reject	accept	engine	filterDistinctPredicate/expression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
-reject	accept	engine	filterNullPredicateFromDistinctPredicate/Null	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
-reject	accept	engine	filterComparisonPredicate/comparisonOperator_expression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL = 1
-reject	accept	engine	filterInPredicate/In_LeftParenthesis_expression_(Comma_expression)*_Right~05248e31	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
-reject	accept	engine	filterInPredicate(Comma_expression)*/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
+accept	accept	engine	filterNullPredicate/booleanExpressionNullPredicate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	filterDistinctPredicate/expression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM 1
+accept	accept	engine	filterNullPredicateFromDistinctPredicate/Null	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS DISTINCT FROM NULL
+accept	accept	engine	filterComparisonPredicate/comparisonOperator_expression	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL = 1
+accept	accept	engine	filterInPredicate/In_LeftParenthesis_expression_(Comma_expression)*_Right~05248e31	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
+accept	accept	engine	filterInPredicate(Comma_expression)*/%empty	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1)
 reject	reject	engine	filterInPredicate(Comma_expression)*/%empty!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1 zzz)
-reject	accept	engine	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
+accept	accept	engine	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1)
 reject	reject	engine	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-1	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1 1)
 reject	reject	engine	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*!drop-2	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1,)
 reject	reject	engine	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*!truncate	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1,
 reject	reject	engine	filterInPredicate(Comma_expression)*/Comma_expression_(Comma_expression)*!insert	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IN(1, 1 zzz)
-reject	accept	engine	filterParenthesisExpression/LeftParenthesis_filterExpression_RightParenthesis	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL IS NULL)
+accept	accept	engine	filterParenthesisExpression/LeftParenthesis_filterExpression_RightParenthesis	ALTER TABLE a ADD INDEX a WHERE(IDENTITYCOL IS NULL)
 reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?	CREATE TABLE a AS ON 'a'
 reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?!drop-1	CREATE TABLE a AS ON
 reject	reject	engine	filegroupOrPartitionScheme/stringOrIdentifier_(columnNameList)?!insert	CREATE TABLE a AS ON 'a' zzz
@@ -12016,7 +12016,7 @@ reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!dro
 reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!truncate	TRUNCATE TABLE a WITH(a(1 TO
 reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!insert	TRUNCATE TABLE a WITH(a(1 TO 1 zzz))
 reject	reject	engine	compressionPartitionRange(To_expression)?/To_expression!swap	TRUNCATE TABLE a WITH(a(1 TOP 1))
-accept	reject	engine	createExternalTableStatement/Table_schemaObjectThreePartName_((LeftParenthesis_exter~1df6b415	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	createExternalTableStatement/Table_schemaObjectThreePartName_((LeftParenthesis_exter~1df6b415	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 accept	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-1	CREATE EXTERNAL TABLE a a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-2	CREATE EXTERNAL TABLE a(a) WITH(DATA_SOURCE = a)
@@ -12029,7 +12029,7 @@ reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTable
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!drop-10	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!insert	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a) zzz
 reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/LeftParenthesis_externalTableColumnElement_(Comma_exter~549704a4!swap	CREATE EXTERNAL TABLE a(a a) WITHIN(DATA_SOURCE = a)
-accept	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/ctasCreateExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	createExternalTableStatement((LeftParenthesis_externalTableColumn~2c8aeb38)/ctasCreateExternalTableStatement	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 accept	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/%empty	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/%empty!insert	CREATE EXTERNAL TABLE a(a a zzz) WITH(DATA_SOURCE = a)
 accept	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45	CREATE EXTERNAL TABLE a(a a, a a) WITH(DATA_SOURCE = a)
@@ -12039,21 +12039,21 @@ reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnEleme
 reject	reject	engine	createExternalTableStatement(Comma_externalTableColumnElement)*/Comma_externalTableColumnElement_(Comma_externalTableCo~50abee45!insert	CREATE EXTERNAL TABLE a(a a, a a zzz) WITH(DATA_SOURCE = a)
 accept	reject	engine	externalTableColumnElement/columnDefinitionCreateExternalTable	CREATE EXTERNAL TABLE a(a a) WITH(DATA_SOURCE = a)
 reject	reject	engine	externalTableColumnElement/columnDefinitionCreateExternalTable!truncate	CREATE EXTERNAL TABLE a(a
-accept	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da!truncate	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a
 reject	reject	engine	withExternalTableOptions/With_LeftParenthesis_(externalTableDataSource_DATA_SOUR~4333a7da!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) zzz AS SELECT *
-accept	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE!truncate	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE =
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a zzz) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/externalTableDataSource_DATA_SOURCE!swap	CREATE EXTERNAL TABLE a WITH(DATEFIRST = a) AS SELECT *
-accept	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!drop-1	CREATE EXTERNAL TABLE a WITH(= VALUE) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!drop-2	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE VALUE) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!drop-3	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE =) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!truncate	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE =
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!insert	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE zzz) AS SELECT *
 reject	reject	engine	withExternalTableOptions(externalTableDataSource_DATA_SOURCE|~664f4ead)/createExternalTableOption!swap	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = VALUE) AS SELECT *
-accept	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/%empty	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/%empty	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!drop-1	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a DATA_SOURCE = a) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!drop-2	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, = a) AS SELECT *
@@ -12062,7 +12062,7 @@ reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DAT
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!truncate	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE =
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!insert	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATA_SOURCE = a zzz) AS SELECT *
 reject	reject	engine	withExternalTableOptions(Comma_(externalTableDataSource_DATA_~2533b2ff)*/Comma_(externalTableDataSource_DATA_SOURCE|~664f4ead)_(~2bd9439e!swap	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a, DATEFIRST = a) AS SELECT *
-accept	reject	engine	createExternalTableOption/externalTableRejectTypeOption_REJECT_TYPE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	reject	engine	createExternalTableOption/externalTableRejectTypeOption_REJECT_TYPE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!drop-1	CREATE EXTERNAL TABLE a WITH(= REPLICATED) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!drop-2	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION REPLICATED) AS SELECT *
@@ -12070,7 +12070,7 @@ reject	reject	engine	createExternalTableOption/externalTableDistributionOption_D
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!truncate	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION =
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!insert	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED zzz) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableDistributionOption_DISTRIBUTION!swap	CREATE EXTERNAL TABLE a WITH(DOUBLE = REPLICATED) AS SELECT *
-accept	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
 reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)!drop-1	CREATE EXTERNAL TABLE a WITH(= 1) AS SELECT *
 reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)!drop-2	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE 1) AS SELECT *
 reject	reject	engine	createExternalTableOption/(externalTableNumericLiteralOption_RE~05844a40)!drop-3	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE =) AS SELECT *
@@ -12082,8 +12082,8 @@ reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierO
 reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierOption!drop-3	CREATE EXTERNAL TABLE a WITH(a =) AS SELECT *
 reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierOption!truncate	CREATE EXTERNAL TABLE a WITH(a =
 reject	reject	engine	createExternalTableOption/externalTableLiteralOrIdentifierOption!insert	CREATE EXTERNAL TABLE a WITH(a = a zzz) AS SELECT *
-accept	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
-accept	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
+reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
 reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE!drop-2	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE 1) AS SELECT *
 reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE!drop-3	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE =) AS SELECT *
 reject	reject	engine	createExternalTableOption(externalTableNumericLiteralOption_RE~05844a40)/externalTableNumericLiteralOption_REJECT_VALUE!truncate	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE =
@@ -12481,16 +12481,16 @@ accept	accept	engine	alterTableConstraintModificationStatement(Comma_identifier)
 reject	reject	engine	alterTableConstraintModificationStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-1	ALTER TABLE a CHECK CONSTRAINT a a
 reject	reject	engine	alterTableConstraintModificationStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!drop-2	ALTER TABLE a CHECK CONSTRAINT a,
 reject	reject	engine	alterTableConstraintModificationStatement(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	ALTER TABLE a CHECK CONSTRAINT a, a zzz
-reject	accept	engine	inlineIndexType/(Clustered|NonClustered)?_((HASH|COLUMNSTORE))?	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexType/(Clustered|NonClustered)?_((HASH|COLUMNSTORE))?	ALTER TABLE a ADD INDEX a
 reject	reject	engine	inlineIndexType/(Clustered|NonClustered)?_((HASH|COLUMNSTORE))?!insert	ALTER TABLE a ADD INDEX a zzz
-reject	accept	engine	inlineIndexType(Clustered|NonClustered)?/%empty	ALTER TABLE a ADD INDEX a
-reject	accept	engine	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
+accept	accept	engine	inlineIndexType(Clustered|NonClustered)?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexType(Clustered|NonClustered)?/Clustered	ALTER TABLE a ADD INDEX a CLUSTERED
 reject	reject	engine	inlineIndexType(Clustered|NonClustered)?/Clustered!insert	ALTER TABLE a ADD INDEX a CLUSTERED zzz
 reject	reject	engine	inlineIndexType(Clustered|NonClustered)?/Clustered!swap	ALTER TABLE a ADD INDEX a COALESCE
-reject	accept	engine	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
+accept	accept	engine	inlineIndexType(Clustered|NonClustered)?/NonClustered	ALTER TABLE a ADD INDEX a NONCLUSTERED
 reject	reject	engine	inlineIndexType(Clustered|NonClustered)?/NonClustered!insert	ALTER TABLE a ADD INDEX a NONCLUSTERED zzz
 reject	reject	engine	inlineIndexType(Clustered|NonClustered)?/NonClustered!swap	ALTER TABLE a ADD INDEX a NONE
-reject	accept	engine	inlineIndexType((HASH|COLUMNSTORE))?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexType((HASH|COLUMNSTORE))?/%empty	ALTER TABLE a ADD INDEX a
 reject	reject	engine	inlineIndexType((HASH|COLUMNSTORE))?/(HASH|COLUMNSTORE)	ALTER TABLE a ADD INDEX a HASH
 reject	reject	engine	inlineIndexType((HASH|COLUMNSTORE))?/(HASH|COLUMNSTORE)!insert	ALTER TABLE a ADD INDEX a HASH zzz
 reject	reject	engine	inlineIndexType((HASH|COLUMNSTORE))?/(HASH|COLUMNSTORE)!swap	ALTER TABLE a ADD INDEX a HASHED
@@ -12498,37 +12498,37 @@ reject	reject	engine	inlineIndexType(HASH|COLUMNSTORE)/HASH	ALTER TABLE a ADD IN
 reject	reject	engine	inlineIndexType(HASH|COLUMNSTORE)/COLUMNSTORE	ALTER TABLE a ADD INDEX a COLUMNSTORE
 reject	reject	engine	inlineIndexType(HASH|COLUMNSTORE)/COLUMNSTORE!insert	ALTER TABLE a ADD INDEX a COLUMNSTORE zzz
 reject	reject	engine	inlineIndexType(HASH|COLUMNSTORE)/COLUMNSTORE!swap	ALTER TABLE a ADD INDEX a COLUMN_ENCRYPTION_KEY
-reject	accept	engine	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba	ALTER TABLE a ADD INDEX a
 reject	reject	engine	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!drop-2	ALTER TABLE a ADD INDEX
 accept	accept	engine	inlineIndexTableDefinition/Index_identifier_(Unique)?_inlineIndexType_(LeftParenth~202051ba!swap	ALTER TABLE a ADD INFINITE a
-reject	accept	engine	inlineIndexTableDefinition(Unique)?/%empty	ALTER TABLE a ADD INDEX a
-reject	accept	engine	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
+accept	accept	engine	inlineIndexTableDefinition(Unique)?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition(Unique)?/Unique	ALTER TABLE a ADD INDEX a UNIQUE
 reject	reject	engine	inlineIndexTableDefinition(Unique)?/Unique!insert	ALTER TABLE a ADD INDEX a UNIQUE zzz
 reject	reject	engine	inlineIndexTableDefinition(Unique)?/Unique!swap	ALTER TABLE a ADD INDEX a UNKNOWN
-reject	accept	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/%empty	ALTER TABLE a ADD INDEX a
-reject	accept	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
+accept	accept	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334	ALTER TABLE a ADD INDEX a(a)
 reject	reject	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334!drop-1	ALTER TABLE a ADD INDEX a a)
 reject	reject	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334!drop-2	ALTER TABLE a ADD INDEX a()
 reject	reject	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334!drop-3	ALTER TABLE a ADD INDEX a(a
 reject	reject	engine	inlineIndexTableDefinition(LeftParenthesis_indexKeyColumn_(Comm~60456e6b)?/LeftParenthesis_indexKeyColumn_(Comma_indexKeyColumn)*_~cfb3b334!insert	ALTER TABLE a ADD INDEX a(a) zzz
-reject	accept	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/%empty	ALTER TABLE a ADD INDEX a(a)
+accept	accept	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/%empty	ALTER TABLE a ADD INDEX a(a)
 reject	reject	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/%empty!insert	ALTER TABLE a ADD INDEX a(a zzz)
-reject	accept	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
+accept	accept	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*	ALTER TABLE a ADD INDEX a(a, a)
 reject	reject	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*!drop-1	ALTER TABLE a ADD INDEX a(a a)
 reject	reject	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*!drop-2	ALTER TABLE a ADD INDEX a(a,)
 reject	reject	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*!truncate	ALTER TABLE a ADD INDEX a(a,
 reject	reject	engine	inlineIndexTableDefinition(Comma_indexKeyColumn)*/Comma_indexKeyColumn_(Comma_indexKeyColumn)*!insert	ALTER TABLE a ADD INDEX a(a, a zzz)
-reject	accept	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/%empty	ALTER TABLE a ADD INDEX a
 reject	reject	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList	ALTER TABLE a ADD INDEX a INCLUDE(a)
 reject	reject	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList!drop-2	ALTER TABLE a ADD INDEX a INCLUDE a)
 reject	reject	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList!drop-3	ALTER TABLE a ADD INDEX a INCLUDE()
 reject	reject	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList!drop-4	ALTER TABLE a ADD INDEX a INCLUDE(a
 reject	reject	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList!insert	ALTER TABLE a ADD INDEX a INCLUDE(a) zzz
 reject	reject	engine	inlineIndexTableDefinition(INCLUDE_identifierColumnList)?/INCLUDE_identifierColumnList!swap	ALTER TABLE a ADD INDEX a INCREMENT(a)
-reject	accept	engine	inlineIndexTableDefinition(filterClause)?/%empty	ALTER TABLE a ADD INDEX a
-reject	accept	engine	inlineIndexTableDefinition(filterClause)?/filterClause	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
-reject	accept	engine	inlineIndexTableDefinition(With_(indexOptionList))?/%empty	ALTER TABLE a ADD INDEX a
-reject	accept	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList	ALTER TABLE a ADD INDEX a WITH(FILLFACTOR = 1)
+accept	accept	engine	inlineIndexTableDefinition(filterClause)?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition(filterClause)?/filterClause	ALTER TABLE a ADD INDEX a WHERE IDENTITYCOL IS NULL
+accept	accept	engine	inlineIndexTableDefinition(With_(indexOptionList))?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList	ALTER TABLE a ADD INDEX a WITH(FILLFACTOR = 1)
 reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList!drop-1	ALTER TABLE a ADD INDEX a(FILLFACTOR = 1)
 reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList!drop-2	ALTER TABLE a ADD INDEX a WITH FILLFACTOR = 1)
 reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList!drop-3	ALTER TABLE a ADD INDEX a WITH(= 1)
@@ -12537,8 +12537,8 @@ reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_in
 reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList!drop-6	ALTER TABLE a ADD INDEX a WITH(FILLFACTOR = 1
 reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList!insert	ALTER TABLE a ADD INDEX a WITH(FILLFACTOR = 1) zzz
 reject	reject	engine	inlineIndexTableDefinition(With_(indexOptionList))?/With_indexOptionList!swap	ALTER TABLE a ADD INDEX a WITHIN(FILLFACTOR = 1)
-reject	accept	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/%empty	ALTER TABLE a ADD INDEX a
-reject	accept	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/On_filegroupOrPartitionScheme	ALTER TABLE a ADD INDEX a ON 'a'
+accept	accept	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/%empty	ALTER TABLE a ADD INDEX a
+accept	accept	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/On_filegroupOrPartitionScheme	ALTER TABLE a ADD INDEX a ON 'a'
 reject	reject	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/On_filegroupOrPartitionScheme!drop-1	ALTER TABLE a ADD INDEX a 'a'
 reject	reject	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/On_filegroupOrPartitionScheme!drop-2	ALTER TABLE a ADD INDEX a ON
 reject	reject	engine	inlineIndexTableDefinition(On_filegroupOrPartitionScheme)?/On_filegroupOrPartitionScheme!insert	ALTER TABLE a ADD INDEX a ON 'a' zzz
@@ -12615,7 +12615,7 @@ reject	reject	engine	tableElement/tableConstraint!insert	ALTER TABLE a ADD UNIQU
 reject	reject	engine	tableElement/tableConstraint!swap	ALTER TABLE a ADD UNKNOWN(a)
 reject	reject	engine	tableElement/columnDefinition	ALTER TABLE a ADD a
 accept	accept	engine	tableElement/tableConstraint#2	ALTER TABLE a ADD UNIQUE(a)
-reject	accept	engine	tableElement/inlineIndexTableDefinition	ALTER TABLE a ADD INDEX a
+accept	accept	engine	tableElement/inlineIndexTableDefinition	ALTER TABLE a ADD INDEX a
 accept	accept	engine	tableElement/tablePeriodDefinition	ALTER TABLE a ADD PERIOD FOR SYSTEM_TIME(a, a)
 reject	reject	engine	columnDefinition/identifier_((computedColumnBody_computedColumnCo~3aecbab4)	ALTER TABLE a ADD a
 accept	accept	engine	columnDefinition((computedColumnBody_computedColumnCo~3aecbab4)/computedColumnBody_computedColumnConstraintListOpt	ALTER TABLE a ADD a AS 1
@@ -17255,16 +17255,16 @@ reject	reject	engine	tableHashDistributionPolicy_HASH(Comma_identifier)*/Comma_i
 reject	reject	engine	tableHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!truncate	CREATE TABLE a AS WITH(DISTRIBUTION = HASH(a,
 reject	reject	engine	tableHashDistributionPolicy_HASH(Comma_identifier)*/Comma_identifier_(Comma_identifier)*!insert	CREATE TABLE a AS WITH(DISTRIBUTION = HASH(a, a zzz))
 reject	reject	engine	tableNonClusteredIndexType_HEAP/HEAP	CREATE TABLE a AS WITH(HEAP)
-accept	reject	engine	externalTableDataSource_DATA_SOURCE/DATA_SOURCE_EqualsSign_identifier	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
-accept	reject	engine	externalTableRejectTypeOption_REJECT_TYPE/REJECT_TYPE_EqualsSign_(VALUE|PERCENTAGE)	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
-accept	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	reject	engine	externalTableDataSource_DATA_SOURCE/DATA_SOURCE_EqualsSign_identifier	CREATE EXTERNAL TABLE a WITH(DATA_SOURCE = a) AS SELECT *
+reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE/REJECT_TYPE_EqualsSign_(VALUE|PERCENTAGE)	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
+reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/VALUE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUE) AS SELECT *
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/VALUE!swap	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = VALUES) AS SELECT *
-accept	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERCENTAGE) AS SELECT *
+reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERCENTAGE) AS SELECT *
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE!insert	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERCENTAGE zzz) AS SELECT *
 reject	reject	engine	externalTableRejectTypeOption_REJECT_TYPE(VALUE|PERCENTAGE)/PERCENTAGE!swap	CREATE EXTERNAL TABLE a WITH(REJECT_TYPE = PERIOD) AS SELECT *
 reject	reject	engine	externalTableDistributionOption_DISTRIBUTION/DISTRIBUTION_EqualsSign_externalTableDistributionPolicy	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
-accept	reject	engine	externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE/REJECT_SAMPLE_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
-accept	reject	engine	externalTableNumericLiteralOption_REJECT_VALUE/REJECT_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
+reject	reject	engine	externalTableNumericLiteralOption_REJECT_SAMPLE_VALUE/REJECT_SAMPLE_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_SAMPLE_VALUE = 1) AS SELECT *
+reject	reject	engine	externalTableNumericLiteralOption_REJECT_VALUE/REJECT_VALUE_EqualsSign_integerOrNumeric	CREATE EXTERNAL TABLE a WITH(REJECT_VALUE = 1) AS SELECT *
 reject	reject	engine	externalTableReplicatedDistributionPolicy_REPLICATED/REPLICATED	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = REPLICATED) AS SELECT *
 reject	reject	engine	externalTableRoundRobinDistributionPolicy_ROUND_ROBIN/ROUND_ROBIN	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = ROUND_ROBIN) AS SELECT *
 reject	reject	engine	externalTableShardedDistributionPolicy_SHARDED/SHARDED_LeftParenthesis_identifier_RightParenthesis	CREATE EXTERNAL TABLE a WITH(DISTRIBUTION = SHARDED(a)) AS SELECT *

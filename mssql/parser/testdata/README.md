@@ -92,25 +92,27 @@ go test ./mssql/parser/ -run '^TestCompatibility$' -update-compat
 
 ## The work list
 
-16,932 rows agree: 12,212 when the file was recorded, the rest closed family
+17,020 rows agree: 12,212 when the file was recorded, the rest closed family
 by family (#1034 to #1070), each reading its option lists and clauses by the
 grammar and the server's checks. What is left, and why:
 
-- **Only omni accepts (356):**
+- **Only omni accepts (317):**
   - The judge has no PolyBase (`IsPolyBaseInstalled` is 0), so it refuses
     every `CREATE EXTERNAL TABLE`, `FILE FORMAT` and `STREAM`, `COPY INTO`
-    and Synapse's `CREATE TABLE ... AS SELECT` (98). omni reads them by the
-    grammar and the docs rather than refuse a kind of statement outright.
+    and Synapse's `CREATE TABLE ... AS SELECT` (80). omni reads them by the
+    grammar and the docs rather than refuse a kind of statement outright,
+    except the `CREATE EXTERNAL TABLE ... AS SELECT` tail, which it does not
+    read either (18 rows, `ctasCreateExternalTableStatement`).
   - Statements omni still reads by their shape: federations (36, Azure SQL
     Database's), security policies (32), sensitivity classifications (29),
     `ALTER AUTHORIZATION` (12), `CREATE RULE`, `CREATE SYNONYM`.
   - Table sources and their arguments in `SELECT` (50): `OPENROWSET`,
     `OPENQUERY`, `CONTAINSTABLE` arguments, a trailing comma after a table.
   - Graph `MATCH` patterns (22): omni does not read the arrows.
-- **Only SQL Server accepts (249):**
+- **Only SQL Server accepts (200):**
   - A procedure called without `EXEC` as a batch's first statement (`a 1`,
     65).
-  - `ALTER TABLE` (61): `ADD INDEX`, `ADD CONNECTION` and the rest of what an
+  - `ALTER TABLE` (12): `ADD CONNECTION`, `COLUMN_SET` and the rest of what an
     AST field would be needed for.
   - Split comparison operators (`! =`, `< =`), `IS DISTINCT FROM` and graph
     arrows in `IF` (32), ODBC escapes (`{fn NOW()}`, 18), `FOR PATH`.
