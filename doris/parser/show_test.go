@@ -697,6 +697,24 @@ func TestShowCreateMaterializedViewOn(t *testing.T) {
 	}
 }
 
+// TestShowCreateProcedure: SHOW CREATE PROCEDURE name (DorisParser.g4:47),
+// a statement of its own rather than one handed to the CUP parser. The name is
+// required, so SHOW CREATE PROCEDURE is a syntax error.
+func TestShowCreateProcedure(t *testing.T) {
+	stmt := parseOne(t, "SHOW CREATE PROCEDURE a").(*ast.ShowStmt)
+	if stmt.Type != "CREATE PROCEDURE" {
+		t.Errorf("Type = %q, want CREATE PROCEDURE", stmt.Type)
+	}
+	if stmt.Target == nil || stmt.Target.Parts[0] != "a" {
+		t.Errorf("Target = %+v, want a", stmt.Target)
+	}
+	for _, sql := range []string{"SHOW CREATE PROCEDURE", "SHOW CREATE PROCEDURE a zzz"} {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+		}
+	}
+}
+
 // TestShowIndexStats: SHOW INDEX STATS table index (DorisParser.g4:769,
 // show_param at DorisLegacyParser.g4:1386).
 func TestShowIndexStats(t *testing.T) {
