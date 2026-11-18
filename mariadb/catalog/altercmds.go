@@ -149,7 +149,7 @@ func (c *Catalog) alterTableCommands(db *Database, tbl *Table, key string, stmt 
 		if cmd.Type != nodes.ATAddIndex && cmd.Type != nodes.ATAddConstraint {
 			return nil
 		}
-		return alterFutureColumnsAfter(stmt.Commands, cmdIndex[cmd])
+		return alterFutureColumnsAfter(stmt.Commands, cmdIndex[cmd], tbl.Charset, tbl.Collation)
 	}
 
 	if len(stmt.Commands) == 1 {
@@ -770,34 +770,45 @@ type futureColumn struct {
 	from        string           // CHANGE's source column; empty for MODIFY/ADD
 	ifNotExists bool             // ADD COLUMN IF NOT EXISTS
 	add         bool             // ADD, not MODIFY or CHANGE
+	charset     string           // the table default when the column is added
+	collation   string
 }
 
 // alterFutureColumnsAfter returns the columns the commands after cmds[at]
 // introduce, in statement order. It is built only for a command that adds a
 // key, so an ALTER of many columns pays nothing for the ones without keys.
-func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int) []futureColumn {
+func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int, charset, collation string) []futureColumn {
 	var changes []futureColumn
 	for _, later := range cmds[at+1:] {
 		if later == nil {
 			continue
 		}
 		switch later.Type {
+		case nodes.ATTableOption:
+			if opt := later.Option; opt != nil && !opt.EngineDefined {
+				switch toLower(opt.Name) {
+				case "charset", "character set", "default charset", "default character set":
+					charset, collation = normalizeCharsetName(opt.Value), ""
+				case "collate", "default collate":
+					collation = opt.Value
+				}
+			}
 		case nodes.ATAddColumn:
 			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists, add: true})
+				changes = append(changes, futureColumn{def: later.Column, ifNotExists: later.IfNotExists, add: true, charset: charset, collation: collation})
 			}
 			for _, def := range later.Columns {
 				if def != nil {
-					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists, add: true})
+					changes = append(changes, futureColumn{def: def, ifNotExists: later.IfNotExists, add: true, charset: charset, collation: collation})
 				}
 			}
 		case nodes.ATModifyColumn:
 			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column})
+				changes = append(changes, futureColumn{def: later.Column, charset: charset, collation: collation})
 			}
 		case nodes.ATChangeColumn:
 			if later.Column != nil {
-				changes = append(changes, futureColumn{def: later.Column, from: later.Name})
+				changes = append(changes, futureColumn{def: later.Column, from: later.Name, charset: charset, collation: collation})
 			}
 		}
 	}
@@ -806,21 +817,60 @@ func alterFutureColumnsAfter(cmds []*nodes.AlterTableCmd, at int) []futureColumn
 
 // applyFutureColumns adds a later command's columns to the key's table.
 func applyFutureColumns(tbl *Table, changes []futureColumn) {
+	aliases := make(map[string][]string)
 	for _, ch := range changes {
 		if ch.def == nil || ch.def.Name == "" {
 			continue
 		}
-		if ch.from != "" {
-			// CHANGE replaces its source definition, and the key may still name
-			// that source: `ADD KEY(a), CHANGE a b INT` checks a's new type
-			// before the rename. The new name is there too for a key naming it.
-			if at, ok := tbl.colByName[toLower(ch.from)]; ok {
-				col := buildColumnFromDef(tbl, ch.def)
-				col.Name = ch.from
-				col.Position = tbl.Columns[at].Position
-				tbl.Columns[at] = col
-				rebuildColIndex(tbl)
+		if ch.charset != "" || ch.collation != "" {
+			tbl.Charset, tbl.Collation = ch.charset, ch.collation
+		}
+		replace := func(name string) {
+			at, ok := tbl.colByName[toLower(name)]
+			if !ok {
+				return
 			}
+			col := buildColumnFromDef(tbl, ch.def)
+			col.Name = name
+			col.Position = tbl.Columns[at].Position
+			tbl.Columns[at] = col
+		}
+		if ch.from != "" {
+			// A CHANGE moves its source definition. If the destination is
+			// already a column the live CHANGE will fail with 1060, so it
+			// contributes no prospective definition.
+			if !strings.EqualFold(ch.from, ch.def.Name) && tbl.GetColumn(ch.def.Name) != nil {
+				continue
+			}
+			group := aliases[toLower(ch.from)]
+			if len(group) == 0 {
+				group = []string{ch.from}
+			}
+			for _, name := range group {
+				replace(name)
+			}
+			if tbl.GetColumn(ch.def.Name) == nil {
+				col := buildColumnFromDef(tbl, ch.def)
+				col.Position = len(tbl.Columns) + 1
+				tbl.Columns = append(tbl.Columns, col)
+			} else {
+				replace(ch.def.Name)
+			}
+			group = append(group, ch.def.Name)
+			for _, name := range group {
+				aliases[toLower(name)] = group
+			}
+			rebuildColIndex(tbl)
+			continue
+		}
+		if group := aliases[toLower(ch.def.Name)]; len(group) > 0 {
+			// A MODIFY of a renamed column changes every name the earlier key
+			// may still use.
+			for _, name := range group {
+				replace(name)
+			}
+			rebuildColIndex(tbl)
+			continue
 		}
 		if at, ok := tbl.colByName[toLower(ch.def.Name)]; ok {
 			// A later duplicate ADD is 1060 when the statement runs; it must

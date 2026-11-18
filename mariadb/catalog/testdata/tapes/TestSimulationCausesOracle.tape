@@ -292,6 +292,44 @@
 | DROP TABLE IF EXISTS p
 < ok 0 0
 > exec
+| CREATE TABLE a (a VARCHAR(10), KEY k(a))
+< ok 0 0
+> exec
+| ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES a(a), DEFAULT CHARSET=latin1, ADD b VARCHAR(10)
+< error
+| 1005 HY000 Can't create table `omni_testsimulationcausesoracle`.`a` (errno: 150 "Foreign key constraint is incorrectly formed")
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| CREATE TABLE a (x INT, y POINT NOT NULL)
+< ok 0 0
+> exec
+| ALTER TABLE a ADD SPATIAL KEY(y), CHANGE x y POINT
+< error
+| 1060 42S21 Duplicate column name 'y'
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP SEQUENCE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
 | CREATE TABLE a (x INT)
 < ok 0 0
 > exec

@@ -117,6 +117,18 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1128,
 		},
 		{
+			name:  "FOREIGN KEY before a later inserted column under a new default charset",
+			setup: []string{"CREATE TABLE a (a VARCHAR(10), KEY k(a))"},
+			stmt:  "ALTER TABLE a ADD FOREIGN KEY (b) REFERENCES a(a), DEFAULT CHARSET=latin1, ADD b VARCHAR(10)",
+			code:  1005,
+		},
+		{
+			name:  "later CHANGE onto an occupied column",
+			setup: []string{"CREATE TABLE a (x INT, y POINT NOT NULL)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL KEY(y), CHANGE x y POINT",
+			code:  1060,
+		},
+		{
 			name:  "two later ADD COLUMN clauses of one name",
 			setup: []string{"CREATE TABLE a (x INT)"},
 			stmt:  "ALTER TABLE a ADD SPATIAL KEY(b), ADD b POINT NOT NULL, ADD b POINT",
