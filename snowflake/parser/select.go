@@ -289,24 +289,26 @@ func (p *Parser) parseSelectStmt() (*ast.SelectStmt, error) {
 }
 
 // startsTopCount reports whether the TOP at cur begins the TOP clause rather
-// than a select item named top. TOP takes a constant, so only a number, a
-// session variable or a parenthesized count begins it.
+// than a select item named top. TOP <n> takes a non-negative integer constant
+// (https://docs.snowflake.com/en/sql-reference/constructs/top_n), so only a
+// number or a session variable begins it; a name, a comma, a clause keyword or
+// `(` leaves TOP to the identifier and function-call parser.
 func (p *Parser) startsTopCount() bool {
 	switch p.peekNext().Type {
-	case tokInt, tokFloat, tokReal, tokVariable, '(':
+	case tokInt, tokFloat, tokReal, tokVariable:
 		return true
 	}
 	return false
 }
 
-// parseTopCount parses the count following TOP. Snowflake documents TOP n
-// as taking a constant, so this deliberately parses a single primary
-// expression (number literal, $variable, or parenthesized expression)
-// rather than a full expression: in `SELECT TOP 125 * FROM t` the `*` is
-// the star select target, not a multiplication operator applied to 125.
+// parseTopCount parses the count following TOP. Snowflake documents TOP <n>
+// as taking an integer constant, so this deliberately parses a single primary
+// expression (number literal or $variable) rather than a full expression: in
+// `SELECT TOP 125 * FROM t` the `*` is the star select target, not a
+// multiplication operator applied to 125.
 func (p *Parser) parseTopCount() (ast.Node, error) {
 	switch p.cur.Type {
-	case tokInt, tokFloat, tokReal, tokVariable, '(':
+	case tokInt, tokFloat, tokReal, tokVariable:
 		return p.parsePrimaryExpr()
 	default:
 		return nil, &ParseError{

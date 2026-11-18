@@ -301,6 +301,7 @@ func TestSelect_TopAsColumnName(t *testing.T) {
 		"SELECT top, a FROM t",
 		"SELECT a AS top FROM t",
 		"SELECT t.top FROM t",
+		"SELECT top(a) FROM t",
 	} {
 		sel, errs := testParseSelectStmt(sql)
 		if len(errs) > 0 {
