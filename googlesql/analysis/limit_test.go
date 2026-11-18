@@ -88,6 +88,11 @@ func TestRewriteResultLimit(t *testing.T) {
 			want:      "SELECT x FROM t |> LIMIT ALL |> LIMIT 100",
 		},
 		{
+			name:      "suffix-only statement gets a pipe limit",
+			statement: "|> WHERE x > 1",
+			want:      "|> WHERE x > 1 |> LIMIT 100",
+		},
+		{
 			name:      "non-literal pipe limit is unchanged",
 			statement: "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
 			want:      "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
@@ -117,6 +122,13 @@ func TestStatementWithResultLimit(t *testing.T) {
 		dialect   Dialect
 		want      string
 	}{
+		{
+			name:      "bigquery caps a suffix-only statement with a pipe limit",
+			statement: "|> WHERE x > 1",
+			limit:     10,
+			dialect:   DialectBigQuery,
+			want:      "|> WHERE x > 1 |> LIMIT 10",
+		},
 		{
 			name:      "bigquery wraps a select",
 			statement: "SELECT * FROM t",

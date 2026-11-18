@@ -534,9 +534,7 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// they are re-parsed (fillSubqueries) like the query / DML paths. CALL is
 		// one of the statements that may carry a pipe suffix
 		// (sql_statement_body_maybe_pipe_suffix).
-		return p.parseMaybePipeSuffixStmt(func() (ast.Node, error) {
-			return p.parseStmtWithSubqueries(p.parseCallStmt)
-		})
+		return p.parseMaybePipeSuffixStmt(p.parseCallStmt)
 	case kwEXECUTE:
 		// EXECUTE IMMEDIATE <sql> [INTO ...] [USING ...] (execute_immediate) — owned
 		// by the parser-scripting node. The SQL / USING expressions may embed

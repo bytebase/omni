@@ -861,17 +861,29 @@ func (p *Parser) parseParenthesizedQuery() (*ast.QueryStmt, error) {
 // [PIVOT|UNPIVOT …] [WHERE expr]`.
 func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
 	tableTok := p.advance() // TABLE
-	path, err := p.parsePathExpr()
-	if err != nil {
-		return nil, err
-	}
-	te := &ast.TableExpr{Path: path, Loc: path.Loc}
-	if p.cur.Type == int('(') {
-		f, err := p.parsePipeTVFAfterName(path)
+	var te *ast.TableExpr
+	if p.cur.Type == kwIF {
+		// tvf permits the reserved word IF in place of a path_expression.
+		f, err := p.parsePipeTVF()
 		if err != nil {
 			return nil, err
 		}
 		te = &ast.TableExpr{Func: f, Loc: nodeLoc(f)}
+	} else {
+		path, err := p.parsePathExpr()
+		if err != nil {
+			return nil, err
+		}
+		te = &ast.TableExpr{Path: path, Loc: path.Loc}
+		if p.cur.Type == int('(') {
+			f, err := p.parsePipeTVFAfterName(path)
+			if err != nil {
+				return nil, err
+			}
+			te = &ast.TableExpr{Func: f, Loc: nodeLoc(f)}
+		}
+	}
+	if te.Func != nil {
 		if alias, ok, err := p.tryParseTableAlias(); err != nil {
 			return nil, err
 		} else if ok {
@@ -1133,7 +1145,7 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 	fc := &ast.FuncCall{Name: name, Loc: name.Loc}
 	if p.cur.Type != int(')') {
 		for {
-			arg, err := p.parseCallArg()
+			arg, err := p.parsePipeTVFArg()
 			if err != nil {
 				return nil, err
 			}
@@ -1156,6 +1168,41 @@ func (p *Parser) parsePipeTVFAfterName(name *ast.PathExpr) (*ast.FuncCall, error
 		fc.Loc.End = p.prev.Loc.End
 	}
 	return fc, nil
+}
+
+// parsePipeTVFArg parses one tvf_argument in a pipe TVF call. It adds the two
+// alternatives the procedure-CALL helper does not read: `INPUT TABLE`, and a
+// named argument whose value is a table_clause (`arg => TABLE t`).
+func (p *Parser) parsePipeTVFArg() (ast.Node, error) {
+	if p.cur.Type == kwINPUT && p.peekNext().Type == kwTABLE {
+		start := p.advance().Loc.Start // INPUT
+		p.advance()                    // TABLE
+		return &ast.CallArg{Kind: ast.CallArgInputTable, Loc: ast.Loc{Start: start, End: p.prev.Loc.End}}, nil
+	}
+	if isIdentifierStart(p.cur.Type) && p.peekNext().Type == tokFatArrow {
+		// The value after `=>` may be a table_clause; the plain expression /
+		// lambda value is parseCallArg's.
+		nameTok := p.cur
+		name, err := p.identifierText(nameTok)
+		if err != nil {
+			return nil, err
+		}
+		p.advance() // identifier
+		p.advance() // '=>'
+		if p.cur.Type == kwTABLE {
+			tc, err := p.parseTableClauseOperand()
+			if err != nil {
+				return nil, err
+			}
+			return &ast.NamedArg{Name: name, Value: tc, Loc: ast.Loc{Start: nameTok.Loc.Start, End: tc.Loc.End}}, nil
+		}
+		val, err := p.parseArgValueMaybeLambda()
+		if err != nil {
+			return nil, err
+		}
+		return &ast.NamedArg{Name: name, Value: val, Loc: ast.Loc{Start: nameTok.Loc.Start, End: nodeLoc(val).End}}, nil
+	}
+	return p.parseCallArg()
 }
 
 // parsePipeIf parses `IF cond THEN ( … ) [ELSEIF cond THEN ( … )]* [ELSE ( … )]`.
@@ -1569,7 +1616,8 @@ func (p *Parser) parseRowPatternExpr() (*ast.RowPattern, error) {
 // a concatenation, or the empty pattern at an alternation boundary.
 func (p *Parser) parseRowPatternConcatenationOrEmpty() (*ast.RowPattern, error) {
 	if p.cur.Type == int('|') || p.cur.Type == tokBoolOr || p.cur.Type == int(')') {
-		return &ast.RowPattern{Kind: ast.RowPatternEmpty, Loc: p.cur.Loc}, nil
+		at := p.cur.Loc.Start
+		return &ast.RowPattern{Kind: ast.RowPatternEmpty, Loc: ast.Loc{Start: at, End: at}}, nil
 	}
 	left, err := p.parseRowPatternFactor()
 	if err != nil {

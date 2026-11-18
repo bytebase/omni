@@ -3828,6 +3828,9 @@ type CallArgKind int
 const (
 	// CallArgTable is `TABLE <path>` (table_clause).
 	CallArgTable CallArgKind = iota
+	// CallArgInputTable is `INPUT TABLE` (input_table_argument), which names
+	// the call's input table rather than a table path.
+	CallArgInputTable
 	// CallArgModel is `MODEL <path>` (model_clause).
 	CallArgModel
 	// CallArgConnection is `CONNECTION <path>|DEFAULT` (connection_clause).
