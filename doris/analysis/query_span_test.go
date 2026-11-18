@@ -1055,3 +1055,17 @@ func TestGetQuerySpan_LoadPropertySubquery(t *testing.T) {
 		}
 	}
 }
+
+// A load-property statement's span is DML, as ClassifyStatement says, not
+// UNKNOWN.
+func TestGetQuerySpan_LoadPropertyType(t *testing.T) {
+	for _, sql := range []string{"WHERE 1", "ORDER BY a", "COLUMNS(a)", "PRECEDING FILTER 1"} {
+		span, err := GetQuerySpan(sql)
+		if err != nil {
+			t.Fatalf("%q: %v", sql, err)
+		}
+		if span.Type != QueryTypeDML {
+			t.Errorf("%q: Type = %v, want DML", sql, span.Type)
+		}
+	}
+}

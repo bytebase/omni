@@ -68,7 +68,9 @@ func init() {
 		"EXPLAIN",
 	)
 
-	// Data manipulation language.
+	// Data manipulation language. ORDER, COLUMNS, PRECEDING and WHERE start the
+	// load properties Doris's grammar also derives as statements of their own
+	// (DorisParser.g4:389-393), which are the only statements they can start.
 	register(QueryTypeDML,
 		"INSERT",
 		"UPDATE",
@@ -78,6 +80,10 @@ func init() {
 		"EXPORT",
 		"TRUNCATE",
 		"COPY",
+		"ORDER",
+		"COLUMNS",
+		"PRECEDING",
+		"WHERE",
 	)
 
 	// Data definition language and session / administrative control.

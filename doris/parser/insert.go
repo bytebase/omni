@@ -108,11 +108,26 @@ func (p *Parser) parseInsert() (*ast.InsertStmt, error) {
 	// Source: VALUES (...), (...) | SELECT ... | WITH ... SELECT ...
 	switch p.cur.Kind {
 	case kwVALUES:
-		rows, err := p.parseInsertValues()
+		// The source is a query (DorisParser.g4:144), and a row list is its
+		// inlineTable primary (:1486), so it takes the set-op and trailing
+		// clauses a query does: INSERT INTO t VALUES(1) UNION SELECT 2.
+		values, err := p.parseValuesStmt()
 		if err != nil {
 			return nil, err
 		}
-		stmt.Values = rows
+		source, err := p.parseQueryTail(values)
+		if err != nil {
+			return nil, err
+		}
+		// A bare row list stays in Values, which is what consumers of an
+		// INSERT count rows from; a query that is more than the rows — a set
+		// operation, ORDER BY, LIMIT, INTO OUTFILE, a WITH or an alias — is
+		// kept as the query it is.
+		if plain, ok := source.(*ast.ValuesStmt); ok && plainValues(plain) {
+			stmt.Values = valuesRows(plain)
+		} else {
+			stmt.Query = source
+		}
 
 	case kwSELECT:
 		sel, err := p.parseSelectStmt()
@@ -258,72 +273,32 @@ func (p *Parser) tryParseColumnList() ([]string, bool, error) {
 	return nil, false, p.syntaxErrorAtCur()
 }
 
-// parseInsertValues parses VALUES (expr, ...) [, (expr, ...)] ...
-// The VALUES keyword has NOT yet been consumed.
-func (p *Parser) parseInsertValues() ([][]ast.Node, error) {
-	p.advance() // consume VALUES
-
-	var rows [][]ast.Node
-
-	row, err := p.parseInsertValueRow()
-	if err != nil {
-		return nil, err
+// plainValues reports whether a VALUES query is just its rows: no WITH clause,
+// no trailing clause and no aliased item, all of which InsertStmt.Values cannot
+// carry.
+func plainValues(v *ast.ValuesStmt) bool {
+	if v.With != nil || v.Into != nil || len(v.OrderBy) > 0 || v.Limit != nil || v.Offset != nil {
+		return false
 	}
-	rows = append(rows, row)
-
-	for p.cur.Kind == int(',') {
-		p.advance() // consume ','
-		row, err = p.parseInsertValueRow()
-		if err != nil {
-			return nil, err
+	for _, row := range v.Rows {
+		for _, item := range row {
+			if item.Aliased {
+				return false
+			}
 		}
-		rows = append(rows, row)
 	}
-
-	return rows, nil
+	return true
 }
 
-// parseInsertValueRow parses one VALUES row: '(' expr [, expr]* ')'.
-// Also handles DEFAULT as a special expression in insert value context.
-func (p *Parser) parseInsertValueRow() ([]ast.Node, error) {
-	if _, err := p.expect(int('(')); err != nil {
-		return nil, err
-	}
-
-	var exprs []ast.Node
-
-	expr, err := p.parseInsertValueExpr()
-	if err != nil {
-		return nil, err
-	}
-	exprs = append(exprs, expr)
-
-	for p.cur.Kind == int(',') {
-		p.advance() // consume ','
-		expr, err = p.parseInsertValueExpr()
-		if err != nil {
-			return nil, err
+// valuesRows flattens a plain VALUES query's rows into InsertStmt.Values, which
+// carries each item's expression.
+func valuesRows(v *ast.ValuesStmt) [][]ast.Node {
+	rows := make([][]ast.Node, len(v.Rows))
+	for i, row := range v.Rows {
+		rows[i] = make([]ast.Node, len(row))
+		for j, item := range row {
+			rows[i][j] = item.Expr
 		}
-		exprs = append(exprs, expr)
 	}
-
-	if _, err := p.expect(int(')')); err != nil {
-		return nil, err
-	}
-
-	return exprs, nil
-}
-
-// parseInsertValueExpr parses one expression in a VALUES row.
-// In INSERT context, DEFAULT is a valid standalone "expression".
-func (p *Parser) parseInsertValueExpr() (ast.Node, error) {
-	if p.cur.Kind == kwDEFAULT {
-		tok := p.advance() // consume DEFAULT
-		return &ast.Literal{
-			Kind:  ast.LitKeyword,
-			Value: "DEFAULT",
-			Loc:   tok.Loc,
-		}, nil
-	}
-	return p.parseExpr()
+	return rows
 }
