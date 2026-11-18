@@ -691,6 +691,18 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 	if p.cur.Kind != tokEOF {
 		query, err := p.parseStmt()
 		if err == nil && query != nil {
+			// StarRocks refuses EXPLAIN ANALYZE over UPDATE and DELETE, while
+			// the plan-only levels stay readable over them.
+			if stmt.Type == "ANALYZE" {
+				switch query.(type) {
+				case *ast.UpdateStmt, *ast.DeleteStmt:
+					return nil, &ParseError{
+						Position: ast.NodeLoc(query).Start,
+						End:      ast.NodeLoc(query).End,
+						Message:  "EXPLAIN ANALYZE is not supported for UPDATE or DELETE",
+					}
+				}
+			}
 			stmt.Query = query
 		} else if p.strictTrailing {
 			if err == nil {

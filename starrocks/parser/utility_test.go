@@ -216,6 +216,28 @@ func TestExplainModifiersWithDesc(t *testing.T) {
 	}
 }
 
+// StarRocks refuses ANALYZE over UPDATE and DELETE, while the plan-only
+// levels stay readable over them.
+func TestExplainAnalyzeRejectsUpdateAndDelete(t *testing.T) {
+	for _, sql := range []string{
+		"EXPLAIN ANALYZE UPDATE t SET c = 1",
+		"DESC ANALYZE DELETE FROM t",
+		"DESCRIBE ANALYZE UPDATE t SET c = 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+	for _, sql := range []string{
+		"EXPLAIN VERBOSE UPDATE t SET c = 1",
+		"DESC ANALYZE SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%q: unexpected errors: %v", sql, errs)
+		}
+	}
+}
+
 // TestDescPlansDML: insertStatement, updateStatement and deleteStatement each
 // take explainDesc? (StarRocks.g4:1183,1201,1205).
 func TestDescPlansDML(t *testing.T) {

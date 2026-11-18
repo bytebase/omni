@@ -1152,4 +1152,12 @@ func TestGetQuerySpanNewStatements(t *testing.T) {
 	if len(span.AccessTables) != 1 || span.AccessTables[0].Database != "db" || span.AccessTables[0].Table != "secret" {
 		t.Errorf("AccessTables = %+v, want db.secret", span.AccessTables)
 	}
+
+	span, err = GetQuerySpan("TRACE ALL SELECT secret AS exposed FROM t")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "exposed" {
+		t.Errorf("Results = %+v, want the traced query's exposed column", span.Results)
+	}
 }

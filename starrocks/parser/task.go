@@ -2,6 +2,7 @@ package parser
 
 import (
 	"strings"
+	"time"
 
 	"github.com/bytebase/omni/starrocks/ast"
 )
@@ -30,6 +31,9 @@ func (p *Parser) parseSubmitTask(startLoc ast.Loc) (ast.Node, error) {
 	if p.submitTaskNameAt() {
 		name, err := p.parseMultipartIdentifier()
 		if err != nil {
+			return nil, err
+		}
+		if err := checkTaskName(name); err != nil {
 			return nil, err
 		}
 		stmt.Name = name
@@ -70,7 +74,8 @@ clausesDone:
 		stmt.Statement, err = p.parseCreateTable()
 		if err == nil {
 			ctas, ok := stmt.Statement.(*ast.CreateTableStmt)
-			if !ok || ctas.AsSelect == nil || ctas.External ||
+			if !ok || ctas.AsSelect == nil || ctas.External || ctas.Like != nil ||
+				ctas.Engine != "" || len(ctas.Rollup) > 0 ||
 				len(ctas.Columns) > 0 || len(ctas.Constraints) > 0 {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -94,6 +99,19 @@ clausesDone:
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// checkTaskName enforces qualifiedNameToTaskName's shape: a task is named
+// `task` or `database.task`, and a longer name is a parse error.
+func checkTaskName(name *ast.ObjectName) error {
+	if name == nil || len(name.Parts) <= 2 {
+		return nil
+	}
+	return &ParseError{
+		Position: name.Loc.Start,
+		End:      name.Loc.End,
+		Message:  "task name must be task or database.task",
+	}
 }
 
 // submitTaskNameAt reports whether cur is the optional task name rather than
@@ -140,6 +158,13 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 		if _, err := p.expect(int(')')); err != nil {
 			return nil, err
 		}
+		if !validTaskStart(start.Str) {
+			return nil, &ParseError{
+				Position: start.Loc.Start,
+				End:      start.Loc.End,
+				Message:  "invalid date format: " + start.Str,
+			}
+		}
 		schedule.Start = start.Str
 	}
 
@@ -173,6 +198,33 @@ func (p *Parser) parseTaskSchedule() (*ast.TaskSchedule, error) {
 	return schedule, nil
 }
 
+// validTaskStart reports whether s is a timestamp DateUtils.probeFormat
+// accepts: yyyyMMdd, yyyy-MM-dd, yyyyMMddHHmmss, yyyy-MM-dd HH:mm:ss, or the
+// same with microseconds.
+func validTaskStart(s string) bool {
+	var layouts []string
+	switch len(s) {
+	case 8:
+		layouts = []string{"20060102"}
+	case 10:
+		layouts = []string{"2006-01-02"}
+	case 14:
+		layouts = []string{"20060102150405"}
+	case 19:
+		layouts = []string{"2006-01-02 15:04:05"}
+	case 26:
+		layouts = []string{"2006-01-02 15:04:05.000000"}
+	default:
+		return false
+	}
+	for _, layout := range layouts {
+		if _, err := time.Parse(layout, s); err == nil {
+			return true
+		}
+	}
+	return false
+}
+
 // parseDropTask parses dropTaskStatement. On entry DROP has been consumed and
 // cur is TASK.
 //
@@ -184,6 +236,9 @@ func (p *Parser) parseDropTask(startLoc ast.Loc) (ast.Node, error) {
 
 	name, err := p.parseMultipartIdentifier()
 	if err != nil {
+		return nil, err
+	}
+	if err := checkTaskName(name); err != nil {
 		return nil, err
 	}
 
@@ -259,6 +314,13 @@ func (p *Parser) parseDataCacheSelect() (ast.Node, error) {
 	from, err := p.parseMultipartIdentifier()
 	if err != nil {
 		return nil, err
+	}
+	if len(from.Parts) > 3 {
+		return nil, &ParseError{
+			Position: from.Loc.Start,
+			End:      from.Loc.End,
+			Message:  "table name must be table, database.table or catalog.database.table",
+		}
 	}
 
 	stmt := &ast.DataCacheSelectStmt{Items: items, From: from, Loc: startLoc}

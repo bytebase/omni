@@ -22,6 +22,8 @@ func TestSubmitTask(t *testing.T) {
 		{"SUBMIT TASK properties AS INSERT INTO a SELECT CURRENT_USER", "properties", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK schedule AS INSERT INTO a SELECT CURRENT_USER", "schedule", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT 1", "", 1, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK SCHEDULE START('20260101') EVERY(INTERVAL 10 SECOND) AS INSERT INTO a SELECT 1", "", 0,
+			&ast.TaskSchedule{Start: "20260101", Interval: "10", Unit: "SECOND"}, ast.T_InsertStmt},
 		{"SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM a", "", 0, nil, ast.T_DataCacheSelectStmt},
 		{"SUBMIT TASK SCHEDULE START('2026-01-01') EVERY(INTERVAL 1 DAY) AS INSERT INTO a SELECT 1", "", 0,
@@ -79,6 +81,30 @@ func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
 		"SUBMIT TASK AS CREATE TABLE a (x INT)",
 		"SUBMIT TASK AS CREATE TABLE a LIKE b",
 		"SUBMIT TASK AS CREATE EXTERNAL TABLE a AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a ENGINE = OLAP AS SELECT 1",
+		"SUBMIT TASK AS CREATE TABLE a ROLLUP (r (x)) AS SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
+func TestSubmitTaskRejectsBadSchedule(t *testing.T) {
+	for _, sql := range []string{
+		"SUBMIT TASK SCHEDULE START('not-a-date') EVERY(INTERVAL 10 SECOND) AS INSERT INTO t SELECT 1",
+		"SUBMIT TASK SCHEDULE START('2026-13-01') EVERY(INTERVAL 10 SECOND) AS INSERT INTO t SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
+func TestTaskNameArity(t *testing.T) {
+	for _, sql := range []string{
+		"SUBMIT TASK catalog.db.job AS INSERT INTO t SELECT 1",
+		"DROP TASK catalog.db.job",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

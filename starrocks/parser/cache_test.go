@@ -35,6 +35,7 @@ func TestDataCacheSelectRejects(t *testing.T) {
 		"CACHE SELECT FROM a",
 		"CACHE SELECT a",
 		"CACHE SELECT a FROM",
+		"CACHE SELECT a FROM catalog.db.schema.table",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

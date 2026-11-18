@@ -189,6 +189,12 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		w.visitSetOpArm(n, true /* outermost */)
 	case *ast.DataCacheSelectStmt:
 		w.visitDataCacheSelect(n, true /* outermost */)
+	case *ast.OptimizerTraceStmt:
+		// Tracing is a flag on the query it wraps, so the wrapped query is
+		// still the outermost one and its projection is the result set.
+		if n.Query != nil {
+			w.analyzeStmt(n.Query)
+		}
 	default:
 		w.validateEmbeddedSubqueries(node)
 	}
