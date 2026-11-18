@@ -8479,7 +8479,7 @@ reject	reject	engine	topRowFilter(Percent)?/Percent!truncate	SELECT TOP 1
 reject	reject	engine	topRowFilter(Percent)?/Percent!insert	SELECT TOP 1 PERCENT zzz *
 reject	reject	engine	topRowFilter(Percent)?/Percent!swap	SELECT TOP 1 PERCENTAGE *
 accept	accept	engine	topRowFilter(With_TIES)?/%empty	SELECT TOP 1 *
-accept	reject	engine	topRowFilter(With_TIES)?/With_TIES	SELECT TOP 1 WITH TIES *
+reject	reject	engine	topRowFilter(With_TIES)?/With_TIES	SELECT TOP 1 WITH TIES *
 reject	reject	engine	topRowFilter(With_TIES)?/With_TIES!drop-1	SELECT TOP 1 TIES *
 reject	reject	engine	topRowFilter(With_TIES)?/With_TIES!drop-2	SELECT TOP 1 WITH *
 reject	reject	engine	topRowFilter(With_TIES)?/With_TIES!truncate	SELECT TOP 1 WITH
@@ -8899,7 +8899,7 @@ reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/globalFun
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/globalFunctionTableReference!insert	SELECT * FROM a() zzz
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/variableTableReference	SELECT * FROM @a
 accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference	SELECT * FROM @a.a() a(a)
-reject	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-1	SELECT * FROM.a() a(a)
+accept	accept	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-1	SELECT * FROM.a() a(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-2	SELECT * FROM @a a() a(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-3	SELECT * FROM @a.() a(a)
 reject	reject	engine	selectTableReferenceElementWithoutJoinParenthesis/variableMethodCallTableReference!drop-4	SELECT * FROM @a.a) a(a)
@@ -9267,7 +9267,7 @@ accept	accept	engine	insertSpecification(Into|Over)?/Into	INSERT INTO a DEFAULT 
 reject	reject	engine	insertSpecification(Into|Over)?/Into!truncate	INSERT
 reject	reject	engine	insertSpecification(Into|Over)?/Into!insert	INSERT INTO zzz a DEFAULT VALUES
 reject	reject	engine	insertSpecification(Into|Over)?/Into!swap	INSERT IS a DEFAULT VALUES
-reject	accept	engine	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
+accept	accept	engine	insertSpecification(Into|Over)?/Over	INSERT OVER a DEFAULT VALUES
 reject	reject	engine	insertSpecification(Into|Over)?/Over!insert	INSERT OVER zzz a DEFAULT VALUES
 reject	reject	engine	insertSpecification(Into|Over)?/Over!swap	INSERT OVERRIDE a DEFAULT VALUES
 accept	accept	engine	insertSpecification(LeftParenthesis_insertColumn_(Comma_~1dbaf886)?/%empty	INSERT a DEFAULT VALUES
@@ -13509,7 +13509,7 @@ accept	accept	engine	likePredicate/Like_expressionWithFlags_(escapeExpression|Le
 accept	accept	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/%empty	IF 1 LIKE 1 SELECT 1
 accept	accept	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression	IF 1 LIKE 1 ESCAPE 1 SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!drop-1	IF 1 LIKE 1 1 SELECT 1
-accept	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!drop-2	IF 1 LIKE 1 ESCAPE SELECT 1
+reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!drop-2	IF 1 LIKE 1 ESCAPE SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!truncate	IF 1 LIKE 1 ESCAPE
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!insert	IF 1 LIKE 1 ESCAPE 1 zzz SELECT 1
 reject	reject	engine	likePredicate(escapeExpression|LeftCurly_escapeExp~9ac33387)?/escapeExpression!swap	IF 1 LIKE 1 EVENT 1 SELECT 1
@@ -13619,7 +13619,7 @@ accept	accept	engine	expressionWithClrElements/(udtExpression|expressionPrimary)
 accept	accept	engine	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression	SELECT a :: a
 reject	reject	engine	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression!drop-1	SELECT :: a
 accept	accept	engine	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression!drop-2	SELECT a a
-accept	reject	engine	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression!drop-3	SELECT a ::
+reject	reject	engine	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression!drop-3	SELECT a ::
 accept	accept	engine	expressionWithClrElements(udtExpression|expressionPrimary)/udtExpression!insert	SELECT a :: a zzz
 accept	accept	engine	expressionWithClrElements(udtExpression|expressionPrimary)/expressionPrimary	SELECT 1
 accept	accept	engine	expressionWithClrElements(Dot_identifier_(expressionWithClrEle~fbf62e11)*/%empty	SELECT 1
@@ -13782,7 +13782,7 @@ accept	accept	engine	parenthesisDisambiguatorForExpressions/subquery	SELECT(SELE
 accept	accept	engine	parenthesisDisambiguatorForExpressions/expressionParenthesis	SELECT(1)
 accept	accept	engine	udtExpression/userDefinedTypeCallTarget_(udtFunctionExpression|udtPro~74d13898	SELECT a :: a
 accept	accept	engine	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression	SELECT a :: a()
-accept	reject	engine	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!drop-1	SELECT a ::()
+reject	reject	engine	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!drop-1	SELECT a ::()
 reject	reject	engine	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!drop-2	SELECT a :: a)
 reject	reject	engine	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!drop-3	SELECT a :: a(
 accept	accept	engine	udtExpression(udtFunctionExpression|udtPropertyExpression)/udtFunctionExpression!insert	SELECT a :: a() zzz
@@ -13820,8 +13820,8 @@ accept	accept	engine	parameterlessCall/SystemUser!insert	SELECT SYSTEM_USER zzz
 accept	accept	engine	parameterlessCall/SystemUser!swap	SELECT SYSTEM_VERSIONING
 accept	accept	engine	parameterlessCall/CurrentTimestamp	SELECT CURRENT_TIMESTAMP
 accept	accept	engine	parameterlessCall/CurrentTimestamp!insert	SELECT CURRENT_TIMESTAMP zzz
-accept	reject	engine	parameterlessCall/CurrentDate	SELECT CURRENT_DATE
-accept	reject	engine	parameterlessCall/CurrentDate!insert	SELECT CURRENT_DATE zzz
+reject	reject	engine	parameterlessCall/CurrentDate	SELECT CURRENT_DATE
+reject	reject	engine	parameterlessCall/CurrentDate!insert	SELECT CURRENT_DATE zzz
 reject	reject	engine	parameterlessCall/CurrentDate!swap	SELECT CURRENT_TIME
 accept	accept	engine	expressionList/expression_(Comma_expression)*	SELECT JSON_ARRAY(1)
 reject	reject	engine	expressionList/expression_(Comma_expression)*!insert	SELECT JSON_ARRAY(1 zzz)
@@ -14215,7 +14215,7 @@ accept	accept	engine	partitionFunctionCall/(identifier_Dot)?_DollarPartition_Dot
 accept	accept	engine	partitionFunctionCall(identifier_Dot)?/%empty	SELECT $PARTITION.a(1)
 reject	reject	engine	partitionFunctionCall(identifier_Dot)?/%empty!insert	SELECT zzz $PARTITION.a(1)
 accept	accept	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot	SELECT a.$PARTITION.a(1)
-reject	accept	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-1	SELECT.$PARTITION.a(1)
+accept	accept	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-1	SELECT.$PARTITION.a(1)
 reject	reject	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!drop-2	SELECT a $PARTITION.a(1)
 reject	reject	engine	partitionFunctionCall(identifier_Dot)?/identifier_Dot!insert	SELECT a.zzz $PARTITION.a(1)
 reject	reject	engine	userFunctionCall/LeftParenthesis_((expressionWithDefaultList)?|uniqueR~4~07516f0f	SELECT a()
@@ -14232,7 +14232,7 @@ accept	accept	engine	columnOrFunctionCall(multiPartIdentifier_(Dot_specialColu~3
 accept	accept	engine	columnOrFunctionCall(multiPartIdentifier_(Dot_specialColu~3635a504)/specialColumn	SELECT IDENTITYCOL
 accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn	SELECT a.IDENTITYCOL
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!drop-1	SELECT a IDENTITYCOL
-accept	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!drop-2	SELECT a.
+reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!drop-2	SELECT a.
 accept	accept	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!insert	SELECT a.IDENTITYCOL zzz
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/Dot_specialColumn!swap	SELECT a.IDENTITY_INSERT
 reject	reject	engine	columnOrFunctionCall(Dot_specialColumn|userFunctionCall|)/userFunctionCall	SELECT a()

@@ -459,6 +459,12 @@ func (p *Parser) parseSelectOperand(loc int, withClause *nodes.WithClause) (*nod
 		}
 	}
 
+	// TOP ... WITH TIES needs an ORDER BY, which SQL Server checks while
+	// parsing: SELECT TOP 1 WITH TIES * is Msg 1062 (measured).
+	if stmt.Top != nil && stmt.Top.WithTies && stmt.OrderByClause == nil {
+		return nil, p.newParseError(stmt.Top.Loc.Start, "TOP WITH TIES needs an ORDER BY")
+	}
+
 	// A subquery's ORDER BY needs TOP, OFFSET or FOR beside it, and FOR BROWSE
 	// is no subquery clause at all: SQL Server answers Msg 1033 and Msg 176
 	// (measured by SELECT (SELECT * ORDER BY 1) and SELECT (SELECT * FOR

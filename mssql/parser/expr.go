@@ -399,6 +399,11 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 			if err != nil {
 				return nil, err
 			}
+			// ESCAPE takes an expression: IF 1 LIKE 1 ESCAPE SELECT 1 is
+			// Msg 156 (measured).
+			if escape == nil {
+				return nil, p.syntaxErrorAtCur()
+			}
 		} else if p.cur.Type == '{' {
 			// likePredicate takes the ODBC escape { ESCAPE <expr> } beside
 			// the bare escapeExpression (bnf/TSql170.g).
@@ -987,9 +992,31 @@ func (p *Parser) parsePrimary() (nodes.ExprNode, error) {
 			return p.parseIdentExpr()
 		}
 		return nil, nil
+	// CURRENT_DATE and CURRENT_TIME are ScriptDOM's parameterlessCall for
+	// another engine: SQL Server 2022 refuses both with Msg 156 (measured).
 	case kwCURRENT_TIMESTAMP, kwCURRENT_USER, kwSESSION_USER,
-		kwSYSTEM_USER, kwUSER, kwCURRENT_DATE:
+		kwSYSTEM_USER, kwUSER:
 		return p.parseNiladicKeywordFunc()
+	case '.':
+		// A name may start with a dot, which names an empty first part, and
+		// $PARTITION's call follows one: SELECT .$PARTITION.a(1) is accepted
+		// (measured).
+		loc := p.pos()
+		p.advance() // consume .
+		if p.cur.Type != tokPSEUDOCOL {
+			return nil, p.syntaxErrorAtCur()
+		}
+		expr, err := p.parsePseudoColumn()
+		if err != nil {
+			return nil, err
+		}
+		if fc, ok := expr.(*nodes.FuncCallExpr); ok {
+			fc.Loc.Start = loc
+			if fc.Name != nil {
+				fc.Name.Loc.Start = loc
+			}
+		}
+		return expr, nil
 	case '{':
 		// ODBC escape: { fn <function> } or { d|t|ts '<literal>' }
 		return p.parseOdbcEscape()
