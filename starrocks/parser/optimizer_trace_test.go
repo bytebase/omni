@@ -102,3 +102,14 @@ func TestOptimizerTraceRejects(t *testing.T) {
 		}
 	}
 }
+
+func TestExplainedParenthesizedWithQuery(t *testing.T) {
+	for _, sql := range []string{
+		"INSERT INTO dst EXPLAIN WITH c AS (SELECT 1) (SELECT * FROM c)",
+		"CREATE TABLE dst AS EXPLAIN WITH c AS (SELECT 1) (SELECT * FROM c)",
+	} {
+		if _, errs := parseForTest(sql); len(errs) != 0 {
+			t.Errorf("%q: unexpected errors: %v", sql, errs)
+		}
+	}
+}

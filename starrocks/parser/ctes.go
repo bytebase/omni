@@ -97,6 +97,15 @@ func (p *Parser) parseWithStatement() (ast.Node, error) {
 		upd.With = with
 		upd.Loc.Start = with.Loc.Start
 		return upd, nil
+	case int('('):
+		// withClause? queryNoWith, where queryNoWith may be a parenthesized
+		// subquery (StarRocks.g4:2090-2118).
+		paren, err := p.parseParenSelect()
+		if err != nil {
+			return nil, err
+		}
+		attachWith(paren, with)
+		return p.parseSetOpTail(paren)
 	}
 
 	stmt, err := p.parseSelectStmt()
