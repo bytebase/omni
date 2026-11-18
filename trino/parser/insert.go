@@ -43,15 +43,8 @@ import (
 //	   SYNTAX_ERROR; only `TRUNCATE TABLE qualifiedName` is accepted, and the
 //	   target is likewise bounded to 3 parts.
 //
-// FLAGGED divergence (ledger #5, "DML branch @branch"): Trino 481 accepts an
-// optional `@ branch_name` after the target table in INSERT/DELETE/UPDATE/MERGE
-// (e.g. `INSERT INTO cities @ audit VALUES (1, 'x')`). omni REJECTS it because
-// the merged lexer node emits no token for '@' (it records an "unrecognized
-// character" lex error), so the form cannot reach this parser intact. Adding
-// '@' to the token model is a lexer-node concern outside this node's writes
-// scope; until that lands, `@branch` stays a flagged, omni-rejects/Trino-accepts
-// divergence and is excluded from this node's differential corpus. See the
-// migration divergence ledger.
+// The optional `@ branch_name` after the target table in INSERT/DELETE/UPDATE/MERGE
+// is parsed by parseOptionalBranch (divergence ledger #5, now resolved).
 
 // ---------------------------------------------------------------------------
 // INSERT
@@ -64,6 +57,7 @@ import (
 // the source is mandatory, D-INS1).
 type InsertStmt struct {
 	Target  *ast.QualifiedName
+	Branch  *ast.Identifier   // optional `@ branch`, nil when absent
 	Columns []*ast.Identifier // explicit column list, nil when absent
 	Source  *Query
 	Loc     ast.Loc
@@ -125,8 +119,15 @@ func (p *Parser) parseInsertStmt() (ast.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	branch, err := p.parseOptionalBranch()
+	if err != nil {
+		return nil, err
+	}
 
-	stmt := &InsertStmt{Target: target, Loc: ast.Loc{Start: insertTok.Loc.Start, End: target.Loc.End}}
+	stmt := &InsertStmt{Target: target, Branch: branch, Loc: ast.Loc{Start: insertTok.Loc.Start, End: target.Loc.End}}
+	if branch != nil {
+		stmt.Loc.End = branch.Loc.End
+	}
 
 	// Optional explicit column list. Only treat a leading '(' as the column
 	// list when it is unambiguously `( ident [, …] )`; otherwise it opens a
@@ -197,4 +198,14 @@ func (p *Parser) parseTruncateStmt() (ast.Node, error) {
 		Target: target,
 		Loc:    ast.Loc{Start: truncTok.Loc.Start, End: target.Loc.End},
 	}, nil
+}
+
+// parseOptionalBranch parses the optional `@ branch` table modifier shared by
+// INSERT, DELETE, UPDATE and MERGE.
+func (p *Parser) parseOptionalBranch() (*ast.Identifier, error) {
+	if p.cur.Kind != int('@') {
+		return nil, nil
+	}
+	p.advance() // consume '@'
+	return p.parseIdentifier()
 }

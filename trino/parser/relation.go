@@ -150,6 +150,18 @@ type TableRelation struct {
 func (n *TableRelation) Span() ast.Loc { return n.Loc }
 func (*TableRelation) relationNode()   {}
 
+// NearestRelation is `NEAREST(FROM relation [WHERE booleanExpression] MATCH
+// booleanExpression)` (the nearest relationPrimary).
+type NearestRelation struct {
+	From  Relation
+	Where Expr // nil when absent
+	Match Expr
+	Loc   ast.Loc
+}
+
+func (n *NearestRelation) Span() ast.Loc { return n.Loc }
+func (*NearestRelation) relationNode()   {}
+
 // QueryPeriod is the `FOR (TIMESTAMP|VERSION) AS OF valueExpression` time-travel
 // clause (the queryPeriod rule). RangeType is "TIMESTAMP" or "VERSION"; End is
 // the as-of value expression.
@@ -648,6 +660,8 @@ func (p *Parser) tryParseRelationAlias() (alias *ast.Identifier, cols []*ast.Ide
 		}
 		alias = id
 		end = id.Loc.End
+	} else if p.noMatchAlias && p.cur.Kind == kwMATCH {
+		return nil, nil, 0, false, nil
 	} else if isIdentifierStart(p.cur.Kind) && !p.atRelationClauseStart() {
 		alias = identFromToken(p.advance())
 		end = alias.Loc.End
@@ -751,11 +765,56 @@ func (p *Parser) parseRelationPrimary() (Relation, error) {
 		return p.parseTableFunctionInvocation()
 	case kwJSON_TABLE:
 		return p.parseJSONTable()
+	case kwNEAREST:
+		return p.parseNearestRelation()
 	case int('('):
 		return p.parseParenRelationOrSubquery()
 	default:
 		return p.parseTableRelation()
 	}
+}
+
+// parseNearestRelation parses
+// `NEAREST(FROM relation [WHERE booleanExpression] MATCH booleanExpression)`.
+func (p *Parser) parseNearestRelation() (Relation, error) {
+	nearestTok := p.advance() // consume NEAREST
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	p.noMatchAlias = true
+	from, err := p.parseRelation()
+	p.noMatchAlias = false
+	if err != nil {
+		return nil, err
+	}
+	rel := &NearestRelation{From: from, Loc: ast.Loc{Start: nearestTok.Loc.Start}}
+	if p.cur.Kind == kwWHERE {
+		p.advance() // consume WHERE
+		p.noMatchPredicate = true
+		where, err := p.parseExpr()
+		p.noMatchPredicate = false
+		if err != nil {
+			return nil, err
+		}
+		rel.Where = where
+	}
+	if _, err := p.expect(kwMATCH); err != nil {
+		return nil, err
+	}
+	match, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	rel.Match = match
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	rel.Loc.End = closeTok.Loc.End
+	return rel, nil
 }
 
 // parseTableRelation parses `qualifiedName queryPeriod?` (the tableName rule):
@@ -1080,14 +1139,23 @@ func (p *Parser) parseTableFunctionCall() (*TableFunctionCall, error) {
 		}
 	}
 
-	// Optional COPARTITION groups (the clause, not a `copartition =>` argument).
-	for p.atCopartitionClause() {
+	// Optional COPARTITION groups: one COPARTITION keyword followed by a
+	// comma-separated list of table groups.
+	if p.atCopartitionClause() {
 		p.advance() // consume COPARTITION
 		group, err := p.parseCopartitionTables()
 		if err != nil {
 			return nil, err
 		}
 		call.Copartition = append(call.Copartition, group)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			next, err := p.parseCopartitionTables()
+			if err != nil {
+				return nil, err
+			}
+			call.Copartition = append(call.Copartition, next)
+		}
 	}
 
 	closeTok, err := p.expect(int(')'))
@@ -1336,9 +1404,16 @@ func (p *Parser) parseParenOrBareSortItems() ([]SortItem, int, error) {
 // CAST(NULL AS DESCRIPTOR) form.
 func (p *Parser) tryParseDescriptorArg(start int) (*DescriptorArg, bool, error) {
 	if p.cur.Kind == kwDESCRIPTOR {
+		cp := p.checkpoint()
 		p.advance() // consume DESCRIPTOR
 		if _, err := p.expect(int('(')); err != nil {
 			return nil, false, err
+		}
+		// DESCRIPTOR() has no descriptor field, so the grammar falls back to the
+		// ordinary function-call expression `DESCRIPTOR()`.
+		if p.cur.Kind == int(')') {
+			p.restore(cp)
+			return nil, false, nil
 		}
 		first, err := p.parseDescriptorField()
 		if err != nil {

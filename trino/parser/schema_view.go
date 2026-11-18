@@ -433,17 +433,16 @@ func (p *Parser) parseCreateMaterializedViewStmt(startOffset int) (ast.Node, err
 		stmt.GracePeriod = gp
 	}
 	if p.cur.Kind == kwWHEN {
-		// WHEN STALE (INLINE | FAIL). STALE/INLINE/FAIL are not keyword tokens;
-		// match them by identifier text.
+		// WHEN STALE (INLINE | FAIL).
 		p.advance() // consume WHEN
-		if p.cur.Kind != tokIdent || !strings.EqualFold(p.cur.Str, "STALE") {
+		if !(p.cur.Kind == kwSTALE || p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "STALE")) {
 			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected STALE after WHEN"}
 		}
 		p.advance() // consume STALE
 		switch {
-		case p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "INLINE"):
+		case p.cur.Kind == kwINLINE || p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "INLINE"):
 			stmt.StaleMode = MVStaleInline
-		case p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "FAIL"):
+		case p.cur.Kind == kwFAIL || p.cur.Kind == tokIdent && strings.EqualFold(p.cur.Str, "FAIL"):
 			stmt.StaleMode = MVStaleFail
 		default:
 			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "expected INLINE or FAIL after WHEN STALE"}

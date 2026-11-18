@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/trino/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/trino/ast"
+)
 
 // This file is part of the `expressions` DAG node (with expr.go and
 // predicate.go): it implements the function-call, special-built-in, and
@@ -331,28 +335,35 @@ func (p *Parser) parseIdentifierOrFunction() (Expr, error) {
 	}
 
 	// measure: `identifier OVER (…)` — a bare identifier (single part) decorated
-	// with an OVER window. Only applies when OVER directly follows the name.
+	// with an OVER window. Only applies when OVER directly follows the name. OVER
+	// is non-reserved, so when the measure reading fails (`SELECT a OVER`, where
+	// OVER is an alias) rewind and take the ordinary column-reference reading.
 	if p.peekNext().Kind == kwOVER {
+		windowFollows := p.overHasWindow()
+		cp := p.checkpoint()
 		nameTok := p.advance()
 		name := identFromToken(nameTok)
 		over, overName, err := p.parseOver()
-		if err != nil {
+		if err == nil {
+			end := name.Loc.End
+			if over != nil {
+				end = over.Loc.End
+			} else if overName != nil {
+				end = overName.Loc.End
+			}
+			// Model a measure as a degenerate FuncCall carrying only the OVER (no
+			// args, no parens) so downstream consumers handle it uniformly.
+			return &FuncCall{
+				Name:     &ast.QualifiedName{Parts: []*ast.Identifier{name}, Loc: name.Loc},
+				Over:     over,
+				OverName: overName,
+				Loc:      ast.Loc{Start: name.Loc.Start, End: end},
+			}, nil
+		}
+		if windowFollows {
 			return nil, err
 		}
-		end := name.Loc.End
-		if over != nil {
-			end = over.Loc.End
-		} else if overName != nil {
-			end = overName.Loc.End
-		}
-		// Model a measure as a degenerate FuncCall carrying only the OVER (no
-		// args, no parens) so downstream consumers handle it uniformly.
-		return &FuncCall{
-			Name:     &ast.QualifiedName{Parts: []*ast.Identifier{name}, Loc: name.Loc},
-			Over:     over,
-			OverName: overName,
-			Loc:      ast.Loc{Start: name.Loc.Start, End: end},
-		}, nil
+		p.restore(cp)
 	}
 
 	// SUBSTRING and POSITION are non-reserved keywords with BOTH a special syntax
@@ -389,10 +400,102 @@ func (p *Parser) parseIdentifierOrFunction() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if p.cur.Kind == tokDoubleColon {
+		p.advance() // consume '::'
+		method, err := p.parseMethodName()
+		if err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(int('(')); err != nil {
+			return nil, err
+		}
+		args, closeTok, err := p.parseArgumentList()
+		if err != nil {
+			return nil, err
+		}
+		return &StaticMethodCall{
+			Name:   name,
+			Method: method,
+			Args:   args,
+			Loc:    ast.Loc{Start: name.Loc.Start, End: closeTok.Loc.End},
+		}, nil
+	}
 	if p.cur.Kind == int('(') {
 		return p.parseFunctionCall(name, "")
 	}
 	return p.columnRefFromName(name), nil
+}
+
+// overHasWindow reports whether the OVER after the current identifier is
+// followed by a window name or an inline window specification. On entry cur is
+// the identifier before OVER; the cursor is restored.
+func (p *Parser) overHasWindow() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // identifier
+	p.advance() // OVER
+	return p.cur.Kind == int('(') || isIdentifierStart(p.cur.Kind)
+}
+
+// parseMethodName parses a methodName: an identifier or any keyword.
+func (p *Parser) parseMethodName() (*ast.Identifier, error) {
+	if isIdentifierStart(p.cur.Kind) {
+		return p.parseIdentifier()
+	}
+	if isKeywordKind(p.cur.Kind) {
+		tok := p.advance()
+		return &ast.Identifier{Value: tok.Str, Loc: tok.Loc}, nil
+	}
+	return nil, p.syntaxErrorAtCur()
+}
+
+// isKeywordKind reports whether kind is a keyword token kind.
+func isKeywordKind(kind TokenKind) bool {
+	return kind >= kwABSENT && kind <= maxKeywordKind
+}
+
+// parseArgumentList parses `(argument (',' argument)*)?` after the opening '(' has
+// been consumed, returning the arguments and the closing ')' token.
+func (p *Parser) parseArgumentList() ([]Expr, Token, error) {
+	var args []Expr
+	if p.cur.Kind != int(')') {
+		first, err := p.parseArgument()
+		if err != nil {
+			return nil, Token{}, err
+		}
+		args = append(args, first)
+		for p.cur.Kind == int(',') {
+			p.advance() // consume ','
+			next, err := p.parseArgument()
+			if err != nil {
+				return nil, Token{}, err
+			}
+			args = append(args, next)
+		}
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, Token{}, err
+	}
+	return args, closeTok, nil
+}
+
+// parseArgument parses one `argument`: `expression` or `identifier => expression`.
+func (p *Parser) parseArgument() (Expr, error) {
+	if isIdentifierStart(p.cur.Kind) && p.peekNext().Kind == tokDoubleArrow {
+		name := identFromToken(p.advance())
+		p.advance() // consume '=>'
+		value, err := p.parseExpr()
+		if err != nil {
+			return nil, err
+		}
+		return &NamedArgument{
+			Name:  name,
+			Value: value,
+			Loc:   ast.Loc{Start: name.Loc.Start, End: value.Span().End},
+		}, nil
+	}
+	return p.parseExpr()
 }
 
 // columnRefFromName turns a parsed qualifiedName into a ColumnRef (first part)
@@ -471,15 +574,15 @@ func (p *Parser) parseFunctionCall(name *ast.QualifiedName, processingMode strin
 		} else if p.cur.Kind == kwALL {
 			p.advance() // ALL is the default; recorded by absence of Distinct
 		}
-		if p.cur.Kind != int(')') {
-			first, err := p.parseExpr()
+		if p.cur.Kind != int(')') && p.cur.Kind != kwORDER {
+			first, err := p.parseArgument()
 			if err != nil {
 				return nil, err
 			}
 			fc.Args = append(fc.Args, first)
 			for p.cur.Kind == int(',') {
 				p.advance() // consume ','
-				next, err := p.parseExpr()
+				next, err := p.parseArgument()
 				if err != nil {
 					return nil, err
 				}
@@ -518,16 +621,20 @@ func (p *Parser) parseFunctionCall(name *ast.QualifiedName, processingMode strin
 		p.consumeNullTreatment()
 	}
 	if p.cur.Kind == kwOVER {
-		over, overName, err := p.parseOver()
-		if err != nil {
-			return nil, err
-		}
-		fc.Over = over
-		fc.OverName = overName
-		if over != nil {
-			fc.Loc.End = over.Loc.End
-		} else if overName != nil {
-			fc.Loc.End = overName.Loc.End
+		// OVER is non-reserved: without a window name or '(' after it, it is an
+		// ordinary select-item alias (`SELECT a() OVER`), not a window clause.
+		if nk := p.peekNext().Kind; isIdentifierStart(nk) || nk == int('(') {
+			over, overName, err := p.parseOver()
+			if err != nil {
+				return nil, err
+			}
+			fc.Over = over
+			fc.OverName = overName
+			if over != nil {
+				fc.Loc.End = over.Loc.End
+			} else if overName != nil {
+				fc.Loc.End = overName.Loc.End
+			}
 		}
 	}
 
@@ -869,7 +976,13 @@ func (p *Parser) parseCaseExpr() (Expr, error) {
 
 	for p.cur.Kind == kwWHEN {
 		whenTok := p.advance() // consume WHEN
-		cond, err := p.parseExpr()
+		var cond Expr
+		var err error
+		if startsBarePredicate(p.cur.Kind, p.peekNext().Kind) {
+			cond, err = p.parsePredicateSuffix(nil)
+		} else {
+			cond, err = p.parseExpr()
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -959,6 +1072,68 @@ func (p *Parser) parseExists() (Expr, error) {
 	return subq, nil
 }
 
+// parseUnique parses `UNIQUE ( query )` (the unique primaryExpression).
+func (p *Parser) parseUnique() (Expr, error) {
+	uniqueTok := p.advance() // consume UNIQUE
+	openTok, err := p.expect(int('('))
+	if err != nil {
+		return nil, err
+	}
+	if !p.startsQuery() {
+		return nil, p.exprErrorAt("expected a query after UNIQUE(")
+	}
+	sub, err := p.parseSubqueryPlaceholder(openTok.Loc.Start, SubqueryUnique)
+	if err != nil {
+		return nil, err
+	}
+	return &UniqueExpr{
+		Subquery: sub,
+		Loc:      ast.Loc{Start: uniqueTok.Loc.Start, End: sub.Loc.End},
+	}, nil
+}
+
+// parseOverlay parses `OVERLAY(source PLACING replacement FROM start [FOR length])`
+// (the overlay primaryExpression).
+func (p *Parser) parseOverlay() (Expr, error) {
+	overlayTok := p.advance() // consume OVERLAY
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	source, err := p.parseValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwPLACING); err != nil {
+		return nil, err
+	}
+	replacing, err := p.parseValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	if _, err := p.expect(kwFROM); err != nil {
+		return nil, err
+	}
+	from, err := p.parseValueExpr()
+	if err != nil {
+		return nil, err
+	}
+	ov := &OverlayExpr{Source: source, Replacing: replacing, From: from, Loc: ast.Loc{Start: overlayTok.Loc.Start}}
+	if p.cur.Kind == kwFOR {
+		p.advance() // consume FOR
+		length, err := p.parseValueExpr()
+		if err != nil {
+			return nil, err
+		}
+		ov.For = length
+	}
+	closeTok, err := p.expect(int(')'))
+	if err != nil {
+		return nil, err
+	}
+	ov.Loc.End = closeTok.Loc.End
+	return ov, nil
+}
+
 // parseExtract parses `EXTRACT( field FROM source )` (extract). field is an
 // identifier (YEAR, MONTH, TIMEZONE_HOUR, …) kept as source text.
 func (p *Parser) parseExtract() (Expr, error) {
@@ -981,11 +1156,31 @@ func (p *Parser) parseExtract() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if !validExtractField(field.String()) {
+		return nil, &ParseError{
+			Position: field.Loc.Start,
+			End:      field.Loc.End,
+			Message:  "invalid EXTRACT field " + field.String(),
+		}
+	}
 	return &ExtractExpr{
 		Field:  field.String(),
 		Source: source,
 		Loc:    ast.Loc{Start: extractTok.Loc.Start, End: closeTok.Loc.End},
 	}, nil
+}
+
+// validExtractField reports whether name is one of Trino's Extract.Field
+// values, which its AstBuilder checks after the parser accepts any identifier.
+func validExtractField(name string) bool {
+	switch strings.ToUpper(name) {
+	case "YEAR", "QUARTER", "MONTH", "WEEK", "DAY", "DAY_OF_MONTH", "DAY_OF_WEEK",
+		"DOW", "DAY_OF_YEAR", "DOY", "YEAR_OF_WEEK", "YOW", "HOUR", "MINUTE",
+		"SECOND", "TIMEZONE_MINUTE", "TIMEZONE_HOUR":
+		return true
+	default:
+		return false
+	}
 }
 
 // parseSubstring parses `SUBSTRING( source FROM start (FOR length)? )` (the

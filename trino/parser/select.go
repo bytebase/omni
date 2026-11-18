@@ -66,13 +66,8 @@ import "github.com/bytebase/omni/trino/ast"
 //
 //	D1 (JSON_TABLE relation). Implemented by json_table.go; it is no longer a
 //	   divergence from Trino 481.
-//	D2 (WITH SESSION — divergence #4). `WITH SESSION prop = v <query>` is a 481
-//	   query prefix absent from the legacy grammar (where WITH is CTE-only). P1
-//	   extension; not parsed here.
-//	D3 (set-op CORRESPONDING — divergence #6). `UNION/INTERSECT/EXCEPT
-//	   CORRESPONDING` is a 481 set-op modifier absent from the legacy grammar
-//	   (where the modifier is setQuantifier = DISTINCT/ALL only). P1 extension;
-//	   not parsed here. See setops.go.
+//	D2 (WITH SESSION) and D3 (set-op CORRESPONDING) are implemented:
+//	   root_query_session.go and setops.go parse them.
 //	D4 (MATCH_RECOGNIZE — parser-match-recognize node). sampledRelation's
 //	   patternRecognition MATCH_RECOGNIZE subsystem is its own DAG node; here a
 //	   relation is its aliasedRelation with the optional TABLESAMPLE only. See
@@ -245,6 +240,8 @@ const (
 	// GroupingSets is `GROUPING SETS ( groupingSet, … )` (the multipleGroupingSets
 	// rule). Sets holds each grouping set's expression list.
 	GroupingSets
+	// GroupingAuto is the `GROUP BY AUTO` element.
+	GroupingAuto
 )
 
 // GroupingElement is one element of a GROUP BY (the groupingElement rule):
@@ -503,11 +500,15 @@ func (p *Parser) parseQuerySpecification() (*QuerySpec, error) {
 	selTok := p.advance() // consume SELECT
 	spec := &QuerySpec{Loc: ast.Loc{Start: selTok.Loc.Start}}
 
-	// Optional setQuantifier (DISTINCT | ALL). Here ALL/DISTINCT before the select
-	// list is unambiguously the quantifier (a select item must follow either way),
-	// matching the grammar `SELECT setQuantifier? selectItem …`.
-	if tok, ok := p.match(kwDISTINCT, kwALL); ok {
-		spec.SetQuantifier = tok.Str
+	// Optional setQuantifier (DISTINCT | ALL). DISTINCT is reserved and must be
+	// the quantifier. ALL is non-reserved, so it is the quantifier only when a
+	// select item follows; `SELECT ALL` reads ALL as the item (as Trino does).
+	if p.cur.Kind == kwDISTINCT {
+		spec.SetQuantifier = p.advance().Str
+	} else if p.cur.Kind == kwALL {
+		if nk := p.peekNext().Kind; nk == int('*') || startsExpression(nk) {
+			spec.SetQuantifier = p.advance().Str
+		}
 	}
 
 	items, err := p.parseSelectItems()
@@ -868,6 +869,9 @@ func startsExpression(kind TokenKind) bool {
 // expression.
 func (p *Parser) parseGroupingElement() (GroupingElement, error) {
 	switch p.cur.Kind {
+	case kwAUTO:
+		tok := p.advance()
+		return GroupingElement{Kind: GroupingAuto, Loc: tok.Loc}, nil
 	case kwROLLUP:
 		return p.parseRollupCube(GroupingRollup)
 	case kwCUBE:

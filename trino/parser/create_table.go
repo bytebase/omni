@@ -439,6 +439,12 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 	if aliasOnly {
 		return nil, &ParseError{Position: name.Loc.Start, End: name.Loc.End, Message: "expected column type in CREATE TABLE column definition"}
 	}
+	for _, elem := range elements {
+		if elem.Column != nil && elem.Column.Type == nil {
+			// Trino rejects the entry at the closing ')' where its type was due.
+			return nil, &ParseError{Position: p.prev.Loc.Start, End: p.prev.Loc.End, Message: "expected column type in CREATE TABLE column definition"}
+		}
+	}
 	stmt := &CreateTableStmt{
 		OrReplace:   orReplace,
 		IfNotExists: ifNotExists,
@@ -554,9 +560,12 @@ func (p *Parser) parseCreateTableParenBody() (elements []*TableElement, columnAl
 // returning whether it was found. A bare `IF` not followed by `NOT EXISTS` is a
 // syntax error (IF is otherwise not a statement-position keyword here).
 func (p *Parser) parseOptionalIfNotExists() (bool, error) {
-	if _, ok := p.match(kwIF); !ok {
+	// IF is non-reserved: `CREATE TABLE IF` names a table called IF, so the
+	// clause is consumed only when NOT follows.
+	if p.cur.Kind != kwIF || p.peekNext().Kind != kwNOT {
 		return false, nil
 	}
+	p.advance() // consume IF
 	if _, err := p.expect(kwNOT); err != nil {
 		return false, err
 	}
@@ -569,9 +578,12 @@ func (p *Parser) parseOptionalIfNotExists() (bool, error) {
 // parseOptionalIfExists consumes an `IF EXISTS` clause when present, returning
 // whether it was found.
 func (p *Parser) parseOptionalIfExists() (bool, error) {
-	if _, ok := p.match(kwIF); !ok {
+	// IF is non-reserved: `DROP CATALOG IF` names a catalog called IF, so the
+	// clause is consumed only when EXISTS follows.
+	if p.cur.Kind != kwIF || p.peekNext().Kind != kwEXISTS {
 		return false, nil
 	}
+	p.advance() // consume IF
 	if _, err := p.expect(kwEXISTS); err != nil {
 		return false, err
 	}

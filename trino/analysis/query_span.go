@@ -470,6 +470,10 @@ func (w *spanWalker) visitRelation(rel parser.Relation) {
 		ew := exprWalk{w: w, followSub: true, onColumn: w.addPredicateColumn}
 		ew.walkJSONPath(n.Path)
 		w.visitJSONTableColumns(n.Columns)
+	case *parser.NearestRelation:
+		w.visitRelation(n.From)
+		w.walkExprPredicate(n.Where)
+		w.walkExprPredicate(n.Match)
 	}
 }
 
@@ -709,6 +713,22 @@ func (ew exprWalk) walk(expr parser.Expr) {
 		ew.walkList(e.Elements)
 	case *parser.ArrayConstructor:
 		ew.walkList(e.Elements)
+	case *parser.MethodCall:
+		ew.walk(e.Value)
+		ew.walkList(e.Args)
+	case *parser.StaticMethodCall:
+		ew.walkList(e.Args)
+	case *parser.NamedArgument:
+		ew.walk(e.Value)
+	case *parser.UniqueExpr:
+		ew.followSubquery(e.Subquery)
+	case *parser.OverlayExpr:
+		ew.walk(e.Source)
+		ew.walk(e.Replacing)
+		ew.walk(e.From)
+		ew.walk(e.For)
+	case *parser.AtLocalExpr:
+		ew.walk(e.Value)
 	case *parser.ComparisonExpr:
 		ew.walk(e.Left)
 		ew.walk(e.Right)
@@ -736,6 +756,9 @@ func (ew exprWalk) walk(expr parser.Expr) {
 		ew.walk(e.Right)
 	case *parser.IsBooleanExpr:
 		ew.walk(e.Value)
+	case *parser.MatchExpr:
+		ew.walk(e.Value)
+		ew.followSubquery(e.Subquery)
 	case *parser.FuncCall:
 		ew.walkList(e.Args)
 		for _, item := range e.OrderBy {

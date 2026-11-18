@@ -103,8 +103,9 @@ func (n *DescribeInputStmt) Tag() ast.NodeTag { return ast.T_DescribeInputStmt }
 
 // DescribeOutputStmt is a DESCRIBE OUTPUT <name>.
 type DescribeOutputStmt struct {
-	Name *ast.Identifier
-	Loc  ast.Loc
+	Name  *ast.Identifier // DESCRIBE OUTPUT <name>, nil for the query form
+	Query *Query          // DESCRIBE OUTPUT (query), nil for the name form
+	Loc   ast.Loc
 }
 
 // Tag implements ast.Node.
@@ -455,6 +456,23 @@ func (p *Parser) parseExecuteImmediateTail(start int) (ast.Node, error) {
 	}
 	stmt.Using = using
 	stmt.Loc.End = p.prev.Loc.End
+
+	// Trino runs the immediate statement, and an inner SYNTAX_ERROR is the
+	// statement's rejection (positioned inside the string). Validate the text
+	// the same way, mapping an inner byte offset back into the literal. A
+	// trailing-token error is reported before execution, so validate only when
+	// the statement itself ended.
+	if strTok.Kind == tokString && p.cur.Kind == tokEOF {
+		if _, err := Parse(strTok.Str); err != nil {
+			if errs := AllErrors(err); len(errs) > 0 {
+				return nil, &ParseError{
+					Position: strTok.Loc.Start + 1 + errs[0].Position,
+					End:      strTok.Loc.Start + 1 + errs[0].End,
+					Message:  errs[0].Message,
+				}
+			}
+		}
+	}
 	return stmt, nil
 }
 
@@ -499,7 +517,7 @@ func (p *Parser) describeIntrospectionFollows() bool {
 	defer p.restore(cp)
 	p.advance() // consume DESCRIBE
 	p.advance() // consume INPUT / OUTPUT
-	return isIdentifierStart(p.cur.Kind)
+	return isIdentifierStart(p.cur.Kind) || p.cur.Kind == int('(')
 }
 
 // parseDescribeInputStmt parses DESCRIBE INPUT <name>. On entry the DESCRIBE
@@ -521,6 +539,21 @@ func (p *Parser) parseDescribeInputStmt(start int) (ast.Node, error) {
 // and OUTPUT keywords have both already been consumed; start is the DESCRIBE
 // keyword's byte offset.
 func (p *Parser) parseDescribeOutputStmt(start int) (ast.Node, error) {
+	if p.cur.Kind == int('(') {
+		p.advance() // consume '('
+		q, err := p.parseQuery()
+		if err != nil {
+			return nil, err
+		}
+		closeTok, err := p.expect(int(')'))
+		if err != nil {
+			return nil, err
+		}
+		return &DescribeOutputStmt{
+			Query: q,
+			Loc:   ast.Loc{Start: start, End: closeTok.Loc.End},
+		}, nil
+	}
 	name, err := p.parseIdentifier()
 	if err != nil {
 		return nil, err

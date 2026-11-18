@@ -104,6 +104,13 @@ type Parser struct {
 	prepareTokens []ast.Loc
 	prepareWraps  map[*ParseError]int
 
+	// noMatchAlias stops a relation inside NEAREST(...) from taking MATCH as an
+	// alias, where the grammar's MATCH keyword follows the relation.
+	noMatchAlias bool
+	// noMatchPredicate stops a NEAREST WHERE expression from taking the following
+	// MATCH keyword as a MATCH predicate.
+	noMatchPredicate bool
+
 	// routineNestingFailed is set once the in-place parse of a WITH FUNCTION
 	// subquery body nested too deeply (see parseRoutineSubquery).
 	routineNestingFailed bool
@@ -364,6 +371,9 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		if p.peekNext().Kind == kwFUNCTION {
 			return p.parseWithFunctionQuery()
 		}
+		if p.peekNext().Kind == kwSESSION {
+			return p.parseQueryWithSessionStmt()
+		}
 		return p.parseQueryStmt()
 	case kwSELECT, kwTABLE, kwVALUES, int('('):
 		return p.parseQueryStmt()
@@ -399,6 +409,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		// per-object parsers handle. createObjectKeyword peeks past an
 		// OR REPLACE without consuming so dispatch can route on the object word.
 		switch p.createObjectKeyword() {
+		case kwBRANCH:
+			return p.parseCreateBranchStmt(p.cur.Loc.Start)
 		case kwTABLE:
 			return p.parseCreateTableStmt(p.cur.Loc.Start)
 		case kwSCHEMA:
@@ -431,6 +443,8 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseDropCatalogStmt(p.cur.Loc.Start)
 		}
 		switch p.peekNext().Kind {
+		case kwBRANCH:
+			return p.parseDropBranchStmt(p.cur.Loc.Start)
 		case kwTABLE, kwSCHEMA, kwVIEW, kwMATERIALIZED:
 			return p.parseDropStmt(p.cur.Loc.Start)
 		}
@@ -444,10 +458,20 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 			return p.parseAlterSchemaStmt(p.cur.Loc.Start)
 		case kwVIEW:
 			return p.parseAlterViewStmt(p.cur.Loc.Start)
+		case kwBRANCH:
+			return p.parseAlterBranchStmt(p.cur.Loc.Start)
 		case kwMATERIALIZED:
-			return p.parseAlterMaterializedViewStmt(p.cur.Loc.Start)
+			// MATERIALIZED is also a non-reserved identifier. Only `ALTER
+			// MATERIALIZED VIEW …` is the materialized-view form; anything else is
+			// the generic owned-entity authorization form.
+			if p.materializedViewFollows() {
+				return p.parseAlterMaterializedViewStmt(p.cur.Loc.Start)
+			}
+			return p.parseAlterAuthorizationStmt(p.cur.Loc.Start)
+		default:
+			// Any other ownedEntityKind (an identifier, TABLES/SCHEMAS, …).
+			return p.parseAlterAuthorizationStmt(p.cur.Loc.Start)
 		}
-		return p.unsupported("ALTER")
 	case kwCOMMENT:
 		return p.parseCommentStmt(p.cur.Loc.Start)
 	case kwANALYZE:
@@ -535,6 +559,16 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	default:
 		return nil, p.unknownStatementError()
 	}
+}
+
+// materializedViewFollows reports whether the ALTER MATERIALIZED currently in
+// view is followed by VIEW, checked without consuming input.
+func (p *Parser) materializedViewFollows() bool {
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	p.advance() // ALTER
+	p.advance() // MATERIALIZED
+	return p.cur.Kind == kwVIEW
 }
 
 // ParseResult holds the outcome of a best-effort parse. File contains every
