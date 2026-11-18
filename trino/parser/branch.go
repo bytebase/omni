@@ -92,6 +92,13 @@ func (p *Parser) parseCreateBranchStmt(start int) (ast.Node, error) {
 		s.From = from
 		s.Loc.End = from.Loc.End
 	}
+	if s.OrReplace && s.IfNotExists {
+		return nil, &ParseError{
+			Position: s.Name.Loc.Start,
+			End:      s.Name.Loc.End,
+			Message:  "CREATE BRANCH cannot combine OR REPLACE with IF NOT EXISTS",
+		}
+	}
 	return s, nil
 }
 
