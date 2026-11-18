@@ -15,8 +15,8 @@ import (
 //
 // Judged: the WHERE of top-level SELECT, UPDATE and DELETE and of MERGE's
 // search conditions as the V1 advisor read them, the queries of INSERT,
-// CREATE TABLE AS SELECT, CREATE VIEW, CREATE MATERIALIZED VIEW, CREATE
-// EXTERNAL TABLE AS SELECT and CREATE REMOTE TABLE AS SELECT, and every
+// CREATE TABLE AS SELECT, CREATE VIEW, CREATE MATERIALIZED VIEW and CREATE
+// REMOTE TABLE AS SELECT, and every
 // SELECT nested in them (CTEs, set operations, derived tables, scalar and
 // correlated subqueries, SET values). A function call is reported when an
 // argument, after peeling wrappers, is an indexed column; an arithmetic
@@ -55,8 +55,6 @@ func (r *whereFunctionRule) onStatement(node ast.Node) {
 	case *ast.CreateViewStmt:
 		r.checkSelectNode(n.Query)
 	case *ast.CreateMaterializedViewStmt:
-		r.checkSelectNode(n.Query)
-	case *ast.CreateExternalTableAsSelectStmt:
 		r.checkSelectNode(n.Query)
 	case *ast.CreateRemoteTableAsSelectStmt:
 		r.checkSelectNode(n.Query)

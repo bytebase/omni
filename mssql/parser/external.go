@@ -517,59 +517,46 @@ func (p *Parser) extTableColumnDef() (*nodes.ColumnDef, error) {
 	return col, nil
 }
 
-// parseCreateExternalTableOrCETAS parses CREATE EXTERNAL TABLE and CREATE
-// EXTERNAL TABLE AS SELECT (CETAS). Caller has consumed CREATE EXTERNAL TABLE.
+// parseCreateExternalTableStmt parses CREATE EXTERNAL TABLE. Caller has
+// consumed CREATE EXTERNAL TABLE.
 //
 // Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-external-table-transact-sql
-// Ref: https://learn.microsoft.com/en-us/sql/t-sql/statements/create-external-table-as-select-transact-sql
 // Grammar: TSql160.g:27638 (createExternalTableStatement)
 //
 //	CREATE EXTERNAL TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
 //	    ( <column_definition> [ ,...n ] )
 //	    WITH ( <option> [ ,...n ] )
 //
-//	CREATE EXTERNAL TABLE { database_name.schema_name.table_name | schema_name.table_name | table_name }
-//	    [ ( column_name [ ,...n ] ) ]
-//	    WITH ( <option> [ ,...n ] )
-//	    AS <select_statement>
-//
-// A CETAS becomes a CreateExternalTableAsSelectStmt; the other form a
-// SecurityStmt whose Options hold the column definitions, then the options.
-func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) (nodes.StmtNode, error) {
+// The table's column definitions define it: SQL Server refuses a name with
+// none (Msg 102). The AS <select> tail ScriptDOM also reads there
+// (ctasCreateExternalTableStatement, TSql160.g:546) is not read: the pinned
+// SQL Server 2022 refuses it at EXTERNAL, as it refuses every CREATE EXTERNAL
+// TABLE of an instance without PolyBase, and compat.tsv holds that verdict
+// for the tail's rows (mssql/parser/testdata/compat.tsv).
+func (p *Parser) parseCreateExternalTableStmt(createLoc int) (nodes.StmtNode, error) {
 	ref, err := p.extRequireTableRef()
 	if err != nil {
 		return nil, err
 	}
 
-	var colDefs []nodes.Node  // ( column_definition, ... )
-	var colNames []nodes.Node // ( column_name, ... ) of a CETAS
-	if p.cur.Type == '(' {
-		p.advance()
-		next := p.peekNext().Type
-		namesOnly := next == ',' || next == ')'
-		for {
-			if namesOnly {
-				nameLoc := p.pos()
-				name, err := p.extName()
-				if err != nil {
-					return nil, err
-				}
-				colNames = append(colNames, &nodes.ColumnDef{Name: name, Loc: nodes.Loc{Start: nameLoc, End: p.prevEnd()}})
-			} else {
-				col, err := p.extTableColumnDef()
-				if err != nil {
-					return nil, err
-				}
-				colDefs = append(colDefs, col)
-			}
-			if p.cur.Type != ',' {
-				break
-			}
-			p.advance()
-		}
-		if _, err := p.expect(')'); err != nil {
+	// ( column_definition [ ,...n ] )
+	var colDefs []nodes.Node
+	if _, err := p.expect('('); err != nil {
+		return nil, err
+	}
+	for {
+		col, err := p.extTableColumnDef()
+		if err != nil {
 			return nil, err
 		}
+		colDefs = append(colDefs, col)
+		if p.cur.Type != ',' {
+			break
+		}
+		p.advance()
+	}
+	if _, err := p.expect(')'); err != nil {
+		return nil, err
 	}
 
 	opts, err := p.extTableWithOptions()
@@ -577,33 +564,6 @@ func (p *Parser) parseCreateExternalTableOrCETAS(createLoc int) (nodes.StmtNode,
 		return nil, err
 	}
 
-	if p.cur.Type == kwAS && colDefs == nil {
-		p.advance()
-		if p.cur.Type != kwSELECT && p.cur.Type != kwWITH {
-			return nil, p.syntaxErrorAtCur()
-		}
-		query, err := p.parseSelectStmtWithCTE()
-		if err != nil {
-			return nil, err
-		}
-		if query == nil {
-			return nil, p.syntaxErrorAtCur()
-		}
-		stmt := &nodes.CreateExternalTableAsSelectStmt{
-			Name:    ref,
-			Options: &nodes.List{Items: opts},
-			Query:   query,
-			Loc:     nodes.Loc{Start: createLoc, End: p.prevEnd()},
-		}
-		if colNames != nil {
-			stmt.Columns = &nodes.List{Items: colNames}
-		}
-		return stmt, nil
-	}
-	// Without AS SELECT the table needs its column definitions.
-	if colDefs == nil {
-		return nil, p.syntaxErrorAtCur()
-	}
 	return &nodes.SecurityStmt{
 		Action:     "CREATE",
 		ObjectType: "EXTERNAL TABLE",

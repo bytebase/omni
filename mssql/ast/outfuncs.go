@@ -478,8 +478,6 @@ func writeNode(sb *strings.Builder, node Node) {
 		writeCopyIntoColumn(sb, n)
 	case *RenameStmt:
 		writeRenameStmt(sb, n)
-	case *CreateExternalTableAsSelectStmt:
-		writeCreateExternalTableAsSelectStmt(sb, n)
 	case *CreateTableCloneStmt:
 		writeCreateTableCloneStmt(sb, n)
 	case *CreateTableAsSelectStmt:
@@ -2059,6 +2057,10 @@ func writeIsExpr(sb *strings.Builder, n *IsExpr) {
 		sb.WriteString(" :expr ")
 		writeNode(sb, n.Expr)
 	}
+	if n.Value != nil {
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
 	sb.WriteString(fmt.Sprintf(" :loc %d %d", n.Loc.Start, n.Loc.End))
 	sb.WriteString("}")
 }
@@ -3106,6 +3108,10 @@ func writeAlterTableAction(sb *strings.Builder, n *AlterTableAction) {
 	if n.Constraint != nil {
 		sb.WriteString(" :constraint ")
 		writeNode(sb, n.Constraint)
+	}
+	if n.Index != nil {
+		sb.WriteString(" :index ")
+		writeNode(sb, n.Index)
 	}
 	if n.DataType != nil {
 		sb.WriteString(" :dataType ")
@@ -4499,28 +4505,6 @@ func writeRenameStmt(sb *strings.Builder, n *RenameStmt) {
 	}
 	if n.NewColumnName != "" {
 		fmt.Fprintf(sb, " :newColumnName \"%s\"", escapeString(n.NewColumnName))
-	}
-	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
-	sb.WriteString("}")
-}
-
-func writeCreateExternalTableAsSelectStmt(sb *strings.Builder, n *CreateExternalTableAsSelectStmt) {
-	sb.WriteString("{CETAS")
-	if n.Name != nil {
-		sb.WriteString(" :name ")
-		writeNode(sb, n.Name)
-	}
-	if n.Columns != nil {
-		sb.WriteString(" :columns ")
-		writeNode(sb, n.Columns)
-	}
-	if n.Options != nil {
-		sb.WriteString(" :options ")
-		writeNode(sb, n.Options)
-	}
-	if n.Query != nil {
-		sb.WriteString(" :query ")
-		writeNode(sb, n.Query)
 	}
 	fmt.Fprintf(sb, " :loc %d %d", n.Loc.Start, n.Loc.End)
 	sb.WriteString("}")
