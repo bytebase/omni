@@ -4398,7 +4398,7 @@ type CreateIndextypeStmt struct {
 	WithoutRange    bool           // WITHOUT LOCAL RANGE PARTITION
 	StorageTable    string         // "SYSTEM" or "USER"
 	ArrayDML        bool           // WITH ARRAY DML
-	ArrayDMLTypes   []string       // ARRAY DML type pairs, each "type,varray_type"
+	ArrayDMLTypes   []*List        // ARRAY DML type pairs, each a list of two *String
 	WithoutArrayDML bool           // WITHOUT ARRAY DML
 	Loc             Loc
 }
@@ -4440,7 +4440,7 @@ type AlterIndextypeStmt struct {
 	Modifications   []*IndextypeModOp // ADD/DROP operators
 	UsingType       *ObjectName       // USING implementation_type
 	ArrayDML        bool              // WITH ARRAY DML
-	ArrayDMLTypes   []string          // ARRAY DML type pairs, each "type,varray_type"
+	ArrayDMLTypes   []*List           // ARRAY DML type pairs, each a list of two *String
 	WithoutArrayDML bool              // WITHOUT ARRAY DML
 	WithLocal       bool              // WITH LOCAL PARTITION
 	WithoutLocal    bool              // WITHOUT LOCAL PARTITION

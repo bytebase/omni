@@ -519,7 +519,7 @@ func (p *Parser) parseStorageTableTail() (string, error) {
 //
 // The page allows a list of pairs; Oracle takes one (WITH ARRAY DML (a, a),
 // (a, a) is refused at the second).
-func (p *Parser) parseArrayDMLTail() ([]string, error) {
+func (p *Parser) parseArrayDMLTail() ([]*nodes.List, error) {
 	p.advance() // ARRAY
 	if err := p.ixWord("DML"); err != nil {
 		return nil, err
@@ -527,7 +527,7 @@ func (p *Parser) parseArrayDMLTail() ([]string, error) {
 	if p.cur.Type != '(' {
 		return nil, nil
 	}
-	var pairs []string
+	var pairs []*nodes.List
 	for {
 		p.advance() // consume (
 		var names [2]string
@@ -547,7 +547,7 @@ func (p *Parser) parseArrayDMLTail() ([]string, error) {
 			}
 			names[i] = name
 		}
-		pairs = append(pairs, names[0]+","+names[1])
+		pairs = append(pairs, &nodes.List{Items: []nodes.Node{&nodes.String{Str: names[0]}, &nodes.String{Str: names[1]}}})
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
