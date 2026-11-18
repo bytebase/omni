@@ -249,7 +249,7 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			// CREATE TABLE dest AS SELECT * FROM secret keeps its query as
 			// raw text; the read it performs must reach AccessTables, and a
 			// malformed body must fail the span like any other subquery.
-			w.analyzeSubqueryText(q.RawText, q.TextStart)
+			w.analyzeSubqueryText(q.RawText, q.TextStart, true)
 			return false
 		case *ast.SelectStmt:
 			// A parsed query child (INSERT INTO dest SELECT * FROM secret)
@@ -600,7 +600,7 @@ func (w *spanWalker) analyzeSubquery(sub *ast.SubqueryExpr) {
 	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 		w.visitSetOpArm(q, false)
 	default:
-		w.analyzeSubqueryText(sub.RawText, sub.TextStart)
+		w.analyzeSubqueryText(sub.RawText, sub.TextStart, false)
 	}
 }
 
@@ -613,7 +613,7 @@ func (w *spanWalker) analyzeSubquery(sub *ast.SubqueryExpr) {
 // (SubqueryExpr.TextStart): nested parse errors carry positions relative to
 // the extracted text, and are shifted back into the outer statement's
 // coordinates so editor diagnostics highlight the right spot.
-func (w *spanWalker) analyzeSubqueryText(text string, base int) {
+func (w *spanWalker) analyzeSubqueryText(text string, base int, allowTrace bool) {
 	// base is relative to the text this walker is currently inside; abs is
 	// the position in the original statement, accumulated across levels.
 	abs := w.textBase + base
@@ -645,9 +645,16 @@ func (w *spanWalker) analyzeSubqueryText(text string, base int) {
 	w.textBase = abs
 	defer func() { w.textBase = saved }()
 	for _, stmt := range file.Stmts {
-		switch stmt.(type) {
+		switch stmt := stmt.(type) {
 		case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 			w.visitSetOpArm(stmt, false)
+		case *ast.OptimizerTraceStmt:
+			if !allowTrace {
+				loc := ast.NodeLoc(stmt)
+				w.noteNonQuerySubquery(ast.Loc{Start: loc.Start + abs, End: loc.End + abs})
+				continue
+			}
+			w.validateEmbeddedSubqueries(stmt)
 		default:
 			// A placeholder body that parses cleanly as something other than
 			// a query (EXISTS (DELETE FROM secret) FROM public) is not a

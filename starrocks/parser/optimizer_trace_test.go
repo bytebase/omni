@@ -59,6 +59,19 @@ func TestOptimizerTraceInQueryStatementPositions(t *testing.T) {
 	}
 }
 
+// An expression subquery holds queryRelation only; the trace prefix belongs to
+// queryStatement, so it cannot stand in for EXISTS or a scalar subquery.
+func TestOptimizerTraceRejectsExpressionSubquery(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT * FROM t WHERE EXISTS (TRACE LOGS SELECT * FROM secret)",
+		"SELECT (TRACE ALL SELECT 1)",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
 func TestOptimizerTraceRejects(t *testing.T) {
 	for _, sql := range []string{
 		"TRACE SELECT 1",

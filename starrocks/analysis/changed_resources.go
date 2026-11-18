@@ -132,6 +132,17 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		changes.DMLCount++
 		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
 
+	case *ast.SubmitTaskStmt:
+		// The submitted statement is the one that writes; the task wrapper
+		// only schedules it.
+		if n.Statement != nil {
+			inner := ExtractChangedResources(n.Statement, database, text)
+			changes.Resources = append(changes.Resources, inner.Resources...)
+			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
+			changes.DMLCount += inner.DMLCount
+			changes.InsertCount += inner.InsertCount
+		}
+
 	// Non-table object DDL: gate by the object's own explicit database
 	// qualifier only. CREATE FUNCTION is absent because its AST keeps the name
 	// inside RawSignature rather than as an ObjectName.

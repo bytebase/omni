@@ -113,6 +113,10 @@ type rawQuery struct {
 	text  string
 	start int
 	depth int
+	// allowTrace marks a queryStatement body (CTAS), where the grammar permits
+	// the optimizerTrace prefix. An expression subquery is a queryRelation and
+	// does not.
+	allowTrace bool
 }
 
 // nextToken returns the next token from the lexer, transparently skipping
@@ -963,10 +967,20 @@ func dedupeErrors(errs []ParseError) []ParseError {
 // isQueryBody reports whether a statement may stand as a subquery body.
 func isQueryBody(n ast.Node) bool {
 	switch n.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect, *ast.OptimizerTraceStmt:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect:
 		return true
 	}
 	return false
+}
+
+// isQueryStatementBody is isQueryBody plus the optimizerTrace prefix, which
+// queryStatement allows and a subquery expression does not.
+func isQueryStatementBody(n ast.Node) bool {
+	if isQueryBody(n) {
+		return true
+	}
+	_, ok := n.(*ast.OptimizerTraceStmt)
+	return ok
 }
 
 // validateRawQueries strictly parses every query body this parse captured as
@@ -999,7 +1013,11 @@ func (p *Parser) validateRawQueries() []ParseError {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 			continue
 		}
-		if !isQueryBody(res.File.Stmts[0]) {
+		body := isQueryBody
+		if q.allowTrace {
+			body = isQueryStatementBody
+		}
+		if !body(res.File.Stmts[0]) {
 			out = append(out, ParseError{Position: q.start, End: q.start + len(q.text), Message: "subquery must contain exactly one query"})
 		}
 	}

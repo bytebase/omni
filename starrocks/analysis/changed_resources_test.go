@@ -57,6 +57,8 @@ func TestExtractChangedResourcesTables(t *testing.T) {
 		{"insert names its target", "INSERT INTO t VALUES (1);", []string{"db.t"}},
 		{"update names its target, not its source", "UPDATE t SET a = 1 WHERE a IN (SELECT a FROM s);", []string{"db.t"}},
 		{"delete names its target, not its source", "DELETE FROM t WHERE a = 1;", []string{"db.t"}},
+		{"submit task insert names its target", "SUBMIT TASK AS INSERT INTO t SELECT 1;", []string{"db.t"}},
+		{"submit task CTAS names its target", "SUBMIT TASK AS CREATE TABLE t AS SELECT 1;", []string{"db.t"}},
 		{"a view records no table", "CREATE VIEW v AS SELECT 1;", nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

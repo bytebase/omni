@@ -1171,4 +1171,12 @@ func TestGetQuerySpanNewStatements(t *testing.T) {
 	if len(span.Results) != 0 {
 		t.Errorf("Results = %+v, want none: CACHE SELECT prints no data", span.Results)
 	}
+
+	span, err = GetQuerySpan("CREATE TABLE dst AS TRACE ALL SELECT * FROM src")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Table != "src" {
+		t.Errorf("AccessTables = %+v, want src", span.AccessTables)
+	}
 }
