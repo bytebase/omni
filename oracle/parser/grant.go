@@ -188,7 +188,7 @@ func (p *Parser) parseRevokeStmt() (nodes.StmtNode, error) {
 	// the roles there (REVOKE REVOKE r FROM PROCEDURE p). It does not before
 	// a revokee (REVOKE REVOKE r FROM u) and refuses that statement.
 	repeated := false
-	if p.cur.Type == kwREVOKE && p.peekNext().Type != kwFROM && p.revokeProgramTargetAhead() {
+	if p.cur.Type == kwREVOKE && p.revokeRepeatsBeforeRoles() {
 		p.advance()
 		repeated = true
 	}
@@ -514,6 +514,20 @@ func (p *Parser) parseGrantObjectName(qualified bool) (*nodes.ObjectName, error)
 	return obj, nil
 }
 
+// revokeRepeatsBeforeRoles reports whether the REVOKE the parser stands on
+// repeats the statement's keyword before a program-unit revoke's roles. A
+// FROM there may itself be a role (REVOKE REVOKE FROM, r FROM PROCEDURE p);
+// only a FROM followed by the target's kind is the delimiter.
+func (p *Parser) revokeRepeatsBeforeRoles() bool {
+	if p.peekNext().Type == kwFROM {
+		ahead := p.peekAhead(2)
+		if isGrantProgramUnitKind(ahead[1]) {
+			return false
+		}
+	}
+	return p.revokeProgramTargetAhead()
+}
+
 // revokeProgramTargetAhead reports whether the statement's FROM names a
 // program unit.
 func (p *Parser) revokeProgramTargetAhead() bool {
@@ -527,7 +541,11 @@ func (p *Parser) revokeProgramTargetAhead() bool {
 	}
 	for tok.Type != tokEOF && tok.Type != ';' {
 		if tok.Type == kwFROM {
-			return isGrantProgramUnitKind(next())
+			tok = next()
+			if isGrantProgramUnitKind(tok) {
+				return true
+			}
+			continue
 		}
 		tok = next()
 	}
@@ -617,7 +635,7 @@ func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
 	if repeatedKind && isGrantProgramUnitKind(p.cur) && isGrantWordToken(p.peekNext()) {
 		unitKind := p.cur.Str
 		p.advance()
-		obj, err := p.parseGrantObjectName(true)
+		obj, err := p.parseGrantObjectName(false)
 		if err != nil {
 			return "", err
 		}

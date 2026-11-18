@@ -47,7 +47,7 @@ func (p *Parser) parseATSupplementalLogging(add, objectProperties bool, opts *no
 				default:
 					return p.syntaxErrorAtCur()
 				}
-				if p.cur.Type != ',' {
+				if objectProperties || p.cur.Type != ',' {
 					break
 				}
 				p.advance()

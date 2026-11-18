@@ -1576,12 +1576,18 @@ func (p *Parser) parseATNestedTableStorage() error {
 			}
 			start := p.pos()
 			if p.cur.Type == '(' {
+				if clusterSeen {
+					return p.syntaxErrorAtCur()
+				}
 				if err := p.parseATObjectProperties(); err != nil {
 					return err
 				}
 				continue
 			}
 			if p.atWord("ORGANIZATION") {
+				if clusterSeen {
+					return p.syntaxErrorAtCur()
+				}
 				p.advance()
 				if err := p.atOneOf("HEAP", "INDEX"); err != nil {
 					return err
@@ -1593,7 +1599,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 			// threshold, a heap table's cache hint, and the cluster its
 			// storage table belongs to.
 			if p.atWord("MAPPING") {
-				if mappingSeen {
+				if clusterSeen || mappingSeen {
 					return p.syntaxErrorAtCur()
 				}
 				mappingSeen = true
@@ -1604,7 +1610,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("NOMAPPING") {
-				if mappingSeen {
+				if clusterSeen || mappingSeen {
 					return p.syntaxErrorAtCur()
 				}
 				mappingSeen = true
@@ -1612,7 +1618,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("PCTTHRESHOLD") {
-				if thresholdSeen {
+				if clusterSeen || thresholdSeen {
 					return p.syntaxErrorAtCur()
 				}
 				thresholdSeen = true
@@ -1623,7 +1629,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("CACHE") || p.atWord("NOCACHE") {
-				if heapSeen {
+				if clusterSeen || heapSeen {
 					return p.syntaxErrorAtCur()
 				}
 				heapSeen = true
@@ -1643,6 +1649,10 @@ func (p *Parser) parseATNestedTableStorage() error {
 					return err
 				}
 				continue
+			}
+			if clusterSeen && (p.isATSegmentAttrStart() || p.isATTableCompressionStart() ||
+				p.isATInmemoryStart() || p.atWord("SEGMENT") || p.atWord("OVERFLOW")) {
+				return p.syntaxErrorAtCur()
 			}
 			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
 			if err := p.parseATClauses(physical, nil); err != nil {
