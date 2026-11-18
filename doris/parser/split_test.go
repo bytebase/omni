@@ -284,6 +284,8 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		// is not the terminator of.
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SELECT end FROM t; END CASE; END; SELECT 2;",
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END loop; END; SELECT 2;",
+		// A CASE nested in an expression's branch is an expression too.
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN CASE WHEN 2 THEN 3 END END; END; SELECT 2;",
 	} {
 		segments := Split(sql)
 		if len(segments) != 2 {

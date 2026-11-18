@@ -287,10 +287,12 @@ func (b *blockFrame) step(tok Token, follower Token) bool {
 	}
 	switch kind {
 	case kwCASE:
-		if b.startsStatement() {
-			b.stack = append(b.stack, blockCaseStmt)
-		} else {
+		// A CASE inside an expression is one too, whatever stands before it:
+		// SELECT CASE WHEN 1 THEN CASE WHEN 2 THEN 3 END END.
+		if b.top() == blockCaseExpr || !b.startsStatement() {
 			b.stack = append(b.stack, blockCaseExpr)
+		} else {
+			b.stack = append(b.stack, blockCaseStmt)
 		}
 	case kwBEGIN:
 		if b.startsStatement() {
