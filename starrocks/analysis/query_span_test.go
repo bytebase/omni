@@ -1120,3 +1120,36 @@ func TestGetQuerySpanNestedLambdasStayLinear(t *testing.T) {
 		}
 	}
 }
+
+// The new statement nodes classify from the tree, and CACHE SELECT's source is
+// an access table even though its FROM is a bare name rather than a TableRef.
+func TestGetQuerySpanNewStatements(t *testing.T) {
+	for _, tc := range []struct {
+		sql      string
+		wantType QueryType
+	}{
+		{"TRACE ALL SELECT a FROM t", QueryTypeSelect},
+		{"CACHE SELECT a FROM t", QueryTypeDDL},
+		{"SUBMIT TASK AS INSERT INTO t SELECT 1", QueryTypeDDL},
+		{"DROP TASK t", QueryTypeDDL},
+		{"ALTER LOAD FOR t", QueryTypeDDL},
+	} {
+		t.Run(tc.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(tc.sql)
+			if err != nil {
+				t.Fatalf("GetQuerySpan returned error: %v", err)
+			}
+			if span.Type != tc.wantType {
+				t.Errorf("Type = %v, want %v", span.Type, tc.wantType)
+			}
+		})
+	}
+
+	span, err := GetQuerySpan("CACHE SELECT a FROM db.secret")
+	if err != nil {
+		t.Fatalf("GetQuerySpan returned error: %v", err)
+	}
+	if len(span.AccessTables) != 1 || span.AccessTables[0].Database != "db" || span.AccessTables[0].Table != "secret" {
+		t.Errorf("AccessTables = %+v, want db.secret", span.AccessTables)
+	}
+}

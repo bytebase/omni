@@ -670,6 +670,20 @@ func (p *Parser) parseExplain() (ast.Node, error) {
 		// No modifier — empty Type.
 	}
 
+	// A statement has at most one optional (explainDesc | optimizerTrace)
+	// prefix (StarRocks.g4:2088), so a second plan prefix is a syntax error.
+	// insertStatement also requires INTO or OVERWRITE; parseInsert admits a
+	// bare destination as a known top-level gap, which does not belong under
+	// a plan.
+	switch p.cur.Kind {
+	case kwEXPLAIN, kwDESC, kwDESCRIBE, kwTRACE:
+		return nil, p.syntaxErrorAtCur()
+	case kwINSERT:
+		if next := p.peekNext().Kind; next != kwINTO && next != kwOVERWRITE {
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	// Parse the explained query. The RawQuery fallback is best-effort
 	// recovery only: on the strict path it would swallow the nested failure
 	// (EXPLAIN SELECT * FROM would parse clean with the garbage packed into

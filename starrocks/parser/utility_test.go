@@ -220,6 +220,14 @@ func TestExplainModifiersWithDesc(t *testing.T) {
 // take explainDesc? (StarRocks.g4:1183,1201,1205).
 func TestDescPlansDML(t *testing.T) {
 	for _, sql := range []string{
+		"DESC INSERT a SELECT CURRENT_USER",
+		"DESCRIBE INSERT a SELECT CURRENT_USER",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected: insertStatement requires INTO or OVERWRITE", sql)
+		}
+	}
+	for _, sql := range []string{
 		"DESC INSERT INTO a SELECT CURRENT_USER",
 		"DESCRIBE UPDATE a SET a = CURRENT_USER",
 		"DESC DELETE FROM a",

@@ -73,7 +73,13 @@ func GetQuerySpan(statement string) (*QuerySpan, error) {
 	if err != nil {
 		return nil, parser.FirstError(err)
 	}
-	return getQuerySpan(Classify(statement), file)
+	queryType := Classify(statement)
+	if file != nil && len(file.Stmts) > 0 {
+		if classified, ok := astQueryType(file.Stmts[0]); ok {
+			queryType = classified
+		}
+	}
+	return getQuerySpan(queryType, file)
 }
 
 // getQuerySpan analyzes an already parsed file under the given
@@ -181,6 +187,8 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 		// query statement, not an embedded child: dispatch it as outermost so
 		// its tables AND its Results populate.
 		w.visitSetOpArm(n, true /* outermost */)
+	case *ast.DataCacheSelectStmt:
+		w.visitDataCacheSelect(n, true /* outermost */)
 	default:
 		w.validateEmbeddedSubqueries(node)
 	}
@@ -251,6 +259,9 @@ func (w *spanWalker) validateEmbeddedSubqueries(node ast.Node) {
 			return false
 		case *ast.SetOpStmt:
 			w.visitSetOp(q, false)
+			return false
+		case *ast.DataCacheSelectStmt:
+			w.visitDataCacheSelect(q, false)
 			return false
 		case *ast.TableRef:
 			// A physical table referenced by DML — UPDATE ... FROM secret,
@@ -515,24 +526,35 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 		return
 	}
 
+	w.recordTableName(ref.Name, ref.Alias, ref.Loc)
+}
+
+// recordTableName adds a physical table named by name to AccessTables. It is
+// shared by table references and CACHE SELECT, whose source is a bare
+// qualified name rather than a TableRef.
+func (w *spanWalker) recordTableName(name *ast.ObjectName, alias string, loc ast.Loc) {
+	if name == nil || len(name.Parts) == 0 {
+		return
+	}
+
 	var database, table string
-	switch len(ref.Name.Parts) {
+	switch len(name.Parts) {
 	case 1:
-		table = ref.Name.Parts[0]
+		table = name.Parts[0]
 		// Bare name: skip if it matches an in-scope CTE.
 		if w.isCTE(table) {
 			return
 		}
 	case 2:
-		database = ref.Name.Parts[0]
-		table = ref.Name.Parts[1]
+		database = name.Parts[0]
+		table = name.Parts[1]
 	default:
 		// catalog.db.table or longer — keep the last two parts.
-		database = ref.Name.Parts[len(ref.Name.Parts)-2]
-		table = ref.Name.Parts[len(ref.Name.Parts)-1]
+		database = name.Parts[len(name.Parts)-2]
+		table = name.Parts[len(name.Parts)-1]
 	}
 
-	key := tableKey{Database: database, Table: table, Alias: ref.Alias}
+	key := tableKey{Database: database, Table: table, Alias: alias}
 	if _, ok := w.accessed[key]; ok {
 		return
 	}
@@ -540,14 +562,42 @@ func (w *spanWalker) visitTableRef(ref *ast.TableRef) {
 	w.span.AccessTables = append(w.span.AccessTables, TableAccess{
 		Database: database,
 		Table:    table,
-		Alias:    ref.Alias,
+		Alias:    alias,
 		Loc: ast.Loc{
 			// Rebased into outer-statement coordinates: inside a reparsed
-			// subquery ref.Loc is relative to the extracted text.
-			Start: ref.Loc.Start + w.textBase,
-			End:   ref.Loc.End + w.textBase,
+			// subquery loc is relative to the extracted text.
+			Start: loc.Start + w.textBase,
+			End:   loc.End + w.textBase,
 		},
 	})
+}
+
+// visitDataCacheSelect walks CACHE SELECT's source and select list. Its FROM is
+// a bare qualified name, so the ordinary TableRef path never sees it, and a
+// span that omitted it would let a cache read a table the access check never
+// sees.
+func (w *spanWalker) visitDataCacheSelect(stmt *ast.DataCacheSelectStmt, outermost bool) {
+	if stmt == nil {
+		return
+	}
+	w.recordTableName(stmt.From, "", ast.NodeLoc(stmt.From))
+	if stmt.Where != nil {
+		w.walkExpr(stmt.Where)
+	}
+	for _, item := range stmt.Items {
+		if item == nil {
+			continue
+		}
+		if outermost && !w.resolved {
+			w.span.Results = append(w.span.Results, w.makeColumnInfo(item))
+		}
+		if item.Expr != nil {
+			w.walkExpr(item.Expr)
+		}
+	}
+	if outermost {
+		w.resolved = true
+	}
 }
 
 // analyzeSubquery walks a subquery placeholder's body. The tree the strict

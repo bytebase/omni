@@ -24,9 +24,10 @@ func (p *Parser) parseSubmitTask(startLoc ast.Loc) (ast.Node, error) {
 
 	stmt := &ast.SubmitTaskStmt{Loc: startLoc}
 
-	// The name is optional. PROPERTIES and SCHEDULE start a taskClause, so they
-	// are not read as the name even though both are non-reserved identifiers.
-	if isIdentifierToken(p.cur.Kind) && p.cur.Kind != kwPROPERTIES && p.cur.Kind != kwSCHEDULE {
+	// The name is optional. PROPERTIES and SCHEDULE are non-reserved
+	// identifiers, so they are a name unless the token after them opens a
+	// taskClause.
+	if p.submitTaskNameAt() {
 		name, err := p.parseMultipartIdentifier()
 		if err != nil {
 			return nil, err
@@ -63,9 +64,17 @@ clausesDone:
 	switch p.cur.Kind {
 	case kwCREATE:
 		// createTableAsSelectStatement (StarRocks.g4:488). parseCreateTable
-		// reads it from the CREATE keyword on.
+		// reads it from the CREATE keyword on, so hold the result to that
+		// rule: a query must follow AS, and the column list is names only.
 		p.advance() // consume CREATE
 		stmt.Statement, err = p.parseCreateTable()
+		if err == nil {
+			ctas, ok := stmt.Statement.(*ast.CreateTableStmt)
+			if !ok || ctas.AsSelect == nil || ctas.External ||
+				len(ctas.Columns) > 0 || len(ctas.Constraints) > 0 {
+				return nil, p.syntaxErrorAtCur()
+			}
+		}
 	case kwINSERT:
 		// insertStatement requires INTO or OVERWRITE. parseInsert also admits
 		// a bare INSERT destination, which is a known top-level gap; the
@@ -85,6 +94,24 @@ clausesDone:
 
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
+}
+
+// submitTaskNameAt reports whether cur is the optional task name rather than
+// the start of a taskClause. Both clause keywords are non-reserved, so
+// `SUBMIT TASK properties AS ...` names the task properties while
+// `SUBMIT TASK properties('a' = 'a') AS ...` starts a clause.
+func (p *Parser) submitTaskNameAt() bool {
+	if !isIdentifierToken(p.cur.Kind) {
+		return false
+	}
+	switch p.cur.Kind {
+	case kwPROPERTIES:
+		return p.peekNext().Kind != int('(')
+	case kwSCHEDULE:
+		next := p.peekNext().Kind
+		return next != kwSTART && next != kwEVERY
+	}
+	return true
 }
 
 // parseTaskSchedule parses taskScheduleDesc (StarRocks.g4:640):

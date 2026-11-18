@@ -19,6 +19,8 @@ func TestSubmitTask(t *testing.T) {
 		{"SUBMIT TASK AS INSERT INTO a SELECT CURRENT_USER", "", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK zzz AS INSERT INTO a SELECT CURRENT_USER", "zzz", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK db.job AS INSERT INTO a SELECT CURRENT_USER", "db.job", 0, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK properties AS INSERT INTO a SELECT CURRENT_USER", "properties", 0, nil, ast.T_InsertStmt},
+		{"SUBMIT TASK schedule AS INSERT INTO a SELECT CURRENT_USER", "schedule", 0, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK PROPERTIES('a' = 'a') AS INSERT INTO a SELECT 1", "", 1, nil, ast.T_InsertStmt},
 		{"SUBMIT TASK AS CREATE TABLE a AS SELECT CURRENT_USER", "", 0, nil, ast.T_CreateTableStmt},
 		{"SUBMIT TASK AS CACHE SELECT CURRENT_USER FROM a", "", 0, nil, ast.T_DataCacheSelectStmt},
@@ -67,6 +69,20 @@ func TestSubmitTask(t *testing.T) {
 func TestSubmitTaskRejectsBareInsert(t *testing.T) {
 	if _, errs := parseForTest("SUBMIT TASK AS INSERT a SELECT CURRENT_USER"); len(errs) == 0 {
 		t.Fatal("SUBMIT TASK AS INSERT a parsed, want rejected")
+	}
+}
+
+// The submitted CREATE must be createTableAsSelectStatement, not any CREATE
+// TABLE the general parser reads.
+func TestSubmitTaskRejectsNonCTAS(t *testing.T) {
+	for _, sql := range []string{
+		"SUBMIT TASK AS CREATE TABLE a (x INT)",
+		"SUBMIT TASK AS CREATE TABLE a LIKE b",
+		"SUBMIT TASK AS CREATE EXTERNAL TABLE a AS SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
 	}
 }
 
