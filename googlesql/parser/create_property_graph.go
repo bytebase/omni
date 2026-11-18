@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -207,6 +209,16 @@ func (p *Parser) parseElementTableDef() (*ast.ElementTableDef, error) {
 		def.Loc.End = ref.Loc.End
 	}
 
+	// opt_options_list[default_label_options].
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		def.DefaultLabelOptions = opts
+		def.Loc.End = p.prev.Loc.End
+	}
+
 	// opt_label_and_properties_clause?: properties_clause | label_and_properties+.
 	labels, err := p.parseLabelAndPropertiesClause()
 	if err != nil {
@@ -217,7 +229,61 @@ func (p *Parser) parseElementTableDef() (*ast.ElementTableDef, error) {
 		def.Loc.End = labels[len(labels)-1].Loc.End
 	}
 
+	// dynamic_label_and_properties?:
+	//   ( DYNAMIC LABEL ( expr ) | DYNAMIC PROPERTIES ( expr ) )+
+	// Duplicate DYNAMIC LABEL or DYNAMIC PROPERTIES is a syntax error
+	// (MergeDynamicLabelProperties in googlesql.tm).
+	for p.isUnquotedDynamic() {
+		p.advance() // consume DYNAMIC
+		switch p.cur.Type {
+		case kwLABEL:
+			if def.DynamicLabel != nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // LABEL
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			endTok, err := p.expect(int(')'))
+			if err != nil {
+				return nil, err
+			}
+			def.DynamicLabel = expr
+			def.Loc.End = endTok.Loc.End
+		case kwPROPERTIES:
+			if def.DynamicProperties != nil {
+				return nil, p.syntaxErrorAtCur()
+			}
+			p.advance() // PROPERTIES
+			if _, err := p.expect(int('(')); err != nil {
+				return nil, err
+			}
+			expr, err := p.parseExpr()
+			if err != nil {
+				return nil, err
+			}
+			endTok, err := p.expect(int(')'))
+			if err != nil {
+				return nil, err
+			}
+			def.DynamicProperties = expr
+			def.Loc.End = endTok.Loc.End
+		default:
+			return nil, p.syntaxErrorAtCur()
+		}
+	}
+
 	return def, nil
+}
+
+func (p *Parser) isUnquotedDynamic() bool {
+	return p.cur.Type == tokIdentifier &&
+		p.cur.Loc.End-p.cur.Loc.Start == len("DYNAMIC") &&
+		strings.EqualFold(p.cur.Str, "DYNAMIC")
 }
 
 // parseNodeTableRef parses a SOURCE / DESTINATION node-table reference
@@ -296,27 +362,41 @@ func (p *Parser) parseLabelAndPropertiesClause() ([]*ast.LabelAndProperties, err
 
 // parseLabelAndProperties parses one label_and_properties:
 //
-//	[DEFAULT] LABEL <identifier> [properties_clause]
+//	( DEFAULT LABEL opt_options_list | LABEL <identifier> ) [properties_clause]
 func (p *Parser) parseLabelAndProperties() (*ast.LabelAndProperties, error) {
 	lp := &ast.LabelAndProperties{Kind: ast.LabelPropsDefault, Loc: p.cur.Loc}
 	start := p.cur.Loc.Start
 	if p.cur.Type == kwDEFAULT {
 		p.advance() // DEFAULT
+		lblTok, err := p.expect(kwLABEL)
+		if err != nil {
+			return nil, err
+		}
 		lp.Default = true
+		lp.Loc = ast.Loc{Start: start, End: lblTok.Loc.End}
+		if p.cur.Type == kwOPTIONS {
+			opts, err := p.parseOptionsList()
+			if err != nil {
+				return nil, err
+			}
+			lp.Options = opts
+			lp.Loc.End = p.prev.Loc.End
+		}
+	} else {
+		if _, err := p.expect(kwLABEL); err != nil {
+			return nil, err
+		}
+		tok, err := p.expectIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		name, err := p.identifierText(tok)
+		if err != nil {
+			return nil, err
+		}
+		lp.LabelName = name
+		lp.Loc = ast.Loc{Start: start, End: tok.Loc.End}
 	}
-	if _, err := p.expect(kwLABEL); err != nil {
-		return nil, err
-	}
-	tok, err := p.expectIdentifier()
-	if err != nil {
-		return nil, err
-	}
-	name, err := p.identifierText(tok)
-	if err != nil {
-		return nil, err
-	}
-	lp.LabelName = name
-	lp.Loc = ast.Loc{Start: start, End: tok.Loc.End}
 	// Optional properties_clause.
 	if p.cur.Type == kwNO || p.cur.Type == kwPROPERTIES {
 		if err := p.parsePropertiesClause(lp); err != nil {
@@ -401,7 +481,8 @@ func (p *Parser) parsePropertiesClause(lp *ast.LabelAndProperties) error {
 	}
 }
 
-// parseDerivedProperty parses one derived_property: expression [AS alias].
+// parseDerivedProperty parses one derived_property:
+// expression [AS alias] [OPTIONS (...)].
 func (p *Parser) parseDerivedProperty() (*ast.DerivedProperty, error) {
 	expr, err := p.parseExpr()
 	if err != nil {
@@ -420,6 +501,14 @@ func (p *Parser) parseDerivedProperty() (*ast.DerivedProperty, error) {
 		}
 		dp.Alias = alias
 		dp.Loc.End = tok.Loc.End
+	}
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		dp.Options = opts
+		dp.Loc.End = p.prev.Loc.End
 	}
 	return dp, nil
 }

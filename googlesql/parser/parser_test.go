@@ -184,12 +184,26 @@ func TestParse_LexErrorAfterRecoveryStopReported(t *testing.T) {
 // skip would consume to EOF and dispatch would never run, so an invalid input
 // would draw no diagnostic at all (oracle: Spanner rejects malformed hints).
 func TestParse_UnterminatedHintReported(t *testing.T) {
-	bad := []string{"@{k=1 SELECT 1", "@{", "@{a={b=1}", "@[5@]{k=1", "@[5@] SELECT 1"}
+	// A body that runs out of input is reported as unterminated.
+	bad := []string{"@{", "@{k=1", "@[5@]{k=1", "@[5@] SELECT 1"}
 	for _, in := range bad {
 		t.Run("bad/"+in, func(t *testing.T) {
 			_, errs := parseForTest(in)
 			if len(errs) == 0 || !strings.Contains(errs[0].Message, "unterminated statement hint") {
 				t.Errorf("parseForTest(%q): want an unterminated-hint diagnostic, got %v", in, errs)
+			}
+		})
+	}
+	// A body that holds something else before the input ends is reported where
+	// the hint's own grammar stops reading it, which says more than "unterminated"
+	// would: `@{a={b=1}` pairs `=` with `{`, and `@{k=1 SELECT 1` has no `,` after
+	// the entry. Either way the invalid input draws a diagnostic.
+	malformed := []string{"@{k=1 SELECT 1", "@{a={b=1}"}
+	for _, in := range malformed {
+		t.Run("malformed/"+in, func(t *testing.T) {
+			_, errs := parseForTest(in)
+			if len(errs) == 0 {
+				t.Errorf("parseForTest(%q): want a diagnostic, got none", in)
 			}
 		})
 	}
@@ -366,5 +380,65 @@ func TestParse_ProceduralBodyParsedAsOneSegment(t *testing.T) {
 	}
 	if _, ok := res.File.Stmts[0].(*ast.CreateProcedureStmt); !ok {
 		t.Errorf("statement is %T, want *ast.CreateProcedureStmt", res.File.Stmts[0])
+	}
+}
+
+func TestParse_StrictGrammarTightenings(t *testing.T) {
+	valid := []string{
+		"@{a.b = 1, hash = 2, proto = 'x', partition = true} SELECT 1",
+		"SELECT {(ext.path)[0].sub : 1, (ext.other)? { a : 2 }}",
+		"CREATE INDEX idx ON t(ALL COLUMNS WITH COLUMN OPTIONS (c1 OPTIONS (k = 1)))",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t OPTIONS (k = 1) DEFAULT LABEL OPTIONS (k = 2) PROPERTIES (x AS y OPTIONS (k = 3)) DYNAMIC LABEL(lbl) DYNAMIC PROPERTIES(p))",
+		"DROP PROPERTY GRAPH IF EXISTS g CASCADE",
+	}
+	for _, sql := range valid {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) failed: %v", sql, err)
+		}
+	}
+
+	invalid := []string{
+		"@1",
+		"@{a = 1}",
+		"@{a NULL} SELECT 1",
+		"@{a = 1,} SELECT 1",
+		"@{HAVING = 1} SELECT 1",
+		"SELECT (1, 2 AS b)",
+		"SELECT INTERVAL 1 TO DAY",
+		"SELECT {(a) b : 1}",
+		"CREATE INDEX idx ON t(ALL)",
+		"CREATE INDEX idx ON t(ALL COLUMNS WITH COLUMN OPTIONS ())",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t DEFAULT LABEL zzz)",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t DYNAMIC LABEL(a) DYNAMIC LABEL(b))",
+		"CREATE PROPERTY GRAPH g NODE TABLES (t `DYNAMIC` LABEL(a))",
+	}
+	for _, sql := range invalid {
+		if _, err := Parse(sql); err == nil {
+			t.Errorf("Parse(%q) succeeded, want syntax error", sql)
+		}
+	}
+}
+
+// TestBracedConstructorExtensionNeedsComma pins the field list's rule: a key
+// that is a parenthesized extension expression may only follow a comma, since
+// braced_constructor_field_following_omitted_comma takes a bare path
+// (googlesql.tm).
+func TestBracedConstructorExtensionNeedsComma(t *testing.T) {
+	for _, sql := range []string{
+		"SELECT {(a) : 1}",
+		"SELECT {a : 1, (b) : 2}",
+		"SELECT {a : 1 (b) : 2}",
+		"SELECT {a : 1 b : 2}",
+		"SELECT {a : 1, b * : 2 c ? : 3}",
+	} {
+		if sql == "SELECT {a : 1 (b) : 2}" {
+			if _, err := Parse(sql); err == nil {
+				t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
+			}
+			continue
+		}
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) failed: %v", sql, err)
+		}
 	}
 }

@@ -131,8 +131,12 @@ func (p *Parser) atStatementListEnd(terminators []int) bool {
 // unterminated_sql_statement's `statement_level_hint?`.
 func (p *Parser) parseScriptElement() (ast.Node, error) {
 	if p.cur.Type == int('@') {
+		beforeHint := p.cur.Loc
 		if hintErr := p.skipStatementLevelHint(); hintErr != nil {
 			return nil, hintErr
+		}
+		if p.cur.Loc != beforeHint && (p.cur.Type == tokEOF || p.cur.Type == int(';')) {
+			return nil, p.syntaxErrorAtCur()
 		}
 	}
 	return p.parseStmt()

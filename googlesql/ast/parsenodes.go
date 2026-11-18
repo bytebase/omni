@@ -2187,6 +2187,7 @@ const (
 	DropIndex
 	DropSchema
 	DropDatabase
+	DropPropertyGraph
 )
 
 // String returns the object keyword(s).
@@ -2202,6 +2203,8 @@ func (k DropObjectKind) String() string {
 		return "SCHEMA"
 	case DropDatabase:
 		return "DATABASE"
+	case DropPropertyGraph:
+		return "PROPERTY GRAPH"
 	default:
 		return "UNKNOWN"
 	}
@@ -4107,13 +4110,16 @@ func (n *CreatePropertyGraphStmt) Tag() NodeTag { return T_CreatePropertyGraphSt
 // nil if absent). Labels is the label-and-properties list (the
 // opt_label_and_properties_clause); nil if absent.
 type ElementTableDef struct {
-	Name   *PathExpr
-	Alias  string
-	Key    []string         // KEY ( cols ); nil if absent
-	Source *ElementTableRef // SOURCE KEY … REFERENCES …; nil if absent
-	Dest   *ElementTableRef // DESTINATION KEY … REFERENCES …; nil if absent
-	Labels []*LabelAndProperties
-	Loc    Loc
+	Name                *PathExpr
+	Alias               string
+	Key                 []string         // KEY ( cols ); nil if absent
+	Source              *ElementTableRef // SOURCE KEY … REFERENCES …; nil if absent
+	Dest                *ElementTableRef // DESTINATION KEY … REFERENCES …; nil if absent
+	DefaultLabelOptions []*OptionsEntry  // OPTIONS ( … ) before labels; nil if absent
+	Labels              []*LabelAndProperties
+	DynamicLabel        Node // DYNAMIC LABEL ( expr ); nil if absent
+	DynamicProperties   Node // DYNAMIC PROPERTIES ( expr ); nil if absent
+	Loc                 Loc
 }
 
 // Tag implements Node.
@@ -4161,7 +4167,8 @@ const (
 // the `EXCEPT ( cols )` list for LabelPropsAllColumns (nil if none).
 type LabelAndProperties struct {
 	Default       bool
-	LabelName     string // "" for the bare opt_label_and_properties_clause properties form
+	LabelName     string          // "" for DEFAULT LABEL and bare properties form
+	Options       []*OptionsEntry // OPTIONS ( … ) on DEFAULT LABEL; nil if absent
 	Kind          LabelKind
 	PropsList     []*DerivedProperty // for LabelPropsList
 	ExceptColumns []string           // EXCEPT ( cols ) for LabelPropsAllColumns; nil if none
@@ -4172,11 +4179,12 @@ type LabelAndProperties struct {
 func (n *LabelAndProperties) Tag() NodeTag { return T_LabelAndProperties }
 
 // DerivedProperty is one entry of a derived_property_list
-// (derived_property: expression [AS alias]).
+// (derived_property: expression [AS alias] [OPTIONS (...)]).
 type DerivedProperty struct {
-	Expr  Node
-	Alias string // `AS alias`; "" if absent
-	Loc   Loc
+	Expr    Node
+	Alias   string          // `AS alias`; "" if absent
+	Options []*OptionsEntry // OPTIONS ( … ); nil if absent
+	Loc     Loc
 }
 
 // Tag implements Node.

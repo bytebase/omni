@@ -80,6 +80,13 @@ func (p *Parser) parseDropStmt() (ast.Node, error) {
 	case kwSEQUENCE:
 		// DROP SEQUENCE [IF EXISTS] name (spanner_sequence.go).
 		return p.parseDropSequence(drop)
+	case kwPROPERTY:
+		// DROP PROPERTY GRAPH [IF EXISTS] name [RESTRICT|CASCADE] (schema_object_kind).
+		if p.peekNext().Type == kwGRAPH {
+			p.advance() // consume PROPERTY; parseDropObject consumes GRAPH
+			return p.parseDropObject(drop, ast.DropPropertyGraph, false)
+		}
+		return p.unsupported("DROP")
 	default:
 		// Spanner objects whose leading word lexes as a BARE IDENTIFIER (CHANGE
 		// STREAM, LOCALITY GROUP) and ROLE — matched by spelling before the
