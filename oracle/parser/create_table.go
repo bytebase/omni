@@ -665,6 +665,23 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 			nil {
 			return nil, parseErr499
 		}
+	} else if p.alterTableAddColumn && p.isIdentLike() && !isOracleSQLReservedKeyword(p.cur) && !p.isCreateTableColumnClauseStart() {
+		// ALTER TABLE ... ADD's datatype is the resolve phase's: a word
+		// Oracle does not reserve names the type it has no such type as
+		// (ORA-00902 at it), as DEFERRED does in ADD INITIALLY DEFERRED and
+		// INITIALLY in ADD DEFERRABLE INITIALLY. Oracle reserves IMMEDIATE
+		// (ORA-00904 at it), so ADD INITIALLY IMMEDIATE is no column. A size
+		// after such a word is ORA-03060 at it (ADD PRIORITY KEY(a)), which
+		// is a syntax error: only a type the server has takes one.
+		if p.peekNext().Type == '(' {
+			return nil, p.syntaxErrorAtCur()
+		}
+		col.TypeName = &nodes.TypeName{
+			Names:    &nodes.List{Items: []nodes.Node{&nodes.String{Str: p.cur.Str}}},
+			TypeMods: &nodes.List{},
+			Loc:      nodes.Loc{Start: p.pos(), End: p.cur.End},
+		}
+		p.advance()
 	}
 	parseErr500 := p.parseColumnProperties(col)
 	if parseErr500 != nil {
@@ -672,8 +689,9 @@ func (p *Parser) parseColumnDef() (*nodes.ColumnDef, error) {
 	}
 	// CREATE TABLE's column_definition takes its datatype as optional
 	// (CREATE TABLE t (a, b) AS SELECT ...); a bare column elsewhere is
-	// an error.
-	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns {
+	// an error, but in ALTER TABLE ... ADD it is Oracle's ORA-02263, which
+	// the statement survives.
+	if col.Domain == nil && col.TypeName == nil && !columnDefHasProperties(col) && !p.createTableColumns && !p.alterTableAddColumn {
 		return nil, p.syntaxErrorAtCur()
 	}
 
