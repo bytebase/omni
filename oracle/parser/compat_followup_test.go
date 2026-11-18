@@ -34,6 +34,8 @@ func TestParseFollowupForms(t *testing.T) {
 		`CREATE MATERIALIZED VIEW a JSON(a) STORE AS AS SELECT 1 FROM dual`,
 		`CREATE MATERIALIZED VIEW a JSON(a) AS AS SELECT 1 FROM dual`,
 		`CREATE VECTOR INDEX a ON a(a) ORGANIZATION PARTITIONS`,
+		// A segment name stands before a clause that follows it.
+		`CREATE MATERIALIZED VIEW a JSON(b) AS seg CACHE AS SELECT 1 FROM dual`,
 		// A repeated name both columns define is oracle's ORA-00957 check,
 		// left to the recorded over-accepts (see alter_table.go); a DOMAIN
 		// defines its column's type as a datatype does.
@@ -94,6 +96,8 @@ func TestParseFollowupForms(t *testing.T) {
 		// A word followed by its clause's own words is that clause, which
 		// Oracle refuses at what follows (ORA-02000 at 56).
 		`CREATE MATERIALIZED VIEW a JSON(b) AS BUILD IMMEDIATE AS SELECT 1 FROM dual`,
+		// A reserved word is no user: Oracle answers ORA-38304.
+		`PURGE TABLESPACE a USER TABLE`,
 	}
 	for _, sql := range refused {
 		if _, err := Parse(sql); err == nil {

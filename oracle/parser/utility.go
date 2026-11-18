@@ -1214,6 +1214,11 @@ func (p *Parser) parsePurgeStmt() (nodes.StmtNode, error) {
 		}
 		if p.cur.Type == kwUSER {
 			p.advance() // consume USER
+			// A user is an identifier: Oracle answers ORA-38304 for an
+			// unquoted reserved word (USER TABLE) and takes a quoted one.
+			if err := p.syntaxErrorIfReservedIdentifier(); err != nil {
+				return nil, err
+			}
 			user, err := p.parseIdentifier()
 			if err != nil {
 				return nil, err

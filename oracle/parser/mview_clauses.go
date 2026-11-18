@@ -674,16 +674,16 @@ func (p *Parser) parseMviewJSONStorage() error {
 	if p.cur.Type == '(' {
 		return p.parseCreateTableLobStorageParameters()
 	}
-	// A name here stands alone before the clause's parameters or the view's
-	// own AS. A word followed by anything else opens a materialized view
-	// clause instead, and Oracle refuses the statement at what follows it:
-	// CREATE MATERIALIZED VIEW a JSON (b) AS BUILD IMMEDIATE AS SELECT ...
-	// answers ORA-02000 at the AS before the query, AS REFRESH FAST ORA-02000
-	// at 48, AS USING INDEX ORA-02461 at 46, where AS BUILD AS SELECT and AS
-	// NOCACHE AS SELECT name the segment (ORA-00904 at the column they
-	// resolve).
+	// A name here stands before the clause's parameters, before a
+	// materialized view clause that follows, or before the view's own AS.
+	// A word followed by anything else opens a clause that Oracle refuses
+	// there: JSON (b) AS BUILD IMMEDIATE AS SELECT ... answers ORA-02000 at
+	// the AS before the query, AS REFRESH FAST ORA-02000 at 48, AS USING
+	// INDEX ORA-02461 at 46, where AS seg CACHE AS SELECT, AS seg BUILD
+	// IMMEDIATE AS SELECT and AS BUILD AS SELECT name the segment (ORA-00904
+	// at the column they resolve).
 	if p.isCreateTableNameStart() {
-		if next := p.peekNext(); next.Type != '(' && next.Type != kwAS {
+		if next := p.peekNext(); next.Type != '(' && next.Type != kwAS && !p.isMviewClauseStart(next) {
 			return p.syntaxErrorAtCur()
 		}
 		if err := p.parseCreateTableName(); err != nil {
@@ -694,6 +694,26 @@ func (p *Parser) parseMviewJSONStorage() error {
 		}
 	}
 	return nil
+}
+
+// isMviewClauseStart reports whether a clause of CREATE MATERIALIZED VIEW
+// starts at tok: what parseMviewProperties reads and what follows it.
+func (p *Parser) isMviewClauseStart(tok Token) bool {
+	switch tok.Type {
+	case kwTABLESPACE, kwLOGGING, kwNOLOGGING, kwCACHE, kwNOCACHE, kwPARALLEL, kwNOPARALLEL,
+		kwCLUSTER, kwPARTITION, kwJSON, kwUSING, kwREFRESH, kwFOR, kwENABLE, kwDISABLE, kwAS:
+		return true
+	}
+	for _, w := range []string{
+		"NESTED", "VARRAY", "LOB", "XMLTYPE", "BUILD", "INMEMORY", "PCTFREE", "PCTUSED",
+		"INITRANS", "MAXTRANS", "STORAGE", "COMPRESS", "NOCOMPRESS", "PCTTHRESHOLD", "MAPPING",
+		"NOMAPPING", "INCLUDING", "OVERFLOW", "NEVER", "EVALUATE", "ANNOTATIONS",
+	} {
+		if isCreateTableWordTok(tok, w) {
+			return true
+		}
+	}
+	return false
 }
 
 // parseMviewUsingIndex reads the index attributes after USING INDEX.
