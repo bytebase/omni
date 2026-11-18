@@ -134,6 +134,9 @@ func (p *Parser) parseCreateMTMV(startLoc ast.Loc) (ast.Node, error) {
 		query, err = p.parseSelectStmt()
 		if err == nil {
 			queryNode, err = p.parseSetOpTail(query)
+			if err == nil {
+				err = p.settleQueryInto(queryNode)
+			}
 		}
 	}
 	if err != nil {
