@@ -1568,7 +1568,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 	}
 	if p.cur.Type == '(' {
 		p.advance()
-		var mappingSeen, heapSeen, thresholdSeen, clusterSeen bool
+		var orgSeen, clusterSeen bool
 		for n := 0; ; n++ {
 			if p.cur.Type == ')' && n > 0 {
 				p.advance()
@@ -1585,9 +1585,10 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("ORGANIZATION") {
-				if clusterSeen {
+				if clusterSeen || orgSeen {
 					return p.syntaxErrorAtCur()
 				}
+				orgSeen = true
 				p.advance()
 				if err := p.atOneOf("HEAP", "INDEX"); err != nil {
 					return err
@@ -1599,10 +1600,10 @@ func (p *Parser) parseATNestedTableStorage() error {
 			// threshold, a heap table's cache hint, and the cluster its
 			// storage table belongs to.
 			if p.atWord("MAPPING") {
-				if clusterSeen || mappingSeen {
+				if clusterSeen || orgSeen {
 					return p.syntaxErrorAtCur()
 				}
-				mappingSeen = true
+				orgSeen = true
 				p.advance()
 				if err := p.atExpect(kwTABLE); err != nil {
 					return err
@@ -1610,18 +1611,18 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("NOMAPPING") {
-				if clusterSeen || mappingSeen {
+				if clusterSeen || orgSeen {
 					return p.syntaxErrorAtCur()
 				}
-				mappingSeen = true
+				orgSeen = true
 				p.advance()
 				continue
 			}
 			if p.atWord("PCTTHRESHOLD") {
-				if clusterSeen || thresholdSeen {
+				if clusterSeen || orgSeen {
 					return p.syntaxErrorAtCur()
 				}
-				thresholdSeen = true
+				orgSeen = true
 				p.advance()
 				if err := p.parseATInteger(); err != nil {
 					return err
@@ -1629,10 +1630,10 @@ func (p *Parser) parseATNestedTableStorage() error {
 				continue
 			}
 			if p.atWord("CACHE") || p.atWord("NOCACHE") {
-				if clusterSeen || heapSeen {
+				if clusterSeen || orgSeen {
 					return p.syntaxErrorAtCur()
 				}
-				heapSeen = true
+				orgSeen = true
 				p.advance()
 				continue
 			}
@@ -1653,6 +1654,12 @@ func (p *Parser) parseATNestedTableStorage() error {
 			if clusterSeen && (p.isATSegmentAttrStart() || p.isATTableCompressionStart() ||
 				p.isATInmemoryStart() || p.atWord("SEGMENT") || p.atWord("OVERFLOW")) {
 				return p.syntaxErrorAtCur()
+			}
+			if p.atWord("OVERFLOW") {
+				if orgSeen {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
 			}
 			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
 			if err := p.parseATClauses(physical, nil); err != nil {
