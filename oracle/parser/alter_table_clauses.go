@@ -448,7 +448,7 @@ func (p *Parser) parseATIndexCompression() error {
 		// right after it (compat.tsv's ALTER MATERIALIZED VIEW rows); a word
 		// after it is refused at ADVANCED, as it was before.
 		toks := p.peekAhead(3)
-		if len(toks) == 3 && p.isIdentLikeStrAt(toks[0], "ADVANCED") &&
+		if p.alterMview && len(toks) == 3 && p.isIdentLikeStrAt(toks[0], "ADVANCED") &&
 			(toks[1].Type == ')' ||
 				((p.isIdentLikeStrAt(toks[1], "LOW") || p.isIdentLikeStrAt(toks[1], "HIGH")) && toks[2].Type == ')')) {
 			p.advance() // COMPRESS

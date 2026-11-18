@@ -839,7 +839,8 @@ func (p *Parser) parseAlterMviewEvaluation(stmt *nodes.AlterMaterializedViewStmt
 		case p.atWord("CONSIDER") && p.atNextWord("FRESH"):
 			p.advance()
 			p.advance()
-			for p.isIdentLike() {
+			for p.isIdentLike() && !p.atWord("ENABLE") && !p.atWord("DISABLE") && !p.atWord("QUERY") &&
+				!p.atWord("COMPILE") && !p.atWord("REFRESH") && !p.atWord("USING") && !p.atWord("MODIFY") {
 				p.advance()
 			}
 		case p.isIdentLike() && !p.atWord("CONSIDER") && !p.atWord("ENABLE") && !p.atWord("DISABLE") &&
