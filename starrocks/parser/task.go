@@ -575,7 +575,7 @@ func attachInto(node ast.Node, into *ast.IntoOutfileClause) {
 // takeRightmostSelectInto removes and returns the INTO OUTFILE clause of the
 // rightmost unparenthesized SELECT. A parenthesized right operand keeps its
 // clause inside a subquery, which has no outfile grammar, so it is not taken.
-func takeRightmostSelectInto(node ast.Node) *ast.IntoOutfileClause {
+func takeRightmostSelectInto(node ast.Node) (*ast.IntoOutfileClause, int) {
 	for {
 		switch n := node.(type) {
 		case *ast.SetOpStmt:
@@ -583,14 +583,47 @@ func takeRightmostSelectInto(node ast.Node) *ast.IntoOutfileClause {
 		case *ast.SelectStmt:
 			into := n.Into
 			n.Into = nil
-			if into != nil {
-				n.Loc.End = into.Loc.Start
+			if into == nil {
+				return nil, 0
 			}
-			return into
+			n.Loc.End = selectEndBeforeInto(n)
+			return into, n.Loc.End
 		default:
-			return nil
+			return nil, 0
 		}
 	}
+}
+
+// selectEndBeforeInto returns the end of the last token in a SELECT other than
+// its INTO OUTFILE clause.
+func selectEndBeforeInto(n *ast.SelectStmt) int {
+	end := n.Loc.Start
+	note := func(node ast.Node) {
+		if loc := ast.NodeLoc(node); loc.End > end {
+			end = loc.End
+		}
+	}
+	if n.With != nil {
+		note(n.With)
+	}
+	for _, item := range n.Items {
+		note(item)
+	}
+	for _, from := range n.From {
+		note(from)
+	}
+	for _, node := range []ast.Node{n.Where, n.Having, n.Qualify, n.Limit, n.Offset} {
+		if node != nil {
+			note(node)
+		}
+	}
+	for _, g := range n.GroupBy {
+		note(g)
+	}
+	for _, o := range n.OrderBy {
+		note(o)
+	}
+	return end
 }
 
 // settleTraceSetOpInto moves a genuine query-level OUTFILE from the rightmost
@@ -600,7 +633,7 @@ func (p *Parser) settleTraceSetOpInto(query ast.Node) error {
 	if !ok {
 		return nil
 	}
-	into := takeRightmostSelectInto(setOp)
+	into, armEnd := takeRightmostSelectInto(setOp)
 	if queryHasInto(setOp) {
 		return p.syntaxErrorAtCur()
 	}
@@ -611,7 +644,7 @@ func (p *Parser) settleTraceSetOpInto(query ast.Node) error {
 			if !ok {
 				break
 			}
-			next.Loc.End = into.Loc.Start
+			next.Loc.End = armEnd
 			node = next.Right
 		}
 		setOp.Into = into

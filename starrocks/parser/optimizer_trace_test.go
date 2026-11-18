@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/bytebase/omni/starrocks/ast"
@@ -113,7 +114,8 @@ func TestTraceOutfileLoc(t *testing.T) {
 
 // Hoisting a right-arm OUTFILE onto the set operation shrinks the arm.
 func TestTraceSetOpOutfileLoc(t *testing.T) {
-	file, errs := parseForTest("TRACE ALL SELECT 1 UNION SELECT 2 INTO OUTFILE 'x'")
+	sql := "TRACE ALL SELECT 1 UNION SELECT 2 /*c*/ INTO OUTFILE 'x'"
+	file, errs := parseForTest(sql)
 	if len(errs) != 0 {
 		t.Fatalf("errors: %v", errs)
 	}
@@ -126,8 +128,9 @@ func TestTraceSetOpOutfileLoc(t *testing.T) {
 		t.Fatal("SetOp.Into is nil")
 	}
 	right := setOp.Right.(*ast.SelectStmt)
-	if right.Loc.End > setOp.Into.Loc.Start {
-		t.Errorf("right arm End = %d, OUTFILE starts = %d", right.Loc.End, setOp.Into.Loc.Start)
+	wantEnd := strings.Index(sql, "SELECT 2") + len("SELECT 2")
+	if right.Loc.End != wantEnd {
+		t.Errorf("right arm End = %d, want %d", right.Loc.End, wantEnd)
 	}
 	if right.Into != nil {
 		t.Error("right arm still carries Into")
