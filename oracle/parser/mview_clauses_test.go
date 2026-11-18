@@ -85,3 +85,25 @@ func TestAlterMaterializedViewExtentFields(t *testing.T) {
 		t.Errorf("got size %q, datafile %q, instance %d", stmt.AllocateSize, stmt.AllocateDatafile, stmt.AllocateInstance)
 	}
 }
+
+// TestParseAlterMviewSetSubpartitionTemplateQuantity covers
+// set_subpartition_template's hash_subparts_by_quantity on ALTER
+// MATERIALIZED VIEW, whose rows compat.tsv records as Oracle takes them.
+func TestParseAlterMviewSetSubpartitionTemplateQuantity(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS 1",
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS 4 STORE IN (a)",
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS 4 STORE IN (a, b)",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	for _, sql := range []string{
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS",
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS a",
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a",
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN ()",
+		"ALTER MATERIALIZED VIEW v SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN (a) zzz",
+	} {
+		ParseShouldFail(t, sql)
+	}
+}

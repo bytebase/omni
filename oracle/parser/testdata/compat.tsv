@@ -8512,13 +8512,13 @@ reject@38	reject@38	engine	alterMaterializedView_alter_table_partitioning(alterM
 reject@39	reject@39	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_interval_partitioning!drop-4	ALTER MATERIALIZED VIEW a SET INTERVAL(
 reject@41	reject@41	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_interval_partitioning!insert	ALTER MATERIALIZED VIEW a SET INTERVAL() zzz
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_alter_interval_partitioning!swap	ALTER MATERIALIZED VIEW a SETS INTERVAL()
-reject@52	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
+accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!drop-1	ALTER MATERIALIZED VIEW a SUBPARTITION TEMPLATE SUBPARTITIONS 1
 reject@26	reject@30	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!drop-2	ALTER MATERIALIZED VIEW a SET TEMPLATE SUBPARTITIONS 1
 reject@43	reject@43	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION SUBPARTITIONS 1
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!drop-4	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE 1
-reject@52	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!drop-5	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
-reject@52	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
+reject@65	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!drop-5	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS
+reject@68	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 zzz
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_set_subpartition_template!swap	ALTER MATERIALIZED VIEW a SETS SUBPARTITION TEMPLATE SUBPARTITIONS 1
 accept	accept	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 reject@26	reject@26	engine	alterMaterializedView_alter_table_partitioning(alterMaterializedView_modify_table_d~62f7450e)/alterMaterializedView_modify_table_partition!drop-1	ALTER MATERIALIZED VIEW a PARTITION a
@@ -9052,14 +9052,14 @@ accept	accept	engine	alterMaterializedView_alter_interval_partitioning(EXPR)?/%e
 accept	accept	engine	alterMaterializedView_alter_interval_partitioning(EXPR)?/%empty!insert	ALTER MATERIALIZED VIEW a SET INTERVAL(zzz)
 accept	accept	engine	alterMaterializedView_alter_interval_partitioning(EXPR)?/EXPR	ALTER MATERIALIZED VIEW a SET INTERVAL(1)
 reject@41	reject@41	engine	alterMaterializedView_alter_interval_partitioning(EXPR)?/EXPR!insert	ALTER MATERIALIZED VIEW a SET INTERVAL(1 zzz)
-reject@52	accept	engine	alterMaterializedView_set_subpartition_template/SET_SUBPARTITION_TEMPLATE_((_(alterMaterializedView_ran~3e4fcbb8	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
+accept	accept	engine	alterMaterializedView_set_subpartition_template/SET_SUBPARTITION_TEMPLATE_((_(alterMaterializedView_ran~3e4fcbb8	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
 accept	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION)
 reject@64	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITION)
 accept	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE()
 reject@64	reject@64	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION
 reject@66	reject@66	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION) zzz
 reject@52	reject@52	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/(_(alterMaterializedView_range_subparti~289474bc)_(,_(a~e93e68ad!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITIONS)
-reject@52	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/alterMaterializedView_hash_subparts_by_quantity	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
+accept	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/alterMaterializedView_hash_subparts_by_quantity	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
 reject@52	accept	engine	alterMaterializedView_set_subpartition_template((_(alterMaterializedView_range_subpa~15433c0a)/alterMaterializedView_hash_subparts_by_quantity!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBSET 1
 accept	accept	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(SUBPARTITION VALUES LESS THAN(1))
 reject@52	reject@52	engine	alterMaterializedView_set_subpartition_template(alterMaterializedView_range_subparti~289474bc)/alterMaterializedView_range_subpartition_desc!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE(VALUES LESS THAN(1))
@@ -10106,23 +10106,23 @@ reject@74	reject@74	engine	alterMaterializedView_individual_hash_subparts(alterM
 reject@72	reject@62	engine	alterMaterializedView_individual_hash_subparts(alterMaterializedView_indexing_clause)?/alterMaterializedView_indexing_clause!swap	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION INDEXTYPE ON
 accept	accept	engine	alterMaterializedView_individual_hash_subparts(alterMaterializedView_partitioning_s~2e674302)?/%empty	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION
 accept	accept	engine	alterMaterializedView_individual_hash_subparts(alterMaterializedView_partitioning_s~2e674302)?/alterMaterializedView_partitioning_storage_clause	ALTER MATERIALIZED VIEW a MODIFY PARTITION a ADD SUBPARTITION
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity/SUBPARTITIONS_NUMBER_(STORE_IN_(_ID_(,_ID)*_))?	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/%empty	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
+accept	accept	engine	alterMaterializedView_hash_subparts_by_quantity/SUBPARTITIONS_NUMBER_(STORE_IN_(_ID_(,_ID)*_))?	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
+accept	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/%empty	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1
+accept	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
+reject@68	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 IN(a)
+reject@73	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE(a)
 reject@78	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-3	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
+reject@77	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-4	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN()
 reject@78	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!drop-5	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/%empty	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/%empty!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
+reject@80	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a) zzz
+reject@68	accept	engine	alterMaterializedView_hash_subparts_by_quantity(STORE_IN_(_ID_(,_ID)*_))?/STORE_IN_(_ID_(,_ID)*_)!swap	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STRICT IN(a)
+accept	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/%empty	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a)
+reject@79	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/%empty!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a zzz)
+accept	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a)
+reject@79	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-1	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a a)
+reject@79	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!drop-2	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,)
 reject@79	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!truncate	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a,
-reject@52	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
+reject@82	accept	engine	alterMaterializedView_hash_subparts_by_quantity(,_ID)*/,_ID_(,_ID)*!insert	ALTER MATERIALIZED VIEW a SET SUBPARTITION TEMPLATE SUBPARTITIONS 1 STORE IN(a, a zzz)
 accept	accept	engine	alterMaterializedView_partition_attributes/(alterMaterializedView_physical_attri~94f69345)?_(alter~64ec72e3	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~94f69345)?/%empty	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
 accept	accept	engine	alterMaterializedView_partition_attributes(alterMaterializedView_physical_attri~94f69345)?/alterMaterializedView_physical_attributes_clause	ALTER MATERIALIZED VIEW a MODIFY PARTITION a
@@ -13262,7 +13262,7 @@ accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/a
 reject@31	reject@31	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!insert	ALTER TABLE a MODIFY a VISIBLE zzz
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_column_clauses!swap	ALTER TABLE a MODULE a VISIBLE
 reject@17	reject@17	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_constraint_clauses	ALTER TABLE a ADD
-reject@21	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_constraint_clauses!insert	ALTER TABLE a ADD zzz
+accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_constraint_clauses!insert	ALTER TABLE a ADD zzz
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_constraint_clauses!swap	ALTER TABLE a ADMIN
 accept	accept	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_alter_table_partitioning	ALTER TABLE a ADD PARTITION
 reject@14	reject@14	engine	alterTable(alterTable_alter_table_properties|al~8626ab61)/alterTable_alter_table_partitioning!drop-1	ALTER TABLE a PARTITION
@@ -14575,9 +14575,9 @@ reject@33	reject@33	engine	alterTable_out_of_line_ref_constraint(ID_.)?/ID_.!dro
 reject@36	reject@36	engine	alterTable_out_of_line_ref_constraint(ID_.)?/ID_.!drop-2	ALTER TABLE a ADD SCOPE FOR(a) IS a a
 reject@40	reject@40	engine	alterTable_out_of_line_ref_constraint(ID_.)?/ID_.!insert	ALTER TABLE a ADD SCOPE FOR(a) IS a.zzz a
 accept	accept	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/%empty	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
-reject@22	reject@30	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/%empty!insert	ALTER TABLE a ADD zzz FOREIGN KEY(a) REFERENCES a
+reject@30	reject@30	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/%empty!insert	ALTER TABLE a ADD zzz FOREIGN KEY(a) REFERENCES a
 accept	accept	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID	ALTER TABLE a ADD CONSTRAINT a FOREIGN KEY(a) REFERENCES a
-reject@20	reject@28	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	ALTER TABLE a ADD a FOREIGN KEY(a) REFERENCES a
+reject@28	reject@28	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-1	ALTER TABLE a ADD a FOREIGN KEY(a) REFERENCES a
 reject@37	reject@40	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!drop-2	ALTER TABLE a ADD CONSTRAINT FOREIGN KEY(a) REFERENCES a
 reject@31	reject@43	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!insert	ALTER TABLE a ADD CONSTRAINT a zzz FOREIGN KEY(a) REFERENCES a
 reject@32	accept	engine	alterTable_out_of_line_ref_constraint(CONSTRAINT_ID)?/CONSTRAINT_ID!swap	ALTER TABLE a ADD CONSTRAINTS a FOREIGN KEY(a) REFERENCES a
@@ -14589,40 +14589,40 @@ accept	accept	engine	alterTable_out_of_line_ref_constraint(alterTable_constraint
 accept	accept	engine	alterTable_out_of_line_ref_constraint(alterTable_constraint_state)?/alterTable_constraint_state	ALTER TABLE a ADD FOREIGN KEY(a) REFERENCES a
 reject@17	reject@17	engine	alterTable_constraint_state/(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?_(RELY|~77ef7efa	ALTER TABLE a ADD
 reject@17	reject@17	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/%empty	ALTER TABLE a ADD
-reject@28	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/(NOT)?_DEFERRABLE_(INITIALLY_(DEFERRED|IMMEDIATE))?	ALTER TABLE a ADD DEFERRABLE
+accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/(NOT)?_DEFERRABLE_(INITIALLY_(DEFERRED|IMMEDIATE))?	ALTER TABLE a ADD DEFERRABLE
 accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/(NOT)?_DEFERRABLE_(INITIALLY_(DEFERRED|IMMEDIATE))?!insert	ALTER TABLE a ADD DEFERRABLE zzz
-reject@26	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/(NOT)?_DEFERRABLE_(INITIALLY_(DEFERRED|IMMEDIATE))?!swap	ALTER TABLE a ADD DEFERRED
-reject@28	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?	ALTER TABLE a ADD INITIALLY DEFERRED
-reject@27	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?!drop-2	ALTER TABLE a ADD INITIALLY
-reject@28	reject@37	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?!insert	ALTER TABLE a ADD INITIALLY DEFERRED zzz
-reject@27	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?!swap	ALTER TABLE a ADD INITRANS DEFERRED
-reject@28	accept	engine	alterTable_constraint_state(NOT)?/%empty	ALTER TABLE a ADD DEFERRABLE
-reject@22	accept	engine	alterTable_constraint_state(NOT)?/%empty!insert	ALTER TABLE a ADD zzz DEFERRABLE
+accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/(NOT)?_DEFERRABLE_(INITIALLY_(DEFERRED|IMMEDIATE))?!swap	ALTER TABLE a ADD DEFERRED
+accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?	ALTER TABLE a ADD INITIALLY DEFERRED
+accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?!drop-2	ALTER TABLE a ADD INITIALLY
+reject@37	reject@37	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?!insert	ALTER TABLE a ADD INITIALLY DEFERRED zzz
+accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE_(INITIALLY_(DEFERRED~0e474ef9)?/INITIALLY_(DEFERRED|IMMEDIATE)_(NOT?_DEFERRABLE)?!swap	ALTER TABLE a ADD INITRANS DEFERRED
+accept	accept	engine	alterTable_constraint_state(NOT)?/%empty	ALTER TABLE a ADD DEFERRABLE
+accept	accept	engine	alterTable_constraint_state(NOT)?/%empty!insert	ALTER TABLE a ADD zzz DEFERRABLE
 reject@18	reject@18	engine	alterTable_constraint_state(NOT)?/NOT	ALTER TABLE a ADD NOT DEFERRABLE
 reject@18	reject@18	engine	alterTable_constraint_state(NOT)?/NOT!insert	ALTER TABLE a ADD NOT zzz DEFERRABLE
-reject@26	accept	engine	alterTable_constraint_state(NOT)?/NOT!swap	ALTER TABLE a ADD NOTHING DEFERRABLE
-reject@28	accept	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/%empty	ALTER TABLE a ADD DEFERRABLE
-reject@29	reject@47	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)	ALTER TABLE a ADD DEFERRABLE INITIALLY DEFERRED
-reject@29	accept	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-1	ALTER TABLE a ADD DEFERRABLE DEFERRED
-reject@29	accept	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	ALTER TABLE a ADD DEFERRABLE INITIALLY
-reject@29	reject@48	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	ALTER TABLE a ADD DEFERRABLE INITIALLY DEFERRED zzz
+accept	accept	engine	alterTable_constraint_state(NOT)?/NOT!swap	ALTER TABLE a ADD NOTHING DEFERRABLE
+accept	accept	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/%empty	ALTER TABLE a ADD DEFERRABLE
+reject@39	reject@47	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)	ALTER TABLE a ADD DEFERRABLE INITIALLY DEFERRED
+accept	accept	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-1	ALTER TABLE a ADD DEFERRABLE DEFERRED
+accept	accept	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!drop-2	ALTER TABLE a ADD DEFERRABLE INITIALLY
+reject@39	reject@48	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!insert	ALTER TABLE a ADD DEFERRABLE INITIALLY DEFERRED zzz
 reject@38	reject@46	engine	alterTable_constraint_state(INITIALLY_(DEFERRED|IMMEDIATE))?/INITIALLY_(DEFERRED|IMMEDIATE)!swap	ALTER TABLE a ADD DEFERRABLE INITRANS DEFERRED
-reject@28	accept	engine	alterTable_constraint_state(DEFERRED|IMMEDIATE)/DEFERRED	ALTER TABLE a ADD INITIALLY DEFERRED
+accept	accept	engine	alterTable_constraint_state(DEFERRED|IMMEDIATE)/DEFERRED	ALTER TABLE a ADD INITIALLY DEFERRED
 accept	accept	engine	alterTable_constraint_state(DEFERRED|IMMEDIATE)/DEFERRED!swap	ALTER TABLE a ADD INITIALLY DEFINE
 reject@28	reject@28	engine	alterTable_constraint_state(DEFERRED|IMMEDIATE)/IMMEDIATE	ALTER TABLE a ADD INITIALLY IMMEDIATE
 reject@28	reject@28	engine	alterTable_constraint_state(DEFERRED|IMMEDIATE)/IMMEDIATE!insert	ALTER TABLE a ADD INITIALLY IMMEDIATE zzz
 accept	accept	engine	alterTable_constraint_state(DEFERRED|IMMEDIATE)/IMMEDIATE!swap	ALTER TABLE a ADD INITIALLY IMPORT
-reject@28	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/%empty	ALTER TABLE a ADD INITIALLY DEFERRED
-reject@28	reject@37	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE	ALTER TABLE a ADD INITIALLY DEFERRED DEFERRABLE
-reject@28	reject@37	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!insert	ALTER TABLE a ADD INITIALLY DEFERRED DEFERRABLE zzz
-reject@28	reject@45	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!swap	ALTER TABLE a ADD INITIALLY DEFERRED DEFERRED
+accept	accept	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/%empty	ALTER TABLE a ADD INITIALLY DEFERRED
+reject@37	reject@37	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE	ALTER TABLE a ADD INITIALLY DEFERRED DEFERRABLE
+reject@37	reject@37	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!insert	ALTER TABLE a ADD INITIALLY DEFERRED DEFERRABLE zzz
+reject@37	reject@45	engine	alterTable_constraint_state(NOT?_DEFERRABLE)?/(NOT)?_DEFERRABLE!swap	ALTER TABLE a ADD INITIALLY DEFERRED DEFERRED
 reject@17	reject@17	engine	alterTable_constraint_state(RELY|NORELY)?/%empty	ALTER TABLE a ADD
-reject@22	accept	engine	alterTable_constraint_state(RELY|NORELY)?/RELY	ALTER TABLE a ADD RELY
+accept	accept	engine	alterTable_constraint_state(RELY|NORELY)?/RELY	ALTER TABLE a ADD RELY
 accept	accept	engine	alterTable_constraint_state(RELY|NORELY)?/RELY!insert	ALTER TABLE a ADD RELY zzz
-reject@24	accept	engine	alterTable_constraint_state(RELY|NORELY)?/RELY!swap	ALTER TABLE a ADD REMOTE
-reject@24	accept	engine	alterTable_constraint_state(RELY|NORELY)?/NORELY	ALTER TABLE a ADD NORELY
+accept	accept	engine	alterTable_constraint_state(RELY|NORELY)?/RELY!swap	ALTER TABLE a ADD REMOTE
+accept	accept	engine	alterTable_constraint_state(RELY|NORELY)?/NORELY	ALTER TABLE a ADD NORELY
 accept	accept	engine	alterTable_constraint_state(RELY|NORELY)?/NORELY!insert	ALTER TABLE a ADD NORELY zzz
-reject@26	accept	engine	alterTable_constraint_state(RELY|NORELY)?/NORELY!swap	ALTER TABLE a ADD NOREPAIR
+accept	accept	engine	alterTable_constraint_state(RELY|NORELY)?/NORELY!swap	ALTER TABLE a ADD NOREPAIR
 reject@17	reject@17	engine	alterTable_constraint_state(alterTable_using_index_clause)?/%empty	ALTER TABLE a ADD
 reject@24	reject@24	engine	alterTable_constraint_state(alterTable_using_index_clause)?/alterTable_using_index_clause	ALTER TABLE a ADD USING INDEX a
 reject@18	reject@18	engine	alterTable_constraint_state(alterTable_using_index_clause)?/alterTable_using_index_clause!drop-1	ALTER TABLE a ADD INDEX a
@@ -14631,19 +14631,19 @@ reject@24	reject@24	engine	alterTable_constraint_state(alterTable_using_index_cl
 reject@24	reject@24	engine	alterTable_constraint_state(alterTable_using_index_clause)?/alterTable_using_index_clause!insert	ALTER TABLE a ADD USING INDEX a zzz
 reject@18	reject@18	engine	alterTable_constraint_state(alterTable_using_index_clause)?/alterTable_using_index_clause!swap	ALTER TABLE a ADD VALIDATE INDEX a
 reject@17	reject@17	engine	alterTable_constraint_state((ENABLE|DISABLE))?/%empty	ALTER TABLE a ADD
-reject@24	accept	engine	alterTable_constraint_state((ENABLE|DISABLE))?/(ENABLE|DISABLE)	ALTER TABLE a ADD ENABLE
+accept	accept	engine	alterTable_constraint_state((ENABLE|DISABLE))?/(ENABLE|DISABLE)	ALTER TABLE a ADD ENABLE
 accept	accept	engine	alterTable_constraint_state((ENABLE|DISABLE))?/(ENABLE|DISABLE)!insert	ALTER TABLE a ADD ENABLE zzz
-reject@28	accept	engine	alterTable_constraint_state((ENABLE|DISABLE))?/(ENABLE|DISABLE)!swap	ALTER TABLE a ADD ENABLE_ALL
-reject@24	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/ENABLE	ALTER TABLE a ADD ENABLE
-reject@25	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER TABLE a ADD DISABLE
+accept	accept	engine	alterTable_constraint_state((ENABLE|DISABLE))?/(ENABLE|DISABLE)!swap	ALTER TABLE a ADD ENABLE_ALL
+accept	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/ENABLE	ALTER TABLE a ADD ENABLE
+accept	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/DISABLE	ALTER TABLE a ADD DISABLE
 accept	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/DISABLE!insert	ALTER TABLE a ADD DISABLE zzz
-reject@29	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/DISABLE!swap	ALTER TABLE a ADD DISABLE_ALL
+accept	accept	engine	alterTable_constraint_state(ENABLE|DISABLE)/DISABLE!swap	ALTER TABLE a ADD DISABLE_ALL
 reject@17	reject@17	engine	alterTable_constraint_state((VALIDATE|NOVALIDATE))?/%empty	ALTER TABLE a ADD
 reject@18	reject@18	engine	alterTable_constraint_state((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)	ALTER TABLE a ADD VALIDATE
 reject@18	reject@18	engine	alterTable_constraint_state((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!insert	ALTER TABLE a ADD VALIDATE zzz
-reject@28	accept	engine	alterTable_constraint_state((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!swap	ALTER TABLE a ADD VALIDATION
+accept	accept	engine	alterTable_constraint_state((VALIDATE|NOVALIDATE))?/(VALIDATE|NOVALIDATE)!swap	ALTER TABLE a ADD VALIDATION
 reject@18	reject@18	engine	alterTable_constraint_state(VALIDATE|NOVALIDATE)/VALIDATE	ALTER TABLE a ADD VALIDATE
-reject@28	accept	engine	alterTable_constraint_state(VALIDATE|NOVALIDATE)/NOVALIDATE	ALTER TABLE a ADD NOVALIDATE
+accept	accept	engine	alterTable_constraint_state(VALIDATE|NOVALIDATE)/NOVALIDATE	ALTER TABLE a ADD NOVALIDATE
 accept	accept	engine	alterTable_constraint_state(VALIDATE|NOVALIDATE)/NOVALIDATE!insert	ALTER TABLE a ADD NOVALIDATE zzz
 reject@18	reject@18	engine	alterTable_constraint_state(VALIDATE|NOVALIDATE)/NOVALIDATE!swap	ALTER TABLE a ADD NOWAIT
 reject@17	reject@17	engine	alterTable_constraint_state(alterTable_exceptions_clause)?/%empty	ALTER TABLE a ADD
@@ -15024,7 +15024,7 @@ reject@36	reject@36	engine	alterTable_add_table_partition(alterTable_add_range_p
 reject@38	reject@38	engine	alterTable_add_table_partition(alterTable_add_range_partition_claus~2c36384b)/alterTable_add_list_partition_clause!insert	ALTER TABLE a ADD PARTITION VALUES(1) zzz
 reject@31	reject@31	engine	alterTable_add_table_partition(alterTable_add_range_partition_claus~2c36384b)/alterTable_add_list_partition_clause!swap	ALTER TABLE a ADD PARTITIONING VALUES(1)
 accept	accept	engine	alterTable_add_table_partition(alterTable_add_range_partition_claus~2c36384b)/alterTable_add_system_partition_clause	ALTER TABLE a ADD PARTITION
-reject@30	accept	engine	alterTable_add_table_partition(alterTable_add_range_partition_claus~2c36384b)/alterTable_add_system_partition_clause!swap	ALTER TABLE a ADD PARTITIONING
+accept	accept	engine	alterTable_add_table_partition(alterTable_add_range_partition_claus~2c36384b)/alterTable_add_system_partition_clause!swap	ALTER TABLE a ADD PARTITIONING
 accept	accept	engine	alterTable_add_table_partition(alterTable_add_range_partition_claus~2c36384b)/alterTable_add_hash_partition_clause	ALTER TABLE a ADD PARTITION
 accept	accept	engine	alterTable_coalesce_table_partition/COALESCE_PARTITION_(alterTable_update_index_clauses)?_(~647e1ce5	ALTER TABLE a COALESCE PARTITION
 accept	accept	engine	alterTable_coalesce_table_partition(alterTable_update_index_clauses)?/%empty	ALTER TABLE a COALESCE PARTITION

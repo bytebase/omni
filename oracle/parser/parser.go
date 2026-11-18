@@ -30,6 +30,18 @@ type Parser struct {
 	// VALUE, which only ALTER TABLE MODIFY takes.
 	createTableColumns bool
 
+	// alterTableAddColumn is set while the column definition ALTER TABLE
+	// ... ADD takes is parsed, where Oracle 23ai reads the datatype at the
+	// resolve phase: ALTER TABLE t ADD c answers ORA-02263 (need to specify
+	// the datatype of column) at c, and ALTER TABLE t ADD c d ORA-00902
+	// (invalid datatype) at d, a word it does not reserve naming a type it
+	// has. Neither is a syntax error, so the statement is accepted, and a
+	// word Oracle reserves names neither (ORA-00904 at it, as for VALIDATE
+	// or IMMEDIATE). The rows are compat.tsv's alterTable_constraint_state
+	// family: ADD RELY, ADD DEFERRABLE, ADD INITIALLY DEFERRED are all
+	// column definitions with the datatype left to the engine.
+	alterTableAddColumn bool
+
 	// createTableIndexOrganized is set while the compression of an
 	// index-organized table, or of its partitions, is parsed: only there
 	// does Oracle take an index_compression (COMPRESS n, COMPRESS ADVANCED).

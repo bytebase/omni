@@ -530,3 +530,71 @@ func TestParseAlterTableModifyBareColumn(t *testing.T) {
 	ParseShouldFail(t, `ALTER TABLE t MODIFY ("ROWID")`)
 	ParseAndCheck(t, `ALTER TABLE t MODIFY ("Rowid")`)
 }
+
+// TestParseAlterTableAddBareColumn covers ADD followed by a word that is not
+// a constraint: Oracle 23ai reads a column definition there and leaves the
+// datatype to the resolve phase, so "ADD c" is ORA-02263 at c and "ADD c d"
+// ORA-00902 at d, and the statement is accepted (compat.tsv's
+// alterTable_constraint_state family). A word Oracle reserves names neither,
+// and a size after a word it does not reserve for a type is ORA-03060.
+func TestParseAlterTableAddBareColumn(t *testing.T) {
+	for _, sql := range []string{
+		"ALTER TABLE t ADD c",
+		"ALTER TABLE t ADD DEFERRABLE",
+		"ALTER TABLE t ADD DEFERRED",
+		"ALTER TABLE t ADD INITIALLY",
+		"ALTER TABLE t ADD INITIALLY DEFERRED",
+		"ALTER TABLE t ADD INITRANS DEFERRED",
+		"ALTER TABLE t ADD zzz DEFERRABLE",
+		"ALTER TABLE t ADD DEFERRABLE DEFERRED",
+		"ALTER TABLE t ADD DEFERRABLE INITIALLY",
+		"ALTER TABLE t ADD RELY",
+		"ALTER TABLE t ADD NORELY",
+		"ALTER TABLE t ADD REMOTE",
+		"ALTER TABLE t ADD NOREPAIR",
+		"ALTER TABLE t ADD ENABLE",
+		"ALTER TABLE t ADD ENABLE_ALL",
+		"ALTER TABLE t ADD DISABLE",
+		"ALTER TABLE t ADD DISABLE_ALL",
+		"ALTER TABLE t ADD NOVALIDATE",
+		"ALTER TABLE t ADD VALIDATION",
+		"ALTER TABLE t ADD USING a",
+		"ALTER TABLE t ADD EXCEPTIONS a",
+		"ALTER TABLE t ADD PARTITIONING",
+	} {
+		ParseAndCheck(t, sql)
+	}
+	// A reserved word names no column (ORA-00904 at it).
+	for _, sql := range []string{
+		"ALTER TABLE t ADD VALIDATE",
+		"ALTER TABLE t ADD NOWAIT",
+		"ALTER TABLE t ADD NOT DEFERRABLE",
+		"ALTER TABLE t ADD INDEX a",
+		"ALTER TABLE t ADD INTO a",
+		"ALTER TABLE t ADD INITIALLY IMMEDIATE",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	// A size after a type name Oracle does not have is ORA-03060 at it.
+	for _, sql := range []string{
+		"ALTER TABLE t ADD PRIORITY KEY(a)",
+		"ALTER TABLE t ADD zzz KEY(a)",
+	} {
+		ParseShouldFail(t, sql)
+	}
+	// The column's name is kept, with the type Oracle did not resolve.
+	result := ParseAndCheck(t, "ALTER TABLE t ADD INITIALLY DEFERRED")
+	raw := result.Items[0].(*ast.RawStmt)
+	stmt := raw.Stmt.(*ast.AlterTableStmt)
+	cmd := stmt.Actions.Items[0].(*ast.AlterTableCmd)
+	if cmd.Action != ast.AT_ADD_COLUMN || cmd.ColumnDef == nil {
+		t.Fatalf("expected AT_ADD_COLUMN with a column, got %d", cmd.Action)
+	}
+	if cmd.ColumnDef.Name != "INITIALLY" {
+		t.Errorf("expected column INITIALLY, got %q", cmd.ColumnDef.Name)
+	}
+	if cmd.ColumnDef.TypeName == nil || cmd.ColumnDef.TypeName.Names.Len() != 1 ||
+		cmd.ColumnDef.TypeName.Names.Items[0].(*ast.String).Str != "DEFERRED" {
+		t.Errorf("expected datatype DEFERRED, got %v", cmd.ColumnDef.TypeName)
+	}
+}
