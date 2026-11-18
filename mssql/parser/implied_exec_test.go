@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"strings"
 	"testing"
 
 	nodes "github.com/bytebase/omni/mssql/ast"
@@ -55,6 +56,17 @@ func TestImpliedExecStmt(t *testing.T) {
 			} else if tt.object != "" {
 				t.Errorf("Parse(%q): Name = nil, want object %q", tt.sql, tt.object)
 			}
+			// The name ends at its last part: the arguments and the
+			// procedure number are none of it, as in EXEC.
+			if stmt.Name != nil {
+				want := strings.IndexAny(tt.sql, " ;")
+				if want < 0 {
+					want = len(tt.sql)
+				}
+				if stmt.Name.Loc.End != want {
+					t.Errorf("Parse(%q): Name.Loc.End = %d, want %d", tt.sql, stmt.Name.Loc.End, want)
+				}
+			}
 			if n := argsLen(stmt); n != tt.args {
 				t.Errorf("Parse(%q): %d arguments, want %d", tt.sql, n, tt.args)
 			}
@@ -108,6 +120,9 @@ func TestImpliedExecStmtBatchStart(t *testing.T) {
 		// first statement (Msg 137).
 		"my_proc @a",
 		"my_proc @a OUTPUT",
+		// More than four parts are no procedure name.
+		"a.b.c.d.e",
+		"a.b.c.d.e 1",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q): accepted, want rejected", sql)

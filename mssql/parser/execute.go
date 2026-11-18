@@ -40,13 +40,14 @@ func (p *Parser) parseImpliedExecStmt() (*nodes.ExecStmt, error) {
 	if err != nil {
 		return nil, err
 	}
-	ref := &nodes.TableRef{Loc: nodes.Loc{Start: loc, End: -1}}
+	// The name ends after its last part; the procedure number is no part of
+	// it, as in EXEC's procedureReference (parseExecStmt).
+	ref := &nodes.TableRef{Loc: nodes.Loc{Start: loc, End: p.prevEnd()}}
 	assignObjectRefParts(ref, parts)
 	if p.cur.Type == ';' && p.peekNext().Type == tokICONST {
 		p.advance() // consume ;
 		p.advance() // consume number
 	}
-	ref.Loc.End = p.prevEnd()
 	stmt.Name = ref
 
 	// setParamList (TSql160.g:26422), the arguments EXEC takes.

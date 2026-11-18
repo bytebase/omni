@@ -144,6 +144,13 @@ func assignObjectRefParts(ref *nodes.TableRef, parts []string) {
 //
 // Each dot after the first joins the part to the previous one; the rest name
 // an empty part, so `a..b` is [a, "", b] and `..a` is ["", "", a].
+//
+// SQL Server reads at most four parts, and refuses the fifth: `a.b.c.d.e` is
+// "The procedure name 'a.b.c.d.e' contains more than the maximum number of
+// prefixes. The maximum is 3." — for an EXEC, for a call by name and for
+// ALTER AUTHORIZATION's securable alike (measured on the pinned server).
+const maxNameParts = 4
+
 func (p *Parser) parseMultiPartIdentifier() ([]string, error) {
 	var parts []string
 	for i := 0; ; i++ {
@@ -158,6 +165,9 @@ func (p *Parser) parseMultiPartIdentifier() ([]string, error) {
 		empties := dots
 		if i > 0 {
 			empties-- // the dot that joins this part to the previous one
+		}
+		if len(parts)+empties+1 > maxNameParts {
+			return nil, p.newParseError(p.cur.Loc, "a name of more than four parts")
 		}
 		for j := 0; j < empties; j++ {
 			parts = append(parts, "")

@@ -38,6 +38,7 @@ func TestAlterAuthorizationNames(t *testing.T) {
 		{"ALTER AUTHORIZATION ON XML SCHEMA COLLECTION::dbo.MyXmlSchema TO newOwner", "XML SCHEMA COLLECTION::dbo.MyXmlSchema"},
 		// A name with an empty part, as identifierList (TSql160.g:30325) has.
 		{"ALTER AUTHORIZATION ON object::dbo..a TO b", "OBJECT::dbo..a"},
+		{"ALTER AUTHORIZATION ON s.d.dbo.a TO b", "s.d.dbo.a"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.sql, func(t *testing.T) {
@@ -101,6 +102,9 @@ func TestAlterAuthorizationRefusals(t *testing.T) {
 		"ALTER AUTHORIZATION ON EXTERNAL DATA SOURCE::a TO b",
 		"ALTER AUTHORIZATION ON FULLTEXT INDEX::a TO b",
 		"ALTER AUTHORIZATION ON XML SCHEMA::a TO b",
+		// More than four parts are no entity_name.
+		"ALTER AUTHORIZATION ON a.b.c.d.e TO a",
+		"ALTER AUTHORIZATION ON OBJECT::a.b.c.d.e TO a",
 		"ALTER AUTHORIZATION ON a TO a zzz",
 		"ALTER AUTHORIZATION a TO a",
 	} {
