@@ -179,3 +179,32 @@ func TestIsRedshiftTemplateLead(t *testing.T) {
 		t.Error(`isRedshiftTemplateLead("template") = true, want false`)
 	}
 }
+
+// TestIsRedshiftMultiwordTypenameStart holds the predicate to the multiword
+// type map: every lead accepts each of its words, and nothing else is a
+// multiword type.
+func TestIsRedshiftMultiwordTypenameStart(t *testing.T) {
+	for lead, words := range redshiftTypenameContinuations {
+		for _, word := range words {
+			p := &Parser{cur: Token{Type: lead}, nextBuf: Token{Type: word}, hasNext: true}
+			if !p.isRedshiftMultiwordTypenameStart() {
+				t.Errorf("isRedshiftMultiwordTypenameStart(%d, %d) = false, want true", lead, word)
+			}
+		}
+	}
+	for _, tc := range []struct {
+		cur, next int
+	}{
+		{CHARACTER, IDENT}, // character a: one type, then extra input
+		{IDENT, VARYING},   // x varying: an IDENT is no multiword type lead
+		{IDENT, IDENT},     // a b
+		{INT_P, PRECISION}, // INT takes no second word
+		{CHARACTER, ';'},   // character;
+		{BIT, PRECISION},   // BIT takes VARYING only
+	} {
+		p := &Parser{cur: Token{Type: tc.cur}, nextBuf: Token{Type: tc.next}, hasNext: true}
+		if p.isRedshiftMultiwordTypenameStart() {
+			t.Errorf("isRedshiftMultiwordTypenameStart(%d, %d) = true, want false", tc.cur, tc.next)
+		}
+	}
+}

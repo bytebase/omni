@@ -108,9 +108,13 @@ func TestRedshiftGrantExternalParticipants(t *testing.T) {
 		// The docs' one-token GRANT_OPTION is notation, not SQL.
 		"REVOKE GRANT_OPTION CREATE FOR COPY JOBS IN DATABASE d FROM a",
 		"REVOKE GRANT OPTION CREATE MODEL FROM a",
-		// The procedure-to-datashare alternatives end at the datashare name.
+		// The procedure-to-datashare alternatives name one procedure with its
+		// argument list and end at the datashare name.
 		"GRANT EXECUTE ON PROCEDURE p() TO DATASHARE d WITH GRANT OPTION",
 		"REVOKE EXECUTE ON PROCEDURE p() FROM DATASHARE d RESTRICT",
+		"GRANT EXECUTE ON PROCEDURE p TO DATASHARE d",
+		"GRANT EXECUTE ON PROCEDURE p(), q() TO DATASHARE d",
+		"GRANT EXECUTE ON ALL PROCEDURES TO DATASHARE d",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)
@@ -185,6 +189,7 @@ func TestRedshiftGrantFederatedIdentity(t *testing.T) {
 		"GRANT DEBUG ON DATABASE d TO alice",
 		"GRANT DEBUG ON DATABASE d TO PUBLIC",
 		"GRANT DEBUG ON DATABASE d TO ADMINS ACCOUNT '1'",
+		"GRANT DEBUG ON DATABASE d.schema TO AWSIDC:alice",
 		"GRANT DEBUG ON DATABASE d TO ADMINS OF ACCOUNT 1",
 		"REVOKE CONNECT FROM a:b",
 	} {
@@ -222,12 +227,33 @@ func TestRedshiftGrantScopedTemplates(t *testing.T) {
 		}
 	}
 
+	// r_GRANT writes username ( WITH GRANT OPTION )? per grantee; the AST keeps
+	// one option for the statement, as PostgreSQL's does, so the trailing one is
+	// what it reads.
+	if grant := singleStmt(t, "GRANT CREATE FOR SCHEMAS IN DATABASE d TO a WITH GRANT OPTION").(*nodes.GrantStmt); !grant.GrantOption {
+		t.Error("scoped grant: GrantOption = false, want true")
+	}
+	if grant := singleStmt(t, "GRANT CREATE FOR SCHEMAS IN DATABASE d TO a, b WITH GRANT OPTION").(*nodes.GrantStmt); !grant.GrantOption {
+		t.Error("scoped grant to two grantees: GrantOption = false, want true")
+	}
+	if grant := singleStmt(t, "GRANT CREATE FOR SCHEMAS IN DATABASE d TO a, b").(*nodes.GrantStmt); grant.GrantOption {
+		t.Error("scoped grant without an option: GrantOption = true, want false")
+	}
+
 	for _, sql := range []string{
 		"GRANT ALTER FOR TEMPLATES IN a TO b",
 		"GRANT ALTER FOR TEMPLATES IN SCHEMA TO a",
 		"REVOKE ALTER FOR TEMPLATES IN SCHEMA a FROM",
 		"REVOKE GRANT OPTION CREATE MODEL FROM a",
 		"REVOKE GRANT_OPTION CREATE FOR SCHEMAS IN DATABASE d FROM a",
+		// { SCHEMA name [ DATABASE name ] | DATABASE name } takes one scope.
+		"GRANT ALTER FOR TEMPLATES IN DATABASE d DATABASE e TO a",
+		"GRANT CREATE FOR SCHEMAS IN DATABASE d DATABASE e TO a",
+		// Scoped grantees are a username or ROLE.
+		"GRANT CREATE FOR SCHEMAS IN DATABASE d TO GROUP g",
+		"GRANT CREATE FOR SCHEMAS IN DATABASE d TO PUBLIC",
+		// The TEMPLATES alternative takes ALTER, DROP, USAGE or ALL.
+		"GRANT SELECT FOR TEMPLATES IN SCHEMA s TO a",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)

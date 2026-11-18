@@ -20,7 +20,7 @@ func (p *Parser) parseGrantStmt() (nodes.Node, error) {
 		}
 		return p.finishGrantRole(loc, true, roles)
 	}
-	if p.cur.Type == CREATE && redshiftTokenIsIdent(p.peekNext(), "model") {
+	if p.cur.Type == CREATE && p.redshiftTokIsWord(p.peekNext(), "model") {
 		privLoc := nodes.Loc{Start: p.pos(), End: p.cur.End}
 		p.advance() // CREATE
 		privLoc.End = p.cur.End
@@ -132,7 +132,7 @@ func (p *Parser) parseRevokeStmt() (nodes.Node, error) {
 		}
 		return p.finishRevokeRole(loc, roles, roleOptionName)
 	}
-	if p.cur.Type == CREATE && redshiftTokenIsIdent(p.peekNext(), "model") {
+	if p.cur.Type == CREATE && p.redshiftTokIsWord(p.peekNext(), "model") {
 		privLoc := nodes.Loc{Start: p.pos(), End: p.cur.End}
 		p.advance() // CREATE
 		privLoc.End = p.cur.End
@@ -194,9 +194,7 @@ func (p *Parser) finishGrantOnObject(loc int, privs *nodes.List) (nodes.Node, er
 	if _, err := p.expect(TO); err != nil {
 		return nil, err
 	}
-	// GRANT EXECUTE ON PROCEDURE p ( ) TO DATASHARE d ends after the datashare.
-	procedureDatashare := p.redshiftProcedureDatashareGrantee(objtype, privs)
-	grantees, err := p.parseRedshiftGranteeList(kind, objtype, privs, true)
+	grantees, procedureDatashare, err := p.parseRedshiftGranteeList(kind, objtype, objects, privs, true)
 	if err != nil {
 		return nil, err
 	}
@@ -226,8 +224,7 @@ func (p *Parser) finishRevokeOnObject(loc int, grantOptionFor bool, privs *nodes
 	if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	procedureDatashare := p.redshiftProcedureDatashareGrantee(objtype, privs)
-	grantees, err := p.parseRedshiftGranteeList(kind, objtype, privs, false)
+	grantees, procedureDatashare, err := p.parseRedshiftGranteeList(kind, objtype, objects, privs, false)
 	if err != nil {
 		return nil, err
 	}
@@ -361,13 +358,12 @@ func (p *Parser) parseRedshiftDebugStmt(loc int, isGrant bool) (nodes.Node, erro
 	if _, err := p.expect(DATABASE); err != nil {
 		return nil, err
 	}
-	nameStart := p.pos()
-	name, err := p.parseAnyName()
+	// DEBUG names one federated database, not a qualified path.
+	name, err := p.parseColId()
 	if err != nil {
 		return nil, err
 	}
-	opts := &nodes.List{Items: []nodes.Node{makeDefElem("on_database",
-		makeRangeVarFromAnyName(name, nodes.Loc{Start: nameStart, End: p.prev.End}))}}
+	opts := &nodes.List{Items: []nodes.Node{makeDefElem("on_database", &nodes.String{Str: name})}}
 	return p.finishRedshiftFederatedPermission(loc, isGrant, "debug", privLoc, opts, false, true)
 }
 
@@ -405,7 +401,7 @@ func (p *Parser) parseRedshiftIdentityGrantee(allowPublic, allowAdmins bool) (*n
 		p.advance()
 	}
 	// A quoted identity carries its own ":" inside the delimited identifier.
-	if p.isQuotedAt(nodes.Loc{Start: p.cur.Loc, End: p.cur.End}) {
+	if p.isDelimitedIdentToken(p.cur) {
 		tok := p.advance()
 		return &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CSTRING),
@@ -779,36 +775,52 @@ func (p *Parser) parseRedshiftGrantPrivileges() (privs *nodes.List, bareAll bool
 // parseRedshiftGranteeList parses the grantees an alternative of r_GRANT or
 // r_REVOKE lists for its target. Most objects take the generic list; the ones
 // with a list of their own take it here.
-func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, privs *nodes.List, isGrant bool) (*nodes.List, error) {
+func (p *Parser) parseRedshiftGranteeList(kind redshiftGrantKind, objtype nodes.ObjectType, objects, privs *nodes.List, isGrant bool) (*nodes.List, bool, error) {
 	switch kind {
 	case redshiftGrantExternalTable:
 		// The column-list alternative takes IAM roles only; PUBLIC belongs to the
 		// one that lists privileges on the table.
-		return p.parseRedshiftIAMRoleGrantees(!redshiftPrivilegesNameColumns(privs))
+		list, err := p.parseRedshiftIAMRoleGrantees(!redshiftPrivilegesNameColumns(privs))
+		return list, false, err
 	case redshiftGrantExternalSchema:
-		return p.parseRedshiftIAMRoleGrantees(false)
+		list, err := p.parseRedshiftIAMRoleGrantees(false)
+		return list, false, err
 	case redshiftGrantDatashare:
 		if redshiftDatashareUsage(privs) {
-			return p.parseRedshiftDatashareUsageGrantees(isGrant)
+			list, err := p.parseRedshiftDatashareUsageGrantees(isGrant)
+			return list, false, err
 		}
-		return p.parseGranteeList()
+		list, err := p.parseGranteeList()
+		return list, false, err
 	}
 	if objtype == nodes.OBJECT_TEMPLATE {
-		return p.parseRedshiftPlainGranteeList()
+		list, err := p.parseRedshiftPlainGranteeList()
+		return list, false, err
 	}
-	if p.redshiftProcedureDatashareGrantee(objtype, privs) {
-		return p.parseRedshiftDatashareGrantee()
+	if p.redshiftProcedureDatashareGrantee(objtype, objects, privs) {
+		list, err := p.parseRedshiftDatashareGrantee()
+		return list, true, err
 	}
-	return p.parseGranteeList()
+	list, err := p.parseGranteeList()
+	return list, false, err
 }
 
 // redshiftProcedureDatashareGrantee reports whether the grantees are
-// r_GRANT's and r_REVOKE's TO DATASHARE datashare_name, which only
-// GRANT EXECUTE ON PROCEDURE writes. DATASHARE alone is a grantee of that
+// r_GRANT's and r_REVOKE's TO DATASHARE datashare_name, whose target is one
+// procedure with its argument list. DATASHARE alone is a grantee of that
 // spelling.
-func (p *Parser) redshiftProcedureDatashareGrantee(objtype nodes.ObjectType, privs *nodes.List) bool {
-	return objtype == nodes.OBJECT_PROCEDURE && redshiftPrivilegeIs(privs, "execute") &&
-		p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext())
+func (p *Parser) redshiftProcedureDatashareGrantee(objtype nodes.ObjectType, objects, privs *nodes.List) bool {
+	if objtype != nodes.OBJECT_PROCEDURE || !redshiftPrivilegeIs(privs, "execute") {
+		return false
+	}
+	if objects == nil || len(objects.Items) != 1 {
+		return false
+	}
+	owa, ok := objects.Items[0].(*nodes.ObjectWithArgs)
+	if !ok || owa.Objargs == nil {
+		return false
+	}
+	return p.redshiftKeywordIs("datashare") && isColIdToken(p.peekNext())
 }
 
 // parseRedshiftIAMRoleGrantees parses the grantees of r_GRANT's and r_REVOKE's
@@ -1247,11 +1259,20 @@ func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOpti
 	} else if _, err := p.expect(FROM); err != nil {
 		return nil, err
 	}
-	grantees, withGrantOption, err := p.parseRedshiftScopedGrantees()
+	grantees, err := p.parseRedshiftScopedGrantees()
 	if err != nil {
 		return nil, err
 	}
-	grantOption = grantOption || withGrantOption
+	if isGrant {
+		// r_GRANT writes username ( WITH GRANT OPTION )?, and the AST carries one
+		// option for the statement, as PostgreSQL's does. A mixed list reads the
+		// trailing option only.
+		read, err := p.parseOptGrantGrantOption()
+		if err != nil {
+			return nil, err
+		}
+		grantOption = grantOption || read
+	}
 	behavior := nodes.DropBehavior(0)
 	if !isGrant {
 		behavior = nodes.DropBehavior(p.parseOptDropBehavior())
@@ -1272,11 +1293,14 @@ func (p *Parser) finishRedshiftScopedPermission(loc int, isGrant bool, grantOpti
 // parseRedshiftScopedGrantees parses a scoped permission's grantees, which
 // r_GRANT and r_REVOKE write as
 // { username [ WITH GRANT OPTION ] | ROLE role_name } [, ...].
-func (p *Parser) parseRedshiftScopedGrantees() (*nodes.List, bool, error) {
+func (p *Parser) parseRedshiftScopedGrantees() (*nodes.List, error) {
 	result := &nodes.List{}
-	withGrantOption := false
 	for {
 		loc := p.pos()
+		// A scoped grantee is a username or a role, never the PUBLIC pseudo-role.
+		if p.redshiftKeywordIs("public") {
+			return nil, p.syntaxErrorAtCur()
+		}
 		// ROLE is unreserved, so ROLE with no name after it is the username
 		// "role".
 		if p.cur.Type == ROLE && isColIdToken(p.peekNext()) {
@@ -1284,25 +1308,15 @@ func (p *Parser) parseRedshiftScopedGrantees() (*nodes.List, bool, error) {
 		}
 		name, err := p.parseColId()
 		if err != nil {
-			return nil, false, err
+			return nil, err
 		}
 		result.Items = append(result.Items, &nodes.RoleSpec{
 			Roletype: int(nodes.ROLESPEC_CSTRING),
 			Rolename: name,
 			Loc:      nodes.Loc{Start: loc, End: p.prev.End},
 		})
-		if p.cur.Type == WITH {
-			p.advance()
-			if _, err := p.expect(GRANT); err != nil {
-				return nil, false, err
-			}
-			if _, err := p.expect(OPTION); err != nil {
-				return nil, false, err
-			}
-			withGrantOption = true
-		}
 		if p.cur.Type != ',' {
-			return result, withGrantOption, nil
+			return result, nil
 		}
 		p.advance()
 	}
@@ -1370,6 +1384,7 @@ func (p *Parser) parseRedshiftScopedPermissionTarget() (nodes.ObjectType, *nodes
 		return 0, nil, err
 	}
 	var items []nodes.Node
+	schemaScope := false
 	switch p.cur.Type {
 	case SCHEMA:
 		p.advance()
@@ -1378,6 +1393,7 @@ func (p *Parser) parseRedshiftScopedPermissionTarget() (nodes.ObjectType, *nodes
 			return 0, nil, err
 		}
 		items = append(items, makeDefElem("schema", &nodes.String{Str: name}))
+		schemaScope = true
 	case DATABASE:
 		p.advance()
 		name, err := p.parseColId()
@@ -1388,7 +1404,9 @@ func (p *Parser) parseRedshiftScopedPermissionTarget() (nodes.ObjectType, *nodes
 	default:
 		return 0, nil, p.syntaxErrorAtCur()
 	}
-	if p.cur.Type == DATABASE {
+	// { SCHEMA name [ DATABASE name ] | DATABASE name }: a database scope is
+	// already the whole scope.
+	if schemaScope && p.cur.Type == DATABASE {
 		p.advance()
 		name, err := p.parseColId()
 		if err != nil {
@@ -1548,12 +1566,6 @@ func (p *Parser) redshiftKeywordIs(word string) bool {
 	default:
 		return false
 	}
-}
-
-// redshiftTokenIsIdent reports whether tok is an unquoted identifier spelled
-// word: a delimited identifier is a name, never a keyword.
-func redshiftTokenIsIdent(tok Token, word string) bool {
-	return tok.Type == IDENT && tok.End-tok.Loc == len(word) && strings.EqualFold(tok.Str, word)
 }
 
 // acceptRedshiftKeyword consumes the unquoted word word, and reports whether it

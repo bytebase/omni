@@ -553,3 +553,37 @@ func (p *Parser) isRedshiftDocShowStart() bool {
 func (p *Parser) isRedshiftTemplateLead(tok Token) bool {
 	return tok.Type == TEMPLATE && !p.isDelimitedIdentToken(tok)
 }
+
+// redshiftTypenameContinuations is the multiword type grammar: each simple type
+// lead that takes a second word, mapped to the words that carry it, as
+// parseSimpleTypename reads them in type.go.
+//
+// DO NOT extend this map without also extending parseSimpleTypename's multiword
+// branches, and vice versa.
+var redshiftTypenameContinuations = map[int][]int{
+	DOUBLE_P:  {PRECISION},
+	CHARACTER: {VARYING},
+	CHAR_P:    {VARYING},
+	NATIONAL:  {CHARACTER, CHAR_P},
+	NCHAR:     {VARYING},
+	BIT:       {VARYING},
+	TIMESTAMP: {WITH, WITHOUT},
+	TIME:      {WITH, WITHOUT},
+	INTERVAL:  {YEAR_P, MONTH_P, DAY_P, HOUR_P, MINUTE_P, SECOND_P},
+}
+
+// isRedshiftMultiwordTypenameStart reports whether the current token begins a
+// type that runs past it, as CHARACTER VARYING and DOUBLE PRECISION do. Such a
+// token names the type, never a function parameter: `f(character varying)` is
+// one parameter of that type, not a parameter named character of type varying.
+//
+// Validated by TestIsRedshiftMultiwordTypenameStart in first_sets_test.go.
+func (p *Parser) isRedshiftMultiwordTypenameStart() bool {
+	next := p.peekNext().Type
+	for _, tok := range redshiftTypenameContinuations[p.cur.Type] {
+		if tok == next {
+			return true
+		}
+	}
+	return false
+}
