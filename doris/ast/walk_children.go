@@ -528,6 +528,12 @@ func walkChildren(v Visitor, node Node) {
 		if n.Target != nil {
 			Walk(v, n.Target)
 		}
+		for _, item := range n.SelectItems {
+			Walk(v, item)
+		}
+		if n.Where != nil {
+			Walk(v, n.Where)
+		}
 		for _, prop := range n.Properties {
 			Walk(v, prop)
 		}
@@ -1152,6 +1158,10 @@ func walkChildren(v Visitor, node Node) {
 		}
 		for _, param := range n.Parameters {
 			Walk(v, param)
+		}
+	case *AlterProcedureStmt:
+		if n.Name != nil {
+			Walk(v, n.Name)
 		}
 	case *CallProcedureStmt:
 		if n.Name != nil {
