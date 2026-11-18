@@ -888,7 +888,7 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 		cp := p.checkpoint()
 		p.advance() // UNIQUE
 		p.advance() // '('
-		startsQuery := p.startsQuery()
+		startsQuery := p.startsQueryOrParenthesized()
 		p.restore(cp)
 		if startsQuery {
 			return p.parseUnique()

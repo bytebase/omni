@@ -1078,6 +1078,23 @@ func (p *Parser) parseExists() (Expr, error) {
 	return subq, nil
 }
 
+// startsQueryOrParenthesized reports whether the cursor begins a query or a
+// parenthesized query primary (the grammar's queryPrimary may start with '(').
+func (p *Parser) startsQueryOrParenthesized() bool {
+	if p.startsQuery() {
+		return true
+	}
+	if p.cur.Kind != int('(') {
+		return false
+	}
+	cp := p.checkpoint()
+	defer p.restore(cp)
+	for p.cur.Kind == int('(') {
+		p.advance()
+	}
+	return p.startsQuery()
+}
+
 // parseUnique parses `UNIQUE ( query )` (the unique primaryExpression).
 func (p *Parser) parseUnique() (Expr, error) {
 	uniqueTok := p.advance() // consume UNIQUE
@@ -1085,7 +1102,7 @@ func (p *Parser) parseUnique() (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !p.startsQuery() {
+	if !p.startsQueryOrParenthesized() {
 		return nil, p.exprErrorAt("expected a query after UNIQUE(")
 	}
 	sub, err := p.parseSubqueryPlaceholder(openTok.Loc.Start, SubqueryUnique)

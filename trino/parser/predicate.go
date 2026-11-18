@@ -361,7 +361,7 @@ func (p *Parser) parseMatchPredicate(left Expr) (Expr, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !p.startsQuery() {
+	if !p.startsQueryOrParenthesized() {
 		return nil, p.exprErrorAt("expected a query in MATCH(")
 	}
 	sub, err := p.parseSubqueryPlaceholder(openTok.Loc.Start, SubqueryMatch)
