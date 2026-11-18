@@ -514,11 +514,30 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if col.AutoIncrement && tableHasOtherAutoIncrementColumn(tbl, "") {
 		return errIncorrectAutoIncrementDefinition()
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
+	}
+	// SERIAL implies a unique key, as it does on the CREATE TABLE path.
+	if isSerial {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 
 	// Process column-level constraints that produce indexes/constraints.
@@ -1346,6 +1365,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
+		// CREATE TABLE path; the caller adds its unique key.
+		if strings.EqualFold(colDef.TypeName.Name, "serial") {
+			col.DataType = "bigint"
+			col.ColumnType = "bigint(20) unsigned"
+			col.AutoIncrement = true
+			col.Nullable = false
+		}
 		if isNationalStringType(colDef.TypeName.Name) {
 			col.Charset = "utf8mb3"
 		}
@@ -1359,6 +1386,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 			}
+		}
+		// A string type with CHARACTER SET binary is the binary type: MySQL
+		// stores `ADD a CHAR BYTE` and `ADD a CHAR COLLATE BINARY` as
+		// `a` binary(1), measured on mysql:8.0.46.
+		if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			col = convertToBinaryType(col, colDef.TypeName)
 		}
 	}
 

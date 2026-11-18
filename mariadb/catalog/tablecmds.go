@@ -3,6 +3,7 @@ package catalog
 import (
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 
 	nodes "github.com/bytebase/omni/mariadb/ast"
@@ -74,6 +75,15 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		return c.createTableLike(db, tableName, key, srcTbl, stmt)
 	}
 
+	// A CTAS body is judged with the name already resolved: mariadb:11.8.8
+	// answers 1050 for `CREATE TABLE a SELECT a` over a table a before it
+	// reads the SELECT, and 1054 only when the name is free.
+	if stmt.Select != nil {
+		if _, err := c.analyzeViewBody(stmt.Select); err != nil {
+			return err
+		}
+	}
+
 	// CREATE TABLE ... AS SELECT (CTAS) is not modeled: the catalog cannot
 	// derive the columns of the SELECT, so it creates no table. OR REPLACE
 	// still drops the table it replaces, so the catalog holds no table of
@@ -128,7 +138,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "auto_increment":
 			fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 		case "row_format":
-			tbl.RowFormat = opt.Value
+			tbl.RowFormat = canonicalRowFormat(opt.Value)
 		case "key_block_size":
 			fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 		case "compression":
@@ -144,11 +154,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 		case "min_rows":
 			tbl.MinRows = opt.Value
 		case "max_rows":
-			tbl.MaxRows = opt.Value
+			tbl.MaxRows = canonicalRows(opt.Value)
 		case "avg_row_length":
 			tbl.AvgRowLength = opt.Value
 		case "tablespace":
-			tbl.Tablespace = opt.Value
+			// MariaDB 11.8.8 accepts the option and prints no TABLESPACE for
+			// it, so the catalog keeps none.
 		case "pack_keys":
 			tbl.PackKeys = opt.Value
 		case "checksum", "table_checksum":
@@ -2223,6 +2234,18 @@ func isFulltextColumnType(dt string) bool {
 	return false
 }
 
+// isSpatialColumnType reports whether a column's type may be part of a SPATIAL
+// index: the geometry types only. Measured on mariadb:11.8.8: every geometry
+// type is taken, and every other type, BLOB and VARCHAR included, is 1210.
+func isSpatialColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "geometry", "point", "linestring", "polygon", "multipoint",
+		"multilinestring", "multipolygon", "geometrycollection":
+		return true
+	}
+	return false
+}
+
 // validateKeyParts is validateIndexColumns, where wholeTextBlob lets a BLOB or
 // TEXT part go without a length, as a long unique key's does.
 func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, wholeTextBlob bool) error {
@@ -2256,6 +2279,13 @@ func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, who
 			return errUnusableInGeneratedColumn(dep, col.Name)
 		}
 		if spatial {
+			// The column's type is judged before its nullability: an INT
+			// column is 1210 whether or not it may be NULL, and only a
+			// geometry column that may be NULL is 1252. Measured on
+			// mariadb:11.8.8 against every geometry type.
+			if !isSpatialColumnType(col.DataType) {
+				return errWrongArguments("SPATIAL INDEX")
+			}
 			if col.Nullable {
 				return &Error{Code: 1252, SQLState: "42000", Message: "All parts of a SPATIAL index must be NOT NULL"}
 			}
@@ -3650,4 +3680,33 @@ func normalizedChecksum(value string) string {
 		}
 	}
 	return "0"
+}
+
+// canonicalRowFormat is the value ROW_FORMAT reports: DEFAULT clears it, so a
+// table that had none still prints none. Measured on mariadb:11.8.8 for
+// `CREATE TABLE t (a INT) ROW_FORMAT=DEFAULT` and its ALTER form.
+func canonicalRowFormat(value string) string {
+	if strings.EqualFold(value, "DEFAULT") {
+		return ""
+	}
+	return value
+}
+
+// canonicalRows is the value MIN_ROWS and MAX_ROWS report. The server reads the
+// option as an unsigned number and keeps 32 bits of it, truncating a fraction:
+// `MAX_ROWS 1.5` and `MAX_ROWS 1e0` both report 1, `MAX_ROWS 4294967296` and
+// above report 4294967295, and a value under 1 reports nothing. Measured on
+// mariadb:11.8.8 through SHOW CREATE TABLE.
+func canonicalRows(value string) string {
+	v, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return value
+	}
+	if v >= 4294967295 {
+		return "4294967295"
+	}
+	if v < 1 {
+		return "0"
+	}
+	return strconv.FormatUint(uint64(v), 10)
 }

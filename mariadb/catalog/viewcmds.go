@@ -1,6 +1,7 @@
 package catalog
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,6 +19,15 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	if err != nil {
 		return err
 	}
+	// A view body is judged before the view's name is looked up on the Exec
+	// path: mariadb:11.8.8 answers 1054 for a SELECT naming a column no
+	// relation of the body has, even when the name already belongs to a table
+	// (1050) or a view. A synced view's body is the engine's already, so it is
+	// not judged here.
+	analyzedQuery, bodyErr := c.analyzeViewBody(stmt.Select)
+	if checkBody && bodyErr != nil {
+		return bodyErr
+	}
 	key := toLower(stmt.Name.Name)
 	// Tables and views share the same namespace in MySQL.
 	if _, exists := db.Tables[key]; exists || db.Sequences[key] != nil {
@@ -32,7 +42,7 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	// A `?` parameter marker is not allowed in a view body; MariaDB rejects
 	// CREATE VIEW with one. The grammar permits it (it is a LIMIT operand), so
 	// the rejection lives here, not in the parser, and must fail Exec rather
-	// than be swallowed as the analyzer error below is.
+	// than be swallowed as the analyzer's other failures are.
 	if checkBody && stmt.Select != nil && containsParamMarker(stmt.Select) {
 		return &Error{
 			Code:     1351,
@@ -45,19 +55,6 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 	definer := stmt.Definer
 	if definer == "" {
 		definer = "`root`@`%`"
-	}
-
-	// Analyze the view body for semantic IR (used by lineage, SDL diff).
-	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
-		q, err := c.AnalyzeSelectStmt(stmt.Select)
-		if err == nil {
-			analyzedQuery = q
-		}
-		// Swallow error: view analysis may fail for complex views not yet
-		// supported by the analyzer. The view still gets created with
-		// Definition text but without AnalyzedQuery.
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.
@@ -98,6 +95,57 @@ func (c *Catalog) createView(stmt *nodes.CreateViewStmt, source string, checkBod
 		IsUpdatable:     inferViewUpdatable(stmt.Select, algorithm),
 	}
 	return nil
+}
+
+// analyzeViewBody analyzes a view body for the semantic IR lineage and SDL
+// diff use, and reports the one failure MariaDB's CREATE VIEW reports too: a
+// target-list column in a SELECT with no FROM, which names no column at all
+// (1054). The analyzer models less than the engine here — it cannot resolve a
+// select alias a HAVING or ORDER BY reads, for one — so every other failure
+// leaves a view without AnalyzedQuery rather than refusing a view the engine
+// accepts.
+func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
+	if sel == nil {
+		return nil, nil
+	}
+	q, err := c.AnalyzeSelectStmt(sel)
+	if err == nil {
+		return q, nil
+	}
+	var refusal *Error
+	if errors.As(err, &refusal) && refusal.Code == ErrNoSuchColumn && len(sel.From) == 0 && selectTargetHasColumnRef(sel) {
+		return nil, refusal
+	}
+	return nil, nil
+}
+
+// selectTargetHasColumnRef reports whether a target list item is a column. A
+// SELECT with no FROM reads such a column from nowhere, which mariadb:11.8.8
+// answers with 1054. The test stops at the column itself: a name inside a
+// function call may be a stored function's argument, which the engine accepts.
+func selectTargetHasColumnRef(sel *nodes.SelectStmt) bool {
+	for _, item := range sel.TargetList {
+		var val nodes.ExprNode
+		switch target := item.(type) {
+		case *nodes.ResTarget:
+			val = target.Val
+		case nodes.ExprNode:
+			val = target
+		default:
+			continue
+		}
+		for {
+			paren, ok := val.(*nodes.ParenExpr)
+			if !ok {
+				break
+			}
+			val = paren.Expr
+		}
+		if ref, ok := val.(*nodes.ColumnRef); ok && !ref.Star {
+			return true
+		}
+	}
+	return false
 }
 
 // containsParamMarker reports whether the subtree holds a `?` parameter
@@ -171,14 +219,11 @@ func (c *Catalog) alterView(stmt *nodes.AlterViewStmt, source string) error {
 		definer = "`root`@`%`"
 	}
 
-	// Analyze the view body for semantic IR (used by lineage, SDL diff).
-	// Done before deparseViewSelect because deparse mutates the AST.
-	var analyzedQuery *Query
-	if stmt.Select != nil {
-		q, err := c.AnalyzeSelectStmt(stmt.Select)
-		if err == nil {
-			analyzedQuery = q
-		}
+	// The body is analyzed for semantic IR (used by lineage, SDL diff) and for
+	// the one failure MariaDB's ALTER VIEW reports too.
+	analyzedQuery, err := c.analyzeViewBody(stmt.Select)
+	if err != nil {
+		return err
 	}
 
 	// Resolve, rewrite, and deparse the SELECT to produce canonical definition.

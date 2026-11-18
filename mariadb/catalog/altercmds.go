@@ -597,6 +597,7 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 
 	col := buildColumnFromDef(tbl, colDef)
+	isSerial := colDef.TypeName != nil && strings.EqualFold(colDef.TypeName.Name, "serial")
 	if err := c.applyColumnEngineOptions(tbl, col, colDef); err != nil {
 		return err
 	}
@@ -612,6 +613,24 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 	}
 	if err := insertColumn(tbl, col, first, after); err != nil {
 		return err
+	}
+	// SERIAL implies a unique key, as it does on the CREATE TABLE path.
+	if isSerial {
+		idxName := allocIndexName(tbl, col.Name)
+		tbl.Indexes = append(tbl.Indexes, &Index{
+			Name:    idxName,
+			Table:   tbl,
+			Columns: []*IndexColumn{{Name: col.Name}},
+			Unique:  true,
+			Visible: true,
+		})
+		tbl.Constraints = append(tbl.Constraints, &Constraint{
+			Name:      idxName,
+			Type:      ConUniqueKey,
+			Table:     tbl,
+			Columns:   []string{col.Name},
+			IndexName: idxName,
+		})
 	}
 	// Process column-level constraints that produce indexes/constraints.
 	for _, cc := range colDef.Constraints {
@@ -1841,7 +1860,9 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "auto_increment":
 		fmt.Sscanf(opt.Value, "%d", &tbl.AutoIncrement)
 	case "row_format":
-		tbl.RowFormat = opt.Value
+		// DEFAULT clears the option: MariaDB prints no ROW_FORMAT for
+		// `ALTER TABLE a ROW_FORMAT DEFAULT`, measured on mariadb:11.8.8.
+		tbl.RowFormat = canonicalRowFormat(opt.Value)
 	case "key_block_size":
 		fmt.Sscanf(opt.Value, "%d", &tbl.KeyBlockSize)
 	case "compression":
@@ -1857,11 +1878,13 @@ func (c *Catalog) alterTableOption(tbl *Table, cmd *nodes.AlterTableCmd) error {
 	case "min_rows":
 		tbl.MinRows = opt.Value
 	case "max_rows":
-		tbl.MaxRows = opt.Value
+		tbl.MaxRows = canonicalRows(opt.Value)
 	case "avg_row_length":
 		tbl.AvgRowLength = opt.Value
 	case "tablespace":
-		tbl.Tablespace = opt.Value
+		// MariaDB 11.8.8 accepts the option and prints no TABLESPACE for it,
+		// so the catalog keeps none. Measured on `ALTER TABLE a TABLESPACE a`
+		// and on a CREATE TABLE with it.
 	case "pack_keys":
 		tbl.PackKeys = opt.Value
 	case "checksum", "table_checksum":
@@ -1961,6 +1984,14 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 	if colDef.TypeName != nil {
 		col.DataType = normalizedColumnDataType(colDef.TypeName)
 		col.ColumnType = formatColumnType(colDef.TypeName)
+		// SERIAL is BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, as it is on the
+		// CREATE TABLE path; the caller adds its unique key.
+		if strings.EqualFold(colDef.TypeName.Name, "serial") {
+			col.DataType = "bigint"
+			col.ColumnType = "bigint(20) unsigned"
+			col.AutoIncrement = true
+			col.Nullable = false
+		}
 		// A column added or retyped JSON takes the same shape it would in a
 		// CREATE TABLE: longtext with the binary collation, and the
 		// json_valid check its caller attaches. Measured on mariadb:11.8.8:
@@ -1981,6 +2012,12 @@ func buildColumnFromDef(tbl *Table, colDef *nodes.ColumnDef) *Column {
 			if col.Charset == "" {
 				col.Charset = normalizeCharsetName(charsetForCollation(col.Collation))
 			}
+		}
+		// A string type with CHARACTER SET binary is the binary type: MariaDB
+		// stores `ADD a CHAR BYTE` and `ADD a CHAR COLLATE BINARY` as
+		// `a` binary(1), measured on mariadb:11.8.8.
+		if strings.EqualFold(col.Charset, "binary") && isStringType(col.DataType) && !isEnumSetType(col.DataType) {
+			col = convertToBinaryType(col, colDef.TypeName)
 		}
 	}
 

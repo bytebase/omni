@@ -10,8 +10,11 @@ import (
 // mariadb:11.8.8 cause by cause: the object an ALTER or DROP VIEW names, a key
 // built on a column the table does not have, a partition action on a table that
 // has no partitions, a FULLTEXT key over a column whose type it cannot index,
-// a REFERENCES clause with no column list of its own, and an ENGINE the pinned
-// server does not ship.
+// a REFERENCES clause with no column list of its own, an ENGINE the pinned
+// server does not ship, a view or CTAS body naming a column no relation has, a
+// SPATIAL key over a column whose type it cannot index, and the table options
+// MariaDB stores differently from the text it was given: ROW_FORMAT DEFAULT,
+// TABLESPACE, SERIAL, CHAR BYTE, CHAR COLLATE BINARY, and MAX_ROWS.
 func TestSimulationCausesOracle(t *testing.T) {
 	conn := mariadbDatabase(t)
 	ctx := context.Background()
@@ -43,6 +46,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		// unpartitioned holds the case whose statement leaves table a
 		// unpartitioned, which both sides must then show.
 		unpartitioned bool
+		// contains and omits are text both SHOW CREATE TABLE texts must hold
+		// and must not hold.
+		contains []string
+		omits    []string
 	}{
 		{
 			name:  "ALTER VIEW over a table",
@@ -295,6 +302,114 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  1286,
 		},
 		{
+			name: "CREATE VIEW over a missing column",
+			stmt: "CREATE VIEW a AS SELECT a",
+			code: 1054,
+		},
+		{
+			name:  "CREATE VIEW over a table with a missing column",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW a AS SELECT a",
+			code:  1054,
+		},
+		{
+			name:  "CREATE VIEW over a table with a resolved body",
+			setup: []string{oneTable},
+			stmt:  "CREATE VIEW a AS SELECT b FROM a",
+			code:  1050,
+		},
+		{
+			name: "CREATE TABLE ... SELECT over a missing column",
+			stmt: "CREATE TABLE a SELECT a",
+			code: 1054,
+		},
+		{
+			name:  "CREATE TABLE ... SELECT over a table with a missing column",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE a SELECT a",
+			code:  1050,
+		},
+		{
+			name:  "ADD SPATIAL over an INT column",
+			setup: []string{"CREATE TABLE a (g INT)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  1210,
+		},
+		{
+			name:  "ADD SPATIAL over a NOT NULL INT column",
+			setup: []string{"CREATE TABLE a (g INT NOT NULL)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  1210,
+		},
+		{
+			name:  "ADD SPATIAL over a nullable POINT column",
+			setup: []string{"CREATE TABLE a (g POINT)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  1252,
+		},
+		{
+			name:  "ADD SPATIAL over a NOT NULL POINT column",
+			setup: []string{"CREATE TABLE a (g POINT NOT NULL)"},
+			stmt:  "ALTER TABLE a ADD SPATIAL(g)",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE ROW_FORMAT DEFAULT",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ROW_FORMAT DEFAULT",
+			code:  0,
+			omits: []string{"ROW_FORMAT="},
+		},
+		{
+			name:  "ALTER TABLE TABLESPACE",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a TABLESPACE a",
+			code:  0,
+			omits: []string{"TABLESPACE"},
+		},
+		{
+			name:     "ALTER TABLE ADD SERIAL",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD a SERIAL",
+			code:     0,
+			contains: []string{"`a` bigint(20) unsigned NOT NULL AUTO_INCREMENT", "UNIQUE KEY `a` (`a`)"},
+		},
+		{
+			name:     "ALTER TABLE ADD CHAR BYTE",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD a CHAR BYTE",
+			code:     0,
+			contains: []string{"`a` binary(1)"},
+		},
+		{
+			name:     "ALTER TABLE ADD CHAR COLLATE BINARY",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a ADD a CHAR COLLATE BINARY",
+			code:     0,
+			contains: []string{"`a` binary(1)"},
+		},
+		{
+			name:     "ALTER TABLE MAX_ROWS above 32 bits",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a MAX_ROWS 9223372036854775808",
+			code:     0,
+			contains: []string{"MAX_ROWS=4294967295"},
+		},
+		{
+			name:     "ALTER TABLE MAX_ROWS with a fraction",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a MAX_ROWS 1.5",
+			code:     0,
+			contains: []string{"MAX_ROWS=1"},
+		},
+		{
+			name:     "ALTER TABLE MAX_ROWS in exponent notation",
+			setup:    []string{oneTable},
+			stmt:     "ALTER TABLE a MAX_ROWS 1e0",
+			code:     0,
+			contains: []string{"MAX_ROWS=1"},
+		},
+		{
 			name: "CREATE TABLE with the Aria engine",
 			stmt: "CREATE TABLE x (a INT) ENGINE=Aria",
 			code: 0,
@@ -346,6 +461,29 @@ func TestSimulationCausesOracle(t *testing.T) {
 			if tc.unpartitioned {
 				if tbl := c.GetDatabase("d").GetTable("a"); tbl == nil || tbl.Partitioning != nil {
 					t.Fatalf("catalog kept the table partitioned after %s", tc.stmt)
+				}
+			}
+			if len(tc.contains) > 0 || len(tc.omits) > 0 {
+				var name, engineCreate string
+				if err := conn.QueryRowContext(ctx, "SHOW CREATE TABLE a").Scan(&name, &engineCreate); err != nil {
+					t.Fatalf("SHOW CREATE TABLE a: %v", err)
+				}
+				catalogCreate := c.ShowCreateTable("d", "a")
+				for _, want := range tc.contains {
+					if !strings.Contains(engineCreate, want) {
+						t.Fatalf("mariadb stored\n%s\nwithout %s", engineCreate, want)
+					}
+					if !strings.Contains(catalogCreate, want) {
+						t.Fatalf("catalog stored\n%s\nwithout %s", catalogCreate, want)
+					}
+				}
+				for _, no := range tc.omits {
+					if strings.Contains(engineCreate, no) {
+						t.Fatalf("mariadb stored\n%s\nwith %s", engineCreate, no)
+					}
+					if strings.Contains(catalogCreate, no) {
+						t.Fatalf("catalog stored\n%s\nwith %s", catalogCreate, no)
+					}
 				}
 			}
 		})
