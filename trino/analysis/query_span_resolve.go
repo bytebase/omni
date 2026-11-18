@@ -86,7 +86,7 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 	if queryHasCorresponding(q.Body) {
 		span.Results = span.Results[:0]
 		for _, c := range cols {
-			span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources, Star: c.opaque})
+			span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources, Star: c.opaque, Quoted: c.quoted})
 		}
 		return
 	}
@@ -101,7 +101,7 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 	if len(span.Results) == 0 {
 		if len(cols) > 0 && !hasOpaque(cols) {
 			for _, c := range cols {
-				span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources})
+				span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources, Quoted: c.quoted})
 			}
 		}
 		return
@@ -129,7 +129,7 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 		default:
 			// Resolved star: splice the expanded projection in place of the "*".
 			for _, c := range g {
-				newResults = append(newResults, ColumnInfo{Name: c.name, SourceColumns: c.sources})
+				newResults = append(newResults, ColumnInfo{Name: c.name, SourceColumns: c.sources, Quoted: c.quoted})
 			}
 		}
 	}

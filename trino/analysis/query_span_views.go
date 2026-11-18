@@ -1,6 +1,8 @@
 package analysis
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/trino/catalog"
 )
 
@@ -132,7 +134,8 @@ func tableCols(key viewKey, t *catalog.Table) []outCol {
 	out := make([]outCol, 0, len(cols))
 	for _, c := range cols {
 		out = append(out, outCol{
-			name: c.Name,
+			name:   c.Name,
+			quoted: c.Name != strings.ToLower(c.Name),
 			sources: []ColumnRef{{
 				Catalog: key.catalog,
 				Schema:  key.schema,
@@ -196,6 +199,7 @@ func (vs *viewState) projectionFor(key viewKey, v *catalog.View) *viewProjection
 	for _, r := range span.Results {
 		cols = append(cols, outCol{
 			name:    r.Name,
+			quoted:  r.Quoted,
 			sources: r.SourceColumns,
 			// A star the inner analysis could not expand (over an unknown base
 			// table, a coalescing join, …) leaves the projection's width
