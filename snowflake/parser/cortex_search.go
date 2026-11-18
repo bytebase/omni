@@ -26,8 +26,7 @@ func init() {
 		// writes no IF EXISTS.
 		drop:           true,
 		dropNoIfExists: true,
-		// CREATE's properties, then ALTER ... SET's. ALTER's
-		// AUTO_SUSPEND = NULL has no shape here yet.
+		// CREATE's properties, then ALTER ... SET's.
 		props: objectProps{
 			"WAREHOUSE":                      propName,
 			"TARGET_LAG":                     propString,
@@ -45,7 +44,7 @@ func init() {
 			"PRIMARY KEY":                    propNames,
 			"FULL_INDEX_BUILD_INTERVAL_DAYS": propNumber,
 			"REQUEST_LOGGING":                propBool,
-			"AUTO_SUSPEND":                   propNumber,
+			"AUTO_SUSPEND":                   propNumberOr("NULL"),
 			"COMMENT":                        propString,
 		},
 		unset: []string{}, // UNSET takes only PRIMARY KEY, ATTRIBUTES and TAG

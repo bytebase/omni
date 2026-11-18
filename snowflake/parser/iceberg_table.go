@@ -21,6 +21,7 @@ import (
 //	  [ AS <query> ]
 //	CREATE [ OR REPLACE ] [ TRANSIENT ] ICEBERG TABLE <name> LIKE <source> [ <properties> ]
 //	CREATE [ OR REPLACE ] ICEBERG TABLE [ IF NOT EXISTS ] <name> CLONE <source> [ ... ] [ <properties> ]
+//	CREATE ICEBERG TABLE <name> FROM BACKUP SET <set> IDENTIFIER '<id>'
 //
 // Snowflake as the catalog:
 // https://docs.snowflake.com/en/sql-reference/sql/create-iceberg-table-snowflake
@@ -62,6 +63,20 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 	}
 	stmt.Name = name
 
+	if p.cur.Type == kwFROM {
+		if orReplace || transient || stmt.IfNotExists {
+			return nil, p.syntaxErrorAtCur()
+		}
+		p.advance() // consume FROM
+		backup, err := p.parseBackupSource()
+		if err != nil {
+			return nil, err
+		}
+		stmt.FromBackup = backup
+		stmt.Loc.End = p.prev.Loc.End
+		return stmt, nil
+	}
+
 	asAllowed := true
 	switch p.cur.Type {
 	case kwLIKE:
@@ -90,12 +105,37 @@ func (p *Parser) parseCreateIcebergTableStmt(start ast.Loc, orReplace, transient
 	}
 
 	if asAllowed && p.cur.Type == kwAS {
+		for _, col := range stmt.Columns {
+			if col.VirtualExpr != nil {
+				return nil, &ParseError{
+					Position: col.Loc.Start, End: col.Loc.End,
+					Message: "syntax error: virtual columns are not documented with AS SELECT",
+				}
+			}
+		}
 		p.advance() // consume AS
 		query, err := p.parseQueryExpr()
 		if err != nil {
 			return nil, err
 		}
 		stmt.AsSelect = query
+	}
+	for _, col := range stmt.Columns {
+		if col.VirtualExpr == nil {
+			continue
+		}
+		if stmt.Transient {
+			return nil, &ParseError{
+				Position: col.Loc.Start, End: col.Loc.End,
+				Message: "syntax error: virtual columns are not documented on TRANSIENT ICEBERG TABLE",
+			}
+		}
+		if col.Default != nil || col.Identity != nil || col.Collate != "" || col.ProjectionPolicy != nil {
+			return nil, &ParseError{
+				Position: col.Loc.Start, End: col.Loc.End,
+				Message: "syntax error: an Iceberg virtual column takes no DEFAULT, IDENTITY, COLLATE or PROJECTION POLICY",
+			}
+		}
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

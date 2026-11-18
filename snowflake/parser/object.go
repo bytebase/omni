@@ -27,8 +27,10 @@ type objectForm struct {
 	create func(p *Parser, s *ast.ObjectStmt) error
 	alter  func(p *Parser, s *ast.ObjectStmt) error
 	// orReplace and orAlter report whether CREATE OR REPLACE and CREATE OR
-	// ALTER are documented for the object.
+	// ALTER are documented for the object, and temp and secure whether
+	// CREATE [ { TEMP | TEMPORARY } ] and CREATE [ SECURE ] are.
 	orReplace, orAlter bool
+	temp, secure       bool
 	// drop reports whether DROP <kind> [ IF EXISTS ] <name> is documented,
 	// dropCascade whether a CASCADE may follow the name, and dropForce
 	// whether a FORCE may.
@@ -143,6 +145,19 @@ func (p *Parser) expectWords(words ...string) error {
 // parseObjectStmt reads a CREATE or ALTER of a registered object. cur is the
 // object's first keyword; start is the CREATE or ALTER token's Loc.
 func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orReplace, orAlter bool) (ast.Node, error) {
+	return p.parseObjectStmtWith(verb, f, start, orReplace, orAlter, false, false)
+}
+
+// parseCreateObjectStmt reads a CREATE of a registered object after optional
+// TEMP/TEMPORARY and SECURE modifiers have been consumed.
+func (p *Parser) parseCreateObjectStmt(f *objectForm, start ast.Loc, orReplace, orAlter, temp, secure bool) (ast.Node, error) {
+	if (temp && !f.temp) || (secure && !f.secure) {
+		return p.unsupported("CREATE")
+	}
+	return p.parseObjectStmtWith("CREATE", f, start, orReplace, orAlter, temp, secure)
+}
+
+func (p *Parser) parseObjectStmtWith(verb string, f *objectForm, start ast.Loc, orReplace, orAlter, temp, secure bool) (ast.Node, error) {
 	read := f.create
 	if verb == "ALTER" {
 		read = f.alter
@@ -158,6 +173,8 @@ func (p *Parser) parseObjectStmt(verb string, f *objectForm, start ast.Loc, orRe
 		Kind:      f.kind,
 		OrReplace: orReplace,
 		OrAlter:   orAlter,
+		Temporary: temp,
+		Secure:    secure,
 		Loc:       ast.Loc{Start: start.Start},
 	}
 	// IF NOT EXISTS excludes OR REPLACE (the docs write the two forms apart).
@@ -267,6 +284,7 @@ const (
 	valNames                               // ( <name> [ , ... ] )
 	valGroup                               // ( <key> = <value> [ , ... ] ), as the page spells it
 	valStringOr                            // '<string>', or one of words
+	valNumberOr                            // <num>, or one of words
 )
 
 // objectProps maps a documented property's name to its value's shape.
@@ -289,6 +307,10 @@ func propOneOf(words ...string) objectValue { return objectValue{kind: valWord, 
 // propStringOr is a property whose value is a '<string>' or one of words, as
 // EVENT_TABLE = { '<name>' | NONE }.
 func propStringOr(words ...string) objectValue { return objectValue{kind: valStringOr, words: words} }
+
+// propNumberOr is a property whose value is a <num> or one of words, as
+// AUTO_SUSPEND = { <num_seconds> | NULL }.
+func propNumberOr(words ...string) objectValue { return objectValue{kind: valNumberOr, words: words} }
 
 // checkClauses holds a statement's property runs, SETs and UNSETs to f's
 // documented properties.
@@ -361,6 +383,16 @@ func (v objectValue) matches(o *ast.CopyOption) bool {
 		return false
 	case valStringOr:
 		if o.Lit != nil && o.Lit.Kind == ast.LitString {
+			return true
+		}
+		for _, w := range v.words {
+			if o.Words == w {
+				return true
+			}
+		}
+		return false
+	case valNumberOr:
+		if o.Lit != nil && (o.Lit.Kind == ast.LitInt || o.Lit.Kind == ast.LitFloat) {
 			return true
 		}
 		for _, w := range v.words {

@@ -1,6 +1,10 @@
 package parser
 
-import "github.com/bytebase/omni/snowflake/ast"
+import (
+	"strings"
+
+	"github.com/bytebase/omni/snowflake/ast"
+)
 
 // ---------------------------------------------------------------------------
 // Routine DDL — CREATE / ALTER FUNCTION & PROCEDURE (T4.5)
@@ -44,6 +48,199 @@ import "github.com/bytebase/omni/snowflake/ast"
 func (p *Parser) parseCreateFunctionStmt(start ast.Loc, orReplace, orAlter, secure, temporary bool) (ast.Node, error) {
 	p.advance() // consume FUNCTION
 	return p.parseCreateRoutineBody(start, ast.RoutineFunction, orReplace, orAlter, secure, temporary)
+}
+
+// aggregateFunctionProps holds the KEY = value properties documented on
+// CREATE ... AGGREGATE FUNCTION ... LANGUAGE PYTHON
+// (https://docs.snowflake.com/en/sql-reference/sql/create-function).
+var aggregateFunctionProps = objectProps{
+	"RUNTIME_VERSION":              propString,
+	"COMMENT":                      propString,
+	"IMPORTS":                      propStrings,
+	"PACKAGES":                     propStrings,
+	"ARTIFACT_REPOSITORY":          propString,
+	"HANDLER":                      propString,
+	"EXTERNAL_ACCESS_INTEGRATIONS": propNames,
+}
+
+// parseCreateAggregateFunctionStmt parses
+//
+//	CREATE [ OR REPLACE ] [ { TEMP | TEMPORARY } ] [ SECURE ] AGGREGATE FUNCTION [ IF NOT EXISTS ] <name>
+//	  ( [ <arg_name> <arg_data_type> [ DEFAULT <default_value> ] [ , ... ] ] )
+//	  [ COPY GRANTS ]
+//	  RETURNS { <result_data_type> | TABLE ( <col_name> <col_data_type> [ , ... ] ) }
+//	  [ [ NOT ] NULL ]
+//	  LANGUAGE PYTHON
+//	  [ { CALLED ON NULL INPUT | { RETURNS NULL ON NULL INPUT | STRICT } } ]
+//	  [ VOLATILE | IMMUTABLE ]
+//	  RUNTIME_VERSION = '<python_version>'
+//	  [ COMMENT = '<string_literal>' ]
+//	  [ COPY = ( GRANTS ) ]
+//	  [ IMPORTS = ( '<stage_path_and_file_name_to_read>' [ , ... ] ) ]
+//	  [ PACKAGES = ( '<package_name>' [ , ... ] ) ]
+//	  [ ARTIFACT_REPOSITORY = '<repository_name>' ]
+//	  HANDLER = '<function_name>'
+//	  [ EXTERNAL_ACCESS_INTEGRATIONS = ( <integration_name> [ , ... ] ) ]
+//	  [ SECRETS = ( '<secret_variable_name>' = <secret_name> [ , ... ] ) ]
+//	  [ AS '<function_definition>' ]
+//
+// https://docs.snowflake.com/en/sql-reference/sql/create-function
+//
+// AGGREGATE has already been consumed; cur is FUNCTION.
+func (p *Parser) parseCreateAggregateFunctionStmt(start ast.Loc, orReplace, orAlter, secure, temporary bool) (ast.Node, error) {
+	if orAlter {
+		return p.unsupported("CREATE")
+	}
+	p.advance() // consume FUNCTION
+
+	stmt := &ast.CreateRoutineStmt{
+		Kind:      ast.RoutineFunction,
+		OrReplace: orReplace,
+		Secure:    secure,
+		Temporary: temporary,
+		Aggregate: true,
+		Loc:       ast.Loc{Start: start.Start},
+	}
+	if !orReplace {
+		if err := p.parseIfNotExists(&stmt.IfNotExists); err != nil {
+			return nil, err
+		}
+	}
+
+	name, err := p.parseObjectName()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	args, err := p.parseRoutineArgList(false)
+	if err != nil {
+		return nil, err
+	}
+	stmt.Args = args
+
+	if p.cur.Type == kwCOPY && p.peekNext().Type == kwGRANTS {
+		p.advance() // consume COPY
+		p.advance() // consume GRANTS
+		stmt.CopyGrants = true
+	}
+
+	if _, err := p.expect(kwRETURNS); err != nil {
+		return nil, err
+	}
+	if err := p.parseRoutineReturns(stmt); err != nil {
+		return nil, err
+	}
+
+	seen := map[string]bool{}
+	var hasNullInput, hasVolatility bool
+	for p.cur.Type != kwAS {
+		tok := p.cur
+		switch {
+		case p.acceptWords("LANGUAGE"):
+			if seen["LANGUAGE"] {
+				return nil, &ParseError{Position: tok.Loc.Start, End: p.prev.Loc.End, Message: "syntax error: LANGUAGE is set twice"}
+			}
+			if err := p.expectWords("PYTHON"); err != nil {
+				return nil, err
+			}
+			seen["LANGUAGE"] = true
+			stmt.Options = append(stmt.Options,
+				&ast.CopyOption{Name: "LANGUAGE", Bare: true, Loc: tok.Loc},
+				&ast.CopyOption{Name: "PYTHON", Bare: true, Loc: p.prev.Loc},
+			)
+		case p.acceptWords("CALLED", "ON", "NULL", "INPUT"):
+			if hasNullInput {
+				return nil, &ParseError{Position: tok.Loc.Start, End: p.prev.Loc.End, Message: "syntax error: null-input behavior is set twice"}
+			}
+			hasNullInput = true
+			stmt.Options = append(stmt.Options, &ast.CopyOption{Name: "CALLED ON NULL INPUT", Bare: true, Loc: ast.Loc{Start: tok.Loc.Start, End: p.prev.Loc.End}})
+		case p.acceptWords("RETURNS", "NULL", "ON", "NULL", "INPUT"):
+			if hasNullInput {
+				return nil, &ParseError{Position: tok.Loc.Start, End: p.prev.Loc.End, Message: "syntax error: null-input behavior is set twice"}
+			}
+			hasNullInput = true
+			stmt.Options = append(stmt.Options, &ast.CopyOption{Name: "RETURNS NULL ON NULL INPUT", Bare: true, Loc: ast.Loc{Start: tok.Loc.Start, End: p.prev.Loc.End}})
+		case p.acceptWords("STRICT"):
+			if hasNullInput {
+				return nil, &ParseError{Position: tok.Loc.Start, End: p.prev.Loc.End, Message: "syntax error: null-input behavior is set twice"}
+			}
+			hasNullInput = true
+			stmt.Options = append(stmt.Options, &ast.CopyOption{Name: "STRICT", Bare: true, Loc: tok.Loc})
+		case p.acceptWords("VOLATILE") || p.acceptWords("IMMUTABLE"):
+			if hasVolatility {
+				return nil, &ParseError{Position: tok.Loc.Start, End: p.prev.Loc.End, Message: "syntax error: volatility is set twice"}
+			}
+			hasVolatility = true
+			stmt.Options = append(stmt.Options, &ast.CopyOption{Name: strings.ToUpper(p.prev.Str), Bare: true, Loc: tok.Loc})
+		case p.startsObjectProperty():
+			opt, err := p.parseObjectProperty()
+			if err != nil {
+				return nil, err
+			}
+			if seen[opt.Name] {
+				return nil, &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error: " + opt.Name + " is set twice"}
+			}
+			seen[opt.Name] = true
+			if err := checkAggregateFunctionProp(opt); err != nil {
+				return nil, err
+			}
+			stmt.Options = append(stmt.Options, opt)
+		default:
+			goto doneProps
+		}
+	}
+doneProps:
+	for _, req := range []string{"LANGUAGE", "RUNTIME_VERSION", "HANDLER"} {
+		if !seen[req] {
+			return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: " + req + " is required"}
+		}
+	}
+	if p.cur.Type == kwAS {
+		if next := p.peekNext(); next.Type == kwBEGIN || next.Type == kwDECLARE {
+			return nil, syntaxErrorAtTok(next)
+		}
+		body, dollar, end, err := p.parseRoutineBody()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Body = body
+		stmt.BodyDollar = dollar
+		stmt.Loc.End = end
+		return stmt, nil
+	}
+	if !seen["IMPORTS"] {
+		return nil, &ParseError{Position: p.cur.Loc.Start, End: p.cur.Loc.End, Message: "syntax error: AS or IMPORTS is required"}
+	}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+func checkAggregateFunctionProp(opt *ast.CopyOption) error {
+	switch opt.Name {
+	case "COPY":
+		if len(opt.Group) != 1 || !opt.Group[0].Bare || opt.Group[0].Name != "GRANTS" {
+			return &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error: COPY takes (GRANTS)"}
+		}
+		return nil
+	case "SECRETS":
+		if len(opt.Group) == 0 {
+			return &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error at or near SECRETS"}
+		}
+		for _, e := range opt.Group {
+			isString := strings.HasPrefix(e.Name, "'") || strings.HasPrefix(e.Name, "$$")
+			if !isString || e.Words == "" || nameParts(e.Words) > 3 {
+				return &ParseError{Position: e.Loc.Start, End: e.Loc.End, Message: "syntax error: SECRETS maps a '<alias>' string to a secret's name"}
+			}
+		}
+		return nil
+	default:
+		v, ok := aggregateFunctionProps[opt.Name]
+		if !ok || !v.matches(opt) {
+			return &ParseError{Position: opt.Loc.Start, End: opt.Loc.End, Message: "syntax error at or near " + opt.Name}
+		}
+		return nil
+	}
 }
 
 // parseCreateExternalFunctionStmt parses CREATE [OR REPLACE] [SECURE] EXTERNAL

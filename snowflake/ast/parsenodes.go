@@ -4110,9 +4110,9 @@ const (
 //	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> SET <options>
 //	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> UNSET <property> [ , ... ]
 //	ALTER { FAILOVER | REPLICATION } GROUP <name> { SET | UNSET } TAG ...
-//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> ADD <name-list> TO ALLOWED_{DATABASES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
-//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> MOVE { DATABASES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
-//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> REMOVE <name-list> FROM ALLOWED_{DATABASES|SHARES|ACCOUNTS}
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> ADD <name-list> TO ALLOWED_{DATABASES|EXTERNAL_VOLUMES|SHARES|ACCOUNTS} [ IGNORE EDITION CHECK ]
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> MOVE { DATABASES | EXTERNAL VOLUMES | SHARES } <name-list> TO { FAILOVER | REPLICATION } GROUP <name>
+//	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> REMOVE <name-list> FROM ALLOWED_{DATABASES|EXTERNAL_VOLUMES|SHARES|ACCOUNTS}
 //	ALTER { FAILOVER | REPLICATION } GROUP [ IF EXISTS ] <name> { REFRESH | PRIMARY | SUSPEND [ IMMEDIATE ] | RESUME }
 type AlterReplicationGroupStmt struct {
 	Failover           bool
@@ -4124,9 +4124,9 @@ type AlterReplicationGroupStmt struct {
 	Tags               []*TagAssignment // SET TAG assignments; for AlterGroupSetTag
 	UnsetTags          []*ObjectName    // UNSET TAG names; for AlterGroupUnsetTag
 	UnsetProps         []string         // UNSET <property> names; for AlterGroupUnset
-	Names              []*ObjectName    // ADD/MOVE/REMOVE name list (databases / shares / org.account)
-	ListTarget         string           // ALLOWED_DATABASES / ALLOWED_SHARES / ALLOWED_ACCOUNTS (ADD/REMOVE) — uppercased
-	MoveKind           string           // MOVE DATABASES | SHARES — uppercased; for AlterGroupMove
+	Names              []*ObjectName    // ADD/MOVE/REMOVE name list (databases / external volumes / shares / org.account)
+	ListTarget         string           // ALLOWED_DATABASES / ALLOWED_EXTERNAL_VOLUMES / ALLOWED_SHARES / ALLOWED_ACCOUNTS (ADD/REMOVE) — uppercased
+	MoveKind           string           // MOVE DATABASES | EXTERNAL VOLUMES | SHARES — uppercased; for AlterGroupMove
 	MoveTo             *ObjectName      // MOVE ... TO { FAILOVER | REPLICATION } GROUP <name>; for AlterGroupMove
 	IgnoreEditionCheck bool             // ADD ... TO ALLOWED_ACCOUNTS IGNORE EDITION CHECK
 	Immediate          bool             // SUSPEND IMMEDIATE
@@ -5006,6 +5006,7 @@ func (n *PolicyArg) Tag() NodeTag { return T_PolicyArg }
 //	CREATE [ OR REPLACE ] [ DATABASE ] ROLE [ IF NOT EXISTS ] <name>
 //	  [ COMMENT = '<string_literal>' ]
 //	  [ [ WITH ] TAG ( <tag_name> = '<tag_value>' [ , ... ] ) ]
+//	CREATE [ OR REPLACE ] DATABASE ROLE [ IF NOT EXISTS ] <name> CLONE <source_role>
 //
 // Database is true for the CREATE DATABASE ROLE form (its <name> may be
 // db-qualified, db_name.role_name). Account roles take an unqualified name.
@@ -5015,6 +5016,7 @@ type CreateRoleStmt struct {
 	Database    bool // CREATE DATABASE ROLE
 	IfNotExists bool
 	Name        *ObjectName
+	Clone       *ObjectName      // CLONE <source_role> (DATABASE ROLE only); nil if absent
 	Comment     *string          // COMMENT = '...'; nil if absent
 	Tags        []*TagAssignment // [WITH] TAG (...); nil if absent
 	Loc         Loc
@@ -5400,6 +5402,7 @@ type CreateRoutineStmt struct {
 	OrAlter       bool // CREATE OR ALTER (mutually exclusive with OrReplace)
 	Secure        bool
 	Temporary     bool
+	Aggregate     bool // CREATE ... AGGREGATE FUNCTION (LANGUAGE PYTHON)
 	IfNotExists   bool
 	Name          *ObjectName
 	Args          []*RoutineArg         // ( <arg> [, ...] ); nil for an empty arg list
@@ -6663,7 +6666,7 @@ var (
 
 // ObjectStmt is a CREATE or ALTER of an object read by its documented shape:
 //
-//	CREATE [ OR REPLACE | OR ALTER ] <kind> [ IF NOT EXISTS ] <name> <clause>...
+//	CREATE [ OR REPLACE | OR ALTER ] [ { TEMP | TEMPORARY } ] [ SECURE ] <kind> [ IF NOT EXISTS ] <name> <clause>...
 //	ALTER <kind> [ IF EXISTS ] <name> <clause>...
 //	EXECUTE <kind> [ <name> ] <clause>...   (EXECUTE [ INFERENCE ] JOB SERVICE, whose Name is nil;
 //	                                         EXECUTE NOTEBOOK [ PROJECT ])
@@ -6675,6 +6678,8 @@ type ObjectStmt struct {
 	Kind        string          // the object's keywords, uppercased and space-joined: "COMPUTE POOL"
 	OrReplace   bool            // CREATE OR REPLACE
 	OrAlter     bool            // CREATE OR ALTER
+	Temporary   bool            // CREATE { TEMP | TEMPORARY }
+	Secure      bool            // CREATE ... SECURE
 	IfNotExists bool            // CREATE ... IF NOT EXISTS
 	IfExists    bool            // ALTER ... IF EXISTS
 	Name        *ObjectName     // the object's name

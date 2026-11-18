@@ -15,6 +15,12 @@ func (w *writer) writeObjectStmt(n *ast.ObjectStmt) error {
 	} else if n.OrAlter {
 		w.buf.WriteString(" OR ALTER")
 	}
+	if n.Temporary {
+		w.buf.WriteString(" TEMPORARY")
+	}
+	if n.Secure {
+		w.buf.WriteString(" SECURE")
+	}
 	w.buf.WriteByte(' ')
 	w.buf.WriteString(n.Kind)
 	if n.IfNotExists {
