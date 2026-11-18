@@ -148,7 +148,7 @@ CREATE TABLE discontinued_products (product_id int);
 	})
 }
 
-func TestQuerySpanRejectsMutatingOrUnsupportedRedshiftSelect(t *testing.T) {
+func TestQuerySpanRejectsMutatingRedshiftSelect(t *testing.T) {
 	c := catalog.New()
 	if _, err := c.Exec(`CREATE TABLE users (id int, manager_id int);`, nil); err != nil {
 		t.Fatal(err)
@@ -156,8 +156,28 @@ func TestQuerySpanRejectsMutatingOrUnsupportedRedshiftSelect(t *testing.T) {
 	if _, err := GetQuerySpan(c, `SELECT id INTO new_users FROM users`); err == nil {
 		t.Fatalf("expected SELECT INTO query span to be rejected")
 	}
-	if _, err := GetQuerySpan(c, `SELECT id FROM users CONNECT BY PRIOR id = manager_id`); err == nil {
-		t.Fatalf("expected CONNECT BY query span to be rejected")
+}
+
+// A hierarchical query is a read-only query like any other: its conditions are
+// the statement's filters, so both columns they name are predicate columns.
+func TestQuerySpanHierarchicalSelect(t *testing.T) {
+	c := catalog.New()
+	if _, err := c.Exec(`CREATE TABLE users (id int, manager_id int, name text);`, nil); err != nil {
+		t.Fatal(err)
+	}
+	span, err := GetQuerySpan(c, `SELECT id FROM users START WITH manager_id IS NULL CONNECT BY PRIOR id = manager_id`)
+	if err != nil {
+		t.Fatalf("GetQuerySpan: %v", err)
+	}
+	if len(span.Results) != 1 || span.Results[0].Name != "id" {
+		t.Fatalf("results = %#v, want one column id", span.Results)
+	}
+	wantPredicates := map[string]bool{"users.manager_id": true, "users.id": true}
+	for _, col := range span.PredicateColumns {
+		delete(wantPredicates, col.Table+"."+col.Column)
+	}
+	for missing := range wantPredicates {
+		t.Fatalf("predicate columns = %#v, want %s among them", span.PredicateColumns, missing)
 	}
 }
 

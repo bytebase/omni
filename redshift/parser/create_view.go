@@ -391,17 +391,25 @@ func (p *Parser) parseCreateMvTarget() (*nodes.IntoClause, error) {
 	if err != nil {
 		return nil, err
 	}
-	options, err := p.parseOptReloptions()
-	if err != nil {
-		return nil, err
+	// USING ICEBERG is the docs' other alternative: it takes LOCATION,
+	// PARTITIONED BY and TABLE PROPERTIES, and neither PostgreSQL's reloptions
+	// nor a table space.
+	iceberg := strings.EqualFold(accessMethod, "iceberg")
+	var options *nodes.List
+	if !iceberg {
+		if options, err = p.parseOptReloptions(); err != nil {
+			return nil, err
+		}
 	}
 	options, err = p.parseRedshiftMaterializedViewOptionsInto(options, accessMethod)
 	if err != nil {
 		return nil, err
 	}
-	tableSpace, err := p.parseOptTableSpace()
-	if err != nil {
-		return nil, err
+	tableSpace := ""
+	if !iceberg {
+		if tableSpace, err = p.parseOptTableSpace(); err != nil {
+			return nil, err
+		}
 	}
 
 	return &nodes.IntoClause{
@@ -474,15 +482,6 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 	// the last one read got: 0 before LOCATION, 1 before PARTITIONED BY, 2
 	// before TABLE PROPERTIES and 3 after it.
 	stage := 0
-	if p.collectMode() {
-		// What a cursor after USING ICEBERG may write, besides the AS its
-		// caller expects: LOCATION, PARTITIONED BY (whose first word is no
-		// keyword of this package) and TABLE PROPERTIES.
-		p.addTokenCandidate(LOCATION)
-		p.addWordCandidate("PARTITIONED BY")
-		p.addTokenCandidate(TABLE)
-		return options, nil
-	}
 	for p.isRedshiftIcebergMaterializedViewOptionStart() {
 		switch {
 		case p.cur.Type == LOCATION && stage == 0:
@@ -509,6 +508,11 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 		case p.cur.Type == TABLE && stage <= 2:
 			stage = 3
 			p.advance()
+			if p.collectMode() {
+				// TABLE takes PROPERTIES, and the cursor is after TABLE.
+				p.addWordCandidate("PROPERTIES")
+				return options, nil
+			}
 			if !p.consumeRedshiftWord("properties") {
 				return nil, p.syntaxErrorAtCur()
 			}
@@ -523,7 +527,27 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 			return options, nil
 		}
 	}
+	if p.collectMode() {
+		p.addRedshiftIcebergMaterializedViewCandidates(stage)
+	}
 	return options, nil
+}
+
+// addRedshiftIcebergMaterializedViewCandidates registers the Iceberg clauses a
+// cursor at stage may still write. LOCATION is a keyword, TABLE is the first
+// word of TABLE PROPERTIES, and PARTITIONED BY is text no token type names.
+func (p *Parser) addRedshiftIcebergMaterializedViewCandidates(stage int) {
+	switch stage {
+	case 0:
+		p.addTokenCandidate(LOCATION)
+		p.addWordCandidate("PARTITIONED BY")
+		p.addTokenCandidate(TABLE)
+	case 1:
+		p.addWordCandidate("PARTITIONED BY")
+		p.addTokenCandidate(TABLE)
+	case 2:
+		p.addTokenCandidate(TABLE)
+	}
 }
 
 // parseRedshiftPartitionTransforms parses the partition_transform list after

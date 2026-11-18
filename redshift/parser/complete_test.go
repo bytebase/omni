@@ -434,3 +434,42 @@ func TestCandidateSetWords(t *testing.T) {
 		t.Fatalf("HasWord = %v, want only PARTITIONED BY", cs.Words)
 	}
 }
+
+// TestCollectHierarchicalAndIcebergContinuations pins the second words the new
+// clauses take, which the peek-only FIRST-set predicates can no longer reach
+// once the cursor sits after the first one.
+func TestCollectHierarchicalAndIcebergContinuations(t *testing.T) {
+	for _, tc := range []struct {
+		sql       string
+		tokens    []int
+		wantWords []string
+	}{
+		// After the select list, both entries of the clause are offered.
+		{"SELECT * ", []int{START}, []string{"CONNECT BY"}},
+		// After START only its WITH can follow.
+		{"SELECT * START ", []int{WITH}, nil},
+		// After USING ICEBERG TABLE only PROPERTIES can follow.
+		{"CREATE MATERIALIZED VIEW m USING ICEBERG TABLE ", nil, []string{"PROPERTIES"}},
+		// After a parsed LOCATION, the clauses after it are still offered.
+		{"CREATE MATERIALIZED VIEW m USING ICEBERG LOCATION 's3://b/' ", []int{TABLE}, []string{"PARTITIONED BY"}},
+		// AUTO REFRESH YES takes INTERVAL.
+		{"ALTER MATERIALIZED VIEW m AUTO REFRESH YES ", []int{INTERVAL}, nil},
+		// VACUUM SORT takes ONLY.
+		{"VACUUM SORT ", []int{ONLY}, nil},
+	} {
+		cs := Collect(tc.sql, len(tc.sql))
+		if cs == nil {
+			t.Fatalf("Collect(%q) returned nil", tc.sql)
+		}
+		for _, tok := range tc.tokens {
+			if !cs.HasToken(tok) {
+				t.Errorf("Collect(%q): expected token %d in candidates %v", tc.sql, tok, cs.Tokens)
+			}
+		}
+		for _, word := range tc.wantWords {
+			if !cs.HasWord(word) {
+				t.Errorf("Collect(%q): expected word %q in candidates %v", tc.sql, word, cs.Words)
+			}
+		}
+	}
+}

@@ -783,9 +783,9 @@ func (p *Parser) isRedshiftCopyColumnStart() bool {
 // Validated by TestIsRedshiftConnectByStart in first_sets_test.go.
 func (p *Parser) isRedshiftConnectByStart() bool {
 	if p.cur.Type == START {
-		return p.peekNext().Type == WITH
+		return p.peekNext().Type == WITH || p.cursorAfterCur()
 	}
-	return p.redshiftKeywordIs("connect") && p.peekNext().Type == BY
+	return p.redshiftKeywordIs("connect") && (p.peekNext().Type == BY || p.cursorAfterCur())
 }
 
 // isRedshiftVacuumTwoWordModeStart reports whether the current token begins one
@@ -798,7 +798,7 @@ func (p *Parser) isRedshiftVacuumTwoWordModeStart() bool {
 	if p.cur.Type != DELETE_P && !p.redshiftKeywordIs("sort") {
 		return false
 	}
-	return p.peekNext().Type == ONLY
+	return p.peekNext().Type == ONLY || p.cursorAfterCur()
 }
 
 // redshiftPartitionTransformTokens is the FIRST set of the partition_transform

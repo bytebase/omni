@@ -30,6 +30,10 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftNumberStart` | a sign and an `Iconst` | `isNumericOnlyStart`, less `FCONST` | `TestIsRedshiftNumberStart` |
 | `isRedshiftIcebergMaterializedViewOptionStart` | `LOCATION`, the word `PARTITIONED`, `TABLE` | the token and the unquoted word | `TestIsRedshiftIcebergMaterializedViewOptionStart` |
 
+The two-word predicates answer through `cursorAfterCur` in completion mode: the
+cursor sits after the first word, so the peek sees only the end of the input, and
+the continuation is what the user is about to write. `expect` then records it.
+
 The predicates `isRedshiftConnectByStart` and `isRedshiftVacuumTwoWordModeStart`
 read a second token because the first one is a name in the other reading:
 `SELECT * FROM t start` aliases a table `start`, and `VACUUM SORT` vacuums a

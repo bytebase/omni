@@ -207,35 +207,33 @@ func (d *deparseCtx) getBasicSelectQuery(query *Query) {
 		d.getRuleExpr(query.ConnectByQual, false)
 	}
 
-	// GROUP BY.
-	if len(query.GroupingSets) > 0 {
-		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
-		for i, gs := range query.GroupingSets {
-			if i > 0 {
-				d.buf.WriteString(", ")
-			}
-			d.getGroupingSet(gs, query.TargetList)
+	// GROUP BY. ALL may stand alone or modify the grouping beside it, as
+	// PostgreSQL's set_quantifier allows, so the word comes before whichever
+	// form the query has.
+	if len(query.GroupingSets) > 0 || len(query.GroupClause) > 0 || query.GroupAll {
+		d.appendContextKeyword(" GROUP BY", -prettyIndentStd, prettyIndentStd, 0)
+		if query.GroupAll {
+			d.buf.WriteString(" ALL")
 		}
-	} else if query.GroupAll {
-		// GROUP BY ALL may stand alone or modify a list, as PostgreSQL's
-		// set_quantifier allows: write the word, then whatever grouping the
-		// query has beside it.
-		d.appendContextKeyword(" GROUP BY ALL", -prettyIndentStd, prettyIndentStd, 0)
-		for i, grp := range query.GroupClause {
-			if i == 0 {
-				d.buf.WriteByte(' ')
-			} else {
-				d.buf.WriteString(", ")
+		switch {
+		case len(query.GroupingSets) > 0:
+			for i, gs := range query.GroupingSets {
+				if i == 0 {
+					d.buf.WriteByte(' ')
+				} else {
+					d.buf.WriteString(", ")
+				}
+				d.getGroupingSet(gs, query.TargetList)
 			}
-			d.getSortGroupClause(grp, query.TargetList, false)
-		}
-	} else if len(query.GroupClause) > 0 {
-		d.appendContextKeyword(" GROUP BY ", -prettyIndentStd, prettyIndentStd, 1)
-		for i, grp := range query.GroupClause {
-			if i > 0 {
-				d.buf.WriteString(", ")
+		case len(query.GroupClause) > 0:
+			for i, grp := range query.GroupClause {
+				if i == 0 {
+					d.buf.WriteByte(' ')
+				} else {
+					d.buf.WriteString(", ")
+				}
+				d.getSortGroupClause(grp, query.TargetList, false)
 			}
-			d.getSortGroupClause(grp, query.TargetList, false)
 		}
 	}
 

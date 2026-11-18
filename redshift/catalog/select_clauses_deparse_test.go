@@ -168,3 +168,52 @@ CREATE MATERIALIZED VIEW mv BACKUP YES AS SELECT id FROM t;`)
 		t.Fatalf("materialized view op = %q, want BACKUP YES in it", recreated)
 	}
 }
+
+// TestViewGroupByAllGroupingSets pins ALL beside grouping sets: the catalog
+// records the sets, and the word that modified them has to come back too.
+func TestViewGroupByAllGroupingSets(t *testing.T) {
+	c := setupPhase4(t)
+	def := viewDef(t, c, "CREATE VIEW v_group_sets AS SELECT name, sum(val) FROM t1 GROUP BY ALL ROLLUP(name)")
+	if !strings.Contains(def, "GROUP BY ALL ROLLUP(name)") {
+		t.Fatalf("view definition = %q, want GROUP BY ALL ROLLUP(name)", def)
+	}
+}
+
+// TestViewDependenciesFromHierarchicalConditions pins the dependency a column
+// carries when it appears only in START WITH or CONNECT BY: dropping it then
+// reaches the view that reads it, as a column the SELECT list names would.
+func TestViewDependenciesFromHierarchicalConditions(t *testing.T) {
+	c := New()
+	for _, stmt := range parseStmts(t, `CREATE TABLE t (id int, parent_id int);`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("setup: %v", err)
+		}
+	}
+	for _, stmt := range parseStmts(t, `CREATE VIEW v_hier_dep AS SELECT id FROM t CONNECT BY PRIOR id = parent_id;`) {
+		if err := c.ProcessUtility(stmt); err != nil {
+			t.Fatalf("create view: %v", err)
+		}
+	}
+
+	rel := c.GetRelation("", "t")
+	if rel == nil {
+		t.Fatal("table t is missing")
+	}
+	parentID := -1
+	for i, col := range rel.Columns {
+		if col.Name == "parent_id" {
+			parentID = i
+		}
+	}
+	if parentID < 0 {
+		t.Fatal("column parent_id is missing")
+	}
+	// The dependency is the column's, not just the table's: dropping parent_id
+	// reaches the view.
+	if deps := c.relationDependents(rel.OID, int16(parentID+1)); len(deps) == 0 {
+		t.Fatalf("view v_hier_dep is no dependent of t.parent_id, though CONNECT BY reads it")
+	}
+	if deps := c.relationDependents(rel.OID, 1); len(deps) == 0 {
+		t.Fatalf("view v_hier_dep is no dependent of t.id, which CONNECT BY and the SELECT list read")
+	}
+}

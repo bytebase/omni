@@ -933,7 +933,15 @@ func (p *Parser) parseRedshiftAutoRefreshSettings() (bool, *nodes.Integer, error
 	if err != nil {
 		return false, nil, err
 	}
-	if !enabled || p.cur.Type != INTERVAL {
+	if !enabled {
+		return enabled, nil, nil
+	}
+	if p.collectMode() && p.cur.Type != INTERVAL {
+		// YES takes the optional INTERVAL, and the cursor is after it.
+		p.addTokenCandidate(INTERVAL)
+		return enabled, nil, nil
+	}
+	if p.cur.Type != INTERVAL {
 		return enabled, nil, nil
 	}
 	p.advance() // consume INTERVAL

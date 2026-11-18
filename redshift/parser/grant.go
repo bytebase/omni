@@ -2451,6 +2451,12 @@ func (p *Parser) parseRoleOptionIdent() *nodes.DefElem {
 		p.expect(ACCESS)
 		access, _ := p.parseColLabel()
 		return makeDefElem("syslog_access", &nodes.String{Str: access})
+	case "rename":
+		// r_ALTER_USER lists RENAME TO among its comma-separated options.
+		p.advance()
+		p.expect(TO)
+		name, _ := p.parseColId()
+		return makeDefElem("rename_to", &nodes.String{Str: name})
 	default:
 		return nil
 	}
@@ -2633,7 +2639,7 @@ func (p *Parser) parseRedshiftAlterRoleClauses(role *nodes.RoleSpec, loc int, is
 	}
 
 	hasExternalID := false
-	if p.redshiftKeywordIs("externalid") {
+	if !isUser && p.redshiftKeywordIs("externalid") {
 		p.advance()
 		if _, err := p.expect(TO); err != nil {
 			return nil, err

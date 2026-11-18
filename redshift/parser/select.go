@@ -283,6 +283,8 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		// Also valid: expression operators (AS for alias, comma for next target)
 		p.addTokenCandidate(',')
 		p.addTokenCandidate(AS)
+		// And the hierarchical clauses, whose CONNECT BY may come first.
+		p.addRedshiftConnectByCandidates()
 		return stmt, nil
 	}
 
@@ -313,12 +315,13 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		}
 		if p.collectMode() {
 			for _, t := range []int{
-				WHERE, START, GROUP_P, HAVING, QUALIFY, WINDOW,
+				WHERE, GROUP_P, HAVING, QUALIFY, WINDOW,
 				ORDER, LIMIT, OFFSET, FETCH, FOR,
 				UNION, EXCEPT, INTERSECT, ';',
 			} {
 				p.addTokenCandidate(t)
 			}
+			p.addRedshiftConnectByCandidates()
 			return stmt, nil
 		}
 	}
@@ -335,12 +338,13 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 		}
 		if p.collectMode() {
 			for _, t := range []int{
-				START, GROUP_P, HAVING, QUALIFY, WINDOW,
+				GROUP_P, HAVING, QUALIFY, WINDOW,
 				ORDER, LIMIT, OFFSET, FETCH, FOR,
 				UNION, EXCEPT, INTERSECT, ';',
 			} {
 				p.addTokenCandidate(t)
 			}
+			p.addRedshiftConnectByCandidates()
 			return stmt, nil
 		}
 	}
@@ -380,7 +384,9 @@ func (p *Parser) parseSimpleSelectCore() (*nodes.SelectStmt, error) {
 			p.advance()
 			stmt.GroupDistinct = true
 		}
-		if !stmt.GroupAll || p.isAExprStart() {
+		if !stmt.GroupAll || p.isAExprStart() || p.collectMode() {
+			// GROUP BY ALL may stand alone; collecting the list as well keeps
+			// its expressions among the candidates.
 			stmt.GroupClause, err = p.parseGroupByList()
 			if err != nil {
 				return nil, err
@@ -476,6 +482,18 @@ func (p *Parser) parseRedshiftExcludeList() (*nodes.List, error) {
 		}
 	}
 	return &nodes.List{Items: items}, nil
+}
+
+// addRedshiftConnectByCandidates registers the hierarchical clauses for
+// completion: START, whose WITH follows it, and CONNECT BY, which no token type
+// names. Once START is read only its WITH can follow.
+func (p *Parser) addRedshiftConnectByCandidates() {
+	if p.cur.Type == START {
+		p.addTokenCandidate(WITH)
+		return
+	}
+	p.addTokenCandidate(START)
+	p.addWordCandidate("CONNECT BY")
 }
 
 // parseRedshiftConnectBy parses the hierarchical-query clauses the docs write

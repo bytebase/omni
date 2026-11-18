@@ -175,6 +175,19 @@ func TestRedshiftAlterRoleClauseListParse(t *testing.T) {
 	if elem, ok := user.Options.Items[1].(*nodes.DefElem); !ok || elem.Defname != "createdb" {
 		t.Fatalf("option 1 = %#v, want createdb", user.Options.Items[1])
 	}
+	// RENAME TO is one option among the others, so it may come after them.
+	reordered, ok := singleStmt(t, "ALTER USER a CREATEDB, RENAME TO b").(*nodes.AlterRoleStmt)
+	if !ok {
+		t.Fatalf("expected AlterRoleStmt, got %T", singleStmt(t, "ALTER USER a CREATEDB, RENAME TO b"))
+	}
+	if reordered.Options == nil || len(reordered.Options.Items) != 2 {
+		t.Fatalf("options = %#v, want createdb and rename_to", reordered.Options)
+	}
+	for i, want := range []string{"createdb", "rename_to"} {
+		if elem, ok := reordered.Options.Items[i].(*nodes.DefElem); !ok || elem.Defname != want {
+			t.Fatalf("option %d = %#v, want %s", i, reordered.Options.Items[i], want)
+		}
+	}
 	if rename, ok := singleStmt(t, "ALTER USER a RENAME TO b").(*nodes.RenameStmt); !ok || rename.Newname != "b" {
 		t.Fatalf("ALTER USER a RENAME TO b = %#v, want a RenameStmt", rename)
 	}
@@ -187,6 +200,8 @@ func TestRedshiftAlterRoleClauseListParse(t *testing.T) {
 		// alterUser_option (',' alterUser_option)*: the commas follow an option.
 		"ALTER USER u, PASSWORD 'x'",
 		"ALTER USER u CREATEDB,,",
+		// ALTER USER's EXTERNALID is an option, not ALTER ROLE's TO tail.
+		"ALTER USER u RENAME TO v EXTERNALID TO x",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) succeeded, want a syntax error", sql)

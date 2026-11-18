@@ -185,6 +185,15 @@ func (p *Parser) collectMode() bool {
 	return p.completing && p.collecting
 }
 
+// cursorAfterCur reports whether completion is running and the cursor sits at
+// or past the end of the current token, so what the user is about to write is
+// what follows it. A FIRST-set predicate whose second token is the cursor's own
+// position answers yes through it in completion mode, where the peek otherwise
+// sees only the end of the input.
+func (p *Parser) cursorAfterCur() bool {
+	return p.completing && p.cursorOff >= p.cur.End
+}
+
 // checkCursor checks whether the current token is at or past the cursor
 // offset, and if so, enables collection mode.
 func (p *Parser) checkCursor() {

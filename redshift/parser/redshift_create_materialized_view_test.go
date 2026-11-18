@@ -180,6 +180,9 @@ func TestRedshiftCreateMaterializedViewIcebergRejectsOtherTransforms(t *testing.
 		// clauses are the first one's.
 		"CREATE MATERIALIZED VIEW a USING ICEBERG BACKUP YES AS SELECT 1",
 		"CREATE MATERIALIZED VIEW a USING ICEBERG DISTSTYLE EVEN AS SELECT 1",
+		// The Iceberg form takes no reloptions and no table space.
+		"CREATE MATERIALIZED VIEW a USING ICEBERG WITH (fillfactor = 10) AS SELECT 1",
+		"CREATE MATERIALIZED VIEW a USING ICEBERG TABLESPACE ts AS SELECT 1",
 		// A transform's count is a number.
 		"CREATE MATERIALIZED VIEW a USING ICEBERG PARTITIONED BY(BUCKET(+, a)) AS SELECT 1",
 	} {

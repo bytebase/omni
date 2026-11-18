@@ -859,3 +859,26 @@ func redshiftSourceColumnSetFromList(columns []ColumnResource) ColumnSet {
 	}
 	return result
 }
+
+// TestRedshiftQuerySpanHierarchicalClauses pins the tables a hierarchical query
+// reads through START WITH and CONNECT BY: a subquery in either one names a
+// table the rest of the statement may not.
+func TestRedshiftQuerySpanHierarchicalClauses(t *testing.T) {
+	span, err := ResolveQuerySpan(
+		"SELECT id FROM orders START WITH id IN (SELECT order_id FROM line_items) CONNECT BY PRIOR id = tax",
+		redshiftQuerySpanContext(t),
+	)
+	require.NoError(t, err)
+	require.NotNil(t, span)
+	for _, want := range []ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders"},
+		{Database: "db", Schema: "public", Table: "line_items"},
+	} {
+		require.Contains(t, span.SourceColumns, want)
+	}
+	for _, want := range []ColumnResource{
+		{Database: "db", Schema: "public", Table: "orders", Column: "tax"},
+	} {
+		require.Contains(t, span.PredicateColumns, want)
+	}
+}
