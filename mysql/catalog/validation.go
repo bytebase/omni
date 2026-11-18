@@ -356,15 +356,16 @@ func validateKeyColumnsExist(tbl *Table, leaves map[string]bool, con *nodes.Cons
 
 // storageEngines are the engines mysql:8.0.46 ships as usable, from its SHOW
 // ENGINES: InnoDB, MyISAM, MEMORY, MRG_MYISAM, BLACKHOLE, CSV, ARCHIVE and
-// PERFORMANCE_SCHEMA, plus HEAP, which is MEMORY's other name. FEDERATED, NDB
-// and ndbinfo are listed there but disabled, and naming one of them, or any
-// engine the server does not have, is 1286.
+// PERFORMANCE_SCHEMA, with MEMORY's other name HEAP and MRG_MYISAM's MERGE.
+// FEDERATED, NDB and ndbinfo are listed there but disabled, and naming one of
+// them, or any engine the server does not have, is 1286.
 var storageEngines = map[string]bool{
 	"innodb":             true,
 	"myisam":             true,
 	"memory":             true,
 	"heap":               true,
 	"mrg_myisam":         true,
+	"merge":              true,
 	"blackhole":          true,
 	"csv":                true,
 	"archive":            true,

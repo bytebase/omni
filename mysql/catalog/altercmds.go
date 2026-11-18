@@ -38,11 +38,12 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	if tbl == nil {
 		return errNoSuchTable(db.Name, tableName)
 	}
-	// A column this statement adds cannot be dropped by it: MySQL resolves a
-	// DROP COLUMN against the table the statement found, so
-	// `ALTER TABLE a ADD COLUMN x INT, DROP COLUMN x` answers 1091 "Can't DROP
-	// 'x'" (mysql:8.0.46). The answer comes before the key checks below.
-	if err := validateAlterDropColumns(tbl, stmt.Commands); err != nil {
+	// A column the statement adds is not one it can drop, rename or change:
+	// MySQL resolves those against the table the statement found, so
+	// `ALTER TABLE a ADD COLUMN x INT, DROP COLUMN x` answers 1091 and
+	// `ADD COLUMN x INT, CHANGE x y INT` 1054 (mysql:8.0.46). Both answers come
+	// before the key checks the commands make.
+	if err := validateAlterColumnSources(tbl, stmt.Commands); err != nil {
 		return err
 	}
 
@@ -74,19 +75,29 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 	return nil
 }
 
-// validateAlterDropColumns refuses a DROP COLUMN of a name the table the
-// statement found does not hold: 1091. A column an earlier command of the same
-// statement adds is not one of them, so MySQL refuses to drop it.
-func validateAlterDropColumns(tbl *Table, commands []*nodes.AlterTableCmd) error {
+// validateAlterColumnSources refuses a command naming a column the table the
+// statement found does not hold, in the statement's order: a DROP COLUMN is
+// 1091 "Can't DROP 'x'"; the column a MODIFY, CHANGE or RENAME starts from is
+// 1054 "Unknown column 'x' in 'tbl'". A column an earlier command of the same
+// statement adds is not one of them: MySQL resolves these against the table the
+// statement found.
+func validateAlterColumnSources(tbl *Table, commands []*nodes.AlterTableCmd) error {
 	for _, cmd := range commands {
-		if cmd == nil || cmd.Type != nodes.ATDropColumn {
+		if cmd == nil {
 			continue
 		}
-		if cmd.IfExists {
-			continue
-		}
-		if tbl.GetColumn(cmd.Name) == nil {
-			return errCantDropKey(cmd.Name)
+		switch cmd.Type {
+		case nodes.ATDropColumn:
+			if cmd.IfExists {
+				continue
+			}
+			if tbl.GetColumn(cmd.Name) == nil {
+				return errCantDropKey(cmd.Name)
+			}
+		case nodes.ATModifyColumn, nodes.ATRenameColumn, nodes.ATChangeColumn:
+			if cmd.Name != "" && tbl.GetColumn(cmd.Name) == nil {
+				return errNoSuchColumn(cmd.Name, tbl.Name)
+			}
 		}
 	}
 	return nil
@@ -1541,6 +1552,13 @@ func (c *Catalog) alterCoalescePartition(tbl *Table, cmd *nodes.AlterTableCmd) e
 
 // alterReorganizePartition reorganizes partitions into new definitions.
 func (c *Catalog) alterReorganizePartition(tbl *Table, cmd *nodes.AlterTableCmd) error {
+	// As with ADD PARTITION, the new definitions are judged before the table
+	// they replace partitions of: 1054 for a name its bound reads as a column
+	// and 1286 for an engine the server does not ship answer ahead of 1505
+	// (mysql:8.0.46).
+	if err := validatePartitionDefinitions(cmd.PartitionDefs); err != nil {
+		return err
+	}
 	if tbl.Partitioning == nil {
 		return errPartitionMgmtOnNonPartitioned()
 	}

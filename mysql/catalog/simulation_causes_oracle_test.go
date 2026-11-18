@@ -162,6 +162,38 @@ func TestSimulationCausesOracle(t *testing.T) {
 			code:  0,
 		},
 		{
+			name:  "ADD KEY over a column a later command renames",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(y), CHANGE c y INT",
+			code:  0,
+		},
+		{
+			name:  "ADD KEY over a column an earlier command renames",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a RENAME COLUMN c TO y, ADD KEY(c)",
+			code:  1072,
+		},
+		{
+			name:  "ADD KEY over a column the statement adds beside a rename",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD KEY(x), ADD COLUMN x INT, RENAME COLUMN c TO y",
+			code:  0,
+		},
+		{
+			// A MODIFY, CHANGE or RENAME starts from a column of the table the
+			// statement found, so one the statement adds is 1054.
+			name:  "CHANGE of a column the statement adds",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ADD COLUMN x INT, CHANGE x y INT",
+			code:  1054,
+		},
+		{
+			name:  "RENAME COLUMN of no column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a RENAME COLUMN x TO y",
+			code:  1054,
+		},
+		{
 			// A DROP COLUMN is resolved against the table the statement found,
 			// so a column it adds cannot be dropped by it.
 			name:  "DROP COLUMN of a column the statement adds",
@@ -215,6 +247,26 @@ func TestSimulationCausesOracle(t *testing.T) {
 			name:  "REORGANIZE PARTITION of a table with none",
 			setup: []string{oneTable},
 			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1)",
+			code:  1505,
+		},
+		{
+			// The new definitions are judged before the table they would
+			// replace partitions of, as ADD PARTITION's are.
+			name:  "REORGANIZE PARTITION into a bound that reads a name as a column",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 VALUES LESS THAN (b))",
+			code:  1054,
+		},
+		{
+			name:  "REORGANIZE PARTITION into an engine the server does not ship",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 ENGINE nosuch)",
+			code:  1286,
+		},
+		{
+			name:  "REORGANIZE PARTITION into a constant bound of a table with none",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a REORGANIZE PARTITION p0 INTO (PARTITION p1 VALUES LESS THAN (10))",
 			code:  1505,
 		},
 		{
@@ -377,6 +429,25 @@ func TestSimulationCausesOracle(t *testing.T) {
 			setup: []string{oneTable},
 			stmt:  "CREATE TABLE s (b INT(256)) ENGINE = nosuch",
 			code:  1439,
+		},
+		{
+			// MERGE is MRG_MYISAM's other name, as HEAP is MEMORY's.
+			name:  "CREATE TABLE with the MERGE engine",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) ENGINE = MERGE",
+			code:  0,
+		},
+		{
+			name:  "ALTER TABLE naming the MERGE engine",
+			setup: []string{oneTable},
+			stmt:  "ALTER TABLE a ENGINE = MERGE",
+			code:  0,
+		},
+		{
+			name:  "CREATE TABLE with the HEAP engine",
+			setup: []string{oneTable},
+			stmt:  "CREATE TABLE s (b INT) ENGINE = HEAP",
+			code:  0,
 		},
 		{
 			name:  "ADD INT at its display width",
