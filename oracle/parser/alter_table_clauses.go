@@ -1690,7 +1690,7 @@ func (p *Parser) parseATNestedTableStorage() error {
 			}
 			const physical = atcSegment | atcCompression | atcInmemory | atcSegmentCreation | atcOverflow
 			for {
-				rank := p.nestedPhysicalPhase(physical)
+				rank := p.nestedPhysicalPhase(physical, phase)
 				if rank < 0 {
 					break
 				}
@@ -1718,6 +1718,13 @@ func (p *Parser) parseATNestedTableStorage() error {
 				if !parsed {
 					return p.syntaxErrorAtCur()
 				}
+				if rank == 3 {
+					for p.atWord("INMEMORY") || (p.atWord("NO") && p.atNextWord("INMEMORY")) {
+						if err := p.parseATInmemoryColumnItem(); err != nil {
+							return err
+						}
+					}
+				}
 			}
 			columnStart := p.pos()
 			if err := p.parseATColumnProperties(nil); err != nil {
@@ -1744,11 +1751,19 @@ func (p *Parser) parseATNestedTableStorage() error {
 // nestedPhysicalPhase ranks a physical_properties clause in the page's
 // order: deferred segment creation, segment attributes, compression,
 // inmemory, then an organization clause.
-func (p *Parser) nestedPhysicalPhase(allowed atClauses) int {
-	if p.cur.Type == kwCOMPRESS && p.peekNext().Type == tokICONST {
-		// COMPRESS integer is an index-organized table's prefix compression,
-		// the alternative to its mapping table and threshold.
-		return 4
+func (p *Parser) nestedPhysicalPhase(allowed atClauses, phase int) int {
+	if p.cur.Type == kwCOMPRESS || p.cur.Type == kwNOCOMPRESS {
+		if p.cur.Type == kwCOMPRESS && p.peekNext().Type == tokICONST {
+			// COMPRESS integer is an index-organized table's prefix
+			// compression, the alternative to its mapping table and
+			// threshold.
+			return 4
+		}
+		if phase >= 4 {
+			// After INMEMORY, COMPRESS or NOCOMPRESS is the same
+			// organization alternative, not table compression.
+			return 4
+		}
 	}
 	switch p.atClauseAt(allowed) {
 	case atcSegmentCreation:
@@ -1808,8 +1823,9 @@ func (p *Parser) parseATObjectProperties() error {
 					return p.syntaxErrorAtCur()
 				}
 			}
+			scopeSeen := false
 			for p.isATObjectInlineConstraintStart() {
-				if err := p.parseATObjectInlineConstraint(); err != nil {
+				if err := p.parseATObjectInlineConstraint(&scopeSeen); err != nil {
 					return err
 				}
 			}
@@ -1839,7 +1855,7 @@ func (p *Parser) isATObjectInlineConstraintStart() bool {
 // inline_ref_constraint of object_properties. Its column has no declared
 // type here, so the REF-only checks of parseInlineRefConstraint do not
 // apply: SCOPE IS and WITH ROWID are read as the page gives them.
-func (p *Parser) parseATObjectInlineConstraint() error {
+func (p *Parser) parseATObjectInlineConstraint(scopeSeen *bool) error {
 	named := p.cur.Type == kwCONSTRAINT
 	if named {
 		p.advance()
@@ -1871,6 +1887,10 @@ func (p *Parser) parseATObjectInlineConstraint() error {
 		p.advance()
 		return p.atExpect(kwROWID)
 	case p.atWord("SCOPE"):
+		if *scopeSeen {
+			return p.syntaxErrorAtCur()
+		}
+		*scopeSeen = true
 		p.advance()
 		if err := p.atExpect(kwIS); err != nil {
 			return err
