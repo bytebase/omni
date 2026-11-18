@@ -1298,7 +1298,7 @@ func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
 	item := &ast.OrderItem{Expr: expr, Loc: nodeLoc(expr)}
 	if p.cur.Type == kwCOLLATE {
 		p.advance()
-		coll, err := p.parseBinaryExpr(bpBitOr)
+		coll, err := p.parseCollateOperand()
 		if err != nil {
 			return nil, err
 		}
@@ -1327,6 +1327,24 @@ func (p *Parser) parseOrderItem() (*ast.OrderItem, error) {
 		p.advance()
 	}
 	return item, nil
+}
+
+// parseCollateOperand parses a collate_clause's operand:
+// string_literal_or_parameter (a string literal, @name, ?, or @@sysvar). A
+// general expression is not part of the rule.
+func (p *Parser) parseCollateOperand() (ast.Node, error) {
+	switch p.cur.Type {
+	case tokString:
+		return p.parseStringLiteral()
+	case int('@'):
+		return p.parseNamedParameter()
+	case tokAtAt:
+		return p.parseSystemVariable()
+	case int('?'):
+		tok := p.advance()
+		return &ast.Parameter{Positional: true, Loc: tok.Loc}, nil
+	}
+	return nil, p.syntaxErrorAtCur()
 }
 
 // parseWindowFrame parses `{ROWS|RANGE} { bound | BETWEEN bound AND bound }`

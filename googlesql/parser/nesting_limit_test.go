@@ -91,6 +91,9 @@ var nestingShapes = []struct {
 	{"graph label group", func(n int) string { return "GRAPH g MATCH (n IS " + nest(n, "(", "a", ")") + ") RETURN n" }},
 	{"graph path", func(n int) string { return "GRAPH g MATCH " + nest(n, "(", "(n)", ")") + " RETURN n" }},
 	{"pipe subpipeline", func(n int) string { return nest(n, "|> LOG(", "|> AGGREGATE", ")") }},
+	{"nested TABLE TVFs", func(n int) string {
+		return "|> CALL " + strings.Repeat("f(TABLE ", n) + "f()" + strings.Repeat(")", n)
+	}},
 	{"unclosed pipe subpipelines", func(n int) string { return strings.Repeat("|> LOG(", n) }},
 	{"unclosed parentheses", func(n int) string { return "SELECT " + strings.Repeat("(", n) }},
 	{"unclosed subqueries", func(n int) string { return strings.Repeat("SELECT (", n) }},

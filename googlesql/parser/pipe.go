@@ -860,6 +860,10 @@ func (p *Parser) parseParenthesizedQuery() (*ast.QueryStmt, error) {
 // parseTableClauseOperand parses table_clause: `TABLE <path|tvf> [[AS] alias]
 // [PIVOT|UNPIVOT …] [WHERE expr]`.
 func (p *Parser) parseTableClauseOperand() (*ast.TableClause, error) {
+	if err := p.enterNesting(); err != nil {
+		return nil, err
+	}
+	defer p.leaveNesting()
 	tableTok := p.advance() // TABLE
 	var te *ast.TableExpr
 	if p.cur.Type == kwIF {

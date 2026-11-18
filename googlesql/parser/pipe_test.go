@@ -303,6 +303,8 @@ func TestPipe_RejectsFragments(t *testing.T) {
 		"|> AGGREGATE x.* DESC",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{CAST(1 AS INT64)}) DEFINE a AS true)",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m PATTERN(a{1}?) DEFINE a AS true)",
+		"|> ORDER BY x COLLATE 1",
+		"|> ORDER BY x COLLATE (SELECT y FROM t)",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m `AFTER` MATCH SKIP PAST LAST ROW PATTERN(a) DEFINE a AS true)",
 		"|> MATCH_RECOGNIZE(ORDER BY x MEASURES 1 AS m AFTER MATCH SKIP `PAST` LAST ROW PATTERN(a) DEFINE a AS true)",
 	}
@@ -333,6 +335,8 @@ func TestPipe_AcceptsValidNearMisses(t *testing.T) {
 		"|> DROP a, b,",
 		"|> SET a = 1,",
 		"|> ORDER BY x,",
+		"|> ORDER BY x COLLATE 'und:ci'",
+		"|> ORDER BY x COLLATE @c",
 		"|> WITH c AS (SELECT 1),",
 		"|> WINDOW x AS y,",
 		"|> EXTEND a WINDOW w AS ()",

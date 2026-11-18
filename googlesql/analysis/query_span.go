@@ -485,11 +485,7 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 		case *ast.PipeAggregate:
 			w.walkPipeSelect(n.Select)
 		case *ast.PipeWindow:
-			for _, item := range n.Items {
-				if item != nil {
-					w.walkSubqueriesOnly(item.Expr)
-				}
-			}
+			w.walkPipeItems(n.Items)
 		case *ast.PipeOrderBy:
 			for _, item := range n.Items {
 				if item != nil {
@@ -631,15 +627,11 @@ func (w *spanWalker) walkSampleExpressions(sc *ast.SampleClause) {
 	w.walkPredicate(sc.Repeatable)
 }
 
-// walkPipeSelect walks the item list and GROUP BY of a pipe operator that holds
-// a *SelectStmt (SELECT / EXTEND / AGGREGATE).
-func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
-	if sel == nil {
-		return
-	}
-	// The items are output expressions, not predicate positions: walk only the
-	// subqueries they embed. GROUP BY items are predicate positions.
-	for _, item := range sel.Items {
+// walkPipeItems walks a pipe selection item list for embedded subqueries: each
+// item's expression and its star REPLACE values. The items are output
+// expressions, so they are not predicate columns.
+func (w *spanWalker) walkPipeItems(items []*ast.SelectItem) {
+	for _, item := range items {
 		if item == nil {
 			continue
 		}
@@ -652,6 +644,17 @@ func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
 			}
 		}
 	}
+}
+
+// walkPipeSelect walks the item list and GROUP BY of a pipe operator that holds
+// a *SelectStmt (SELECT / EXTEND / AGGREGATE).
+func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
+	if sel == nil {
+		return
+	}
+	// The items are output expressions, not predicate positions: walk only the
+	// subqueries they embed. GROUP BY items are predicate positions.
+	w.walkPipeItems(sel.Items)
 	if sel.GroupBy != nil {
 		for _, gi := range sel.GroupBy.Items {
 			if gi == nil {
