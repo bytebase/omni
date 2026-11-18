@@ -18,7 +18,9 @@ func (p *Parser) parseCreateMaterializedStmt(start int, orReplace bool) (nodes.N
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if p.isBareWord("LOG") {
+	if log, err := p.atMaterializedViewLog(); err != nil {
+		return nil, err
+	} else if log {
 		return p.parseCreateMaterializedViewLogStmt(start, orReplace)
 	}
 	if orReplace {
@@ -46,6 +48,17 @@ func (p *Parser) parseMaterializedViewKeyword() error {
 	}
 	_, err := p.expect(kwVIEW)
 	return err
+}
+
+// atMaterializedViewLog reports whether LOG stands at the cursor, and offers
+// it in completion mode.
+func (p *Parser) atMaterializedViewLog() (bool, error) {
+	p.checkCursor()
+	if p.collectMode() {
+		p.addTokenCandidate(kwLOG)
+		return false, &ParseError{Message: "collecting"}
+	}
+	return p.isBareWord("LOG"), nil
 }
 
 func (p *Parser) parseCreateMaterializedViewStmt(start int) (*nodes.CreateMaterializedViewStmt, error) {
@@ -647,7 +660,9 @@ func (p *Parser) parseAlterMaterializedStmt(start int) (nodes.Node, error) {
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if p.isBareWord("LOG") {
+	if log, err := p.atMaterializedViewLog(); err != nil {
+		return nil, err
+	} else if log {
 		return p.parseAlterMaterializedViewLogStmt(start)
 	}
 	return p.parseAlterMaterializedViewStmt(start)
@@ -832,7 +847,9 @@ func (p *Parser) parseDropMaterializedStmt(start int) (nodes.Node, error) {
 	if err := p.parseMaterializedViewKeyword(); err != nil {
 		return nil, err
 	}
-	if p.isBareWord("LOG") {
+	if log, err := p.atMaterializedViewLog(); err != nil {
+		return nil, err
+	} else if log {
 		p.advance() // consume LOG
 		if _, err := p.expect(kwON); err != nil {
 			return nil, err
@@ -847,7 +864,7 @@ func (p *Parser) parseDropMaterializedStmt(start int) (nodes.Node, error) {
 		}, nil
 	}
 
-	// ALTER, MATERIALIZED and VIEW are consumed, and parseDropViewBody reads the
+	// DROP, MATERIALIZED and VIEW are consumed, and parseDropViewBody reads the
 	// rest. The materialized flag keeps a materialized view apart from a plain
 	// view.
 	stmt, err := p.parseDropViewBody(start)

@@ -819,6 +819,9 @@ func (c *Catalog) installStandIn(o *metadataObject) error {
 	case metadataTable:
 		return c.DefineTable(standInTableStmt(o.table))
 	case metadataView:
+		if o.materialized {
+			return c.DefineMaterializedView(standInViewStmt(o.view))
+		}
 		return c.DefineView(standInViewStmt(o.view))
 	case metadataTrigger:
 		timing, event := o.trigger.GetTiming(), o.trigger.GetEvent()

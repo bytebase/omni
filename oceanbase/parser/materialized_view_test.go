@@ -118,4 +118,9 @@ func TestMaterializedViewCompletion(t *testing.T) {
 			t.Errorf("Collect(%q) does not offer VIEW", sql)
 		}
 	}
+	for _, sql := range []string{"CREATE MATERIALIZED VIEW ", "ALTER MATERIALIZED VIEW ", "DROP MATERIALIZED VIEW "} {
+		if cs := Collect(sql, len(sql)); !cs.HasToken(kwLOG) {
+			t.Errorf("Collect(%q) does not offer LOG", sql)
+		}
+	}
 }

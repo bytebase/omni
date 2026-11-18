@@ -122,6 +122,28 @@ func (c *Catalog) createMaterializedView(stmt *nodes.CreateMaterializedViewStmt,
 	return c.createView(materializedViewAsView(stmt), source, true, true)
 }
 
+// alterMaterializedView applies ALTER MATERIALIZED VIEW. Its actions refresh,
+// re-compile or toggle rewrite, which change no query the catalog holds, but
+// the target must be a materialized view the catalog has.
+func (c *Catalog) alterMaterializedView(stmt *nodes.AlterMaterializedViewStmt) error {
+	db, err := c.resolveDatabase(stmt.Name.Schema)
+	if err != nil {
+		return err
+	}
+	key := toLower(stmt.Name.Name)
+	if db.Tables[key] != nil {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not MATERIALIZED VIEW", db.Name, stmt.Name.Name)}
+	}
+	installed, exists := db.Views[key]
+	if !exists {
+		return errUnknownTable(db.Name, stmt.Name.Name)
+	}
+	if !installed.Materialized {
+		return &Error{Code: 1347, SQLState: "HY000", Message: fmt.Sprintf("'%s.%s' is not MATERIALIZED VIEW", db.Name, stmt.Name.Name)}
+	}
+	return nil
+}
+
 // materializedViewAsView turns CREATE MATERIALIZED VIEW into the CREATE VIEW
 // the catalog models.
 func materializedViewAsView(stmt *nodes.CreateMaterializedViewStmt) *nodes.CreateViewStmt {

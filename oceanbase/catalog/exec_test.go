@@ -109,3 +109,30 @@ func TestExecMaterializedViewKind(t *testing.T) {
 		}
 	}
 }
+
+// TestExecAlterMaterializedViewTarget pins that ALTER MATERIALIZED VIEW
+// requires a materialized view: a missing name and an ordinary view are
+// rejected, and a materialized view's option change is accepted.
+func TestExecAlterMaterializedViewTarget(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE VIEW v AS SELECT 1; CREATE MATERIALIZED VIEW mv AS SELECT 1;", nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		sql     string
+		wantErr bool
+	}{
+		{"ALTER MATERIALIZED VIEW missing NOPARALLEL;", true},
+		{"ALTER MATERIALIZED VIEW v NOPARALLEL;", true},
+		{"ALTER MATERIALIZED VIEW mv NOPARALLEL;", false},
+		{"ALTER MATERIALIZED VIEW mv REFRESH FAST;", false},
+	} {
+		results, err := c.Exec(tc.sql, nil)
+		if err != nil {
+			t.Fatalf("%q: %v", tc.sql, err)
+		}
+		if got := len(results) == 1 && results[0].Error != nil; got != tc.wantErr {
+			t.Errorf("%q: error = %v, want error %v", tc.sql, results[0].Error, tc.wantErr)
+		}
+	}
+}

@@ -218,7 +218,10 @@ func (b *builder) dropMaterializedView(v *ast.DropViewStmt) bool {
 		}
 		k := relKey(r.db, r.name)
 		f, kind := b.l.Lookup(k)
-		if !v.IfExists {
+		// A known table or view is the wrong kind even under IF EXISTS; one
+		// of no kind is the materialized view the snapshot holds, and a
+		// missing name is only checked without IF EXISTS.
+		if !v.IfExists || (f == walk.Present && kind != "") {
 			b.needKind(k, []string{""}, r.rng, notFound("materialized view", r.written, ""), r.written, "materialized view")
 		}
 		// Only a relation of no kind is the materialized view the snapshot
