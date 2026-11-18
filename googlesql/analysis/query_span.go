@@ -518,6 +518,7 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 		case *ast.PipeJoin:
 			if n.Join != nil {
 				w.buildFromItem(n.Join.Right)
+				w.recordSourceTVFArgs(n.Join.Right)
 				w.walkPredicate(n.Join.On)
 			}
 		case *ast.PipeCall:
@@ -639,14 +640,26 @@ func (w *spanWalker) walkPipeSelect(sel *ast.SelectStmt) {
 	// The items are output expressions, not predicate positions: walk only the
 	// subqueries they embed. GROUP BY items are predicate positions.
 	for _, item := range sel.Items {
-		if item != nil {
-			w.walkSubqueriesOnly(item.Expr)
+		if item == nil {
+			continue
+		}
+		w.walkSubqueriesOnly(item.Expr)
+		if item.Modifiers != nil {
+			for _, r := range item.Modifiers.Replace {
+				if r != nil {
+					w.walkSubqueriesOnly(r.Value)
+				}
+			}
 		}
 	}
 	if sel.GroupBy != nil {
 		for _, gi := range sel.GroupBy.Items {
-			if gi != nil {
-				w.walkPredicate(gi.Expr)
+			if gi == nil {
+				continue
+			}
+			w.walkPredicate(gi.Expr)
+			for _, e := range gi.Items {
+				w.walkPredicate(e)
 			}
 		}
 	}
@@ -696,6 +709,21 @@ func (w *spanWalker) visitPipeCall(te *ast.TableExpr) {
 	w.registerFromAlias(te.Alias)
 }
 
+// recordSourceTVFArgs records the table arguments of the TVFs in a joined FROM
+// source (a TableExpr, an UNNEST, or a join tree of them), which buildFromItem
+// walks for their ordinary expressions only.
+func (w *spanWalker) recordSourceTVFArgs(node ast.Node) {
+	switch n := node.(type) {
+	case *ast.TableExpr:
+		if n.Func != nil {
+			w.recordCallTableArgs(n.Func)
+		}
+	case *ast.JoinExpr:
+		w.recordSourceTVFArgs(n.Left)
+		w.recordSourceTVFArgs(n.Right)
+	}
+}
+
 // recordCallTableArgs records the table a CALL/TVF argument names
 // (`f(TABLE t)`). A model or connection argument is not a table.
 func (w *spanWalker) recordCallTableArgs(fc *ast.FuncCall) {
@@ -734,9 +762,13 @@ func (w *spanWalker) recordTableClauseTables(tc *ast.TableClause) {
 	if tc.Table != nil {
 		if tc.Table.Func != nil {
 			w.recordCallTableArgs(tc.Table.Func)
+			w.walkPredicate(tc.Table.Func)
 		} else {
 			w.recordTable(tc.Table.Path, "")
 		}
+		w.walkPivotExpressions(tc.Table.Pivot)
+		w.walkUnpivotExpressions(tc.Table.Unpivot)
+		w.walkSampleExpressions(tc.Table.Sample)
 	}
 	w.walkPredicate(tc.Where)
 }
@@ -1214,6 +1246,9 @@ func (w *spanWalker) buildFromItem(node ast.Node) *relation {
 		// AND the source resolves to a value relation projecting the element
 		// column(s) with the argument's lineage.
 		w.walkPredicate(n.Array)
+		w.walkPivotExpressions(n.Pivot)
+		w.walkUnpivotExpressions(n.Unpivot)
+		w.walkSampleExpressions(n.Sample)
 		return w.finishUnnestRelation(w.unnestElementColumns(n.Array), n.Alias, n.WithOffset, n.WithOffsetAlias)
 	}
 	return nil
