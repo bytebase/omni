@@ -679,12 +679,19 @@ type extraCloseShape struct {
 	atParen, into           bool
 	set, template           bool
 	templateBare            bool
+	pendingViewLog          bool
 	seenInmemory, bfile     bool
 }
 
 func (s *extraCloseShape) observe(tok Token, word, prevWord string) {
 	if tok.Type == ';' || tok.Type == tokEOF {
 		return
+	}
+	if s.pendingViewLog {
+		if word == "ON" {
+			s.mviewLog = true
+		}
+		s.pendingViewLog = false
 	}
 	switch word {
 	case "ALTER":
@@ -698,8 +705,9 @@ func (s *extraCloseShape) observe(tok Token, word, prevWord string) {
 	case "JAVA":
 		s.java = true
 	case "LOG":
-		if s.materialized {
-			s.mviewLog = true
+		if prevWord == "VIEW" {
+			// MATERIALIZED VIEW LOG ON, or a view named LOG; the ON decides.
+			s.pendingViewLog = true
 		}
 	case "SPLIT":
 		s.split = true

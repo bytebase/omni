@@ -498,6 +498,7 @@ func (p *Parser) parseAlterMviewAnnotations() error {
 			for p.isIdentLike() {
 				p.advance()
 			}
+			return p.atExpect(')')
 		case p.isKeywordStr("ALL"):
 			p.advance()
 		default:

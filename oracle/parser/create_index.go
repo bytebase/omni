@@ -636,6 +636,7 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 		}
 	}
 
+	seen := map[string]bool{}
 	// using_type_clause: USING [ schema. ] implementation_type [ array_DML_clause ]
 	if p.cur.Type == kwUSING {
 		p.advance()
@@ -647,11 +648,11 @@ func (p *Parser) parseAlterIndextypeStmt(start int) (*nodes.AlterIndextypeStmt, 
 			if err := p.parseArrayDMLTail(); err != nil {
 				return nil, err
 			}
+			seen["ARRAY"] = true
 			stmt.ArrayDML = true
 		}
 	}
 
-	seen := map[string]bool{}
 	for p.cur.Type == kwWITH || p.atWord("WITHOUT") {
 		withoutTok := p.cur
 		without := p.atWord("WITHOUT")
