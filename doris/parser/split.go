@@ -80,7 +80,7 @@ func SplitAll(input string) []Segment {
 	var segments []Segment
 	stmtStart := 0
 	state := stateTop
-	depth := 0
+	var frame blockFrame
 	var proc procedureHead
 	var heldSemicolons []int
 
@@ -172,7 +172,7 @@ func SplitAll(input string) []Segment {
 				} else {
 					// Compound block BEGIN..END.
 					state = stateInBlock
-					depth = 1
+					frame.open()
 					proc.reset()
 				}
 			case int(';'):
@@ -193,16 +193,9 @@ func SplitAll(input string) []Segment {
 			}
 
 		case stateInBlock:
-			switch tok.Kind {
-			case kwBEGIN:
-				depth++
-			case kwEND:
-				if depth > 0 && !isControlFlowEndFollower(peekToken()) {
-					depth--
-					if depth == 0 {
-						state = stateTop
-					}
-				}
+			if frame.step(tok.Kind, peekToken()) {
+				state = stateTop
+				frame.reset()
 			}
 			// Semicolons and all other tokens are absorbed in stateInBlock.
 		}
@@ -234,6 +227,59 @@ func isDorisTCLBeginFollower(tok Token) bool {
 	switch tok.Kind {
 	case int(';'), tokEOF, kwTRANSACTION, kwWORK:
 		return true
+	}
+	return false
+}
+
+// blockFrame follows the text inside the compound block a BEGIN opened: depth
+// counts the blocks still open and cases the CASE expressions and statements
+// that are, so an END closes the innermost of them rather than the block. An
+// expression's CASE ends at a bare END (SELECT CASE WHEN 1 THEN 2 END) and a
+// statement's at END CASE, which ends the CASE and, in the next token, repeats
+// its name.
+type blockFrame struct {
+	depth   int
+	cases   int
+	endCase bool // the last token was the END of an END CASE
+}
+
+func (b *blockFrame) open() { b.depth = 1 }
+
+func (b *blockFrame) reset() { *b = blockFrame{} }
+
+// step reads one token of the block and reports whether it closed it. follower
+// is the token after it.
+func (b *blockFrame) step(kind TokenKind, follower Token) bool {
+	if b.endCase {
+		b.endCase = false
+		if kind == kwCASE {
+			return false
+		}
+	}
+	switch kind {
+	case kwCASE:
+		b.cases++
+	case kwBEGIN:
+		b.depth++
+	case kwEND:
+		if follower.Kind == kwCASE {
+			// END CASE closes the CASE, and the CASE after it names what was
+			// closed.
+			if b.cases > 0 {
+				b.cases--
+			}
+			b.endCase = true
+			return false
+		}
+		if isControlFlowEndFollower(follower) {
+			return false
+		}
+		if b.cases > 0 {
+			b.cases--
+			return false
+		}
+		b.depth--
+		return b.depth <= 0
 	}
 	return false
 }

@@ -159,6 +159,8 @@ func TestAlterProcedure(t *testing.T) {
 		{"ALTER PROCEDURE a() zzz", "a", "() zzz"},
 		{"ALTER PROCEDURE a(x;y)", "a", "(x;y)"},
 		{"ALTER PROC db.a()", "db.a", "()"},
+		{"ALTER PROCEDURE a(x)y", "a", "(x)y"},
+		{"ALTER PROCEDURE a() /*+ h */", "a", "() /*+ h */"},
 	}
 	for _, tc := range tests {
 		stmt := parseAlterProcedureStmt(t, tc.sql)
@@ -289,6 +291,7 @@ func TestCreateProcedure_ControlFlowBody(t *testing.T) {
 		"CREATE PROCEDURE p() BEGIN IF a THEN SET b = 1; END IF; END",
 		"CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; END",
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END",
+		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END; SELECT 3; END",
 	} {
 		stmt := parseCreateProcedureStmt(t, sql)
 		if !strings.HasPrefix(stmt.Body, "BEGIN") || !strings.HasSuffix(stmt.Body, "END") {
@@ -304,6 +307,13 @@ func TestCreateProcedure_TextAfterBody(t *testing.T) {
 	}
 	if stmt.RawText != "zzz" {
 		t.Errorf("RawText = %q, want zzz", stmt.RawText)
+	}
+
+	// A comment or hint after the body is text too: the lexer skips it, so
+	// the tail runs to the statement's boundary rather than its last token.
+	commented := parseCreateProcedureStmt(t, "REPLACE PROCEDURE a() BEGIN SELECT 1; END /* tail */")
+	if commented.RawText != "/* tail */" {
+		t.Errorf("RawText = %q, want /* tail */", commented.RawText)
 	}
 }
 

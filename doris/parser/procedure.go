@@ -73,7 +73,7 @@ func (p *Parser) parseAlterProcedure(startLoc ast.Loc) (ast.Node, error) {
 		return nil, err
 	}
 	p.collectProcedureTail()
-	stmt.RawText = strings.TrimSpace(p.textBetween(open, p.prev.Loc.End))
+	stmt.RawText = strings.TrimSpace(p.textBetween(open, p.procedureTextEnd()))
 	stmt.Loc.End = p.prev.Loc.End
 	return stmt, nil
 }
@@ -100,7 +100,9 @@ func (p *Parser) parseProcedureTail(stmt *ast.CreateProcedureStmt) error {
 		// The trailing `.*?` takes what follows the body too, so
 		// REPLACE PROCEDURE a() BEGIN END zzz is a statement (the pinned
 		// engine parses whatever stands there).
-		stmt.RawText = p.collectProcedureTail()
+		tailStart := p.prev.Loc.End
+		p.collectProcedureTail()
+		stmt.RawText = strings.TrimSpace(p.textBetween(tailStart, p.procedureTextEnd()))
 		stmt.Loc.End = p.prev.Loc.End
 		return nil
 	}
@@ -117,7 +119,7 @@ func (p *Parser) parseProcedureTail(stmt *ast.CreateProcedureStmt) error {
 		return err
 	}
 	p.collectProcedureTail()
-	stmt.RawText = strings.TrimSpace(p.textBetween(open, p.prev.Loc.End))
+	stmt.RawText = strings.TrimSpace(p.textBetween(open, p.procedureTextEnd()))
 	stmt.Loc.End = p.prev.Loc.End
 	return nil
 }
@@ -189,34 +191,37 @@ func (p *Parser) collectProcedureParens() (string, error) {
 // separator no compound block encloses — the boundary Split draws — so a tail
 // that opens BEGIN...END without closing it takes the statements after it, as
 // it does for Doris and for Split.
-func (p *Parser) collectProcedureTail() string {
-	start := p.cur.Loc.Start
-	end := start
-	depth := 0
+// The text runs to the statement's end, comments and hints included, so the
+// offsets it returns reach past what the lexer skipped.
+func (p *Parser) collectProcedureTail() {
+	var frame blockFrame
 	for p.cur.Kind != tokEOF {
-		if depth == 0 && p.cur.Kind == int(';') {
-			break
-		}
-		switch p.cur.Kind {
-		case kwBEGIN:
-			// Split decides the transaction forms only outside a block: inside
-			// one, a BEGIN always deepens it.
-			if depth > 0 || p.beginOpensCompoundBlock() {
-				depth++
+		if frame.depth == 0 {
+			if p.cur.Kind == int(';') {
+				return
 			}
-		case kwEND:
-			// END IF, END LOOP and their kin close their own statement, not
-			// the block, as they do in Split.
-			if depth > 0 && !isControlFlowEndFollower(p.peekNext()) {
-				depth--
+			if p.cur.Kind == kwBEGIN && p.beginOpensCompoundBlock() {
+				// Split decides the transaction forms only outside a block:
+				// inside one, a BEGIN always deepens it.
+				frame.depth = 1
 			}
+			p.advance()
+			continue
 		}
-		end = p.advance().Loc.End
+		tok := p.advance() // p.cur is the token after this one
+		frame.step(tok.Kind, p.cur)
 	}
-	if end <= start {
-		return ""
+}
+
+// procedureTextEnd returns the offset where a procedure's free text ends: where
+// the separator that ends the statement stands, or the end of the input. The
+// text up to it can hold comments and hints the lexer skipped, so the end is
+// the statement's boundary rather than the last token's.
+func (p *Parser) procedureTextEnd() int {
+	if p.cur.Kind == tokEOF {
+		return len(p.input) + p.baseOffset
 	}
-	return strings.TrimSpace(p.textBetween(start, end))
+	return p.cur.Loc.Start
 }
 
 // beginOpensCompoundBlock reports whether the BEGIN at cur opens a compound
@@ -311,31 +316,21 @@ func (p *Parser) collectProcedureBody() (string, ast.Loc, error) {
 	}
 
 	bodyStart := beginTok.Loc.Start
-	depth := 1
 
+	var frame blockFrame
+	frame.open()
 	var endTok Token
-	for depth > 0 {
+	for {
 		if p.cur.Kind == tokEOF {
 			return "", ast.Loc{}, &ParseError{
 				Position: p.cur.Loc.Start, End: p.cur.Loc.End,
 				Message: "unexpected end of input inside procedure body (missing END)",
 			}
 		}
-		tok := p.advance()
-		switch tok.Kind {
-		case kwBEGIN:
-			depth++
-		case kwEND:
-			// END IF, END LOOP and their kin close their own statement,
-			// not the block (isControlFlowEndFollower); p.cur is the word
-			// after this END.
-			if isControlFlowEndFollower(p.cur) {
-				break
-			}
-			depth--
-			if depth == 0 {
-				endTok = tok
-			}
+		tok := p.advance() // p.cur is the token after this one
+		if frame.step(tok.Kind, p.cur) {
+			endTok = tok
+			break
 		}
 	}
 
