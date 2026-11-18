@@ -389,7 +389,12 @@ func (p *Parser) parseAlterMviewProperty(stmt *nodes.AlterMaterializedViewStmt) 
 			setAlterMviewAction(stmt, "INMEMORY")
 		}
 		cmd, err := p.parseAlterTableInmemory()
-		_ = cmd // the AST keeps no in-memory clause
+		if err == nil && cmd.Options != nil {
+			if stmt.Options == nil {
+				stmt.Options = &nodes.List{}
+			}
+			stmt.Options.Items = append(stmt.Options.Items, cmd.Options.Items...)
+		}
 		return err
 	case p.cur.Type == kwPARALLEL:
 		setAlterMviewAction(stmt, "PARALLEL")
@@ -490,6 +495,11 @@ func (p *Parser) parseAlterMviewAnnotations() (*nodes.List, error) {
 			op = p.cur.Str
 			p.advance()
 			if p.cur.Type == kwIF {
+				if op == "ADD" {
+					op = "ADD IF NOT EXISTS"
+				} else {
+					op = "DROP IF EXISTS"
+				}
 				p.advance()
 				if p.cur.Type == kwNOT {
 					p.advance()

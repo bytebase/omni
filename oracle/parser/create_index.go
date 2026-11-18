@@ -529,9 +529,9 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 	}
 	var pairs []*nodes.ArrayDMLTypePair
 	for {
+		pairStart := p.pos()
 		p.advance() // consume (
 		var names [2]*nodes.ObjectName
-		pairStart := p.pos()
 		for i := 0; i < 2; i++ {
 			if i > 0 {
 				if p.cur.Type != ',' {
@@ -548,11 +548,11 @@ func (p *Parser) parseArrayDMLTail() ([]*nodes.ArrayDMLTypePair, error) {
 			}
 			names[i] = name
 		}
-		pairs = append(pairs, &nodes.ArrayDMLTypePair{Type: names[0], VarrayType: names[1], Loc: nodes.Loc{Start: pairStart, End: p.prev.End}})
 		if p.cur.Type != ')' {
 			return nil, p.syntaxErrorAtCur()
 		}
 		p.advance()
+		pairs = append(pairs, &nodes.ArrayDMLTypePair{Type: names[0], VarrayType: names[1], Loc: nodes.Loc{Start: pairStart, End: p.prev.End}})
 		// The page allows a list of pairs; Oracle takes one or more.
 		if p.cur.Type != ',' || p.peekNext().Type != '(' {
 			break
