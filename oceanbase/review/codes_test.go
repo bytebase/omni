@@ -72,6 +72,7 @@ func TestFindingCodes(t *testing.T) {
 		{review.OnlineMigration, "ALTER TABLE plain RENAME COLUMN v TO w;", ghost, shopTarget, codes(review.GhostColumnRename)},
 		{review.OnlineMigration, "ALTER TABLE plain ADD COLUMN m INT;", ghost, review.Target{Schema: shop()}, codes(review.ArchiveDatabaseMissing)},
 		{review.OnlineMigration, "ALTER TABLE nokey ADD COLUMN m INT;", ghost, shopTarget, codes(review.TableNotEligible)},
+		{review.OnlineMigration, "ALTER EXTERNAL TABLE plain ADD COLUMN m INT;", ghost, shopTarget, codes(review.UnsupportedChange)},
 
 		{review.PriorBackup, "UPDATE t SET n = 1 WHERE id = 1;", review.Change{PriorBackup: true, MaxBackupSize: 10}, shopTarget, codes(review.ChangeTooLarge)},
 		{review.PriorBackup, "UPDATE t SET n = 1 WHERE id = 1;", backup, review.Target{Schema: shop()}, codes(review.BackupLocationMissing)},

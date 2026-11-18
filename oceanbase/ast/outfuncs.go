@@ -4070,8 +4070,16 @@ func externalPropertyNodes(props []*ExternalProperty) []Node {
 
 func writeExternalProperty(sb *strings.Builder, n *ExternalProperty) {
 	sb.WriteString("{EXTERNAL_PROPERTY")
-	fmt.Fprintf(sb, " :loc %d :name %s :value ", n.Loc.Start, n.Name)
-	writeNode(sb, n.Value)
+	fmt.Fprintf(sb, " :loc %d :name %s", n.Loc.Start, n.Name)
+	// The grammar marks these entries as sensitive, so a snapshot, a log or a
+	// diagnostic never holds the credential.
+	switch n.Name {
+	case "ACCESSID", "ACCESSKEY", "STSTOKEN":
+		sb.WriteString(" :value ***")
+	default:
+		sb.WriteString(" :value ")
+		writeNode(sb, n.Value)
+	}
 	sb.WriteString("}")
 }
 

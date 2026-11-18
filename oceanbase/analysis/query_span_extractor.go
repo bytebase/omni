@@ -183,6 +183,9 @@ func (q *querySpanExtractor) getFieldColumnSource(databaseName, tableName, field
 				return QuerySpanResult{}, false
 			}
 		}
+		if _, ok := tableSource.(*unknownColumnsTable); ok {
+			return QuerySpanResult{Name: fieldName}, true
+		}
 		for _, column := range tableSource.GetQuerySpanResult() {
 			if strings.EqualFold(column.Name, fieldName) {
 				return column, true
@@ -728,12 +731,12 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		return q.extractTableFunction(t.Alias, columns, []ast.ExprNode{t.Arg})
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so the source
-		// has a name and no columns.
+		// has a name and no columns; any column reference to it resolves.
 		name := t.Alias
 		if name == "" {
 			name = t.Path
 		}
-		return &pseudoTable{Name: name}, nil
+		return &unknownColumnsTable{pseudoTable{Name: name}}, nil
 	default:
 		return nil, fmt.Errorf("unsupported omni MySQL table source %T", tableExpr)
 	}
@@ -1828,6 +1831,9 @@ func collectAccessTablesFromTableExpr(result ColumnSet, tableExpr ast.TableExpr,
 	switch n := tableExpr.(type) {
 	case *ast.TableRef:
 		collectAccessTablesFromTableRef(result, n, defaultDatabase)
+		if n.Flashback != nil {
+			collectAccessTablesFromExpr(result, n.Flashback.Snapshot, defaultDatabase)
+		}
 	case *ast.JoinClause:
 		collectAccessTablesFromTableExpr(result, n.Left, defaultDatabase)
 		collectAccessTablesFromTableExpr(result, n.Right, defaultDatabase)
