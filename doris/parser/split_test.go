@@ -259,8 +259,9 @@ func TestSplitControlFlowEndInBody(t *testing.T) {
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END; SELECT 1;",
 		"ALTER PROCEDURE a() BEGIN WHILE b DO SET a = 1; END WHILE; END; SELECT 1;",
 		// An expression's CASE ends at a bare END, which closes the CASE and
-		// not the block.
+		// not the block, and a CASE branch holding a BEGIN gets its END back.
 		"REPLACE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END; SELECT 3; END; SELECT 4;",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN BEGIN SELECT 1; END; END CASE; END; SELECT 2;",
 	} {
 		segments := Split(sql)
 		if len(segments) != 2 {

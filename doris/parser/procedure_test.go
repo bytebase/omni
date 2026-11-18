@@ -292,6 +292,7 @@ func TestCreateProcedure_ControlFlowBody(t *testing.T) {
 		"CREATE PROCEDURE p() BEGIN LOOP SET a = 1; END LOOP; END",
 		"CREATE PROCEDURE p() BEGIN CASE WHEN a THEN SET b = 1; END CASE; END",
 		"CREATE PROCEDURE p() BEGIN SELECT CASE WHEN 1 THEN 2 END; SELECT 3; END",
+		"CREATE PROCEDURE p() BEGIN CASE WHEN 1 THEN BEGIN SELECT 1; END; END CASE; END",
 	} {
 		stmt := parseCreateProcedureStmt(t, sql)
 		if !strings.HasPrefix(stmt.Body, "BEGIN") || !strings.HasSuffix(stmt.Body, "END") {

@@ -196,14 +196,14 @@ func (p *Parser) collectProcedureParens() (string, error) {
 func (p *Parser) collectProcedureTail() {
 	var frame blockFrame
 	for p.cur.Kind != tokEOF {
-		if frame.depth == 0 {
+		if frame.empty() {
 			if p.cur.Kind == int(';') {
 				return
 			}
 			if p.cur.Kind == kwBEGIN && p.beginOpensCompoundBlock() {
 				// Split decides the transaction forms only outside a block:
 				// inside one, a BEGIN always deepens it.
-				frame.depth = 1
+				frame.open()
 			}
 			p.advance()
 			continue

@@ -231,57 +231,71 @@ func isDorisTCLBeginFollower(tok Token) bool {
 	return false
 }
 
-// blockFrame follows the text inside the compound block a BEGIN opened: depth
-// counts the blocks still open and cases the CASE expressions and statements
-// that are, so an END closes the innermost of them rather than the block. An
-// expression's CASE ends at a bare END (SELECT CASE WHEN 1 THEN 2 END) and a
-// statement's at END CASE, which ends the CASE and, in the next token, repeats
-// its name.
+// blockFrame follows the text inside the compound block a BEGIN opened. The
+// constructs it can hold are ordered: a BEGIN block, and a CASE expression or
+// statement, which ends at a bare END (SELECT CASE WHEN 1 THEN 2 END) or at END
+// CASE. An END closes the innermost one, so a CASE branch holding a nested BEGIN
+// gives that block's END to the block, and the frame says when the outer block
+// has closed.
 type blockFrame struct {
-	depth   int
-	cases   int
-	endCase bool // the last token was the END of an END CASE
+	stack   []blockConstruct // innermost last
+	endCase bool             // the last token was the END of an END CASE
 }
 
-func (b *blockFrame) open() { b.depth = 1 }
+// blockConstruct is one of the constructs an END inside a block can close.
+type blockConstruct int
 
-func (b *blockFrame) reset() { *b = blockFrame{} }
+const (
+	blockBegin blockConstruct = iota
+	blockCase
+)
+
+// open starts the frame on the BEGIN the caller has read.
+func (b *blockFrame) open() { b.stack = append(b.stack[:0], blockBegin) }
+
+func (b *blockFrame) reset() { b.stack = b.stack[:0] }
+
+// empty reports whether the block the frame started on has closed.
+func (b *blockFrame) empty() bool { return len(b.stack) == 0 }
 
 // step reads one token of the block and reports whether it closed it. follower
 // is the token after it.
 func (b *blockFrame) step(kind TokenKind, follower Token) bool {
-	if b.endCase {
+	if suppressed := b.endCase; suppressed {
 		b.endCase = false
 		if kind == kwCASE {
+			// The CASE that names what END CASE closed.
 			return false
 		}
 	}
 	switch kind {
 	case kwCASE:
-		b.cases++
+		b.stack = append(b.stack, blockCase)
 	case kwBEGIN:
-		b.depth++
+		b.stack = append(b.stack, blockBegin)
 	case kwEND:
 		if follower.Kind == kwCASE {
-			// END CASE closes the CASE, and the CASE after it names what was
-			// closed.
-			if b.cases > 0 {
-				b.cases--
-			}
+			// END CASE closes the CASE, and the CASE after it names it.
+			b.pop()
 			b.endCase = true
 			return false
 		}
 		if isControlFlowEndFollower(follower) {
+			// END IF, END LOOP and their kin close their own statement, which
+			// the frame never opened.
 			return false
 		}
-		if b.cases > 0 {
-			b.cases--
-			return false
-		}
-		b.depth--
-		return b.depth <= 0
+		b.pop()
+		return b.empty()
 	}
 	return false
+}
+
+// pop ends the innermost construct: an END closes the last thing opened.
+func (b *blockFrame) pop() {
+	if len(b.stack) > 0 {
+		b.stack = b.stack[:len(b.stack)-1]
+	}
 }
 
 // isControlFlowEndFollower reports whether tok, following an END inside a
