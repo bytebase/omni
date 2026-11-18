@@ -17,6 +17,9 @@ func TestClassifyPipe(t *testing.T) {
 	}{
 		{"SELECT 1 |> WHERE true", Select},
 		{"SELECT x FROM t |> AGGREGATE COUNT(*) GROUP BY x", Select},
+		// A CALL argument that names a table is an access, so a system table
+		// beside it does not make the query a system-only read.
+		{"SELECT * FROM INFORMATION_SCHEMA.TABLES |> CALL f(TABLE secret)", Select},
 		{"|> AGGREGATE", Select},
 		{"|> WHERE x > 1 |> DISTINCT", Select},
 		// A piped statement keeps its head's classification: DESCRIBE and CALL

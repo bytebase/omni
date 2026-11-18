@@ -191,6 +191,7 @@ func TestClassifyRecordsTheSpanTables(t *testing.T) {
 		"|> UNION ALL TABLE u, (SELECT 1 FROM v)",
 		"|> WITH c AS (SELECT 1 FROM v) |> JOIN u",
 		"SELECT 1 |> INSERT t (x)",
+		"SELECT * FROM INFORMATION_SCHEMA.TABLES |> CALL f(TABLE secret)",
 	} {
 		file, err := parseFile(sql)
 		if err != nil {

@@ -523,7 +523,7 @@ func (w *spanWalker) visitPipe(p *ast.Subpipeline) {
 				w.walkPredicate(n.Join.On)
 			}
 		case *ast.PipeCall:
-			w.buildTableExpr(n.Call)
+			w.visitPipeCall(n.Call)
 		case *ast.PipeSetOperation:
 			for _, rhs := range n.Right {
 				w.visitPipeOperand(rhs)
@@ -620,6 +620,25 @@ func pipeKeepsProjection(p *ast.Subpipeline) bool {
 		}
 	}
 	return true
+}
+
+// visitPipeCall walks a pipe CALL's table-valued function. A TABLE argument
+// (`CALL f(TABLE t)`) names a table the call reads, so it is recorded as an
+// access; the remaining arguments are walked for column references and
+// subqueries. A model or connection argument is not a table.
+func (w *spanWalker) visitPipeCall(te *ast.TableExpr) {
+	if te == nil {
+		return
+	}
+	if te.Func != nil {
+		for _, arg := range te.Func.Args {
+			if ca, ok := arg.(*ast.CallArg); ok && ca.Kind == ast.CallArgTable {
+				w.recordTable(ca.Path, "")
+			}
+		}
+		w.walkPredicate(te.Func)
+	}
+	w.registerFromAlias(te.Alias)
 }
 
 // visitPipeOperand walks one operand of a pipe set operation or recursive
