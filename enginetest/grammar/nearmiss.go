@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // Near-misses break an alternative's shortest statement in exactly one
@@ -108,4 +109,18 @@ func nearMisses(a builtAlt, kw []string, render func([]string) string) []Row {
 		}
 	}
 	return out
+}
+
+// RuleName returns the grammar rule a row's label names: the text before the
+// first '/', with the near-miss suffix removed. A hand-added label (issue:,
+// suite:, cited:) names no grammar rule and returns "".
+func RuleName(label string) string {
+	if i := strings.IndexAny(label, ":/"); i >= 0 && label[i] == ':' {
+		return ""
+	}
+	rule, _, ok := strings.Cut(mutationSuffix.ReplaceAllString(label, ""), "/")
+	if !ok {
+		return ""
+	}
+	return rule
 }
