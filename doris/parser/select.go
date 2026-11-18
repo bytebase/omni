@@ -7,7 +7,104 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// SELECT statement parser (T1.4)
+// VALUES row-constructor query
+// ---------------------------------------------------------------------------
+
+// parseValuesStmt parses a VALUES row-constructor query:
+//
+//	VALUES rowConstructor [, rowConstructor]*
+//
+// (DorisParser.g4:1486 inlineTable, which queryPrimary lists at :1186, and the
+// CUP parser's value_clause, DorisLegacyParser.g4:2054.) The trailing ORDER BY
+// and LIMIT a query carries are read by parseQueryTail, which select_stmt
+// (:2050) also allows. On entry cur is VALUES.
+func (p *Parser) parseValuesStmt() (*ast.ValuesStmt, error) {
+	valuesTok, err := p.expect(kwVALUES)
+	if err != nil {
+		return nil, err
+	}
+	stmt := &ast.ValuesStmt{Loc: ast.Loc{Start: valuesTok.Loc.Start}}
+	for {
+		row, err := p.parseRowConstructor()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Rows = append(stmt.Rows, row)
+		if p.cur.Kind != int(',') {
+			break
+		}
+		p.advance() // consume ','
+	}
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// parseRowConstructor parses one row of a VALUES query:
+//
+//	'(' [rowConstructorItem (',' rowConstructorItem)*] ')'
+//
+// DorisParser.g4:1527 makes the item list optional, and the CUP parser's
+// row_value (:2060) makes its opt_values optional, so an empty row — VALUES()
+// — is engine-valid. On entry cur is '('.
+func (p *Parser) parseRowConstructor() ([]*ast.SelectItem, error) {
+	if _, err := p.expect(int('(')); err != nil {
+		return nil, err
+	}
+	var row []*ast.SelectItem
+	if p.cur.Kind != int(')') {
+		for {
+			item, err := p.parseRowConstructorItem()
+			if err != nil {
+				return nil, err
+			}
+			row = append(row, item)
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+	}
+	if _, err := p.expect(int(')')); err != nil {
+		return nil, err
+	}
+	return row, nil
+}
+
+// parseRowConstructorItem parses one rowConstructorItem:
+//
+//	constant | DEFAULT | namedExpression
+//
+// (DorisParser.g4:1531.) namedExpression (:1492) is an expression with an
+// optional alias, which `VALUES(NULL zzz)` uses, so the item is carried as the
+// *SelectItem a SELECT list uses for the same shape. DEFAULT is not an
+// expression the package's expression parser takes, and it is a constant of
+// the row rather than a value the engine evaluates.
+func (p *Parser) parseRowConstructorItem() (*ast.SelectItem, error) {
+	item := &ast.SelectItem{Loc: p.cur.Loc}
+	// DEFAULT is an alternative of its own (:1531), not a namedExpression, so
+	// it takes no alias: the engine refuses VALUES(DEFAULT zzz).
+	if p.cur.Kind == kwDEFAULT {
+		tok := p.advance() // consume DEFAULT
+		item.Expr = &ast.Literal{Kind: ast.LitKeyword, Value: "DEFAULT", Loc: tok.Loc}
+		item.Loc.End = p.prev.Loc.End
+		return item, nil
+	}
+	expr, err := p.parseExpr()
+	if err != nil {
+		return nil, err
+	}
+	item.Expr = expr
+	alias, aliased := p.parseOptionalAlias(true)
+	if aliased {
+		item.Alias = alias
+		item.Aliased = true
+	}
+	item.Loc.End = p.prev.Loc.End
+	return item, nil
+}
+
+// ---------------------------------------------------------------------------
+// Select statement parser (T1.4)
 // ---------------------------------------------------------------------------
 
 // parseSelectStmt parses a full SELECT statement:
@@ -180,6 +277,8 @@ func (p *Parser) parseSetOpTail(left ast.Node) (ast.Node, error) {
 			rightSelect, err = p.parseParenQueryOperand()
 		} else if p.cur.Kind == kwSELECT {
 			rightSelect, err = p.parseSelectStmt()
+		} else if p.cur.Kind == kwVALUES {
+			rightSelect, err = p.parseValuesStmt()
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -248,7 +347,7 @@ func (p *Parser) parseQueryStmt(node ast.Node) (ast.Node, error) {
 // inner clause (and any subquery table read inside it) stays in the tree.
 func (p *Parser) parseTrailingQueryClauses(node ast.Node) (ast.Node, error) {
 	switch node.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt, *ast.GroupedQuery:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ValuesStmt, *ast.GroupedQuery:
 	default:
 		return node, nil
 	}
@@ -287,6 +386,8 @@ func attachTrailingClauses(node ast.Node, orderBy []*ast.OrderByItem, limit, off
 		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
 	case *ast.SetOpStmt:
 		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
+	case *ast.ValuesStmt:
+		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
 	case *ast.GroupedQuery:
 		haveOrder, haveLimit = len(n.OrderBy) > 0, n.Limit != nil
 	}
@@ -314,6 +415,15 @@ func attachTrailingClauses(node ast.Node, orderBy []*ast.OrderByItem, limit, off
 		}
 		n.Loc.End = end
 	case *ast.SetOpStmt:
+		if len(orderBy) > 0 {
+			n.OrderBy = orderBy
+		}
+		if limit != nil {
+			n.Limit = limit
+			n.Offset = offset
+		}
+		n.Loc.End = end
+	case *ast.ValuesStmt:
 		if len(orderBy) > 0 {
 			n.OrderBy = orderBy
 		}
@@ -353,6 +463,8 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 		inner, err = p.parseParenQueryOperand()
 	case kwSELECT:
 		inner, err = p.parseSelectStmt()
+	case kwVALUES:
+		inner, err = p.parseValuesStmt()
 	case kwWITH:
 		inner, err = p.parseWithSelect()
 	default:
@@ -378,6 +490,9 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 	case *ast.SelectStmt:
 		n.Loc.Start = openTok.Loc.Start
 		n.Loc.End = closeTok.Loc.End
+	case *ast.ValuesStmt:
+		n.Loc.Start = openTok.Loc.Start
+		n.Loc.End = closeTok.Loc.End
 	case *ast.SetOpStmt:
 		n.Loc.Start = openTok.Loc.Start
 		n.Loc.End = closeTok.Loc.End
@@ -396,8 +511,8 @@ func (p *Parser) parseParenQueryOperand() (ast.Node, error) {
 	return inner, nil
 }
 
-// leadingWith walks the left spine of a query to its leading SelectStmt and
-// returns that SELECT's WITH clause. A GroupedQuery is a scope boundary (it
+// leadingWith walks the left spine of a query to its leading query and
+// returns that query's WITH clause. A GroupedQuery is a scope boundary (it
 // only arises from parens or repeated clause groups), so the walk stops
 // there — mirroring analysis's leftmostWith.
 //
@@ -418,6 +533,9 @@ walk:
 			spine = append(spine, n)
 			node = n.Left
 		case *ast.SelectStmt:
+			with = n.With
+			break walk
+		case *ast.ValuesStmt:
 			with = n.With
 			break walk
 		default:
@@ -454,6 +572,10 @@ func (p *Parser) parseIntersectChain(left ast.Node) (ast.Node, error) {
 			right, err = p.parseParenQueryOperand()
 		} else if p.cur.Kind == kwSELECT {
 			right, err = p.parseSelectStmt()
+		} else if p.cur.Kind == kwVALUES {
+			// An INTERSECT arm is a queryTerm too (DorisParser.g4:1183-1186),
+			// so VALUES(1) INTERSECT VALUES(1) is engine-valid.
+			right, err = p.parseValuesStmt()
 		} else {
 			return nil, p.syntaxErrorAtCur()
 		}
@@ -724,7 +846,7 @@ func (p *Parser) parsePrimarySource() (ast.Node, error) {
 	// Parenthesized: subquery
 	if p.cur.Kind == int('(') {
 		next := p.peekNext()
-		if next.Kind == kwSELECT || next.Kind == kwWITH {
+		if next.Kind == kwSELECT || next.Kind == kwWITH || next.Kind == kwVALUES {
 			// Subquery in FROM: (SELECT ...) [AS] alias
 			openTok := p.advance() // consume '('
 			subq, err := p.parseSubqueryPlaceholder(openTok.Loc.Start)
@@ -1538,7 +1660,7 @@ func (p *Parser) parseOutfileTail(node ast.Node) (ast.Node, error) {
 // statement's outermost query can be, and so can carry an INTO OUTFILE.
 func canCarryOutfile(node ast.Node) bool {
 	switch node.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt, *ast.GroupedQuery:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ValuesStmt, *ast.GroupedQuery:
 		return true
 	}
 	return false
@@ -1551,6 +1673,8 @@ func queryIntoOutfile(node ast.Node) *ast.IntoOutfileClause {
 	case *ast.SelectStmt:
 		return n.Into
 	case *ast.SetOpStmt:
+		return n.Into
+	case *ast.ValuesStmt:
 		return n.Into
 	case *ast.GroupedQuery:
 		return n.Into
@@ -1565,6 +1689,8 @@ func attachIntoOutfile(node ast.Node, into *ast.IntoOutfileClause) {
 	case *ast.SelectStmt:
 		n.Into, n.Loc.End = into, into.Loc.End
 	case *ast.SetOpStmt:
+		n.Into, n.Loc.End = into, into.Loc.End
+	case *ast.ValuesStmt:
 		n.Into, n.Loc.End = into, into.Loc.End
 	case *ast.GroupedQuery:
 		n.Into, n.Loc.End = into, into.Loc.End

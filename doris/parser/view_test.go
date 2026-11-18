@@ -335,3 +335,12 @@ func TestViewNodeTags(t *testing.T) {
 		t.Errorf("ViewColumn.Tag() = %v, want T_ViewColumn", vc.Tag())
 	}
 }
+
+// A view body is a query (DorisParser.g4:183 createView), and VALUES is a
+// queryPrimary (:1186).
+func TestCreateViewValuesBody(t *testing.T) {
+	stmt := parseOne(t, "CREATE VIEW v AS VALUES(1)").(*ast.CreateViewStmt)
+	if _, ok := stmt.Query.(*ast.ValuesStmt); !ok {
+		t.Errorf("Query = %T, want *ast.ValuesStmt", stmt.Query)
+	}
+}

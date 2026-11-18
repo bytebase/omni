@@ -51,9 +51,12 @@ func init() {
 	}
 
 	// User SELECT queries (may be refined by downstream analysis for CTEs).
+	// VALUES is a query (DorisParser.g4:1186 queryPrimary), not a DML keyword:
+	// it produces rows and is classified with SELECT.
 	register(QueryTypeSelect,
 		"SELECT",
 		"WITH",
+		"VALUES",
 	)
 
 	// Administrative / info-schema reads.
@@ -65,7 +68,9 @@ func init() {
 		"EXPLAIN",
 	)
 
-	// Data manipulation language.
+	// Data manipulation language. ORDER, COLUMNS, PRECEDING and WHERE start the
+	// load properties Doris's grammar also derives as statements of their own
+	// (DorisParser.g4:389-393), which are the only statements they can start.
 	register(QueryTypeDML,
 		"INSERT",
 		"UPDATE",
@@ -75,6 +80,10 @@ func init() {
 		"EXPORT",
 		"TRUNCATE",
 		"COPY",
+		"ORDER",
+		"COLUMNS",
+		"PRECEDING",
+		"WHERE",
 	)
 
 	// Data definition language and session / administrative control.
@@ -143,7 +152,7 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		return 0, false
 	}
 	switch n := node.(type) {
-	case *ast.SelectStmt, *ast.SetOpStmt:
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ValuesStmt:
 		return QueryTypeSelect, true
 	case *ast.GroupedQuery:
 		// A repeated trailing clause group or a parenthesized WITH group
@@ -161,7 +170,9 @@ func astQueryType(node ast.Node) (QueryType, bool) {
 		}
 		return astQueryType(n.Query)
 	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
-		*ast.MergeStmt, *ast.TruncateTableStmt:
+		*ast.MergeStmt, *ast.TruncateTableStmt, *ast.LoadPropertyStmt:
+		// LoadPropertyStmt is one of the load properties Doris's grammar also
+		// derives as a statement (DorisParser.g4:389-393), and LOAD is DML.
 		return QueryTypeDML, true
 	case *ast.UseStmt:
 		// USE stays Unknown so a permission check treats it as a hard deny

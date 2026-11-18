@@ -1327,3 +1327,86 @@ func TestIntoOutfileNotAKeywordMatch(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// VALUES row-constructor query
+// ---------------------------------------------------------------------------
+
+func TestValuesStmt(t *testing.T) {
+	for _, sql := range []string{
+		"VALUES()",
+		"VALUES(),()",
+		"VALUES(NULL)",
+		"VALUES(DEFAULT)",
+		"VALUES(CURRENT_DATE)",
+		"VALUES(NULL, 1)",
+		"VALUES(NULL zzz)",
+		"VALUES(1) ORDER BY 1 LIMIT 1",
+	} {
+		stmt, ok := parseOne(t, sql).(*ast.ValuesStmt)
+		if !ok {
+			t.Fatalf("Parse(%q): want *ast.ValuesStmt", sql)
+		}
+		if !stmt.Loc.IsValid() || stmt.Loc.Start != 0 || stmt.Loc.End != len(sql) {
+			t.Errorf("Parse(%q): Loc = %v, want {0 %d}", sql, stmt.Loc, len(sql))
+		}
+	}
+}
+
+func TestValuesStmtRows(t *testing.T) {
+	stmt := parseOne(t, "VALUES(NULL, DEFAULT), ()").(*ast.ValuesStmt)
+	if len(stmt.Rows) != 2 {
+		t.Fatalf("Rows = %d, want 2", len(stmt.Rows))
+	}
+	if len(stmt.Rows[0]) != 2 {
+		t.Fatalf("Rows[0] has %d items, want 2", len(stmt.Rows[0]))
+	}
+	if len(stmt.Rows[1]) != 0 {
+		t.Errorf("Rows[1] has %d items, want the empty row", len(stmt.Rows[1]))
+	}
+	lit, ok := stmt.Rows[0][1].Expr.(*ast.Literal)
+	if !ok || lit.Kind != ast.LitKeyword || lit.Value != "DEFAULT" {
+		t.Errorf("Rows[0][1] = %#v, want the DEFAULT literal", stmt.Rows[0][1].Expr)
+	}
+}
+
+// TestValuesStmtItemAlias: rowConstructorItem is a namedExpression, so an item
+// carries the alias the SELECT list would (:1492) — engine-verified.
+func TestValuesStmtItemAlias(t *testing.T) {
+	stmt := parseOne(t, "VALUES(NULL zzz)").(*ast.ValuesStmt)
+	item := stmt.Rows[0][0]
+	if !item.Aliased || item.Alias != "zzz" {
+		t.Errorf("item = %+v, want alias zzz", item)
+	}
+}
+
+// TestValuesStmtDEFAULTTakesNoAlias: DEFAULT is the rowConstructorItem
+// alternative of its own (:1531), not a namedExpression, so the engine refuses
+// VALUES(DEFAULT zzz).
+func TestValuesStmtDEFAULTTakesNoAlias(t *testing.T) {
+	if _, err := Parse("VALUES(DEFAULT zzz)"); err == nil {
+		t.Error("Parse(VALUES(DEFAULT zzz)) succeeded, want a syntax error")
+	}
+}
+
+// VALUES is a query primary (DorisParser.g4:1186), so it sits wherever a query
+// does: as a CTE body, prefixed by WITH, inside a set operation, and in the
+// parenthesized query positions expressions and FROM read.
+func TestValuesStmtAsQueryOperand(t *testing.T) {
+	for _, sql := range []string{
+		"WITH c AS (VALUES(1)) SELECT * FROM c",
+		"WITH c AS (SELECT 1) VALUES(1)",
+		"SELECT 1 UNION VALUES(1)",
+		"SELECT 1 INTERSECT VALUES(1)",
+		"VALUES(1) INTERSECT SELECT 1",
+		"(VALUES(1))",
+		"SELECT (VALUES(1))",
+		"SELECT 1 IN (VALUES(1))",
+		"SELECT * FROM (VALUES(1)) v",
+		"EXPLAIN VALUES(1)",
+	} {
+		if _, err := Parse(sql); err != nil {
+			t.Errorf("Parse(%q) = %v, want an accept", sql, err)
+		}
+	}
+}

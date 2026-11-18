@@ -267,6 +267,24 @@ func TestResultLimitOutfile(t *testing.T) {
 
 // A parenthesized query or a repeated trailing clause group carries its outer
 // clauses on the group, so the cap goes on the group rather than being lost.
+// A VALUES query produces rows, so the rewriter caps it like a SELECT.
+func TestRewriteResultLimitValues(t *testing.T) {
+	tests := []struct {
+		statement string
+		want      string
+	}{
+		{"VALUES(1), (2)", "VALUES(1), (2) LIMIT 10"},
+		{"VALUES(1), (2) LIMIT 5", "VALUES(1), (2) LIMIT 5"},
+		{"VALUES(1), (2) LIMIT 1000", "VALUES(1), (2) LIMIT 10"},
+		{"VALUES(1) INTO OUTFILE 'p'", "VALUES(1) LIMIT 10\nINTO OUTFILE 'p'"},
+	}
+	for _, tc := range tests {
+		if got := RewriteResultLimit(tc.statement, 10); got != tc.want {
+			t.Errorf("RewriteResultLimit(%q) = %q, want %q", tc.statement, got, tc.want)
+		}
+	}
+}
+
 func TestRewriteResultLimitGroupedQuery(t *testing.T) {
 	tests := []struct {
 		statement string

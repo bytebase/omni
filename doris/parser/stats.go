@@ -252,6 +252,17 @@ func (p *Parser) parseShowStats(startLoc ast.Loc, statsType string) (ast.Node, e
 		endLoc = target.Loc
 	}
 
+	// SHOW INDEX STATS names the index after the table
+	// (DorisParser.g4:769, show_param at DorisLegacyParser.g4:1386).
+	if statsType == "INDEX" && isIdentifierToken(p.cur.Kind) {
+		index, indexLoc, err := p.parseIdentifier()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Index = index
+		endLoc = indexLoc
+	}
+
 	// Optional WHERE clause
 	if p.cur.Kind == kwWHERE {
 		p.advance() // consume WHERE
