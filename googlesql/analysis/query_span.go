@@ -1026,6 +1026,33 @@ func (w *spanWalker) visitBody(node ast.Node) []projColumn {
 		return w.visitSelect(n)
 	case *ast.SetOperation:
 		return w.visitSetOp(n)
+	case *ast.TableClause:
+		// The `TABLE t` query primary (table_clause_reserved) is `SELECT * FROM t`:
+		// build the clause's source relation (which records the table / TVF
+		// arguments and walks pivot/sample expressions) and project it as a bare
+		// star, so the clause's output carries the same lineage as the explicit
+		// SELECT * would — including a CTE's resolved columns.
+		prevFrom, prevLeaves := w.fromAliases, w.leaves
+		w.fromAliases = map[string]bool{}
+		w.leaves = &leafSet{}
+		fromRels := w.buildFromRelations([]ast.Node{n.Table})
+		// A TVF's `TABLE u` argument names a table the call reads; buildFromItem
+		// walks a TVF's ordinary expressions only.
+		w.recordSourceTVFArgs(n.Table)
+		w.walkPredicate(n.Where)
+		w.fromAliases, w.leaves = prevFrom, prevLeaves
+		if w.tablesOnly {
+			return nil
+		}
+		if len(fromRels) == 0 {
+			// A TVF source's output columns are unknowable (buildTableExpr returns no
+			// relation for a function call), so the clause's projection cannot be
+			// resolved: fail closed rather than report an empty column list, which a
+			// masking consumer would read as "nothing to mask".
+			w.failClosed(fmt.Errorf("a TABLE clause over a table-valued function has no resolvable output columns (fail closed)"))
+			return nil
+		}
+		return w.starProjColumns(allColumns(fromRels), nil)
 	}
 	return nil
 }
@@ -1790,6 +1817,37 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 		if n.Object == ast.DropTable || n.Object == ast.DropView {
 			w.recordTable(n.Name, "")
 		}
+	case *ast.ExportMetadataStmt:
+		// The exported table is the statement's source; its metadata is read.
+		w.recordTable(n.Path, "")
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.ImportStmt:
+		// IMPORT reads a module, not a table; an OPTIONS value's subquery is still
+		// a read.
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.ModuleStmt:
+		w.walkOptionsSubqueries(n.Options)
+	case *ast.CallStmt:
+		// A CALL's tvf_argument list may name tables — positionally (`TABLE t`) or
+		// as a named argument whose value is a table_clause (`arg => TABLE t`) —
+		// and its argument expressions may embed subqueries.
+		for _, arg := range n.Args {
+			w.recordTVFArgument(arg)
+			if na, ok := arg.(*ast.NamedArg); ok {
+				w.walkSubqueriesOnly(na.Value)
+				continue
+			}
+			if _, ok := arg.(*ast.CallArg); ok {
+				// A clause, not an expression.
+				continue
+			}
+			w.walkSubqueriesOnly(arg)
+		}
+	case *ast.UndropStmt:
+		// UNDROP names a schema, not a table; its AS OF expression and OPTIONS
+		// values may embed subqueries.
+		w.walkSubqueriesOnly(n.ForSystemTime)
+		w.walkOptionsSubqueries(n.Options)
 	case *ast.CreateSchemaStmt, *ast.CreateDatabaseStmt:
 		// Schema/Database creates have no table reference of lineage interest.
 	default:
@@ -2023,6 +2081,17 @@ func (w *spanWalker) walkSubqueriesOnly(expr ast.Node) {
 	}
 	ew := &exprWalk{w: w, followSub: true}
 	ew.walk(expr)
+}
+
+// walkOptionsSubqueries records the tables read by subqueries inside an OPTIONS
+// list's values, which the parser fills (fillSubqueries). Options are metadata
+// rather than lineage, so only their subqueries are followed.
+func (w *spanWalker) walkOptionsSubqueries(opts []*ast.OptionsEntry) {
+	for _, opt := range opts {
+		if opt != nil {
+			w.walkSubqueriesOnly(opt.Value)
+		}
+	}
 }
 
 // walkWindowSpec walks a window specification's PARTITION BY / ORDER BY / frame

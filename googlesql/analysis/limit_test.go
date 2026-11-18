@@ -98,6 +98,18 @@ func TestRewriteResultLimit(t *testing.T) {
 			want:      "SELECT x FROM t |> LIMIT CAST(5000 AS INT64)",
 		},
 		{
+			// The `TABLE t` query primary is a query, so the in-place LIMIT binds at
+			// the clause's end like any other query.
+			name:      "table clause",
+			statement: "TABLE t",
+			want:      "TABLE t LIMIT 100",
+		},
+		{
+			name:      "table clause with filter",
+			statement: "TABLE t WHERE a > 1",
+			want:      "TABLE t WHERE a > 1 LIMIT 100",
+		},
+		{
 			name:      "dml is unchanged",
 			statement: "UPDATE t SET x = 1 WHERE id = 2",
 			want:      "UPDATE t SET x = 1 WHERE id = 2",

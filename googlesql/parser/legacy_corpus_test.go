@@ -111,7 +111,8 @@ func TestLegacyCorpusTokenizes(t *testing.T) {
 // precise reason. The skip-list self-prunes: a skipped file that now parses
 // clean fails with a "REMOVE me" note, so it cannot rot as the grammar grows.
 //
-// Coverage at authoring time: 60/72 files parse clean, 12 skipped.
+// Coverage at authoring time: 62/72 files parse clean, 10 skipped (modules.sql
+// and show.sql joined the clean set with SHOW / IMPORT / MODULE support).
 func TestLegacyCorpusParses(t *testing.T) {
 	root, files := legacyCorpusFiles(t)
 
@@ -163,13 +164,11 @@ func TestLegacyCorpusParses(t *testing.T) {
 // auditable and the self-prune check stays meaningful.
 var legacyCorpusParseSkips = map[string]string{
 	// --- OUT-OF-SCOPE: pure-ZetaSQL statements, no migration node ---
-	"zetasql/parser/testdata/modules.sql":                 "OUT-OF-SCOPE: IMPORT MODULE / MODULE (ZetaSQL module system) — no migration node",
 	"zetasql/parser/testdata/define_table.sql":            "OUT-OF-SCOPE: DEFINE TABLE (ZetaSQL) — no migration node",
 	"zetasql/parser/testdata/create_constant.sql":         "OUT-OF-SCOPE: CREATE CONSTANT (ZetaSQL) — no migration node",
 	"zetasql/parser/testdata/create_model.sql":            "OUT-OF-SCOPE: CREATE MODEL … INPUT/OUTPUT/TRANSFORM (ZetaSQL ML) — no migration node",
 	"zetasql/parser/testdata/create_external_table.sql":   "OUT-OF-SCOPE: CREATE [PRIVATE] EXTERNAL TABLE (ZetaSQL) — no migration node",
 	"zetasql/parser/testdata/create_external_schema.sql":  "OUT-OF-SCOPE: CREATE EXTERNAL SCHEMA (ZetaSQL) — no migration node",
-	"zetasql/parser/testdata/show.sql":                    "OUT-OF-SCOPE: SHOW TABLES/COLUMNS/INDEXES/STATUS/VARIABLES (ZetaSQL) — no migration node",
 	"zetasql/parser/testdata/drop.sql":                    "OUT-OF-SCOPE: DROP EXTERNAL TABLE / DROP CONNECTION (ZetaSQL long-tail) defeat the file; the plain DROP TABLE/MATERIALIZED VIEW/SNAPSHOT TABLE statements parse",
 	"zetasql/parser/testdata/alter_row_access_policy.sql": "OUT-OF-SCOPE: ALTER [ALL] ROW ACCESS POLICY/POLICIES (only CREATE ROW ACCESS POLICY is in scope) — no migration node for the ALTER actions",
 	"zetasql/parser/testdata/alter_set_options.sql":       "OUT-OF-SCOPE: ALTER MATERIALIZED VIEW / APPROX VIEW / MODEL … SET OPTIONS (multi-action, BigQuery long-tail) — no migration node",

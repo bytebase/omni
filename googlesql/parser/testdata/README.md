@@ -15,8 +15,8 @@ GoogleSQL's grammar refusals as rejections: 90 rows moved to `reject`.
 
 | Rows | Total | Agree | Only Spanner accepts | Only omni accepts |
 | --- | --- | --- | --- | --- |
-| One per alternative | 2,614 | 1,891 | 324 | 399 |
-| Near-misses | 6,223 | 5,082 | 1,107 | 34 |
+| One per alternative | 2,614 | 1,958 | 257 | 399 |
+| Near-misses | 6,223 | 5,100 | 1,089 | 34 |
 
 The rows start from `unterminated_statement`, a statement of a script, so
 they cover GoogleSQL's scripting and BigQuery statements as well as what
@@ -31,6 +31,37 @@ then refuses as a statement it does not run (`Statement not supported`):
 Most of what only omni accepts is BigQuery: scripting (`DECLARE`, `IF`,
 `CASE`, `BREAK`), and DDL Spanner's DDL parser refuses (`CREATE TABLE a` with
 no columns, `CREATE FUNCTION`, `CREATE ROW POLICY`, `GRANT ... TO 'a'`).
+
+## Most of those families are not parse verdicts either
+
+For `MERGE`, `LOAD DATA`, `BEGIN … END`, `IMPORT`, `MODULE`, `EXPORT DATA`,
+`EXPORT MODEL`, `SHOW`, `EXECUTE IMMEDIATE`, `UNDROP` and `CLONE DATA` the
+emulator answers `Statement not supported: <Kind>Stmt` from statement dispatch,
+BEFORE it parses the body, and the judge reads that as an acceptance. It says so
+for `MERGE a USING a ON NULL WHEN MATCHED THEN DELETION` and
+`MERGE a USING a ON NULL WHEN MATCHED THEN DELETE` alike, for
+`LOAD DATA INTO FROM FILES()` and `SHOW a zzz`, and for `UNDROP CONNECTION`
+with no name. So those rows say `accept` whatever the text is, and a near-miss
+in them (a dropped or swapped token) cannot be closed by matching the cell: the
+cell is not a verdict. `UNDROP` adds a grammar reason of its own —
+`undrop_statement`'s action allows only the SCHEMA kind and reports
+"UNDROP <kind> is not supported" for the rest, so the `UNDROP CONNECTION …`
+rows the generator wrote are text the grammar refuses.
+
+The `TABLE` clause is the exception, and the work here: the emulator parses a
+TABLE statement in full before it answers `TABLE statements are not supported`,
+so it rejects `TABLE a zzz`, `TABLE a AS x`, `TABLE a PIVOT(…)` and `TABLE a(`
+on syntax and accepts the `tvf_argument` shapes. Its rows are a real verdict,
+and omni now reads `TABLE a`, `TABLE a(…)` with DESCRIPTOR / MODEL / CONNECTION /
+INPUT TABLE / `name => TABLE t` arguments, and `TABLE a WHERE …` — 55 rows. The
+same change closed `SHOW` (its three forms, including `SHOW [MATERIALIZED]
+VIEWS … FROM … LIKE`, 11), `IMPORT MODULE|PROTO` with `AS`/`INTO` aliases and
+`OPTIONS` (9), `MODULE <path> [OPTIONS]` (5), `EXPORT TABLE METADATA FROM` and
+`EXPORT DATA AS GRAPH` (3), and the empty `EXCEPTION WHEN ERROR THEN END`
+handler that `statement_list`'s empty alternative allows (2): 85 rows in all,
+none of them a cell the recording could not judge. The TABLE rows left are two
+near-misses: `TABLE a() QUALIFY`, where QUALIFY is the alias and omni reserves
+the word, and the rest of the only-Spanner near-misses above.
 
 ## The pipe rows are not a parse verdict
 

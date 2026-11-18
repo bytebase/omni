@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	"github.com/bytebase/omni/googlesql/ast"
 )
 
@@ -199,6 +201,87 @@ func (p *Parser) parseDropIndex(drop Token) (ast.Node, error) {
 	case kwCASCADE:
 		p.advance()
 		stmt.DropMode = "CASCADE"
+	}
+
+	stmt.Loc.End = p.prev.Loc.End
+	return stmt, nil
+}
+
+// ---------------------------------------------------------------------------
+// UNDROP (parser-ddl node)
+// ---------------------------------------------------------------------------
+//
+// Grammar (googlesql.tm:2934):
+//
+//	undrop_statement: UNDROP schema_object_kind opt_if_not_exists path_expression
+//	                  at_system_time? opt_options_list
+//
+// The rule's own action accepts ONE object kind — SCHEMA — and reports
+// "UNDROP <kind> is not supported" for every other kind, so only `UNDROP SCHEMA`
+// is a statement the engine parses to completion. The parser follows that: any
+// other kind is rejected at the kind keyword, as ZetaSQL does.
+//
+// This is why no UNDROP row of testdata/compat.tsv closes: every row the
+// generator wrote is `UNDROP CONNECTION …` (the first alternative of
+// schema_object_kind), which the grammar's action rejects, while the emulator
+// answers "Statement not supported: UndropStmt" from dispatch and never parses
+// the body at all — it accepts `UNDROP CONNECTION` with no name too.
+
+// parseUndropStmt parses an undrop_statement. UNDROP is the current token.
+func (p *Parser) parseUndropStmt() (ast.Node, error) {
+	undrop := p.advance() // UNDROP
+
+	// schema_object_kind — only SCHEMA survives the rule's action.
+	if !isIdentifierStart(p.cur.Type) {
+		return nil, p.syntaxErrorAtCur()
+	}
+	if p.cur.Type != kwSCHEMA {
+		// The rule's action: "UNDROP <kind> is not supported".
+		return nil, &ParseError{
+			Position: p.cur.Loc.Start,
+			End:      p.cur.Loc.End,
+			Message:  "syntax error: UNDROP " + strings.ToUpper(p.tokenSource(p.cur)) + " is not supported",
+		}
+	}
+	kindTok := p.advance() // SCHEMA
+	stmt := &ast.UndropStmt{ObjectKind: "SCHEMA", Loc: kindTok.Loc}
+	stmt.Loc.Start = undrop.Loc.Start
+
+	// opt_if_not_exists.
+	if p.cur.Type == kwIF {
+		p.advance() // IF
+		if _, err := p.expect(kwNOT); err != nil {
+			return nil, err
+		}
+		if _, err := p.expect(kwEXISTS); err != nil {
+			return nil, err
+		}
+		stmt.IfNotExists = true
+	}
+
+	// path_expression.
+	name, err := p.parsePathExpr()
+	if err != nil {
+		return nil, err
+	}
+	stmt.Name = name
+
+	// at_system_time? — FOR SYSTEM_TIME AS OF expr.
+	if p.cur.Type == kwFOR {
+		ts, err := p.parseForSystemTimeExpr()
+		if err != nil {
+			return nil, err
+		}
+		stmt.ForSystemTime = ts
+	}
+
+	// opt_options_list.
+	if p.cur.Type == kwOPTIONS {
+		opts, err := p.parseOptionsList()
+		if err != nil {
+			return nil, err
+		}
+		stmt.Options = opts
 	}
 
 	stmt.Loc.End = p.prev.Loc.End

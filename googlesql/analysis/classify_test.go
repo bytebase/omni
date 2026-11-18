@@ -20,6 +20,11 @@ func TestClassifySQL(t *testing.T) {
 		{"with cte", "WITH c AS (SELECT 1 AS n) SELECT n FROM c", Select},
 		{"set op union", "SELECT a FROM t UNION ALL SELECT a FROM u", Select},
 		{"parenthesized query", "(SELECT 1) UNION ALL (SELECT 2)", Select},
+		// The `TABLE t` query primary (query_primary: table_clause_reserved) is a
+		// read of that table, exactly like `SELECT * FROM t`.
+		{"table clause", "TABLE t", Select},
+		{"table clause with filter", "TABLE t WHERE a > 1", Select},
+		{"table clause tvf", "TABLE ds.f(a)", Select},
 
 		// --- DML ---
 		{"insert", "INSERT INTO t (a) VALUES (1)", DML},
@@ -78,6 +83,7 @@ func TestClassifySQL(t *testing.T) {
 		{"create proto bundle", "CREATE PROTO BUNDLE (`a.b.C`)", DDL},
 		{"alter proto bundle", "ALTER PROTO BUNDLE INSERT (`a.b.C`)", DDL},
 		{"grant to role", "GRANT SELECT ON TABLE t TO ROLE r", DDL},
+		{"undrop schema", "UNDROP SCHEMA s", DDL},
 		{"grant role to role", "GRANT ROLE a TO ROLE b", DDL},
 		{"revoke role from role", "REVOKE ROLE a FROM ROLE b", DDL},
 

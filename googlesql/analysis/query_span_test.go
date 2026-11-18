@@ -89,6 +89,18 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 		{"quantified-comparison subquery", "SELECT * FROM t WHERE x = ANY (SELECT id FROM u)", DialectBigQuery, []string{"t", "u"}},
 		{"quantified-comparison all subquery", "SELECT * FROM t WHERE x > ALL (SELECT id FROM u)", DialectSpanner, []string{"t", "u"}},
 		{"set op", "SELECT a FROM t UNION ALL SELECT a FROM u", DialectBigQuery, []string{"t", "u"}},
+		// The `TABLE t` query primary (table_clause_reserved) names its table, and a
+		// set operation over TABLE primaries names every arm's.
+		{"table clause", "TABLE t", DialectBigQuery, []string{"t"}},
+		{"table clause qualified", "TABLE ds.t", DialectBigQuery, []string{"ds.t"}},
+		{"table clause set op", "TABLE a UNION ALL TABLE b", DialectBigQuery, []string{"a", "b"}},
+		// A TABLE primary inside a parenthesized query or a FROM subquery.
+		{"parenthesized table clause", "SELECT * FROM (TABLE t)", DialectBigQuery, []string{"t"}},
+		{"table clause in an expression subquery", "SELECT (TABLE t)", DialectBigQuery, []string{"t"}},
+		// EXPORT TABLE METADATA reads the metadata of the table it names.
+		{"export table metadata", "EXPORT TABLE METADATA FROM ds.t", DialectBigQuery, []string{"ds.t"}},
+		// An OPTIONS value's subquery is filled, so the table it reads is recorded.
+		{"export table metadata options subquery", "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1 FROM secret))", DialectBigQuery, []string{"ds.t", "secret"}},
 		{"dedup same table", "SELECT * FROM t WHERE a IN (SELECT a FROM t)", DialectBigQuery, []string{"t"}},
 		// Spanner schema.table bucketing (named schema under one DB).
 		{"qualified table spanner", "SELECT a FROM myschema.t", DialectSpanner, []string{"myschema.t"}},
@@ -103,6 +115,50 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 			got := tableNames(span)
 			if !eqStrings(got, tc.wantTables) {
 				t.Errorf("GetQuerySpan(%q) tables = %v, want %v", tc.sql, got, tc.wantTables)
+			}
+		})
+	}
+}
+
+// TestGetQuerySpan_TableClauseTVFFailsClosed pins the one TABLE clause shape whose
+// projection cannot be resolved: a table-valued function's output columns are
+// unknowable without a signature, so the span fails closed rather than reporting
+// no columns at all (which a masking consumer would read as nothing to mask).
+func TestGetQuerySpan_TableClauseTVFFailsClosed(t *testing.T) {
+	for _, sql := range []string{"TABLE f()", "TABLE f(TABLE u)", "TABLE f(a => 1)"} {
+		if _, err := GetQuerySpan(sql, DialectBigQuery); err == nil {
+			t.Errorf("GetQuerySpan(%q): want a fail-closed error, got none", sql)
+		}
+	}
+	// The same clause as a pipe set operation's operand still records its table
+	// argument (it resolves no projection there either, and fails closed is the
+	// surrounding statement's business).
+	if got := ClassifySQL("TABLE f(TABLE u)", DialectBigQuery); got != Select {
+		t.Errorf("ClassifySQL = %v, want Select", got)
+	}
+}
+
+// TestGetQuerySpan_CallTableArguments records the tables a CALL's tvf_argument
+// list names: positionally (`TABLE t`) and as a named table_clause argument
+// (`arg => TABLE t`).
+func TestGetQuerySpan_CallTableArguments(t *testing.T) {
+	for _, c := range []struct {
+		sql  string
+		want []string
+	}{
+		{"CALL p(TABLE u)", []string{"u"}},
+		{"CALL p(a => TABLE u)", []string{"u"}},
+		{"CALL p(1, TABLE u, b => TABLE v)", []string{"u", "v"}},
+		{"CALL p(a => INPUT TABLE)", nil},
+		{"CALL p(INPUT TABLE)", nil},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
+			}
+			if got := tableNames(span); !eqStrings(got, c.want) {
+				t.Errorf("tables = %v, want %v", got, c.want)
 			}
 		})
 	}
@@ -664,4 +720,78 @@ func containsString(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// TestGetQuerySpan_TableClauseProjection holds the `TABLE t` query primary to
+// the explicit query it means: `SELECT * FROM t`. The clause's output carries
+// the same columns and lineage — including a CTE's resolved columns, which a
+// span that discarded the relation would lose.
+func TestGetQuerySpan_TableClauseProjection(t *testing.T) {
+	for _, c := range []struct{ clause, explicit string }{
+		{"TABLE t", "SELECT * FROM t"},
+		{"TABLE ds.t", "SELECT * FROM ds.t"},
+		{"TABLE t WHERE a > 1", "SELECT * FROM t WHERE a > 1"},
+		{"TABLE a UNION ALL TABLE b", "SELECT * FROM a UNION ALL SELECT * FROM b"},
+		{"WITH c AS (SELECT secret FROM t) TABLE c", "WITH c AS (SELECT secret FROM t) SELECT * FROM c"},
+	} {
+		t.Run(c.clause, func(t *testing.T) {
+			got, err := GetQuerySpan(c.clause, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.clause, err)
+			}
+			want, err := GetQuerySpan(c.explicit, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.explicit, err)
+			}
+			if !eqStrings(resultNames(got), resultNames(want)) {
+				t.Errorf("results = %v, want %v (as %q)", resultNames(got), resultNames(want), c.explicit)
+			}
+			for i := range got.Results {
+				if i >= len(want.Results) {
+					break
+				}
+				g, w := got.Results[i].SourceColumns, want.Results[i].SourceColumns
+				if len(g) != len(w) {
+					t.Errorf("result %d sources = %v, want %v", i, g, w)
+					continue
+				}
+				for j := range g {
+					if g[j] != w[j] {
+						t.Errorf("result %d source %d = %+v, want %+v", i, j, g[j], w[j])
+					}
+				}
+			}
+			if !eqStrings(tableNames(got), tableNames(want)) {
+				t.Errorf("tables = %v, want %v", tableNames(got), tableNames(want))
+			}
+			if !eqStrings(predicateColumnNames(got), predicateColumnNames(want)) {
+				t.Errorf("predicate columns = %v, want %v", predicateColumnNames(got), predicateColumnNames(want))
+			}
+		})
+	}
+}
+
+// TestGetQuerySpan_OptionSubqueries holds the statements whose OPTIONS (or AS OF)
+// expression the parser fills: a subquery there reads a table, so the span
+// records it even though the statement itself names no table.
+func TestGetQuerySpan_OptionSubqueries(t *testing.T) {
+	for _, c := range []struct {
+		sql string
+		raw []string
+	}{
+		{"IMPORT MODULE m OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"MODULE m OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"UNDROP SCHEMA s OPTIONS(x = (SELECT 1 FROM a))", []string{"a"}},
+		{"UNDROP SCHEMA s FOR SYSTEM_TIME AS OF (SELECT MAX(t) FROM a)", []string{"a"}},
+	} {
+		t.Run(c.sql, func(t *testing.T) {
+			span, err := GetQuerySpan(c.sql, DialectBigQuery)
+			if err != nil {
+				t.Fatalf("GetQuerySpan(%q): %v", c.sql, err)
+			}
+			if got := tableNames(span); !eqStrings(got, c.raw) {
+				t.Errorf("tables = %v, want %v", got, c.raw)
+			}
+		})
+	}
 }
