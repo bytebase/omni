@@ -849,34 +849,55 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	}
 
 	// Optional RANGE or LIST
+	explicitType := false
 	switch p.cur.Kind {
 	case kwRANGE:
 		pd.Type = "RANGE"
 		pd.RangeExplicit = true
+		explicitType = true
 		p.advance()
 	case kwLIST:
 		pd.Type = "LIST"
+		explicitType = true
 		p.advance()
 	default:
 		// Type may be inferred from context (AUTO partition can omit it)
-		pd.Type = "RANGE" // default for AUTO
+		pd.Type = "RANGE" // default for AUTO and function forms
 	}
 
 	// partitionDesc (StarRocks.g4:2593) names its columns after BY; the
 	// parenthesized list is the form omni reads, so PARTITION BY with
 	// nothing after it is refused.
 	if p.cur.Kind != int('(') {
-		return nil, p.syntaxErrorAtCur()
-	}
-
-	// Parse partition column/function list: (col1, func(col2), ...)
-	if p.cur.Kind == int('(') {
+		// FUNCTION call or partition expression: PARTITION BY functionCall
+		// or PARTITION BY partitionExpr (',' partitionExpr)*.
+		if !isPartitionExprStart(p.cur.Kind) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		for {
+			start := p.cur.Loc.Start
+			if _, err := p.parseExpr(); err != nil {
+				return nil, err
+			}
+			end := p.prev.Loc.End
+			pd.FuncExprs = append(pd.FuncExprs, strings.TrimSpace(p.input[start-p.baseOffset:end-p.baseOffset]))
+			if p.cur.Kind != int(',') {
+				break
+			}
+			p.advance() // consume ','
+		}
+	} else {
+		// Parse partition column/function list: (col1, func(col2), ...)
 		cols, funcs, err := p.parseIdentityOrFunctionList()
 		if err != nil {
 			return nil, err
 		}
 		pd.Columns = cols
 		pd.FuncExprs = funcs
+		if !explicitType && !pd.Auto {
+			// A keywordless identifier list is the grammar's LIST alternative.
+			pd.Type = "LIST"
+		}
 	}
 
 	// Parse partition definitions: (...)
@@ -902,6 +923,13 @@ func (p *Parser) parsePartitionBy() (*ast.PartitionDesc, error) {
 	}
 
 	return pd, nil
+}
+
+// isPartitionExprStart reports whether kind can start a functionCall or
+// partitionExpr.
+func isPartitionExprStart(kind TokenKind) bool {
+	return isIdentifierToken(kind) || kind == int('(') || kind == int('+') ||
+		kind == int('-') || kind == tokString || kind == tokInt || kind == tokFloat
 }
 
 // parseIdentityOrFunctionList parses a parenthesized list of identifiers or
