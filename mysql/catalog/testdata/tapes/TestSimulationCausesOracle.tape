@@ -995,6 +995,25 @@
 | DROP TABLE IF EXISTS s
 < ok 0 0
 > exec
+| CREATE VIEW a AS SELECT 1 UNION SELECT a
+< error
+| 1054 42S22 Unknown column 'a' in 'field list'
+> exec
+| SET SESSION sql_mode = DEFAULT
+< ok 0 0
+> exec
+| DROP VIEW IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS a
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS p
+< ok 0 0
+> exec
+| DROP TABLE IF EXISTS s
+< ok 0 0
+> exec
 | CREATE VIEW a AS SELECT a HAVING 1
 < error
 | 1054 42S22 Unknown column 'a' in 'field list'

@@ -126,6 +126,14 @@ func (c *Catalog) analyzeViewBody(sel *nodes.SelectStmt) (*Query, error) {
 // schema-qualified call is left alone because its argument may name a stored
 // function's column. Measured on mysql:8.0.46.
 func viewBodyMayNameNoColumn(sel *nodes.SelectStmt) bool {
+	if sel == nil {
+		return false
+	}
+	// A set operation's root carries no FROM or target list of its own; each
+	// arm is a scope of its own.
+	if sel.Left != nil || sel.Right != nil {
+		return viewBodyMayNameNoColumn(sel.Left) || viewBodyMayNameNoColumn(sel.Right)
+	}
 	if len(sel.From) != 0 {
 		return false
 	}
