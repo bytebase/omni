@@ -96,7 +96,10 @@ This PR's fixes are in `docs-fixes.tsv` beside the pin bump's: `FOR INTERVAL
 '<interval>'` on `grant-role` (the parameter writes a quoted `'<n> <unit>'`),
 the two `[ EQUALITY ]` tails of `alter-dynamic-table`'s search optimization
 actions (the parameter gives `EQUALITY` a target, and no `EQUALITY` follows
-one), and the two `UNSET` names above.
+one), and the two `UNSET` names above. Dropping those tails makes DROP's `ON`
+list structurally identical to SUSPEND's and RESUME's, and the generator then
+attributes the shared alternatives to DROP alone; four `suite:` rows hold the
+targeted SUSPEND and RESUME forms the generator stopped writing.
 
 To rebuild the grammar from the live docs (a pin bump), then the rows:
 
@@ -134,8 +137,10 @@ sample says above.
 | alter-organization-user | 1 | `SET EMAIL = 's' EMAIL = 's'`: the property run repeats a property. |
 | create-organization-user | 1 | A property run may name the same property twice. |
 
-The `undocumented` count moved from 53,144 to 53,222, and the total from
-73,748 to 73,739: the object-type choice lost its `ACCOUNT` alternative on
-four rules, the search-optimization actions lost their trailing `EQUALITY`, and
-`use-schema` gained the page's qualified form (`USE <db_name>.<schema_name>`)
-beside the `USE SCHEMA` one, as its parameters say.
+The agree count moved from 20,486 to 20,472 and the `undocumented` count from
+53,144 to 53,222; the total moved from 73,748 to 73,743. The object-type choice
+lost its `ACCOUNT` alternative on four rules, the search-optimization actions
+lost their trailing `EQUALITY` (with four `suite:` rows keeping the SUSPEND and
+RESUME targets), and `use-schema` gained the page's qualified form
+(`USE <db_name>.<schema_name>`) beside the `USE SCHEMA` one, as its parameters
+say.

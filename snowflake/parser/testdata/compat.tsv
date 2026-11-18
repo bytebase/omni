@@ -73739,3 +73739,7 @@ reject	undocumented	docs	useSecondaryRoles(,_ID)*/,_ID_(,_ID)*!drop-1	USE SECOND
 reject	undocumented	docs	useSecondaryRoles(,_ID)*/,_ID_(,_ID)*!drop-2	USE SECONDARY ROLES a,
 reject	undocumented	docs	useSecondaryRoles(,_ID)*/,_ID_(,_ID)*!insert	USE SECONDARY ROLES a, a zzz
 accept	accept	docs	useWarehouse/USE_WAREHOUSE_ID	USE WAREHOUSE a
+accept	accept	docs	suite:snowflake-docs/alter-dynamic-table	ALTER DYNAMIC TABLE a SUSPEND SEARCH OPTIMIZATION ON a
+accept	accept	docs	suite:snowflake-docs/alter-dynamic-table	ALTER DYNAMIC TABLE a SUSPEND SEARCH OPTIMIZATION ON a, a
+accept	accept	docs	suite:snowflake-docs/alter-dynamic-table	ALTER DYNAMIC TABLE a RESUME SEARCH OPTIMIZATION ON a
+accept	accept	docs	suite:snowflake-docs/alter-dynamic-table	ALTER DYNAMIC TABLE a RESUME SEARCH OPTIMIZATION ON a, a

@@ -342,6 +342,9 @@ func TestParseShowGrants(t *testing.T) {
 			"SHOW GRANTS ON ACCOUNT INCLUDE HIERARCHY",
 			"SHOW GRANTS TO APPLICATION a INCLUDE HIERARCHY",
 			"SHOW GRANTS TO SHARE s INCLUDE HIERARCHY",
+			// The page's future forms take it only after a role or a
+			// database role.
+			"SHOW FUTURE GRANTS TO USER u INCLUDE HIERARCHY",
 		} {
 			if _, err := Parse(sql); err == nil {
 				t.Errorf("%q: want a syntax error", sql)

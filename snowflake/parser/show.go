@@ -615,16 +615,20 @@ func (p *Parser) parseShowFutureGrants(stmt *ast.ShowStmt) error {
 }
 
 // parseShowGrantsIncludeHierarchy reads the optional INCLUDE HIERARCHY of
-// SHOW GRANTS TO and SHOW FUTURE GRANTS TO. The page writes it after a role,
-// a database role or a user grantee and before LIMIT, and for no other target
-// or grantee:
+// SHOW GRANTS and SHOW FUTURE GRANTS TO. The page writes it after a role, a
+// database role or a user grantee and before LIMIT, and for a future grant
+// only after a role or a database role; no other target or grantee takes it:
 // https://docs.snowflake.com/en/sql-reference/sql/show-grants
 func (p *Parser) parseShowGrantsIncludeHierarchy(stmt *ast.ShowStmt) {
 	if stmt.GrantsTo == nil {
 		return
 	}
 	switch stmt.GrantsTo.Kind {
-	case ast.GranteeRole, ast.GranteeDatabaseRole, ast.GranteeUser:
+	case ast.GranteeRole, ast.GranteeDatabaseRole:
+	case ast.GranteeUser:
+		if stmt.Future {
+			return
+		}
 	default:
 		return
 	}
