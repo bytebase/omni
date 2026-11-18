@@ -1746,6 +1746,10 @@ func (p *Parser) parseWeightStringFunc(fc *nodes.FuncCallExpr) (nodes.ExprNode, 
 		return nil, p.syntaxErrorAtCur()
 	}
 
+	if isBareInterval(arg) {
+		return nil, p.syntaxErrorAtCur()
+	}
+
 	// WEIGHT_STRING(expr, INTNUM, INTNUM, INTNUM, INTNUM): the engine's
 	// internal five-argument form, which its own SHOW CREATE prints as
 	// weight_string(`s`,0,4,64,0), and which a user may write too without the

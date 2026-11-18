@@ -38,6 +38,7 @@ func TestFunctionExpressionGaps(t *testing.T) {
 		"SELECT ARRAY_AGG(a ORDER BY INTERVAL 1 DAY)",
 		"SELECT [ ]",
 		"SELECT [INTERVAL 1 DAY]",
+		"SELECT WEIGHT_STRING(INTERVAL 1 DAY, 1, 1, 1, 1)",
 		"SELECT DENSE_RANK() a",
 		"SELECT LISTAGG(a) a",
 		"SELECT LAST_VALUE(1)",

@@ -2990,6 +2990,10 @@ func writeArrayAggAlias(b *strings.Builder, n *ast.FuncCallExpr) {
 		}
 	}
 	b.WriteString(")")
+	if n.Over != nil {
+		b.WriteString(" ")
+		writeWindowDefAlias(b, n.Over)
+	}
 }
 
 func writeGroupConcatAlias(b *strings.Builder, n *ast.FuncCallExpr) {

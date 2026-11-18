@@ -136,6 +136,9 @@ func rewriteExpr(node ast.ExprNode) ast.ExprNode {
 		for i, arg := range n.Args {
 			n.Args[i] = rewriteExpr(arg)
 		}
+		for _, item := range n.OrderBy {
+			item.Expr = rewriteExpr(item.Expr)
+		}
 		// IF(c, a, b) is stored as (case when c then a else b end) (catalog's
 		// TestOracle_ViewIdempotence, paren-subquery-compare-if).
 		if n.Schema == "" && strings.EqualFold(n.Name, "if") && len(n.Args) == 3 {
@@ -237,6 +240,9 @@ func FoldBetween(node ast.ExprNode) ast.ExprNode {
 	case *ast.FuncCallExpr:
 		for i, arg := range n.Args {
 			n.Args[i] = FoldBetween(arg)
+		}
+		for _, item := range n.OrderBy {
+			item.Expr = FoldBetween(item.Expr)
 		}
 	}
 	return node
