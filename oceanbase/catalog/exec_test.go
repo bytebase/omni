@@ -394,3 +394,28 @@ func TestExecLeavesExternalTablesAlone(t *testing.T) {
 		t.Errorf("CREATE EXTERNAL TABLE installed a plain table ext: %#v", db.Tables["ext"])
 	}
 }
+
+// TestExecExternalTableName pins that a CREATE EXTERNAL TABLE claims its name:
+// the catalog cannot build the table's definition from DDL, but the name shares
+// the relations' namespace, so a later CREATE TABLE of it is 1050.
+func TestExecExternalTableName(t *testing.T) {
+	c := New()
+	sql := "CREATE DATABASE test; USE test;\n" +
+		"CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\n" +
+		"CREATE TABLE ext (a INT)"
+	results, err := c.Exec(sql, nil)
+	if err != nil {
+		t.Fatalf("Exec error: %v", err)
+	}
+	if len(results) != 4 {
+		t.Fatalf("got %d results, want 4", len(results))
+	}
+	for _, i := range []int{0, 1, 2} {
+		if results[i].Error != nil {
+			t.Errorf("statement %d: %v", i, results[i].Error)
+		}
+	}
+	if results[3].Error == nil {
+		t.Fatalf("CREATE TABLE ext succeeded beside the external table")
+	}
+}

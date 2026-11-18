@@ -29,6 +29,9 @@ func TestMethodOptForms(t *testing.T) {
 		"FOR COLUMNS SIZE SKEWONLY",
 		"FOR COLUMNS SIZE 1",
 		"FOR COLUMNS SIZE 1.5",
+		// SIZE with no value after it names a column, as the pinned server reads
+		// it (number_literal/INTNUM!drop-1).
+		"FOR COLUMNS SIZE",
 		"FOR COLUMNS a SIZE AUTO",
 		"FOR COLUMNS a SIZE AUTO zzz",
 		"FOR COLUMNS a SKEWONLY AUTO",
@@ -51,7 +54,6 @@ func TestMethodOptForms(t *testing.T) {
 		"FOR ALL COLUMNS SIZE",
 		"FOR ALL INDEXED",
 		"FOR COLUMNS 1",          // no size_clause and no column: 1 is not a name
-		"FOR COLUMNS SIZE",       // SIZE with nothing after it
 		"FOR COLUMNS a SIZE",     // the same, after a column
 		"FOR COLUMNS , a",        // the list never opens with a comma
 		"FOR COLUMNS a,",         // nor ends with one

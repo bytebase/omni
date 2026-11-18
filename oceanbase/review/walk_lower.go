@@ -26,6 +26,9 @@ func (b *builder) statement(n ast.Node) bool {
 		}
 		return b.createTable(v)
 	case *ast.AlterTableStmt:
+		if v.External {
+			return b.alterExternalTable(v)
+		}
 		return b.alterTable(v)
 	case *ast.RenameTableStmt:
 		return b.renameTable(v)
@@ -370,6 +373,28 @@ func (b *builder) createExternalTable(v *ast.CreateTableStmt) bool {
 		b.Optional()
 	}
 	b.Set(k, walk.Present, "")
+	return true
+}
+
+// alterExternalTable follows an ALTER EXTERNAL TABLE. The relation is one of no
+// kind, whose columns, partitions and location the walk does not hold, so the
+// statement is followed and changes nothing; unlike the generic kindless-relation
+// path it does not end the walk.
+func (b *builder) alterExternalTable(v *ast.AlterTableStmt) bool {
+	if v.Table == nil {
+		return true
+	}
+	r, st := b.ref(v.Table)
+	if st == refUnknown {
+		return false
+	}
+	if st == refFailed {
+		return true
+	}
+	b.Order = walk.Lookups
+	if v.Table.Schema != "" {
+		b.databaseNeeds(r.db, v.Table.Schema, r.rng)
+	}
 	return true
 }
 

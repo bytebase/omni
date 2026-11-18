@@ -904,7 +904,7 @@ accept	accept	engine	literal/HEX_STRING_VALUE!insert	SELECT 0x41 zzz
 accept	accept	engine	literal/BIN_STRING_VALUE	SELECT b'1'
 accept	accept	engine	literal/BIN_STRING_VALUE!insert	SELECT b'1' zzz
 accept	accept	engine	number_literal/INTNUM	FOR COLUMNS SIZE 1
-reject	accept	engine	number_literal/INTNUM!drop-1	FOR COLUMNS SIZE
+accept	accept	engine	number_literal/INTNUM!drop-1	FOR COLUMNS SIZE
 accept	accept	engine	number_literal/INTNUM!insert	FOR COLUMNS SIZE 1 zzz
 accept	accept	engine	number_literal/DECIMAL_VAL	FOR COLUMNS SIZE 1.5
 accept	accept	engine	number_literal/DECIMAL_VAL!insert	FOR COLUMNS SIZE 1.5 zzz

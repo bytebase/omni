@@ -23,6 +23,12 @@ func (c *Catalog) dropTable(stmt *nodes.DropTableStmt) error {
 		}
 		key := toLower(ref.Name)
 		if db.Tables[key] == nil {
+			// An external table drops with DROP TABLE; its columns and location
+			// are not the catalog's to drop.
+			if db.ExternalTables[key] {
+				delete(db.ExternalTables, key)
+				continue
+			}
 			if stmt.IfExists {
 				continue
 			}

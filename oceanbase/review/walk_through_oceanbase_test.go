@@ -46,6 +46,9 @@ func TestWalkThroughOceanBase(t *testing.T) {
 	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');", shop)
 	oneFindingOB(t, "CREATE EXTERNAL TABLE ext (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');", 0, "The name `ext` is already taken.", shop)
 	noFindingOB(t, "CREATE EXTERNAL TABLE ext2 (a INT) LOCATION '/tmp/x' FORMAT(TYPE = 'CSV');\nALTER EXTERNAL TABLE ext2 ADD COLUMN b INT;", shop)
+	// An ALTER EXTERNAL TABLE changes nothing the walk holds, and it does not
+	// end the walk: the duplicate below is still found.
+	oneFindingOB(t, "ALTER EXTERNAL TABLE ext ADD PARTITION() LOCATION '/tmp/x';\nALTER TABLE t ADD COLUMN c int;\nALTER TABLE t ADD COLUMN c int;", 2, "Column `c` already exists in `t`.", shop)
 
 	t.Run("external tables and materialized views", func(t *testing.T) {
 		// They share the tables' namespace, of no kind the walk claims.

@@ -299,21 +299,39 @@ func (r *Resolver) addTableExprToScope(tbl ast.TableExpr, sc *fromScope) {
 			}
 		}
 	case *ast.UnnestExpr:
-		// A table function's declared columns are its outputs, so a star
-		// expands to them.
-		if t.Alias == "" || len(t.Columns) == 0 {
+		// A table function's outputs are the columns it declares, or, without a
+		// column alias list, the arguments it returns rows from.
+		if t.Alias == "" {
+			return
+		}
+		names := t.Columns
+		if len(names) == 0 {
+			for _, arg := range t.Args {
+				if name := tableFunctionArgumentName(arg); name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+		if len(names) == 0 {
 			return
 		}
 		var cols []ResolverColumn
-		for i, name := range t.Columns {
+		for i, name := range names {
 			cols = append(cols, ResolverColumn{Name: name, Position: i + 1})
 		}
 		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: cols})
 	case *ast.RbIterateExpr:
-		if t.Alias == "" || t.Column == "" {
+		if t.Alias == "" {
 			return
 		}
-		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: t.Column, Position: 1}}})
+		name := t.Column
+		if name == "" {
+			name = tableFunctionArgumentName(t.Arg)
+		}
+		if name == "" {
+			return
+		}
+		sc.add(t, t.Alias, &ResolverTable{Name: t.Alias, Columns: []ResolverColumn{{Name: name, Position: 1}}})
 	case *ast.ExternalTableRef:
 		// The file's columns are known only when the query runs, so there is
 		// nothing to expand here.
@@ -945,4 +963,13 @@ type AmbiguousColumnError struct {
 
 func (e *AmbiguousColumnError) Error() string {
 	return fmt.Sprintf("column %q is ambiguous, found in tables: %s", e.Column, strings.Join(e.Tables, ", "))
+}
+
+// tableFunctionArgumentName is the output name a table function takes from an
+// argument: a column's name, and "" for an expression that has none.
+func tableFunctionArgumentName(arg ast.ExprNode) string {
+	if col, ok := arg.(*ast.ColumnRef); ok {
+		return col.Column
+	}
+	return ""
 }

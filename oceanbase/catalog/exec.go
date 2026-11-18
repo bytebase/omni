@@ -229,10 +229,10 @@ func (c *Catalog) processUtility(stmt nodes.Node, source string) error {
 		if s.External {
 			// An external table's columns, location, format and properties are
 			// modeled by metadata.ExternalTableMetadata, which the catalog holds
-			// from a sync. It does not build one from DDL yet, and creating a
-			// plain table here would leave the catalog with a table the server
-			// does not have, so the statement changes no schema it holds.
-			return nil
+			// from a sync. It does not build one from DDL yet, so it keeps the
+			// name alone: the statement must not install a plain table of the
+			// name, nor leave the name free for one.
+			return c.createExternalTable(s)
 		}
 		var prior *Database
 		var priorKey string

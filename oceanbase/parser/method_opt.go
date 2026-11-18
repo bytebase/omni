@@ -106,9 +106,10 @@ func (p *Parser) atStatsForColumnsItem() bool {
 func (p *Parser) parseStatsForColumnsItem() (*nodes.StatsForColumnsItem, error) {
 	item := &nodes.StatsForColumnsItem{Loc: nodes.Loc{Start: p.pos()}}
 	switch {
-	case p.isBareWord("SIZE"):
+	case p.isBareWord("SIZE") && p.sizeValueAhead():
 		// A size_clause alone, which is the item SIZE 10 and not a column
-		// called size: SIZE's precedence is above LOWER_PARENS.
+		// called size: SIZE's precedence is above LOWER_PARENS. SIZE with no
+		// value after it is the column: `FOR COLUMNS SIZE` parses.
 	case p.cur.Type == '(':
 		names, err := p.parseParenIdentList()
 		if err != nil {
@@ -150,4 +151,23 @@ func (p *Parser) parseSizeClause() (string, error) {
 		return p.advance().Str, nil
 	}
 	return "", p.syntaxErrorAtCur()
+}
+
+// sizeValueAhead reports whether the token after SIZE makes it a size_clause:
+// AUTO, REPEAT, SKEWONLY or a number. Otherwise SIZE names a column, as in
+// `FOR COLUMNS SIZE`, which the pinned server accepts
+// (number_literal/INTNUM!drop-1).
+func (p *Parser) sizeValueAhead() bool {
+	next := p.peekNext()
+	if next.Type == tokICONST || next.Type == tokFCONST {
+		return true
+	}
+	if next.Type != tokIDENT && next.Type < 700 {
+		return false
+	}
+	if p.backtickQuotedAt(next.Loc) {
+		return false
+	}
+	return strings.EqualFold(next.Str, "AUTO") || strings.EqualFold(next.Str, "REPEAT") ||
+		strings.EqualFold(next.Str, "SKEWONLY")
 }

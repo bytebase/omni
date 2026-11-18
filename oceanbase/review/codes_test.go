@@ -88,6 +88,7 @@ func TestFindingCodes(t *testing.T) {
 		{review.DisallowDropObject, "DROP DATABASE shop;", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP COLUMN n;", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP PARTITION p0;", review.Change{}, shopTarget, codes(review.DropsData)},
+		{review.DisallowDropObject, "ALTER EXTERNAL TABLE t DROP PARTITION LOCATION 's';", review.Change{}, shopTarget, codes(review.DropsData)},
 		{review.DisallowDropObject, "DROP VIEW pv;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "DROP INDEX idx_n ON t;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
 		{review.DisallowDropObject, "ALTER TABLE t DROP INDEX idx_n;", review.Change{}, shopTarget, codes(review.DropsDefinition)},
