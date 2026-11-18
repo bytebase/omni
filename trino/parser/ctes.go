@@ -16,12 +16,9 @@ import "github.com/bytebase/omni/trino/ast"
 // (select.go) routes a `WITH FUNCTION …` away from this file. Here a leading
 // WITH always introduces a CTE list.
 //
-// Divergence #4 (D2 in select.go): the `WITH SESSION prop = v <query>` prefix
-// valid in Trino 481 is ABSENT from the legacy grammar (where WITH is CTE-only).
-// It is a deferred P1 extension; not parsed here. A `WITH SESSION …` therefore
-// fails as a malformed CTE (SESSION is not a valid namedQuery name followed by
-// AS), which is the legacy-scope behavior. Recorded in the migration divergence
-// ledger.
+// The `WITH SESSION prop = v <query>` statement prefix (rootQueryWithSession)
+// is parsed in root_query_session.go before the CTE layer, so a leading WITH
+// SESSION never reaches this file.
 
 // WithClause is a `WITH [RECURSIVE] namedQuery (, namedQuery)*` clause (the with
 // rule). Recursive marks the RECURSIVE keyword; CTEs is the non-empty list of

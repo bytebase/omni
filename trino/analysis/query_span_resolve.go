@@ -80,6 +80,17 @@ func resolveDerivedLineageQuery(q *parser.Query, span *QuerySpan, vs *viewState)
 	//     their own metadata-based expansion.
 	cols := resolveQueryCols(q, root)
 
+	// CORRESPONDING can remove or reorder output columns. Its projection is the
+	// result shape, so rebuild Results from it rather than aligning the walk's
+	// original select items positionally.
+	if queryHasCorresponding(q.Body) {
+		span.Results = span.Results[:0]
+		for _, c := range cols {
+			span.Results = append(span.Results, ColumnInfo{Name: c.name, SourceColumns: c.sources})
+		}
+		return
+	}
+
 	// A top-level VALUES produces no Results in the primary walk (it has no
 	// select items), leaving the consumer with zero positional maskers — a
 	// sensitive value in a VALUES row (e.g. a scalar subquery) would pass
@@ -377,22 +388,44 @@ func valuesRowElements(row parser.Expr) []parser.Expr {
 // lineage that grows by an arm's sources each time, so n arms of distinct
 // columns cost O(n²).
 func resolveSetOpCols(n *parser.SetOperation, cte *cteDefs) []outCol {
-	// rights lists the chain's right operands, outermost first.
-	var rights []parser.QueryNode
+	// rights lists the chain's right operands and whether that operation is
+	// CORRESPONDING, outermost first.
+	type setOpRight struct {
+		node          parser.QueryNode
+		corresponding bool
+		by            []*ast.Identifier
+	}
+	var rights []setOpRight
 	var node parser.QueryNode = n
 	for {
 		op, ok := node.(*parser.SetOperation)
 		if !ok {
 			break
 		}
-		rights = append(rights, op.Right)
+		rights = append(rights, setOpRight{node: op.Right, corresponding: op.Corresponding, by: op.CorrespondingBy})
 		node = op.Left
 	}
 	m := newArmMerger(resolveNodeCols(node, cte))
 	for i := len(rights) - 1; i >= 0; i-- {
-		m.merge(resolveNodeCols(rights[i], cte))
+		if rights[i].corresponding {
+			m.mergeCorresponding(resolveNodeCols(rights[i].node, cte), rights[i].by)
+		} else {
+			m.merge(resolveNodeCols(rights[i].node, cte))
+		}
 	}
 	return m.cols
+}
+
+// queryHasCorresponding reports whether a query body contains a CORRESPONDING
+// set operation, whose output width/order can differ from the walk's select
+// items.
+func queryHasCorresponding(n parser.QueryNode) bool {
+	switch x := n.(type) {
+	case *parser.SetOperation:
+		return x.Corresponding || queryHasCorresponding(x.Left) || queryHasCorresponding(x.Right)
+	default:
+		return false
+	}
 }
 
 // armMerger accumulates the merged columns of set-operation arms. The first
@@ -458,6 +491,66 @@ func (m *armMerger) merge(right []outCol) {
 			}
 		}
 	}
+}
+
+// mergeCorresponding merges a CORRESPONDING arm by name. Without BY, the
+// result keeps the left columns whose names also occur on the right, in left
+// order. With BY, the listed names select and order the output columns. Each
+// kept column unions the right column's sources.
+func (m *armMerger) mergeCorresponding(right []outCol, by []*ast.Identifier) {
+	if m.opaque || hasOpaque(right) {
+		return
+	}
+	byName := make(map[string]outCol, len(right))
+	for _, c := range right {
+		key := strings.ToLower(c.name)
+		if _, ok := byName[key]; !ok {
+			byName[key] = c
+		}
+	}
+	var cols []outCol
+	var seen []map[ColumnRef]bool
+	add := func(left outCol, right outCol) {
+		merged := left
+		seenMap := make(map[ColumnRef]bool, len(left.sources)+len(right.sources))
+		out := make([]ColumnRef, 0, len(left.sources)+len(right.sources))
+		for _, ref := range append(append([]ColumnRef(nil), left.sources...), right.sources...) {
+			if !seenMap[ref] {
+				seenMap[ref] = true
+				out = append(out, ref)
+			}
+		}
+		merged.sources = out
+		cols = append(cols, merged)
+		seen = append(seen, seenMap)
+	}
+	if len(by) > 0 {
+		leftByName := make(map[string]outCol, len(m.cols))
+		for _, left := range m.cols {
+			key := strings.ToLower(left.name)
+			if _, ok := leftByName[key]; !ok {
+				leftByName[key] = left
+			}
+		}
+		for _, id := range by {
+			key := strings.ToLower(id.Value)
+			left, lok := leftByName[key]
+			rightCol, rok := byName[key]
+			if lok && rok {
+				add(left, rightCol)
+			}
+		}
+	} else {
+		for _, left := range m.cols {
+			if rightCol, ok := byName[strings.ToLower(left.name)]; ok {
+				add(left, rightCol)
+			}
+		}
+	}
+	for i := range cols {
+		cols[i].item = i
+	}
+	m.cols, m.seen, m.copied = cols, seen, true
 }
 
 // resolveSpecCols computes the resolved output columns of one SELECT block: it
@@ -774,6 +867,26 @@ func (s *rscope) add(rel parser.Relation, alias string, colAliases []*ast.Identi
 		return joinProjection(left, right, n)
 	case *parser.ParenRelation:
 		return s.add(n.Inner, alias, colAliases)
+	case *parser.NearestRelation:
+		if alias == "" {
+			return s.add(n.From, "", colAliases)
+		}
+		// The NEAREST result is bound under its own alias; the input relation's
+		// alias is not exposed through it.
+		src := n.From
+		var inputAliases []*ast.Identifier
+		if ar, ok := src.(*parser.AliasedRelation); ok {
+			src = ar.Inner
+			inputAliases = ar.ColumnAliases
+		}
+		proj := s.add(src, "", nil)
+		var cols []outCol
+		if proj != nil {
+			cols = applyColumnAliases(proj.flatten(), inputAliases)
+			cols = applyColumnAliases(cols, colAliases)
+		}
+		s.rels = append(s.rels, rbind{name: alias, derived: cols != nil, cols: cols})
+		return columnProjection(cols)
 	case *parser.TableRelation:
 		parts := normalizedParts(n.Name)
 		// A single-part name that matches an in-scope CTE is a derived relation

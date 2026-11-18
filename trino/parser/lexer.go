@@ -515,6 +515,12 @@ func (l *Lexer) scanOperator(ch byte) Token {
 		return l.op(int('{'), start)
 	case '?':
 		return Token{Kind: tokQuestion, Loc: ast.Loc{Start: start, End: l.pos}} // QUESTION_MARK_
+	case ':':
+		if l.peek(0) == ':' {
+			l.pos++
+			return l.op(tokDoubleColon, start) // ::
+		}
+		return l.op(int(':'), start)
 	}
 
 	// Single-byte operators and punctuation from TrinoLexer.g4:
@@ -531,7 +537,7 @@ func (l *Lexer) scanOperator(ch byte) Token {
 	// ledger adjudicated the fix to ':'; this lexer emits ':' as COLON_
 	// (Kind == int(':')). See divergence record trino/lexer "COLON_ token literal".
 	switch ch {
-	case '+', '*', '/', '%', ';', '.', ':', ',', '(', ')', '[', ']', '}', '$', '^':
+	case '+', '*', '/', '%', ';', '.', '@', ',', '(', ')', '[', ']', '}', '$', '^':
 		return l.op(int(ch), start)
 	}
 
