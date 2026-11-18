@@ -88,8 +88,15 @@ func (c *Catalog) ExecCreateTableAs(stmt *nodes.CreateTableAsStmt) error {
 	if err := c.checkTablespace(into.TableSpaceName); err != nil {
 		return err
 	}
-	if into.AccessMethod != "" && c.accessMethodByName[into.AccessMethod] == nil {
-		return errUndefinedObject("access method", into.AccessMethod)
+	if into.AccessMethod != "" {
+		am := c.accessMethodByName[into.AccessMethod]
+		if am == nil {
+			return errUndefinedObject("access method", into.AccessMethod)
+		}
+		if am.Type != 't' {
+			return &Error{Code: CodeObjectNotInPrerequisiteState,
+				Message: fmt.Sprintf("access method %q is not of type TABLE", into.AccessMethod)}
+		}
 	}
 
 	// Extract column types from analyzed query target entries.

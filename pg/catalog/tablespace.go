@@ -33,6 +33,11 @@ func (c *Catalog) DefineTablespace(stmt *nodes.CreateTableSpaceStmt) error {
 // pg: src/backend/commands/tablespace.c — RemoveTablespace
 func (c *Catalog) RemoveTablespace(stmt *nodes.DropTableSpaceStmt) error {
 	name := stmt.Tablespacename
+	// The two a server starts with cannot be dropped, even by a superuser.
+	if name == "pg_default" || name == "pg_global" {
+		return &Error{Code: CodeInsufficientPrivilege,
+			Message: fmt.Sprintf("permission denied for tablespace %s", name)}
+	}
 	if !c.tablespaces[name] {
 		if stmt.MissingOk {
 			c.addWarning(CodeWarningSkip, fmt.Sprintf("tablespace %q does not exist, skipping", name))

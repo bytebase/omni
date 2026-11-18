@@ -101,6 +101,10 @@ func TestSimulationCausesOracle(t *testing.T) {
 		{"CREATE TABLE AS SELECT into a missing tablespace", "missing", "CREATE TABLE s TABLESPACE a AS SELECT 1", CodeUndefinedObject},
 		{"CREATE TABLE AS SELECT using a missing access method", "missing", "CREATE TABLE s USING a AS SELECT 1", CodeUndefinedObject},
 		{"CREATE TABLE AS SELECT into the default tablespace", "missing", "CREATE TABLE s TABLESPACE pg_default AS SELECT 1", "0"},
+		{"CREATE TABLE AS SELECT using an index access method", "missing", "CREATE TABLE s USING btree AS SELECT 1", CodeObjectNotInPrerequisiteState},
+		{"CREATE INDEX using a table access method", "table", "CREATE INDEX ON a USING heap(b)", CodeInternalError},
+		{"DROP the default tablespace", "missing", "DROP TABLESPACE pg_default", CodeInsufficientPrivilege},
+		{"DROP the global tablespace", "missing", "DROP TABLESPACE pg_global", CodeInsufficientPrivilege},
 	}
 
 	for _, tc := range cases {

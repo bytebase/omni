@@ -56,10 +56,14 @@ func (c *Catalog) DefineIndex(stmt *nodes.IndexStmt) error {
 		accessMethod = "btree"
 	}
 
-	// Validate AM exists in registry.
+	// Validate AM exists in registry and is an index access method.
 	am := c.accessMethodByName[accessMethod]
 	if am == nil {
 		return errUndefinedObject("access method", accessMethod)
+	}
+	if am.Type != 'i' {
+		return &Error{Code: CodeInternalError,
+			Message: fmt.Sprintf("access method %q is not of type INDEX", accessMethod)}
 	}
 
 	// Validate AM capabilities (only for known built-in AMs; custom AMs pass through).

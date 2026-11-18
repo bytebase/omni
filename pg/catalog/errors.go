@@ -56,6 +56,8 @@ const (
 	CodeCollationMismatch            = "42P21"
 	CodeInvalidColumnReference       = "42P10"
 	CodeObjectNotInPrerequisiteState = "55000"
+	CodeInsufficientPrivilege        = "42501"
+	CodeInternalError                = "XX000"
 	CodeInvalidGrantOperation        = "0LP01"
 	CodeProgramLimitExceeded         = "54000"
 	CodeReservedName                 = "42939"

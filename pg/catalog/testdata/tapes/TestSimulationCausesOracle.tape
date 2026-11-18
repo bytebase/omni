@@ -511,3 +511,39 @@
 > exec
 | CREATE TABLE s TABLESPACE pg_default AS SELECT 1
 < ok 1 -
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| CREATE TABLE s USING btree AS SELECT 1
+< error
+| 55000 access method "btree" is not of type TABLE
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE a (b int PRIMARY KEY, c int, d int); CREATE INDEX a_d_idx ON a (d)
+< ok 0 -
+> exec
+| CREATE INDEX ON a USING heap(b)
+< error
+| XX000 index access method handler function 3 did not return an IndexAmRoutine struct
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| DROP TABLESPACE pg_default
+< error
+| 42501 permission denied for tablespace pg_default
+> exec
+| DROP SCHEMA IF EXISTS public CASCADE;
+| CREATE SCHEMA public;
+| CREATE TABLE t (b int PRIMARY KEY, c int, d int); CREATE INDEX t_d_idx ON t (d)
+< ok 0 -
+> exec
+| DROP TABLESPACE pg_global
+< error
+| 42501 permission denied for tablespace pg_global
