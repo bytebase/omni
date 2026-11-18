@@ -15,6 +15,7 @@ func TestOptimizerTrace(t *testing.T) {
 		identifier string
 	}{
 		{"TRACE ALL SELECT 1", "ALL", ""},
+		{"TRACE ALL SELECT 1 UNION SELECT 2 INTO OUTFILE 'x'", "ALL", ""},
 		{"TRACE LOGS SELECT 1", "LOGS", ""},
 		{"TRACE TIMES SELECT 1", "TIMES", ""},
 		{"TRACE VALUES SELECT 1", "VALUES", ""},
@@ -120,6 +121,7 @@ func TestOptimizerTraceRejects(t *testing.T) {
 		"TRACE ALL SELECT 1 INTO OUTFILE 'a' INTO OUTFILE 'b'",
 		"TRACE ALL (SELECT 1 INTO OUTFILE 'x')",
 		"TRACE ALL SELECT 1 INTO OUTFILE 'a' UNION SELECT 2",
+		"TRACE ALL SELECT 1 UNION (SELECT 2 INTO OUTFILE 'x')",
 	} {
 		if _, errs := parseForTest(sql); len(errs) == 0 {
 			t.Errorf("%q parsed, want rejected", sql)

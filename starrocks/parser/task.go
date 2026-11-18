@@ -47,6 +47,15 @@ func (p *Parser) parseSubmitTask(startLoc ast.Loc) (ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
+			for _, prop := range props {
+				if strings.EqualFold(prop.Key, "warehouse") {
+					return nil, &ParseError{
+						Position: prop.Loc.Start,
+						End:      prop.Loc.End,
+						Message:  "task properties may not set warehouse",
+					}
+				}
+			}
 			stmt.Properties = append(stmt.Properties, props...)
 		case kwSCHEDULE:
 			schedule, err := p.parseTaskSchedule()
@@ -528,6 +537,44 @@ func attachInto(node ast.Node, into *ast.IntoOutfileClause) {
 	}
 }
 
+// takeRightmostSelectInto removes and returns the INTO OUTFILE clause of the
+// rightmost unparenthesized SELECT. A parenthesized right operand keeps its
+// clause inside a subquery, which has no outfile grammar, so it is not taken.
+func takeRightmostSelectInto(node ast.Node) *ast.IntoOutfileClause {
+	for {
+		switch n := node.(type) {
+		case *ast.SetOpStmt:
+			node = n.Right
+		case *ast.SelectStmt:
+			into := n.Into
+			n.Into = nil
+			return into
+		default:
+			return nil
+		}
+	}
+}
+
+// settleTraceSetOpInto moves a genuine query-level OUTFILE from the rightmost
+// arm onto the set operation and rejects one anywhere else.
+func (p *Parser) settleTraceSetOpInto(query ast.Node) error {
+	setOp, ok := query.(*ast.SetOpStmt)
+	if !ok {
+		return nil
+	}
+	into := takeRightmostSelectInto(setOp)
+	if queryHasInto(setOp) {
+		return p.syntaxErrorAtCur()
+	}
+	if into != nil {
+		setOp.Into = into
+		if into.Loc.End > setOp.Loc.End {
+			setOp.Loc.End = into.Loc.End
+		}
+	}
+	return nil
+}
+
 // startsSetOp reports whether kind starts a set-operation tail.
 func startsSetOp(kind TokenKind) bool {
 	switch kind {
@@ -550,7 +597,14 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 		if selectStmt.Into != nil && startsSetOp(p.cur.Kind) {
 			return nil, p.syntaxErrorAtCur()
 		}
-		return p.parseSetOpTail(selectStmt)
+		query, err := p.parseSetOpTail(selectStmt)
+		if err != nil {
+			return nil, err
+		}
+		if err := p.settleTraceSetOpInto(query); err != nil {
+			return nil, err
+		}
+		return query, nil
 	case kwWITH:
 		with, err := p.parseWithClause()
 		if err != nil {
@@ -567,6 +621,9 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 			}
 			query, err := p.parseSetOpTail(selectStmt)
 			if err != nil {
+				return nil, err
+			}
+			if err := p.settleTraceSetOpInto(query); err != nil {
 				return nil, err
 			}
 			attachWith(query, with)

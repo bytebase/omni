@@ -129,6 +129,17 @@ func TestSubmitTaskExplainedInsert(t *testing.T) {
 	}
 }
 
+func TestSubmitTaskRejectsWarehouseProperty(t *testing.T) {
+	for _, sql := range []string{
+		"SUBMIT TASK PROPERTIES('warehouse' = 'x') AS INSERT INTO t SELECT 1",
+		"SUBMIT TASK PROPERTIES('WAREHOUSE' = 'x') AS INSERT INTO t SELECT 1",
+	} {
+		if _, errs := parseForTest(sql); len(errs) == 0 {
+			t.Errorf("%q parsed, want rejected", sql)
+		}
+	}
+}
+
 func TestSubmitTaskRejectsBadSchedule(t *testing.T) {
 	for _, sql := range []string{
 		"SUBMIT TASK SCHEDULE START('not-a-date') EVERY(INTERVAL 10 SECOND) AS INSERT INTO t SELECT 1",
