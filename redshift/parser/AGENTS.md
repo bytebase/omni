@@ -18,3 +18,8 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftAdminsOfAccountStart`, `isRedshiftPublicGranteeStart`, `isRedshiftRoleIdentityStart` | `ADMINS OF`, `PUBLIC` (no colon), `ROLE` before a name | unquoted words + continuation | `TestIsRedshiftIdentityGranteeStart` |
 | `isRedshiftRoleGranteeStart`, `isRedshiftGroupGranteeStart` | `ROLE`, `GROUP` | the token and a name after it | `TestIsRedshiftNamedGranteeStart` |
 | `isRedshiftScopedPermissionStart` | a privilege followed by `FOR` | the next token | `TestIsRedshiftScopedPermissionStart` |
+| `isRedshiftIntegrationOptionStart` | `ACCEPTINVCHARS`, `QUERY_ALL_STATES`, `REFRESH_INTERVAL`, `TRUNCATECOLUMNS`, `HISTORY_MODE`, `AUTO_REMEDIATION` | unquoted words | `TestIsRedshiftIntegrationOptionStart` |
+| `isRedshiftCreateDatabaseSourceStart` | `FROM`, or `WITH PERMISSIONS` | the token and one lookahead | `TestIsRedshiftCreateDatabaseSourceStart` |
+| `isRedshiftAlterDatabaseIntegrationStart` | the unquoted word `INTEGRATION` | the word | `TestIsRedshiftAlterDatabaseIntegrationStart` |
+| `isRedshiftDataMovementOptionStart` | a ColLabel that is not `FROM`, `TO`, `WHERE` or a terminator | the category and stop tokens | `TestIsRedshiftDataMovementOptionStart` |
+| `isRedshiftCopyColumnStart` | a name immediately before `FROM` or `TO` | the category and one lookahead | `TestIsRedshiftCopyColumnStart` |

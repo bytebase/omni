@@ -367,3 +367,88 @@ func TestIsRedshiftScopedPermissionStart(t *testing.T) {
 		}
 	}
 }
+
+// newLeadParser lexes sql and stops on its first token, the position every
+// CREATE DATABASE and ALTER DATABASE lead probe reads.
+func newLeadParser(sql string) *Parser {
+	p := &Parser{lexer: NewLexer(sql), source: sql}
+	p.advance()
+	return p
+}
+
+func TestIsRedshiftIntegrationOptionStart(t *testing.T) {
+	for _, word := range redshiftIntegrationOptionWords {
+		p := newLeadParser(word)
+		if !p.isRedshiftIntegrationOptionStart() {
+			t.Errorf("isRedshiftIntegrationOptionStart(%q) = false, want true", word)
+		}
+	}
+	for _, sql := range []string{"OWNER", "CSV", "integration", "REFRESH_INTERVALX", `"acceptinvchars"`, "1"} {
+		p := newLeadParser(sql)
+		if p.isRedshiftIntegrationOptionStart() {
+			t.Errorf("isRedshiftIntegrationOptionStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftCreateDatabaseSourceStart(t *testing.T) {
+	for _, sql := range []string{
+		"FROM INTEGRATION 'id'",
+		"FROM ARN 'arn'",
+		"FROM DATASHARE share",
+		"WITH PERMISSIONS FROM DATASHARE share",
+	} {
+		if !newLeadParser(sql).isRedshiftCreateDatabaseSourceStart() {
+			t.Errorf("isRedshiftCreateDatabaseSourceStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{
+		"WITH",
+		"WITH OWNER a",
+		"IAM_ROLE DEFAULT",
+		"COLLATE CI",
+	} {
+		if newLeadParser(sql).isRedshiftCreateDatabaseSourceStart() {
+			t.Errorf("isRedshiftCreateDatabaseSourceStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftAlterDatabaseIntegrationStart(t *testing.T) {
+	for _, sql := range []string{"INTEGRATION REFRESH ALL TABLES", "integration set query_all_states true"} {
+		if !newLeadParser(sql).isRedshiftAlterDatabaseIntegrationStart() {
+			t.Errorf("isRedshiftAlterDatabaseIntegrationStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"OWNER TO a", "RENAME TO b", "CONNECTION LIMIT 1", `"integration" REFRESH ALL TABLES`} {
+		if newLeadParser(sql).isRedshiftAlterDatabaseIntegrationStart() {
+			t.Errorf("isRedshiftAlterDatabaseIntegrationStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftDataMovementOptionStart(t *testing.T) {
+	for _, sql := range []string{"CSV", "JSON", "PARALLEL", "ADDQUOTES", "a", "FORMAT"} {
+		if !newLeadParser(sql).isRedshiftDataMovementOptionStart() {
+			t.Errorf("isRedshiftDataMovementOptionStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"FROM", "TO", "WHERE", ";", "1", "'s'"} {
+		if newLeadParser(sql).isRedshiftDataMovementOptionStart() {
+			t.Errorf("isRedshiftDataMovementOptionStart(%q) = true, want false", sql)
+		}
+	}
+}
+
+func TestIsRedshiftCopyColumnStart(t *testing.T) {
+	for _, sql := range []string{"a FROM 's'", "zzz TO STDOUT"} {
+		if !newLeadParser(sql).isRedshiftCopyColumnStart() {
+			t.Errorf("isRedshiftCopyColumnStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"a a FROM 's'", "a WHERE b", "a", "(a) FROM 's'", "1 FROM 's'"} {
+		if newLeadParser(sql).isRedshiftCopyColumnStart() {
+			t.Errorf("isRedshiftCopyColumnStart(%q) = true, want false", sql)
+		}
+	}
+}
