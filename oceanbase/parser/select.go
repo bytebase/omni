@@ -2286,7 +2286,7 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 	for {
 		start := p.pos()
 		var expr nodes.ExprNode
-		set, err := p.parseGroupingSet(true)
+		set, err := p.parseGroupingSet(true, true)
 		switch {
 		case err != nil:
 			return nil, err
@@ -2340,7 +2340,7 @@ func (p *Parser) parseGroupByList() ([]*nodes.OrderByItem, error) {
 // Ref: sort_key_for_group_by, rollup_clause, cube_clause,
 // grouping_sets_clause, grouping_sets and gs_group_by_expr in
 // sql_parser_mysql_mode.y (v4.3.5_CE_BP6, lines 13531-13623).
-func (p *Parser) parseGroupingSet(allowRollup bool) (*nodes.GroupingSet, error) {
+func (p *Parser) parseGroupingSet(allowRollup, allowSets bool) (*nodes.GroupingSet, error) {
 	start := p.pos()
 
 	kind := ""
@@ -2349,7 +2349,7 @@ func (p *Parser) parseGroupingSet(allowRollup bool) (*nodes.GroupingSet, error) 
 		kind = "ROLLUP"
 	case p.cur.Type == kwCUBE && allowRollup:
 		kind = "CUBE"
-	case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS:
+	case p.cur.Type == kwGROUPING && p.peekNext().Type == kwSETS && allowSets:
 		kind = "GROUPING SETS"
 	case p.cur.Type == '(' && p.peekNext().Type == ')':
 		// The empty set: `GROUP BY ()`, which the grammar's sort_key_for_group_by
@@ -2380,7 +2380,7 @@ func (p *Parser) parseGroupingSet(allowRollup bool) (*nodes.GroupingSet, error) 
 		// A GROUPING SETS item may be a ROLLUP, a CUBE or an expression; a
 		// ROLLUP or CUBE item is an expression or the empty set.
 		var item nodes.ExprNode
-		nestedSet, err := p.parseGroupingSet(kind == "GROUPING SETS")
+		nestedSet, err := p.parseGroupingSet(kind == "GROUPING SETS", false)
 		switch {
 		case err != nil:
 			return nil, err
@@ -2896,7 +2896,13 @@ func (p *Parser) parseIntoFileOptions(into *nodes.IntoClause) error {
 		}
 		p.advance()
 		p.match('=')
-		if p.cur.Type != tokICONST && p.cur.Type != tokSCONST && p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+		// file_option's values: SINGLE takes a BOOL_VALUE, and MAX_FILE_SIZE and
+		// BUFFER_SIZE a file_size_const, which is an integer or a string.
+		if name == "SINGLE" {
+			if p.cur.Type != kwTRUE && p.cur.Type != kwFALSE {
+				return p.syntaxErrorAtCur()
+			}
+		} else if p.cur.Type != tokICONST && p.cur.Type != tokSCONST {
 			return p.syntaxErrorAtCur()
 		}
 		value := p.cur.Str

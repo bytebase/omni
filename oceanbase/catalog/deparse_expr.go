@@ -52,6 +52,10 @@ func writeAnalyzedExpr(b *strings.Builder, expr AnalyzedExpr, q *deparseScope) {
 		writeCastExprQ(b, e, q)
 	case *RowExprQ:
 		writeRowExprQ(b, e, q)
+	case *GroupingSetExprQ:
+		writeGroupingSetExprQ(b, e, q)
+	case *RawExprQ:
+		b.WriteString(e.Text)
 	default:
 		fmt.Fprintf(b, "/* unknown expr %T */", expr)
 	}
@@ -70,6 +74,24 @@ func writeVarExprQ(b *strings.Builder, v *VarExprQ, q *deparseScope) {
 	b.WriteString(backtickIDQ(rte.ERef))
 	b.WriteString(".")
 	b.WriteString(backtickIDQ(colName))
+}
+
+// writeGroupingSetExprQ writes ROLLUP (...), CUBE (...), GROUPING SETS (...) or
+// the empty set `()`.
+func writeGroupingSetExprQ(b *strings.Builder, g *GroupingSetExprQ, q *deparseScope) {
+	if g.Kind == "" {
+		b.WriteString("()")
+		return
+	}
+	b.WriteString(strings.ToLower(g.Kind))
+	b.WriteString(" (")
+	for i, arg := range g.Args {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		writeAnalyzedExpr(b, arg, q)
+	}
+	b.WriteString(")")
 }
 
 func writeConstExprQ(b *strings.Builder, c *ConstExprQ) {

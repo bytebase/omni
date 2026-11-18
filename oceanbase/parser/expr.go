@@ -1120,13 +1120,18 @@ func (p *Parser) parseFuncCall(start int, schema, name string) (nodes.ExprNode, 
 		}
 		fc.Args = append(fc.Args, arg)
 		// win_fun_first_last_params and win_fun_lead_lag_params write RESPECT
-		// NULLS or IGNORE NULLS after an argument, before the ')'.
+		// NULLS or IGNORE NULLS after the parameters. LEAD and LAG may go on
+		// with more of them, `LEAD(a RESPECT NULLS, 2)`, and the others close
+		// their list there.
 		if builtin && nullsTreatmentNames[upperName] && p.atNullsTreatment() {
 			t, err := p.parseNullsTreatment()
 			if err != nil {
 				return nil, err
 			}
 			fc.NullTreatment = t
+			if p.cur.Type != ')' && !(upperName == "LEAD" || upperName == "LAG") {
+				return nil, p.syntaxErrorAtCur()
+			}
 		}
 		if p.cur.Type != ',' {
 			break
@@ -2419,10 +2424,11 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		isArray = true
 	}
 
-	// sys_view_cast_opt: OceanBase's IGNORE after the target type.
+	// sys_view_cast_opt: OceanBase's IGNORE after the target type, which turns a
+	// value that cannot be converted into the default instead of an error.
+	ignore := false
 	if _, ok := p.match(kwIGNORE); ok {
-		// The flag only says the cast ignores what it cannot convert, which the
-		// type already describes.
+		ignore = true
 	}
 
 	if _, err := p.expect(')'); err != nil {
@@ -2434,6 +2440,7 @@ func (p *Parser) parseCastExpr() (nodes.ExprNode, error) {
 		Expr:     expr,
 		TypeName: dt,
 		Array:    isArray,
+		Ignore:   ignore,
 	}, nil
 }
 

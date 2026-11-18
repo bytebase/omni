@@ -167,10 +167,16 @@ func writeSelectStmt(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias boo
 		}
 	}
 
+	// opt_approx stands before the LIMIT of a vector search.
+	if stmt.Approx {
+		b.WriteString(" approx")
+	}
+
 	// LIMIT clause
 	if stmt.Limit != nil {
 		writeLimit(b, stmt.Limit)
 	}
+	writeVectorIndexParams(b, stmt)
 
 	writeQueryTail(b, stmt)
 }
@@ -374,12 +380,35 @@ func writeParenSource(b *strings.Builder, stmt *ast.SelectStmt, suppressAlias bo
 		}
 	}
 
+	if stmt.Approx {
+		b.WriteString(" approx")
+	}
+
 	// Outer LIMIT (applies to the parenthesized result).
 	if stmt.Limit != nil {
 		writeLimit(b, stmt.Limit)
 	}
+	writeVectorIndexParams(b, stmt)
 
 	writeQueryTail(b, stmt)
+}
+
+// writeVectorIndexParams writes opt_with_vector_index_parameters, which follows
+// the LIMIT of a vector search.
+func writeVectorIndexParams(b *strings.Builder, stmt *ast.SelectStmt) {
+	if len(stmt.VectorIndexParams) == 0 {
+		return
+	}
+	b.WriteString(" parameters(")
+	for i, param := range stmt.VectorIndexParams {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(quoteIdent(param.Name))
+		b.WriteString(" = ")
+		b.WriteString(strings.ToLower(param.Value))
+	}
+	b.WriteString(")")
 }
 
 func deparseTableQueryPrimary(stmt *ast.SelectStmt) string {
@@ -1545,8 +1574,12 @@ func writeJoinClause(b *strings.Builder, j *ast.JoinClause) {
 	case ast.JoinNaturalRight:
 		joinType = "left join"
 		left, right = right, left
-	case ast.JoinFull, ast.JoinNaturalFull:
+	case ast.JoinFull:
 		joinType = "full join"
+	case ast.JoinNaturalFull:
+		// A natural join takes no condition, so it keeps its NATURAL rather than
+		// lowering to a FULL JOIN the parser would require an ON for.
+		joinType = "natural full join"
 	default:
 		joinType = "join"
 	}
@@ -2308,6 +2341,10 @@ func writeCastExpr(b *strings.Builder, n *ast.CastExpr) {
 	// ARRAY in lowercase in SHOW CREATE TABLE, so emit it to keep the round-trip stable.
 	if n.Array {
 		b.WriteString(" array")
+	}
+	// sys_view_cast_opt's IGNORE is part of the cast, not of the type.
+	if n.Ignore {
+		b.WriteString(" ignore")
 	}
 	b.WriteString(")")
 }

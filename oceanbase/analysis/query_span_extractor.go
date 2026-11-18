@@ -707,9 +707,10 @@ func (q *querySpanExtractor) extractTableSource(tableExpr ast.TableExpr) (tableS
 		if isDualTable(t) {
 			return &pseudoTable{Name: t.Name}, nil
 		}
-		// A table read through a database link is remote: its columns are not
-		// the local catalog's, so nothing of a same-named local table's is.
-		if t.Dblink != "" {
+		// A table read through a database link or named in another catalog is
+		// remote: its columns are not the local catalog's, so nothing of a
+		// same-named local table's is.
+		if t.Dblink != "" || t.Catalog != "" {
 			name := t.Name
 			if t.Alias != "" {
 				name = t.Alias
@@ -1860,8 +1861,9 @@ func collectAccessTablesFromTableRef(result ColumnSet, tableRef *ast.TableRef, d
 	if isDualTable(tableRef) {
 		return
 	}
-	// A database link's table is not the local catalog's resource.
-	if tableRef.Dblink != "" {
+	// A database link's table, and one a catalog qualifies, is not the local
+	// catalog's resource.
+	if tableRef.Dblink != "" || tableRef.Catalog != "" {
 		return
 	}
 	database := tableRef.Schema

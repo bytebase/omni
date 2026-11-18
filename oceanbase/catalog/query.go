@@ -1041,6 +1041,39 @@ func (c *CastExprQ) exprType() *ResolvedType { return c.TargetType }
 func (c *CastExprQ) exprCollation() string   { return c.Collation }
 
 // ----------------------------------------------------------------------------
+// GroupingSetExprQ — a GROUP BY grouping set.
+// ----------------------------------------------------------------------------
+
+// GroupingSetExprQ is one GROUP BY item that is a grouping set rather than an
+// expression: ROLLUP (...), CUBE (...), GROUPING SETS (...) or the empty set
+// `()`. Args holds its items; an item of a GROUPING SETS list may itself be a
+// GroupingSetExprQ.
+type GroupingSetExprQ struct {
+	Kind string // "ROLLUP", "CUBE", "GROUPING SETS", or "" for the empty set
+	Args []AnalyzedExpr
+}
+
+func (*GroupingSetExprQ) analyzedExprTag()          {}
+func (g *GroupingSetExprQ) exprType() *ResolvedType { return nil }
+func (*GroupingSetExprQ) exprCollation() string     { return "" }
+
+// ----------------------------------------------------------------------------
+// RawExprQ — an expression the IR keeps as written.
+// ----------------------------------------------------------------------------
+
+// RawExprQ holds an expression whose own grammar the IR does not model, so its
+// text is kept exactly as it parses: a sequence read through a database link
+// (`t.seq@link`) is one, and so is a cast's IGNORE modifier's operand.
+type RawExprQ struct {
+	Text       string
+	ResultType *ResolvedType
+}
+
+func (*RawExprQ) analyzedExprTag()          {}
+func (r *RawExprQ) exprType() *ResolvedType { return r.ResultType }
+func (*RawExprQ) exprCollation() string     { return "" }
+
+// ----------------------------------------------------------------------------
 // Deferred expression nodes
 // ----------------------------------------------------------------------------
 //

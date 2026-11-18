@@ -56,6 +56,10 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 	case *nodes.CaseExpr:
 		return analyzeCaseExpr(c, n, scope)
 	case *nodes.CastExpr:
+		if n.Ignore {
+			// The IR's cast has no IGNORE, so the expression keeps its text.
+			return &RawExprQ{Text: deparse.Deparse(n)}, nil
+		}
 		return analyzeCastExpr(c, n, scope)
 	case *nodes.PositionExpr:
 		return analyzePositionExpr(c, n, scope)
@@ -66,18 +70,22 @@ func analyzeExpr(c *Catalog, expr nodes.ExprNode, scope *analyzerScope) (Analyze
 		// `{fn expr}` is the escape's expression and nothing else.
 		return analyzeExpr(c, n.Expr, scope)
 	case *nodes.RemoteSequenceExpr:
-		// A sequence read through a database link is a value of its own, with no
-		// column of a local table behind it.
-		return &ConstExprQ{Value: deparse.Deparse(n)}, nil
+		// A sequence read through a database link is a value of its own, which
+		// the IR keeps as written: it is no column of a local table, and it is
+		// no literal either.
+		return &RawExprQ{Text: deparse.Deparse(n)}, nil
 	case *nodes.GroupingSet:
-		// A GROUP BY item's grouping set holds the expressions it groups by.
-		if len(n.Items) == 0 {
-			return &ConstExprQ{IsNull: true, Value: "NULL"}, nil
+		// A GROUP BY item's grouping set keeps its kind and its items, so a view
+		// stores ROLLUP (...) and not the expressions it groups by.
+		items := make([]AnalyzedExpr, 0, len(n.Items))
+		for _, item := range n.Items {
+			analyzed, err := analyzeExpr(c, item, scope)
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, analyzed)
 		}
-		if len(n.Items) == 1 {
-			return analyzeExpr(c, n.Items[0], scope)
-		}
-		return &ConstExprQ{Value: deparse.Deparse(n)}, nil
+		return &GroupingSetExprQ{Kind: n.Kind, Args: items}, nil
 	case *nodes.SubqueryExpr:
 		return analyzeScalarSubquery(c, n, scope)
 	case *nodes.ExistsExpr:

@@ -565,6 +565,22 @@ func (c *Catalog) analyzeGroupBy(groupBy []*nodes.OrderByItem, q *Query, scope *
 			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{
 				TargetIdx: idx,
 			})
+		case *nodes.GroupingSet:
+			// A grouping set is a GROUP BY item of its own: analyze it and keep it
+			// as a junk target entry the GROUP BY clause points at, so a stored
+			// view writes ROLLUP (...) rather than the expressions it groups by.
+			analyzed, err := analyzeExpr(c, n, scope)
+			if err != nil {
+				return err
+			}
+			te := &TargetEntryQ{
+				Expr:    analyzed,
+				ResNo:   len(q.TargetList) + 1,
+				ResName: "grouping set",
+				ResJunk: true,
+			}
+			q.TargetList = append(q.TargetList, te)
+			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
 		case *nodes.ColumnRef:
 			// Resolve the column ref, then find matching target entry.
 			analyzed, err := analyzeExpr(c, n, scope)
@@ -736,6 +752,22 @@ func (c *Catalog) analyzeOrderBy(orderBy []*nodes.OrderByItem, q *Query, scope *
 				Descending: desc,
 				NullsFirst: nullsFirst,
 			})
+		case *nodes.GroupingSet:
+			// A grouping set is a GROUP BY item of its own: analyze it and keep it
+			// as a junk target entry the GROUP BY clause points at, so a stored
+			// view writes ROLLUP (...) rather than the expressions it groups by.
+			analyzed, err := analyzeExpr(c, n, scope)
+			if err != nil {
+				return err
+			}
+			te := &TargetEntryQ{
+				Expr:    analyzed,
+				ResNo:   len(q.TargetList) + 1,
+				ResName: "grouping set",
+				ResJunk: true,
+			}
+			q.TargetList = append(q.TargetList, te)
+			q.GroupClause = append(q.GroupClause, &SortGroupClauseQ{TargetIdx: te.ResNo})
 		case *nodes.ColumnRef:
 			// Resolve the column ref, then find matching target entry.
 			analyzed, err := analyzeExpr(c, n, scope)

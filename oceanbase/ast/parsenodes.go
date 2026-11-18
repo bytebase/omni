@@ -1113,6 +1113,9 @@ type CastExpr struct {
 	// trailing ARRAY keyword after the cast target type. ARRAY is a
 	// non-reserved (contextual) keyword; it only attaches to CAST, never CONVERT.
 	Array bool
+	// Ignore is sys_view_cast_opt's IGNORE, which makes the cast a value that
+	// cannot be converted the default instead of an error.
+	Ignore bool
 }
 
 func (e *CastExpr) nodeTag()  {}
