@@ -483,7 +483,7 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 		p.addTokenCandidate(TABLE)
 		return options, nil
 	}
-	for {
+	for p.isRedshiftIcebergMaterializedViewOptionStart() {
 		switch {
 		case p.cur.Type == LOCATION && stage == 0:
 			stage = 1
@@ -518,9 +518,12 @@ func (p *Parser) parseRedshiftIcebergMaterializedViewOptions(options *nodes.List
 			}
 			options = appendToList(options, makeDefElem("table_properties", properties))
 		default:
+			// A clause out of order or repeated: no Iceberg clause starts at
+			// this stage, so whatever follows is the caller's.
 			return options, nil
 		}
 	}
+	return options, nil
 }
 
 // parseRedshiftPartitionTransforms parses the partition_transform list after

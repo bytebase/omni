@@ -28,6 +28,7 @@ Defined in `first_sets.go` alongside the predicates inherited from `pg/parser/fi
 | `isRedshiftPartitionTransformCallStart` | `YEAR`, `MONTH`, `DAY`, `HOUR`, `TRUNCATE` or the word `BUCKET` before `(` | the token and one lookahead | `TestIsRedshiftPartitionTransformCallStart` |
 | `isRedshiftRoleSpecStart` | a name, or `CURRENT_USER` / `CURRENT_ROLE` / `SESSION_USER` | the token after a comma | `TestIsRedshiftRoleSpecStart` |
 | `isRedshiftNumberStart` | a sign and an `Iconst` | `isNumericOnlyStart`, less `FCONST` | `TestIsRedshiftNumberStart` |
+| `isRedshiftIcebergMaterializedViewOptionStart` | `LOCATION`, the word `PARTITIONED`, `TABLE` | the token and the unquoted word | `TestIsRedshiftIcebergMaterializedViewOptionStart` |
 
 The predicates `isRedshiftConnectByStart` and `isRedshiftVacuumTwoWordModeStart`
 read a second token because the first one is a name in the other reading:

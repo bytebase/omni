@@ -840,6 +840,19 @@ func (p *Parser) isRedshiftNumberStart() bool {
 	return false
 }
 
+// isRedshiftIcebergMaterializedViewOptionStart reports whether the current token
+// begins one of the clauses the docs put after USING ICEBERG on a materialized
+// view: LOCATION, PARTITIONED BY or TABLE PROPERTIES. PARTITIONED is no keyword
+// of this package, so it is matched as the unquoted word; LOCATION, BY and TABLE
+// are keywords.
+//
+// Grammar reference: materializedViewCreateSqlCommand in RedshiftDocs.g4.
+// Validated by TestIsRedshiftIcebergMaterializedViewOptionStart in
+// first_sets_test.go.
+func (p *Parser) isRedshiftIcebergMaterializedViewOptionStart() bool {
+	return p.cur.Type == LOCATION || p.redshiftKeywordIs("partitioned") || p.cur.Type == TABLE
+}
+
 // isRedshiftRoleSpecStart reports whether tok begins a RoleSpec, which a
 // role_list repeats after a comma: a NonReservedWord, or one of the three roles
 // PostgreSQL writes as keywords. WITH begins no RoleSpec, so a comma before it

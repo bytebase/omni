@@ -541,3 +541,18 @@ func TestIsRedshiftNumberStart(t *testing.T) {
 		}
 	}
 }
+
+// TestIsRedshiftIcebergMaterializedViewOptionStart holds the Iceberg tail to the
+// three clauses it starts: LOCATION, the unquoted word PARTITIONED and TABLE.
+func TestIsRedshiftIcebergMaterializedViewOptionStart(t *testing.T) {
+	for _, sql := range []string{"LOCATION 's3://b/'", "PARTITIONED BY(a)", "partitioned by (a)", "TABLE PROPERTIES('k' = 'v')"} {
+		if !newLeadParser(sql).isRedshiftIcebergMaterializedViewOptionStart() {
+			t.Errorf("isRedshiftIcebergMaterializedViewOptionStart(%q) = false, want true", sql)
+		}
+	}
+	for _, sql := range []string{"AS", `"partitioned" BY(a)`, "AUTO", "BACKUP", "1", ";"} {
+		if newLeadParser(sql).isRedshiftIcebergMaterializedViewOptionStart() {
+			t.Errorf("isRedshiftIcebergMaterializedViewOptionStart(%q) = true, want false", sql)
+		}
+	}
+}
