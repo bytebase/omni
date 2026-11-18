@@ -302,6 +302,57 @@ func (w *spanWalker) analyzeStmt(node ast.Node) {
 	}
 }
 
+// visitFunctions walks the bodies of inline WITH FUNCTION definitions, whose
+// expressions and subqueries execute when the function is called.
+func (w *spanWalker) visitFunctions(functions []parser.FunctionSpecification) {
+	for _, fn := range functions {
+		w.visitRoutineStatement(fn.Body)
+	}
+}
+
+func (w *spanWalker) visitRoutineStatement(stmt parser.RoutineStatement) {
+	switch s := stmt.(type) {
+	case *parser.ReturnStatement:
+		w.walkExprPredicate(s.Value)
+	case *parser.AssignmentStatement:
+		w.walkExprPredicate(s.Value)
+	case *parser.CaseStatement:
+		w.walkExprPredicate(s.Operand)
+		for _, when := range s.Whens {
+			w.walkExprPredicate(when.Condition)
+			w.visitRoutineStatements(when.Body)
+		}
+		w.visitRoutineStatements(s.Else)
+	case *parser.IfStatement:
+		w.walkExprPredicate(s.Condition)
+		w.visitRoutineStatements(s.Then)
+		for _, clause := range s.ElseIfs {
+			w.walkExprPredicate(clause.Condition)
+			w.visitRoutineStatements(clause.Body)
+		}
+		w.visitRoutineStatements(s.Else)
+	case *parser.CompoundStatement:
+		for _, decl := range s.Declarations {
+			w.walkExprPredicate(decl.Default)
+		}
+		w.visitRoutineStatements(s.Body)
+	case *parser.LoopStatement:
+		w.visitRoutineStatements(s.Body)
+	case *parser.WhileStatement:
+		w.walkExprPredicate(s.Condition)
+		w.visitRoutineStatements(s.Body)
+	case *parser.RepeatStatement:
+		w.visitRoutineStatements(s.Body)
+		w.walkExprPredicate(s.Condition)
+	}
+}
+
+func (w *spanWalker) visitRoutineStatements(stmts []parser.RoutineStatement) {
+	for _, stmt := range stmts {
+		w.visitRoutineStatement(stmt)
+	}
+}
+
 // visitQuery walks a `Query` (optional WITH + a queryNoWith body with its own
 // ORDER BY/OFFSET/LIMIT/FETCH). The WITH clause defines a new CTE scope visible
 // to the body and to sibling CTE bodies.
@@ -309,6 +360,7 @@ func (w *spanWalker) visitQuery(q *parser.Query, outermost bool) {
 	if q == nil {
 		return
 	}
+	w.visitFunctions(q.Functions)
 
 	scope := &cteScope{names: make(map[string]bool), parent: w.scope}
 	if q.With != nil {

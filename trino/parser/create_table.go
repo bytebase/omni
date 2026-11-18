@@ -402,11 +402,12 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 		elements      []*TableElement
 		columnAliases []*ast.Identifier
 		hadParen      bool
-		aliasOnly     bool // every paren entry was a bare identifier (alias-shaped)
+		aliasOnly     bool    // every paren entry was a bare identifier (alias-shaped)
+		closeLoc      ast.Loc // the body's closing ')'
 	)
 	if p.cur.Kind == int('(') {
 		hadParen = true
-		elements, columnAliases, aliasOnly, err = p.parseCreateTableParenBody()
+		elements, columnAliases, aliasOnly, closeLoc, err = p.parseCreateTableParenBody()
 		if err != nil {
 			return nil, err
 		}
@@ -442,7 +443,7 @@ func (p *Parser) parseCreateTableStmt(startOffset int) (ast.Node, error) {
 	for _, elem := range elements {
 		if elem.Column != nil && elem.Column.Type == nil {
 			// Trino rejects the entry at the closing ')' where its type was due.
-			return nil, &ParseError{Position: p.prev.Loc.Start, End: p.prev.Loc.End, Message: "expected column type in CREATE TABLE column definition"}
+			return nil, &ParseError{Position: closeLoc.Start, End: closeLoc.End, Message: "expected column type in CREATE TABLE column definition"}
 		}
 	}
 	stmt := &CreateTableStmt{
@@ -515,9 +516,9 @@ func (p *Parser) finishCreateTableAs(startOffset int, orReplace, ifNotExists boo
 // Because a column definition requires a type, the parser cannot know upfront
 // which form it is in; it parses optimistically and tracks whether the list
 // stayed alias-shaped throughout.
-func (p *Parser) parseCreateTableParenBody() (elements []*TableElement, columnAliases []*ast.Identifier, aliasOnly bool, err error) {
+func (p *Parser) parseCreateTableParenBody() (elements []*TableElement, columnAliases []*ast.Identifier, aliasOnly bool, closeLoc ast.Loc, err error) {
 	if _, err = p.expect(int('(')); err != nil {
-		return nil, nil, false, err
+		return nil, nil, false, ast.Loc{}, err
 	}
 	aliasOnly = true
 	for {
@@ -534,7 +535,7 @@ func (p *Parser) parseCreateTableParenBody() (elements []*TableElement, columnAl
 		} else {
 			elem, perr := p.parseTableElement()
 			if perr != nil {
-				return nil, nil, false, perr
+				return nil, nil, false, ast.Loc{}, perr
 			}
 			elements = append(elements, elem)
 			aliasOnly = false
@@ -543,13 +544,14 @@ func (p *Parser) parseCreateTableParenBody() (elements []*TableElement, columnAl
 			break
 		}
 	}
-	if _, err = p.expect(int(')')); err != nil {
-		return nil, nil, false, err
+	closeTok, cerr := p.expect(int(')'))
+	if cerr != nil {
+		return nil, nil, false, ast.Loc{}, cerr
 	}
 	if !aliasOnly {
 		columnAliases = nil
 	}
-	return elements, columnAliases, aliasOnly, nil
+	return elements, columnAliases, aliasOnly, closeTok.Loc, nil
 }
 
 // ---------------------------------------------------------------------------

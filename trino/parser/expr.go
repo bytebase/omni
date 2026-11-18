@@ -903,7 +903,9 @@ func (p *Parser) parsePrimaryAtom() (Expr, error) {
 			return p.parseIdentifierOrFunction()
 		}
 		cp := p.checkpoint()
+		p.speculating++
 		overlay, overlayErr := p.parseOverlay()
+		p.speculating--
 		if overlayErr == nil {
 			return overlay, nil
 		}
