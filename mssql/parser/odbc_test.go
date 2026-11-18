@@ -66,6 +66,9 @@ func TestOdbcEscapes(t *testing.T) {
 		// The literal escape takes d, t and ts.
 		"SELECT {x 'a'}",
 		"SELECT {dd '2020-01-01'}",
+		// An argument is required where the form has one.
+		"SELECT {fn CONVERT(, SQL_VARCHAR)}",
+		"SELECT {fn EXTRACT(year FROM )}",
 		// FN and the closing brace are required.
 		"SELECT { CURRENT_TIME }",
 		"SELECT { FN CURRENT_TIME",

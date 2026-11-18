@@ -216,6 +216,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				if err != nil {
 					return nil, err
 				}
+				if subquery == nil {
+					return nil, p.unexpectedToken()
+				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err
 				}
@@ -453,6 +456,9 @@ func (p *Parser) parseComparison() (nodes.ExprNode, error) {
 				subquery, err := p.parseSelectStmt()
 				if err != nil {
 					return nil, err
+				}
+				if subquery == nil {
+					return nil, p.unexpectedToken()
 				}
 				if _, err := p.expect(')'); err != nil {
 					return nil, err

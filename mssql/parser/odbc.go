@@ -249,6 +249,9 @@ func (p *Parser) parseOdbcFunctionCall(loc int) (nodes.ExprNode, error) {
 		if err != nil {
 			return nil, err
 		}
+		if arg == nil {
+			return nil, p.unexpectedToken()
+		}
 		if _, err := p.expect(','); err != nil {
 			return nil, err
 		}
@@ -286,6 +289,9 @@ func (p *Parser) parseOdbcFunctionCall(loc int) (nodes.ExprNode, error) {
 		arg, err := p.parseExpr()
 		if err != nil {
 			return nil, err
+		}
+		if arg == nil {
+			return nil, p.unexpectedToken()
 		}
 		if _, err := p.expect(')'); err != nil {
 			return nil, err

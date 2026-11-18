@@ -133,6 +133,9 @@ func TestIsDistinctFrom(t *testing.T) {
 		// A scalar expression, not a search condition.
 		"SELECT 1 IS DISTINCT FROM 2",
 		"SELECT 1 IS NOT DISTINCT FROM 2",
+		// The quantified form takes a subquery.
+		"IF 1 IS DISTINCT FROM ALL() SELECT 1",
+		"IF 1 IS DISTINCT FROM SOME() SELECT 1",
 	} {
 		if _, err := Parse(sql); err == nil {
 			t.Errorf("Parse(%q) = nil error, want SQL Server's rejection", sql)

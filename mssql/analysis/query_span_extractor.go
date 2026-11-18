@@ -764,7 +764,11 @@ func (q *querySpanExtractor) collectPredicatesInScope(expr ast.Node) error {
 		}
 		return q.collectPredicatesInScope(v.Escape)
 	case *ast.IsExpr:
-		return q.collectPredicatesInScope(v.Expr)
+		if err := q.collectPredicatesInScope(v.Expr); err != nil {
+			return err
+		}
+		// IS [NOT] DISTINCT FROM keeps its right operand in Value.
+		return q.collectPredicatesInScope(v.Value)
 	case *ast.CaseExpr:
 		if err := q.collectPredicatesInScope(v.Arg); err != nil {
 			return err
@@ -1277,33 +1281,41 @@ func (q *querySpanExtractor) resolveTableValuedFunction(fn *ast.FuncCallExpr, al
 
 // rowsetServerArgument returns the linked server an OPENQUERY call names: its
 // first argument, which the parser reads as a table reference.
-// collectGraphMatchColumns reads the node aliases of a graph pattern as
-// columns of the search condition.
+// collectGraphMatchColumns adds the tables a graph pattern names to the
+// search condition's predicate columns.
 func (q *querySpanExtractor) collectGraphMatchColumns(expr ast.ExprNode) error {
-	return q.walkGraphMatchColumns(expr, func(cr *ast.ColumnRef) error {
-		return q.collectPredicatesInScope(cr)
+	return q.walkGraphMatchRefs(expr, func(name string) error {
+		r, err := q.resolveGraphMatchRef(name)
+		if err != nil {
+			return err
+		}
+		q.predicateColumns, _ = mergeColumnSet(q.predicateColumns, r.SourceColumns)
+		return nil
 	})
 }
 
-// walkGraphMatchColumns calls f for each node alias of a graph pattern.
-func (q *querySpanExtractor) walkGraphMatchColumns(expr ast.ExprNode, f func(*ast.ColumnRef) error) error {
+// walkGraphMatchRefs calls f for each node and edge alias of a graph pattern.
+func (q *querySpanExtractor) walkGraphMatchRefs(expr ast.ExprNode, f func(name string) error) error {
 	switch v := expr.(type) {
 	case nil:
 		return nil
 	case *ast.GraphMatchNodeExpr:
-		return f(&ast.ColumnRef{Column: v.Node, Loc: v.Loc})
+		return f(v.Node)
 	case *ast.GraphMatchCompositeExpr:
-		if err := q.walkGraphMatchColumns(v.Left, f); err != nil {
+		if err := q.walkGraphMatchRefs(v.Left, f); err != nil {
 			return err
 		}
-		return q.walkGraphMatchColumns(v.Right, f)
+		if err := f(v.Edge); err != nil {
+			return err
+		}
+		return q.walkGraphMatchRefs(v.Right, f)
 	case *ast.GraphMatchLastNodePredicate:
-		if err := q.walkGraphMatchColumns(v.Left, f); err != nil {
+		if err := q.walkGraphMatchRefs(v.Left, f); err != nil {
 			return err
 		}
-		return q.walkGraphMatchColumns(v.Right, f)
+		return q.walkGraphMatchRefs(v.Right, f)
 	case *ast.GraphMatchRecursivePredicate:
-		if err := q.walkGraphMatchColumns(v.Outer, f); err != nil {
+		if err := q.walkGraphMatchRefs(v.Outer, f); err != nil {
 			return err
 		}
 		if v.Expression != nil {
@@ -1312,19 +1324,64 @@ func (q *querySpanExtractor) walkGraphMatchColumns(expr ast.ExprNode, f func(*as
 				if !ok {
 					continue
 				}
-				if err := q.walkGraphMatchColumns(step, f); err != nil {
+				if err := q.walkGraphMatchRefs(step, f); err != nil {
 					return err
 				}
 			}
 		}
 		return nil
 	case *ast.BinaryExpr:
-		if err := q.walkGraphMatchColumns(v.Left, f); err != nil {
+		if err := q.walkGraphMatchRefs(v.Left, f); err != nil {
 			return err
 		}
-		return q.walkGraphMatchColumns(v.Right, f)
+		return q.walkGraphMatchRefs(v.Right, f)
 	}
 	return nil
+}
+
+// resolveGraphMatchRef resolves a node or edge alias of a graph MATCH pattern
+// to the table source it names. A graph pattern names tables, so the predicate
+// filters rows of those tables and its lineage is the union of their columns,
+// as a graph pseudo-column's is (resolveGraphPseudoColumn).
+func (q *querySpanExtractor) resolveGraphMatchRef(name string) (QuerySpanResult, error) {
+	r := QuerySpanResult{Name: name, SourceColumns: make(ColumnSet), IsPlainField: false}
+	found := false
+	add := func(ts tableSource) error {
+		found = true
+		for _, column := range ts.GetQuerySpanResult() {
+			r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, column.SourceColumns)
+		}
+		return nil
+	}
+	for _, ts := range q.tableSourcesFrom {
+		if q.isIdentifierEqual(name, ts.GetTableName()) {
+			if err := add(ts); err != nil {
+				return QuerySpanResult{}, err
+			}
+			break
+		}
+	}
+	if !found {
+		for i := len(q.outerTableSources) - 1; i >= 0; i-- {
+			ts := q.outerTableSources[i]
+			if q.isIdentifierEqual(name, ts.GetTableName()) {
+				if err := add(ts); err != nil {
+					return QuerySpanResult{}, err
+				}
+				break
+			}
+		}
+	}
+	if !found {
+		return QuerySpanResult{}, fmt.Errorf("graph node %q names no table in the FROM clause", name)
+	}
+	// A graph table with no user-defined columns contributes none, and empty
+	// SourceColumns downstream means NoneMasker, the fail-open this
+	// table-level lineage is meant to prevent: fail closed.
+	if len(r.SourceColumns) == 0 {
+		return QuerySpanResult{}, fmt.Errorf("cannot derive lineage for graph node %q: table has no columns in the catalog", name)
+	}
+	return r, nil
 }
 
 func rowsetServerArgument(fn *ast.FuncCallExpr) string {
@@ -1688,13 +1745,10 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		r.Name = q.sliceName(n)
 		return r, err
 	case *ast.IsExpr:
-		r, err := q.resolveExpressionNode(v.Expr)
-		if err != nil {
-			return r, err
-		}
+		r, err := q.mergeExprSources(v.Expr, v.Value)
 		r.Name = q.sliceName(n)
 		r.IsPlainField = false
-		return r, nil
+		return r, err
 	case *ast.InExpr:
 		exprs := []ast.ExprNode{v.Expr}
 		if v.List != nil {
@@ -1779,6 +1833,21 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		r, err := q.mergeExprSources(v.Expr, v.Style)
 		r.Name = q.sliceName(n)
 		return r, err
+	case *ast.OdbcFunctionCallExpr:
+		var args []ast.ExprNode
+		if v.Args != nil {
+			for _, it := range v.Args.Items {
+				if arg, ok := it.(ast.ExprNode); ok {
+					args = append(args, arg)
+				}
+			}
+		}
+		r, err := q.mergeExprSources(args...)
+		r.Name = q.sliceName(n)
+		r.IsPlainField = false
+		return r, err
+	case *ast.OdbcLiteralExpr:
+		return QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}, nil
 	case *ast.SubqueryExpr:
 		return q.resolveSubqueryExpr(v)
 	case *ast.SubqueryComparisonExpr:
@@ -1837,10 +1906,10 @@ func (q *querySpanExtractor) resolveExpressionNode(n ast.Node) (QuerySpanResult,
 		return r, nil
 	case *ast.GraphMatchPredicate:
 		r := QuerySpanResult{Name: q.sliceName(n), SourceColumns: make(ColumnSet)}
-		if err := q.walkGraphMatchColumns(v.Expression, func(cr *ast.ColumnRef) error {
-			sub, err := q.tsqlIsFieldSensitive(cr.Database, cr.Schema, cr.Table, cr.Column)
+		if err := q.walkGraphMatchRefs(v.Expression, func(name string) error {
+			sub, err := q.resolveGraphMatchRef(name)
 			if err != nil {
-				return fmt.Errorf("failed to resolve graph match node %q: %w", cr.Column, err)
+				return err
 			}
 			r.SourceColumns, _ = mergeColumnSet(r.SourceColumns, sub.SourceColumns)
 			return nil
