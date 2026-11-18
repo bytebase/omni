@@ -183,19 +183,52 @@ func (p *Parser) collectProcedureParens() (string, error) {
 }
 
 // collectProcedureTail reads the grammar's trailing `.*?` after a procedure's
-// parentheses: the rest of the statement, which nothing reads. It stops at a
-// statement separator, so the statements after this one stay their own: Doris
-// takes them into the same statement, and this package's Split separates them.
+// parentheses: the rest of the statement, which nothing reads. It ends at a
+// separator no compound block encloses — the boundary Split draws — so a tail
+// that opens BEGIN...END without closing it takes the statements after it, as
+// it does for Doris and for Split.
 func (p *Parser) collectProcedureTail() string {
 	start := p.cur.Loc.Start
 	end := start
-	for p.cur.Kind != tokEOF && p.cur.Kind != int(';') {
+	depth := 0
+	for p.cur.Kind != tokEOF {
+		if depth == 0 && p.cur.Kind == int(';') {
+			break
+		}
+		switch p.cur.Kind {
+		case kwBEGIN:
+			if p.beginOpensCompoundBlock() {
+				depth++
+			}
+		case kwEND:
+			if depth > 0 {
+				depth--
+			}
+		}
 		end = p.advance().Loc.End
 	}
 	if end <= start {
 		return ""
 	}
 	return strings.TrimSpace(p.textBetween(start, end))
+}
+
+// beginOpensCompoundBlock reports whether the BEGIN at cur opens a compound
+// block rather than starting a transaction, with the test Split applies
+// (isDorisTCLBeginFollower, and the label after BEGIN WITH).
+func (p *Parser) beginOpensCompoundBlock() bool {
+	next := p.peekNext()
+	if isDorisTCLBeginFollower(next) {
+		return false
+	}
+	if next.Kind != kwWITH {
+		return true
+	}
+	saved := p.save()
+	p.advance() // consume BEGIN
+	labelled := p.peekNext().Kind == kwLABEL
+	p.restore(saved)
+	return !labelled
 }
 
 // textBetween returns the source text between two byte offsets.

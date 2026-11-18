@@ -197,6 +197,28 @@ func TestSplit_UnclosedBlock(t *testing.T) {
 	}
 }
 
+// A procedure's free text is opaque (DorisParser.g4:43 leaves it to `.*?`),
+// so Parse reads it up to the boundary Split draws: an unclosed BEGIN in it
+// takes the statements after it, and a block it closes leaves them their own.
+func TestProcedureTailFollowsSplit(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE PROCEDURE a() zzz BEGIN x; SELECT 1;",
+		"ALTER PROCEDURE a() zzz BEGIN x; SELECT 1;",
+		"CREATE PROCEDURE a() zzz BEGIN x; END; SELECT 1;",
+		"ALTER PROCEDURE a(); SELECT 1;",
+	} {
+		segments := Split(sql)
+		for _, segment := range segments {
+			if _, err := Parse(segment.Text); err != nil {
+				t.Errorf("Parse(Split(%q) segment %q) = %v, want it accepted", sql, segment.Text, err)
+			}
+		}
+		if len(segments) == 0 {
+			t.Errorf("Split(%q) found no segment", sql)
+		}
+	}
+}
+
 func TestSplit_TrailingWhitespaceAfterSemi(t *testing.T) {
 	// Whitespace-only content after the last `;` should NOT produce a
 	// trailing segment (filtered by Empty()).
