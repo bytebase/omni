@@ -565,6 +565,11 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 			if err != nil {
 				return nil, err
 			}
+			// An OUTFILE inside the parentheses belongs to a subquery, which
+			// has no outfile clause; only the query-level suffix is allowed.
+			if queryHasInto(query) {
+				return nil, p.syntaxErrorAtCur()
+			}
 			attachWith(query, with)
 			return query, nil
 		}
@@ -574,7 +579,16 @@ func (p *Parser) parseTraceQuery() (ast.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		return p.parseSetOpTail(paren)
+		query, err := p.parseSetOpTail(paren)
+		if err != nil {
+			return nil, err
+		}
+		// OUTFILE inside the parentheses is a subquery suffix, not the
+		// query-level one queryStatement allows.
+		if queryHasInto(query) {
+			return nil, p.syntaxErrorAtCur()
+		}
+		return query, nil
 	}
 	return nil, p.syntaxErrorAtCur()
 }

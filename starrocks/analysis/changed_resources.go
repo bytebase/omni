@@ -160,7 +160,12 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 			changes.Resources = append(changes.Resources, ChangedResource{Database: taskDB, DatabaseOnly: true})
 		}
 		if n.Statement != nil {
-			inner := ExtractChangedResources(n.Statement, taskDatabase, text)
+			stmtText := text
+			if loc := ast.NodeLoc(n.Statement); loc.IsValid() && loc.Start >= 0 &&
+				loc.End <= len(text) && loc.Start < loc.End {
+				stmtText = text[loc.Start:loc.End]
+			}
+			inner := ExtractChangedResources(n.Statement, taskDatabase, stmtText)
 			changes.Resources = append(changes.Resources, inner.Resources...)
 			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
 			changes.DMLCount += inner.DMLCount
