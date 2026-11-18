@@ -462,8 +462,10 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 	case kwUNDROP:
 		// UNDROP SCHEMA [IF NOT EXISTS] <path> [FOR SYSTEM_TIME AS OF expr]
 		// [OPTIONS(…)] (undrop_statement). The grammar's action allows only
-		// SCHEMA; every other kind is a syntax error, as in ZetaSQL.
-		return p.parseUndropStmt()
+		// SCHEMA; every other kind is a syntax error, as in ZetaSQL. The
+		// AS OF expression and the OPTIONS values may embed subqueries, so wrap
+		// for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseUndropStmt)
 	case kwTRUNCATE:
 		// TRUNCATE TABLE (a BigQuery DML statement; the .g4 groups it under DDL).
 		return p.parseStmtWithSubqueries(p.parseTruncateStmt)
@@ -555,11 +557,13 @@ func (p *Parser) parseStmt() (ast.Node, error) {
 		return p.parseMaybePipeSuffixStmt(p.parseExecuteImmediateStmt)
 	case kwIMPORT:
 		// IMPORT MODULE|PROTO <path|string> [AS|INTO alias] [OPTIONS(…)]
-		// (import_statement, parser-utility).
-		return p.parseImportStmt()
+		// (import_statement, parser-utility). The OPTIONS values are full
+		// expressions that may embed subqueries, so wrap for fillSubqueries.
+		return p.parseStmtWithSubqueries(p.parseImportStmt)
 	case kwMODULE:
-		// MODULE <path> [OPTIONS(…)] (module_statement, parser-utility).
-		return p.parseModuleStmt()
+		// MODULE <path> [OPTIONS(…)] (module_statement, parser-utility). Same
+		// OPTIONS subquery filling.
+		return p.parseStmtWithSubqueries(p.parseModuleStmt)
 	case kwEXPORT:
 		// EXPORT DATA (AS query) | EXPORT MODEL | EXPORT … METADATA (parser-utility,
 		// still a stub). DATA/MODEL carry expressions (the AS query; OPTIONS values)

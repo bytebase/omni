@@ -927,11 +927,14 @@ func TestParseImport(t *testing.T) {
 		}
 	}
 
-	// opt_options_list.
+	// opt_options_list. An option value may embed a subquery, which the dispatch
+	// fills (fillSubqueries) and a malformed one fails the strict parse.
 	s = parseImport(t, "IMPORT MODULE a.foo AS foo OPTIONS(a = 1)")
 	if len(s.Options) != 1 {
 		t.Errorf("Options = %+v, want 1 entry", s.Options)
 	}
+	assertSubqueriesFilled(t, parseImport(t, "IMPORT MODULE a OPTIONS(a = (SELECT 1))"))
+	assertReject(t, "IMPORT MODULE a OPTIONS(a = (SELECT 1 FROM t x y))")
 	if s.Loc.End != len("IMPORT MODULE a.foo AS foo OPTIONS(a = 1)") {
 		t.Errorf("Loc.End = %d, want the end of the statement", s.Loc.End)
 	}
@@ -963,6 +966,8 @@ func TestParseModule(t *testing.T) {
 		t.Errorf("Name / Options = (%+v, %+v), want 3 parts and 1 entry", s.Name.Parts, s.Options)
 	}
 	parseModule(t, "MODULE a OPTIONS()")
+	assertSubqueriesFilled(t, parseModule(t, "MODULE a OPTIONS(x = (SELECT 1))"))
+	assertReject(t, "MODULE a OPTIONS(x = (SELECT 1 FROM t x y))")
 
 	for _, sql := range []string{"MODULE", "MODULE a()", "MODULE a OPTIONS("} {
 		assertReject(t, sql)

@@ -95,6 +95,8 @@ func TestGetQuerySpan_AccessTables(t *testing.T) {
 		{"table clause qualified", "TABLE ds.t", DialectBigQuery, []string{"ds.t"}},
 		{"table clause set op", "TABLE a UNION ALL TABLE b", DialectBigQuery, []string{"a", "b"}},
 		{"table clause tvf argument", "TABLE f(TABLE u)", DialectBigQuery, []string{"u"}},
+		// EXPORT TABLE METADATA reads the metadata of the table it names.
+		{"export table metadata", "EXPORT TABLE METADATA FROM ds.t", DialectBigQuery, []string{"ds.t"}},
 		{"dedup same table", "SELECT * FROM t WHERE a IN (SELECT a FROM t)", DialectBigQuery, []string{"t"}},
 		// Spanner schema.table bucketing (named schema under one DB).
 		{"qualified table spanner", "SELECT a FROM myschema.t", DialectSpanner, []string{"myschema.t"}},

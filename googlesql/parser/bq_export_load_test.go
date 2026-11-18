@@ -428,6 +428,20 @@ func TestExportModel_DashedPathRejected(t *testing.T) {
 	}
 }
 
+// TestExportDataGQLQuery covers query_after_as's gql_query alternative: the AS
+// clause takes a GQL query as well as a SQL one, and the statement's Loc ends at
+// the GQL query's last token.
+func TestExportDataGQLQuery(t *testing.T) {
+	sql := "EXPORT DATA AS GRAPH g MATCH (n) RETURN n"
+	s := parseOneStmt(t, sql).(*ast.ExportDataStmt)
+	if _, ok := s.Query.(*ast.GQLStmt); !ok {
+		t.Fatalf("Query = %T, want *ast.GQLStmt", s.Query)
+	}
+	if s.Loc.End != len(sql) {
+		t.Errorf("Loc.End = %d, want %d", s.Loc.End, len(sql))
+	}
+}
+
 // --- EXPORT METADATA ---
 
 func TestExportMetadata(t *testing.T) {
@@ -462,6 +476,13 @@ func TestExportMetadata(t *testing.T) {
 	s = parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1))").(*ast.ExportMetadataStmt)
 	assertSubqueriesFilled(t, s)
 	assertReject(t, "EXPORT TABLE METADATA FROM ds.t OPTIONS(x = (SELECT 1 FROM a b c))")
+
+	// connection_clause takes a path_expression, so an unquoted dashed project is
+	// not a connection name; the backtick-quoted spelling is.
+	assertReject(t, "EXPORT TABLE METADATA FROM ds.t WITH CONNECTION my-project.us.c")
+	if s := parseOneStmt(t, "EXPORT TABLE METADATA FROM ds.t WITH CONNECTION `my-project.us.c`").(*ast.ExportMetadataStmt); s.ConnectionName != "my-project.us.c" {
+		t.Errorf("ConnectionName = %q, want my-project.us.c", s.ConnectionName)
+	}
 
 	// EXPORT TABLE FUNCTION METADATA is the grammar's own action error.
 	assertReject(t, "EXPORT TABLE FUNCTION METADATA FROM ds.t")

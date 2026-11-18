@@ -283,6 +283,11 @@ func TestUndropSchema(t *testing.T) {
 	if !u.IfNotExists || u.ForSystemTime == nil || len(u.Options) != 1 {
 		t.Errorf("undrop = %+v, want IF NOT EXISTS + FOR SYSTEM_TIME + OPTIONS", u)
 	}
+
+	// The AS OF expression and the OPTIONS values may embed subqueries, which the
+	// dispatch fills; a malformed one fails the strict parse.
+	assertSubqueriesFilled(t, undropOf(t, "UNDROP SCHEMA s OPTIONS(a = (SELECT 1))"))
+	assertReject(t, "UNDROP SCHEMA s OPTIONS(a = (SELECT 1 FROM t x y))")
 }
 
 func TestUndropSchema_Rejects(t *testing.T) {

@@ -1809,6 +1809,9 @@ func (w *spanWalker) discoverTables(node ast.Node) {
 		if n.Object == ast.DropTable || n.Object == ast.DropView {
 			w.recordTable(n.Name, "")
 		}
+	case *ast.ExportMetadataStmt:
+		// The exported table is the statement's source; its metadata is read.
+		w.recordTable(n.Path, "")
 	case *ast.CreateSchemaStmt, *ast.CreateDatabaseStmt:
 		// Schema/Database creates have no table reference of lineage interest.
 	default:

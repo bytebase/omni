@@ -140,7 +140,7 @@ func (p *Parser) parseExportData() (ast.Node, error) {
 			return nil, err
 		}
 		stmt.Query = gql
-		stmt.Loc.End = nodeLoc(gql).End
+		stmt.Loc.End = p.prev.Loc.End
 		return stmt, nil
 	}
 	q, err := p.parseQuery()
