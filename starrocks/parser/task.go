@@ -488,13 +488,26 @@ func attachWith(node ast.Node, with *ast.WithClause) {
 // queryHasInto reports whether the query already carries an INTO OUTFILE
 // clause, including one on an arm or inside a parenthesized group.
 func queryHasInto(node ast.Node) bool {
-	switch n := node.(type) {
-	case *ast.SelectStmt:
-		return n.Into != nil
-	case *ast.ParenSelect:
-		return n.Into != nil || queryHasInto(n.Sel)
-	case *ast.SetOpStmt:
-		return n.Into != nil || queryHasInto(n.Left) || queryHasInto(n.Right)
+	stack := []ast.Node{node}
+	for len(stack) > 0 {
+		n := stack[len(stack)-1]
+		stack = stack[:len(stack)-1]
+		switch q := n.(type) {
+		case *ast.SelectStmt:
+			if q.Into != nil {
+				return true
+			}
+		case *ast.ParenSelect:
+			if q.Into != nil {
+				return true
+			}
+			stack = append(stack, q.Sel)
+		case *ast.SetOpStmt:
+			if q.Into != nil {
+				return true
+			}
+			stack = append(stack, q.Left, q.Right)
+		}
 	}
 	return false
 }

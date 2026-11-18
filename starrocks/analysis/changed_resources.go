@@ -132,6 +132,17 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 		changes.DMLCount++
 		changes.DMLStatements = append(changes.DMLStatements, statementText(text))
 
+	case *ast.ExplainStmt:
+		// Only EXPLAIN ANALYZE runs its statement; the plan-only levels write
+		// nothing.
+		if n.Type == "ANALYZE" && n.Query != nil {
+			inner := ExtractChangedResources(n.Query, database, text)
+			changes.Resources = append(changes.Resources, inner.Resources...)
+			changes.DMLStatements = append(changes.DMLStatements, inner.DMLStatements...)
+			changes.DMLCount += inner.DMLCount
+			changes.InsertCount += inner.InsertCount
+		}
+
 	case *ast.SubmitTaskStmt:
 		// The submitted statement is the one that writes; the task wrapper
 		// only schedules it. A qualified task name selects its database for

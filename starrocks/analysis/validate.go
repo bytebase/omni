@@ -202,11 +202,9 @@ func isReadOnlyAST(node ast.Node) bool {
 // StarRocks only supports EXPLAIN on query and DML statements. Queries are
 // classified by isReadOnlyQuery, the one export gate.
 func isExplainableInner(node ast.Node) bool {
-	if isReadOnlyQuery(node) {
-		return true
-	}
 	switch node.(type) {
-	case *ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
+	case *ast.SelectStmt, *ast.SetOpStmt, *ast.ParenSelect,
+		*ast.InsertStmt, *ast.UpdateStmt, *ast.DeleteStmt,
 		*ast.TruncateTableStmt:
 		return true
 	}

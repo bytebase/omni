@@ -63,6 +63,18 @@ func TestValidateQuerySubmitTask(t *testing.T) {
 	}
 }
 
+// A plan-only DESC accepts a SELECT that carries INTO OUTFILE: the plan does
+// not perform the export.
+func TestValidateQueryPlanOnlyOutfile(t *testing.T) {
+	readOnly, returnsData, err := ValidateQuery("DESC SELECT 1 INTO OUTFILE 'x'")
+	if err != nil {
+		t.Fatalf("ValidateQuery: %v", err)
+	}
+	if !readOnly || !returnsData {
+		t.Errorf("DESC SELECT INTO OUTFILE = (readOnly %v, returnsData %v), want (true, true)", readOnly, returnsData)
+	}
+}
+
 // EXPLAIN ANALYZE over DML is not read-only, but its profile is still a
 // result set the driver must read rather than Exec.
 func TestValidateQueryAnalyzeInsert(t *testing.T) {
