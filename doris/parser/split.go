@@ -384,11 +384,12 @@ func (b *blockFrame) expectsOperand() bool {
 	switch b.prev.Kind {
 	case int('('), int(','), int('='), int('<'), int('>'), int('+'), int('-'),
 		int('*'), int('/'), int('%'), int('&'), int('|'), int('^'), int('~'),
+		int('!'), int(':'),
 		tokLessEq, tokGreaterEq, tokNotEq, tokNullSafeEq, tokLogicalAnd,
-		tokDoublePipes, tokAssign, tokArrow,
-		kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwIN, kwIS, kwLIKE,
-		kwBETWEEN, kwAS, kwCASE, kwSELECT, kwWHERE, kwBY, kwHAVING, kwON,
-		kwSET, kwDISTINCT, kwALL, kwEXISTS, kwFROM:
+		tokDoublePipes, tokAssign, tokArrow, tokShiftLeft, tokShiftRight,
+		kwWHEN, kwTHEN, kwELSE, kwAND, kwOR, kwNOT, kwXOR, kwIN, kwIS, kwLIKE,
+		kwBETWEEN, kwDIV, kwAS, kwCASE, kwSELECT, kwWHERE, kwBY, kwHAVING,
+		kwON, kwSET, kwDISTINCT, kwALL, kwEXISTS, kwFROM:
 		return true
 	}
 	return false

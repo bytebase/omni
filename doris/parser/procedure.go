@@ -196,8 +196,10 @@ func (p *Parser) collectProcedureParens() (string, error) {
 func (p *Parser) collectProcedureTail() {
 	var frame blockFrame
 	// A statement can begin right after the procedure's parentheses, which is
-	// where its body stands.
+	// where its body stands: its COMMENT clause and the type parentheses of its
+	// parameter list may stand between the two, as they do for Split.
 	prev := Token{Kind: int(';')}
+	headOpen := true
 	for p.cur.Kind != tokEOF {
 		if frame.empty() {
 			if p.cur.Kind == int(';') {
@@ -206,8 +208,11 @@ func (p *Parser) collectProcedureTail() {
 			// A BEGIN opens the block only where one can stand (SELECT begin
 			// FROM t names a column), and only outside a block, where Split
 			// still has the transaction forms to rule out.
-			if p.cur.Kind == kwBEGIN && startsStatementAt(prev) && p.beginOpensCompoundBlock() {
+			if p.cur.Kind == kwBEGIN && (headOpen || startsStatementAt(prev)) && p.beginOpensCompoundBlock() {
 				frame.open()
+			}
+			if p.cur.Kind != kwCOMMENT && p.cur.Kind != tokString && p.cur.Kind != int(')') {
+				headOpen = false
 			}
 			prev = p.advance()
 			continue
