@@ -22,6 +22,13 @@ func (c *Catalog) alterTable(stmt *nodes.AlterTableStmt) error {
 
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
+	// An ENGINE option naming an engine the pinned server does not ship is
+	// 1286, answered before the table is looked up (measured on
+	// mariadb:11.8.8: `ALTER TABLE a ENGINE zzz` on no table answers 1286,
+	// not 1146).
+	if err := validateAlteredStorageEngines(stmt.Commands); err != nil {
+		return err
+	}
 	tbl := db.Tables[key]
 	if tbl == nil {
 		// IF EXISTS makes a missing table a note (1146 as a warning).
@@ -676,6 +683,45 @@ func (c *Catalog) addSingleColumn(tbl *Table, colDef *nodes.ColumnDef, first boo
 				Columns:   []string{colDef.Name},
 				IndexName: idxName,
 			})
+		case nodes.ColConstrReferences:
+			// MariaDB makes a real foreign key of a column-level REFERENCES
+			// the ALTER adds, as it does of the CREATE TABLE path's, and
+			// judges it against the table the statement leaves: measured on
+			// mariadb:11.8.8, `ALTER TABLE a ADD a INT REFERENCES a` over a
+			// table whose keys do not lead with a answers 1005.
+			conName := cc.Name
+			if conName == "" {
+				conName = fmt.Sprintf("%s_ibfk_%d", tbl.Name, nextFKGeneratedNumber(tbl, tbl.Name))
+			}
+			if foreignKeyConstraintNameExists(tbl.Database, nil, conName) {
+				return errFKDupName(conName)
+			}
+			refDB, refTable := "", ""
+			if cc.RefTable != nil {
+				refDB = cc.RefTable.Schema
+				refTable = cc.RefTable.Name
+			}
+			fkCols := []string{colDef.Name}
+			fkCon := &Constraint{
+				Name:        conName,
+				Type:        ConForeignKey,
+				Table:       tbl,
+				Columns:     fkCols,
+				RefDatabase: refDB,
+				RefTable:    refTable,
+				RefColumns:  refColumnsOrDefault(cc.RefColumns, fkCols),
+				OnDelete:    refActionToString(cc.OnDelete),
+				OnUpdate:    refActionToString(cc.OnUpdate),
+			}
+			if c.foreignKeyChecks {
+				if err := c.validateSingleFK(tbl.Database, tbl, fkCon); err != nil {
+					return err
+				}
+			}
+			tbl.Constraints = append(tbl.Constraints, fkCon)
+			// The backing index is named after the constraint only where the
+			// statement named one, as the CREATE TABLE path's is.
+			insertFKBackingIndex(tbl, cc.Name, fkCols, []*IndexColumn{{Name: colDef.Name}}, len(tbl.Indexes))
 		}
 	}
 
@@ -1325,7 +1371,7 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			Columns:     cols,
 			RefDatabase: refDBName,
 			RefTable:    refTable,
-			RefColumns:  con.RefColumns,
+			RefColumns:  refColumnsOrDefault(con.RefColumns, cols),
 			OnDelete:    refActionToString(con.OnDelete),
 			OnUpdate:    refActionToString(con.OnUpdate),
 		}
@@ -1411,6 +1457,9 @@ func (c *Catalog) alterAddConstraint(tbl *Table, cmd *nodes.AlterTableCmd, decla
 			}
 		}
 		idxCols := buildIndexColumns(con)
+		if err := validateFulltextColumns(tbl, idxCols); err != nil {
+			return err
+		}
 		ftIdx := &Index{
 			Name:      idxName,
 			Table:     tbl,

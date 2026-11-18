@@ -24,6 +24,12 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 	tableName := stmt.Table.Name
 	key := toLower(tableName)
 
+	// An ENGINE option naming an engine the pinned server does not ship is
+	// 1286, answered before the name is looked up.
+	if err := validateStorageEngines(stmt.Options); err != nil {
+		return err
+	}
+
 	// A LIKE source that names the target itself is rejected as a repeated
 	// table (1066) before anything is looked up: CREATE [OR REPLACE] TABLE
 	// t LIKE t fails whether t exists or not, IF NOT EXISTS included.
@@ -445,7 +451,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 					Columns:     fkCols,
 					RefDatabase: refDB,
 					RefTable:    refTable,
-					RefColumns:  cc.RefColumns,
+					RefColumns:  refColumnsOrDefault(cc.RefColumns, fkCols),
 					OnDelete:    refActionToString(cc.OnDelete),
 					OnUpdate:    refActionToString(cc.OnUpdate),
 				})
@@ -722,7 +728,7 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				Columns:     cols,
 				RefDatabase: refDB,
 				RefTable:    refTable,
-				RefColumns:  con.RefColumns,
+				RefColumns:  refColumnsOrDefault(con.RefColumns, cols),
 				OnDelete:    refActionToString(con.OnDelete),
 				OnUpdate:    refActionToString(con.OnUpdate),
 			})
@@ -795,6 +801,9 @@ func (c *Catalog) createTable(stmt *nodes.CreateTableStmt) error {
 				}
 			}
 			idxCols := buildIndexColumns(con)
+			if err := validateFulltextColumns(tbl, idxCols); err != nil {
+				return err
+			}
 			ftIdx := &Index{
 				Name:      idxName,
 				Table:     tbl,
@@ -1908,6 +1917,19 @@ func (c *Catalog) validateSingleFK(db *Database, tbl *Table, con *Constraint) er
 	return nil
 }
 
+// refColumnsOrDefault fills a foreign key's referenced columns where the
+// statement named none. MariaDB takes them from the key's own columns, by
+// position, where MySQL reads `REFERENCES p` as p's primary key: measured on
+// mariadb:11.8.8, `FOREIGN KEY (p, q) REFERENCES z` is stored as
+// REFERENCES `z` (`p`, `q`), and one whose columns the referenced table has no
+// index over is the 1005 every unformable foreign key answers.
+func refColumnsOrDefault(refCols, cols []string) []string {
+	if len(refCols) > 0 {
+		return refCols
+	}
+	return append([]string{}, cols...)
+}
+
 // hasIndexOnColumns checks whether a table has an index (PK, UNIQUE, or regular KEY)
 // whose leading columns match the given columns.
 func hasIndexOnColumns(tbl *Table, cols []string) bool {
@@ -2137,9 +2159,43 @@ func validateIndexColumns(tbl *Table, idxCols []*IndexColumn, fulltext, spatial 
 	return validateKeyParts(tbl, idxCols, fulltext, spatial, false)
 }
 
+// validateFulltextColumns refuses a FULLTEXT key part over a column whose type
+// the key cannot index: 1283, measured on mariadb:11.8.8, for BLOB, VARBINARY,
+// BINARY, ENUM, SET and every non-string type. The character types are the ones
+// it takes, JSON among them, which MariaDB stores as LONGTEXT. A part naming no
+// column is left to the 1072 the caller answers first.
+func validateFulltextColumns(tbl *Table, cols []*IndexColumn) error {
+	for _, ic := range cols {
+		if ic == nil || ic.Name == "" {
+			continue
+		}
+		col := tbl.GetColumn(ic.Name)
+		if col == nil || isFulltextColumnType(col.DataType) {
+			continue
+		}
+		return errCannotPartOfFulltext(ic.Name)
+	}
+	return nil
+}
+
+// isFulltextColumnType reports whether a column's type may be part of a
+// FULLTEXT index: the character types only.
+func isFulltextColumnType(dt string) bool {
+	switch strings.ToLower(dt) {
+	case "char", "varchar", "tinytext", "text", "mediumtext", "longtext":
+		return true
+	}
+	return false
+}
+
 // validateKeyParts is validateIndexColumns, where wholeTextBlob lets a BLOB or
 // TEXT part go without a length, as a long unique key's does.
 func validateKeyParts(tbl *Table, idxCols []*IndexColumn, fulltext, spatial, wholeTextBlob bool) error {
+	if fulltext {
+		if err := validateFulltextColumns(tbl, idxCols); err != nil {
+			return err
+		}
+	}
 	for _, ic := range idxCols {
 		if ic.Name == "" {
 			continue
