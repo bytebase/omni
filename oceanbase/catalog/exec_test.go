@@ -353,3 +353,19 @@ func TestExecMaterializedViewPrimaryKey(t *testing.T) {
 		}
 	}
 }
+
+// TestExecAlterRenameLogRollback pins that a failed multi-command ALTER TABLE
+// restores the table's materialized view log state with the table.
+func TestExecAlterRenameLogRollback(t *testing.T) {
+	c := New()
+	if _, err := c.Exec("CREATE DATABASE test; USE test; CREATE TABLE t (a INT); CREATE MATERIALIZED VIEW LOG ON t; ALTER TABLE t RENAME TO u, DROP COLUMN missing;", nil); err != nil {
+		t.Fatal(err)
+	}
+	results, err := c.Exec("CREATE MATERIALIZED VIEW LOG ON t;", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 1 || results[0].Error == nil {
+		t.Fatalf("CREATE MATERIALIZED VIEW LOG ON t after rollback: error = %v, want a duplicate", results)
+	}
+}

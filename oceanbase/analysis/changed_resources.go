@@ -151,19 +151,28 @@ func ExtractChangedResources(node ast.Node, database, text string) StatementChan
 	case *ast.CreateMaterializedViewStmt:
 		addObjectDatabase(n.Name)
 	case *ast.CreateMaterializedViewLogStmt:
-		addObjectDatabase(n.Table)
+		if n.Table != nil {
+			db, table := tableRef(n.Table, database)
+			addTable(db, table, false)
+		}
 	case *ast.AlterViewStmt:
 		addObjectDatabase(n.Name)
 	case *ast.AlterMaterializedViewStmt:
 		addObjectDatabase(n.Name)
 	case *ast.AlterMaterializedViewLogStmt:
-		addObjectDatabase(n.Table)
+		if n.Table != nil {
+			db, table := tableRef(n.Table, database)
+			addTable(db, table, false)
+		}
 	case *ast.DropViewStmt:
 		for _, ref := range n.Views {
 			addObjectDatabase(ref)
 		}
 	case *ast.DropMaterializedViewLogStmt:
-		addObjectDatabase(n.Table)
+		if n.Table != nil {
+			db, table := tableRef(n.Table, database)
+			addTable(db, table, false)
+		}
 	case *ast.CreateFunctionStmt:
 		addObjectDatabase(n.Name)
 	case *ast.AlterRoutineStmt:

@@ -132,6 +132,9 @@ func TestMaterializedViewCompletion(t *testing.T) {
 	if cs := Collect("CREATE MATERIALIZED VIEW mv AS ", len("CREATE MATERIALIZED VIEW mv AS ")); !cs.HasToken(kwSELECT) {
 		t.Error("Collect(\"CREATE MATERIALIZED VIEW mv AS \") does not offer SELECT")
 	}
+	if cs := Collect("CREATE MATERIALIZED VIEW mv ", len("CREATE MATERIALIZED VIEW mv ")); !cs.HasToken(kwAS) {
+		t.Error("Collect(\"CREATE MATERIALIZED VIEW mv \") does not offer AS")
+	}
 	if cs := Collect("ALTER MATERIALIZED VIEW ", len("ALTER MATERIALIZED VIEW ")); !cs.HasRule("view_ref") {
 		t.Error("Collect(\"ALTER MATERIALIZED VIEW \") does not offer view_ref")
 	}

@@ -199,11 +199,54 @@ func (b *builder) createMaterializedView(v *ast.CreateMaterializedViewStmt) bool
 	if v.Name.Schema != "" {
 		b.databaseNeeds(r.db, v.Name.Schema, r.rng) // 1049
 	}
+	// A primary key names a column of the materialized view's output.
+	if v.PrimaryKey != nil {
+		outs := materializedViewColumns(v)
+		for _, name := range v.PrimaryKey.Columns {
+			found := false
+			for _, out := range outs {
+				if strings.EqualFold(out, name) {
+					found = true
+					break
+				}
+			}
+			if !found && len(outs) > 0 {
+				b.fail(r.rng, nil, review.ObjectNotFound, notFound("column", name, r.written))
+			}
+		}
+	}
 	k := relKey(r.db, r.name)
 	b.needFree(k, r.rng, r.written, "materialized view")
 	b.Set(k, walk.Present, "")
 	b.w.materialized[k] = true
 	return true
+}
+
+// materializedViewColumns lists the names a materialized view's column list or
+// SELECT target list gives it.
+func materializedViewColumns(v *ast.CreateMaterializedViewStmt) []string {
+	if len(v.Columns) > 0 {
+		return v.Columns
+	}
+	if v.Select == nil {
+		return nil
+	}
+	var names []string
+	for _, target := range v.Select.TargetList {
+		t, ok := target.(*ast.ResTarget)
+		if !ok {
+			continue
+		}
+		switch {
+		case t.Name != "":
+			names = append(names, t.Name)
+		default:
+			if ref, ok := t.Val.(*ast.ColumnRef); ok {
+				names = append(names, ref.Column)
+			}
+		}
+	}
+	return names
 }
 
 // alterMaterializedView follows ALTER MATERIALIZED VIEW, which names an object

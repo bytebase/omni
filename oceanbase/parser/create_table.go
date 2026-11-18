@@ -1388,7 +1388,7 @@ func (p *Parser) parseTableOption() (*nodes.TableOption, bool, error) {
 	// Completion: offer table option keywords.
 	p.checkCursor()
 	if p.collectMode() {
-		for _, t := range []int{kwENGINE, kwDEFAULT, kwCHARSET, kwCOLLATE, kwCOMMENT, kwAUTO_INCREMENT, kwROW_FORMAT, kwPARTITION} {
+		for _, t := range []int{kwENGINE, kwDEFAULT, kwCHARSET, kwCOLLATE, kwCOMMENT, kwAUTO_INCREMENT, kwROW_FORMAT, kwPARTITION, kwAS} {
 			p.addTokenCandidate(t)
 		}
 		return nil, false, &ParseError{Message: "collecting"}
