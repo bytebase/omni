@@ -567,6 +567,11 @@ func TestRequirePrimaryKeyColumnDrop(t *testing.T) {
 			want: []finding{lost(1, "DROP COLUMN id", "t"), lost(3, "DROP COLUMN id", "gen"), lost(4, "DROP COLUMN id", "solo")},
 		},
 		{
+			name: "the key, before materialized view statements",
+			sql:  "ALTER TABLE plain DROP COLUMN id;\nCREATE MATERIALIZED VIEW mv AS SELECT 1;\nALTER MATERIALIZED VIEW mv REFRESH FAST;\nCREATE MATERIALIZED VIEW LOG ON plain;\nALTER MATERIALIZED VIEW LOG ON plain NOPARALLEL;\nDROP MATERIALIZED VIEW LOG ON plain;",
+			want: []finding{lost(0, "DROP COLUMN id", "plain")},
+		},
+		{
 			name: "the key, before statements the rule passes or cannot follow",
 			sql:  "ALTER TABLE plain DROP COLUMN id;\nINSERT INTO plain VALUES (1);\nCREATE VIEW v1 AS SELECT v FROM plain;\nCREATE PROCEDURE pr() ALTER TABLE plain ADD PRIMARY KEY (v);\nSET @x = 1;\nCREATE DATABASE d;\nDROP DATABASE other;",
 			want: []finding{lost(0, "DROP COLUMN id", "plain")},
@@ -1111,6 +1116,14 @@ func TestPriorBackup(t *testing.T) {
 			want: []finding{
 				{1, "DELETE FROM t WHERE id = 2", "Prior backup can't back up `t`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
 				{3, "UPDATE p SET note = '' WHERE id = 1", "Prior backup can't back up `p`: this change both updates and deletes its rows.\n\nMove the `UPDATE` and the `DELETE` into separate changes, or turn off **Prior backup**.", []int{0}},
+			},
+		},
+		{
+			name:   "a materialized view the change creates",
+			sql:    "CREATE MATERIALIZED VIEW mv AS SELECT id FROM t;\nUPDATE t SET n = 1 WHERE EXISTS (SELECT 1 FROM mv);",
+			change: backup,
+			want: []finding{
+				{1, "UPDATE t SET n = 1 WHERE EXISTS (SELECT 1 FROM mv)", "Prior backup runs before the change, when `mv` doesn't exist yet.\n\nCreate `mv` in an earlier change, or turn off **Prior backup**.", []int{0}},
 			},
 		},
 		{
