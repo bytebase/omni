@@ -38,10 +38,11 @@ func TestRedshiftCreateDatabaseFromARN(t *testing.T) {
 		assertDefElemString(t, create.Options, "data_catalog_schema", "cat")
 	})
 	t.Run("no schema", func(t *testing.T) {
-		stmt := singleStmt(t, "CREATE DATABASE a FROM ARN 'arn' WITH NO DATA CATALOG SCHEMA")
+		stmt := singleStmt(t, "CREATE DATABASE a FROM ARN 'arn' WITH NO DATA CATALOG SCHEMA IAM_ROLE default")
 		create := stmt.(*nodes.CreatedbStmt)
 		assertDefElemString(t, create.Options, "from_arn", "arn")
 		assertDefElemBool(t, create.Options, "no_data_catalog_schema", true)
+		assertDefElemString(t, create.Options, "iam_role", "default")
 	})
 }
 
@@ -79,12 +80,12 @@ func TestRedshiftAlterDatabaseIntegrationRefresh(t *testing.T) {
 		}
 	})
 	t.Run("tables", func(t *testing.T) {
-		stmt := singleStmt(t, "ALTER DATABASE a INTEGRATION REFRESH TABLE t1, t2")
+		stmt := singleStmt(t, "ALTER DATABASE a INTEGRATION REFRESH TABLE s.t1, t2")
 		alter := stmt.(*nodes.AlterDatabaseStmt)
 		assertDefElemString(t, alter.Options, "refresh", "table")
 		names := defElemNames(t, alter.Options, "refresh_tables")
-		if len(names) != 2 || names[0] != "t1" || names[1] != "t2" {
-			t.Fatalf("expected refresh_tables [t1 t2], got %v", names)
+		if len(names) != 2 || names[0] != "s.t1" || names[1] != "t2" {
+			t.Fatalf("expected refresh_tables [s.t1 t2], got %v", names)
 		}
 	})
 }
@@ -101,14 +102,14 @@ func TestRedshiftAlterDatabaseIntegrationSetHistoryMode(t *testing.T) {
 		}
 	})
 	t.Run("tables", func(t *testing.T) {
-		stmt := singleStmt(t, "ALTER DATABASE a INTEGRATION SET QUERY_ALL_STATES = FALSE HISTORY_MODE FALSE FOR TABLE t1, t2 AUTO_REMEDIATION TRUE")
+		stmt := singleStmt(t, "ALTER DATABASE a INTEGRATION SET QUERY_ALL_STATES = FALSE HISTORY_MODE FALSE FOR TABLE s.t1, t2 AUTO_REMEDIATION TRUE")
 		alter := stmt.(*nodes.AlterDatabaseStmt)
 		assertDefElemBool(t, alter.Options, "query_all_states", false)
 		assertDefElemBool(t, alter.Options, "history_mode", false)
 		assertDefElemBool(t, alter.Options, "auto_remediation", true)
 		names := defElemNames(t, alter.Options, "history_mode_tables")
-		if len(names) != 2 || names[0] != "t1" || names[1] != "t2" {
-			t.Fatalf("expected history_mode_tables [t1 t2], got %v", names)
+		if len(names) != 2 || names[0] != "s.t1" || names[1] != "t2" {
+			t.Fatalf("expected history_mode_tables [s.t1 t2], got %v", names)
 		}
 	})
 }
@@ -134,6 +135,15 @@ func TestRedshiftCopyDocOptionTails(t *testing.T) {
 		stmt := firstCopyStmt(t, "COPY a FROM 's' IAM_ROLE DEFAULT CSV")
 		assertDefElemString(t, stmt.Options, "format", "csv")
 	})
+	t.Run("unknown identifier option", func(t *testing.T) {
+		stmt := firstCopyStmt(t, "COPY a FROM 's' IAM_ROLE DEFAULT zzz")
+		if findDefElem(stmt.Options, "zzz") == nil {
+			t.Fatalf("expected a zzz option in %#v", stmt.Options)
+		}
+	})
+	t.Run("json needs its argument", func(t *testing.T) {
+		assertParseError(t, "COPY a FROM 's' IAM_ROLE DEFAULT JSON")
+	})
 }
 
 func TestRedshiftUnloadDocOptionTails(t *testing.T) {
@@ -147,6 +157,29 @@ func TestRedshiftUnloadDocOptionTails(t *testing.T) {
 		stmt := firstUnloadStmt(t, "UNLOAD('s') TO 's' IAM_ROLE DEFAULT PARALLEL")
 		assertDefElemString(t, stmt.Options, "parallel", "on")
 	})
+	t.Run("unknown option is rejected", func(t *testing.T) {
+		assertParseError(t, "UNLOAD('s') TO 's' IAM_ROLE DEFAULT zzz")
+	})
+	t.Run("bare AS is rejected", func(t *testing.T) {
+		assertParseError(t, "UNLOAD('s') TO 's' IAM_ROLE DEFAULT AS CSV")
+	})
+}
+
+func TestRedshiftCreateDatabaseSourceKeywords(t *testing.T) {
+	for _, sql := range []string{
+		"CREATE DATABASE a WITH PERMISSIONS FROM INTEGRATION 'id'",
+		"CREATE DATABASE a FROM 'arn' 'x' WITH NO DATA CATALOG SCHEMA",
+		"ALTER DATABASE a INTEGRATION 'refresh' ALL TABLES",
+	} {
+		assertParseError(t, sql)
+	}
+}
+
+func assertParseError(t *testing.T, sql string) {
+	t.Helper()
+	if _, err := Parse(sql); err == nil {
+		t.Fatalf("Parse(%q) succeeded, want an error", sql)
+	}
 }
 
 func defElemNames(t *testing.T, list *nodes.List, name string) []string {

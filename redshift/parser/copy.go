@@ -57,7 +57,7 @@ func (p *Parser) parseCopyStmt() (nodes.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	redshiftOptions, err := p.parseRedshiftDataMovementOptions()
+	redshiftOptions, err := p.parseRedshiftDataMovementOptions(false)
 	if err != nil {
 		return nil, err
 	}

@@ -7,29 +7,31 @@ import (
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
-func (p *Parser) parseRedshiftDataMovementOptions() (*nodes.List, error) {
+// parseRedshiftDataMovementOptions parses the option tail of COPY or UNLOAD.
+// unload says which statement is being read: r_UNLOAD's option list is closed,
+// while r_COPY's writes each option as an identifier, so only COPY takes an
+// unrecognized word.
+func (p *Parser) parseRedshiftDataMovementOptions(unload bool) (*nodes.List, error) {
 	var items []nodes.Node
+	afterComma := false
 	for {
-		item, err := p.parseRedshiftDataMovementOption()
+		item, err := p.parseRedshiftDataMovementOption(unload)
 		if err != nil {
 			return nil, err
 		}
 		if item == nil {
+			if afterComma {
+				// The docs separate options with commas, and a trailing comma is
+				// not an option.
+				return nil, p.syntaxErrorAtCur()
+			}
 			break
 		}
 		items = append(items, item)
+		afterComma = false
 		if p.cur.Type == ',' {
 			p.advance()
-			// The docs separate options with commas, and a trailing comma is
-			// not an option.
-			if !p.isRedshiftDataMovementOptionStart() {
-				return nil, p.syntaxErrorAtCur()
-			}
-			continue
-		}
-		// Consecutive options need no comma, as COPY's option list writes them.
-		if !p.isRedshiftDataMovementOptionStart() {
-			break
+			afterComma = true
 		}
 	}
 	if len(items) == 0 {
@@ -38,7 +40,7 @@ func (p *Parser) parseRedshiftDataMovementOptions() (*nodes.List, error) {
 	return &nodes.List{Items: items}, nil
 }
 
-func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
+func (p *Parser) parseRedshiftDataMovementOption(unload bool) (*nodes.DefElem, error) {
 	switch {
 	case p.consumeRedshiftWord("iam_role"):
 		value, err := p.parseRedshiftStringOrKeyword()
@@ -74,6 +76,9 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 		p.advance()
 		return makeDefElem("format", &nodes.String{Str: "csv"}), nil
 	case p.cur.Type == AS:
+		if unload {
+			return nil, nil
+		}
 		p.advance()
 		value, err := p.parseRedshiftOptionWord()
 		if err != nil {
@@ -144,7 +149,13 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 			return nil, err
 		}
 		return makeDefElem("region", &nodes.String{Str: value}), nil
-	case p.consumeRedshiftWord("json"):
+	case p.redshiftKeywordIs("json"):
+		next := p.peekNext().Type
+		if !unload && next != SCONST && next != AS {
+			// COPY's JSON option requires its argument.
+			return nil, nil
+		}
+		p.advance()
 		if p.cur.Type == SCONST || p.cur.Type == AS {
 			value, err := p.parseRedshiftCopyStringOption()
 			if err != nil {
@@ -304,9 +315,9 @@ func (p *Parser) parseRedshiftDataMovementOption() (*nodes.DefElem, error) {
 			name = "partition_by_include"
 		}
 		return makeDefElem(name, columns), nil
-	case p.isRedshiftDataMovementOptionStart():
-		// r_COPY and r_UNLOAD write each unrecognized option as an identifier
-		// with an optional identifier value, so keep it as one.
+	case !unload && p.isRedshiftDataMovementOptionStart():
+		// r_COPY writes each unrecognized option as an identifier with an
+		// optional identifier value, so keep it as one.
 		name := strings.ToLower(p.cur.Str)
 		p.advance()
 		var arg nodes.Node
@@ -374,7 +385,7 @@ func (p *Parser) parseUnloadStmt(loc int) (nodes.Node, error) {
 	if _, err := p.expect(SCONST); err != nil {
 		return nil, err
 	}
-	options, err := p.parseRedshiftDataMovementOptions()
+	options, err := p.parseRedshiftDataMovementOptions(true)
 	if err != nil {
 		return nil, err
 	}

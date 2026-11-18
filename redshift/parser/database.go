@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"strings"
+
 	nodes "github.com/bytebase/omni/redshift/ast"
 )
 
@@ -53,11 +55,13 @@ func (p *Parser) parseCreatedbStmt(stmtLoc int) (nodes.Node, error) {
 //	    NAMESPACE <id>
 func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (nodes.Node, error) {
 	var items []nodes.Node
+	withPermissions := false
 	if p.cur.Type == WITH {
 		p.advance() // WITH PERMISSIONS
-		if !p.consumeRedshiftWord("permissions") {
+		if !p.acceptRedshiftKeyword("permissions") {
 			return nil, p.syntaxErrorAtCur()
 		}
+		withPermissions = true
 		items = append(items, makeDefElem("with_permissions", &nodes.Boolean{Boolval: true}))
 	}
 	if _, err := p.expect(FROM); err != nil {
@@ -65,20 +69,22 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 	}
 
 	switch {
-	case p.consumeRedshiftWord("integration"):
+	case withPermissions && !p.redshiftKeywordIs("datashare"):
+		return nil, p.syntaxErrorAtCur()
+	case p.acceptRedshiftKeyword("integration"):
 		id, err := p.parseRedshiftSourceString()
 		if err != nil {
 			return nil, err
 		}
 		items = append(items, makeDefElem("from_integration", &nodes.String{Str: id}))
-		if p.consumeRedshiftWord("database") {
-			name, err := p.parseRedshiftSourceString()
+		if p.acceptRedshiftKeyword("database") {
+			name, err := p.parseRedshiftSourceName()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("integration_database", &nodes.String{Str: name}))
 		}
-		if p.consumeRedshiftWord("set") {
+		if p.acceptRedshiftKeyword("set") {
 			items = append(items, makeDefElem("set", &nodes.Boolean{Boolval: true}))
 		}
 		options, err := p.parseRedshiftIntegrationOptions(false)
@@ -96,7 +102,7 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 		if createdbOptions != nil {
 			items = append(items, createdbOptions.Items...)
 		}
-	case p.consumeRedshiftWord("arn"):
+	case p.acceptRedshiftKeyword("arn"):
 		arn, err := p.parseRedshiftSourceString()
 		if err != nil {
 			return nil, err
@@ -106,24 +112,32 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 			return nil, err
 		}
 		noData := false
-		if p.consumeRedshiftWord("no") {
+		if p.acceptRedshiftKeyword("no") {
 			noData = true
 		}
 		for _, word := range []string{"data", "catalog", "schema"} {
-			if !p.consumeRedshiftWord(word) {
+			if !p.acceptRedshiftKeyword(word) {
 				return nil, p.syntaxErrorAtCur()
 			}
 		}
 		if noData {
 			items = append(items, makeDefElem("no_data_catalog_schema", &nodes.Boolean{Boolval: true}))
-			break
+		} else {
+			schema, err := p.parseRedshiftSourceString()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, makeDefElem("data_catalog_schema", &nodes.String{Str: schema}))
 		}
-		schema, err := p.parseRedshiftSourceString()
-		if err != nil {
-			return nil, err
+		// The page's examples carry an IAM role after the catalog clause.
+		if p.acceptRedshiftKeyword("iam_role") {
+			role, err := p.parseRedshiftStringOrKeyword()
+			if err != nil {
+				return nil, err
+			}
+			items = append(items, makeDefElem("iam_role", &nodes.String{Str: role}))
 		}
-		items = append(items, makeDefElem("data_catalog_schema", &nodes.String{Str: schema}))
-	case p.consumeRedshiftWord("datashare"):
+	case p.acceptRedshiftKeyword("datashare"):
 		share, err := p.parseName()
 		if err != nil {
 			return nil, err
@@ -132,14 +146,14 @@ func (p *Parser) parseRedshiftCreateDatabaseSource(dbname string, stmtLoc int) (
 		if _, err := p.expect(OF); err != nil {
 			return nil, err
 		}
-		if p.consumeRedshiftWord("account") {
+		if p.acceptRedshiftKeyword("account") {
 			account, err := p.parseRedshiftDatashareValue()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("datashare_account", &nodes.String{Str: account}))
 		}
-		if !p.consumeRedshiftWord("namespace") {
+		if !p.acceptRedshiftKeyword("namespace") {
 			return nil, p.syntaxErrorAtCur()
 		}
 		namespace, err := p.parseRedshiftDatashareValue()
@@ -167,6 +181,36 @@ func (p *Parser) parseRedshiftSourceString() (string, error) {
 	return p.advance().Str, nil
 }
 
+// parseRedshiftSourceName reads an integration source database's name: the
+// string literal the Syntax block writes or the identifier its examples use.
+func (p *Parser) parseRedshiftSourceName() (string, error) {
+	if p.cur.Type == SCONST {
+		return p.advance().Str, nil
+	}
+	return p.parseName()
+}
+
+// parseRedshiftQualifiedNameStringList parses a comma-separated list of
+// qualified names into one dotted String per name.
+func (p *Parser) parseRedshiftQualifiedNameStringList() (*nodes.List, error) {
+	var items []nodes.Node
+	for {
+		parts, err := p.parseQualifiedName()
+		if err != nil {
+			return nil, err
+		}
+		names := make([]string, 0, len(parts.Items))
+		for _, part := range parts.Items {
+			names = append(names, part.(*nodes.String).Str)
+		}
+		items = append(items, &nodes.String{Str: strings.Join(names, ".")})
+		if p.cur.Type != ',' {
+			return &nodes.List{Items: items}, nil
+		}
+		p.advance()
+	}
+}
+
 // parseRedshiftDatashareValue reads a datashare account or namespace: a name,
 // a number, or the string literal the AWS pages write those values as.
 func (p *Parser) parseRedshiftDatashareValue() (string, error) {
@@ -185,48 +229,45 @@ func (p *Parser) parseRedshiftIntegrationOptions(historyModeFor bool) ([]nodes.N
 	var items []nodes.Node
 	for p.isRedshiftIntegrationOptionStart() {
 		switch {
-		case p.consumeRedshiftWord("acceptinvchars"):
+		case p.acceptRedshiftKeyword("acceptinvchars"):
 			value, err := p.parseRedshiftIntegrationBool()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("acceptinvchars", &nodes.Boolean{Boolval: value}))
-		case p.consumeRedshiftWord("query_all_states"):
+		case p.acceptRedshiftKeyword("query_all_states"):
 			value, err := p.parseRedshiftIntegrationBool()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("query_all_states", &nodes.Boolean{Boolval: value}))
-		case p.consumeRedshiftWord("refresh_interval"):
-			if p.cur.Type == '=' {
-				p.advance()
-			}
+		case p.acceptRedshiftKeyword("refresh_interval"):
 			if p.cur.Type != ICONST {
 				return nil, p.syntaxErrorAtCur()
 			}
 			items = append(items, makeDefElem("refresh_interval", &nodes.Integer{Ival: p.parseSignedIconst()}))
-		case p.consumeRedshiftWord("truncatecolumns"):
+		case p.acceptRedshiftKeyword("truncatecolumns"):
 			value, err := p.parseRedshiftIntegrationBool()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("truncatecolumns", &nodes.Boolean{Boolval: value}))
-		case p.consumeRedshiftWord("history_mode"):
+		case p.acceptRedshiftKeyword("history_mode"):
 			value, err := p.parseRedshiftIntegrationBool()
 			if err != nil {
 				return nil, err
 			}
 			items = append(items, makeDefElem("history_mode", &nodes.Boolean{Boolval: value}))
-			if !historyModeFor || !p.consumeRedshiftWord("for") {
+			if !historyModeFor || !p.acceptRedshiftKeyword("for") {
 				continue
 			}
 			switch {
-			case p.consumeRedshiftWord("all"):
+			case p.acceptRedshiftKeyword("all"):
 				if _, err := p.expect(TABLES); err != nil {
 					return nil, err
 				}
 				items = append(items, makeDefElem("history_mode_all_tables", &nodes.Boolean{Boolval: true}))
-				if p.consumeRedshiftWord("in") {
+				if p.acceptRedshiftKeyword("in") {
 					if _, err := p.expect(SCHEMA); err != nil {
 						return nil, err
 					}
@@ -236,8 +277,8 @@ func (p *Parser) parseRedshiftIntegrationOptions(historyModeFor bool) ([]nodes.N
 					}
 					items = append(items, makeDefElem("history_mode_schemas", schemas))
 				}
-			case p.consumeRedshiftWord("table"):
-				tables, err := p.parseNameList()
+			case p.acceptRedshiftKeyword("table"):
+				tables, err := p.parseRedshiftQualifiedNameStringList()
 				if err != nil {
 					return nil, err
 				}
@@ -245,7 +286,7 @@ func (p *Parser) parseRedshiftIntegrationOptions(historyModeFor bool) ([]nodes.N
 			default:
 				return nil, p.syntaxErrorAtCur()
 			}
-		case p.consumeRedshiftWord("auto_remediation"):
+		case p.acceptRedshiftKeyword("auto_remediation"):
 			value, err := p.parseRedshiftIntegrationBool()
 			if err != nil {
 				return nil, err
@@ -538,23 +579,23 @@ func (p *Parser) parseRedshiftAlterDatabaseIntegration(dbname string, stmtLoc in
 	p.advance() // INTEGRATION
 	var items []nodes.Node
 	switch {
-	case p.consumeRedshiftWord("refresh"):
+	case p.acceptRedshiftKeyword("refresh"):
 		mode := ""
 		switch {
-		case p.consumeRedshiftWord("all"):
+		case p.acceptRedshiftKeyword("all"):
 			mode = "all"
-		case p.consumeRedshiftWord("inerror"):
+		case p.acceptRedshiftKeyword("inerror"):
 			mode = "inerror"
-		case p.consumeRedshiftWord("remediable"):
+		case p.acceptRedshiftKeyword("remediable"):
 			mode = "remediable"
-		case p.consumeRedshiftWord("table"):
+		case p.acceptRedshiftKeyword("table"):
 			mode = "table"
 		default:
 			return nil, p.syntaxErrorAtCur()
 		}
 		items = append(items, makeDefElem("refresh", &nodes.String{Str: mode}))
 		if mode == "table" {
-			tables, err := p.parseNameList()
+			tables, err := p.parseRedshiftQualifiedNameStringList()
 			if err != nil {
 				return nil, err
 			}
@@ -564,7 +605,7 @@ func (p *Parser) parseRedshiftAlterDatabaseIntegration(dbname string, stmtLoc in
 		if _, err := p.expect(TABLES); err != nil {
 			return nil, err
 		}
-		if p.consumeRedshiftWord("in") {
+		if p.acceptRedshiftKeyword("in") {
 			if _, err := p.expect(SCHEMA); err != nil {
 				return nil, err
 			}
@@ -574,7 +615,7 @@ func (p *Parser) parseRedshiftAlterDatabaseIntegration(dbname string, stmtLoc in
 			}
 			items = append(items, makeDefElem("refresh_schemas", schemas))
 		}
-	case p.consumeRedshiftWord("set"):
+	case p.acceptRedshiftKeyword("set"):
 		options, err := p.parseRedshiftIntegrationOptions(true)
 		if err != nil {
 			return nil, err
