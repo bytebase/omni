@@ -1645,6 +1645,28 @@ func (p *Parser) parseATNestedTableStorage() error {
 				p.advance()
 				continue
 			}
+			if p.atWord("INCLUDING") {
+				ahead := p.peekAhead(2)
+				if !isGrantWordToken(ahead[0]) || !p.isIdentLikeStrAt(ahead[1], "OVERFLOW") {
+					return p.syntaxErrorAtCur()
+				}
+				if clusterSeen || orgSeen || phase > 4 {
+					return p.syntaxErrorAtCur()
+				}
+				orgSeen = true
+				phase = 5
+				p.advance() // INCLUDING
+				p.advance() // the overflow column
+				if err := p.atExpectWord("OVERFLOW"); err != nil {
+					return err
+				}
+				if p.isATSegmentAttrStart() {
+					if err := p.parseATSegmentAttrs(nil); err != nil {
+						return err
+					}
+				}
+				continue
+			}
 			if p.cur.Type == kwCLUSTER {
 				if clusterSeen || phase > 5 {
 					return p.syntaxErrorAtCur()

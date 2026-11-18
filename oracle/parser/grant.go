@@ -646,7 +646,10 @@ func (p *Parser) parseGrantees(programs bool, repeatedKind bool) (*nodes.List, e
 func (p *Parser) parseGrantProgramUnit(repeatedKind bool) (string, error) {
 	prefix := ""
 	if !isGrantProgramUnitKind(p.cur) {
-		if !p.isIdentLike() {
+		// revoke_roles_from_programs names the outer kind immediately after
+		// FROM; a schema there belongs to a grant's grantee, not a repeated
+		// program revoke.
+		if repeatedKind || !p.isIdentLike() {
 			return "", p.syntaxErrorAtCur()
 		}
 		schema, err := p.parseIdentifier()
